@@ -6,7 +6,12 @@ export default function ReadingPage() {
   };
   return (
     <div>
-      <form onSubmit={handleSubmit}></form>
+      <form onSubmit={handleSubmit}>
+        <input />
+        <input />
+
+        <button>Enviar</button>
+      </form>
     </div>
   );
 }

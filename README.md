@@ -1,23 +1,25 @@
-# Docs
+# Docs temporary name
 We will use this to document important things to keep track of what we are doing
 
 ## Database model 1.0 temporary name
 
-profiles: (OK)
+```yaml
+
+profiles:
 
 id (uuid, PK, igual ao auth.users.id)
 name (text)
 level (numeric)
 created_at (timestamp)
 
-categories: (OK)
+categories:
 
 id (uuid, PK)
 name (text)
 points_per_page (numeric)
 created_at (timestamp)
 
-readings: (OK)
+readings:
 
 id (uuid, PK)
 user_id (uuid, FK profiles.id)
@@ -27,7 +29,7 @@ source_name (text)
 reading_date (date)
 created_at (timestamp)
 
-goals: (OK)
+goals:
 
 id
 name                
@@ -37,7 +39,7 @@ bonus_points
 active
 created_at
 
-goal_progress: (OK)
+goal_progress:
 
 id
 user_id
@@ -48,14 +50,10 @@ bonus_points
 completed
 debt_points
 
-user_streaks: (OK)
+user_streaks:
 
 user_id (PK)
 current_streak
 longest_streak
 last_completed_date
-
-
-
-
-
+```

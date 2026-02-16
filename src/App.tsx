@@ -1,7 +1,10 @@
 import "./index.css";
+import Dashboard from "./pages/DashboardPage";
 
 function App() {
-  return <></>;
+  return <>
+  <Dashboard />
+  </>;
 }
 
 export default App;
