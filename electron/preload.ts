@@ -1,5 +1,14 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
+contextBridge.exposeInMainWorld('electronAPI', {
+  getFilePath: () => {
+    return new Promise((resolve) => {
+      ipcRenderer.once('file-opened', (_, filePath) => resolve(filePath))
+      ipcRenderer.send('open-file-dialog')
+    })
+  }
+})
+
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {
@@ -19,6 +28,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     return ipcRenderer.invoke(channel, ...omit)
   },
 
+  
   // You can expose other APTs you need here.
   // ...
 })

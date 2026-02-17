@@ -1,7 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage";
-import ReadingPage from "./pages/ReadingPage";
+import AddReadingPage from "./pages/AddReadingPage";
+import ReadingIframe from "./pages/ReadingPage";
 import Sidebar from "./components/Sidebar";
 
 function App() {
@@ -12,7 +13,8 @@ function App() {
       <main className="w-full">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/reading" element={<ReadingPage />} />
+          <Route path="/add_reading" element={<AddReadingPage />} />
+          <Route path="/reading" element={<ReadingIframe />} />
         </Routes>
       </main>
       </div>

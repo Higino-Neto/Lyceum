@@ -21,7 +21,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <button onClick={() => navigate("/reading")} className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-5 py-2.5 rounded-lg text-lg font-medium shadow-lg">
+            <button onClick={() => navigate("/add_reading")} className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-5 py-2.5 rounded-lg text-lg font-medium shadow-lg">
               Registrar Leitura
             </button>
           </header>

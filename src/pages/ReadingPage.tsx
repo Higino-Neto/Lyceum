@@ -1,263 +1,146 @@
-import { ArrowLeft, BookOpen, Plus, Trash2, Copy } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import React, { useState, useRef } from 'react'
+import { ArrowLeft, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-interface ReadingEntry {
-  id: string;
-  bookTitle: string;
-  numPages: string;
-  category: string;
-  readingTime: string;
-  date: string;
-}
+const ReadingIframe: React.FC = () => {
+  const navigate = useNavigate()
+  const [pdfData, setPdfData] = useState<string | null>(null)
+  const [, setFileName] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
-export default function ReadingPage() {
-  const navigate = useNavigate();
-  const [entries, setEntries] = useState<ReadingEntry[]>([
-    {
-      id: crypto.randomUUID(),
-      bookTitle: "",
-      numPages: "",
-      category: "",
-      readingTime: "",
-      date: new Date().toISOString().split("T")[0]
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setFileName(file.name)
+
+    // Limpar URL anterior
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
     }
-  ]);
 
-  const addNewEntry = () => {
-    setEntries([
-      ...entries,
-      {
-        id: crypto.randomUUID(),
-        bookTitle: "",
-        numPages: "",
-        category: "",
-        readingTime: "",
-        date: new Date().toISOString().split("T")[0]
-      }
-    ]);
-  };
+    // Criar URL temporária (mais eficiente que data URL)
+    const url = URL.createObjectURL(file)
+    objectUrlRef.current = url
+    setPdfData(url)
+  }
 
-  const duplicateEntry = (id: string) => {
-    const entryToDuplicate = entries.find(e => e.id === id);
-    if (entryToDuplicate) {
-      const newEntry = {
-        ...entryToDuplicate,
-        id: crypto.randomUUID()
-      };
-      const index = entries.findIndex(e => e.id === id);
-      const newEntries = [...entries];
-      newEntries.splice(index + 1, 0, newEntry);
-      setEntries(newEntries);
-    }
-  };
+  const openFileDialog = () => {
+    fileInputRef.current?.click()
+  }
 
-  const removeEntry = (id: string) => {
-    if (entries.length > 1) {
-      setEntries(entries.filter(entry => entry.id !== id));
-    }
-  };
-
-  const updateEntry = (id: string, field: keyof ReadingEntry, value: string) => {
-    setEntries(entries.map(entry => 
-      entry.id === id ? { ...entry, [field]: value } : entry
-    ));
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Filtrar entradas vazias (sem título ou páginas)
-    const validEntries = entries.filter(
-      entry => entry.bookTitle.trim() !== "" && entry.numPages !== ""
-    );
-    
-    console.log("Leituras registradas:", validEntries);
-    
-    // Aqui você enviaria para o backend
-    // Por enquanto, só volta pro dashboard
-    navigate("/dashboard");
-  };
-
-  const calculateTotalPoints = (entry: ReadingEntry) => {
-    const pages = parseInt(entry.numPages) || 0;
-    const time = parseInt(entry.readingTime) || 0;
-    return pages + (time * 0.5);
-  };
-
-  const calculateGrandTotal = () => {
-    return entries.reduce((total, entry) => total + calculateTotalPoints(entry), 0);
-  };
+  // const handlePrint = () => {
+  //   if (pdfData) {
+  //     const printWindow = window.open(pdfData)
+  //     printWindow?.print()
+  //   }
+  // }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <main className="flex-1 p-4 md:p-8 overflow-auto">
-        <div className="max-w-7xl mx-auto">
-          {/* Header simplificado */}
-          <div className="mb-6 flex items-center justify-between">
-            <button
-              onClick={() => navigate("/")}
-              className="cursor-pointer flex items-center gap-2 text-zinc-400 hover:text-zinc-100 transition"
-            >
-              <ArrowLeft size={20} />
-              <span>Dashboard</span>
-            </button>
-            
-            <div className="flex items-center gap-3">
-              <BookOpen className="text-green-500" size={24} />
-              <h1 className="text-2xl font-semibold">Registrar leituras</h1>
-            </div>
-            
-            <div className="text-green-500 font-medium">
-              Total: {calculateGrandTotal()} pts
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            {/* Cabeçalho da tabela */}
-            <div className="grid grid-cols-12 gap-3 mb-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              <div className="col-span-4">Livro</div>
-              <div className="col-span-1">Págs</div>
-              <div className="col-span-2">Categoria</div>
-              <div className="col-span-1">Tempo</div>
-              <div className="col-span-2">Data</div>
-            </div>
-
-            {/* Linhas de entrada */}
-            <div className="space-y-2 mb-6">
-              {entries.map((entry, index) => (
-                <div 
-                  key={entry.id} 
-                  className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-lg p-2 hover:border-zinc-700 transition"
-                >
-                  {/* Título do Livro */}
-                  <div className="col-span-4">
-                    <input
-                      type="text"
-                      value={entry.bookTitle}
-                      onChange={(e) => updateEntry(entry.id, "bookTitle", e.target.value)}
-                      placeholder={`Livro ${index + 1}`}
-                      className="w-full rounded bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm"
-                      autoFocus={index === entries.length - 1}
-                    />
-                  </div>
-
-                  {/* Páginas */}
-                  <div className="col-span-1">
-                    <input
-                      type="number"
-                      value={entry.numPages}
-                      onChange={(e) => updateEntry(entry.id, "numPages", e.target.value)}
-                      placeholder="0"
-                      min="1"
-                      className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-
-                  {/* Categoria */}
-                  <div className="col-span-2">
-                    <select
-                      value={entry.category}
-                      onChange={(e) => updateEntry(entry.id, "category", e.target.value)}
-                      className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
-                    >
-                      <option value="">Selecione</option>
-                      <option value="fiction">Ficção</option>
-                      <option value="non-fiction">Não-ficção</option>
-                      <option value="sci-fi">Ficção Científica</option>
-                      <option value="fantasy">Fantasia</option>
-                      <option value="biography">Biografia</option>
-                      <option value="history">História</option>
-                      <option value="self-dev">Autoajuda</option>
-                      <option value="technical">Técnico</option>
-                      <option value="other">Outro</option>
-                    </select>
-                  </div>
-
-                  {/* Tempo */}
-                  <div className="col-span-1">
-                    <input
-                      type="number"
-                      value={entry.readingTime}
-                      onChange={(e) => updateEntry(entry.id, "readingTime", e.target.value)}
-                      placeholder="min"
-                      min="1"
-                      className="w-16 bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-
-                  {/* Data */}
-                  <div className="col-span-2">
-                    <input
-                      type="date"
-                      value={entry.date}
-                      onChange={(e) => updateEntry(entry.id, "date", e.target.value)}
-                      className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-
-                  {/* Pontos e Ações */}
-                  <div className="col-span-2 flex items-between px-3 gap-2">
-                    <span className="text-sm text-green-500 font-mono w-full">
-                      {calculateTotalPoints(entry)}
-                    </span>
-                    
-                    <button
-                      type="button"
-                      onClick={() => duplicateEntry(entry.id)}
-                      className="text-zinc-500 hover:text-zinc-300 transition"
-                      title="Duplicar linha"
-                    >
-                      <Copy size={14} />
-                    </button>
-                    
-                      <button
-                        type="button"
-                        disabled={entries.length < 2}
-                        onClick={() => removeEntry(entry.id)}
-                        className={entries.length < 2 ? (`text-zinc-700 cursor-no-drop`) : (`text-zinc-500 hover:text-red-400 transition`)}
-                        title="Remover linha"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Barra de ações inferior */}
-            <div className="flex items-center justify-between border-t border-zinc-800 pt-6">
+      <main className="flex-1 p-8 overflow-auto ">
+        <div className="max-w-7xl mx-auto space-y-8 ">
+          {/* Header */}
+          <header className="flex justify-between items-center ">
+            <div className="flex items-center gap-4">
               <button
-                type="button"
-                onClick={addNewEntry}
-                className="cursor-pointer flex items-center gap-2 text-green-500 hover:text-green-400 transition text-sm font-medium"
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
               >
-                <Plus size={18} />
-                Adicionar outra leitura
+                <ArrowLeft size={20} />
+                <span>Voltar</span>
               </button>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard")}
-                  className="cursor-pointer px-6 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-lg text-zinc-300 hover:text-zinc-100 transition text-sm"
-                >
-                  Cancelar
-                </button>
-                
-                <button
-                  type="submit"
-                  className="cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-lg transition text-sm"
-                >
-                  Registrar {entries.length} leitura{entries.length > 1 ? 's' : ''}
-                </button>
+              <div>
+                <div className="flex gap-2 items-center">
+                  <FileText className="text-green-500" size={24} />
+                  <h1 className="text-2xl font-semibold tracking-tight">
+                    Leitor de PDF
+                  </h1>
+                </div>
               </div>
             </div>
 
-          </form>
+            <button
+              onClick={openFileDialog}
+              className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-5 py-2.5 rounded-lg text-lg font-medium shadow-lg"
+            >
+              Abrir PDF
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </header>
+
+          {/* Barra de informações do arquivo (só aparece quando tem PDF) */}
+          {/* {pdfData && fileName && (
+            <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-green-500">📄</span>
+                  <span className="text-zinc-300 font-medium">{fileName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrint}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
+                    title="Imprimir"
+                  >
+                    <Printer size={18} />
+                  </button>
+                  <a
+                    href={pdfData}
+                    download={fileName}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
+                    title="Download"
+                  >
+                    <Download size={18} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )} */}
+
+          {/* Área do PDF */}
+          <section className="bg-zinc-900 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
+            <div className="h-[calc(100vh)]">
+              {pdfData ? (
+                <iframe
+                  src={pdfData}
+                  className="w-full h-full"
+                  title="PDF Viewer"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-zinc-400">
+                  <div className="text-8xl mb-4">📚</div>
+                  <h2 className="text-2xl font-bold text-zinc-300 mb-2">Nenhum PDF aberto</h2>
+                  <p className="mb-6 text-zinc-500">Clique em "Abrir PDF" para começar</p>
+                  <button
+                    onClick={openFileDialog}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-500 text-black rounded-lg font-medium transition-colors shadow-lg"
+                  >
+                    Selecionar arquivo
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Dica (opcional) */}
+          {!pdfData && (
+            <div className="text-center text-zinc-600 text-sm">
+              <p>Formatos suportados: PDF • Visualização nativa do Electron</p>
+            </div>
+          )}
         </div>
       </main>
     </div>
-  );
+  )
 }
+
+export default ReadingIframe

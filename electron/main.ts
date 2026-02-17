@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -27,6 +27,18 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null;
+
+ipcMain.on('open-file-dialog', (event) => {
+  dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  }).then(result => {
+    if (!result.canceled) {
+      event.sender.send('file-opened', result.filePaths[0])
+    }
+  })
+})
+
 
 function createWindow() {
   win = new BrowserWindow({

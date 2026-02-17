@@ -1,5 +1,13 @@
 "use strict";
 const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  getFilePath: () => {
+    return new Promise((resolve) => {
+      electron.ipcRenderer.once("file-opened", (_, filePath) => resolve(filePath));
+      electron.ipcRenderer.send("open-file-dialog");
+    });
+  }
+});
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {
     const [channel, listener] = args;

@@ -15,8 +15,14 @@ export default function Sidebar() {
         <button onClick={() => navigate("/")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/' && (`bg-zinc-800`)}`}>
           Dashboard
         </button>
-        <button onClick={() => navigate("/reading")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/reading' && (`bg-zinc-800`)}`}>
+        <button onClick={() => navigate("/add_reading")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/add_reading' && (`bg-zinc-800`)}`}>
           Registrar Leituras
+        </button>
+        <button onClick={() => navigate("/pomodoro")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
+          Pomodoro
+        </button>
+        <button onClick={() => navigate("/reading")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/reading' && (`bg-zinc-800`)}`}>
+          Ler
         </button>
         <button className="cursor-pointer w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition">
           Ranking
