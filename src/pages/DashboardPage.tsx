@@ -1,27 +1,27 @@
 import { LayoutDashboard } from "lucide-react";
 import RankingTable from "../components/RankingTable";
 import { HeatMapTemplate } from "../components/ReadingHeatmap";
-import Sidebar from "../components/Sidebar";
 import StatCard from "../components/StatCard";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   return (
-    <div className="h-screen bg-zinc-950 text-zinc-100 flex">
-      <Sidebar />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
 
       <main className="flex-1 p-8 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-8">
           <header className="flex justify-between items-center">
             <div>
               <div className="flex gap-2 items-center">
-                <LayoutDashboard size={24} />
-                <h1 className="text-3xl font-semibold tracking-tight">
+                <LayoutDashboard className="text-green-500" size={24} />
+                <h1 className="text-2xl font-semibold tracking-tight">
                   Dashboard
                 </h1>
               </div>
             </div>
 
-            <button className="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-2.5 rounded-lg font-medium shadow-lg">
+            <button onClick={() => navigate("/reading")} className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-5 py-2.5 rounded-lg text-lg font-medium shadow-lg">
               Registrar Leitura
             </button>
           </header>
@@ -47,13 +47,13 @@ export default function Dashboard() {
           </section>
 
           <section className="flex">
-            <div className="rounded-2xl border border-zinc-800 w-full">
+            <div className="rounded-lg border border-zinc-800 w-full">
               <HeatMapTemplate />
             </div>
           </section>
 
           <section>
-            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 shadow-xl">
+            <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 shadow-xl">
               <h2 className="text-lg font-semibold mb-4">Ranking Geral</h2>
 
               <RankingTable />

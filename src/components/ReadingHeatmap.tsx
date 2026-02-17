@@ -17,20 +17,19 @@ export function HeatMapTemplate() {
     const date = new Date(dataStartDate);
     date.setDate(date.getDate() + i);
     let count = Math.floor(Math.random() * 20); // Random count between 0 and 19
-    if (count < 10) count = 0;
     value.push({
       date: `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`,
       count,
     });
   }
 
-  const darkPanelColors = [
-    "#18181B", // No activity (dark gray)
-    "#4A5568", // Low
-    "#4299E1", // Medium
-    "#3182CE", // High
-    "#2B6CB0", // Very high
-  ];
+const darkPanelColors = [
+  "#18181B", // Nível 0 - sem contribuições
+  "#18181B", // Nível 1 - 1-3 contribuições
+  "#006d32", // Nível 2 - 4-6 contribuições
+  "#26a641", // Nível 3 - 7-9 contribuições
+  "#39d353", // Nível 4 - 10+ contribuições
+];
 
   return (
     <div className="p-6 bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg max-w-full">

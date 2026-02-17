@@ -1,13 +1,11 @@
 @import "tailwindcss";
 
-@import 'tailwindcss';
-
 /* Scrollbar personalizada para toda a aplicação */
 @layer base {
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #4a5568 #1a202c;
+    scrollbar-color: #18181B #09090B;
   }
 
   /* Chrome, Edge, Safari */
@@ -33,5 +31,14 @@
 
   *::-webkit-scrollbar-corner {
     background: transparent;
+  }
+  
+  :focus {
+    outline: none !important;
+  }
+  
+  :focus-visible {
+    outline: 2px solid #22c55e !important; /* verde do seu tema */
+    outline-offset: 2px;
   }
 }
