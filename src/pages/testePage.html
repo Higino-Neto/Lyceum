@@ -1,0 +1,783 @@
+<!doctype html>
+
+<html class="dark" lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Análises Avançadas de Leitura</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#10b77f",
+              "background-light": "#f6f8f7",
+              "background-dark": "#09090B",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .chart-gradient-line {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 0;
+      }
+      .radial-progress {
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen"
+  >
+    <div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+      <header
+        class="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/20 bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md px-6 md:px-10 py-3 sticky top-0 z-50"
+      >
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3 text-primary">
+            <span class="material-symbols-outlined text-3xl">auto_stories</span>
+            <h2
+              class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight"
+            >
+              Análises Avançadas de Leitura
+            </h2>
+          </div>
+          <div class="hidden lg:flex items-center ml-8 gap-1">
+            <label class="flex flex-col min-w-40 !h-10 max-w-64">
+              <div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+                <div
+                  class="text-slate-400 flex border-none bg-primary/10 items-center justify-center pl-4 rounded-l-lg"
+                >
+                  <span class="material-symbols-outlined text-xl">search</span>
+                </div>
+                <input
+                  class="form-input flex w-full min-w-0 flex-1 border-none bg-primary/10 focus:ring-0 focus:outline-none text-slate-900 dark:text-white h-full placeholder:text-slate-500 px-4 rounded-r-lg text-sm"
+                  placeholder="Buscar livros ou autores..."
+                />
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="flex items-center gap-6">
+          <nav class="hidden md:flex items-center gap-6">
+            <a
+              class="text-primary text-sm font-semibold border-b-2 border-primary pb-1"
+              href="#"
+              >Dashboard</a
+            >
+            <a
+              class="text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors"
+              href="#"
+              >Minha Estante</a
+            >
+            <a
+              class="text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors"
+              href="#"
+              >Metas</a
+            >
+            <a
+              class="text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors"
+              href="#"
+              >Comunidade</a
+            >
+          </nav>
+          <div class="h-6 w-px bg-primary/20 hidden md:block"></div>
+          <button
+            class="flex min-w-[140px] items-center gap-2 justify-center rounded-lg h-10 px-4 bg-primary text-background-dark text-sm font-bold transition-transform active:scale-95"
+          >
+            <span class="material-symbols-outlined text-lg">add_circle</span>
+            <span class="truncate">Registrar Leitura</span>
+          </button>
+          <div
+            class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/30"
+            data-alt="Avatar circular do usuário logado"
+            style="
+              background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuBAhFw0nFLDwr7Rv1SVNYw3gEBv6oxp75MkTH06EcdUsm4zpF4vni4fkNhDucK45wH3e3oDAdSWuLi_4NGlGWGCaHT1hmyQNm6V_Bn01BD84v8Ezu3YvstGG8fHLkR0CTIvYcyX-FKYBhkh8aVdh_69doB0ezGnSZZzyyZj3QFgldlMPtA1l9ZGOvg9cMnxTQNYP-3KaJewxfnIMqqy5K4Ae9c9OdOYD7ORJ97N5X3hvKY3fyaD-FyMfLG6WjPjfzRh-ohXxvSHU1zi&quot;);
+            "
+          ></div>
+        </div>
+      </header>
+      <main class="flex-1 px-4 md:px-10 py-8 max-w-[1600px] mx-auto w-full">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div
+            class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900/40 border border-primary/10 shadow-sm"
+          >
+            <div class="flex items-center justify-between">
+              <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                Total de Pontos
+              </p>
+              <span class="material-symbols-outlined text-primary"
+                >military_tech</span
+              >
+            </div>
+            <p class="text-slate-900 dark:text-white text-3xl font-bold">
+              12.450
+            </p>
+            <p
+              class="text-primary text-xs font-semibold flex items-center gap-1"
+            >
+              <span class="material-symbols-outlined text-xs">trending_up</span>
+              +12% este mês
+            </p>
+          </div>
+          <div
+            class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900/40 border border-primary/10 shadow-sm"
+          >
+            <div class="flex items-center justify-between">
+              <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                Páginas Lidas
+              </p>
+              <span class="material-symbols-outlined text-primary"
+                >menu_book</span
+              >
+            </div>
+            <p class="text-slate-900 dark:text-white text-3xl font-bold">
+              4.820
+            </p>
+            <p
+              class="text-primary text-xs font-semibold flex items-center gap-1"
+            >
+              <span class="material-symbols-outlined text-xs">trending_up</span>
+              +5% vs meta
+            </p>
+          </div>
+          <div
+            class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900/40 border border-primary/10 shadow-sm"
+          >
+            <div class="flex items-center justify-between">
+              <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                Sequência Atual
+              </p>
+              <span class="material-symbols-outlined text-orange-500"
+                >local_fire_department</span
+              >
+            </div>
+            <p class="text-slate-900 dark:text-white text-3xl font-bold">
+              15 dias
+            </p>
+            <p
+              class="text-primary text-xs font-semibold flex items-center gap-1"
+            >
+              <span class="material-symbols-outlined text-xs">done_all</span>
+              Recorde: 22 dias
+            </p>
+          </div>
+          <div
+            class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900/40 border border-primary/10 shadow-sm"
+          >
+            <div class="flex items-center justify-between">
+              <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                Ranking Global
+              </p>
+              <span class="material-symbols-outlined text-primary">trophy</span>
+            </div>
+            <p class="text-slate-900 dark:text-white text-3xl font-bold">
+              #128
+            </p>
+            <p
+              class="text-primary text-xs font-semibold flex items-center gap-1"
+            >
+              <span class="material-symbols-outlined text-xs">stat_1</span>
+              Subiu 15 posições
+            </p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            class="lg:col-span-2 rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6 flex flex-col h-[400px]"
+          >
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                  Evolução de Pontos Diária
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  Pontos acumulados vs meta diária
+                </p>
+              </div>
+              <div class="flex gap-2">
+                <span
+                  class="flex items-center gap-1 text-[10px] font-bold text-primary"
+                  ><span class="w-2 h-2 rounded-full bg-primary"></span>
+                  Atual</span
+                >
+                <span
+                  class="flex items-center gap-1 text-[10px] font-bold text-slate-400"
+                  ><span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                  Meta</span
+                >
+              </div>
+            </div>
+            <div class="flex-1 w-full relative">
+              <svg
+                class="w-full h-full"
+                preserveaspectratio="none"
+                viewbox="0 0 800 250"
+              >
+                <defs>
+                  <lineargradient
+                    id="line-gradient"
+                    x1="0"
+                    x2="0"
+                    y1="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stop-color="#10b77f"
+                      stop-opacity="0.3"
+                    ></stop>
+                    <stop
+                      offset="100%"
+                      stop-color="#10b77f"
+                      stop-opacity="0"
+                    ></stop>
+                  </lineargradient>
+                </defs>
+                <path
+                  d="M0,200 L50,180 L100,190 L150,140 L200,150 L250,120 L300,130 L350,80 L400,100 L450,60 L500,70 L550,40 L600,50 L650,20 L700,30 L800,10 V250 H0 Z"
+                  fill="url(#line-gradient)"
+                ></path>
+                <path
+                  d="M0,200 L50,180 L100,190 L150,140 L200,150 L250,120 L300,130 L350,80 L400,100 L450,60 L500,70 L550,40 L600,50 L650,20 L700,30 L800,10"
+                  fill="none"
+                  stroke="#10b77f"
+                  stroke-linecap="round"
+                  stroke-width="3"
+                ></path>
+                <line
+                  stroke="rgba(148, 163, 184, 0.3)"
+                  stroke-dasharray="5,5"
+                  stroke-width="1"
+                  x1="0"
+                  x2="800"
+                  y1="120"
+                  y2="120"
+                ></line>
+              </svg>
+              <div
+                class="flex justify-between mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest"
+              >
+                <span>01/10</span>
+                <span>07/10</span>
+                <span>14/10</span>
+                <span>21/10</span>
+                <span>28/10</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6 flex flex-col h-[400px]"
+          >
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-1">
+              Distribuição por Categoria
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">
+              Gêneros literários mais lidos
+            </p>
+            <div
+              class="flex-1 flex flex-col items-center justify-center relative"
+            >
+              <div
+                class="w-48 h-48 rounded-full border-[16px] border-slate-200 dark:border-slate-800 flex items-center justify-center relative"
+              >
+                <div
+                  class="absolute inset-0 rounded-full border-[16px] border-primary border-t-transparent border-l-transparent"
+                  style="transform: rotate(45deg)"
+                ></div>
+                <div
+                  class="absolute inset-0 rounded-full border-[16px] border-emerald-300 dark:border-emerald-600 border-b-transparent border-r-transparent"
+                  style="transform: rotate(-120deg)"
+                ></div>
+                <div class="text-center">
+                  <p class="text-2xl font-black text-slate-900 dark:text-white">
+                    64%
+                  </p>
+                  <p
+                    class="text-[10px] text-slate-500 uppercase font-bold tracking-tighter"
+                  >
+                    Ficção
+                  </p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-x-8 gap-y-2 mt-8 w-full">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-primary"></span>
+                  <span class="text-slate-600 dark:text-slate-400"
+                    >Ficção (45%)</span
+                  >
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span
+                    class="w-2 h-2 rounded-full bg-emerald-300 dark:bg-emerald-600"
+                  ></span>
+                  <span class="text-slate-600 dark:text-slate-400"
+                    >Autoajuda (25%)</span
+                  >
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                  <span class="text-slate-600 dark:text-slate-400"
+                    >Clássicos (20%)</span
+                  >
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                  <span class="text-slate-600 dark:text-slate-400"
+                    >Outros (10%)</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            class="rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">
+              Atividade Semanal
+            </h3>
+            <div class="flex items-end justify-between h-48 gap-2">
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[40%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/30 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">SEG</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[60%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/30 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">TER</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[85%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/50 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">QUA</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[45%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/30 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">QUI</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[70%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/40 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">SEX</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[100%]"
+                >
+                  <div class="absolute inset-0 bg-primary rounded-t-lg"></div>
+                </div>
+                <span class="text-[10px] font-bold text-primary">SÁB</span>
+              </div>
+              <div class="flex flex-col items-center gap-2 flex-1">
+                <div
+                  class="w-full bg-primary/10 rounded-t-lg relative group h-[90%]"
+                >
+                  <div
+                    class="absolute inset-0 bg-primary/80 rounded-t-lg group-hover:bg-primary transition-colors"
+                  ></div>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500">DOM</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6 flex flex-col justify-between"
+          >
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">
+              Progresso de Metas
+            </h3>
+            <div class="space-y-6">
+              <div class="flex items-center gap-4">
+                <div class="relative size-16">
+                  <svg class="size-full radial-progress" viewbox="0 0 36 36">
+                    <path
+                      class="stroke-current text-slate-200 dark:text-slate-800"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-width="3"
+                    ></path>
+                    <path
+                      class="stroke-current text-primary"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-dasharray="85, 100"
+                      stroke-linecap="round"
+                      stroke-width="3"
+                    ></path>
+                  </svg>
+                  <div
+                    class="absolute inset-0 flex items-center justify-center text-[10px] font-bold"
+                  >
+                    85%
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-bold text-slate-900 dark:text-white">
+                    Meta Diária
+                  </p>
+                  <p class="text-xs text-slate-500">42 / 50 páginas</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="relative size-16">
+                  <svg class="size-full radial-progress" viewbox="0 0 36 36">
+                    <path
+                      class="stroke-current text-slate-200 dark:text-slate-800"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-width="3"
+                    ></path>
+                    <path
+                      class="stroke-current text-primary"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-dasharray="60, 100"
+                      stroke-linecap="round"
+                      stroke-width="3"
+                    ></path>
+                  </svg>
+                  <div
+                    class="absolute inset-0 flex items-center justify-center text-[10px] font-bold"
+                  >
+                    60%
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-bold text-slate-900 dark:text-white">
+                    Meta Semanal
+                  </p>
+                  <p class="text-xs text-slate-500">210 / 350 páginas</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="relative size-16">
+                  <svg class="size-full radial-progress" viewbox="0 0 36 36">
+                    <path
+                      class="stroke-current text-slate-200 dark:text-slate-800"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-width="3"
+                    ></path>
+                    <path
+                      class="stroke-current text-primary"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke-dasharray="92, 100"
+                      stroke-linecap="round"
+                      stroke-width="3"
+                    ></path>
+                  </svg>
+                  <div
+                    class="absolute inset-0 flex items-center justify-center text-[10px] font-bold"
+                  >
+                    92%
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-bold text-slate-900 dark:text-white">
+                    Meta Mensal
+                  </p>
+                  <p class="text-xs text-slate-500">1.380 / 1.500 páginas</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">
+              Leituras Recentes
+            </h3>
+            <div class="space-y-4">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-14 bg-slate-200 dark:bg-slate-800 rounded flex-shrink-0 bg-cover bg-center"
+                  data-alt="Capa do livro Duna"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuDtGQK25qx9p0zyBTGqRBdlh9WK4iJ2kNRbJOyCSFzxioA7ODnKz9CaQjUBg1JCI4tCyBf9eRDGyNk7Vk1EK6yD05eO_auKqOKg3opQfDfOKCqPymYRWvuvKjjYZEo0-egRVdk7zsOAEkHZnS3bpl2crKtyPzvKmXwxuMtOiHCg9cdsHK3oAEMeEgh8Ds-aV_h2Eoh9eBzAnuopFooDSUA0ayurJAxEU7kaxRJd-lCd6qwWzjE-DLNBsJYbgF-Rc-kUJ8uhIehUdGJ5&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Duna
+                  </p>
+                  <p class="text-xs text-slate-500 truncate">Frank Herbert</p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-2 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[75%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-primary">75%</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-14 bg-slate-200 dark:bg-slate-800 rounded flex-shrink-0 bg-cover bg-center"
+                  data-alt="Capa do livro Hábitos Atômicos"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuAOq_sah7gQWt8dPp2ZzsOJFiaYQUdfT5wlTlgPrEUYUXDtOwPzYTXQGBrnhLPcxEZkfJ2-Uys7qqhqSjiL37cB7oQ54nVxZOoUH36it-BmYOEgE-oloH4dCl9dlxkoHDl1lDd0DzUW53-iOswpht2CXO3MiFnOFUmCVbmm9An0mBdopE_WUnUqPn6y366-QpomBjVhzfLRAcNrLaPlu5S-Z8OZJhKFCa40FTRDzRVYCxChxdznD4sHF0CKCxZ-uEBZoQyL-OMygY-8&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Hábitos Atômicos
+                  </p>
+                  <p class="text-xs text-slate-500 truncate">James Clear</p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-2 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[40%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-primary">40%</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-10 h-14 bg-slate-200 dark:bg-slate-800 rounded flex-shrink-0 bg-cover bg-center"
+                  data-alt="Capa do livro O Hobbit"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuBhFbWOhBV8E3mjuU_uygUYxKR9FVObe3tZNJ3_RdMK49F2zIE5of6Sm3Ndv02uWSf8_ssIFSyWxHqxB5nsCzQXmnEhTysfAF_fR8KsJc43oHiwfA4xYKIODLDGNkuL-NiXC7sXX4myonkw72-sj8eZ5Fx37a_cvK-yPciF2hY45_yDdQg-tI3_7M_X9lqGLQRkWP65cS9Uh_1iHWgzQzUsOicKaSV3g0dpZeuimLpNdZpW_Hc0UK8LjfrjdwmhvnD5GkmxM9WgQMwF&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    O Hobbit
+                  </p>
+                  <p class="text-xs text-slate-500 truncate">J.R.R. Tolkien</p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-2 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[100%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-primary">Concluído</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            class="lg:col-span-2 rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6"
+          >
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">
+              Tendência de Categorias (6 Meses)
+            </h3>
+            <div class="h-64 w-full relative">
+              <svg
+                class="w-full h-full"
+                preserveaspectratio="none"
+                viewbox="0 0 800 200"
+              >
+                <path
+                  d="M0,180 Q100,140 200,150 T400,100 T600,80 T800,40 V200 H0 Z"
+                  fill="#10b77f"
+                  fill-opacity="0.4"
+                ></path>
+                <path
+                  d="M0,150 Q100,120 200,130 T400,90 T600,100 T800,60 V200 H0 Z"
+                  fill="#34d399"
+                  fill-opacity="0.3"
+                ></path>
+                <path
+                  d="M0,120 Q100,100 200,110 T400,140 T600,120 T800,100 V200 H0 Z"
+                  fill="#94a3b8"
+                  fill-opacity="0.2"
+                ></path>
+              </svg>
+              <div
+                class="flex justify-between mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4"
+              >
+                <span>Maio</span>
+                <span>Junho</span>
+                <span>Julho</span>
+                <span>Agosto</span>
+                <span>Setembro</span>
+                <span>Outubro</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="rounded-xl bg-white dark:bg-slate-900/40 border border-primary/10 p-6"
+          >
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                Ranking Global
+              </h3>
+              <a class="text-xs font-bold text-primary hover:underline" href="#"
+                >Ver todos</a
+              >
+            </div>
+            <div class="space-y-5">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-slate-400 w-4">1</span>
+                <div
+                  class="size-8 rounded-full bg-cover"
+                  data-alt="Avatar de Ana Silva"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuBfEK9-oQPM4VTosceDJBk6U96G3Y5QpBVsbEr33aws0ct6r4vYDsAUFjeIph4inTp0zdMzC5acvehhMcxUlR9EcZHot_M8f5y0H86w7EQKuciEV85nREZCr3UREYauj_CZOEvA88b5hr8gngxmouVf9FUl6xyuZbVU7shuLkCHzM4rap2RtOb8s3Xj05y9W9kiAhDcuxHbbpjNh-fSrt-F0jCelBJRdnlA3HrB6Nl15mopb369QlHhvrtvRbmCoUYhXoZjYhBwT7nU&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Ana Silva
+                  </p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-1 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[98%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-slate-500">24.5k</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-slate-400 w-4">2</span>
+                <div
+                  class="size-8 rounded-full bg-cover"
+                  data-alt="Avatar de Bruno Oliveira"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuB4bKwdlp3hYd-pf0QC4V7ggk2LfmOWTf1tSnOOodwkqr6W60dnbCuNRizFqku88_3JGYAE1qvNZxIWcmBLWdgRylqbNlAWJCa-lc67AIPnppcPfMVNGrXV-5MR1ZlGlOW26YsGnCH8HWmU5oF1_P0Vj05UdQyMY64VRKRH4eJsKeYmnNs8T537HlcJ77PNzDWtGbQW9qyxzaSJIlU5MQEw0Cv-yJvHp3gudis6YScVvu5BICqQ3MOjG7JAHtdd6O8iBYZkyE_6bTla&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Bruno Oliveira
+                  </p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-1 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[92%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-slate-500">22.1k</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-slate-400 w-4">3</span>
+                <div
+                  class="size-8 rounded-full bg-cover"
+                  data-alt="Avatar de Carla Santos"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuDHjJblVVVbjDhBrFZ6t4qkDBfw5KkcpxDm780Ot-VDslDUdPjxRf0YwCfeLSfSV9SeckZ0rxXnyuMa4kcUmOOf_hWPRWTKJoo4uSwShWC34vPcIzTjn2BoiBGGz0Y9Uvs3VSxTPfqGtxnKPHJdxFLiNV8po6VP4HQWa6l6wuC-oWS3agZveWH50zbtH3l5Rd3y4rbhEbDtCeE19yDnHUwqb4tb_I4JaWbLgIf8L9jEqlFyScU7uT8fS6GZrBhvkX7KA1dW-iQfx4Rn&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Carla Santos
+                  </p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-1 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[88%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-slate-500">19.8k</p>
+              </div>
+              <div
+                class="mt-4 p-3 bg-primary/10 rounded-lg flex items-center gap-3 border border-primary/20"
+              >
+                <span class="text-xs font-black text-primary w-4">128</span>
+                <div
+                  class="size-8 rounded-full bg-cover border-2 border-primary"
+                  data-alt="Seu avatar no ranking"
+                  style="
+                    background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuABecgzAiiToAfLJh3dH8XbK5AmWB9mssri1QGwxhH9ca0xPPxrMDeDSvJlTUrIFxg8v9O7KLeCI6xWR0xZsib7p2e2klkmnIpJvEg-lXNJyrOm5zJcKu-43MuFU2amwCvxQTbcJ0Fr3fvVWEjTWUs9jhgOCR_0pel5y7n864HthziDQXJU0QNjNFqMgMLWO5I9rSliBXNMN7WyWsKBnSLBbdnzLZgAzT8OMGkAc1TrgxZw4uG5rYj38CkJUEbpInyNDPSvqOcRLS5e&quot;);
+                  "
+                ></div>
+                <div class="flex-1 min-w-0">
+                  <p
+                    class="text-sm font-bold text-slate-900 dark:text-white truncate"
+                  >
+                    Você
+                  </p>
+                  <div
+                    class="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-1 overflow-hidden"
+                  >
+                    <div class="bg-primary h-full w-[65%]"></div>
+                  </div>
+                </div>
+                <p class="text-[10px] font-bold text-primary">12.4k</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer
+        class="mt-auto border-t border-primary/10 bg-white dark:bg-slate-900/40 px-10 py-6 text-center"
+      >
+        <p class="text-slate-500 text-xs">
+          © 2023 Análises Avançadas de Leitura. Todos os dados são sincronizados
+          em tempo real.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

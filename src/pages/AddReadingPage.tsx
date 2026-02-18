@@ -1,6 +1,7 @@
 import { ArrowLeft, BookOpen, Plus, Trash2, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import saveReadingEntries from "../utils/saveReadingEntries";
 
 interface ReadingEntry {
   id: string;
@@ -51,7 +52,7 @@ export default function AddReadingPage() {
       setEntries(newEntries);
     }
   };
-
+ 
   const removeEntry = (id: string) => {
     if (entries.length > 1) {
       setEntries(entries.filter(entry => entry.id !== id));
@@ -64,21 +65,19 @@ export default function AddReadingPage() {
     ));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Filtrar entradas vazias (sem título ou páginas)
     const validEntries = entries.filter(
       entry => entry.bookTitle.trim() !== "" && entry.numPages !== ""
     );
-    
-    console.log("Leituras registradas:", validEntries);
-    
-    // Aqui você enviaria para o backend
-    // Por enquanto, só volta pro dashboard
-    navigate("/dashboard");
+        
+    await saveReadingEntries(validEntries);
+
+    navigate("/");
   };
 
+  // Puxar as categorias do banco de dados para fazer essa conta (Modularizar essa função)
   const calculateTotalPoints = (entry: ReadingEntry) => {
     const pages = parseInt(entry.numPages) || 0;
     const time = parseInt(entry.readingTime) || 0;
@@ -93,7 +92,6 @@ export default function AddReadingPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="flex-1 p-4 md:p-8 overflow-auto">
         <div className="max-w-7xl mx-auto">
-          {/* Header simplificado */}
           <div className="mb-6 flex items-center justify-between">
             <button
               onClick={() => navigate("/")}
@@ -114,7 +112,6 @@ export default function AddReadingPage() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            {/* Cabeçalho da tabela */}
             <div className="grid grid-cols-12 gap-3 mb-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
               <div className="col-span-4">Livro</div>
               <div className="col-span-1">Págs</div>
@@ -123,14 +120,12 @@ export default function AddReadingPage() {
               <div className="col-span-2">Data</div>
             </div>
 
-            {/* Linhas de entrada */}
             <div className="space-y-2 mb-6">
               {entries.map((entry, index) => (
                 <div 
                   key={entry.id} 
                   className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-lg p-2 hover:border-zinc-700 transition"
                 >
-                  {/* Título do Livro */}
                   <div className="col-span-4">
                     <input
                       type="text"
@@ -142,7 +137,6 @@ export default function AddReadingPage() {
                     />
                   </div>
 
-                  {/* Páginas */}
                   <div className="col-span-1">
                     <input
                       type="number"
@@ -154,7 +148,6 @@ export default function AddReadingPage() {
                     />
                   </div>
 
-                  {/* Categoria */}
                   <div className="col-span-2">
                     <select
                       value={entry.category}
@@ -174,7 +167,6 @@ export default function AddReadingPage() {
                     </select>
                   </div>
 
-                  {/* Tempo */}
                   <div className="col-span-1">
                     <input
                       type="number"
@@ -186,7 +178,6 @@ export default function AddReadingPage() {
                     />
                   </div>
 
-                  {/* Data */}
                   <div className="col-span-2">
                     <input
                       type="date"
@@ -196,7 +187,6 @@ export default function AddReadingPage() {
                     />
                   </div>
 
-                  {/* Pontos e Ações */}
                   <div className="col-span-2 flex items-between px-3 gap-2">
                     <span className="text-sm text-green-500 font-mono w-full">
                       {calculateTotalPoints(entry)}
@@ -226,7 +216,6 @@ export default function AddReadingPage() {
               ))}
             </div>
 
-            {/* Barra de ações inferior */}
             <div className="flex items-center justify-between border-t border-zinc-800 pt-6">
               <button
                 type="button"

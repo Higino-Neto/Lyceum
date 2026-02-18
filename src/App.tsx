@@ -4,6 +4,8 @@ import Dashboard from "./pages/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
 import ReadingIframe from "./pages/ReadingPage";
 import Sidebar from "./components/Sidebar";
+import SignIn from "./pages/SignInPage";
+import SignUp from "./pages/SignUpPage";
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/add_reading" element={<AddReadingPage />} />
           <Route path="/reading" element={<ReadingIframe />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
         </Routes>
       </main>
       </div>

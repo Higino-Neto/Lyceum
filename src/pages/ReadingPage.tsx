@@ -30,13 +30,6 @@ const ReadingIframe: React.FC = () => {
     fileInputRef.current?.click()
   }
 
-  // const handlePrint = () => {
-  //   if (pdfData) {
-  //     const printWindow = window.open(pdfData)
-  //     printWindow?.print()
-  //   }
-  // }
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="flex-1 p-8 overflow-auto ">
@@ -77,43 +70,13 @@ const ReadingIframe: React.FC = () => {
             />
           </header>
 
-          {/* Barra de informações do arquivo (só aparece quando tem PDF) */}
-          {/* {pdfData && fileName && (
-            <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-green-500">📄</span>
-                  <span className="text-zinc-300 font-medium">{fileName}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handlePrint}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
-                    title="Imprimir"
-                  >
-                    <Printer size={18} />
-                  </button>
-                  <a
-                    href={pdfData}
-                    download={fileName}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
-                    title="Download"
-                  >
-                    <Download size={18} />
-                  </a>
-                </div>
-              </div>
-            </div>
-          )} */}
-
           {/* Área do PDF */}
           <section className="bg-zinc-900 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
             <div className="h-[calc(100vh)]">
               {pdfData ? (
                 <iframe
                   src={pdfData}
-                  className="w-full h-full"
-                  title="PDF Viewer"
+                  className='w-full h-full'
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-zinc-400">

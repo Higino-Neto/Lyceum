@@ -1,4 +1,4 @@
-import { BookMarkedIcon } from "lucide-react";
+import { BookMarkedIcon,  Wrench } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Sidebar() {
@@ -18,18 +18,28 @@ export default function Sidebar() {
         <button onClick={() => navigate("/add_reading")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/add_reading' && (`bg-zinc-800`)}`}>
           Registrar Leituras
         </button>
-        <button onClick={() => navigate("/pomodoro")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
-          Pomodoro
-        </button>
         <button onClick={() => navigate("/reading")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/reading' && (`bg-zinc-800`)}`}>
           Ler
         </button>
-        <button className="cursor-pointer w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition">
+        <button onClick={() => navigate("/signin")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/signin' && (`bg-zinc-800`)}`}>
+          SignIn
+        </button>
+        <button onClick={() => navigate("/signup")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/signup' && (`bg-zinc-800`)}`}>
+          SignUp
+        </button>
+        <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
+          <Wrench size={14} />
+          Pomodoro
+        </button>
+        <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
+          <Wrench size={14} />
           Ranking
         </button>
-        <button className="cursor-pointer w-full text-left px-4 py-2 rounded-lg hover:bg-zinc-800 transition">
+        <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
+          <Wrench size={14} />
           Perfil
         </button>
+        
       </nav>
 
       <div className="mt-auto text-xs text-zinc-500">v1.0</div>
