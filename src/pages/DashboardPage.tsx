@@ -1,6 +1,6 @@
 import { LayoutDashboard } from "lucide-react";
 import RankingTable from "../components/RankingTable";
-import { HeatMapTemplate } from "../components/ReadingHeatmap";
+import ReadingHeatMap from "../components/ReadingHeatmap";
 import StatCard from "../components/StatCard";
 import { useNavigate } from "react-router-dom";
 import ReadingTable from "../components/ReadingTable";
@@ -9,8 +9,9 @@ import useReadingStats from "../hooks/useReadingStats";
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const stats = useReadingStats();
+  const data = useReadingStats();
 
+  const { readingStats, userStreak } = data ?? {};
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="flex-1 p-8 overflow-auto">
@@ -36,33 +37,26 @@ export default function Dashboard() {
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatCard
               title="Total de Páginas"
-              value={stats?.total_pages?.toString() || "0"}
-              extraInfo="+276 essa semana"
-              subtitle="Este mês"
+              value={readingStats?.total_pages?.toString()}
+              extraInfo={`+${readingStats?.month_pages} págs essa semana`}
+              subtitle="Desde o início"
             />
             <StatCard
               title="Horas de Leitura"
-              value={stats?.total_minutes?.toString() || "0"}
-              extraInfo="+5 essa semana"
+              value={`${(Math.floor(readingStats?.total_minutes / 60))}h ${readingStats?.total_minutes % 60}min`}
+              extraInfo={`+${(Math.floor(readingStats?.month_minutes / 60))}h ${readingStats?.month_minutes % 60}min essa semana`}
               subtitle="Tempo total"
             />
             <StatCard
               title="Dias Consecutivos"
-              value="15"
+              value={userStreak?.toString()}
               subtitle="Melhor streak: 65 dias"
             />
           </section>
 
           <section className="flex">
             <div className="rounded-lg border border-zinc-800 w-full">
-              <HeatMapTemplate />
-            </div>
-          </section>
-
-          <section>
-            <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 shadow-xl">
-              <h2 className="text-lg font-semibold mb-4">Ranking Geral</h2>
-              <RankingTable />
+              <ReadingHeatMap />
             </div>
           </section>
           <section>
@@ -71,6 +65,13 @@ export default function Dashboard() {
                 Registro de Leituras
               </h2>
               <ReadingTable />
+            </div>
+          </section>
+
+          <section>
+            <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 shadow-xl">
+              <h2 className="text-lg font-semibold mb-4">Ranking Geral</h2>
+              <RankingTable />
             </div>
           </section>
         </div>

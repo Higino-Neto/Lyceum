@@ -12,12 +12,13 @@ interface ReadingEntry {
 
 export default async function saveReadingEntries(entries: ReadingEntry[]) {
   const user = await getUser();
+
   const { data: categoriesData, error: categoriesError } = await supabase
-    .from("categories").select();
+    .from("categories")
+    .select();
   if (categoriesError || !categoriesData) {
     throw categoriesError ?? new Error("Failed to load categories");
   }
-  console.log(categoriesData)
 
   const payload = entries.map((entry) => {
     const categoryData = categoriesData?.find(
