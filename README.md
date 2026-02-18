@@ -1,4 +1,4 @@
-# 📚 Lyceum
+# Lyceum
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.5%2B-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18%2B-61dafb)](https://reactjs.org/)
@@ -40,7 +40,7 @@
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 ### Frontend
 - **React 18** - Framework UI
@@ -58,7 +58,7 @@
 - **Electron Builder** - Empacotamento da aplicação desktop
 - **Lucide Icons** - Ícones vectorizados
 
-## 🚀 Como Iniciar
+## Como Iniciar
 
 ### Pré-requisitos
 - Node.js 16+
@@ -92,7 +92,7 @@ npm run build
 npm run electron-build
 ```
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 lyceum/
@@ -125,14 +125,6 @@ lyceum/
 ├── public/                  # Assets estáticos
 └── vite.config.ts           # Configuração Vite
 ```
-
-## 🔌 Integração com Supabase
-
-A aplicação usa Supabase para:
-- Autenticação de usuários
-- Armazenamento de dados de leitura
-- Sincronização em tempo real
-- Estatísticas agregadas
 
 ### Schema do Banco de Dados
 
