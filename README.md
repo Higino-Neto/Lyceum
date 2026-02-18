@@ -1,4 +1,4 @@
-# 📚 Lyceum - Advanced Reading Analytics
+# 📚 Lyceum
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.5%2B-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18%2B-61dafb)](https://reactjs.org/)
@@ -7,30 +7,7 @@
 
 **Lyceum** é uma aplicação desktop moderna para rastrear e analisar seus hábitos de leitura. Monitore suas páginas lidas, tempo dedicado à leitura, e compita com outros leitores em um ranking dinâmico.
 
-## ✨ Características Principais
-
-- 📊 **Dashboard Intuitivo** - Visualize estatísticas em tempo real de suas leituras
-- 📖 **Registro de Leituras** - Adicione livros com categorias e rastreie progresso
-- 🔥 **Heatmap de Atividades** - Visualize seu compromisso com a leitura ao longo do tempo
-- 🏆 **Ranking Global** - Compita em ranking com outros leitores
-- 🔐 **Autenticação Segura** - Login com Supabase Auth
-- 🌙 **Tema Escuro** - Interface otimizada para os olhos
-
-## 🎯 Telas da Aplicação
-
-### Autenticação
-
-#### Sign In
-![Sign In](public/signIn-v1.png)
-*Página de login seguro com autenticação via Supabase*
-
-#### Sign Up
-![Sign Up](public/signUp-v1.png)
-*Registro de novos usuários na plataforma*
-
----
-
-### Funcionalidades Principais
+## Telas da Aplicação
 
 #### Dashboard
 ![Dashboard](public/dashboard-v1.png)
@@ -51,6 +28,15 @@
 #### Leitor Integrado
 ![Reading Page](public/reader-v1.png)
 *Leitor integrado para acompanhar leitura durante o uso da aplicação*
+
+#### Autenticação
+<!-- 
+#### Sign In
+![Sign In](public/signIn-v1.png)
+*Página de login seguro com autenticação via Supabase* -->
+
+![Sign Up](public/signUp-v1.png)
+*Registro de novos usuários na plataforma*
 
 ---
 
