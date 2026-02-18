@@ -1,41 +1,33 @@
-// src/components/HeatMapTemplate.jsx
 import HeatMap from "@uiw/react-heat-map";
 
-// Installation instructions:
-// npm install @uiw/react-heat-map @uiw/react-tooltip --save
-// Ensure Tailwind CSS is set up in your project with dark mode enabled (e.g., via class="dark").
-
 export function HeatMapTemplate() {
-  // value mock
   const value = [];
-  const dataStartDate = new Date("2025/02/16");
-  const currentDate = new Date(); // Assuming current date is Feb 16, 2026 for full year
-  const numDays = Math.ceil(
-    (currentDate.getTime() - dataStartDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const currentDate = new Date();
+  const dataStartDate = new Date().setDate(currentDate.getDate() - 365);
+
+  const numDays = 365;
+
   for (let i = 0; i < numDays; i++) {
     const date = new Date(dataStartDate);
     date.setDate(date.getDate() + i);
-    let count = Math.floor(Math.random() * 20); // Random count between 0 and 19
+    let count = Math.floor(Math.random() * 20);
     value.push({
       date: `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`,
       count,
     });
   }
 
-const darkPanelColors = [
-  "#18181B", // Nível 0 - sem contribuições
-  "#18181B", // Nível 1 - 1-3 contribuições
-  "#006d32", // Nível 2 - 4-6 contribuições
-  "#26a641", // Nível 3 - 7-9 contribuições
-  "#39d353", // Nível 4 - 10+ contribuições
-];
+  const darkPanelColors = [
+    "#18181B", // 0 contributions
+    "#18181B", // 1-3 contributions
+    "#006d32", // 4-6 contributions
+    "#26a641", // 7-9 contributions
+    "#39d353", // 10+ contributions
+  ];
 
   return (
     <div className="p-6 bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg max-w-full">
-      <h2 className="text-xl font-bold mb-4">
-        Streak
-      </h2>
+      <h2 className="text-xl font-bold mb-4">Streak</h2>
       <div>
         <HeatMap
           value={value}
@@ -63,11 +55,7 @@ const darkPanelColors = [
           rectProps={{ rx: 4 }}
           style={{ color: "#E2E8F0", width: "100%", margin: "0 auto" }}
           legendRender={(props) => (
-            <rect
-              {...props}
-              rx={4} // Rounded legend
-              className="border border-gray-700"
-            />
+            <rect {...props} rx={4} className="border border-gray-700" />
           )}
         />
       </div>

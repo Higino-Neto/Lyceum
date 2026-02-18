@@ -29,6 +29,15 @@ ipcMain.on('open-file-dialog', (event) => {
   })
 })
 
+let zoomFactor = 1;
+
+ipcMain.on('zoom', (event, delta) => {
+  zoomFactor += delta;
+  zoomFactor = Math.min(Math.max(zoomFactor, 0.5), 3);
+  event.sender.setZoomFactor(zoomFactor);
+})
+
+
 
 function createWindow() {
   win = new BrowserWindow({
@@ -37,7 +46,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.js"),
     },
     autoHideMenuBar: true,
   });
@@ -68,3 +77,4 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(createWindow);
+

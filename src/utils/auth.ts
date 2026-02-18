@@ -15,6 +15,5 @@ export async function signIn(email: string, password: string) {
     email,
     password,
   });
-  if (error) console.error(error);
-  else console.log(data);
+  if (error) throw error;
 }

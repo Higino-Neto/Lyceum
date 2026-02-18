@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import getUser from "./getUser";
 
 interface ReadingEntry {
   id: string;
@@ -10,10 +11,7 @@ interface ReadingEntry {
 }
 
 export default async function saveReadingEntries(entries: ReadingEntry[]) {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  //   if (!userData.user) throw new Error("User is not authenticated");
-  if (userError) console.error(userError);
-
+  const user = await getUser();
   const { data: categoriesData, error: categoriesError } = await supabase
     .from("categories").select();
   if (categoriesError || !categoriesData) {
@@ -34,7 +32,7 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
       pages: Number(entry.numPages),
       reading_date: entry.date,
       reading_time: Number(entry.readingTime),
-      user_id: userData.user!.id,
+      user_id: user.id,
       category_id: categoryData.id,
     };
   });

@@ -20,6 +20,12 @@ ipcMain.on("open-file-dialog", (event) => {
     }
   });
 });
+let zoomFactor = 1;
+ipcMain.on("zoom", (event, delta) => {
+  zoomFactor += delta;
+  zoomFactor = Math.min(Math.max(zoomFactor, 0.5), 3);
+  event.sender.setZoomFactor(zoomFactor);
+});
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
@@ -27,7 +33,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.js")
     },
     autoHideMenuBar: true
   });

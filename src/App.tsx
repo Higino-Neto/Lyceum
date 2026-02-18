@@ -10,9 +10,9 @@ import SignUp from "./pages/SignUpPage";
 function App() {
   return (
     <>
-      <div className="flex">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar />
-      <main className="w-full">
+      <main className="w-full overflow-y-auto">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/add_reading" element={<AddReadingPage />} />

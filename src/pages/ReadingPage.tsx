@@ -1,34 +1,49 @@
-import React, { useState, useRef } from 'react'
-import { ArrowLeft, FileText } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useRef, useEffect } from "react";
+import { ArrowLeft, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ReadingIframe: React.FC = () => {
-  const navigate = useNavigate()
-  const [pdfData, setPdfData] = useState<string | null>(null)
-  const [, setFileName] = useState<string>('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const objectUrlRef = useRef<string | null>(null)
+  const navigate = useNavigate();
+  const [pdfData, setPdfData] = useState<string | null>(null);
+  const [, setFileName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    setFileName(file.name)
+    setFileName(file.name);
 
     // Limpar URL anterior
     if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current)
+      URL.revokeObjectURL(objectUrlRef.current);
     }
 
     // Criar URL temporária (mais eficiente que data URL)
-    const url = URL.createObjectURL(file)
-    objectUrlRef.current = url
-    setPdfData(url)
-  }
+    const url = URL.createObjectURL(file);
+    objectUrlRef.current = url;
+    setPdfData(url);
+  };
 
   const openFileDialog = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const smoothy = 0.001;
+      const delta = -e.deltaY * smoothy;
+      window.electronAPI.zoom(delta);
+    }
+
+    window.addEventListener("wheel", handleWheel, { passive: false })
+
+    return () => {
+      window.removeEventListener("wheel", handleWheel)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -38,7 +53,7 @@ const ReadingIframe: React.FC = () => {
           <header className="flex justify-between items-center ">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate("/dashboard")}
                 className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
               >
                 <ArrowLeft size={20} />
@@ -74,15 +89,20 @@ const ReadingIframe: React.FC = () => {
           <section className="bg-zinc-900 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
             <div className="h-[calc(100vh)]">
               {pdfData ? (
-                <iframe
-                  src={pdfData}
-                  className='w-full h-full'
-                />
+                <div
+                  className="w-full h-full"
+                >
+                  <iframe src={pdfData} className="w-full h-full" />
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-zinc-400">
                   <div className="text-8xl mb-4">📚</div>
-                  <h2 className="text-2xl font-bold text-zinc-300 mb-2">Nenhum PDF aberto</h2>
-                  <p className="mb-6 text-zinc-500">Clique em "Abrir PDF" para começar</p>
+                  <h2 className="text-2xl font-bold text-zinc-300 mb-2">
+                    Nenhum PDF aberto
+                  </h2>
+                  <p className="mb-6 text-zinc-500">
+                    Clique em "Abrir PDF" para começar
+                  </p>
                   <button
                     onClick={openFileDialog}
                     className="px-6 py-3 bg-green-600 hover:bg-green-500 text-black rounded-lg font-medium transition-colors shadow-lg"
@@ -103,7 +123,7 @@ const ReadingIframe: React.FC = () => {
         </div>
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default ReadingIframe
+export default ReadingIframe;
