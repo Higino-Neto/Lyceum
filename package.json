@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,20 +9,35 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
+  "build": {
+    "appId": "com.seunome.lyceum",
+    "productName": "Lyceum",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
   "dependencies": {
-    "@react-pdf-viewer/core": "^3.12.0",
-    "@react-pdf-viewer/highlight": "^3.12.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
     "@uiw/react-heat-map": "^2.3.3",
-    "@uiw/react-tooltip": "^4.22.3",
     "lucide-react": "^0.564.0",
-    "pdfjs-dist": "^3.11.174",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-pdf": "^7.7.0",
-    "react-router-dom": "^7.13.0",
-    "tailwind-scrollbar": "^4.0.2"
+    "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",

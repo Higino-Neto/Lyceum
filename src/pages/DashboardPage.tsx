@@ -54,7 +54,7 @@ export default function Dashboard() {
             />
           </section>
 
-          <section className="flex">
+          <section className="flex justify-center">
             <div className="rounded-lg border border-zinc-800 w-full">
               <ReadingHeatMap />
             </div>
