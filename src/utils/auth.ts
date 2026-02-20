@@ -7,7 +7,7 @@ export async function signUp(email: string, password: string) {
   });
 
   if (error) console.error(error);
-  else console.log(data);
+  // else console.log(data);
 }
 
 export async function signIn(email: string, password: string) {

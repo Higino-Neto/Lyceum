@@ -6,6 +6,14 @@ import { useNavigate } from "react-router-dom";
 import ReadingTable from "../components/ReadingTable";
 import useReadingStats from "../hooks/useReadingStats";
 
+const formatTotalHours = (total_minutes: string) => {
+  if (!total_minutes) return;
+  const hours = Math.floor(Number(total_minutes) / 60);
+  const minutes = Math.floor(Number(total_minutes) % 60);
+
+  return `${hours}h ${minutes}min`;
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -37,20 +45,42 @@ export default function Dashboard() {
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatCard
               title="Total de Páginas"
-              value={readingStats?.total_pages?.toString()}
-              extraInfo={`+${readingStats?.month_pages} págs essa semana`}
+              value={
+                <div>
+                  {formatTotalHours(readingStats?.month_pages.toString())}
+                </div>
+              }
+              extraInfo={
+                <div>
+                  {formatTotalHours(readingStats?.month_pages.toString())}
+                </div>
+              }
               subtitle="Desde o início"
             />
             <StatCard
               title="Horas de Leitura"
-              value={`${(Math.floor(readingStats?.total_minutes / 60))}h ${readingStats?.total_minutes % 60}min`}
-              extraInfo={`+${(Math.floor(readingStats?.month_minutes / 60))}h ${readingStats?.month_minutes % 60}min essa semana`}
+              value={
+                <div>
+                  {formatTotalHours(readingStats?.total_minutes.toString())}
+                </div>
+              }
+              extraInfo={
+                <div>
+                  <a>+</a>
+                  {formatTotalHours(readingStats?.month_minutes.toString())}
+                </div>
+              }
               subtitle="Tempo total"
             />
             <StatCard
               title="Dias Consecutivos"
-              value={userStreak?.toString()}
-              subtitle="Melhor streak: 65 dias"
+              value={
+                <div className="flex gap-1">
+                  {userStreak?.toString()}
+                  <a>dias</a>
+                </div>
+              }
+              subtitle="Melhor streak: ##"
             />
           </section>
 

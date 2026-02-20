@@ -1,7 +1,8 @@
 import { ArrowLeft, BookOpen, Plus, Trash2, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
+import { supabase } from "../lib/supabase";
 
 interface ReadingEntry {
   id: string;
@@ -14,6 +15,7 @@ interface ReadingEntry {
 
 export default function AddReadingPage() {
   const navigate = useNavigate();
+  const [categories, setCategories] = useState<any>();
   const [entries, setEntries] = useState<ReadingEntry[]>([
     {
       id: crypto.randomUUID(),
@@ -71,6 +73,17 @@ export default function AddReadingPage() {
     );
   };
 
+  useEffect(() => {
+    const load = async () => {
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("categories")
+        .select("*");
+      if (categoriesError) throw categoriesError;
+      setCategories(categoriesData);
+    };
+    load();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -86,8 +99,12 @@ export default function AddReadingPage() {
   // Puxar as categorias do banco de dados para fazer essa conta (Modularizar essa função)
   const calculateTotalPoints = (entry: ReadingEntry) => {
     const pages = parseInt(entry.numPages) || 0;
-    const time = parseInt(entry.readingTime) || 0;
-    return pages + time * 0.5;
+    const category_name = entry.category || "other";
+    const filteredCategory = (categories?.find(category => category.name === category_name));
+    if (!filteredCategory) {
+      return pages;
+    }
+    return pages * filteredCategory.points_per_page;
   };
 
   const calculateGrandTotal = () => {
@@ -170,15 +187,19 @@ export default function AddReadingPage() {
                       className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
                     >
                       <option value="">Selecione</option>
-                      <option value="fiction">Ficção</option>
-                      <option value="non-fiction">Não-ficção</option>
-                      <option value="sci-fi">Ficção Científica</option>
-                      <option value="fantasy">Fantasia</option>
-                      <option value="biography">Biografia</option>
-                      <option value="history">História</option>
-                      <option value="self-dev">Autoajuda</option>
-                      <option value="technical">Técnico</option>
-                      <option value="other">Outro</option>
+                      <option value="fiction">Ficção (1x)</option>
+                      <option value="math">Matemática (2.5x)</option>
+                      <option value="math">Ciências naturais (2.5x)</option>
+                      <option value="philosophy">
+                        Filosofia/História (1.5x)
+                      </option>
+                      <option value="computer science">
+                        Computação/Docs (2x)
+                      </option>
+                      <option value="languages">
+                        Idioma em Aprendizado (3x)
+                      </option>
+                      <option value="other">Outro (1x)</option>
                     </select>
                   </div>
 

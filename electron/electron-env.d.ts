@@ -15,17 +15,24 @@ declare namespace NodeJS {
      * │
      * ```
      */
-    APP_ROOT: string
+    APP_ROOT: string;
     /** /dist/ or /public/ */
-    VITE_PUBLIC: string
+    VITE_PUBLIC: string;
   }
 }
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  ipcRenderer: import('electron').IpcRenderer
+  ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
-    getFilePath: () => Promise<string>
-    zoom: (delta: number) => void
-  }
+    getFilePath: () => Promise<string>;
+
+    // zoom: (delta: number) => void
+  };
+  // api: {
+  //   getRecents: () => Promise<
+  //     Array<{ name: string; path: string; lastOpened?: string }>
+  //   >;
+  //   openPdf: () => Promise<{ name: string; path: string } | null>;
+  // };
 }

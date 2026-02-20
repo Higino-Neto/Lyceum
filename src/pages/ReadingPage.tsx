@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ArrowLeft, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import PdfReader from "../components/PdfReader";
 
 const ReadingIframe: React.FC = () => {
   const navigate = useNavigate();
@@ -30,20 +31,20 @@ const ReadingIframe: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const smoothy = 0.001;
-      const delta = -e.deltaY * smoothy;
-      window.electronAPI.zoom(delta);
-    }
+  // useEffect(() => {
+  //   const handleWheel = (e: WheelEvent) => {
+  //     e.preventDefault();
+  //     const smoothy = 0.001;
+  //     const delta = -e.deltaY * smoothy;
+  //     window.electronAPI.zoom(delta);
+  //   }
 
-    window.addEventListener("wheel", handleWheel, { passive: false })
+  //   window.addEventListener("wheel", handleWheel, { passive: false })
 
-    return () => {
-      window.removeEventListener("wheel", handleWheel)
-    }
-  }, [])
+  //   return () => {
+  //     window.removeEventListener("wheel", handleWheel)
+  //   }
+  // }, [])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -53,7 +54,7 @@ const ReadingIframe: React.FC = () => {
           <header className="flex justify-between items-center ">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/")}
                 className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors"
               >
                 <ArrowLeft size={20} />
@@ -87,39 +88,10 @@ const ReadingIframe: React.FC = () => {
 
           {/* Área do PDF */}
           <section className="bg-zinc-900 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
-            <div className="h-[calc(100vh)]">
-              {pdfData ? (
-                <div
-                  className="w-full h-full"
-                >
-                  <iframe src={pdfData} className="w-full h-full" />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-400">
-                  <div className="text-8xl mb-4">📚</div>
-                  <h2 className="text-2xl font-bold text-zinc-300 mb-2">
-                    Nenhum PDF aberto
-                  </h2>
-                  <p className="mb-6 text-zinc-500">
-                    Clique em "Abrir PDF" para começar
-                  </p>
-                  <button
-                    onClick={openFileDialog}
-                    className="px-6 py-3 bg-green-600 hover:bg-green-500 text-black rounded-lg font-medium transition-colors shadow-lg"
-                  >
-                    Selecionar arquivo
-                  </button>
-                </div>
-              )}
+            <div className="w-full h-screen">
+              <PdfReader pdfData={pdfData} />
             </div>
           </section>
-
-          {/* Dica (opcional) */}
-          {!pdfData && (
-            <div className="text-center text-zinc-600 text-sm">
-              <p>Formatos suportados: PDF • Visualização nativa do Electron</p>
-            </div>
-          )}
         </div>
       </main>
     </div>

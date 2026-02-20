@@ -25,7 +25,7 @@ export default function useReadingStats() {
         .single();
         if (readingStatsError) throw readingStatsError;
 
-        console.log(readingStats)
+        // console.log(readingStats)
       const { data: userStreak } = await supabase.rpc("get_current_streak", {
         p_user_id: user.id,
       });

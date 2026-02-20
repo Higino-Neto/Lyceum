@@ -1,14 +1,13 @@
 type Props = {
   title: string;
-  value: string;
-  extraInfo?: string;
+  value?: JSX.Element;
+  extraInfo?: JSX.Element;
   subtitle?: string;
 };
 
-export default function StatCard({ title, value, subtitle, extraInfo }: Props) {
+export default function StatCard({ title, value, extraInfo, subtitle }: Props) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl hover:border-zinc-700 transition">
-      {value && (
         <>
           <p className="text-sm text-zinc-400">{title}</p>
           <div className="flex flex-col gap-2">
@@ -19,7 +18,6 @@ export default function StatCard({ title, value, subtitle, extraInfo }: Props) {
           </div>
           {subtitle && <p className="text-xs text-zinc-500 mt-2">{subtitle}</p>}
         </>
-      )}
     </div>
   );
 }
