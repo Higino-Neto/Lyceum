@@ -1,6 +1,6 @@
 import HeatMap from "@uiw/react-heat-map";
 import getReadings from "../utils/getReadings";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface HeatmapData {
   date: string;
@@ -77,8 +77,8 @@ export function ReadingHeatMap() {
           monthPlacement="top"
           panelColors={darkPanelColors}
           rectProps={{ rx: 4 }}
-          style={{ color: "#E2E8F0", width: "100%"}}
-          legendRender={(props) => <></>}
+          style={{ color: "#E2E8F0", width: "100%" }}
+          legendRender={() => <div key={crypto.randomUUID()}>{}</div>}
         />
       </div>
     </div>
