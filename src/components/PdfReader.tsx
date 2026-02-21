@@ -3,7 +3,6 @@ import PDFViewer, {
   PluginRegistry,
 } from "@embedpdf/react-pdf-viewer";
 import { useEffect, useRef, useState } from "react";
-
 interface PdfReaderProps {
   pdfData: string;
 }
@@ -35,7 +34,6 @@ export default function PdfReader({ pdfData }: PdfReaderProps) {
     containerRef.current = container;
   };
 
-
   useEffect(() => {
     const registry = registryRef.current;
     if (!registry) return;
@@ -57,13 +55,12 @@ export default function PdfReader({ pdfData }: PdfReaderProps) {
         },
       ]);
     });
-
-    return () => unsubscribe?.();
-  }, [registryRef.current]);
+  }, []);
 
   return (
     <div className="w-full h-screen">
       <PDFViewer
+      key={pdfData}
         onInit={handleInit}
         onReady={handleReady}
         config={{
