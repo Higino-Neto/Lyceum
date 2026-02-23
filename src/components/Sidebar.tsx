@@ -27,7 +27,7 @@ export default function Sidebar() {
         <button onClick={() => navigate("/signup")} className={`cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/signup' && (`bg-zinc-800`)}`}>
           SignUp
         </button>
-        <a>1.0.3</a>
+        {/* <a>1.0.3</a> */}
         {/* <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
           <Wrench size={14} />
           Pomodoro
@@ -43,7 +43,7 @@ export default function Sidebar() {
         
       </nav>
 
-      <div className="mt-auto text-xs text-zinc-500">v1.0</div>
+      <div className="mt-auto text-xs text-zinc-500">v1.0.4</div>
     </aside>
   );
 }
