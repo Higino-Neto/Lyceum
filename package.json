@@ -1,17 +1,25 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc && vite build",
+    "dist": "electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "build": {
-    "appId": "com.seunome.lyceum",
+    "appId": "com.higino.lyceum",
     "productName": "Lyceum",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Higino-Neto",
+        "repo": "Lyceum"
+      }
+    ],
     "directories": {
       "output": "release"
     },
@@ -35,6 +43,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
     "@uiw/react-heat-map": "^2.3.3",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.564.0",
     "pdf-poppler": "^0.2.3",
     "react": "^18.2.0",

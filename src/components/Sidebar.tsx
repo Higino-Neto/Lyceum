@@ -31,14 +31,14 @@ export default function Sidebar() {
           <Wrench size={14} />
           Pomodoro
         </button> */}
-        <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
+        {/* <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
           <Wrench size={14} />
           Ranking
         </button>
         <button className={`flex gap-2 items-center cursor-no-drop w-full text-left px-4 py-2 rounded-lg bg-zinc-850 ${pathname === '/pomodoro' && (`bg-zinc-800`)}`}>
           <Wrench size={14} />
           Perfil
-        </button>
+        </button> */}
         
       </nav>
 
