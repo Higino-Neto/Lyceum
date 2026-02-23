@@ -1,8 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 import "./index.css";
-import Dashboard from "./pages/DashboardPage";
+import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
-import ReadingIframe from "./pages/ReadingPage";
+import ReadingIframe from "./pages/ReadingPage/ReadingPage";
 import Sidebar from "./components/Sidebar";
 import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";

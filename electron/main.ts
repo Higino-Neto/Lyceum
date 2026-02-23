@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 // import fs from "node:fs";
 
+// TODO (Difícil) Colocar os updates no github releases para atualizar no pc de todos os usuários quando eu fizer commit na main.
+
+
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

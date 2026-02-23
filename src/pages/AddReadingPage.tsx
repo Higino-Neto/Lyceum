@@ -23,7 +23,7 @@ export default function AddReadingPage() {
       numPages: "",
       category: "",
       readingTime: "",
-      date: new Date().toISOString().split("T")[0],
+      date: new Date().toLocaleDateString("sv-SE"),
     },
   ]);
 
@@ -36,7 +36,7 @@ export default function AddReadingPage() {
         numPages: "",
         category: "",
         readingTime: "",
-        date: new Date().toISOString().split("T")[0],
+        date: new Date().toLocaleDateString("sv-SE"),
       },
     ]);
   };

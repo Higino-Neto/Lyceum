@@ -1,10 +1,10 @@
 import { LayoutDashboard } from "lucide-react";
-import RankingTable from "../components/RankingTable";
-import ReadingHeatMap from "../components/ReadingHeatmap";
-import StatCard from "../components/StatCard";
+import RankingTable from "./components/RankingTable";
+import ReadingHeatMap from "./components/ReadingHeatmap";
+import StatCard from "../../components/StatCard";
 import { useNavigate } from "react-router-dom";
-import ReadingTable from "../components/ReadingTable";
-import useReadingStats from "../hooks/useReadingStats";
+import ReadingTable from "./components/ReadingTable/ReadingTable";
+import useReadingStats from "../../hooks/useReadingStats";
 
 const formatTotalHours = (total_minutes: string) => {
   if (!total_minutes) return;
@@ -66,7 +66,7 @@ export default function Dashboard() {
               }
               extraInfo={
                 <div>
-                  <a>+</a>
+                  <span>+</span>
                   {formatTotalHours(readingStats?.month_minutes.toString())}
                 </div>
               }
@@ -77,7 +77,7 @@ export default function Dashboard() {
               value={
                 <div className="flex gap-1">
                   {userStreak?.toString()}
-                  <a>dias</a>
+                  <span>dias</span>
                 </div>
               }
               subtitle="Melhor streak: ##"
