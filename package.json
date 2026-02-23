@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,11 +13,17 @@
   "build": {
     "appId": "com.higino.lyceum",
     "productName": "Lyceum",
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    },
     "publish": [
       {
         "provider": "github",
         "owner": "Higino-Neto",
-        "repo": "Lyceum"
+        "repo": "Lyceum",
+        "publishAutoUpdate": true
       }
     ],
     "directories": {
