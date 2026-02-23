@@ -139,7 +139,7 @@ export default function ReadingIframe() {
             totalWords: String(session.totalWords),
             initialPage: String(session.initialPage),
             finalPage: String(session.finalPage),
-            totalBookPages: 455, // TODO: buscar do DB quando livros forem implementados
+            totalBookPages: 1000, // TODO: buscar do DB quando livros forem implementados
           }}
           onReset={handleReset}
           onClose={handleCloseModal}
