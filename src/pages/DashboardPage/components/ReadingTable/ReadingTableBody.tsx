@@ -1,5 +1,10 @@
-import useGetReadings from "../hooks/useGetReadings";
-import TableReading from "../types/TableReading";
+import useGetReadings from "../../../../hooks/useGetReadings";
+import TableReading from "../../../../types/TableReading";
+
+const formatDate = (dateString: string) => {
+  const [year, month, day] = dateString.split("-");
+  return `${day}/${month}/${year}`;
+};
 
 export default function ReadingTableBody() {
   const readings = useGetReadings();
@@ -13,13 +18,7 @@ export default function ReadingTableBody() {
           <td className="px-6 py-4">{reading.source_name}</td>
           <td className="px-6 py-4">{reading.pages}</td>
           <td className="px-6 py-4">{reading.reading_time} min</td>
-          <td className="px-6 py-4">
-            {new Intl.DateTimeFormat("pt-BR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }).format(new Date(reading.reading_date))}
-          </td>
+          <td className="px-6 py-4">{formatDate(reading.reading_date.toString())}</td>
         </tr>
       ))}
     </tbody>

@@ -1,6 +1,6 @@
 import HeatMap from "@uiw/react-heat-map";
-import getReadings from "../utils/getReadings";
-import { useEffect, useState } from "react";
+import getReadings from "../../../utils/getReadings";
+import { useEffect, useRef, useState } from "react";
 
 interface HeatmapData {
   date: string;
@@ -52,11 +52,11 @@ export function ReadingHeatMap() {
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-4">Streak</h2>
-      <div className="items-center justify-center w-full max-w-3xl">
+      <div className="items-center justify-center w-full">
         <HeatMap
           value={value}
-          startDate={new Date("2024/01/01")}
-          endDate={new Date("2024/12/12")}
+          startDate={new Date(new Date().setDate(new Date().getDate() - 365))}
+          endDate={new Date()}
           rectSize={12}
           space={2}
           weekLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
@@ -77,8 +77,8 @@ export function ReadingHeatMap() {
           monthPlacement="top"
           panelColors={darkPanelColors}
           rectProps={{ rx: 4 }}
-          style={{ color: "#E2E8F0", width: "100%"}}
-          legendRender={(props) => <></>}
+          style={{ color: "#E2E8F0", width: "100%" }}
+          legendRender={() => <div key={crypto.randomUUID()}>{}</div>}
         />
       </div>
     </div>
