@@ -4,7 +4,9 @@ import PDFViewer, {
 } from "@embedpdf/react-pdf-viewer";
 import { useEffect, useRef, useState } from "react";
 import type { SessionPdfData } from "../../../types/ReadingTypes";
-
+import { useScroll } from "@embedpdf/plugin-scroll/react";
+import { useAnnotation } from "@embedpdf/plugin-annotation/react";
+import { useZoom } from "@embedpdf/plugin-zoom/react";
 interface PdfReaderProps {
   pdfData: string;
   sessionStart: boolean;
@@ -30,7 +32,7 @@ export default function PdfReader({
   const handleReady = (reg: PluginRegistry) => {
     registryRef.current = reg;
     setRegistry(reg);
-  };
+   };
 
   const handleInit = (container: EmbedPdfContainer) => {
     containerRef.current = container;

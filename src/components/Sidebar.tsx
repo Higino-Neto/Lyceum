@@ -1,5 +1,6 @@
 import { BookMarkedIcon,  Wrench } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+// TODO Add option to hide this SideBar
 
 export default function Sidebar() {
   const navigate = useNavigate();

@@ -1,4 +1,5 @@
 import { ipcRenderer, contextBridge } from "electron";
+import { addDocument } from "../main/local-database";
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getFilePath: () => {
@@ -7,14 +8,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.send("open-file-dialog");
     });
   },
-  // zoom: (delta: number) => ipcRenderer.send("zoom", delta),
-  // zoomOut: () => ipcRenderer.send("zoom-out"),
 });
 
-// contextBridge.exposeInMainWorld("api", {
-//   openPdf: () => ipcRenderer.invoke("open-pdf"),
-//   getRecents: () => ipcRenderer.invoke("get-recents"),
-// });
+contextBridge.exposeInMainWorld("api", {
+  addDocument: (data) => ipcRenderer.invoke("add-document", data),
+  getDocuments: () => ipcRenderer.invoke("get-documents"),
+});
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld("ipcRenderer", {
