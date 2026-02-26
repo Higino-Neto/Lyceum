@@ -1,1 +1,37 @@
-"use strict";const o=require("electron");o.contextBridge.exposeInMainWorld("electronAPI",{getFilePath:()=>new Promise(e=>{o.ipcRenderer.once("file-opened",(r,n)=>e(n)),o.ipcRenderer.send("open-file-dialog")})});o.contextBridge.exposeInMainWorld("ipcRenderer",{on(...e){const[r,n]=e;return o.ipcRenderer.on(r,(i,...t)=>n(i,...t))},off(...e){const[r,...n]=e;return o.ipcRenderer.off(r,...n)},send(...e){const[r,...n]=e;return o.ipcRenderer.send(r,...n)},invoke(...e){const[r,...n]=e;return o.ipcRenderer.invoke(r,...n)}});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  getFilePath: () => {
+    return new Promise((resolve) => {
+      electron.ipcRenderer.once("file-opened", (_, filePath) => resolve(filePath));
+      electron.ipcRenderer.send("open-file-dialog");
+    });
+  }
+});
+electron.contextBridge.exposeInMainWorld("api", {
+  addDocument: (data) => electron.ipcRenderer.invoke("add-document", data),
+  getDocuments: () => electron.ipcRenderer.invoke("get-documents")
+});
+electron.contextBridge.exposeInMainWorld("ipcRenderer", {
+  on(...args) {
+    const [channel, listener] = args;
+    return electron.ipcRenderer.on(
+      channel,
+      (event, ...args2) => listener(event, ...args2)
+    );
+  },
+  off(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.off(channel, ...omit);
+  },
+  send(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.send(channel, ...omit);
+  },
+  invoke(...args) {
+    const [channel, ...omit] = args;
+    return electron.ipcRenderer.invoke(channel, ...omit);
+  }
+  // You can expose other APTs you need here.
+  // ...
+});

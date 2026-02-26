@@ -3,13 +3,11 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { autoUpdater } from "electron-updater";
-
-// import fs from "node:fs";
-
-// TODO (Difícil) Colocar os updates no github releases para atualizar no pc de todos os usuários quando eu fizer commit na main.
-
+import { addDocument, getAllDocuments, initDatabase } from "./local-database";
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+(globalThis as any).__filename = __filename;
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -22,41 +20,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null = null;
-
-// const recentsFile = path.join(app.getPath("userData"), "recents.json");
-
-// function saveRecent(filePath: string) {
-//   console.log("Salvando em:", recentsFile);
-
-//   let data: any[] = [];
-
-//   if (fs.existsSync(recentsFile)) {
-//     data = JSON.parse(fs.readFileSync(recentsFile, "utf-8"));
-//   }
-
-//   data = data.filter((item) => item.path !== filePath);
-
-//   const entry = {
-//     name: path.basename(filePath),
-//     path: filePath,
-//     lastOpened: new Date().toISOString(),
-//   };
-
-//   data.unshift(entry);
-//   data = data.slice(0, 15);
-
-//   fs.writeFileSync(recentsFile, JSON.stringify(data, null, 2));
-// }
-
-// function getRecents() {
-//   console.log("Lendo de:", recentsFile);
-
-//   if (!fs.existsSync(recentsFile)) return [];
-
-//   const data = JSON.parse(fs.readFileSync(recentsFile, "utf-8"));
-
-//   return data.filter((item: any) => fs.existsSync(item.path));
-// }
 
 function createWindow() {
   win = new BrowserWindow({
@@ -78,36 +41,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // console.log("userData path:", app.getPath("userData"));
   autoUpdater.checkForUpdatesAndNotify();
-
+  // initDatabase();
   createWindow();
 });
-
-// // ipcMain.handle("open-pdf", async () => {
-// //   console.log("ipc handler 'open-pdf' invoked");
-// //   const result = await dialog.showOpenDialog({
-// //     properties: ["openFile"],
-// //     filters: [{ name: "PDF", extensions: ["pdf"] }],
-// //   });
-
-// //   if (result.canceled) return null;
-
-// //   const filePath = result.filePaths[0];
-
-// //   console.log("open-pdf selected:", filePath);
-
-// //   saveRecent(filePath);
-
-// //   return {
-// //     name: path.basename(filePath),
-// //     path: filePath,
-// //   };
-// // });
-
-// ipcMain.handle("get-recents", () => {
-//   return getRecents();
-// });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -120,4 +57,12 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+ipcMain.handle("add-document", (_, data) => {
+  return addDocument(data.title, data.filePath, data.fileHash);
+});
+
+ipcMain.handle("get-documents", () => {
+  return getAllDocuments();
 });

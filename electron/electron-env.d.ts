@@ -26,13 +26,9 @@ interface Window {
   ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
     getFilePath: () => Promise<string>;
-
-    // zoom: (delta: number) => void
   };
-  // api: {
-  //   getRecents: () => Promise<
-  //     Array<{ name: string; path: string; lastOpened?: string }>
-  //   >;
-  //   openPdf: () => Promise<{ name: string; path: string } | null>;
-  // };
+  api: {
+    addDocument: (data: any) => Promise<any>;
+    getDocuments: () => Promise<any>;
+  };
 }
