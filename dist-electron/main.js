@@ -1,24 +1,24 @@
-import require$$1$3, { app, BrowserWindow } from "electron";
+import require$$1$2, { app, BrowserWindow, ipcMain } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import path$m from "node:path";
-import require$$1 from "fs";
+import path$n from "node:path";
+import require$$0$2 from "fs";
 import require$$0 from "constants";
 import require$$0$1 from "stream";
-import require$$4 from "util";
+import require$$2 from "util";
 import require$$5 from "assert";
-import require$$1$1 from "path";
-import require$$1$4 from "child_process";
-import require$$0$2 from "events";
-import require$$0$3 from "crypto";
-import require$$1$2 from "tty";
-import require$$2 from "os";
-import require$$2$1 from "url";
+import require$$1 from "path";
+import require$$1$3 from "child_process";
+import require$$0$3 from "events";
+import require$$0$4 from "crypto";
+import require$$1$1 from "tty";
+import require$$2$1 from "os";
+import require$$2$2 from "url";
 import require$$14 from "zlib";
-import require$$4$1 from "http";
+import require$$4 from "http";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 var main$1 = {};
-var fs$i = {};
+var fs$j = {};
 var universalify$1 = {};
 universalify$1.fromCallback = function(fn) {
   return Object.defineProperty(function(...args) {
@@ -428,11 +428,11 @@ function clone$1(obj) {
   });
   return copy2;
 }
-var fs$h = require$$1;
+var fs$i = require$$0$2;
 var polyfills = polyfills$1;
 var legacy = legacyStreams;
 var clone = clone_1;
-var util$2 = require$$4;
+var util$4 = require$$2;
 var gracefulQueue;
 var previousSymbol;
 if (typeof Symbol === "function" && typeof Symbol.for === "function") {
@@ -452,20 +452,20 @@ function publishQueue(context, queue2) {
   });
 }
 var debug$3 = noop;
-if (util$2.debuglog)
-  debug$3 = util$2.debuglog("gfs4");
+if (util$4.debuglog)
+  debug$3 = util$4.debuglog("gfs4");
 else if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || ""))
   debug$3 = function() {
-    var m = util$2.format.apply(util$2, arguments);
+    var m = util$4.format.apply(util$4, arguments);
     m = "GFS4: " + m.split(/\n/).join("\nGFS4: ");
     console.error(m);
   };
-if (!fs$h[gracefulQueue]) {
+if (!fs$i[gracefulQueue]) {
   var queue = commonjsGlobal[gracefulQueue] || [];
-  publishQueue(fs$h, queue);
-  fs$h.close = function(fs$close) {
+  publishQueue(fs$i, queue);
+  fs$i.close = function(fs$close) {
     function close(fd, cb) {
-      return fs$close.call(fs$h, fd, function(err) {
+      return fs$close.call(fs$i, fd, function(err) {
         if (!err) {
           resetQueue();
         }
@@ -477,31 +477,31 @@ if (!fs$h[gracefulQueue]) {
       value: fs$close
     });
     return close;
-  }(fs$h.close);
-  fs$h.closeSync = function(fs$closeSync) {
+  }(fs$i.close);
+  fs$i.closeSync = function(fs$closeSync) {
     function closeSync(fd) {
-      fs$closeSync.apply(fs$h, arguments);
+      fs$closeSync.apply(fs$i, arguments);
       resetQueue();
     }
     Object.defineProperty(closeSync, previousSymbol, {
       value: fs$closeSync
     });
     return closeSync;
-  }(fs$h.closeSync);
+  }(fs$i.closeSync);
   if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || "")) {
     process.on("exit", function() {
-      debug$3(fs$h[gracefulQueue]);
-      require$$5.equal(fs$h[gracefulQueue].length, 0);
+      debug$3(fs$i[gracefulQueue]);
+      require$$5.equal(fs$i[gracefulQueue].length, 0);
     });
   }
 }
 if (!commonjsGlobal[gracefulQueue]) {
-  publishQueue(commonjsGlobal, fs$h[gracefulQueue]);
+  publishQueue(commonjsGlobal, fs$i[gracefulQueue]);
 }
-var gracefulFs = patch$2(clone(fs$h));
-if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs$h.__patched) {
-  gracefulFs = patch$2(fs$h);
-  fs$h.__patched = true;
+var gracefulFs = patch$2(clone(fs$i));
+if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs$i.__patched) {
+  gracefulFs = patch$2(fs$i);
+  fs$i.__patched = true;
 }
 function patch$2(fs2) {
   polyfills(fs2);
@@ -743,16 +743,16 @@ function patch$2(fs2) {
 }
 function enqueue(elem) {
   debug$3("ENQUEUE", elem[0].name, elem[1]);
-  fs$h[gracefulQueue].push(elem);
+  fs$i[gracefulQueue].push(elem);
   retry$2();
 }
 var retryTimer;
 function resetQueue() {
   var now = Date.now();
-  for (var i = 0; i < fs$h[gracefulQueue].length; ++i) {
-    if (fs$h[gracefulQueue][i].length > 2) {
-      fs$h[gracefulQueue][i][3] = now;
-      fs$h[gracefulQueue][i][4] = now;
+  for (var i = 0; i < fs$i[gracefulQueue].length; ++i) {
+    if (fs$i[gracefulQueue][i].length > 2) {
+      fs$i[gracefulQueue][i][3] = now;
+      fs$i[gracefulQueue][i][4] = now;
     }
   }
   retry$2();
@@ -760,9 +760,9 @@ function resetQueue() {
 function retry$2() {
   clearTimeout(retryTimer);
   retryTimer = void 0;
-  if (fs$h[gracefulQueue].length === 0)
+  if (fs$i[gracefulQueue].length === 0)
     return;
-  var elem = fs$h[gracefulQueue].shift();
+  var elem = fs$i[gracefulQueue].shift();
   var fn = elem[0];
   var args = elem[1];
   var err = elem[2];
@@ -784,7 +784,7 @@ function retry$2() {
       debug$3("RETRY", fn.name, args);
       fn.apply(null, args.concat([startTime]));
     } else {
-      fs$h[gracefulQueue].push(elem);
+      fs$i[gracefulQueue].push(elem);
     }
   }
   if (retryTimer === void 0) {
@@ -888,13 +888,13 @@ function retry$2() {
       "fs-extra-WARN0003"
     );
   }
-})(fs$i);
+})(fs$j);
 var makeDir$1 = {};
 var utils$1 = {};
-const path$l = require$$1$1;
+const path$m = require$$1;
 utils$1.checkPath = function checkPath(pth) {
   if (process.platform === "win32") {
-    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path$l.parse(pth).root, ""));
+    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path$m.parse(pth).root, ""));
     if (pathHasInvalidWinCharacters) {
       const error2 = new Error(`Path contains invalid characters: ${pth}`);
       error2.code = "EINVAL";
@@ -902,7 +902,7 @@ utils$1.checkPath = function checkPath(pth) {
     }
   }
 };
-const fs$g = fs$i;
+const fs$h = fs$j;
 const { checkPath: checkPath2 } = utils$1;
 const getMode = (options) => {
   const defaults2 = { mode: 511 };
@@ -911,14 +911,14 @@ const getMode = (options) => {
 };
 makeDir$1.makeDir = async (dir, options) => {
   checkPath2(dir);
-  return fs$g.mkdir(dir, {
+  return fs$h.mkdir(dir, {
     mode: getMode(options),
     recursive: true
   });
 };
 makeDir$1.makeDirSync = (dir, options) => {
   checkPath2(dir);
-  return fs$g.mkdirSync(dir, {
+  return fs$h.mkdirSync(dir, {
     mode: getMode(options),
     recursive: true
   });
@@ -936,39 +936,39 @@ var mkdirs$2 = {
   ensureDirSync: makeDirSync
 };
 const u$9 = universalify$1.fromPromise;
-const fs$f = fs$i;
+const fs$g = fs$j;
 function pathExists$6(path2) {
-  return fs$f.access(path2).then(() => true).catch(() => false);
+  return fs$g.access(path2).then(() => true).catch(() => false);
 }
 var pathExists_1 = {
   pathExists: u$9(pathExists$6),
-  pathExistsSync: fs$f.existsSync
+  pathExistsSync: fs$g.existsSync
 };
-const fs$e = gracefulFs;
+const fs$f = gracefulFs;
 function utimesMillis$1(path2, atime, mtime, callback) {
-  fs$e.open(path2, "r+", (err, fd) => {
+  fs$f.open(path2, "r+", (err, fd) => {
     if (err) return callback(err);
-    fs$e.futimes(fd, atime, mtime, (futimesErr) => {
-      fs$e.close(fd, (closeErr) => {
+    fs$f.futimes(fd, atime, mtime, (futimesErr) => {
+      fs$f.close(fd, (closeErr) => {
         if (callback) callback(futimesErr || closeErr);
       });
     });
   });
 }
 function utimesMillisSync$1(path2, atime, mtime) {
-  const fd = fs$e.openSync(path2, "r+");
-  fs$e.futimesSync(fd, atime, mtime);
-  return fs$e.closeSync(fd);
+  const fd = fs$f.openSync(path2, "r+");
+  fs$f.futimesSync(fd, atime, mtime);
+  return fs$f.closeSync(fd);
 }
 var utimes = {
   utimesMillis: utimesMillis$1,
   utimesMillisSync: utimesMillisSync$1
 };
-const fs$d = fs$i;
-const path$k = require$$1$1;
-const util$1 = require$$4;
+const fs$e = fs$j;
+const path$l = require$$1;
+const util$3 = require$$2;
 function getStats$2(src2, dest, opts) {
-  const statFunc = opts.dereference ? (file2) => fs$d.stat(file2, { bigint: true }) : (file2) => fs$d.lstat(file2, { bigint: true });
+  const statFunc = opts.dereference ? (file2) => fs$e.stat(file2, { bigint: true }) : (file2) => fs$e.lstat(file2, { bigint: true });
   return Promise.all([
     statFunc(src2),
     statFunc(dest).catch((err) => {
@@ -979,7 +979,7 @@ function getStats$2(src2, dest, opts) {
 }
 function getStatsSync(src2, dest, opts) {
   let destStat;
-  const statFunc = opts.dereference ? (file2) => fs$d.statSync(file2, { bigint: true }) : (file2) => fs$d.lstatSync(file2, { bigint: true });
+  const statFunc = opts.dereference ? (file2) => fs$e.statSync(file2, { bigint: true }) : (file2) => fs$e.lstatSync(file2, { bigint: true });
   const srcStat = statFunc(src2);
   try {
     destStat = statFunc(dest);
@@ -990,13 +990,13 @@ function getStatsSync(src2, dest, opts) {
   return { srcStat, destStat };
 }
 function checkPaths(src2, dest, funcName, opts, cb) {
-  util$1.callbackify(getStats$2)(src2, dest, opts, (err, stats) => {
+  util$3.callbackify(getStats$2)(src2, dest, opts, (err, stats) => {
     if (err) return cb(err);
     const { srcStat, destStat } = stats;
     if (destStat) {
       if (areIdentical$2(srcStat, destStat)) {
-        const srcBaseName = path$k.basename(src2);
-        const destBaseName = path$k.basename(dest);
+        const srcBaseName = path$l.basename(src2);
+        const destBaseName = path$l.basename(dest);
         if (funcName === "move" && srcBaseName !== destBaseName && srcBaseName.toLowerCase() === destBaseName.toLowerCase()) {
           return cb(null, { srcStat, destStat, isChangingCase: true });
         }
@@ -1019,8 +1019,8 @@ function checkPathsSync(src2, dest, funcName, opts) {
   const { srcStat, destStat } = getStatsSync(src2, dest, opts);
   if (destStat) {
     if (areIdentical$2(srcStat, destStat)) {
-      const srcBaseName = path$k.basename(src2);
-      const destBaseName = path$k.basename(dest);
+      const srcBaseName = path$l.basename(src2);
+      const destBaseName = path$l.basename(dest);
       if (funcName === "move" && srcBaseName !== destBaseName && srcBaseName.toLowerCase() === destBaseName.toLowerCase()) {
         return { srcStat, destStat, isChangingCase: true };
       }
@@ -1039,10 +1039,10 @@ function checkPathsSync(src2, dest, funcName, opts) {
   return { srcStat, destStat };
 }
 function checkParentPaths(src2, srcStat, dest, funcName, cb) {
-  const srcParent = path$k.resolve(path$k.dirname(src2));
-  const destParent = path$k.resolve(path$k.dirname(dest));
-  if (destParent === srcParent || destParent === path$k.parse(destParent).root) return cb();
-  fs$d.stat(destParent, { bigint: true }, (err, destStat) => {
+  const srcParent = path$l.resolve(path$l.dirname(src2));
+  const destParent = path$l.resolve(path$l.dirname(dest));
+  if (destParent === srcParent || destParent === path$l.parse(destParent).root) return cb();
+  fs$e.stat(destParent, { bigint: true }, (err, destStat) => {
     if (err) {
       if (err.code === "ENOENT") return cb();
       return cb(err);
@@ -1054,12 +1054,12 @@ function checkParentPaths(src2, srcStat, dest, funcName, cb) {
   });
 }
 function checkParentPathsSync(src2, srcStat, dest, funcName) {
-  const srcParent = path$k.resolve(path$k.dirname(src2));
-  const destParent = path$k.resolve(path$k.dirname(dest));
-  if (destParent === srcParent || destParent === path$k.parse(destParent).root) return;
+  const srcParent = path$l.resolve(path$l.dirname(src2));
+  const destParent = path$l.resolve(path$l.dirname(dest));
+  if (destParent === srcParent || destParent === path$l.parse(destParent).root) return;
   let destStat;
   try {
-    destStat = fs$d.statSync(destParent, { bigint: true });
+    destStat = fs$e.statSync(destParent, { bigint: true });
   } catch (err) {
     if (err.code === "ENOENT") return;
     throw err;
@@ -1073,8 +1073,8 @@ function areIdentical$2(srcStat, destStat) {
   return destStat.ino && destStat.dev && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev;
 }
 function isSrcSubdir(src2, dest) {
-  const srcArr = path$k.resolve(src2).split(path$k.sep).filter((i) => i);
-  const destArr = path$k.resolve(dest).split(path$k.sep).filter((i) => i);
+  const srcArr = path$l.resolve(src2).split(path$l.sep).filter((i) => i);
+  const destArr = path$l.resolve(dest).split(path$l.sep).filter((i) => i);
   return srcArr.reduce((acc, cur, i) => acc && destArr[i] === cur, true);
 }
 function errMsg(src2, dest, funcName) {
@@ -1088,8 +1088,8 @@ var stat$4 = {
   isSrcSubdir,
   areIdentical: areIdentical$2
 };
-const fs$c = gracefulFs;
-const path$j = require$$1$1;
+const fs$d = gracefulFs;
+const path$k = require$$1;
 const mkdirs$1 = mkdirs$2.mkdirs;
 const pathExists$5 = pathExists_1.pathExists;
 const utimesMillis = utimes.utimesMillis;
@@ -1124,7 +1124,7 @@ function copy$2(src2, dest, opts, cb) {
   });
 }
 function checkParentDir(destStat, src2, dest, opts, cb) {
-  const destParent = path$j.dirname(dest);
+  const destParent = path$k.dirname(dest);
   pathExists$5(destParent, (err, dirExists) => {
     if (err) return cb(err);
     if (dirExists) return getStats$1(destStat, src2, dest, opts, cb);
@@ -1145,7 +1145,7 @@ function startCopy$1(destStat, src2, dest, opts, cb) {
   return getStats$1(destStat, src2, dest, opts, cb);
 }
 function getStats$1(destStat, src2, dest, opts, cb) {
-  const stat2 = opts.dereference ? fs$c.stat : fs$c.lstat;
+  const stat2 = opts.dereference ? fs$d.stat : fs$d.lstat;
   stat2(src2, (err, srcStat) => {
     if (err) return cb(err);
     if (srcStat.isDirectory()) return onDir$1(srcStat, destStat, src2, dest, opts, cb);
@@ -1162,7 +1162,7 @@ function onFile$1(srcStat, destStat, src2, dest, opts, cb) {
 }
 function mayCopyFile$1(srcStat, src2, dest, opts, cb) {
   if (opts.overwrite) {
-    fs$c.unlink(dest, (err) => {
+    fs$d.unlink(dest, (err) => {
       if (err) return cb(err);
       return copyFile$1(srcStat, src2, dest, opts, cb);
     });
@@ -1171,7 +1171,7 @@ function mayCopyFile$1(srcStat, src2, dest, opts, cb) {
   } else return cb();
 }
 function copyFile$1(srcStat, src2, dest, opts, cb) {
-  fs$c.copyFile(src2, dest, (err) => {
+  fs$d.copyFile(src2, dest, (err) => {
     if (err) return cb(err);
     if (opts.preserveTimestamps) return handleTimestampsAndMode(srcStat.mode, src2, dest, cb);
     return setDestMode$1(dest, srcStat.mode, cb);
@@ -1199,10 +1199,10 @@ function setDestTimestampsAndMode(srcMode, src2, dest, cb) {
   });
 }
 function setDestMode$1(dest, srcMode, cb) {
-  return fs$c.chmod(dest, srcMode, cb);
+  return fs$d.chmod(dest, srcMode, cb);
 }
 function setDestTimestamps$1(src2, dest, cb) {
-  fs$c.stat(src2, (err, updatedSrcStat) => {
+  fs$d.stat(src2, (err, updatedSrcStat) => {
     if (err) return cb(err);
     return utimesMillis(dest, updatedSrcStat.atime, updatedSrcStat.mtime, cb);
   });
@@ -1212,7 +1212,7 @@ function onDir$1(srcStat, destStat, src2, dest, opts, cb) {
   return copyDir$1(src2, dest, opts, cb);
 }
 function mkDirAndCopy$1(srcMode, src2, dest, opts, cb) {
-  fs$c.mkdir(dest, (err) => {
+  fs$d.mkdir(dest, (err) => {
     if (err) return cb(err);
     copyDir$1(src2, dest, opts, (err2) => {
       if (err2) return cb(err2);
@@ -1221,7 +1221,7 @@ function mkDirAndCopy$1(srcMode, src2, dest, opts, cb) {
   });
 }
 function copyDir$1(src2, dest, opts, cb) {
-  fs$c.readdir(src2, (err, items) => {
+  fs$d.readdir(src2, (err, items) => {
     if (err) return cb(err);
     return copyDirItems(items, src2, dest, opts, cb);
   });
@@ -1232,8 +1232,8 @@ function copyDirItems(items, src2, dest, opts, cb) {
   return copyDirItem$1(items, item, src2, dest, opts, cb);
 }
 function copyDirItem$1(items, item, src2, dest, opts, cb) {
-  const srcItem = path$j.join(src2, item);
-  const destItem = path$j.join(dest, item);
+  const srcItem = path$k.join(src2, item);
+  const destItem = path$k.join(dest, item);
   stat$3.checkPaths(srcItem, destItem, "copy", opts, (err, stats) => {
     if (err) return cb(err);
     const { destStat } = stats;
@@ -1244,21 +1244,21 @@ function copyDirItem$1(items, item, src2, dest, opts, cb) {
   });
 }
 function onLink$1(destStat, src2, dest, opts, cb) {
-  fs$c.readlink(src2, (err, resolvedSrc) => {
+  fs$d.readlink(src2, (err, resolvedSrc) => {
     if (err) return cb(err);
     if (opts.dereference) {
-      resolvedSrc = path$j.resolve(process.cwd(), resolvedSrc);
+      resolvedSrc = path$k.resolve(process.cwd(), resolvedSrc);
     }
     if (!destStat) {
-      return fs$c.symlink(resolvedSrc, dest, cb);
+      return fs$d.symlink(resolvedSrc, dest, cb);
     } else {
-      fs$c.readlink(dest, (err2, resolvedDest) => {
+      fs$d.readlink(dest, (err2, resolvedDest) => {
         if (err2) {
-          if (err2.code === "EINVAL" || err2.code === "UNKNOWN") return fs$c.symlink(resolvedSrc, dest, cb);
+          if (err2.code === "EINVAL" || err2.code === "UNKNOWN") return fs$d.symlink(resolvedSrc, dest, cb);
           return cb(err2);
         }
         if (opts.dereference) {
-          resolvedDest = path$j.resolve(process.cwd(), resolvedDest);
+          resolvedDest = path$k.resolve(process.cwd(), resolvedDest);
         }
         if (stat$3.isSrcSubdir(resolvedSrc, resolvedDest)) {
           return cb(new Error(`Cannot copy '${resolvedSrc}' to a subdirectory of itself, '${resolvedDest}'.`));
@@ -1272,14 +1272,14 @@ function onLink$1(destStat, src2, dest, opts, cb) {
   });
 }
 function copyLink$1(resolvedSrc, dest, cb) {
-  fs$c.unlink(dest, (err) => {
+  fs$d.unlink(dest, (err) => {
     if (err) return cb(err);
-    return fs$c.symlink(resolvedSrc, dest, cb);
+    return fs$d.symlink(resolvedSrc, dest, cb);
   });
 }
 var copy_1 = copy$2;
-const fs$b = gracefulFs;
-const path$i = require$$1$1;
+const fs$c = gracefulFs;
+const path$j = require$$1;
 const mkdirsSync$1 = mkdirs$2.mkdirsSync;
 const utimesMillisSync = utimes.utimesMillisSync;
 const stat$2 = stat$4;
@@ -1303,8 +1303,8 @@ function copySync$1(src2, dest, opts) {
 }
 function handleFilterAndCopy(destStat, src2, dest, opts) {
   if (opts.filter && !opts.filter(src2, dest)) return;
-  const destParent = path$i.dirname(dest);
-  if (!fs$b.existsSync(destParent)) mkdirsSync$1(destParent);
+  const destParent = path$j.dirname(dest);
+  if (!fs$c.existsSync(destParent)) mkdirsSync$1(destParent);
   return getStats(destStat, src2, dest, opts);
 }
 function startCopy(destStat, src2, dest, opts) {
@@ -1312,7 +1312,7 @@ function startCopy(destStat, src2, dest, opts) {
   return getStats(destStat, src2, dest, opts);
 }
 function getStats(destStat, src2, dest, opts) {
-  const statSync = opts.dereference ? fs$b.statSync : fs$b.lstatSync;
+  const statSync = opts.dereference ? fs$c.statSync : fs$c.lstatSync;
   const srcStat = statSync(src2);
   if (srcStat.isDirectory()) return onDir(srcStat, destStat, src2, dest, opts);
   else if (srcStat.isFile() || srcStat.isCharacterDevice() || srcStat.isBlockDevice()) return onFile(srcStat, destStat, src2, dest, opts);
@@ -1327,14 +1327,14 @@ function onFile(srcStat, destStat, src2, dest, opts) {
 }
 function mayCopyFile(srcStat, src2, dest, opts) {
   if (opts.overwrite) {
-    fs$b.unlinkSync(dest);
+    fs$c.unlinkSync(dest);
     return copyFile(srcStat, src2, dest, opts);
   } else if (opts.errorOnExist) {
     throw new Error(`'${dest}' already exists`);
   }
 }
 function copyFile(srcStat, src2, dest, opts) {
-  fs$b.copyFileSync(src2, dest);
+  fs$c.copyFileSync(src2, dest);
   if (opts.preserveTimestamps) handleTimestamps(srcStat.mode, src2, dest);
   return setDestMode(dest, srcStat.mode);
 }
@@ -1349,10 +1349,10 @@ function makeFileWritable(dest, srcMode) {
   return setDestMode(dest, srcMode | 128);
 }
 function setDestMode(dest, srcMode) {
-  return fs$b.chmodSync(dest, srcMode);
+  return fs$c.chmodSync(dest, srcMode);
 }
 function setDestTimestamps(src2, dest) {
-  const updatedSrcStat = fs$b.statSync(src2);
+  const updatedSrcStat = fs$c.statSync(src2);
   return utimesMillisSync(dest, updatedSrcStat.atime, updatedSrcStat.mtime);
 }
 function onDir(srcStat, destStat, src2, dest, opts) {
@@ -1360,49 +1360,49 @@ function onDir(srcStat, destStat, src2, dest, opts) {
   return copyDir(src2, dest, opts);
 }
 function mkDirAndCopy(srcMode, src2, dest, opts) {
-  fs$b.mkdirSync(dest);
+  fs$c.mkdirSync(dest);
   copyDir(src2, dest, opts);
   return setDestMode(dest, srcMode);
 }
 function copyDir(src2, dest, opts) {
-  fs$b.readdirSync(src2).forEach((item) => copyDirItem(item, src2, dest, opts));
+  fs$c.readdirSync(src2).forEach((item) => copyDirItem(item, src2, dest, opts));
 }
 function copyDirItem(item, src2, dest, opts) {
-  const srcItem = path$i.join(src2, item);
-  const destItem = path$i.join(dest, item);
+  const srcItem = path$j.join(src2, item);
+  const destItem = path$j.join(dest, item);
   const { destStat } = stat$2.checkPathsSync(srcItem, destItem, "copy", opts);
   return startCopy(destStat, srcItem, destItem, opts);
 }
 function onLink(destStat, src2, dest, opts) {
-  let resolvedSrc = fs$b.readlinkSync(src2);
+  let resolvedSrc = fs$c.readlinkSync(src2);
   if (opts.dereference) {
-    resolvedSrc = path$i.resolve(process.cwd(), resolvedSrc);
+    resolvedSrc = path$j.resolve(process.cwd(), resolvedSrc);
   }
   if (!destStat) {
-    return fs$b.symlinkSync(resolvedSrc, dest);
+    return fs$c.symlinkSync(resolvedSrc, dest);
   } else {
     let resolvedDest;
     try {
-      resolvedDest = fs$b.readlinkSync(dest);
+      resolvedDest = fs$c.readlinkSync(dest);
     } catch (err) {
-      if (err.code === "EINVAL" || err.code === "UNKNOWN") return fs$b.symlinkSync(resolvedSrc, dest);
+      if (err.code === "EINVAL" || err.code === "UNKNOWN") return fs$c.symlinkSync(resolvedSrc, dest);
       throw err;
     }
     if (opts.dereference) {
-      resolvedDest = path$i.resolve(process.cwd(), resolvedDest);
+      resolvedDest = path$j.resolve(process.cwd(), resolvedDest);
     }
     if (stat$2.isSrcSubdir(resolvedSrc, resolvedDest)) {
       throw new Error(`Cannot copy '${resolvedSrc}' to a subdirectory of itself, '${resolvedDest}'.`);
     }
-    if (fs$b.statSync(dest).isDirectory() && stat$2.isSrcSubdir(resolvedDest, resolvedSrc)) {
+    if (fs$c.statSync(dest).isDirectory() && stat$2.isSrcSubdir(resolvedDest, resolvedSrc)) {
       throw new Error(`Cannot overwrite '${resolvedDest}' with '${resolvedSrc}'.`);
     }
     return copyLink(resolvedSrc, dest);
   }
 }
 function copyLink(resolvedSrc, dest) {
-  fs$b.unlinkSync(dest);
-  return fs$b.symlinkSync(resolvedSrc, dest);
+  fs$c.unlinkSync(dest);
+  return fs$c.symlinkSync(resolvedSrc, dest);
 }
 var copySync_1 = copySync$1;
 const u$8 = universalify$1.fromCallback;
@@ -1410,8 +1410,8 @@ var copy$1 = {
   copy: u$8(copy_1),
   copySync: copySync_1
 };
-const fs$a = gracefulFs;
-const path$h = require$$1$1;
+const fs$b = gracefulFs;
+const path$i = require$$1;
 const assert = require$$5;
 const isWindows = process.platform === "win32";
 function defaults(options) {
@@ -1424,9 +1424,9 @@ function defaults(options) {
     "readdir"
   ];
   methods.forEach((m) => {
-    options[m] = options[m] || fs$a[m];
+    options[m] = options[m] || fs$b[m];
     m = m + "Sync";
-    options[m] = options[m] || fs$a[m];
+    options[m] = options[m] || fs$b[m];
   });
   options.maxBusyTries = options.maxBusyTries || 3;
 }
@@ -1556,7 +1556,7 @@ function rmkids(p, options, cb) {
     let errState;
     if (n === 0) return options.rmdir(p, cb);
     files.forEach((f) => {
-      rimraf$1(path$h.join(p, f), options, (er2) => {
+      rimraf$1(path$i.join(p, f), options, (er2) => {
         if (errState) {
           return;
         }
@@ -1621,7 +1621,7 @@ function rmdirSync(p, options, originalEr) {
 function rmkidsSync(p, options) {
   assert(p);
   assert(options);
-  options.readdirSync(p).forEach((f) => rimrafSync(path$h.join(p, f), options));
+  options.readdirSync(p).forEach((f) => rimrafSync(path$i.join(p, f), options));
   if (isWindows) {
     const startTime = Date.now();
     do {
@@ -1638,15 +1638,15 @@ function rmkidsSync(p, options) {
 }
 var rimraf_1 = rimraf$1;
 rimraf$1.sync = rimrafSync;
-const fs$9 = gracefulFs;
+const fs$a = gracefulFs;
 const u$7 = universalify$1.fromCallback;
 const rimraf = rimraf_1;
 function remove$2(path2, callback) {
-  if (fs$9.rm) return fs$9.rm(path2, { recursive: true, force: true }, callback);
+  if (fs$a.rm) return fs$a.rm(path2, { recursive: true, force: true }, callback);
   rimraf(path2, callback);
 }
 function removeSync$1(path2) {
-  if (fs$9.rmSync) return fs$9.rmSync(path2, { recursive: true, force: true });
+  if (fs$a.rmSync) return fs$a.rmSync(path2, { recursive: true, force: true });
   rimraf.sync(path2);
 }
 var remove_1 = {
@@ -1654,28 +1654,28 @@ var remove_1 = {
   removeSync: removeSync$1
 };
 const u$6 = universalify$1.fromPromise;
-const fs$8 = fs$i;
-const path$g = require$$1$1;
+const fs$9 = fs$j;
+const path$h = require$$1;
 const mkdir$3 = mkdirs$2;
 const remove$1 = remove_1;
 const emptyDir = u$6(async function emptyDir2(dir) {
   let items;
   try {
-    items = await fs$8.readdir(dir);
+    items = await fs$9.readdir(dir);
   } catch {
     return mkdir$3.mkdirs(dir);
   }
-  return Promise.all(items.map((item) => remove$1.remove(path$g.join(dir, item))));
+  return Promise.all(items.map((item) => remove$1.remove(path$h.join(dir, item))));
 });
 function emptyDirSync(dir) {
   let items;
   try {
-    items = fs$8.readdirSync(dir);
+    items = fs$9.readdirSync(dir);
   } catch {
     return mkdir$3.mkdirsSync(dir);
   }
   items.forEach((item) => {
-    item = path$g.join(dir, item);
+    item = path$h.join(dir, item);
     remove$1.removeSync(item);
   });
 }
@@ -1686,20 +1686,20 @@ var empty = {
   emptydir: emptyDir
 };
 const u$5 = universalify$1.fromCallback;
-const path$f = require$$1$1;
-const fs$7 = gracefulFs;
+const path$g = require$$1;
+const fs$8 = gracefulFs;
 const mkdir$2 = mkdirs$2;
 function createFile$1(file2, callback) {
   function makeFile() {
-    fs$7.writeFile(file2, "", (err) => {
+    fs$8.writeFile(file2, "", (err) => {
       if (err) return callback(err);
       callback();
     });
   }
-  fs$7.stat(file2, (err, stats) => {
+  fs$8.stat(file2, (err, stats) => {
     if (!err && stats.isFile()) return callback();
-    const dir = path$f.dirname(file2);
-    fs$7.stat(dir, (err2, stats2) => {
+    const dir = path$g.dirname(file2);
+    fs$8.stat(dir, (err2, stats2) => {
       if (err2) {
         if (err2.code === "ENOENT") {
           return mkdir$2.mkdirs(dir, (err3) => {
@@ -1711,7 +1711,7 @@ function createFile$1(file2, callback) {
       }
       if (stats2.isDirectory()) makeFile();
       else {
-        fs$7.readdir(dir, (err3) => {
+        fs$8.readdir(dir, (err3) => {
           if (err3) return callback(err3);
         });
       }
@@ -1721,46 +1721,46 @@ function createFile$1(file2, callback) {
 function createFileSync$1(file2) {
   let stats;
   try {
-    stats = fs$7.statSync(file2);
+    stats = fs$8.statSync(file2);
   } catch {
   }
   if (stats && stats.isFile()) return;
-  const dir = path$f.dirname(file2);
+  const dir = path$g.dirname(file2);
   try {
-    if (!fs$7.statSync(dir).isDirectory()) {
-      fs$7.readdirSync(dir);
+    if (!fs$8.statSync(dir).isDirectory()) {
+      fs$8.readdirSync(dir);
     }
   } catch (err) {
     if (err && err.code === "ENOENT") mkdir$2.mkdirsSync(dir);
     else throw err;
   }
-  fs$7.writeFileSync(file2, "");
+  fs$8.writeFileSync(file2, "");
 }
 var file = {
   createFile: u$5(createFile$1),
   createFileSync: createFileSync$1
 };
 const u$4 = universalify$1.fromCallback;
-const path$e = require$$1$1;
-const fs$6 = gracefulFs;
+const path$f = require$$1;
+const fs$7 = gracefulFs;
 const mkdir$1 = mkdirs$2;
 const pathExists$4 = pathExists_1.pathExists;
 const { areIdentical: areIdentical$1 } = stat$4;
 function createLink$1(srcpath, dstpath, callback) {
   function makeLink(srcpath2, dstpath2) {
-    fs$6.link(srcpath2, dstpath2, (err) => {
+    fs$7.link(srcpath2, dstpath2, (err) => {
       if (err) return callback(err);
       callback(null);
     });
   }
-  fs$6.lstat(dstpath, (_, dstStat) => {
-    fs$6.lstat(srcpath, (err, srcStat) => {
+  fs$7.lstat(dstpath, (_, dstStat) => {
+    fs$7.lstat(srcpath, (err, srcStat) => {
       if (err) {
         err.message = err.message.replace("lstat", "ensureLink");
         return callback(err);
       }
       if (dstStat && areIdentical$1(srcStat, dstStat)) return callback(null);
-      const dir = path$e.dirname(dstpath);
+      const dir = path$f.dirname(dstpath);
       pathExists$4(dir, (err2, dirExists) => {
         if (err2) return callback(err2);
         if (dirExists) return makeLink(srcpath, dstpath);
@@ -1775,32 +1775,32 @@ function createLink$1(srcpath, dstpath, callback) {
 function createLinkSync$1(srcpath, dstpath) {
   let dstStat;
   try {
-    dstStat = fs$6.lstatSync(dstpath);
+    dstStat = fs$7.lstatSync(dstpath);
   } catch {
   }
   try {
-    const srcStat = fs$6.lstatSync(srcpath);
+    const srcStat = fs$7.lstatSync(srcpath);
     if (dstStat && areIdentical$1(srcStat, dstStat)) return;
   } catch (err) {
     err.message = err.message.replace("lstat", "ensureLink");
     throw err;
   }
-  const dir = path$e.dirname(dstpath);
-  const dirExists = fs$6.existsSync(dir);
-  if (dirExists) return fs$6.linkSync(srcpath, dstpath);
+  const dir = path$f.dirname(dstpath);
+  const dirExists = fs$7.existsSync(dir);
+  if (dirExists) return fs$7.linkSync(srcpath, dstpath);
   mkdir$1.mkdirsSync(dir);
-  return fs$6.linkSync(srcpath, dstpath);
+  return fs$7.linkSync(srcpath, dstpath);
 }
 var link = {
   createLink: u$4(createLink$1),
   createLinkSync: createLinkSync$1
 };
-const path$d = require$$1$1;
-const fs$5 = gracefulFs;
+const path$e = require$$1;
+const fs$6 = gracefulFs;
 const pathExists$3 = pathExists_1.pathExists;
 function symlinkPaths$1(srcpath, dstpath, callback) {
-  if (path$d.isAbsolute(srcpath)) {
-    return fs$5.lstat(srcpath, (err) => {
+  if (path$e.isAbsolute(srcpath)) {
+    return fs$6.lstat(srcpath, (err) => {
       if (err) {
         err.message = err.message.replace("lstat", "ensureSymlink");
         return callback(err);
@@ -1811,8 +1811,8 @@ function symlinkPaths$1(srcpath, dstpath, callback) {
       });
     });
   } else {
-    const dstdir = path$d.dirname(dstpath);
-    const relativeToDst = path$d.join(dstdir, srcpath);
+    const dstdir = path$e.dirname(dstpath);
+    const relativeToDst = path$e.join(dstdir, srcpath);
     return pathExists$3(relativeToDst, (err, exists) => {
       if (err) return callback(err);
       if (exists) {
@@ -1821,14 +1821,14 @@ function symlinkPaths$1(srcpath, dstpath, callback) {
           toDst: srcpath
         });
       } else {
-        return fs$5.lstat(srcpath, (err2) => {
+        return fs$6.lstat(srcpath, (err2) => {
           if (err2) {
             err2.message = err2.message.replace("lstat", "ensureSymlink");
             return callback(err2);
           }
           return callback(null, {
             toCwd: srcpath,
-            toDst: path$d.relative(dstdir, srcpath)
+            toDst: path$e.relative(dstdir, srcpath)
           });
         });
       }
@@ -1837,28 +1837,28 @@ function symlinkPaths$1(srcpath, dstpath, callback) {
 }
 function symlinkPathsSync$1(srcpath, dstpath) {
   let exists;
-  if (path$d.isAbsolute(srcpath)) {
-    exists = fs$5.existsSync(srcpath);
+  if (path$e.isAbsolute(srcpath)) {
+    exists = fs$6.existsSync(srcpath);
     if (!exists) throw new Error("absolute srcpath does not exist");
     return {
       toCwd: srcpath,
       toDst: srcpath
     };
   } else {
-    const dstdir = path$d.dirname(dstpath);
-    const relativeToDst = path$d.join(dstdir, srcpath);
-    exists = fs$5.existsSync(relativeToDst);
+    const dstdir = path$e.dirname(dstpath);
+    const relativeToDst = path$e.join(dstdir, srcpath);
+    exists = fs$6.existsSync(relativeToDst);
     if (exists) {
       return {
         toCwd: relativeToDst,
         toDst: srcpath
       };
     } else {
-      exists = fs$5.existsSync(srcpath);
+      exists = fs$6.existsSync(srcpath);
       if (!exists) throw new Error("relative srcpath does not exist");
       return {
         toCwd: srcpath,
-        toDst: path$d.relative(dstdir, srcpath)
+        toDst: path$e.relative(dstdir, srcpath)
       };
     }
   }
@@ -1867,12 +1867,12 @@ var symlinkPaths_1 = {
   symlinkPaths: symlinkPaths$1,
   symlinkPathsSync: symlinkPathsSync$1
 };
-const fs$4 = gracefulFs;
+const fs$5 = gracefulFs;
 function symlinkType$1(srcpath, type2, callback) {
   callback = typeof type2 === "function" ? type2 : callback;
   type2 = typeof type2 === "function" ? false : type2;
   if (type2) return callback(null, type2);
-  fs$4.lstat(srcpath, (err, stats) => {
+  fs$5.lstat(srcpath, (err, stats) => {
     if (err) return callback(null, "file");
     type2 = stats && stats.isDirectory() ? "dir" : "file";
     callback(null, type2);
@@ -1882,7 +1882,7 @@ function symlinkTypeSync$1(srcpath, type2) {
   let stats;
   if (type2) return type2;
   try {
-    stats = fs$4.lstatSync(srcpath);
+    stats = fs$5.lstatSync(srcpath);
   } catch {
     return "file";
   }
@@ -1893,8 +1893,8 @@ var symlinkType_1 = {
   symlinkTypeSync: symlinkTypeSync$1
 };
 const u$3 = universalify$1.fromCallback;
-const path$c = require$$1$1;
-const fs$3 = fs$i;
+const path$d = require$$1;
+const fs$4 = fs$j;
 const _mkdirs = mkdirs$2;
 const mkdirs = _mkdirs.mkdirs;
 const mkdirsSync = _mkdirs.mkdirsSync;
@@ -1909,11 +1909,11 @@ const { areIdentical } = stat$4;
 function createSymlink$1(srcpath, dstpath, type2, callback) {
   callback = typeof type2 === "function" ? type2 : callback;
   type2 = typeof type2 === "function" ? false : type2;
-  fs$3.lstat(dstpath, (err, stats) => {
+  fs$4.lstat(dstpath, (err, stats) => {
     if (!err && stats.isSymbolicLink()) {
       Promise.all([
-        fs$3.stat(srcpath),
-        fs$3.stat(dstpath)
+        fs$4.stat(srcpath),
+        fs$4.stat(dstpath)
       ]).then(([srcStat, dstStat]) => {
         if (areIdentical(srcStat, dstStat)) return callback(null);
         _createSymlink(srcpath, dstpath, type2, callback);
@@ -1927,13 +1927,13 @@ function _createSymlink(srcpath, dstpath, type2, callback) {
     srcpath = relative.toDst;
     symlinkType(relative.toCwd, type2, (err2, type3) => {
       if (err2) return callback(err2);
-      const dir = path$c.dirname(dstpath);
+      const dir = path$d.dirname(dstpath);
       pathExists$2(dir, (err3, dirExists) => {
         if (err3) return callback(err3);
-        if (dirExists) return fs$3.symlink(srcpath, dstpath, type3, callback);
+        if (dirExists) return fs$4.symlink(srcpath, dstpath, type3, callback);
         mkdirs(dir, (err4) => {
           if (err4) return callback(err4);
-          fs$3.symlink(srcpath, dstpath, type3, callback);
+          fs$4.symlink(srcpath, dstpath, type3, callback);
         });
       });
     });
@@ -1942,22 +1942,22 @@ function _createSymlink(srcpath, dstpath, type2, callback) {
 function createSymlinkSync$1(srcpath, dstpath, type2) {
   let stats;
   try {
-    stats = fs$3.lstatSync(dstpath);
+    stats = fs$4.lstatSync(dstpath);
   } catch {
   }
   if (stats && stats.isSymbolicLink()) {
-    const srcStat = fs$3.statSync(srcpath);
-    const dstStat = fs$3.statSync(dstpath);
+    const srcStat = fs$4.statSync(srcpath);
+    const dstStat = fs$4.statSync(dstpath);
     if (areIdentical(srcStat, dstStat)) return;
   }
   const relative = symlinkPathsSync(srcpath, dstpath);
   srcpath = relative.toDst;
   type2 = symlinkTypeSync(relative.toCwd, type2);
-  const dir = path$c.dirname(dstpath);
-  const exists = fs$3.existsSync(dir);
-  if (exists) return fs$3.symlinkSync(srcpath, dstpath, type2);
+  const dir = path$d.dirname(dstpath);
+  const exists = fs$4.existsSync(dir);
+  if (exists) return fs$4.symlinkSync(srcpath, dstpath, type2);
   mkdirsSync(dir);
-  return fs$3.symlinkSync(srcpath, dstpath, type2);
+  return fs$4.symlinkSync(srcpath, dstpath, type2);
 }
 var symlink = {
   createSymlink: u$3(createSymlink$1),
@@ -1997,7 +1997,7 @@ let _fs;
 try {
   _fs = gracefulFs;
 } catch (_) {
-  _fs = require$$1;
+  _fs = require$$0$2;
 }
 const universalify = universalify$1;
 const { stringify: stringify$3, stripBom } = utils;
@@ -2068,8 +2068,8 @@ var jsonfile = {
   writeJsonSync: jsonFile$1.writeFileSync
 };
 const u$2 = universalify$1.fromCallback;
-const fs$2 = gracefulFs;
-const path$b = require$$1$1;
+const fs$3 = gracefulFs;
+const path$c = require$$1;
 const mkdir = mkdirs$2;
 const pathExists$1 = pathExists_1.pathExists;
 function outputFile$1(file2, data, encoding, callback) {
@@ -2077,23 +2077,23 @@ function outputFile$1(file2, data, encoding, callback) {
     callback = encoding;
     encoding = "utf8";
   }
-  const dir = path$b.dirname(file2);
+  const dir = path$c.dirname(file2);
   pathExists$1(dir, (err, itDoes) => {
     if (err) return callback(err);
-    if (itDoes) return fs$2.writeFile(file2, data, encoding, callback);
+    if (itDoes) return fs$3.writeFile(file2, data, encoding, callback);
     mkdir.mkdirs(dir, (err2) => {
       if (err2) return callback(err2);
-      fs$2.writeFile(file2, data, encoding, callback);
+      fs$3.writeFile(file2, data, encoding, callback);
     });
   });
 }
 function outputFileSync$1(file2, ...args) {
-  const dir = path$b.dirname(file2);
-  if (fs$2.existsSync(dir)) {
-    return fs$2.writeFileSync(file2, ...args);
+  const dir = path$c.dirname(file2);
+  if (fs$3.existsSync(dir)) {
+    return fs$3.writeFileSync(file2, ...args);
   }
   mkdir.mkdirsSync(dir);
-  fs$2.writeFileSync(file2, ...args);
+  fs$3.writeFileSync(file2, ...args);
 }
 var outputFile_1 = {
   outputFile: u$2(outputFile$1),
@@ -2124,8 +2124,8 @@ jsonFile.writeJSONSync = jsonFile.writeJsonSync;
 jsonFile.readJSON = jsonFile.readJson;
 jsonFile.readJSONSync = jsonFile.readJsonSync;
 var json$1 = jsonFile;
-const fs$1 = gracefulFs;
-const path$a = require$$1$1;
+const fs$2 = gracefulFs;
+const path$b = require$$1;
 const copy = copy$1.copy;
 const remove = remove_1.remove;
 const mkdirp = mkdirs$2.mkdirp;
@@ -2144,7 +2144,7 @@ function move$1(src2, dest, opts, cb) {
     stat$1.checkParentPaths(src2, srcStat, dest, "move", (err2) => {
       if (err2) return cb(err2);
       if (isParentRoot$1(dest)) return doRename$1(src2, dest, overwrite, isChangingCase, cb);
-      mkdirp(path$a.dirname(dest), (err3) => {
+      mkdirp(path$b.dirname(dest), (err3) => {
         if (err3) return cb(err3);
         return doRename$1(src2, dest, overwrite, isChangingCase, cb);
       });
@@ -2152,8 +2152,8 @@ function move$1(src2, dest, opts, cb) {
   });
 }
 function isParentRoot$1(dest) {
-  const parent = path$a.dirname(dest);
-  const parsedPath = path$a.parse(parent);
+  const parent = path$b.dirname(dest);
+  const parsedPath = path$b.parse(parent);
   return parsedPath.root === parent;
 }
 function doRename$1(src2, dest, overwrite, isChangingCase, cb) {
@@ -2171,7 +2171,7 @@ function doRename$1(src2, dest, overwrite, isChangingCase, cb) {
   });
 }
 function rename$1(src2, dest, overwrite, cb) {
-  fs$1.rename(src2, dest, (err) => {
+  fs$2.rename(src2, dest, (err) => {
     if (!err) return cb();
     if (err.code !== "EXDEV") return cb(err);
     return moveAcrossDevice$1(src2, dest, overwrite, cb);
@@ -2188,8 +2188,8 @@ function moveAcrossDevice$1(src2, dest, overwrite, cb) {
   });
 }
 var move_1 = move$1;
-const fs = gracefulFs;
-const path$9 = require$$1$1;
+const fs$1 = gracefulFs;
+const path$a = require$$1;
 const copySync = copy$1.copySync;
 const removeSync = remove_1.removeSync;
 const mkdirpSync = mkdirs$2.mkdirpSync;
@@ -2199,12 +2199,12 @@ function moveSync(src2, dest, opts) {
   const overwrite = opts.overwrite || opts.clobber || false;
   const { srcStat, isChangingCase = false } = stat.checkPathsSync(src2, dest, "move", opts);
   stat.checkParentPathsSync(src2, srcStat, dest, "move");
-  if (!isParentRoot(dest)) mkdirpSync(path$9.dirname(dest));
+  if (!isParentRoot(dest)) mkdirpSync(path$a.dirname(dest));
   return doRename(src2, dest, overwrite, isChangingCase);
 }
 function isParentRoot(dest) {
-  const parent = path$9.dirname(dest);
-  const parsedPath = path$9.parse(parent);
+  const parent = path$a.dirname(dest);
+  const parsedPath = path$a.parse(parent);
   return parsedPath.root === parent;
 }
 function doRename(src2, dest, overwrite, isChangingCase) {
@@ -2213,12 +2213,12 @@ function doRename(src2, dest, overwrite, isChangingCase) {
     removeSync(dest);
     return rename(src2, dest, overwrite);
   }
-  if (fs.existsSync(dest)) throw new Error("dest already exists.");
+  if (fs$1.existsSync(dest)) throw new Error("dest already exists.");
   return rename(src2, dest, overwrite);
 }
 function rename(src2, dest, overwrite) {
   try {
-    fs.renameSync(src2, dest);
+    fs$1.renameSync(src2, dest);
   } catch (err) {
     if (err.code !== "EXDEV") throw err;
     return moveAcrossDevice(src2, dest, overwrite);
@@ -2238,9 +2238,9 @@ var move = {
   move: u(move_1),
   moveSync: moveSync_1
 };
-var lib = {
+var lib$1 = {
   // Export promiseified graceful-fs:
-  ...fs$i,
+  ...fs$j,
   // Export extra methods:
   ...copy$1,
   ...empty,
@@ -2258,7 +2258,7 @@ var out = {};
 var CancellationToken$1 = {};
 Object.defineProperty(CancellationToken$1, "__esModule", { value: true });
 CancellationToken$1.CancellationError = CancellationToken$1.CancellationToken = void 0;
-const events_1$1 = require$$0$2;
+const events_1$1 = require$$0$3;
 class CancellationToken extends events_1$1.EventEmitter {
   get cancelled() {
     return this._cancelled || this._parent != null && this._parent.cancelled;
@@ -2852,8 +2852,8 @@ var hasRequiredSupportsColor;
 function requireSupportsColor() {
   if (hasRequiredSupportsColor) return supportsColor_1;
   hasRequiredSupportsColor = 1;
-  const os2 = require$$2;
-  const tty = require$$1$2;
+  const os2 = require$$2$1;
+  const tty = require$$1$1;
   const hasFlag2 = requireHasFlag();
   const { env } = process;
   let forceColor;
@@ -2954,8 +2954,8 @@ function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
   (function(module, exports$1) {
-    const tty = require$$1$2;
-    const util2 = require$$4;
+    const tty = require$$1$1;
+    const util2 = require$$2;
     exports$1.init = init;
     exports$1.log = log;
     exports$1.formatArgs = formatArgs;
@@ -3193,11 +3193,11 @@ httpExecutor.configureRequestUrl = configureRequestUrl;
 httpExecutor.safeGetHeader = safeGetHeader;
 httpExecutor.configureRequestOptions = configureRequestOptions;
 httpExecutor.safeStringifyJson = safeStringifyJson;
-const crypto_1$4 = require$$0$3;
+const crypto_1$4 = require$$0$4;
 const debug_1$1 = srcExports;
-const fs_1$5 = require$$1;
+const fs_1$5 = require$$0$2;
 const stream_1$2 = require$$0$1;
-const url_1$7 = require$$2$1;
+const url_1$7 = require$$2$2;
 const CancellationToken_1$1 = CancellationToken$1;
 const error_1$2 = error;
 const ProgressCallbackTransform_1 = ProgressCallbackTransform$1;
@@ -3818,7 +3818,7 @@ function parseDn(seq2) {
 var uuid = {};
 Object.defineProperty(uuid, "__esModule", { value: true });
 uuid.nil = uuid.UUID = void 0;
-const crypto_1$3 = require$$0$3;
+const crypto_1$3 = require$$0$4;
 const error_1$1 = error;
 const invalidName = "options.name must be either a string or a Buffer";
 const randomHost = (0, crypto_1$3.randomBytes)(16);
@@ -10026,8 +10026,8 @@ lodash_isequal.exports;
   );
   var Buffer2 = moduleExports ? root2.Buffer : void 0, Symbol2 = root2.Symbol, Uint8Array2 = root2.Uint8Array, propertyIsEnumerable = objectProto2.propertyIsEnumerable, splice = arrayProto.splice, symToStringTag = Symbol2 ? Symbol2.toStringTag : void 0;
   var nativeGetSymbols = Object.getOwnPropertySymbols, nativeIsBuffer = Buffer2 ? Buffer2.isBuffer : void 0, nativeKeys = overArg(Object.keys, Object);
-  var DataView = getNative(root2, "DataView"), Map2 = getNative(root2, "Map"), Promise2 = getNative(root2, "Promise"), Set2 = getNative(root2, "Set"), WeakMap = getNative(root2, "WeakMap"), nativeCreate = getNative(Object, "create");
-  var dataViewCtorString = toSource(DataView), mapCtorString = toSource(Map2), promiseCtorString = toSource(Promise2), setCtorString = toSource(Set2), weakMapCtorString = toSource(WeakMap);
+  var DataView = getNative(root2, "DataView"), Map2 = getNative(root2, "Map"), Promise2 = getNative(root2, "Promise"), Set2 = getNative(root2, "Set"), WeakMap2 = getNative(root2, "WeakMap"), nativeCreate = getNative(Object, "create");
+  var dataViewCtorString = toSource(DataView), mapCtorString = toSource(Map2), promiseCtorString = toSource(Promise2), setCtorString = toSource(Set2), weakMapCtorString = toSource(WeakMap2);
   var symbolProto2 = Symbol2 ? Symbol2.prototype : void 0, symbolValueOf = symbolProto2 ? symbolProto2.valueOf : void 0;
   function Hash(entries) {
     var index = -1, length = entries == null ? 0 : entries.length;
@@ -10474,7 +10474,7 @@ lodash_isequal.exports;
     });
   };
   var getTag = baseGetTag;
-  if (DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag || Map2 && getTag(new Map2()) != mapTag || Promise2 && getTag(Promise2.resolve()) != promiseTag || Set2 && getTag(new Set2()) != setTag || WeakMap && getTag(new WeakMap()) != weakMapTag) {
+  if (DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag || Map2 && getTag(new Map2()) != mapTag || Promise2 && getTag(Promise2.resolve()) != promiseTag || Set2 && getTag(new Set2()) != setTag || WeakMap2 && getTag(new WeakMap2()) != weakMapTag) {
     getTag = function(value) {
       var result = baseGetTag(value), Ctor = result == objectTag ? value.constructor : void 0, ctorString = Ctor ? toSource(Ctor) : "";
       if (ctorString) {
@@ -10574,11 +10574,11 @@ var lodash_isequalExports = lodash_isequal.exports;
 Object.defineProperty(DownloadedUpdateHelper$1, "__esModule", { value: true });
 DownloadedUpdateHelper$1.DownloadedUpdateHelper = void 0;
 DownloadedUpdateHelper$1.createTempUpdateFile = createTempUpdateFile;
-const crypto_1$2 = require$$0$3;
-const fs_1$4 = require$$1;
+const crypto_1$2 = require$$0$4;
+const fs_1$4 = require$$0$2;
 const isEqual = lodash_isequalExports;
-const fs_extra_1$6 = lib;
-const path$8 = require$$1$1;
+const fs_extra_1$6 = lib$1;
+const path$9 = require$$1;
 class DownloadedUpdateHelper {
   constructor(cacheDir) {
     this.cacheDir = cacheDir;
@@ -10598,7 +10598,7 @@ class DownloadedUpdateHelper {
     return this._packageFile;
   }
   get cacheDirForPendingUpdate() {
-    return path$8.join(this.cacheDir, "pending");
+    return path$9.join(this.cacheDir, "pending");
   }
   async validateDownloadedPath(updateFile, updateInfo, fileInfo, logger) {
     if (this.versionInfo != null && this.file === updateFile && this.fileInfo != null) {
@@ -10677,7 +10677,7 @@ class DownloadedUpdateHelper {
       await this.cleanCacheDirForPendingUpdate();
       return null;
     }
-    const updateFile = path$8.join(this.cacheDirForPendingUpdate, cachedInfo.fileName);
+    const updateFile = path$9.join(this.cacheDirForPendingUpdate, cachedInfo.fileName);
     if (!await (0, fs_extra_1$6.pathExists)(updateFile)) {
       logger.info("Cached update file doesn't exist");
       return null;
@@ -10692,7 +10692,7 @@ class DownloadedUpdateHelper {
     return updateFile;
   }
   getUpdateInfoFile() {
-    return path$8.join(this.cacheDirForPendingUpdate, "update-info.json");
+    return path$9.join(this.cacheDirForPendingUpdate, "update-info.json");
   }
 }
 DownloadedUpdateHelper$1.DownloadedUpdateHelper = DownloadedUpdateHelper;
@@ -10712,7 +10712,7 @@ function hashFile(file2, algorithm = "sha512", encoding = "base64", options) {
 }
 async function createTempUpdateFile(name, cacheDir, log) {
   let nameCounter = 0;
-  let result = path$8.join(cacheDir, name);
+  let result = path$9.join(cacheDir, name);
   for (let i = 0; i < 3; i++) {
     try {
       await (0, fs_extra_1$6.unlink)(result);
@@ -10722,7 +10722,7 @@ async function createTempUpdateFile(name, cacheDir, log) {
         return result;
       }
       log.warn(`Error on remove temp update file: ${e}`);
-      result = path$8.join(cacheDir, `${nameCounter++}-${name}`);
+      result = path$9.join(cacheDir, `${nameCounter++}-${name}`);
     }
   }
   return result;
@@ -10731,26 +10731,26 @@ var ElectronAppAdapter$1 = {};
 var AppAdapter = {};
 Object.defineProperty(AppAdapter, "__esModule", { value: true });
 AppAdapter.getAppCacheDir = getAppCacheDir;
-const path$7 = require$$1$1;
-const os_1$1 = require$$2;
+const path$8 = require$$1;
+const os_1$1 = require$$2$1;
 function getAppCacheDir() {
   const homedir = (0, os_1$1.homedir)();
   let result;
   if (process.platform === "win32") {
-    result = process.env["LOCALAPPDATA"] || path$7.join(homedir, "AppData", "Local");
+    result = process.env["LOCALAPPDATA"] || path$8.join(homedir, "AppData", "Local");
   } else if (process.platform === "darwin") {
-    result = path$7.join(homedir, "Library", "Caches");
+    result = path$8.join(homedir, "Library", "Caches");
   } else {
-    result = process.env["XDG_CACHE_HOME"] || path$7.join(homedir, ".cache");
+    result = process.env["XDG_CACHE_HOME"] || path$8.join(homedir, ".cache");
   }
   return result;
 }
 Object.defineProperty(ElectronAppAdapter$1, "__esModule", { value: true });
 ElectronAppAdapter$1.ElectronAppAdapter = void 0;
-const path$6 = require$$1$1;
+const path$7 = require$$1;
 const AppAdapter_1 = AppAdapter;
 class ElectronAppAdapter {
-  constructor(app2 = require$$1$3.app) {
+  constructor(app2 = require$$1$2.app) {
     this.app = app2;
   }
   whenReady() {
@@ -10766,7 +10766,7 @@ class ElectronAppAdapter {
     return this.app.isPackaged === true;
   }
   get appUpdateConfigPath() {
-    return this.isPackaged ? path$6.join(process.resourcesPath, "app-update.yml") : path$6.join(this.app.getAppPath(), "dev-app-update.yml");
+    return this.isPackaged ? path$7.join(process.resourcesPath, "app-update.yml") : path$7.join(this.app.getAppPath(), "dev-app-update.yml");
   }
   get userDataPath() {
     return this.app.getPath("userData");
@@ -10793,7 +10793,7 @@ var electronHttpExecutor = {};
   const builder_util_runtime_12 = out;
   exports$1.NET_SESSION_NAME = "electron-updater";
   function getNetSession() {
-    return require$$1$3.session.fromPartition(exports$1.NET_SESSION_NAME, {
+    return require$$1$2.session.fromPartition(exports$1.NET_SESSION_NAME, {
       cache: false
     });
   }
@@ -10834,7 +10834,7 @@ var electronHttpExecutor = {};
       if (this.cachedSession == null) {
         this.cachedSession = getNetSession();
       }
-      const request = require$$1$3.net.request({
+      const request = require$$1$2.net.request({
         ...options,
         session: this.cachedSession
       });
@@ -10858,12 +10858,12 @@ var electronHttpExecutor = {};
   exports$1.ElectronHttpExecutor = ElectronHttpExecutor;
 })(electronHttpExecutor);
 var GenericProvider$1 = {};
-var util = {};
-Object.defineProperty(util, "__esModule", { value: true });
-util.newBaseUrl = newBaseUrl;
-util.newUrlFromBase = newUrlFromBase;
-util.getChannelFilename = getChannelFilename;
-const url_1$6 = require$$2$1;
+var util$2 = {};
+Object.defineProperty(util$2, "__esModule", { value: true });
+util$2.newBaseUrl = newBaseUrl;
+util$2.newUrlFromBase = newUrlFromBase;
+util$2.getChannelFilename = getChannelFilename;
+const url_1$6 = require$$2$2;
 function newBaseUrl(url) {
   const result = new url_1$6.URL(url);
   if (!result.pathname.endsWith("/")) {
@@ -10926,8 +10926,8 @@ Provider$1.getFileList = getFileList;
 Provider$1.resolveFiles = resolveFiles;
 const builder_util_runtime_1$f = out;
 const js_yaml_1$2 = jsYaml;
-const url_1$5 = require$$2$1;
-const util_1$6 = util;
+const url_1$5 = require$$2$2;
+const util_1$6 = util$2;
 const escapeRegExp$1 = lodash_escaperegexp;
 class Provider {
   constructor(runtimeOptions) {
@@ -11055,7 +11055,7 @@ function resolveFiles(updateInfo, baseUrl, pathTransformer = (p) => p) {
 Object.defineProperty(GenericProvider$1, "__esModule", { value: true });
 GenericProvider$1.GenericProvider = void 0;
 const builder_util_runtime_1$e = out;
-const util_1$5 = util;
+const util_1$5 = util$2;
 const Provider_1$b = Provider$1;
 class GenericProvider extends Provider_1$b.Provider {
   constructor(configuration, updater, runtimeOptions) {
@@ -11103,7 +11103,7 @@ var BitbucketProvider$1 = {};
 Object.defineProperty(BitbucketProvider$1, "__esModule", { value: true });
 BitbucketProvider$1.BitbucketProvider = void 0;
 const builder_util_runtime_1$d = out;
-const util_1$4 = util;
+const util_1$4 = util$2;
 const Provider_1$a = Provider$1;
 class BitbucketProvider extends Provider_1$a.Provider {
   constructor(configuration, updater, runtimeOptions) {
@@ -11145,8 +11145,8 @@ GitHubProvider$1.GitHubProvider = GitHubProvider$1.BaseGitHubProvider = void 0;
 GitHubProvider$1.computeReleaseNotes = computeReleaseNotes;
 const builder_util_runtime_1$c = out;
 const semver = semver$1;
-const url_1$4 = require$$2$1;
-const util_1$3 = util;
+const url_1$4 = require$$2$2;
+const util_1$3 = util$2;
 const Provider_1$9 = Provider$1;
 const hrefRegExp = /\/tag\/([^/]+)$/;
 class BaseGitHubProvider extends Provider_1$9.Provider {
@@ -11320,9 +11320,9 @@ var GitLabProvider$1 = {};
 Object.defineProperty(GitLabProvider$1, "__esModule", { value: true });
 GitLabProvider$1.GitLabProvider = void 0;
 const builder_util_runtime_1$b = out;
-const url_1$3 = require$$2$1;
+const url_1$3 = require$$2$2;
 const escapeRegExp = lodash_escaperegexp;
-const util_1$2 = util;
+const util_1$2 = util$2;
 const Provider_1$8 = Provider$1;
 class GitLabProvider extends Provider_1$8.Provider {
   /**
@@ -11558,7 +11558,7 @@ var KeygenProvider$1 = {};
 Object.defineProperty(KeygenProvider$1, "__esModule", { value: true });
 KeygenProvider$1.KeygenProvider = void 0;
 const builder_util_runtime_1$a = out;
-const util_1$1 = util;
+const util_1$1 = util$2;
 const Provider_1$7 = Provider$1;
 class KeygenProvider extends Provider_1$7.Provider {
   constructor(configuration, updater, runtimeOptions) {
@@ -11603,9 +11603,9 @@ Object.defineProperty(PrivateGitHubProvider$1, "__esModule", { value: true });
 PrivateGitHubProvider$1.PrivateGitHubProvider = void 0;
 const builder_util_runtime_1$9 = out;
 const js_yaml_1$1 = jsYaml;
-const path$5 = require$$1$1;
-const url_1$2 = require$$2$1;
-const util_1 = util;
+const path$6 = require$$1;
+const url_1$2 = require$$2$2;
+const util_1 = util$2;
 const GitHubProvider_1$1 = GitHubProvider$1;
 const Provider_1$6 = Provider$1;
 class PrivateGitHubProvider extends GitHubProvider_1$1.BaseGitHubProvider {
@@ -11672,7 +11672,7 @@ class PrivateGitHubProvider extends GitHubProvider_1$1.BaseGitHubProvider {
   }
   resolveFiles(updateInfo) {
     return (0, Provider_1$6.getFileList)(updateInfo).map((it) => {
-      const name = path$5.posix.basename(it.url).replace(/ /g, "-");
+      const name = path$6.posix.basename(it.url).replace(/ /g, "-");
       const asset = updateInfo.assets.find((it2) => it2 != null && it2.name === name);
       if (asset == null) {
         throw (0, builder_util_runtime_1$9.newError)(`Cannot find asset "${name}" in: ${JSON.stringify(updateInfo.assets, null, 2)}`, "ERR_UPDATER_ASSET_NOT_FOUND");
@@ -11859,7 +11859,7 @@ Object.defineProperty(DataSplitter$1, "__esModule", { value: true });
 DataSplitter$1.DataSplitter = void 0;
 DataSplitter$1.copyData = copyData;
 const builder_util_runtime_1$7 = out;
-const fs_1$3 = require$$1;
+const fs_1$3 = require$$0$2;
 const stream_1$1 = require$$0$1;
 const downloadPlanBuilder_1$2 = downloadPlanBuilder;
 const DOUBLE_CRLF = Buffer.from("\r\n\r\n");
@@ -12268,10 +12268,10 @@ ProgressDifferentialDownloadCallbackTransform$1.ProgressDifferentialDownloadCall
 Object.defineProperty(DifferentialDownloader$1, "__esModule", { value: true });
 DifferentialDownloader$1.DifferentialDownloader = void 0;
 const builder_util_runtime_1$5 = out;
-const fs_extra_1$5 = lib;
-const fs_1$2 = require$$1;
+const fs_extra_1$5 = lib$1;
+const fs_1$2 = require$$0$2;
 const DataSplitter_1 = DataSplitter$1;
-const url_1$1 = require$$2$1;
+const url_1$1 = require$$2$2;
 const downloadPlanBuilder_1 = downloadPlanBuilder;
 const multipleRangeDownloader_1 = multipleRangeDownloader;
 const ProgressDifferentialDownloadCallbackTransform_1 = ProgressDifferentialDownloadCallbackTransform$1;
@@ -12556,13 +12556,13 @@ var types = {};
 Object.defineProperty(AppUpdater$1, "__esModule", { value: true });
 AppUpdater$1.NoOpLogger = AppUpdater$1.AppUpdater = void 0;
 const builder_util_runtime_1$4 = out;
-const crypto_1$1 = require$$0$3;
-const os_1 = require$$2;
-const events_1 = require$$0$2;
-const fs_extra_1$4 = lib;
+const crypto_1$1 = require$$0$4;
+const os_1 = require$$2$1;
+const events_1 = require$$0$3;
+const fs_extra_1$4 = lib$1;
 const js_yaml_1 = jsYaml;
 const lazy_val_1 = main;
-const path$4 = require$$1$1;
+const path$5 = require$$1;
 const semver_1 = semver$1;
 const DownloadedUpdateHelper_1 = DownloadedUpdateHelper$1;
 const ElectronAppAdapter_1 = ElectronAppAdapter$1;
@@ -12769,7 +12769,7 @@ class AppUpdater extends events_1.EventEmitter {
       }
       void it.downloadPromise.then(() => {
         const notificationContent = AppUpdater.formatDownloadNotification(it.updateInfo.version, this.app.name, downloadNotification);
-        new require$$1$3.Notification(notificationContent).show();
+        new require$$1$2.Notification(notificationContent).show();
       });
       return it;
     });
@@ -12960,7 +12960,7 @@ class AppUpdater extends events_1.EventEmitter {
     return this.computeFinalHeaders({ accept: "*/*" });
   }
   async getOrCreateStagingUserId() {
-    const file2 = path$4.join(this.app.userDataPath, ".updaterId");
+    const file2 = path$5.join(this.app.userDataPath, ".updaterId");
     try {
       const id2 = await (0, fs_extra_1$4.readFile)(file2, "utf-8");
       if (builder_util_runtime_1$4.UUID.check(id2)) {
@@ -13004,7 +13004,7 @@ class AppUpdater extends events_1.EventEmitter {
       if (dirName == null) {
         logger.error("updaterCacheDirName is not specified in app-update.yml Was app build using at least electron-builder 20.34.0?");
       }
-      const cacheDir = path$4.join(this.app.baseCachePath, dirName || this.app.name);
+      const cacheDir = path$5.join(this.app.baseCachePath, dirName || this.app.name);
       if (logger.debug != null) {
         logger.debug(`updater cache dir: ${cacheDir}`);
       }
@@ -13030,7 +13030,7 @@ class AppUpdater extends events_1.EventEmitter {
     function getCacheUpdateFileName() {
       const urlPath = decodeURIComponent(taskOptions.fileInfo.url.pathname);
       if (urlPath.toLowerCase().endsWith(`.${taskOptions.fileExtension.toLowerCase()}`)) {
-        return path$4.basename(urlPath);
+        return path$5.basename(urlPath);
       } else {
         return taskOptions.fileInfo.info.url;
       }
@@ -13039,17 +13039,17 @@ class AppUpdater extends events_1.EventEmitter {
     const cacheDir = downloadedUpdateHelper.cacheDirForPendingUpdate;
     await (0, fs_extra_1$4.mkdir)(cacheDir, { recursive: true });
     const updateFileName = getCacheUpdateFileName();
-    let updateFile = path$4.join(cacheDir, updateFileName);
-    const packageFile = packageInfo == null ? null : path$4.join(cacheDir, `package-${version}${path$4.extname(packageInfo.path) || ".7z"}`);
+    let updateFile = path$5.join(cacheDir, updateFileName);
+    const packageFile = packageInfo == null ? null : path$5.join(cacheDir, `package-${version}${path$5.extname(packageInfo.path) || ".7z"}`);
     const done = async (isSaveCache) => {
       await downloadedUpdateHelper.setDownloadedFile(updateFile, packageFile, updateInfo, fileInfo, updateFileName, isSaveCache);
       await taskOptions.done({
         ...updateInfo,
         downloadedFile: updateFile
       });
-      const currentBlockMapFile = path$4.join(cacheDir, "current.blockmap");
+      const currentBlockMapFile = path$5.join(cacheDir, "current.blockmap");
       if (await (0, fs_extra_1$4.pathExists)(currentBlockMapFile)) {
-        await (0, fs_extra_1$4.copyFile)(currentBlockMapFile, path$4.join(downloadedUpdateHelper.cacheDir, "current.blockmap"));
+        await (0, fs_extra_1$4.copyFile)(currentBlockMapFile, path$5.join(downloadedUpdateHelper.cacheDir, "current.blockmap"));
       }
       return packageFile == null ? [updateFile] : [updateFile, packageFile];
     };
@@ -13114,7 +13114,7 @@ class AppUpdater extends events_1.EventEmitter {
       };
       const downloadOptions = {
         newUrl: fileInfo.url,
-        oldFile: path$4.join(this.downloadedUpdateHelper.cacheDir, oldInstallerFileName),
+        oldFile: path$5.join(this.downloadedUpdateHelper.cacheDir, oldInstallerFileName),
         logger: this._logger,
         newFile: installerPath,
         isUseMultipleRangeRequest: provider2.isUseMultipleRangeRequest,
@@ -13125,11 +13125,11 @@ class AppUpdater extends events_1.EventEmitter {
         downloadOptions.onProgress = (it) => this.emit(types_1$5.DOWNLOAD_PROGRESS, it);
       }
       const saveBlockMapToCacheDir = async (blockMapData, cacheDir) => {
-        const blockMapFile = path$4.join(cacheDir, "current.blockmap");
+        const blockMapFile = path$5.join(cacheDir, "current.blockmap");
         await (0, fs_extra_1$4.outputFile)(blockMapFile, (0, zlib_1$1.gzipSync)(JSON.stringify(blockMapData)));
       };
       const getBlockMapFromCacheDir = async (cacheDir) => {
-        const blockMapFile = path$4.join(cacheDir, "current.blockmap");
+        const blockMapFile = path$5.join(cacheDir, "current.blockmap");
         try {
           if (await (0, fs_extra_1$4.pathExists)(blockMapFile)) {
             return JSON.parse((0, zlib_1$1.gunzipSync)(await (0, fs_extra_1$4.readFile)(blockMapFile)).toString());
@@ -13175,7 +13175,7 @@ class NoOpLogger {
 AppUpdater$1.NoOpLogger = NoOpLogger;
 Object.defineProperty(BaseUpdater$1, "__esModule", { value: true });
 BaseUpdater$1.BaseUpdater = void 0;
-const child_process_1$3 = require$$1$4;
+const child_process_1$3 = require$$1$3;
 const AppUpdater_1$1 = AppUpdater$1;
 class BaseUpdater extends AppUpdater_1$1.AppUpdater {
   constructor(options, app2) {
@@ -13188,7 +13188,7 @@ class BaseUpdater extends AppUpdater_1$1.AppUpdater {
     const isInstalled = this.install(isSilent, isSilent ? isForceRunAfter : this.autoRunAppAfterInstall);
     if (isInstalled) {
       setImmediate(() => {
-        require$$1$3.autoUpdater.emit("before-quit-for-update");
+        require$$1$2.autoUpdater.emit("before-quit-for-update");
         this.app.quit();
       });
     } else {
@@ -13304,7 +13304,7 @@ var AppImageUpdater$1 = {};
 var FileWithEmbeddedBlockMapDifferentialDownloader$1 = {};
 Object.defineProperty(FileWithEmbeddedBlockMapDifferentialDownloader$1, "__esModule", { value: true });
 FileWithEmbeddedBlockMapDifferentialDownloader$1.FileWithEmbeddedBlockMapDifferentialDownloader = void 0;
-const fs_extra_1$3 = lib;
+const fs_extra_1$3 = lib$1;
 const DifferentialDownloader_1 = DifferentialDownloader$1;
 const zlib_1 = require$$14;
 class FileWithEmbeddedBlockMapDifferentialDownloader extends DifferentialDownloader_1.DifferentialDownloader {
@@ -13339,10 +13339,10 @@ async function readEmbeddedBlockMapData(file2) {
 Object.defineProperty(AppImageUpdater$1, "__esModule", { value: true });
 AppImageUpdater$1.AppImageUpdater = void 0;
 const builder_util_runtime_1$3 = out;
-const child_process_1$2 = require$$1$4;
-const fs_extra_1$2 = lib;
-const fs_1$1 = require$$1;
-const path$3 = require$$1$1;
+const child_process_1$2 = require$$1$3;
+const fs_extra_1$2 = lib$1;
+const fs_1$1 = require$$0$2;
+const path$4 = require$$1;
 const BaseUpdater_1$2 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1$1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const Provider_1$5 = Provider$1;
@@ -13410,16 +13410,16 @@ class AppImageUpdater extends BaseUpdater_1$2.BaseUpdater {
     }
     (0, fs_1$1.unlinkSync)(appImageFile);
     let destination;
-    const existingBaseName = path$3.basename(appImageFile);
+    const existingBaseName = path$4.basename(appImageFile);
     const installerPath = this.installerPath;
     if (installerPath == null) {
       this.dispatchError(new Error("No update filepath provided, can't quit and install"));
       return false;
     }
-    if (path$3.basename(installerPath) === existingBaseName || !/\d+\.\d+\.\d+/.test(existingBaseName)) {
+    if (path$4.basename(installerPath) === existingBaseName || !/\d+\.\d+\.\d+/.test(existingBaseName)) {
       destination = appImageFile;
     } else {
-      destination = path$3.join(path$3.dirname(appImageFile), path$3.basename(installerPath));
+      destination = path$4.join(path$4.dirname(appImageFile), path$4.basename(installerPath));
     }
     (0, child_process_1$2.execFileSync)("mv", ["-f", installerPath, destination]);
     if (destination !== appImageFile) {
@@ -13736,18 +13736,18 @@ var MacUpdater$1 = {};
 Object.defineProperty(MacUpdater$1, "__esModule", { value: true });
 MacUpdater$1.MacUpdater = void 0;
 const builder_util_runtime_1$2 = out;
-const fs_extra_1$1 = lib;
-const fs_1 = require$$1;
-const path$2 = require$$1$1;
-const http_1 = require$$4$1;
+const fs_extra_1$1 = lib$1;
+const fs_1 = require$$0$2;
+const path$3 = require$$1;
+const http_1 = require$$4;
 const AppUpdater_1 = AppUpdater$1;
 const Provider_1$1 = Provider$1;
-const child_process_1$1 = require$$1$4;
-const crypto_1 = require$$0$3;
+const child_process_1$1 = require$$1$3;
+const crypto_1 = require$$0$4;
 class MacUpdater extends AppUpdater_1.AppUpdater {
   constructor(options, app2) {
     super(options, app2);
-    this.nativeUpdater = require$$1$3.autoUpdater;
+    this.nativeUpdater = require$$1$2.autoUpdater;
     this.squirrelDownloadedUpdate = false;
     this.nativeUpdater.on("error", (it) => {
       this._logger.warn(it);
@@ -13817,7 +13817,7 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
       fileInfo: zipFileInfo,
       downloadUpdateOptions,
       task: async (destinationFile, downloadOptions) => {
-        const cachedUpdateFilePath = path$2.join(this.downloadedUpdateHelper.cacheDir, CURRENT_MAC_APP_ZIP_FILE_NAME);
+        const cachedUpdateFilePath = path$3.join(this.downloadedUpdateHelper.cacheDir, CURRENT_MAC_APP_ZIP_FILE_NAME);
         const canDifferentialDownload = () => {
           if (!(0, fs_extra_1$1.pathExistsSync)(cachedUpdateFilePath)) {
             log.info("Unable to locate previous update.zip for differential download (is this first install?), falling back to full download");
@@ -13836,7 +13836,7 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
       done: async (event) => {
         if (!downloadUpdateOptions.disableDifferentialDownload) {
           try {
-            const cachedUpdateFilePath = path$2.join(this.downloadedUpdateHelper.cacheDir, CURRENT_MAC_APP_ZIP_FILE_NAME);
+            const cachedUpdateFilePath = path$3.join(this.downloadedUpdateHelper.cacheDir, CURRENT_MAC_APP_ZIP_FILE_NAME);
             await (0, fs_extra_1$1.copyFile)(event.downloadedFile, cachedUpdateFilePath);
           } catch (error2) {
             this._logger.warn(`Unable to copy file for caching for future differential downloads: ${error2.message}`);
@@ -13972,9 +13972,9 @@ var windowsExecutableCodeSignatureVerifier = {};
 Object.defineProperty(windowsExecutableCodeSignatureVerifier, "__esModule", { value: true });
 windowsExecutableCodeSignatureVerifier.verifySignature = verifySignature;
 const builder_util_runtime_1$1 = out;
-const child_process_1 = require$$1$4;
-const os = require$$2;
-const path$1 = require$$1$1;
+const child_process_1 = require$$1$3;
+const os = require$$2$1;
+const path$2 = require$$1;
 function preparePowerShellExec(command, timeout) {
   const executable = `set "PSModulePath=" & chcp 65001 >NUL & powershell.exe`;
   const args = ["-NoProfile", "-NonInteractive", "-InputFormat", "None", "-Command", command];
@@ -13999,8 +13999,8 @@ function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
         const data = parseOut(stdout);
         if (data.Status === 0) {
           try {
-            const normlaizedUpdateFilePath = path$1.normalize(data.Path);
-            const normalizedTempUpdateFile = path$1.normalize(unescapedTempUpdateFile);
+            const normlaizedUpdateFilePath = path$2.normalize(data.Path);
+            const normalizedTempUpdateFile = path$2.normalize(unescapedTempUpdateFile);
             logger.info(`LiteralPath: ${normlaizedUpdateFilePath}. Update Path: ${normalizedTempUpdateFile}`);
             if (normlaizedUpdateFilePath !== normalizedTempUpdateFile) {
               handleError(logger, new Error(`LiteralPath of ${normlaizedUpdateFilePath} is different than ${normalizedTempUpdateFile}`), stderr, reject);
@@ -14080,14 +14080,14 @@ function isOldWin6() {
 Object.defineProperty(NsisUpdater$1, "__esModule", { value: true });
 NsisUpdater$1.NsisUpdater = void 0;
 const builder_util_runtime_1 = out;
-const path = require$$1$1;
+const path$1 = require$$1;
 const BaseUpdater_1 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const types_1 = types;
 const Provider_1 = Provider$1;
-const fs_extra_1 = lib;
+const fs_extra_1 = lib$1;
 const windowsExecutableCodeSignatureVerifier_1 = windowsExecutableCodeSignatureVerifier;
-const url_1 = require$$2$1;
+const url_1 = require$$2$2;
 class NsisUpdater extends BaseUpdater_1.BaseUpdater {
   constructor(options, app2) {
     super(options, app2);
@@ -14189,7 +14189,7 @@ class NsisUpdater extends BaseUpdater_1.BaseUpdater {
       args.push(`--package-file=${packagePath}`);
     }
     const callUsingElevation = () => {
-      this.spawnLog(path.join(process.resourcesPath, "elevate.exe"), [installerPath].concat(args)).catch((e) => this.dispatchError(e));
+      this.spawnLog(path$1.join(process.resourcesPath, "elevate.exe"), [installerPath].concat(args)).catch((e) => this.dispatchError(e));
     };
     if (options.isAdminRightsRequired) {
       this._logger.info("isAdminRightsRequired is set to true, run installer using elevate.exe");
@@ -14202,7 +14202,7 @@ class NsisUpdater extends BaseUpdater_1.BaseUpdater {
       if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
         callUsingElevation();
       } else if (errorCode === "ENOENT") {
-        require$$1$3.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
+        require$$1$2.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
       } else {
         this.dispatchError(e);
       }
@@ -14216,7 +14216,7 @@ class NsisUpdater extends BaseUpdater_1.BaseUpdater {
     try {
       const downloadOptions = {
         newUrl: new url_1.URL(packageInfo.path),
-        oldFile: path.join(this.downloadedUpdateHelper.cacheDir, builder_util_runtime_1.CURRENT_APP_PACKAGE_FILE_NAME),
+        oldFile: path$1.join(this.downloadedUpdateHelper.cacheDir, builder_util_runtime_1.CURRENT_APP_PACKAGE_FILE_NAME),
         logger: this._logger,
         newFile: packagePath,
         requestHeaders: this.requestHeaders,
@@ -14254,8 +14254,8 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
   };
   Object.defineProperty(exports$1, "__esModule", { value: true });
   exports$1.NsisUpdater = exports$1.MacUpdater = exports$1.RpmUpdater = exports$1.PacmanUpdater = exports$1.DebUpdater = exports$1.AppImageUpdater = exports$1.Provider = exports$1.NoOpLogger = exports$1.AppUpdater = exports$1.BaseUpdater = void 0;
-  const fs_extra_12 = lib;
-  const path2 = require$$1$1;
+  const fs_extra_12 = lib$1;
+  const path2 = require$$1;
   var BaseUpdater_12 = BaseUpdater$1;
   Object.defineProperty(exports$1, "BaseUpdater", { enumerable: true, get: function() {
     return BaseUpdater_12.BaseUpdater;
@@ -14336,29 +14336,789 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
     }
   });
 })(main$1);
+var lib = { exports: {} };
+function commonjsRequire(path2) {
+  throw new Error('Could not dynamically require "' + path2 + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
+}
+var util$1 = {};
+util$1.getBooleanOption = (options, key) => {
+  let value = false;
+  if (key in options && typeof (value = options[key]) !== "boolean") {
+    throw new TypeError(`Expected the "${key}" option to be a boolean`);
+  }
+  return value;
+};
+util$1.cppdb = Symbol();
+util$1.inspect = Symbol.for("nodejs.util.inspect.custom");
+const descriptor = { value: "SqliteError", writable: true, enumerable: false, configurable: true };
+function SqliteError$1(message, code) {
+  if (new.target !== SqliteError$1) {
+    return new SqliteError$1(message, code);
+  }
+  if (typeof code !== "string") {
+    throw new TypeError("Expected second argument to be a string");
+  }
+  Error.call(this, message);
+  descriptor.value = "" + message;
+  Object.defineProperty(this, "message", descriptor);
+  Error.captureStackTrace(this, SqliteError$1);
+  this.code = code;
+}
+Object.setPrototypeOf(SqliteError$1, Error);
+Object.setPrototypeOf(SqliteError$1.prototype, Error.prototype);
+Object.defineProperty(SqliteError$1.prototype, "name", descriptor);
+var sqliteError = SqliteError$1;
+var bindings = { exports: {} };
+var fileUriToPath_1;
+var hasRequiredFileUriToPath;
+function requireFileUriToPath() {
+  if (hasRequiredFileUriToPath) return fileUriToPath_1;
+  hasRequiredFileUriToPath = 1;
+  var sep = require$$1.sep || "/";
+  fileUriToPath_1 = fileUriToPath;
+  function fileUriToPath(uri) {
+    if ("string" != typeof uri || uri.length <= 7 || "file://" != uri.substring(0, 7)) {
+      throw new TypeError("must pass in a file:// URI to convert to a file path");
+    }
+    var rest = decodeURI(uri.substring(7));
+    var firstSlash = rest.indexOf("/");
+    var host = rest.substring(0, firstSlash);
+    var path2 = rest.substring(firstSlash + 1);
+    if ("localhost" == host) host = "";
+    if (host) {
+      host = sep + sep + host;
+    }
+    path2 = path2.replace(/^(.+)\|/, "$1:");
+    if (sep == "\\") {
+      path2 = path2.replace(/\//g, "\\");
+    }
+    if (/^.+\:/.test(path2)) ;
+    else {
+      path2 = sep + path2;
+    }
+    return host + path2;
+  }
+  return fileUriToPath_1;
+}
+var hasRequiredBindings;
+function requireBindings() {
+  if (hasRequiredBindings) return bindings.exports;
+  hasRequiredBindings = 1;
+  (function(module, exports$1) {
+    var fs2 = require$$0$2, path2 = require$$1, fileURLToPath2 = requireFileUriToPath(), join = path2.join, dirname = path2.dirname, exists = fs2.accessSync && function(path22) {
+      try {
+        fs2.accessSync(path22);
+      } catch (e) {
+        return false;
+      }
+      return true;
+    } || fs2.existsSync || path2.existsSync, defaults2 = {
+      arrow: process.env.NODE_BINDINGS_ARROW || " → ",
+      compiled: process.env.NODE_BINDINGS_COMPILED_DIR || "compiled",
+      platform: process.platform,
+      arch: process.arch,
+      nodePreGyp: "node-v" + process.versions.modules + "-" + process.platform + "-" + process.arch,
+      version: process.versions.node,
+      bindings: "bindings.node",
+      try: [
+        // node-gyp's linked version in the "build" dir
+        ["module_root", "build", "bindings"],
+        // node-waf and gyp_addon (a.k.a node-gyp)
+        ["module_root", "build", "Debug", "bindings"],
+        ["module_root", "build", "Release", "bindings"],
+        // Debug files, for development (legacy behavior, remove for node v0.9)
+        ["module_root", "out", "Debug", "bindings"],
+        ["module_root", "Debug", "bindings"],
+        // Release files, but manually compiled (legacy behavior, remove for node v0.9)
+        ["module_root", "out", "Release", "bindings"],
+        ["module_root", "Release", "bindings"],
+        // Legacy from node-waf, node <= 0.4.x
+        ["module_root", "build", "default", "bindings"],
+        // Production "Release" buildtype binary (meh...)
+        ["module_root", "compiled", "version", "platform", "arch", "bindings"],
+        // node-qbs builds
+        ["module_root", "addon-build", "release", "install-root", "bindings"],
+        ["module_root", "addon-build", "debug", "install-root", "bindings"],
+        ["module_root", "addon-build", "default", "install-root", "bindings"],
+        // node-pre-gyp path ./lib/binding/{node_abi}-{platform}-{arch}
+        ["module_root", "lib", "binding", "nodePreGyp", "bindings"]
+      ]
+    };
+    function bindings2(opts) {
+      if (typeof opts == "string") {
+        opts = { bindings: opts };
+      } else if (!opts) {
+        opts = {};
+      }
+      Object.keys(defaults2).map(function(i2) {
+        if (!(i2 in opts)) opts[i2] = defaults2[i2];
+      });
+      if (!opts.module_root) {
+        opts.module_root = exports$1.getRoot(exports$1.getFileName());
+      }
+      if (path2.extname(opts.bindings) != ".node") {
+        opts.bindings += ".node";
+      }
+      var requireFunc = typeof __webpack_require__ === "function" ? __non_webpack_require__ : commonjsRequire;
+      var tries = [], i = 0, l = opts.try.length, n, b, err;
+      for (; i < l; i++) {
+        n = join.apply(
+          null,
+          opts.try[i].map(function(p) {
+            return opts[p] || p;
+          })
+        );
+        tries.push(n);
+        try {
+          b = opts.path ? requireFunc.resolve(n) : requireFunc(n);
+          if (!opts.path) {
+            b.path = n;
+          }
+          return b;
+        } catch (e) {
+          if (e.code !== "MODULE_NOT_FOUND" && e.code !== "QUALIFIED_PATH_RESOLUTION_FAILED" && !/not find/i.test(e.message)) {
+            throw e;
+          }
+        }
+      }
+      err = new Error(
+        "Could not locate the bindings file. Tried:\n" + tries.map(function(a) {
+          return opts.arrow + a;
+        }).join("\n")
+      );
+      err.tries = tries;
+      throw err;
+    }
+    module.exports = exports$1 = bindings2;
+    exports$1.getFileName = function getFileName(calling_file) {
+      var origPST = Error.prepareStackTrace, origSTL = Error.stackTraceLimit, dummy = {}, fileName;
+      Error.stackTraceLimit = 10;
+      Error.prepareStackTrace = function(e, st) {
+        for (var i = 0, l = st.length; i < l; i++) {
+          fileName = st[i].getFileName();
+          if (fileName !== __filename) {
+            if (calling_file) {
+              if (fileName !== calling_file) {
+                return;
+              }
+            } else {
+              return;
+            }
+          }
+        }
+      };
+      Error.captureStackTrace(dummy);
+      dummy.stack;
+      Error.prepareStackTrace = origPST;
+      Error.stackTraceLimit = origSTL;
+      var fileSchema = "file://";
+      if (fileName.indexOf(fileSchema) === 0) {
+        fileName = fileURLToPath2(fileName);
+      }
+      return fileName;
+    };
+    exports$1.getRoot = function getRoot(file2) {
+      var dir = dirname(file2), prev;
+      while (true) {
+        if (dir === ".") {
+          dir = process.cwd();
+        }
+        if (exists(join(dir, "package.json")) || exists(join(dir, "node_modules"))) {
+          return dir;
+        }
+        if (prev === dir) {
+          throw new Error(
+            'Could not find module root given file: "' + file2 + '". Do you have a `package.json` file? '
+          );
+        }
+        prev = dir;
+        dir = join(dir, "..");
+      }
+    };
+  })(bindings, bindings.exports);
+  return bindings.exports;
+}
+var wrappers$1 = {};
+var hasRequiredWrappers;
+function requireWrappers() {
+  if (hasRequiredWrappers) return wrappers$1;
+  hasRequiredWrappers = 1;
+  const { cppdb } = util$1;
+  wrappers$1.prepare = function prepare(sql) {
+    return this[cppdb].prepare(sql, this, false);
+  };
+  wrappers$1.exec = function exec(sql) {
+    this[cppdb].exec(sql);
+    return this;
+  };
+  wrappers$1.close = function close() {
+    this[cppdb].close();
+    return this;
+  };
+  wrappers$1.loadExtension = function loadExtension(...args) {
+    this[cppdb].loadExtension(...args);
+    return this;
+  };
+  wrappers$1.defaultSafeIntegers = function defaultSafeIntegers(...args) {
+    this[cppdb].defaultSafeIntegers(...args);
+    return this;
+  };
+  wrappers$1.unsafeMode = function unsafeMode(...args) {
+    this[cppdb].unsafeMode(...args);
+    return this;
+  };
+  wrappers$1.getters = {
+    name: {
+      get: function name() {
+        return this[cppdb].name;
+      },
+      enumerable: true
+    },
+    open: {
+      get: function open() {
+        return this[cppdb].open;
+      },
+      enumerable: true
+    },
+    inTransaction: {
+      get: function inTransaction() {
+        return this[cppdb].inTransaction;
+      },
+      enumerable: true
+    },
+    readonly: {
+      get: function readonly() {
+        return this[cppdb].readonly;
+      },
+      enumerable: true
+    },
+    memory: {
+      get: function memory() {
+        return this[cppdb].memory;
+      },
+      enumerable: true
+    }
+  };
+  return wrappers$1;
+}
+var transaction;
+var hasRequiredTransaction;
+function requireTransaction() {
+  if (hasRequiredTransaction) return transaction;
+  hasRequiredTransaction = 1;
+  const { cppdb } = util$1;
+  const controllers = /* @__PURE__ */ new WeakMap();
+  transaction = function transaction2(fn) {
+    if (typeof fn !== "function") throw new TypeError("Expected first argument to be a function");
+    const db2 = this[cppdb];
+    const controller = getController(db2, this);
+    const { apply } = Function.prototype;
+    const properties = {
+      default: { value: wrapTransaction(apply, fn, db2, controller.default) },
+      deferred: { value: wrapTransaction(apply, fn, db2, controller.deferred) },
+      immediate: { value: wrapTransaction(apply, fn, db2, controller.immediate) },
+      exclusive: { value: wrapTransaction(apply, fn, db2, controller.exclusive) },
+      database: { value: this, enumerable: true }
+    };
+    Object.defineProperties(properties.default.value, properties);
+    Object.defineProperties(properties.deferred.value, properties);
+    Object.defineProperties(properties.immediate.value, properties);
+    Object.defineProperties(properties.exclusive.value, properties);
+    return properties.default.value;
+  };
+  const getController = (db2, self2) => {
+    let controller = controllers.get(db2);
+    if (!controller) {
+      const shared = {
+        commit: db2.prepare("COMMIT", self2, false),
+        rollback: db2.prepare("ROLLBACK", self2, false),
+        savepoint: db2.prepare("SAVEPOINT `	_bs3.	`", self2, false),
+        release: db2.prepare("RELEASE `	_bs3.	`", self2, false),
+        rollbackTo: db2.prepare("ROLLBACK TO `	_bs3.	`", self2, false)
+      };
+      controllers.set(db2, controller = {
+        default: Object.assign({ begin: db2.prepare("BEGIN", self2, false) }, shared),
+        deferred: Object.assign({ begin: db2.prepare("BEGIN DEFERRED", self2, false) }, shared),
+        immediate: Object.assign({ begin: db2.prepare("BEGIN IMMEDIATE", self2, false) }, shared),
+        exclusive: Object.assign({ begin: db2.prepare("BEGIN EXCLUSIVE", self2, false) }, shared)
+      });
+    }
+    return controller;
+  };
+  const wrapTransaction = (apply, fn, db2, { begin, commit, rollback, savepoint, release, rollbackTo }) => function sqliteTransaction() {
+    let before, after, undo;
+    if (db2.inTransaction) {
+      before = savepoint;
+      after = release;
+      undo = rollbackTo;
+    } else {
+      before = begin;
+      after = commit;
+      undo = rollback;
+    }
+    before.run();
+    try {
+      const result = apply.call(fn, this, arguments);
+      if (result && typeof result.then === "function") {
+        throw new TypeError("Transaction function cannot return a promise");
+      }
+      after.run();
+      return result;
+    } catch (ex) {
+      if (db2.inTransaction) {
+        undo.run();
+        if (undo !== rollback) after.run();
+      }
+      throw ex;
+    }
+  };
+  return transaction;
+}
+var pragma;
+var hasRequiredPragma;
+function requirePragma() {
+  if (hasRequiredPragma) return pragma;
+  hasRequiredPragma = 1;
+  const { getBooleanOption, cppdb } = util$1;
+  pragma = function pragma2(source, options) {
+    if (options == null) options = {};
+    if (typeof source !== "string") throw new TypeError("Expected first argument to be a string");
+    if (typeof options !== "object") throw new TypeError("Expected second argument to be an options object");
+    const simple = getBooleanOption(options, "simple");
+    const stmt = this[cppdb].prepare(`PRAGMA ${source}`, this, true);
+    return simple ? stmt.pluck().get() : stmt.all();
+  };
+  return pragma;
+}
+var backup;
+var hasRequiredBackup;
+function requireBackup() {
+  if (hasRequiredBackup) return backup;
+  hasRequiredBackup = 1;
+  const fs2 = require$$0$2;
+  const path2 = require$$1;
+  const { promisify } = require$$2;
+  const { cppdb } = util$1;
+  const fsAccess = promisify(fs2.access);
+  backup = async function backup2(filename, options) {
+    if (options == null) options = {};
+    if (typeof filename !== "string") throw new TypeError("Expected first argument to be a string");
+    if (typeof options !== "object") throw new TypeError("Expected second argument to be an options object");
+    filename = filename.trim();
+    const attachedName = "attached" in options ? options.attached : "main";
+    const handler = "progress" in options ? options.progress : null;
+    if (!filename) throw new TypeError("Backup filename cannot be an empty string");
+    if (filename === ":memory:") throw new TypeError('Invalid backup filename ":memory:"');
+    if (typeof attachedName !== "string") throw new TypeError('Expected the "attached" option to be a string');
+    if (!attachedName) throw new TypeError('The "attached" option cannot be an empty string');
+    if (handler != null && typeof handler !== "function") throw new TypeError('Expected the "progress" option to be a function');
+    await fsAccess(path2.dirname(filename)).catch(() => {
+      throw new TypeError("Cannot save backup because the directory does not exist");
+    });
+    const isNewFile = await fsAccess(filename).then(() => false, () => true);
+    return runBackup(this[cppdb].backup(this, attachedName, filename, isNewFile), handler || null);
+  };
+  const runBackup = (backup2, handler) => {
+    let rate = 0;
+    let useDefault = true;
+    return new Promise((resolve, reject) => {
+      setImmediate(function step() {
+        try {
+          const progress = backup2.transfer(rate);
+          if (!progress.remainingPages) {
+            backup2.close();
+            resolve(progress);
+            return;
+          }
+          if (useDefault) {
+            useDefault = false;
+            rate = 100;
+          }
+          if (handler) {
+            const ret = handler(progress);
+            if (ret !== void 0) {
+              if (typeof ret === "number" && ret === ret) rate = Math.max(0, Math.min(2147483647, Math.round(ret)));
+              else throw new TypeError("Expected progress callback to return a number or undefined");
+            }
+          }
+          setImmediate(step);
+        } catch (err) {
+          backup2.close();
+          reject(err);
+        }
+      });
+    });
+  };
+  return backup;
+}
+var serialize;
+var hasRequiredSerialize;
+function requireSerialize() {
+  if (hasRequiredSerialize) return serialize;
+  hasRequiredSerialize = 1;
+  const { cppdb } = util$1;
+  serialize = function serialize2(options) {
+    if (options == null) options = {};
+    if (typeof options !== "object") throw new TypeError("Expected first argument to be an options object");
+    const attachedName = "attached" in options ? options.attached : "main";
+    if (typeof attachedName !== "string") throw new TypeError('Expected the "attached" option to be a string');
+    if (!attachedName) throw new TypeError('The "attached" option cannot be an empty string');
+    return this[cppdb].serialize(attachedName);
+  };
+  return serialize;
+}
+var _function;
+var hasRequired_function;
+function require_function() {
+  if (hasRequired_function) return _function;
+  hasRequired_function = 1;
+  const { getBooleanOption, cppdb } = util$1;
+  _function = function defineFunction(name, options, fn) {
+    if (options == null) options = {};
+    if (typeof options === "function") {
+      fn = options;
+      options = {};
+    }
+    if (typeof name !== "string") throw new TypeError("Expected first argument to be a string");
+    if (typeof fn !== "function") throw new TypeError("Expected last argument to be a function");
+    if (typeof options !== "object") throw new TypeError("Expected second argument to be an options object");
+    if (!name) throw new TypeError("User-defined function name cannot be an empty string");
+    const safeIntegers = "safeIntegers" in options ? +getBooleanOption(options, "safeIntegers") : 2;
+    const deterministic = getBooleanOption(options, "deterministic");
+    const directOnly = getBooleanOption(options, "directOnly");
+    const varargs = getBooleanOption(options, "varargs");
+    let argCount = -1;
+    if (!varargs) {
+      argCount = fn.length;
+      if (!Number.isInteger(argCount) || argCount < 0) throw new TypeError("Expected function.length to be a positive integer");
+      if (argCount > 100) throw new RangeError("User-defined functions cannot have more than 100 arguments");
+    }
+    this[cppdb].function(fn, name, argCount, safeIntegers, deterministic, directOnly);
+    return this;
+  };
+  return _function;
+}
+var aggregate;
+var hasRequiredAggregate;
+function requireAggregate() {
+  if (hasRequiredAggregate) return aggregate;
+  hasRequiredAggregate = 1;
+  const { getBooleanOption, cppdb } = util$1;
+  aggregate = function defineAggregate(name, options) {
+    if (typeof name !== "string") throw new TypeError("Expected first argument to be a string");
+    if (typeof options !== "object" || options === null) throw new TypeError("Expected second argument to be an options object");
+    if (!name) throw new TypeError("User-defined function name cannot be an empty string");
+    const start = "start" in options ? options.start : null;
+    const step = getFunctionOption(options, "step", true);
+    const inverse = getFunctionOption(options, "inverse", false);
+    const result = getFunctionOption(options, "result", false);
+    const safeIntegers = "safeIntegers" in options ? +getBooleanOption(options, "safeIntegers") : 2;
+    const deterministic = getBooleanOption(options, "deterministic");
+    const directOnly = getBooleanOption(options, "directOnly");
+    const varargs = getBooleanOption(options, "varargs");
+    let argCount = -1;
+    if (!varargs) {
+      argCount = Math.max(getLength(step), inverse ? getLength(inverse) : 0);
+      if (argCount > 0) argCount -= 1;
+      if (argCount > 100) throw new RangeError("User-defined functions cannot have more than 100 arguments");
+    }
+    this[cppdb].aggregate(start, step, inverse, result, name, argCount, safeIntegers, deterministic, directOnly);
+    return this;
+  };
+  const getFunctionOption = (options, key, required) => {
+    const value = key in options ? options[key] : null;
+    if (typeof value === "function") return value;
+    if (value != null) throw new TypeError(`Expected the "${key}" option to be a function`);
+    if (required) throw new TypeError(`Missing required option "${key}"`);
+    return null;
+  };
+  const getLength = ({ length }) => {
+    if (Number.isInteger(length) && length >= 0) return length;
+    throw new TypeError("Expected function.length to be a positive integer");
+  };
+  return aggregate;
+}
+var table;
+var hasRequiredTable;
+function requireTable() {
+  if (hasRequiredTable) return table;
+  hasRequiredTable = 1;
+  const { cppdb } = util$1;
+  table = function defineTable(name, factory) {
+    if (typeof name !== "string") throw new TypeError("Expected first argument to be a string");
+    if (!name) throw new TypeError("Virtual table module name cannot be an empty string");
+    let eponymous = false;
+    if (typeof factory === "object" && factory !== null) {
+      eponymous = true;
+      factory = defer(parseTableDefinition(factory, "used", name));
+    } else {
+      if (typeof factory !== "function") throw new TypeError("Expected second argument to be a function or a table definition object");
+      factory = wrapFactory(factory);
+    }
+    this[cppdb].table(factory, name, eponymous);
+    return this;
+  };
+  function wrapFactory(factory) {
+    return function virtualTableFactory(moduleName, databaseName, tableName, ...args) {
+      const thisObject = {
+        module: moduleName,
+        database: databaseName,
+        table: tableName
+      };
+      const def = apply.call(factory, thisObject, args);
+      if (typeof def !== "object" || def === null) {
+        throw new TypeError(`Virtual table module "${moduleName}" did not return a table definition object`);
+      }
+      return parseTableDefinition(def, "returned", moduleName);
+    };
+  }
+  function parseTableDefinition(def, verb, moduleName) {
+    if (!hasOwnProperty.call(def, "rows")) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition without a "rows" property`);
+    }
+    if (!hasOwnProperty.call(def, "columns")) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition without a "columns" property`);
+    }
+    const rows = def.rows;
+    if (typeof rows !== "function" || Object.getPrototypeOf(rows) !== GeneratorFunctionPrototype) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with an invalid "rows" property (should be a generator function)`);
+    }
+    let columns = def.columns;
+    if (!Array.isArray(columns) || !(columns = [...columns]).every((x) => typeof x === "string")) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with an invalid "columns" property (should be an array of strings)`);
+    }
+    if (columns.length !== new Set(columns).size) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with duplicate column names`);
+    }
+    if (!columns.length) {
+      throw new RangeError(`Virtual table module "${moduleName}" ${verb} a table definition with zero columns`);
+    }
+    let parameters;
+    if (hasOwnProperty.call(def, "parameters")) {
+      parameters = def.parameters;
+      if (!Array.isArray(parameters) || !(parameters = [...parameters]).every((x) => typeof x === "string")) {
+        throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with an invalid "parameters" property (should be an array of strings)`);
+      }
+    } else {
+      parameters = inferParameters(rows);
+    }
+    if (parameters.length !== new Set(parameters).size) {
+      throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with duplicate parameter names`);
+    }
+    if (parameters.length > 32) {
+      throw new RangeError(`Virtual table module "${moduleName}" ${verb} a table definition with more than the maximum number of 32 parameters`);
+    }
+    for (const parameter of parameters) {
+      if (columns.includes(parameter)) {
+        throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with column "${parameter}" which was ambiguously defined as both a column and parameter`);
+      }
+    }
+    let safeIntegers = 2;
+    if (hasOwnProperty.call(def, "safeIntegers")) {
+      const bool2 = def.safeIntegers;
+      if (typeof bool2 !== "boolean") {
+        throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with an invalid "safeIntegers" property (should be a boolean)`);
+      }
+      safeIntegers = +bool2;
+    }
+    let directOnly = false;
+    if (hasOwnProperty.call(def, "directOnly")) {
+      directOnly = def.directOnly;
+      if (typeof directOnly !== "boolean") {
+        throw new TypeError(`Virtual table module "${moduleName}" ${verb} a table definition with an invalid "directOnly" property (should be a boolean)`);
+      }
+    }
+    const columnDefinitions = [
+      ...parameters.map(identifier).map((str2) => `${str2} HIDDEN`),
+      ...columns.map(identifier)
+    ];
+    return [
+      `CREATE TABLE x(${columnDefinitions.join(", ")});`,
+      wrapGenerator(rows, new Map(columns.map((x, i) => [x, parameters.length + i])), moduleName),
+      parameters,
+      safeIntegers,
+      directOnly
+    ];
+  }
+  function wrapGenerator(generator, columnMap, moduleName) {
+    return function* virtualTable(...args) {
+      const output = args.map((x) => Buffer.isBuffer(x) ? Buffer.from(x) : x);
+      for (let i = 0; i < columnMap.size; ++i) {
+        output.push(null);
+      }
+      for (const row of generator(...args)) {
+        if (Array.isArray(row)) {
+          extractRowArray(row, output, columnMap.size, moduleName);
+          yield output;
+        } else if (typeof row === "object" && row !== null) {
+          extractRowObject(row, output, columnMap, moduleName);
+          yield output;
+        } else {
+          throw new TypeError(`Virtual table module "${moduleName}" yielded something that isn't a valid row object`);
+        }
+      }
+    };
+  }
+  function extractRowArray(row, output, columnCount, moduleName) {
+    if (row.length !== columnCount) {
+      throw new TypeError(`Virtual table module "${moduleName}" yielded a row with an incorrect number of columns`);
+    }
+    const offset = output.length - columnCount;
+    for (let i = 0; i < columnCount; ++i) {
+      output[i + offset] = row[i];
+    }
+  }
+  function extractRowObject(row, output, columnMap, moduleName) {
+    let count = 0;
+    for (const key of Object.keys(row)) {
+      const index = columnMap.get(key);
+      if (index === void 0) {
+        throw new TypeError(`Virtual table module "${moduleName}" yielded a row with an undeclared column "${key}"`);
+      }
+      output[index] = row[key];
+      count += 1;
+    }
+    if (count !== columnMap.size) {
+      throw new TypeError(`Virtual table module "${moduleName}" yielded a row with missing columns`);
+    }
+  }
+  function inferParameters({ length }) {
+    if (!Number.isInteger(length) || length < 0) {
+      throw new TypeError("Expected function.length to be a positive integer");
+    }
+    const params = [];
+    for (let i = 0; i < length; ++i) {
+      params.push(`$${i + 1}`);
+    }
+    return params;
+  }
+  const { hasOwnProperty } = Object.prototype;
+  const { apply } = Function.prototype;
+  const GeneratorFunctionPrototype = Object.getPrototypeOf(function* () {
+  });
+  const identifier = (str2) => `"${str2.replace(/"/g, '""')}"`;
+  const defer = (x) => () => x;
+  return table;
+}
+var inspect;
+var hasRequiredInspect;
+function requireInspect() {
+  if (hasRequiredInspect) return inspect;
+  hasRequiredInspect = 1;
+  const DatabaseInspection = function Database2() {
+  };
+  inspect = function inspect2(depth, opts) {
+    return Object.assign(new DatabaseInspection(), this);
+  };
+  return inspect;
+}
+const fs = require$$0$2;
+const path = require$$1;
+const util = util$1;
+const SqliteError = sqliteError;
+let DEFAULT_ADDON;
+function Database(filenameGiven, options) {
+  if (new.target == null) {
+    return new Database(filenameGiven, options);
+  }
+  let buffer;
+  if (Buffer.isBuffer(filenameGiven)) {
+    buffer = filenameGiven;
+    filenameGiven = ":memory:";
+  }
+  if (filenameGiven == null) filenameGiven = "";
+  if (options == null) options = {};
+  if (typeof filenameGiven !== "string") throw new TypeError("Expected first argument to be a string");
+  if (typeof options !== "object") throw new TypeError("Expected second argument to be an options object");
+  if ("readOnly" in options) throw new TypeError('Misspelled option "readOnly" should be "readonly"');
+  if ("memory" in options) throw new TypeError('Option "memory" was removed in v7.0.0 (use ":memory:" filename instead)');
+  const filename = filenameGiven.trim();
+  const anonymous = filename === "" || filename === ":memory:";
+  const readonly = util.getBooleanOption(options, "readonly");
+  const fileMustExist = util.getBooleanOption(options, "fileMustExist");
+  const timeout = "timeout" in options ? options.timeout : 5e3;
+  const verbose = "verbose" in options ? options.verbose : null;
+  const nativeBinding = "nativeBinding" in options ? options.nativeBinding : null;
+  if (readonly && anonymous && !buffer) throw new TypeError("In-memory/temporary databases cannot be readonly");
+  if (!Number.isInteger(timeout) || timeout < 0) throw new TypeError('Expected the "timeout" option to be a positive integer');
+  if (timeout > 2147483647) throw new RangeError('Option "timeout" cannot be greater than 2147483647');
+  if (verbose != null && typeof verbose !== "function") throw new TypeError('Expected the "verbose" option to be a function');
+  if (nativeBinding != null && typeof nativeBinding !== "string" && typeof nativeBinding !== "object") throw new TypeError('Expected the "nativeBinding" option to be a string or addon object');
+  let addon;
+  if (nativeBinding == null) {
+    addon = DEFAULT_ADDON || (DEFAULT_ADDON = requireBindings()("better_sqlite3.node"));
+  } else if (typeof nativeBinding === "string") {
+    const requireFunc = typeof __non_webpack_require__ === "function" ? __non_webpack_require__ : commonjsRequire;
+    addon = requireFunc(path.resolve(nativeBinding).replace(/(\.node)?$/, ".node"));
+  } else {
+    addon = nativeBinding;
+  }
+  if (!addon.isInitialized) {
+    addon.setErrorConstructor(SqliteError);
+    addon.isInitialized = true;
+  }
+  if (!anonymous && !filename.startsWith("file:") && !fs.existsSync(path.dirname(filename))) {
+    throw new TypeError("Cannot open database because the directory does not exist");
+  }
+  Object.defineProperties(this, {
+    [util.cppdb]: { value: new addon.Database(filename, filenameGiven, anonymous, readonly, fileMustExist, timeout, verbose || null, buffer || null) },
+    ...wrappers.getters
+  });
+}
+const wrappers = requireWrappers();
+Database.prototype.prepare = wrappers.prepare;
+Database.prototype.transaction = requireTransaction();
+Database.prototype.pragma = requirePragma();
+Database.prototype.backup = requireBackup();
+Database.prototype.serialize = requireSerialize();
+Database.prototype.function = require_function();
+Database.prototype.aggregate = requireAggregate();
+Database.prototype.table = requireTable();
+Database.prototype.loadExtension = wrappers.loadExtension;
+Database.prototype.exec = wrappers.exec;
+Database.prototype.close = wrappers.close;
+Database.prototype.defaultSafeIntegers = wrappers.defaultSafeIntegers;
+Database.prototype.unsafeMode = wrappers.unsafeMode;
+Database.prototype[util.inspect] = requireInspect();
+var database = Database;
+lib.exports = database;
+lib.exports.SqliteError = sqliteError;
+let db;
+function addDocument(title, filePath, fileHash) {
+  const statement = db.prepare(`
+        INSERT INTO documents (title, filePath, fileHash)
+        VALUES (?, ?, ?)
+        `);
+  return statement.run(title, filePath, fileHash);
+}
+function getAllDocuments() {
+  return db.prepare("select * from documents").all();
+}
 createRequire(import.meta.url);
-const __dirname$1 = path$m.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path$m.join(__dirname$1, "..");
+const __dirname$1 = path$n.dirname(fileURLToPath(import.meta.url));
+const __filename$1 = fileURLToPath(import.meta.url);
+globalThis.__filename = __filename$1;
+process.env.APP_ROOT = path$n.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path$m.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path$m.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$m.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+const MAIN_DIST = path$n.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path$n.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$n.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win = null;
 function createWindow() {
   win = new BrowserWindow({
-    icon: path$m.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path$n.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     title: "Lyceum",
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path$m.join(__dirname$1, "preload.mjs")
+      preload: path$n.join(__dirname$1, "preload.mjs")
     },
     autoHideMenuBar: true
   });
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path$m.join(RENDERER_DIST, "index.html"));
+    win.loadFile(path$n.join(RENDERER_DIST, "index.html"));
   }
 }
 app.whenReady().then(() => {
@@ -14375,6 +15135,12 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+ipcMain.handle("add-document", (_, data) => {
+  return addDocument(data.title, data.filePath, data.fileHash);
+});
+ipcMain.handle("get-documents", () => {
+  return getAllDocuments();
 });
 export {
   MAIN_DIST,

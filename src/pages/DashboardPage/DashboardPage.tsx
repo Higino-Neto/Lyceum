@@ -47,12 +47,12 @@ export default function Dashboard() {
               title="Total de Páginas"
               value={
                 <div>
-                  {formatTotalHours(readingStats?.month_pages.toString())}
+                  {readingStats && `${readingStats?.total_pages} Págs`}
                 </div>
               }
               extraInfo={
                 <div>
-                  {formatTotalHours(readingStats?.month_pages.toString())}
+                  +{readingStats?.month_pages} este mês
                 </div>
               }
               subtitle="Desde o início"

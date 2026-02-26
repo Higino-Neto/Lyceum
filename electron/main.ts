@@ -6,6 +6,8 @@ import { autoUpdater } from "electron-updater";
 import { addDocument, getAllDocuments, initDatabase } from "./local-database";
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+(globalThis as any).__filename = __filename;
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -40,7 +42,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   autoUpdater.checkForUpdatesAndNotify();
-  initDatabase();
+  // initDatabase();
   createWindow();
 });
 

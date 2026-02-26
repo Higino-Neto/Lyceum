@@ -1,149 +1,25 @@
-import React, { useState, useRef } from "react";
-import { ArrowLeft, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-import PdfReader from "./components/PdfReader";
-import ReadingSessionTimer from "./components/ReadingSessionTimer";
+import useReadingSession from "./hooks/useReadingSession";
+import useViewerLoader from "./hooks/useViewerLoader";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
-import saveReadingEntries from "../../utils/saveReadingEntries";
-import { EMPTY_SESSION } from "../../types/ReadingTypes";
-import type {
-  ReadingSession,
-  SessionTimerData,
-  SessionPdfData,
-} from "../../types/ReadingTypes";
+import ReadingSessionTimer from "./components/ReadingSessionTimer";
+import Viewer from "./components/pdf-reader/Viewer";
+import { ArrowLeft, FileText } from "lucide-react";
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
-export default function ReadingIframe() {
+export default function ReadingPage() {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const objectUrlRef = useRef<string | null>(null);
+  const pdf = useViewerLoader();
+  const session = useReadingSession();
 
-  const [pdfData, setPdfData] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [showModal, setShowModal] = useState(false);
-
-  // Controle de fase da sessão
-  const [sessionStart, setSessionStart] = useState(false);
-  const [sessionFinish, setSessionFinish] = useState(false);
-
-  /**
-   * `timerDone` indica que o timer terminou e está aguardando os
-   * dados do PDF (palavras/páginas). Quando ambos chegarem, o modal abre.
-   */
-  const [timerDone, setTimerDone] = useState(false);
-
-  // Estado acumulado da sessão
-  const [session, setSession] = useState<ReadingSession>(EMPTY_SESSION);
-
-  // ── Seleção de arquivo ──────────────────────────────────────────────────
-  const openFileDialog = () => fileInputRef.current?.click();
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setFileName(file.name);
-
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(file);
-    objectUrlRef.current = url;
-    setPdfData(url);
-  };
-
-  console.log(session);
-
-  // ── Callbacks do timer ──────────────────────────────────────────────────
-
-  /** Timer iniciou: registra a página atual no PdfReader */
-  const handleSessionStart = () => setSessionStart(true);
-
-  /**
-   * Timer recebeu dados (nome, categoria, tempo).
-   * Acumula no estado da sessão.
-   */
-  const handleSessionData = (data: SessionTimerData) => {
-    setSession((prev) => ({
-      ...prev,
-      id: data.id,
-      sourceName: data.sourceName,
-      date: data.date,
-      category: data.category,
-      spentTimeMinutes: prev.spentTimeMinutes + data.spentTimeMinutes,
-    }));
-  };
-
-  /**
-   * Timer terminou: pede ao PdfReader para calcular palavras/páginas.
-   * Não abre o modal ainda — aguarda `onPdfInfo`.
-   */
-  const handleTimerDone = () => {
-    setSessionStart(false);
-    setSessionFinish(true); // dispara extração no PdfReader
-    setTimerDone(true); // marca que estamos esperando o PDF
-  };
-
-  // ── Callback do PdfReader ───────────────────────────────────────────────
-
-  /**
-   * PdfReader concluiu a extração. Acumula os dados de páginas/palavras
-   * e, se o timer já terminou, abre o modal.
-   */
-  const handlePdfInfo = (data: SessionPdfData) => {
-    setSession((prev) => ({
-      ...prev,
-      totalWords: prev.totalWords + data.totalWords,
-      initialPage: prev.initialPage === 0 ? data.initialPage : prev.initialPage,
-      finalPage: data.finalPage,
-    }));
-
-    if (timerDone) {
-      setTimerDone(false);
-      setShowModal(true);
-    }
-  };
-
-  const handleFinalizeHandled = () => setSessionFinish(false);
-
-  // ── Salvar sessão no banco ──────────────────────────────────────────────
-  const handleSubmit = async () => {
-    await saveReadingEntries([
-      {
-        id: crypto.randomUUID(),
-        bookTitle: session.sourceName,
-        numPages: String(session.finalPage - session.initialPage + 1),
-        category: session.category,
-        readingTime: String(session.spentTimeMinutes),
-        date: new Date().toISOString().split("T")[0],
-      },
-    ]);
-
-    setSession(EMPTY_SESSION);
-  };
-
-  const handleReset = () => setSession(EMPTY_SESSION);
-  const handleCloseModal = () => setShowModal(false);
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {showModal && (
+      {session.showModal && (
         <ReadingSessionCompletedModal
-          session={{
-            id: session.id,
-            sourceName: session.sourceName,
-            date: session.date,
-            category: session.category,
-            spentTimeMinutes: session.spentTimeMinutes,
-            totalWords: String(session.totalWords),
-            initialPage: String(session.initialPage),
-            finalPage: String(session.finalPage),
-            totalBookPages: 1000, // TODO: buscar do DB quando livros forem implementados
-          }}
-          onReset={handleReset}
-          onClose={handleCloseModal}
-          onSubmit={handleSubmit}
+          session={session.session}
+          totalBookPages={pdf.totalBookPages}
+          onReset={session.handleReset}
+          onClose={() => session.setShowModal(false)}
+          onSubmit={session.handleSubmit}
         />
       )}
 
@@ -167,42 +43,42 @@ export default function ReadingIframe() {
                 </h1>
               </div>
 
-              {pdfData && (
+              {pdf.pdfData && (
                 <ReadingSessionTimer
-                  fileName={fileName}
-                  onSessionStart={handleSessionStart}
-                  onSessionData={handleSessionData}
-                  onSessionFinish={handleTimerDone}
-                  onTimerDone={handleTimerDone}
+                  fileName={pdf.fileName}
+                  onSessionStart={session.handleSessionStart}
+                  onSessionData={session.handleSessionData}
+                  onSessionFinish={session.handleTimerDone}
+                  onTimerDone={session.handleTimerDone}
                 />
               )}
             </div>
 
             <button
-              onClick={openFileDialog}
+              onClick={pdf.openFileDialog}
               className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-1 rounded-lg text-lg font-medium shadow-lg"
             >
               Abrir PDF
             </button>
 
             <input
-              ref={fileInputRef}
+              ref={pdf.fileInputRef}
               type="file"
               accept=".pdf,application/pdf"
-              onChange={handleFileSelect}
+              onChange={pdf.handleFileSelect}
               className="hidden"
             />
           </header>
 
           {/* Área do PDF */}
-          {pdfData ? (
+          {pdf.pdfData ? (
             <section className="bg-zinc-900 flex-1 min-h-0 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
-              <PdfReader
-                pdfData={pdfData}
-                sessionStart={sessionStart}
-                sessionFinish={sessionFinish}
-                onPdfInfo={handlePdfInfo}
-                onFinalizeHandled={handleFinalizeHandled}
+              <Viewer
+                pdfData={pdf.pdfData}
+                hasSessionStarted={session.sessionStart}
+                hasSessionFinished={session.sessionFinish}
+                onReadingInfo={session.handleReadingInfo}
+                onTotalBookPages={pdf.handleTotalBookPages}
               />
             </section>
           ) : (

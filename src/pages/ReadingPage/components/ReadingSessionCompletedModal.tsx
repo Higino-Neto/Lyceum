@@ -3,11 +3,9 @@ import {
   Clock,
   Zap,
   X,
-  RotateCcw,
   ChevronRight,
   Target,
   Flame,
-  BarChart3,
   ChevronDown,
 } from "lucide-react";
 
@@ -17,21 +15,14 @@ interface SessionData {
   date: Date;
   category: string;
   spentTimeMinutes: number;
-  totalWords: string;
-  initialPage: string;
-  finalPage: string;
-  totalBookPages: number;
-  // Optional historical data
-  historicalAvgWpm?: number;
-  historicalAvgPagesPerSession?: number;
-  bookTotalPagesRead?: number;
-  bookTotalMinutes?: number;
-  sessionRank?: number;
-  totalSessions?: number;
+  totalWords: number;
+  initialPage: number;
+  finalPage: number;
 }
 
 interface Props {
   session: SessionData;
+  totalBookPages: number;
   onReset: () => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -137,13 +128,13 @@ function SectionTitle({
 
 export default function ReadingSessionCompletedModal({
   session,
+  totalBookPages,
   onReset,
   onClose,
   onSubmit,
 }: Props) {
-  
-  const pagesRead = Number(session.finalPage) - Number(session.initialPage);
-  const totalWords = Number(session.totalWords);
+  const pagesRead = session.finalPage - session.initialPage;
+  const totalWords = session.totalWords;
   const wpm =
     session.spentTimeMinutes > 0
       ? Math.round(totalWords / session.spentTimeMinutes)
@@ -161,15 +152,13 @@ export default function ReadingSessionCompletedModal({
     pagesRead > 0 ? (session.spentTimeMinutes / pagesRead).toFixed(2) : "0";
 
   const sessionProgress =
-    session.totalBookPages > 0
-      ? ((pagesRead / session.totalBookPages) * 100).toFixed(1)
-      : "0";
+    totalBookPages > 0 ? ((pagesRead / totalBookPages) * 100).toFixed(1) : "0";
   const accumulatedProgress =
-    session.totalBookPages > 0
-      ? ((Number(session.finalPage) / session.totalBookPages) * 100).toFixed(1)
-      : "0";
+    totalBookPages > 0
+      ? ((session.finalPage / totalBookPages) * 100).toFixed(1)
+      : 0;
   const remainingPercent = (100 - Number(accumulatedProgress)).toFixed(1);
-  const remainingPages = session.totalBookPages - Number(session.finalPage);
+  const remainingPages = totalBookPages - Number(session.finalPage);
   const estimatedFinishMins =
     Number(pagesPerMinute) > 0
       ? Math.round(remainingPages / Number(pagesPerMinute))
@@ -180,18 +169,6 @@ export default function ReadingSessionCompletedModal({
 
   const rhythm = getRhythm(wpm);
   const categoryLabel = CATEGORY_LABELS[session.category] ?? session.category;
-
-  // Historical (optional, with fallbacks)
-  const histWpm = session.historicalAvgWpm ?? wpm;
-  const histPages = session.historicalAvgPagesPerSession ?? pagesRead;
-  const bookTotalRead = session.bookTotalPagesRead ?? Number(session.finalPage);
-  const bookTotalTime = session.bookTotalMinutes
-    ? `${Math.floor(session.bookTotalMinutes / 60)}h ${session.bookTotalMinutes % 60}min`
-    : `${Math.floor(session.spentTimeMinutes / 60)}h ${session.spentTimeMinutes % 60}min`;
-  const sessionRankText =
-    session.sessionRank && session.totalSessions
-      ? `#${session.sessionRank} / ${session.totalSessions}`
-      : "—";
 
   return (
     <div
@@ -293,7 +270,7 @@ export default function ReadingSessionCompletedModal({
                 +{pagesRead} págs. esta sessão
               </span>
               <span>
-                Pág. {session.finalPage} / {session.totalBookPages}
+                Pág. {session.finalPage} / {totalBookPages}
               </span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -383,60 +360,6 @@ export default function ReadingSessionCompletedModal({
             </div>
           </div>
 
-          {/* ── MÉTRICAS HISTÓRICAS ── */}
-          <div>
-            <SectionTitle icon={BarChart3} label="Comparativo Histórico" />
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <div className="p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/40">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                    WPM esta sessão
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold ${wpm >= histWpm ? "text-green-400" : "text-red-400"}`}
-                  >
-                    {wpm >= histWpm ? `+${wpm - histWpm}` : `${wpm - histWpm}`}
-                  </span>
-                </div>
-                <p className="text-xl font-bold text-zinc-100 tabular-nums">
-                  {wpm}
-                </p>
-                <p className="text-[10px] text-zinc-600">
-                  Média histórica: {histWpm}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/40">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                    Págs. esta sessão
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold ${pagesRead >= histPages ? "text-green-400" : "text-red-400"}`}
-                  >
-                    {pagesRead >= histPages
-                      ? `+${pagesRead - histPages}`
-                      : `${pagesRead - histPages}`}
-                  </span>
-                </div>
-                <p className="text-xl font-bold text-zinc-100 tabular-nums">
-                  {pagesRead}
-                </p>
-                <p className="text-[10px] text-zinc-600">
-                  Média histórica: {histPages}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <StatPill label="Rank da sessão" value={sessionRankText} />
-              <StatPill
-                label="Total págs. no livro"
-                value={String(bookTotalRead)}
-              />
-              <StatPill label="Tempo no livro" value={bookTotalTime} />
-            </div>
-          </div>
-
           {/* ── PROJEÇÃO ── */}
           <div>
             <SectionTitle icon={Target} label="Projeção" />
@@ -457,16 +380,6 @@ export default function ReadingSessionCompletedModal({
 
         {/* ── FOOTER ── */}
         <div className="px-6 py-4 border-t border-zinc-800/60 flex gap-3 shrink-0">
-          {/* <button
-            onClick={() => {
-              onClose();
-              onReset();
-            }}
-            className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
-          >
-            <RotateCcw size={13} />
-            Reiniciar
-          </button> */}
           <button
             title="Continue de onde parou (Seu progresso será salvo)"
             onClick={onClose}

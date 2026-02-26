@@ -7,8 +7,10 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
       electron.ipcRenderer.send("open-file-dialog");
     });
   }
-  // zoom: (delta: number) => ipcRenderer.send("zoom", delta),
-  // zoomOut: () => ipcRenderer.send("zoom-out"),
+});
+electron.contextBridge.exposeInMainWorld("api", {
+  addDocument: (data) => electron.ipcRenderer.invoke("add-document", data),
+  getDocuments: () => electron.ipcRenderer.invoke("get-documents")
 });
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {

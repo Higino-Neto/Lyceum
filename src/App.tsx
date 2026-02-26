@@ -2,10 +2,10 @@ import { Route, Routes } from "react-router-dom";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
-import ReadingIframe from "./pages/ReadingPage/ReadingPage";
 import Sidebar from "./components/Sidebar";
 import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
+import ReadingPage from "./pages/ReadingPage/ReadingPage";
 
 function App() {
   return (
@@ -16,7 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/add_reading" element={<AddReadingPage />} />
-          <Route path="/reading" element={<ReadingIframe />} />
+          <Route path="/reading" element={<ReadingPage />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
         </Routes>

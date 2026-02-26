@@ -126,9 +126,53 @@
 			"typeName": "shape"
 		},
 		{
-			"x": 227.0940090423194,
-			"y": -517.2521142883202,
-			"z": 0.5904547235114842,
+			"x": 692.5843208905895,
+			"y": 701.7016259050042,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:TOpBY3T-7_PfR-cF3xHxo",
+			"type": "arrow",
+			"props": {
+				"kind": "arc",
+				"elbowMidPoint": 0.5,
+				"dash": "draw",
+				"size": "m",
+				"fill": "none",
+				"color": "black",
+				"labelColor": "black",
+				"bend": 0,
+				"start": {
+					"x": 178.97178076492526,
+					"y": 172.6549666761424
+				},
+				"end": {
+					"x": 261.0881229827296,
+					"y": -22.108234860444213
+				},
+				"arrowheadStart": "none",
+				"arrowheadEnd": "arrow",
+				"richText": {
+					"type": "doc",
+					"content": [
+						{
+							"type": "paragraph"
+						}
+					]
+				},
+				"labelPosition": 0.5,
+				"font": "draw",
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "a5b8hayl",
+			"typeName": "shape"
+		},
+		{
+			"x": 193.25754397876634,
+			"y": 78.12065602656355,
+			"z": 0.506112927214497,
 			"meta": {},
 			"id": "camera:page:page",
 			"typeName": "camera"
@@ -179,9 +223,9 @@
 			"editingShapeId": null,
 			"croppingShapeId": null,
 			"selectedShapeIds": [
-				"shape:J4JP98JW88txMi8s3-eSw"
+				"shape:Mk2jJ2MMptI7ttqRgsNau"
 			],
-			"hoveredShapeId": "shape:J4JP98JW88txMi8s3-eSw",
+			"hoveredShapeId": "shape:Mk2jJ2MMptI7ttqRgsNau",
 			"erasingShapeIds": [],
 			"hintingShapeIds": [],
 			"focusedGroupId": null,
@@ -189,6 +233,97 @@
 			"id": "instance_page_state:page:page",
 			"pageId": "page:page",
 			"typeName": "instance_page_state"
+		},
+		{
+			"x": 964.2001219773335,
+			"y": 636.429679495637,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:5YovA1Zrsl1u8qmw7pRSR",
+			"type": "geo",
+			"props": {
+				"w": 302.14622180336187,
+				"h": 80.53720495985635,
+				"geo": "rectangle",
+				"dash": "draw",
+				"growY": 0,
+				"url": "",
+				"scale": 1,
+				"color": "black",
+				"labelColor": "black",
+				"fill": "none",
+				"size": "m",
+				"font": "draw",
+				"align": "middle",
+				"verticalAlign": "middle",
+				"richText": {
+					"type": "doc",
+					"attrs": {
+						"dir": "auto"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "PdfViewerCore"
+								}
+							]
+						}
+					]
+				}
+			},
+			"parentId": "page:page",
+			"index": "aDqpUGal",
+			"typeName": "shape"
+		},
+		{
+			"x": 428.4746230764314,
+			"y": 633.1831087259333,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:Mk2jJ2MMptI7ttqRgsNau",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 192.5,
+				"font": "draw",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1,
+				"richText": {
+					"type": "doc",
+					"attrs": {
+						"dir": "auto"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "sessionFinished"
+								}
+							]
+						}
+					]
+				}
+			},
+			"parentId": "page:page",
+			"index": "aHCz9Ypl",
+			"typeName": "shape"
 		},
 		{
 			"x": 423.81676904443464,
@@ -225,6 +360,48 @@
 			},
 			"parentId": "page:page",
 			"index": "a591LclV",
+			"typeName": "shape"
+		},
+		{
+			"x": 1139.2238869087432,
+			"y": 735.127256090993,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:gPXEWnE6gWDhgHhct7vDg",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 623.46875,
+				"font": "draw",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1,
+				"richText": {
+					"type": "doc",
+					"attrs": {
+						"dir": "auto"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Responsável apenas por mostrar o viewer na tela"
+								}
+							]
+						}
+					]
+				}
+			},
+			"parentId": "page:page",
+			"index": "aFdIxVMV",
 			"typeName": "shape"
 		},
 		{
@@ -341,7 +518,7 @@
 			"props": {
 				"color": "black",
 				"size": "m",
-				"w": 131.61459350585938,
+				"w": 127.9375,
 				"font": "draw",
 				"textAlign": "start",
 				"autoSize": true,
@@ -360,7 +537,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "PdfReader"
+									"text": "PdfViewer"
 								}
 							]
 						}
@@ -388,10 +565,7 @@
 		{
 			"followingUserId": null,
 			"opacityForNextShape": 1,
-			"stylesForNextShape": {
-				"tldraw:fill": "none",
-				"tldraw:geo": "rectangle"
-			},
+			"stylesForNextShape": {},
 			"brush": null,
 			"scribbles": [],
 			"cursor": {
@@ -405,7 +579,7 @@
 			"screenBounds": {
 				"x": 0,
 				"y": 0,
-				"w": 1053.3333740234375,
+				"w": 1028.666748046875,
 				"h": 622
 			},
 			"insets": [
@@ -433,6 +607,64 @@
 			"id": "instance:instance",
 			"currentPageId": "page:page",
 			"typeName": "instance"
+		},
+		{
+			"x": 549.4070247911292,
+			"y": 992.0042500015004,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:guOxRa4uzhYKC-z2zfEUX",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 475.9375,
+				"font": "draw",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1,
+				"richText": {
+					"type": "doc",
+					"attrs": {
+						"dir": "auto"
+					},
+					"content": [
+						{
+							"type": "bulletList",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "listItem",
+									"attrs": {
+										"dir": "auto"
+									},
+									"content": [
+										{
+											"type": "paragraph",
+											"attrs": {
+												"dir": "auto"
+											},
+											"content": [
+												{
+													"type": "text",
+													"text": "Sobe OnPdfInfo para readingPage"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			},
+			"parentId": "page:page",
+			"index": "aEVNCbpV",
+			"typeName": "shape"
 		},
 		{
 			"x": 110.49892665376083,
@@ -576,6 +808,48 @@
 			},
 			"parentId": "page:page",
 			"index": "a9lFF3mV",
+			"typeName": "shape"
+		},
+		{
+			"x": 428.4746230764314,
+			"y": 589.055914368785,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:G2tUFWLoBBsyXwQ3jyYA5",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 154.96875,
+				"font": "draw",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1,
+				"richText": {
+					"type": "doc",
+					"attrs": {
+						"dir": "auto"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "sessionStart"
+								}
+							]
+						}
+					]
+				}
+			},
+			"parentId": "page:page",
+			"index": "aGZ65hZV",
 			"typeName": "shape"
 		},
 		{
