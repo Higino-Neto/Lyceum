@@ -1,5 +1,5 @@
 import { ipcRenderer, contextBridge } from "electron";
-import { addDocument } from "../main/local-database";
+import { addDocument } from "./local-database";
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getFilePath: () => {

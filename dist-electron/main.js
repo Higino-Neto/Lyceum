@@ -15120,6 +15120,9 @@ function createWindow() {
   } else {
     win.loadFile(path$n.join(RENDERER_DIST, "index.html"));
   }
+  win.webContents.on("did-finish-load", () => {
+    win == null ? void 0 : win.webContents.setZoomFactor(1);
+  });
 }
 app.whenReady().then(() => {
   main$1.autoUpdater.checkForUpdatesAndNotify();

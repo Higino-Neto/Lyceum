@@ -10,11 +10,11 @@ export default function RankingTable() {
     <div className="overflow-hidden rounded-xl border border-zinc-800">
       <table className="w-full text-sm">
         <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider">
-          <tr>
+          {/* <tr>
             <th className="text-left px-6 py-4">Posição</th>
             <th className="text-left px-6 py-4">Nome</th>
             <th className="text-right px-6 py-4">Páginas</th>
-          </tr>
+          </tr> */}
         </thead>
         <tbody>
           {data.map((user) => (

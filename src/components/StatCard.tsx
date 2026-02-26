@@ -7,7 +7,7 @@ type Props = {
 
 export default function StatCard({ title, value, extraInfo, subtitle }: Props) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl hover:border-zinc-700 transition">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl hover:border-zinc-700 transition">
       <>
         <p className="text-sm text-zinc-400">{title}</p>
         <div className="flex flex-col gap-2">
