@@ -1,4 +1,4 @@
-import { LayoutDashboard } from "lucide-react";
+import { Home, LayoutDashboard } from "lucide-react";
 import RankingTable from "./components/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
 import StatCard from "../../components/StatCard";
@@ -22,39 +22,33 @@ export default function Dashboard() {
   const { readingStats, userStreak } = data ?? {};
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <main className="flex-1 p-4 overflow-auto">
+        <div className=" mx-auto space-y-4">
           <header className="flex justify-between items-center">
             <div>
-              <div className="flex gap-2 items-center">
-                <LayoutDashboard className="text-green-500" size={24} />
-                <h1 className="text-2xl font-semibold tracking-tight">
+              <div className="flex gap-2 items-center pl-6">
+                <Home size={32} className="text-zinc-300" />
+                {/* <h1 className="text-lg">
                   Dashboard
-                </h1>
+                </h1> */}
               </div>
             </div>
 
             <button
               onClick={() => navigate("/add_reading")}
-              className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-5 py-2.5 rounded-lg text-lg font-medium shadow-lg"
+              className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium shadow-lg"
             >
               Registrar Leitura
             </button>
           </header>
 
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
               title="Total de Páginas"
               value={
-                <div>
-                  {readingStats && `${readingStats?.total_pages} Págs`}
-                </div>
+                <div>{readingStats && `${readingStats?.total_pages} Págs`}</div>
               }
-              extraInfo={
-                <div>
-                  +{readingStats?.month_pages} este mês
-                </div>
-              }
+              extraInfo={<div>+{readingStats?.month_pages} este mês</div>}
               subtitle="Desde o início"
             />
             <StatCard
@@ -84,9 +78,13 @@ export default function Dashboard() {
             />
           </section>
 
-          <section className="flex justify-center">
-            <div className="rounded-lg border border-zinc-800 w-full">
+          <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-60 mb-6">
+            <div className="col-span-2 rounded-md border border-zinc-800 w-full">
               <ReadingHeatMap />
+            </div>
+            <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 overflow-y-auto h-full">
+              <h2 className="text-sm text-zinc-400 mb-4">Ranking Geral</h2>
+              <RankingTable />
             </div>
           </section>
           <section>

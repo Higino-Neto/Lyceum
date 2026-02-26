@@ -63,7 +63,6 @@ export default function Viewer({
         onReady={(registry) => {
           setRegistry(registry);
         }}
-        className="h-[calc(100vh-80px)]"
       />
     </div>
   );

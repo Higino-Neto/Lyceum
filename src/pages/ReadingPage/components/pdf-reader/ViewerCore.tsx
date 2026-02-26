@@ -4,14 +4,9 @@ import { DARK_THEME } from "./theme";
 interface ViewerCoreProps {
   pdfData: string;
   onReady: (registry: PluginRegistry) => void;
-  className?: string;
 }
 
-export default function ViewerCore({
-  pdfData,
-  onReady,
-  className,
-}: ViewerCoreProps) {
+export default function ViewerCore({ pdfData, onReady }: ViewerCoreProps) {
   const handleReady = (registry: PluginRegistry) => {
     onReady(registry);
   };
@@ -25,10 +20,11 @@ export default function ViewerCore({
           src: pdfData,
           theme: {
             preference: "dark",
-            ...DARK_THEME,
+            // ...DARK_THEME,
+            dark: DARK_THEME,
           },
         }}
-        className={`${className ? className : ""}`}
+        className={`h-[calc(100vh-80px)]`}
       />
     </>
   );

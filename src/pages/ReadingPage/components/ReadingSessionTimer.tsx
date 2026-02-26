@@ -263,7 +263,7 @@ export default function ReadingSessionTimer({
       {/* Widget compacto no header */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 group ${
+        className={`flex items-center gap-2 px-4 py-2 rounded-sm border cursor-pointer transition-all duration-200 group ${
           timerState === "running"
             ? "border-green-600/60 bg-green-950/30 hover:bg-green-950/50"
             : timerState === "paused"
@@ -282,7 +282,7 @@ export default function ReadingSessionTimer({
           }
         />
         {timerState === "idle" ? (
-          <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
+          <span className="text-md text-zinc-400 group-hover:text-zinc-300">
             Timer
           </span>
         ) : (

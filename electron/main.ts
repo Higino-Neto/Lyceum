@@ -38,6 +38,9 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
+  win.webContents.on("did-finish-load", () => {
+    win?.webContents.setZoomFactor(1.0);
+  });
 }
 
 app.whenReady().then(() => {

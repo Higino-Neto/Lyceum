@@ -1,13 +1,11 @@
-import { useNavigate } from "react-router-dom";
 import useReadingSession from "./hooks/useReadingSession";
 import useViewerLoader from "./hooks/useViewerLoader";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
 import ReadingSessionTimer from "./components/ReadingSessionTimer";
 import Viewer from "./components/pdf-reader/Viewer";
-import { ArrowLeft, FileText } from "lucide-react";
+import { BookOpenText } from "lucide-react";
 
 export default function ReadingPage() {
-  const navigate = useNavigate();
   const pdf = useViewerLoader();
   const session = useReadingSession();
 
@@ -23,26 +21,27 @@ export default function ReadingPage() {
         />
       )}
 
-      <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <div className="h-screen flex flex-col p-4 space-y-4">
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 ">
+        <div className=" h-screen  flex flex-col p-4 space-y-4">
           {/* Header */}
           <header className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <button
+              {/* <button
                 onClick={() => navigate("/")}
                 className="cursor-pointer flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-white rounded-lg transition-colors"
               >
                 <ArrowLeft size={20} />
                 <span>Dashboard</span>
-              </button>
+              </button> */}
 
-              <div className="flex gap-2 items-center">
-                <FileText className="text-green-500" size={24} />
-                <h1 className="text-2xl font-semibold tracking-tight">
+              <div className="flex gap-2 items-center pl-6">
+                <BookOpenText size={32} className="text-zinc-300" />
+                {/* <h1 className="text-lg text-zinc-200">
                   Leitor de PDF
-                </h1>
+                </h1> */}
               </div>
-
+            </div>
+            <div className="flex gap-2 items-center">
               {pdf.pdfData && (
                 <ReadingSessionTimer
                   fileName={pdf.fileName}
@@ -52,22 +51,22 @@ export default function ReadingPage() {
                   onTimerDone={session.handleTimerDone}
                 />
               )}
+
+              <button
+                onClick={pdf.openFileDialog}
+                className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium"
+              >
+                Abrir PDF
+              </button>
+
+              <input
+                ref={pdf.fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={pdf.handleFileSelect}
+                className="hidden"
+              />
             </div>
-
-            <button
-              onClick={pdf.openFileDialog}
-              className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-1 rounded-lg text-lg font-medium shadow-lg"
-            >
-              Abrir PDF
-            </button>
-
-            <input
-              ref={pdf.fileInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={pdf.handleFileSelect}
-              className="hidden"
-            />
           </header>
 
           {/* Área do PDF */}

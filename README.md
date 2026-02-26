@@ -5,12 +5,17 @@
 [![Electron](https://img.shields.io/badge/Electron-Latest-47848F)](https://www.electronjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-**Lyceum** é uma aplicação desktop moderna para rastrear e analisar seus hábitos de leitura. Monitore suas páginas lidas, tempo dedicado à leitura, e compita com outros leitores em um ranking dinâmico.
+**Lyceum** é um leitor de pdf focado em rastrear e analisar sua vida literária. Monitore suas páginas lidas, sua velocidade média, seu tempo dedicado à leitura, e compita com outros leitores com um sistema de pontos com pesos para diferentes dificuldades.
 
 ## Telas da Aplicação
 
+#### Leitor Integrado
+![Reading Page](public/reader-v2.png)
+*Leitor integrado para acompanhar leitura durante o uso da aplicação*
+
+
 #### Dashboard
-![Dashboard](public/dashboard-v1.png)
+![Dashboard](public/dashboard-v2.png)
 *Painel principal com estatísticas de leitura, heatmap de atividades e ranking geral*
 
 **O que você vê:**
@@ -22,12 +27,8 @@
 - Histórico recente de leituras
 
 #### Registrar Leitura
-![Add Reading](public/addReading-v1.png)
+![Add Reading](public/addReading-v2.png)
 *Interface para adicionar novas leituras com detalhes do livro*
-
-#### Leitor Integrado
-![Reading Page](public/reader-v1.png)
-*Leitor integrado para acompanhar leitura durante o uso da aplicação*
 
 #### Autenticação
 <!-- 
@@ -35,8 +36,8 @@
 ![Sign In](public/signIn-v1.png)
 *Página de login seguro com autenticação via Supabase* -->
 
-![Sign Up](public/signUp-v1.png)
-*Registro de novos usuários na plataforma*
+![Sign Up](public/signUp-v2.png)
+*Crie uma conta para salvar seu progresso e participar do ranking*
 
 ---
 
