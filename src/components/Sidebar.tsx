@@ -34,7 +34,7 @@ export default function Sidebar() {
         <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
       </nav>
 
-      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v1.0.4</div>
+      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v1.0.5</div>
     </aside>
   );
 }
