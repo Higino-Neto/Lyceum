@@ -2,12 +2,35 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { autoUpdater } from "electron-updater";
-import { addDocument, getAllDocuments, initDatabase } from "./local-database";
+import {
+  addDocument,
+  getAllDocuments,
+  getDocumentByHash,
+  getLastDocument,
+  initDatabase,
+  updateLastOpened,
+  updateReadingState,
+} from "./local-database";
+
+interface DocumentRecord {
+  id: number;
+  title: string;
+  filePath: string;
+  fileHash: string;
+  currentPage: number;
+  currentZoom: number;
+  currentScroll: number;
+  annotations: string;
+}
+
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const __filename = fileURLToPath(import.meta.url);
 (globalThis as any).__filename = __filename;
+import crypto from "crypto";
+import fs from "fs";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -20,6 +43,13 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null = null;
+
+function generateFileHash(filePath: string) {
+  const fileBuffer = fs.readFileSync(filePath);
+  const hash = crypto.createHash("sha256");
+  hash.update(fileBuffer);
+  return hash.digest("hex");
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -44,8 +74,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  initDatabase();
   autoUpdater.checkForUpdatesAndNotify();
-  // initDatabase();
   createWindow();
 });
 
@@ -63,9 +93,67 @@ app.on("activate", () => {
 });
 
 ipcMain.handle("add-document", (_, data) => {
-  return addDocument(data.title, data.filePath, data.fileHash);
+  const fileHash = generateFileHash(data.filePath);
+
+  const existing = getDocumentByHash(fileHash);
+  if (existing) return existing;
+
+  return addDocument(data.title, data.filePath, fileHash);
 });
 
 ipcMain.handle("get-documents", () => {
   return getAllDocuments();
+});
+
+ipcMain.handle("reading:save", (_, payload) => {
+  const { fileHash, state } = payload ?? {};
+  if (!fileHash || !state) return;
+  
+  const safeState = {
+    currentPage: state.currentPage ?? 1,
+    currentZoom: state.currentZoom ?? 1,
+    currentScroll: state.currentScroll ?? 0,
+    annotations: state.annotations ?? "[]",
+  };
+
+  updateReadingState(fileHash, safeState);
+});
+
+ipcMain.handle("reading:get", (_, fileHash) => {
+  return getDocumentByHash(fileHash);
+});
+ipcMain.handle("dialog:open-pdf", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const title = path.basename(filePath);
+  const fileHash = generateFileHash(filePath);
+  const fileBuffer = fs.readFileSync(filePath).buffer;
+
+  const existing = getDocumentByHash(fileHash);
+  if (existing) {
+    updateLastOpened(fileHash); // ✅ atualiza timestamp ao reabrir
+    return { ...existing, fileBuffer };
+  }
+
+  addDocument(title, filePath, fileHash);
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) return null;
+  return { ...doc, fileBuffer };
+});
+
+ipcMain.handle("app:get-last-document", () => {
+  return getLastDocument();
+});
+
+ipcMain.handle("pdf:reopen", async (_, filePath: string) => {
+  try {
+    const fileBuffer = fs.readFileSync(filePath).buffer;
+    return { fileBuffer };
+  } catch {
+    return null;
+  }
 });

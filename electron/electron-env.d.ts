@@ -30,5 +30,10 @@ interface Window {
   api: {
     addDocument: (data: any) => Promise<any>;
     getDocuments: () => Promise<any>;
+    saveReadingState: (payload: any) => Promise<void>;
+    getReadingState: (fileHash: string) => Promise<any>;
+    openPdf: () => any;
+    getLastDocument: () => any;
+    reopenPdf: (filePath: string) => any;
   };
 }

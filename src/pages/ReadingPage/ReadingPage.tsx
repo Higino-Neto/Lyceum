@@ -59,21 +59,22 @@ export default function ReadingPage() {
                 Abrir PDF
               </button>
 
-              <input
+              {/* <input
                 ref={pdf.fileInputRef}
                 type="file"
                 accept=".pdf,application/pdf"
                 onChange={pdf.handleFileSelect}
                 className="hidden"
-              />
+              /> */}
             </div>
           </header>
 
           {/* Área do PDF */}
-          {pdf.pdfData ? (
+          {pdf.pdfData && pdf.fileHash ? (
             <section className="bg-zinc-900 flex-1 min-h-0 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
               <Viewer
                 pdfData={pdf.pdfData}
+                fileHash={pdf.fileHash!}
                 hasSessionStarted={session.sessionStart}
                 hasSessionFinished={session.sessionFinish}
                 onReadingInfo={session.handleReadingInfo}

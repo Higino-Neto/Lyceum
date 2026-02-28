@@ -43,7 +43,5 @@ export default function useScroll(registry: PluginRegistry) {
     return () => cleanups.forEach((cleanup) => cleanup());
   }, [registry]);
 
-  console.log({ currentPage, totalPages });
-
   return { currentPage, totalPages };
 }

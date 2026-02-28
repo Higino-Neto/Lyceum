@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 contextBridge.exposeInMainWorld("api", {
   addDocument: (data) => ipcRenderer.invoke("add-document", data),
   getDocuments: () => ipcRenderer.invoke("get-documents"),
+  saveReadingState: (payload) => ipcRenderer.invoke("reading:save", payload),
+  getReadingState: (fileHash) => ipcRenderer.invoke("reading:get", fileHash),
+  openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
+  getLastDocument: () => ipcRenderer.invoke("app:get-last-document"), // ✅ novo
+  reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath), // ✅ novo
 });
 
 // --------- Expose some API to the Renderer process ---------

@@ -1,37 +1,47 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function useViewerLoader() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const objectUrlRef = useRef<string | null>(null);
-  const [pdfData, setPdfData] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
+  const [pdfPath, setPdfPath] = useState<string | null>(null);
+  const [fileHash, setFileHash] = useState<string | null>(null);
   const [totalBookPages, setTotalBookPages] = useState<number | null>(null);
 
-  const openFileDialog = () => fileInputRef.current?.click();
+  const handleTotalBookPages = (pages: number) => setTotalBookPages(pages);
 
-  const handleTotalBookPages = (pages: number) => {
-    setTotalBookPages(pages);
-  };
+  // Reabre o último PDF automaticamente
+  useEffect(() => {
+    const reopenLast = async () => {
+      const last = await window.api.getLastDocument();
+      if (!last) return;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      const result = await window.api.reopenPdf(last.filePath);
+      if (!result) return; // arquivo foi deletado/movido
 
-    setFileName(file.name);
+      const blob = new Blob([result.fileBuffer], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      setPdfPath(blobUrl);
+      setFileName(last.title);
+      setFileHash(last.fileHash);
+    };
+    reopenLast();
+  }, []);
 
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(file);
-    objectUrlRef.current = url;
-    setPdfData(url);
+  const openFileDialog = async () => {
+    const document = await window.api.openPdf();
+    if (!document) return;
+    const blob = new Blob([document.fileBuffer], { type: "application/pdf" });
+    const blobUrl = URL.createObjectURL(blob);
+    setPdfPath(blobUrl);
+    setFileName(document.title);
+    setFileHash(document.fileHash);
   };
 
   return {
-    pdfData,
+    pdfData: pdfPath,
     fileName,
-    fileInputRef,
+    fileHash,
     totalBookPages,
-    openFileDialog,
     handleTotalBookPages,
-    handleFileSelect,
+    openFileDialog,
   };
 }
