@@ -32,16 +32,15 @@ export default function useReadingPersistence(
   useEffect(() => {
     if (!registry || !fileHash) return;
 
+    let tryRestore: NodeJS.Timeout;
+
     const restore = async () => {
       const saved = await window.api.getReadingState(fileHash);
       if (!saved) return;
 
       const savedPage = typeof saved.currentPage === 'object' ? saved.currentPage.pageNumber : saved.currentPage;
 
-      let attempts = 0;
-      const tryRestore = setInterval(async () => {
-        attempts++;
-
+      const checkReady = () => {
         const scroll = registry.getPlugin<ScrollPlugin>("scroll")?.provides();
         const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom")?.provides();
         const docManager = registry.getPlugin("document-manager")?.provides();
@@ -51,18 +50,24 @@ export default function useReadingPersistence(
         const totalPages = scroll?.getTotalPages() ?? 0;
 
         if (!scroll || !doc || totalPages === 0) {
-          if (attempts >= 30) {
-            clearInterval(tryRestore);
+          return null;
+        }
+
+        return { scroll, zoomPlugin, documentId, totalPages, savedPage, saved };
+      };
+
+      const attempt = () => {
+        const ready = checkReady();
+        if (!ready) {
+          if (!tryRestore || !restoredRef.current) {
+            tryRestore = setTimeout(attempt, 300);
           }
           return;
         }
 
-        if (restoredRef.current) {
-          clearInterval(tryRestore);
-          return;
-        }
+        const { scroll, zoomPlugin, documentId, savedPage, saved } = ready;
         restoredRef.current = true;
-        clearInterval(tryRestore);
+        if (tryRestore) clearTimeout(tryRestore);
 
         if (savedPage > 1 && documentId) {
           setTimeout(() => {
@@ -101,10 +106,16 @@ export default function useReadingPersistence(
             console.error("Failed to restore annotations:", e);
           }
         }
-      }, 300);
+      };
+
+      attempt();
     };
 
     restore();
+
+    return () => {
+      if (tryRestore) clearTimeout(tryRestore);
+    };
   }, [registry, fileHash]);
 
   useEffect(() => {
@@ -172,5 +183,5 @@ export default function useReadingPersistence(
       window.removeEventListener("beforeunload", save);
       save();
     };
-  }, []);
+  }, [fileHash]);
 }

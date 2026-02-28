@@ -3,6 +3,7 @@ import {
   BookOpenText,
   BookPlus,
   Home,
+  LibraryBig,
   LogIn,
   PanelRight,
   Wrench,
@@ -30,6 +31,7 @@ export default function Sidebar() {
 
         <SidebarItem Icon={Home} label="Dashboard" active={pathname === "/"} onClick={() => navigate("/")} collapsed={collapsed} />
         <SidebarItem Icon={BookOpenText} label="Ler" active={pathname === "/reading"} onClick={() => navigate("reading")} collapsed={collapsed} />
+        <SidebarItem Icon={LibraryBig} label="Biblioteca" active={pathname === "/library"} onClick={() => navigate("/library")} collapsed={collapsed} />
         <SidebarItem Icon={BookPlus} label="Registrar Leituras" active={pathname === "/add_reading"} onClick={() => navigate("/add_reading")} collapsed={collapsed} />
         <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
       </nav>

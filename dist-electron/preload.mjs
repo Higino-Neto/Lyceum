@@ -15,9 +15,8 @@ electron.contextBridge.exposeInMainWorld("api", {
   getReadingState: (fileHash) => electron.ipcRenderer.invoke("reading:get", fileHash),
   openPdf: () => electron.ipcRenderer.invoke("dialog:open-pdf"),
   getLastDocument: () => electron.ipcRenderer.invoke("app:get-last-document"),
-  // ✅ novo
-  reopenPdf: (filePath) => electron.ipcRenderer.invoke("pdf:reopen", filePath)
-  // ✅ novo
+  reopenPdf: (filePath) => electron.ipcRenderer.invoke("pdf:reopen", filePath),
+  getThumbnail: (thumbnailPath) => electron.ipcRenderer.invoke("thumbnail:get", thumbnailPath)
 });
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {

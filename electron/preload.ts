@@ -16,8 +16,9 @@ contextBridge.exposeInMainWorld("api", {
   saveReadingState: (payload) => ipcRenderer.invoke("reading:save", payload),
   getReadingState: (fileHash) => ipcRenderer.invoke("reading:get", fileHash),
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
-  getLastDocument: () => ipcRenderer.invoke("app:get-last-document"), // ✅ novo
-  reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath), // ✅ novo
+  getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
+  reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath),
+  getThumbnail: (thumbnailPath: string) => ipcRenderer.invoke("thumbnail:get", thumbnailPath),
 });
 
 // --------- Expose some API to the Renderer process ---------

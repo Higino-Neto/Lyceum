@@ -74,12 +74,12 @@ export function updateReadingState(
   );
 }
 
-export function addDocument(title: string, filePath: string, fileHash: string) {
+export function addDocument(title: string, filePath: string, fileHash: string, thumbnailPath?: string) {
   const statement = db.prepare(`
-        INSERT INTO documents (title, filePath, fileHash)
-        VALUES (?, ?, ?)
+        INSERT INTO documents (title, filePath, fileHash, thumbnailPath)
+        VALUES (?, ?, ?, ?)
         `);
-  return statement.run(title, filePath, fileHash);
+  return statement.run(title, filePath, fileHash, thumbnailPath || null);
 }
 export function getAllDocuments(): DocumentRecord[] {
   return db.prepare<[], DocumentRecord>(`select * from documents`).all();

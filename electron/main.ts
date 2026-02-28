@@ -51,6 +51,37 @@ function generateFileHash(filePath: string) {
   return hash.digest("hex");
 }
 
+async function generateThumbnail(filePath: string, fileHash: string): Promise<string | null> {
+  try {
+    const pdfRequire = require("pdf-poppler");
+    const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+    
+    if (!fs.existsSync(thumbnailsDir)) {
+      fs.mkdirSync(thumbnailsDir, { recursive: true });
+    }
+
+    const outputPath = path.join(thumbnailsDir, `${fileHash}.jpg`);
+    
+    if (fs.existsSync(outputPath)) {
+      return outputPath;
+    }
+
+    const opts = {
+      format: "jpeg",
+      outDir: thumbnailsDir,
+      outPrefix: fileHash,
+      page: 1,
+      quality: 80,
+    };
+
+    await pdfRequire.convert(filePath, opts);
+    return outputPath;
+  } catch (error) {
+    console.error("Error generating thumbnail:", error);
+    return null;
+  }
+}
+
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC!, "electron-vite.svg"),
@@ -139,7 +170,8 @@ ipcMain.handle("dialog:open-pdf", async () => {
     return { ...existing, fileBuffer };
   }
 
-  addDocument(title, filePath, fileHash);
+  const thumbnailPath = await generateThumbnail(filePath, fileHash);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined);
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
   return { ...doc, fileBuffer };
@@ -149,10 +181,23 @@ ipcMain.handle("app:get-last-document", () => {
   return getLastDocument();
 });
 
+ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
+  try {
+    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+      return null;
+    }
+    const buffer = fs.readFileSync(thumbnailPath);
+    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle("pdf:reopen", async (_, filePath: string) => {
   try {
     const fileBuffer = fs.readFileSync(filePath).buffer;
-    return { fileBuffer };
+    const fileHash = generateFileHash(filePath);
+    return { fileBuffer, fileHash };
   } catch {
     return null;
   }

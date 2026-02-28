@@ -1,17 +1,17 @@
-import require$$1$3, { app, BrowserWindow, ipcMain, dialog } from "electron";
+import require$$1$2, { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path$m from "node:path";
-import require$$1 from "fs";
+import fs$j from "fs";
 import require$$0 from "constants";
 import require$$0$1 from "stream";
 import require$$4 from "util";
 import require$$5 from "assert";
-import require$$1$1 from "path";
-import require$$1$4 from "child_process";
+import require$$1 from "path";
+import require$$1$3 from "child_process";
 import require$$0$2 from "events";
 import require$$0$3 from "crypto";
-import require$$1$2 from "tty";
+import require$$1$1 from "tty";
 import require$$2 from "os";
 import require$$2$1 from "url";
 import require$$14 from "zlib";
@@ -429,7 +429,7 @@ function clone$1(obj) {
   });
   return copy2;
 }
-var fs$h = require$$1;
+var fs$h = fs$j;
 var polyfills = polyfills$1;
 var legacy = legacyStreams;
 var clone = clone_1;
@@ -892,7 +892,7 @@ function retry$2() {
 })(fs$i);
 var makeDir$1 = {};
 var utils$1 = {};
-const path$l = require$$1$1;
+const path$l = require$$1;
 utils$1.checkPath = function checkPath(pth) {
   if (process.platform === "win32") {
     const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path$l.parse(pth).root, ""));
@@ -966,7 +966,7 @@ var utimes = {
   utimesMillisSync: utimesMillisSync$1
 };
 const fs$d = fs$i;
-const path$k = require$$1$1;
+const path$k = require$$1;
 const util$1 = require$$4;
 function getStats$2(src2, dest, opts) {
   const statFunc = opts.dereference ? (file2) => fs$d.stat(file2, { bigint: true }) : (file2) => fs$d.lstat(file2, { bigint: true });
@@ -1090,7 +1090,7 @@ var stat$4 = {
   areIdentical: areIdentical$2
 };
 const fs$c = gracefulFs;
-const path$j = require$$1$1;
+const path$j = require$$1;
 const mkdirs$1 = mkdirs$2.mkdirs;
 const pathExists$5 = pathExists_1.pathExists;
 const utimesMillis = utimes.utimesMillis;
@@ -1280,7 +1280,7 @@ function copyLink$1(resolvedSrc, dest, cb) {
 }
 var copy_1 = copy$2;
 const fs$b = gracefulFs;
-const path$i = require$$1$1;
+const path$i = require$$1;
 const mkdirsSync$1 = mkdirs$2.mkdirsSync;
 const utimesMillisSync = utimes.utimesMillisSync;
 const stat$2 = stat$4;
@@ -1412,7 +1412,7 @@ var copy$1 = {
   copySync: copySync_1
 };
 const fs$a = gracefulFs;
-const path$h = require$$1$1;
+const path$h = require$$1;
 const assert = require$$5;
 const isWindows = process.platform === "win32";
 function defaults(options) {
@@ -1656,7 +1656,7 @@ var remove_1 = {
 };
 const u$6 = universalify$1.fromPromise;
 const fs$8 = fs$i;
-const path$g = require$$1$1;
+const path$g = require$$1;
 const mkdir$3 = mkdirs$2;
 const remove$1 = remove_1;
 const emptyDir = u$6(async function emptyDir2(dir) {
@@ -1687,7 +1687,7 @@ var empty = {
   emptydir: emptyDir
 };
 const u$5 = universalify$1.fromCallback;
-const path$f = require$$1$1;
+const path$f = require$$1;
 const fs$7 = gracefulFs;
 const mkdir$2 = mkdirs$2;
 function createFile$1(file2, callback) {
@@ -1742,7 +1742,7 @@ var file = {
   createFileSync: createFileSync$1
 };
 const u$4 = universalify$1.fromCallback;
-const path$e = require$$1$1;
+const path$e = require$$1;
 const fs$6 = gracefulFs;
 const mkdir$1 = mkdirs$2;
 const pathExists$4 = pathExists_1.pathExists;
@@ -1796,7 +1796,7 @@ var link = {
   createLink: u$4(createLink$1),
   createLinkSync: createLinkSync$1
 };
-const path$d = require$$1$1;
+const path$d = require$$1;
 const fs$5 = gracefulFs;
 const pathExists$3 = pathExists_1.pathExists;
 function symlinkPaths$1(srcpath, dstpath, callback) {
@@ -1894,7 +1894,7 @@ var symlinkType_1 = {
   symlinkTypeSync: symlinkTypeSync$1
 };
 const u$3 = universalify$1.fromCallback;
-const path$c = require$$1$1;
+const path$c = require$$1;
 const fs$3 = fs$i;
 const _mkdirs = mkdirs$2;
 const mkdirs = _mkdirs.mkdirs;
@@ -1998,7 +1998,7 @@ let _fs;
 try {
   _fs = gracefulFs;
 } catch (_) {
-  _fs = require$$1;
+  _fs = fs$j;
 }
 const universalify = universalify$1;
 const { stringify: stringify$3, stripBom } = utils;
@@ -2070,7 +2070,7 @@ var jsonfile = {
 };
 const u$2 = universalify$1.fromCallback;
 const fs$2 = gracefulFs;
-const path$b = require$$1$1;
+const path$b = require$$1;
 const mkdir = mkdirs$2;
 const pathExists$1 = pathExists_1.pathExists;
 function outputFile$1(file2, data, encoding, callback) {
@@ -2126,7 +2126,7 @@ jsonFile.readJSON = jsonFile.readJson;
 jsonFile.readJSONSync = jsonFile.readJsonSync;
 var json$1 = jsonFile;
 const fs$1 = gracefulFs;
-const path$a = require$$1$1;
+const path$a = require$$1;
 const copy = copy$1.copy;
 const remove = remove_1.remove;
 const mkdirp = mkdirs$2.mkdirp;
@@ -2190,7 +2190,7 @@ function moveAcrossDevice$1(src2, dest, overwrite, cb) {
 }
 var move_1 = move$1;
 const fs = gracefulFs;
-const path$9 = require$$1$1;
+const path$9 = require$$1;
 const copySync = copy$1.copySync;
 const removeSync = remove_1.removeSync;
 const mkdirpSync = mkdirs$2.mkdirpSync;
@@ -2854,7 +2854,7 @@ function requireSupportsColor() {
   if (hasRequiredSupportsColor) return supportsColor_1;
   hasRequiredSupportsColor = 1;
   const os2 = require$$2;
-  const tty = require$$1$2;
+  const tty = require$$1$1;
   const hasFlag2 = requireHasFlag();
   const { env } = process;
   let forceColor;
@@ -2955,7 +2955,7 @@ function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
   (function(module, exports$1) {
-    const tty = require$$1$2;
+    const tty = require$$1$1;
     const util2 = require$$4;
     exports$1.init = init;
     exports$1.log = log;
@@ -3196,7 +3196,7 @@ httpExecutor.configureRequestOptions = configureRequestOptions;
 httpExecutor.safeStringifyJson = safeStringifyJson;
 const crypto_1$4 = require$$0$3;
 const debug_1$1 = srcExports;
-const fs_1$5 = require$$1;
+const fs_1$5 = fs$j;
 const stream_1$2 = require$$0$1;
 const url_1$7 = require$$2$1;
 const CancellationToken_1$1 = CancellationToken$1;
@@ -10576,10 +10576,10 @@ Object.defineProperty(DownloadedUpdateHelper$1, "__esModule", { value: true });
 DownloadedUpdateHelper$1.DownloadedUpdateHelper = void 0;
 DownloadedUpdateHelper$1.createTempUpdateFile = createTempUpdateFile;
 const crypto_1$2 = require$$0$3;
-const fs_1$4 = require$$1;
+const fs_1$4 = fs$j;
 const isEqual = lodash_isequalExports;
 const fs_extra_1$6 = lib;
-const path$8 = require$$1$1;
+const path$8 = require$$1;
 class DownloadedUpdateHelper {
   constructor(cacheDir) {
     this.cacheDir = cacheDir;
@@ -10732,7 +10732,7 @@ var ElectronAppAdapter$1 = {};
 var AppAdapter = {};
 Object.defineProperty(AppAdapter, "__esModule", { value: true });
 AppAdapter.getAppCacheDir = getAppCacheDir;
-const path$7 = require$$1$1;
+const path$7 = require$$1;
 const os_1$1 = require$$2;
 function getAppCacheDir() {
   const homedir = (0, os_1$1.homedir)();
@@ -10748,10 +10748,10 @@ function getAppCacheDir() {
 }
 Object.defineProperty(ElectronAppAdapter$1, "__esModule", { value: true });
 ElectronAppAdapter$1.ElectronAppAdapter = void 0;
-const path$6 = require$$1$1;
+const path$6 = require$$1;
 const AppAdapter_1 = AppAdapter;
 class ElectronAppAdapter {
-  constructor(app2 = require$$1$3.app) {
+  constructor(app2 = require$$1$2.app) {
     this.app = app2;
   }
   whenReady() {
@@ -10794,7 +10794,7 @@ var electronHttpExecutor = {};
   const builder_util_runtime_12 = out;
   exports$1.NET_SESSION_NAME = "electron-updater";
   function getNetSession() {
-    return require$$1$3.session.fromPartition(exports$1.NET_SESSION_NAME, {
+    return require$$1$2.session.fromPartition(exports$1.NET_SESSION_NAME, {
       cache: false
     });
   }
@@ -10835,7 +10835,7 @@ var electronHttpExecutor = {};
       if (this.cachedSession == null) {
         this.cachedSession = getNetSession();
       }
-      const request = require$$1$3.net.request({
+      const request = require$$1$2.net.request({
         ...options,
         session: this.cachedSession
       });
@@ -11604,7 +11604,7 @@ Object.defineProperty(PrivateGitHubProvider$1, "__esModule", { value: true });
 PrivateGitHubProvider$1.PrivateGitHubProvider = void 0;
 const builder_util_runtime_1$9 = out;
 const js_yaml_1$1 = jsYaml;
-const path$5 = require$$1$1;
+const path$5 = require$$1;
 const url_1$2 = require$$2$1;
 const util_1 = util;
 const GitHubProvider_1$1 = GitHubProvider$1;
@@ -11860,7 +11860,7 @@ Object.defineProperty(DataSplitter$1, "__esModule", { value: true });
 DataSplitter$1.DataSplitter = void 0;
 DataSplitter$1.copyData = copyData;
 const builder_util_runtime_1$7 = out;
-const fs_1$3 = require$$1;
+const fs_1$3 = fs$j;
 const stream_1$1 = require$$0$1;
 const downloadPlanBuilder_1$2 = downloadPlanBuilder;
 const DOUBLE_CRLF = Buffer.from("\r\n\r\n");
@@ -12270,7 +12270,7 @@ Object.defineProperty(DifferentialDownloader$1, "__esModule", { value: true });
 DifferentialDownloader$1.DifferentialDownloader = void 0;
 const builder_util_runtime_1$5 = out;
 const fs_extra_1$5 = lib;
-const fs_1$2 = require$$1;
+const fs_1$2 = fs$j;
 const DataSplitter_1 = DataSplitter$1;
 const url_1$1 = require$$2$1;
 const downloadPlanBuilder_1 = downloadPlanBuilder;
@@ -12563,7 +12563,7 @@ const events_1 = require$$0$2;
 const fs_extra_1$4 = lib;
 const js_yaml_1 = jsYaml;
 const lazy_val_1 = main;
-const path$4 = require$$1$1;
+const path$4 = require$$1;
 const semver_1 = semver$1;
 const DownloadedUpdateHelper_1 = DownloadedUpdateHelper$1;
 const ElectronAppAdapter_1 = ElectronAppAdapter$1;
@@ -12770,7 +12770,7 @@ class AppUpdater extends events_1.EventEmitter {
       }
       void it.downloadPromise.then(() => {
         const notificationContent = AppUpdater.formatDownloadNotification(it.updateInfo.version, this.app.name, downloadNotification);
-        new require$$1$3.Notification(notificationContent).show();
+        new require$$1$2.Notification(notificationContent).show();
       });
       return it;
     });
@@ -13176,7 +13176,7 @@ class NoOpLogger {
 AppUpdater$1.NoOpLogger = NoOpLogger;
 Object.defineProperty(BaseUpdater$1, "__esModule", { value: true });
 BaseUpdater$1.BaseUpdater = void 0;
-const child_process_1$3 = require$$1$4;
+const child_process_1$3 = require$$1$3;
 const AppUpdater_1$1 = AppUpdater$1;
 class BaseUpdater extends AppUpdater_1$1.AppUpdater {
   constructor(options, app2) {
@@ -13189,7 +13189,7 @@ class BaseUpdater extends AppUpdater_1$1.AppUpdater {
     const isInstalled = this.install(isSilent, isSilent ? isForceRunAfter : this.autoRunAppAfterInstall);
     if (isInstalled) {
       setImmediate(() => {
-        require$$1$3.autoUpdater.emit("before-quit-for-update");
+        require$$1$2.autoUpdater.emit("before-quit-for-update");
         this.app.quit();
       });
     } else {
@@ -13340,10 +13340,10 @@ async function readEmbeddedBlockMapData(file2) {
 Object.defineProperty(AppImageUpdater$1, "__esModule", { value: true });
 AppImageUpdater$1.AppImageUpdater = void 0;
 const builder_util_runtime_1$3 = out;
-const child_process_1$2 = require$$1$4;
+const child_process_1$2 = require$$1$3;
 const fs_extra_1$2 = lib;
-const fs_1$1 = require$$1;
-const path$3 = require$$1$1;
+const fs_1$1 = fs$j;
+const path$3 = require$$1;
 const BaseUpdater_1$2 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1$1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const Provider_1$5 = Provider$1;
@@ -13738,17 +13738,17 @@ Object.defineProperty(MacUpdater$1, "__esModule", { value: true });
 MacUpdater$1.MacUpdater = void 0;
 const builder_util_runtime_1$2 = out;
 const fs_extra_1$1 = lib;
-const fs_1 = require$$1;
-const path$2 = require$$1$1;
+const fs_1 = fs$j;
+const path$2 = require$$1;
 const http_1 = require$$4$1;
 const AppUpdater_1 = AppUpdater$1;
 const Provider_1$1 = Provider$1;
-const child_process_1$1 = require$$1$4;
+const child_process_1$1 = require$$1$3;
 const crypto_1 = require$$0$3;
 class MacUpdater extends AppUpdater_1.AppUpdater {
   constructor(options, app2) {
     super(options, app2);
-    this.nativeUpdater = require$$1$3.autoUpdater;
+    this.nativeUpdater = require$$1$2.autoUpdater;
     this.squirrelDownloadedUpdate = false;
     this.nativeUpdater.on("error", (it) => {
       this._logger.warn(it);
@@ -13973,9 +13973,9 @@ var windowsExecutableCodeSignatureVerifier = {};
 Object.defineProperty(windowsExecutableCodeSignatureVerifier, "__esModule", { value: true });
 windowsExecutableCodeSignatureVerifier.verifySignature = verifySignature;
 const builder_util_runtime_1$1 = out;
-const child_process_1 = require$$1$4;
+const child_process_1 = require$$1$3;
 const os = require$$2;
-const path$1 = require$$1$1;
+const path$1 = require$$1;
 function preparePowerShellExec(command, timeout) {
   const executable = `set "PSModulePath=" & chcp 65001 >NUL & powershell.exe`;
   const args = ["-NoProfile", "-NonInteractive", "-InputFormat", "None", "-Command", command];
@@ -14081,7 +14081,7 @@ function isOldWin6() {
 Object.defineProperty(NsisUpdater$1, "__esModule", { value: true });
 NsisUpdater$1.NsisUpdater = void 0;
 const builder_util_runtime_1 = out;
-const path = require$$1$1;
+const path = require$$1;
 const BaseUpdater_1 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const types_1 = types;
@@ -14203,7 +14203,7 @@ class NsisUpdater extends BaseUpdater_1.BaseUpdater {
       if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
         callUsingElevation();
       } else if (errorCode === "ENOENT") {
-        require$$1$3.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
+        require$$1$2.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
       } else {
         this.dispatchError(e);
       }
@@ -14256,7 +14256,7 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
   Object.defineProperty(exports$1, "__esModule", { value: true });
   exports$1.NsisUpdater = exports$1.MacUpdater = exports$1.RpmUpdater = exports$1.PacmanUpdater = exports$1.DebUpdater = exports$1.AppImageUpdater = exports$1.Provider = exports$1.NoOpLogger = exports$1.AppUpdater = exports$1.BaseUpdater = void 0;
   const fs_extra_12 = lib;
-  const path2 = require$$1$1;
+  const path2 = require$$1;
   var BaseUpdater_12 = BaseUpdater$1;
   Object.defineProperty(exports$1, "BaseUpdater", { enumerable: true, get: function() {
     return BaseUpdater_12.BaseUpdater;
@@ -14339,7 +14339,7 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
 })(main$1);
 let db;
 function initDatabase() {
-  const dbPath = require$$1$1.join(app.getPath("userData"), "app.db");
+  const dbPath = require$$1.join(app.getPath("userData"), "app.db");
   db = new Database(dbPath);
   db.exec(`
         CREATE TABLE IF NOT EXISTS documents (
@@ -14382,12 +14382,12 @@ function updateReadingState(fileHash, state) {
     fileHash
   );
 }
-function addDocument(title, filePath, fileHash) {
+function addDocument(title, filePath, fileHash, thumbnailPath) {
   const statement = db.prepare(`
-        INSERT INTO documents (title, filePath, fileHash)
-        VALUES (?, ?, ?)
+        INSERT INTO documents (title, filePath, fileHash, thumbnailPath)
+        VALUES (?, ?, ?, ?)
         `);
-  return statement.run(title, filePath, fileHash);
+  return statement.run(title, filePath, fileHash, thumbnailPath || null);
 }
 function getAllDocuments() {
   return db.prepare(`select * from documents`).all();
@@ -14398,7 +14398,7 @@ function getDocumentByHash(fileHash) {
 function getLastDocument() {
   return db.prepare(`SELECT * FROM documents ORDER BY lastOpenedAt DESC LIMIT 1`).get();
 }
-createRequire(import.meta.url);
+const require$1 = createRequire(import.meta.url);
 const __dirname$1 = path$m.dirname(fileURLToPath(import.meta.url));
 const __filename$1 = fileURLToPath(import.meta.url);
 globalThis.__filename = __filename$1;
@@ -14409,10 +14409,35 @@ const RENDERER_DIST = path$m.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$m.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win = null;
 function generateFileHash(filePath) {
-  const fileBuffer = require$$1.readFileSync(filePath);
+  const fileBuffer = fs$j.readFileSync(filePath);
   const hash = require$$0$3.createHash("sha256");
   hash.update(fileBuffer);
   return hash.digest("hex");
+}
+async function generateThumbnail(filePath, fileHash) {
+  try {
+    const pdfRequire = require$1("pdf-poppler");
+    const thumbnailsDir = path$m.join(app.getPath("userData"), "thumbnails");
+    if (!fs$j.existsSync(thumbnailsDir)) {
+      fs$j.mkdirSync(thumbnailsDir, { recursive: true });
+    }
+    const outputPath = path$m.join(thumbnailsDir, `${fileHash}.jpg`);
+    if (fs$j.existsSync(outputPath)) {
+      return outputPath;
+    }
+    const opts = {
+      format: "jpeg",
+      outDir: thumbnailsDir,
+      outPrefix: fileHash,
+      page: 1,
+      quality: 80
+    };
+    await pdfRequire.convert(filePath, opts);
+    return outputPath;
+  } catch (error2) {
+    console.error("Error generating thumbnail:", error2);
+    return null;
+  }
 }
 function createWindow() {
   win = new BrowserWindow({
@@ -14482,13 +14507,14 @@ ipcMain.handle("dialog:open-pdf", async () => {
   const filePath = result.filePaths[0];
   const title = path$m.basename(filePath);
   const fileHash = generateFileHash(filePath);
-  const fileBuffer = require$$1.readFileSync(filePath).buffer;
+  const fileBuffer = fs$j.readFileSync(filePath).buffer;
   const existing = getDocumentByHash(fileHash);
   if (existing) {
     updateLastOpened(fileHash);
     return { ...existing, fileBuffer };
   }
-  addDocument(title, filePath, fileHash);
+  const thumbnailPath = await generateThumbnail(filePath, fileHash);
+  addDocument(title, filePath, fileHash, thumbnailPath || void 0);
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
   return { ...doc, fileBuffer };
@@ -14496,10 +14522,22 @@ ipcMain.handle("dialog:open-pdf", async () => {
 ipcMain.handle("app:get-last-document", () => {
   return getLastDocument();
 });
+ipcMain.handle("thumbnail:get", async (_, thumbnailPath) => {
+  try {
+    if (!thumbnailPath || !fs$j.existsSync(thumbnailPath)) {
+      return null;
+    }
+    const buffer = fs$j.readFileSync(thumbnailPath);
+    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+});
 ipcMain.handle("pdf:reopen", async (_, filePath) => {
   try {
-    const fileBuffer = require$$1.readFileSync(filePath).buffer;
-    return { fileBuffer };
+    const fileBuffer = fs$j.readFileSync(filePath).buffer;
+    const fileHash = generateFileHash(filePath);
+    return { fileBuffer, fileHash };
   } catch {
     return null;
   }

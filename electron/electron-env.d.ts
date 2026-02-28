@@ -35,5 +35,6 @@ interface Window {
     openPdf: () => any;
     getLastDocument: () => any;
     reopenPdf: (filePath: string) => any;
+    getThumbnail: (thumbnailPath: string) => Promise<string | null>;
   };
 }

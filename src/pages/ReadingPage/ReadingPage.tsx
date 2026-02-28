@@ -4,10 +4,36 @@ import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedMo
 import ReadingSessionTimer from "./components/ReadingSessionTimer";
 import Viewer from "./components/pdf-reader/Viewer";
 import { BookOpenText } from "lucide-react";
+import useGetBookData from "./hooks/useGetBookData";
+import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export default function ReadingPage() {
+  const location = useLocation();
+  const locationPdfData = location.state?.pdfData as string | undefined;
   const pdf = useViewerLoader();
   const session = useReadingSession();
+  const [libraryPdfData, setLibraryPdfData] = useState<{ url: string; hash: string } | null>(null);
+
+  useEffect(() => {
+    if (locationPdfData) {
+      const loadPdfFromLibrary = async () => {
+        const result = await window.api.reopenPdf(locationPdfData);
+        if (!result) return;
+        const blob = new Blob([result.fileBuffer], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        setLibraryPdfData({ url: blobUrl, hash: result.fileHash });
+      };
+      loadPdfFromLibrary();
+    }
+  }, [locationPdfData]);
+
+  const activePdfData = libraryPdfData?.url || pdf.pdfData;
+  const activeFileHash = libraryPdfData?.hash || pdf.fileHash;
+
+  // const bookData = useGetBookData();
+
+  // console.log(bookData)
 
   return (
     <>
@@ -23,26 +49,15 @@ export default function ReadingPage() {
 
       <div className="min-h-screen bg-zinc-950 text-zinc-100 ">
         <div className=" h-screen  flex flex-col p-4 space-y-4">
-          {/* Header */}
           <header className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              {/* <button
-                onClick={() => navigate("/")}
-                className="cursor-pointer flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-white rounded-lg transition-colors"
-              >
-                <ArrowLeft size={20} />
-                <span>Dashboard</span>
-              </button> */}
 
               <div className="flex gap-2 items-center pl-6">
                 <BookOpenText size={32} className="text-zinc-300" />
-                {/* <h1 className="text-lg text-zinc-200">
-                  Leitor de PDF
-                </h1> */}
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              {pdf.pdfData && (
+              {activePdfData && (
                 <ReadingSessionTimer
                   fileName={pdf.fileName}
                   onSessionStart={session.handleSessionStart}
@@ -59,22 +74,14 @@ export default function ReadingPage() {
                 Abrir PDF
               </button>
 
-              {/* <input
-                ref={pdf.fileInputRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={pdf.handleFileSelect}
-                className="hidden"
-              /> */}
             </div>
           </header>
 
-          {/* Área do PDF */}
-          {pdf.pdfData && pdf.fileHash ? (
+          {activePdfData && activeFileHash ? (
             <section className="bg-zinc-900 flex-1 min-h-0 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
               <Viewer
-                pdfData={pdf.pdfData}
-                fileHash={pdf.fileHash!}
+                pdfData={activePdfData}
+                fileHash={activeFileHash}
                 hasSessionStarted={session.sessionStart}
                 hasSessionFinished={session.sessionFinish}
                 onReadingInfo={session.handleReadingInfo}
