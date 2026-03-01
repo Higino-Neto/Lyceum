@@ -16,7 +16,8 @@
 _Leitor integrado com persistência automática de progresso (página, zoom, scroll)_
 
 ### Biblioteca
-<video src="public/library 2x 720p.mp4" controls width="100%"></video>
+[![Demo em vídeo](https://img.youtube.com/vi/kOLPatER_J4/0.jpg)](https://youtube.com/watch?v=kOLPatER_J4)
+
 _Organização por categorias, thumbnails automáticos, filtros e busca_
 
 ### Dashboard
@@ -29,6 +30,7 @@ _Registro de sessões com categoria e tempo_
 
 ### Auto Update
 ![Auto Update](public/autoUpdate-v1.png)
+
 _Atualizações automáticas via GitHub Releases_
 
 ### Autenticação
@@ -139,7 +141,7 @@ Esses dados são usados para calcular estatísticas e pontuação no ranking.
 Baixe e instale a versão mais recente diretamente das [Releases do GitHub](https://github.com/Higino-Neto/Lyceum/releases/latest).
 
 ---
-
+---
 ### Desenvolvimento (Build Local)
 
 Se você deseja contribuir ou rodar o código-fonte:
