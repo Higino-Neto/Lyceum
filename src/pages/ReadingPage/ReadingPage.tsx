@@ -10,27 +10,33 @@ import { useEffect, useState } from "react";
 
 export default function ReadingPage() {
   const location = useLocation();
-  const locationPdfData = location.state?.pdfData as string | undefined;
+  const locationFileBuffer = location.state?.fileBuffer as ArrayBuffer | undefined;
+  const locationFileHash = location.state?.fileHash as string | undefined;
+  console.log(locationFileBuffer, locationFileHash);
   const pdf = useViewerLoader();
   const session = useReadingSession();
-  const [libraryPdfData, setLibraryPdfData] = useState<{ url: string; hash: string } | null>(null);
+  const [libraryPdfData, setLibraryPdfData] = useState<{
+    url: string;
+    hash: string;
+  } | null>(null);
+  const [activeSource, setActiveSource] = useState<"library" | "local">(
+    "local",
+  );
 
   useEffect(() => {
-    if (locationPdfData) {
-      const loadPdfFromLibrary = async () => {
-        const result = await window.api.reopenPdf(locationPdfData);
-        if (!result) return;
-        const blob = new Blob([result.fileBuffer], { type: "application/pdf" });
-        const blobUrl = URL.createObjectURL(blob);
-        setLibraryPdfData({ url: blobUrl, hash: result.fileHash });
-      };
-      loadPdfFromLibrary();
+    if (locationFileBuffer && locationFileHash) {
+      const blob = new Blob([locationFileBuffer], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      setLibraryPdfData({ url: blobUrl, hash: locationFileHash });
+      setActiveSource("library");
     }
-  }, [locationPdfData]);
+  }, [locationFileBuffer, locationFileHash]);
 
-  const activePdfData = libraryPdfData?.url || pdf.pdfData;
-  const activeFileHash = libraryPdfData?.hash || pdf.fileHash;
+  const activePdfData =
+    activeSource === "library" ? libraryPdfData?.url : pdf.pdfData;
 
+  const activeFileHash =
+    activeSource === "library" ? libraryPdfData?.hash : pdf.fileHash;
   // const bookData = useGetBookData();
 
   // console.log(bookData)
@@ -51,7 +57,6 @@ export default function ReadingPage() {
         <div className=" h-screen  flex flex-col p-4 space-y-4">
           <header className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-
               <div className="flex gap-2 items-center pl-6">
                 <BookOpenText size={32} className="text-zinc-300" />
               </div>
@@ -68,12 +73,14 @@ export default function ReadingPage() {
               )}
 
               <button
-                onClick={pdf.openFileDialog}
+                onClick={async () => {
+                  await pdf.openFileDialog();
+                  setActiveSource("local");
+                }}
                 className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium"
               >
                 Abrir PDF
               </button>
-
             </div>
           </header>
 

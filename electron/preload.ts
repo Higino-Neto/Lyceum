@@ -11,14 +11,53 @@ contextBridge.exposeInMainWorld("electronAPI", {
 });
 
 contextBridge.exposeInMainWorld("api", {
-  addDocument: (data) => ipcRenderer.invoke("add-document", data),
+  // addDocument: (data) => ipcRenderer.invoke("add-document", data),
+  // getDocuments: () => ipcRenderer.invoke("get-documents"),
+  // saveReadingState: (payload) => ipcRenderer.invoke("reading:save", payload),
+  // getReadingState: (fileHash) => ipcRenderer.invoke("reading:get", fileHash),
+  // openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
+  // getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
+  // reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath),
+  // getThumbnail: (thumbnailPath: string) =>
+  //   ipcRenderer.invoke("thumbnail:get", thumbnailPath),
+  // getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
+
+  addDocument: (data: any) => ipcRenderer.invoke("add-document", data),
+
   getDocuments: () => ipcRenderer.invoke("get-documents"),
-  saveReadingState: (payload) => ipcRenderer.invoke("reading:save", payload),
-  getReadingState: (fileHash) => ipcRenderer.invoke("reading:get", fileHash),
+
+  saveReadingState: (payload: any) =>
+    ipcRenderer.invoke("reading:save", payload),
+
+  getReadingState: (fileHash: string) =>
+    ipcRenderer.invoke("reading:get", fileHash),
+
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
+
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
+
   reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath),
-  getThumbnail: (thumbnailPath: string) => ipcRenderer.invoke("thumbnail:get", thumbnailPath),
+
+  getThumbnail: (thumbnailPath: string) =>
+    ipcRenderer.invoke("thumbnail:get", thumbnailPath),
+
+  getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
+
+  scanLibrary: () => ipcRenderer.invoke("library:scan"),
+
+  moveToLibrary: (filePath: string) =>
+    ipcRenderer.invoke("library:move", filePath),
+
+  openFileDialog: () => ipcRenderer.invoke("dialog:open-file"),
+
+  getDocumentsBySyncStatus: (synced: boolean) =>
+    ipcRenderer.invoke("library:get-sync-status", synced),
+
+  getCategories: () => ipcRenderer.invoke("library:get-categories"),
+
+  syncDocument: (fileHash: string, action: "move" | "copy", category?: string) =>
+    ipcRenderer.invoke("library:sync-document", fileHash, action, category),
+
 });
 
 // --------- Expose some API to the Renderer process ---------
