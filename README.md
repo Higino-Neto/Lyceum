@@ -13,6 +13,9 @@
 ![Reading Page](public/reader-v2.png)
 *Leitor integrado para acompanhar leitura durante o uso da aplicação*
 
+#### Biblioteca
+![Library](public/library%202x%20720p.mp4)
+
 
 #### Dashboard
 ![Dashboard](public/dashboard-v2.png)
@@ -29,6 +32,10 @@
 #### Registrar Leitura
 ![Add Reading](public/addReading-v2.png)
 *Interface para adicionar novas leituras com detalhes do livro*
+
+#### Auto Update
+![Auto Update](public/autoUpdate-v1.png)
+*Você não precisa se preocupar em instalar as novas versões do app, ele faz isso automaticamente*
 
 #### Autenticação
 <!-- 
