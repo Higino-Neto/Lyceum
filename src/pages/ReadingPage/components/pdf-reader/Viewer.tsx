@@ -8,9 +8,11 @@ import PdfViewerCore from "./ViewerCore";
 import useSessionTracker from "../../hooks/useSessionTracker";
 import useScroll from "../../hooks/useScroll";
 import getWordCount from "../../../../utils/getWordCount";
+import useReadingPersistence from "../../hooks/useReadingPersistence";
 
 interface ViewerProps {
   pdfData: string;
+  fileHash: string; 
   hasSessionStarted: boolean;
   hasSessionFinished: boolean;
   onTotalBookPages: (totalBookPages: number) => void;
@@ -19,12 +21,14 @@ interface ViewerProps {
 
 export default function Viewer({
   pdfData,
+  fileHash,
   hasSessionStarted,
   hasSessionFinished,
   onTotalBookPages,
   onReadingInfo,
 }: ViewerProps) {
   const [registry, setRegistry] = useState<PluginRegistry | null>(null);
+  useReadingPersistence(registry, fileHash)
   const { currentPage, totalPages } = useScroll(registry);
 
   const handleSessionFinished = async (info: {

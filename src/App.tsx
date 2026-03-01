@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
+import Library from "./pages/Library";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/add_reading" element={<AddReadingPage />} />
           <Route path="/reading" element={<ReadingPage />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
         </Routes>

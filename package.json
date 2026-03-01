@@ -13,6 +13,9 @@
   "build": {
     "appId": "com.higino.lyceum",
     "productName": "Lyceum",
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
     "nsis": {
       "oneClick": true,
       "perMachine": false,
@@ -53,12 +56,14 @@
     "better-sqlite3": "^12.6.2",
     "electron-updater": "^6.8.3",
     "lucide-react": "^0.564.0",
+    "pdf-lib": "^1.17.1",
     "pdf-poppler": "^0.2.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",

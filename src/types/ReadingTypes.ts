@@ -37,6 +37,23 @@ export interface ReadingSession {
   finalPage: number;
 }
 
+export interface DocumentRecord {
+  id: number;
+  title: string;
+  filePath: string;
+  fileHash: string;
+  currentPage: number;
+  currentZoom: number | null;
+  currentScroll: number | null;
+  annotations: string | null;
+  thumbnailPath: string | null;
+  numPages: number;
+  createdAt: string;
+  lastOpenedAt: string;
+  isSynced: number;
+  category: string | null;
+}
+
 /** Props do modal de sessão concluída */
 export interface CompletedSessionModalData {
   id: string;
