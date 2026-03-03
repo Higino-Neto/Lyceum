@@ -3,7 +3,7 @@ import useViewerLoader from "./hooks/useViewerLoader";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
 import ReadingSessionTimer from "./components/ReadingSessionTimer";
 import Viewer from "./components/pdf-reader/Viewer";
-import { BookOpenText } from "lucide-react";
+import { BookOpenText, FolderOpen } from "lucide-react";
 import useGetBookData from "./hooks/useGetBookData";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -77,8 +77,9 @@ export default function ReadingPage() {
                   await pdf.openFileDialog();
                   setActiveSource("local");
                 }}
-                className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium"
+                className="flex items-center gap-2 cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium"
               >
+                <FolderOpen size={16} />
                 Abrir PDF
               </button>
             </div>

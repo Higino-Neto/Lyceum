@@ -1,4 +1,4 @@
-import { Home, LayoutDashboard } from "lucide-react";
+import { Home, LayoutDashboard, PencilLine } from "lucide-react";
 import RankingTable from "./components/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
 import StatCard from "../../components/StatCard";
@@ -36,8 +36,9 @@ export default function Dashboard() {
 
             <button
               onClick={() => navigate("/add_reading")}
-              className="cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium shadow-lg"
+              className="flex items-center gap-2 cursor-pointer text-black bg-green-600 hover:bg-green-500 transition px-4 py-2 rounded-sm text-lg font-medium shadow-lg"
             >
+              <PencilLine size={16} />
               Registrar Leitura
             </button>
           </header>

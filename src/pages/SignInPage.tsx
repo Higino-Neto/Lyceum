@@ -44,7 +44,7 @@ export default function SignIn() {
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-500 transition py-2.5 rounded-lg font-medium text-black"
+            className="w-full bg-green-600 hover:bg-green-500 transition py-2.5 rounded-lg font-medium text-black cursor-pointer"
           >
             Entrar
           </button>

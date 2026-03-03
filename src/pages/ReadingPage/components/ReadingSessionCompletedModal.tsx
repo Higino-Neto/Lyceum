@@ -216,7 +216,7 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onReset();
             }}
-            className="mt-0.5 text-zinc-600 hover:text-zinc-400 transition-colors p-1 rounded-lg hover:bg-zinc-800"
+            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-lg hover:bg-zinc-800"
           >
             <X size={16} />
           </button>
@@ -383,7 +383,7 @@ export default function ReadingSessionCompletedModal({
           <button
             title="Continue de onde parou (Seu progresso será salvo)"
             onClick={onClose}
-            className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
+            className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
           >
             Continuar Sessão
             <ChevronDown size={16} />
@@ -393,7 +393,7 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onSubmit();
             }}
-            className="pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
+            className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
           >
             Terminar Sessão
             <ChevronRight size={16} />

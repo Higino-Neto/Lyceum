@@ -10,6 +10,7 @@ interface DocumentRecord {
   currentScroll: number | null;
   annotations: string | null;
   thumbnailPath: string | null;
+  category: string | null;
   numPages: number;
   createdAt: string;
 }
@@ -76,7 +77,10 @@ interface Window {
 
     getDocumentsBySyncStatus: (synced: boolean) => Promise<any[]>;
     getCategories: () => Promise<string[]>;
-    syncDocument: (fileHash: string, action: "move" | "copy", category?: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
-
+    syncDocument: (
+      fileHash: string,
+      action: "move" | "copy",
+      category?: string,
+    ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   };
 }
