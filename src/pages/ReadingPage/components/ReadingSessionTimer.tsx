@@ -282,7 +282,7 @@ export default function ReadingSessionTimer({
           }
         />
         {timerState === "idle" ? (
-          <span className="text-md text-zinc-400 group-hover:text-zinc-300">
+          <span className="text-md text-zinc-400 group-hover:text-zinc-300 p-[1.5px]">
             Timer
           </span>
         ) : (
@@ -323,7 +323,7 @@ export default function ReadingSessionTimer({
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-zinc-600 hover:text-zinc-400 transition-colors"
+              className="text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors"
             >
               <X size={15} />
             </button>
@@ -380,7 +380,7 @@ export default function ReadingSessionTimer({
                     <div className="flex flex-col items-center gap-2">
                       <button
                         onClick={() => setHideAll((v) => !v)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
                       >
                         {hideAll ? <Eye size={12} /> : <EyeOff size={12} />}
                         {hideAll ? "Mostrar tudo" : "Ocultar tudo"}
@@ -388,7 +388,7 @@ export default function ReadingSessionTimer({
                       <button
                         onClick={() => setHideSeconds((v) => !v)}
                         disabled={hideAll}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Clock size={12} />
                         {hideSeconds ? "Mostrar segundos" : "Ocultar segundos"}
@@ -429,7 +429,7 @@ export default function ReadingSessionTimer({
               {(timerState === "idle" || timerState === "paused") && (
                 <button
                   onClick={handleStart}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
                 >
                   <Play size={14} fill="currentColor" />
                   {timerState === "paused" ? "Retomar" : "Iniciar"}
@@ -438,7 +438,7 @@ export default function ReadingSessionTimer({
               {timerState === "running" && (
                 <button
                   onClick={handlePause}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/30 text-amber-400 text-sm font-medium transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/30 text-amber-400 text-sm font-medium transition-all active:scale-95"
                 >
                   <Pause size={14} fill="currentColor" />
                   Pausar
@@ -447,7 +447,7 @@ export default function ReadingSessionTimer({
               {timerState === "finished" && (
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                   Nova Sessão
@@ -456,7 +456,7 @@ export default function ReadingSessionTimer({
               {(timerState === "running" || timerState === "paused") && (
                 <button
                   onClick={handleReset}
-                  className="p-2.5 rounded-xl border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all active:scale-95"
+                  className="cursor-pointer p-2.5 rounded-xl border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                 </button>
@@ -474,7 +474,7 @@ export default function ReadingSessionTimer({
                     <button
                       key={p.label}
                       onClick={() => setDuration(p.minutes)}
-                      className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                      className={`cursor-pointer py-2 rounded-lg text-xs font-medium transition-all ${
                         totalSeconds === p.minutes * 60
                           ? "bg-green-600/20 border border-green-600/40 text-green-400"
                           : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
@@ -497,7 +497,7 @@ export default function ReadingSessionTimer({
                   />
                   <button
                     onClick={handleCustomDuration}
-                    className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
+                    className="cursor-pointer px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
                   >
                     OK
                   </button>

@@ -5,6 +5,7 @@ import {
   Trash2,
   Copy,
   BookPlus,
+  NotebookPen,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -283,8 +284,9 @@ export default function AddReadingPage() {
 
                   <button
                     type="submit"
-                    className="cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-lg transition text-sm"
+                    className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-lg transition text-sm"
                   >
+                    <NotebookPen size={15} />
                     Registrar {entries.length} leitura
                     {entries.length > 1 ? "s" : ""}
                   </button>
