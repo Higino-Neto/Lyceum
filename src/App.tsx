@@ -7,6 +7,7 @@ import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
+import ProfilePage from "./pages/ProfilePage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useEffect, useState } from "react";
@@ -64,6 +65,16 @@ function App() {
                 <ProtectedRoute
                   isLoggedIn={isLoggedIn}
                   children={<Library />}
+                />
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute
+                  isLoggedIn={isLoggedIn}
+                  children={<ProfilePage />}
                 />
               }
             />

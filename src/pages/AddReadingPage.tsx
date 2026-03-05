@@ -125,9 +125,9 @@ export default function AddReadingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto py-6 space-y-4">
+    <div className="h-screen bg-zinc-950 text-zinc-100 px-4">
+      <main className="flex-1 overflow-y-auto">
+        <div className="py-6 space-y-4">
           <header className="flex items-center justify-between">
 
             <div className="flex gap-2 items-center pl-4">

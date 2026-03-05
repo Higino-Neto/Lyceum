@@ -1,60 +1,65 @@
+import { useQuery } from "@tanstack/react-query";
 import HeatMap from "@uiw/react-heat-map";
 import getReadings from "../../../utils/getReadings";
-import { useEffect, useRef, useState } from "react";
+import { HeatmapSkeleton } from "../../../components/skeletons";
 
 interface HeatmapData {
   date: string;
   count: number;
 }
 
+async function fetchHeatmapData(): Promise<HeatmapData[]> {
+  const readings = await getReadings();
+  const heatmapData: HeatmapData[] = Object.values(
+    readings.reduce(
+      (acc, { reading_date, pages }) => {
+        const date = new Date(reading_date)
+          .toISOString()
+          .slice(0, 10)
+          .replace(/-/g, "/");
+
+        acc[date] = {
+          date,
+          count: (acc[date]?.count || 0) + pages,
+        };
+
+        return acc;
+      },
+      {} as Record<string, HeatmapData>,
+    ),
+  );
+  return heatmapData;
+}
+
 export function ReadingHeatMap() {
-  const [value, setValue] = useState<HeatmapData[]>([]);
+  const { data: value, isLoading } = useQuery<HeatmapData[]>({
+    queryKey: ["heatmap"],
+    queryFn: fetchHeatmapData,
+  });
 
   const darkPanelColors = {
-    0: "#27272A", // 0 pages
-    1: "#16a34a", // 1-3 pages
-    2: "#16a34a", // 4-6 pages
-    3: "#16a34a", // 7-10 pages
-    4: "#22c55e", // 11-15 pages
-    5: "#22c55e", // 16-20 pages
-    6: "#22c55e", // 21-25 pages
-    7: "#22c55e", // 26-30 pages
-    8: "#22c55e", // 31-35 pages
-    9: "#22c55e", // 36-40 pages
+    0: "#27272A",
+    1: "#16a34a",
+    2: "#16a34a",
+    3: "#16a34a",
+    4: "#22c55e",
+    5: "#22c55e",
+    6: "#22c55e",
+    7: "#22c55e",
+    8: "#22c55e",
+    9: "#22c55e",
   };
 
-  useEffect(() => {
-    const load = async () => {
-      const readings = await getReadings();
-      const heatmapData: HeatmapData[] = Object.values(
-        readings.reduce(
-          (acc, { reading_date, pages }) => {
-            const date = new Date(reading_date)
-              .toISOString()
-              .slice(0, 10)
-              .replace(/-/g, "/");
+  if (isLoading) {
+    return <HeatmapSkeleton />;
+  }
 
-            acc[date] = {
-              date,
-              count: (acc[date]?.count || 0) + pages,
-            };
-
-            return acc;
-          },
-          {} as Record<string, HeatmapData>,
-        ),
-      );
-      setValue(heatmapData);
-    };
-
-    load();
-  }, []);
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-4">Streak</h2>
       <div className="items-center justify-center w-full">
         <HeatMap
-          value={value}
+          value={value || []}
           startDate={new Date(new Date().setDate(new Date().getDate() - 365))}
           endDate={new Date()}
           rectSize={12}

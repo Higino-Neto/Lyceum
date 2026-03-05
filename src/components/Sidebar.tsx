@@ -6,7 +6,7 @@ import {
   LibraryBig,
   LogIn,
   PanelRight,
-  Wrench,
+  User,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -33,6 +33,7 @@ export default function Sidebar() {
         <SidebarItem Icon={BookOpenText} label="Ler" active={pathname === "/reading"} onClick={() => navigate("reading")} collapsed={collapsed} />
         <SidebarItem Icon={LibraryBig} label="Biblioteca" active={pathname === "/library"} onClick={() => navigate("/library")} collapsed={collapsed} />
         <SidebarItem Icon={BookPlus} label="Registrar Leituras" active={pathname === "/add_reading"} onClick={() => navigate("/add_reading")} collapsed={collapsed} />
+        <SidebarItem Icon={User} label="Perfil" active={pathname === "/profile"} onClick={() => navigate("/profile")} collapsed={collapsed} />
         <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
       </nav>
 
