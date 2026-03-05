@@ -52,6 +52,7 @@
     "@embedpdf/react-pdf-viewer": "^2.6.2",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-query": "^5.90.21",
     "@uiw/react-heat-map": "^2.3.3",
     "better-sqlite3": "^12.6.2",
     "electron-updater": "^6.8.3",

@@ -1,33 +1,29 @@
-const data = [
-  { position: 1, name: "Ana", pages: 2140 },
-  { position: 2, name: "Carlos", pages: 1980 },
-  { position: 3, name: "Marina", pages: 1760 },
-  { position: 4, name: "Lucas", pages: 1540 },
-];
+import useRanking from "../../../hooks/useRanking";
+import { RankingTableSkeleton } from "../../../components/skeletons";
 
 export default function RankingTable() {
+  const { data: ranking, isLoading } = useRanking();
+
+  if (isLoading) {
+    return <RankingTableSkeleton />;
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-800">
       <table className="w-full text-sm">
-        <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider">
-          {/* <tr>
-            <th className="text-left px-6 py-4">Posição</th>
-            <th className="text-left px-6 py-4">Nome</th>
-            <th className="text-right px-6 py-4">Páginas</th>
-          </tr> */}
-        </thead>
+        <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider" />
         <tbody>
-          {data.map((user) => (
+          {ranking?.map((user, index) => (
             <tr
-              key={user.position}
+              key={user.user_id}
               className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"
             >
               <td className="px-6 py-4 font-medium">
-                #{user.position}
+                #{index + 1}
               </td>
-              <td className="px-6 py-4">{user.name}</td>
+              <td className="px-6 py-4">{user.username}</td>
               <td className="px-6 py-4 text-right font-semibold">
-                {user.pages}
+                {user.total_pages}
               </td>
             </tr>
           ))}

@@ -5,6 +5,7 @@ import StatCard from "../../components/StatCard";
 import { useNavigate } from "react-router-dom";
 import ReadingTable from "./components/ReadingTable/ReadingTable";
 import useReadingStats from "../../hooks/useReadingStats";
+import { StatCardSkeleton } from "../../components/skeletons";
 
 const formatTotalHours = (total_minutes: string) => {
   if (!total_minutes) return;
@@ -17,9 +18,10 @@ const formatTotalHours = (total_minutes: string) => {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const data = useReadingStats();
+  const { data: stats, isLoading } = useReadingStats();
 
-  const { readingStats, userStreak } = data ?? {};
+  const { readingStats, userStreak } = stats ?? {};
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="flex-1 p-4 overflow-auto">
@@ -28,9 +30,6 @@ export default function Dashboard() {
             <div>
               <div className="flex gap-2 items-center pl-6">
                 <Home size={32} className="text-zinc-300" />
-                {/* <h1 className="text-lg">
-                  Dashboard
-                </h1> */}
               </div>
             </div>
 
@@ -44,39 +43,49 @@ export default function Dashboard() {
           </header>
 
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total de Páginas"
-              value={
-                <div>{readingStats && `${readingStats?.total_pages} Págs`}</div>
-              }
-              extraInfo={<div>+{readingStats?.month_pages} este mês</div>}
-              subtitle="Desde o início"
-            />
-            <StatCard
-              title="Horas de Leitura"
-              value={
-                <div>
-                  {formatTotalHours(readingStats?.total_minutes.toString())}
-                </div>
-              }
-              extraInfo={
-                <div>
-                  <span>+</span>
-                  {formatTotalHours(readingStats?.month_minutes.toString())}
-                </div>
-              }
-              subtitle="Tempo total"
-            />
-            <StatCard
-              title="Dias Consecutivos"
-              value={
-                <div className="flex gap-1">
-                  {userStreak?.toString()}
-                  <span>dias</span>
-                </div>
-              }
-              subtitle="Melhor streak: ##"
-            />
+            {isLoading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  title="Total de Páginas"
+                  value={
+                    <div>{readingStats && `${readingStats?.total_pages} Págs`}</div>
+                  }
+                  extraInfo={<div>+{readingStats?.month_pages} este mês</div>}
+                  subtitle="Desde o início"
+                />
+                <StatCard
+                  title="Horas de Leitura"
+                  value={
+                    <div>
+                      {formatTotalHours(readingStats?.total_minutes.toString())}
+                    </div>
+                  }
+                  extraInfo={
+                    <div>
+                      <span>+</span>
+                      {formatTotalHours(readingStats?.month_minutes.toString())}
+                    </div>
+                  }
+                  subtitle="Tempo total"
+                />
+                <StatCard
+                  title="Dias Consecutivos"
+                  value={
+                    <div className="flex gap-1">
+                      {userStreak?.toString()}
+                      <span>dias</span>
+                    </div>
+                  }
+                  subtitle="Melhor streak: ##"
+                />
+              </>
+            )}
           </section>
 
           <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-60 mb-6">

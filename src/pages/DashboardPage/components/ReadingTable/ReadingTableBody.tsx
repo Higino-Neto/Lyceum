@@ -1,5 +1,6 @@
 import useGetReadings from "../../../../hooks/useGetReadings";
 import TableReading from "../../../../types/TableReading";
+import { TableSkeleton } from "../../../../components/skeletons";
 
 const formatDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-");
@@ -7,7 +8,12 @@ const formatDate = (dateString: string) => {
 };
 
 export default function ReadingTableBody() {
-  const readings = useGetReadings();
+  const { data: readings, isLoading } = useGetReadings();
+
+  if (isLoading) {
+    return <TableSkeleton rows={5} />;
+  }
+
   return (
     <tbody>
       {readings?.map((reading: TableReading) => (
