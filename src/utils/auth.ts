@@ -6,7 +6,7 @@ export async function signUp(email: string, password: string) {
     password,
     options: {
       data: {
-        name: email.split('@')[0],
+        name: email.split("@")[0],
       },
     },
   });
@@ -17,18 +17,20 @@ export async function signUp(email: string, password: string) {
   }
 
   if (data.user) {
-    const username = email.split('@')[0];
-    await supabase.from("profiles").insert({
-      id: data.user.id,
-      name: username,
-    });
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({ id: data.user!.id, name: email.split("@")[0] });
+
+    if (profileError) {
+      console.error("Error creating profile:", profileError);
+    }
   }
 
   return { error: null };
 }
 
 export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });

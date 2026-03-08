@@ -1,6 +1,4 @@
 import {
-  ArrowLeft,
-  BookOpen,
   Plus,
   Trash2,
   Copy,

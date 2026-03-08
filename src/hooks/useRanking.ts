@@ -14,7 +14,15 @@ async function fetchRanking(): Promise<RankingUser[]> {
     .order("total_pages", { ascending: false })
     .limit(10);
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error fetching ranking:", error);
+    return [];
+  }
+
+  if (error) {
+    console.error("Error fetching ranking:", error);
+    return [];
+  }
 
   const userIds = statsData?.map((s) => s.user_id) || [];
 
@@ -24,6 +32,8 @@ async function fetchRanking(): Promise<RankingUser[]> {
     .from("profiles")
     .select("id, name")
     .in("id", userIds);
+
+  console.log(usersData);
 
   const usersMap = new Map<string, string>();
   if (usersData && usersData.length > 0) {
