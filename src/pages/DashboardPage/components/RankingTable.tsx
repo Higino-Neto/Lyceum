@@ -1,5 +1,6 @@
 import useRanking from "../../../hooks/useRanking";
 import { RankingTableSkeleton } from "../../../components/skeletons";
+import { User } from "lucide-react";
 
 export default function RankingTable() {
   const { data: ranking, isLoading } = useRanking();
@@ -20,6 +21,20 @@ export default function RankingTable() {
             >
               <td className="px-6 py-4 font-medium">
                 #{index + 1}
+              </td>
+              <td>
+                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt="Avatar"
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={40} className="text-zinc-500" />
+                  )}
+                </div>
               </td>
               <td className="px-6 py-4">{user.username}</td>
               <td className="px-6 py-4 text-right font-semibold">

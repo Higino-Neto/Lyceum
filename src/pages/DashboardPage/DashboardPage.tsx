@@ -106,12 +106,12 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <section>
+          {/* <section>
             <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 shadow-xl">
               <h2 className="text-lg font-semibold mb-4">Ranking Geral</h2>
               <RankingTable />
             </div>
-          </section>
+          </section> */}
         </div>
       </main>
     </div>

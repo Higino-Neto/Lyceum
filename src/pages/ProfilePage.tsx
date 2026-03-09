@@ -10,32 +10,65 @@ interface UserMetadata {
   avatar_url?: string;
 }
 
-async function fetchCurrentUser(): Promise<{ id: string; email: string; metadata: UserMetadata }> {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
+async function fetchCurrentUser(): Promise<{
+  id: string;
+  email: string;
+  metadata: UserMetadata;
+  name?: string;
+  level?: number;
+  avatar_url?: string;
+}> {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
   if (error || !user) throw new Error("Usuário não autenticado");
 
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) throw profileError;
+
+  console.log(profileData);
   return {
     id: user.id,
     email: user.email || "",
-    metadata: user.user_metadata as UserMetadata || {},
+    metadata: (user.user_metadata as UserMetadata) || {},
+    name: profileData?.name || "",
+    level: profileData?.level || 1,
+    avatar_url: profileData?.avatar_url || "",
   };
 }
 
-async function updateUserMetadata(metadata: UserMetadata) {
+async function updateUserMetadata(metadata: UserMetadata, userId: string) {
   const { data, error } = await supabase.auth.updateUser({
     data: metadata,
   });
-  
+
   if (error) throw error;
+  if (!data?.user) throw new Error("Erro ao atualizar usuário");
+
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      name: metadata.full_name,
+      avatar_url: metadata.avatar_url,
+    })
+    .eq("id", userId);
+
+  if (profileError) throw profileError;
+
   return data.user;
 }
-
 async function updatePassword(newPassword: string) {
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
   });
-  
+
   if (error) throw error;
 }
 
@@ -43,7 +76,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const { data: user, isLoading } = useQuery({
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
@@ -62,34 +95,45 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    if (user?.metadata) {
-      setName(user.metadata.full_name || "");
-      setAvatarUrl(user.metadata.avatar_url || "");
+    if (user) {
+      setName(user.name || user.metadata.full_name || "");
+      setAvatarUrl(user.avatar_url || user.metadata.avatar_url || "");
     }
   }, [user]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!user?.id) {
+      setError("Usuário não autenticado");
+      return;
+    }
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user!.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileExt = file.name.split(".").pop();
+      // const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
+        .from("avatars")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
       setAvatarUrl(publicUrl);
-      await updateUserMetadata({ full_name: name, avatar_url: publicUrl });
+      await updateUserMetadata(
+        { full_name: name, avatar_url: publicUrl },
+        user.id,
+      );
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
       setMessage("Foto atualizada com sucesso!");
@@ -101,7 +145,11 @@ export default function ProfilePage() {
   };
 
   const nameMutation = useMutation({
-    mutationFn: () => updateUserMetadata({ full_name: name, avatar_url: avatarUrl }),
+    mutationFn: () =>
+      updateUserMetadata(
+        { full_name: name, avatar_url: avatarUrl },
+        user?.id || "",
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
@@ -208,7 +256,11 @@ export default function ProfilePage() {
               <div className="relative">
                 <div className="w-20 h-20 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <User size={40} className="text-zinc-500" />
                   )}
@@ -293,7 +345,9 @@ export default function ProfilePage() {
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-lg font-medium text-black"
               >
                 <Save size={18} />
-                {passwordMutation.isPending ? "Atualizando..." : "Atualizar Senha"}
+                {passwordMutation.isPending
+                  ? "Atualizando..."
+                  : "Atualizar Senha"}
               </button>
             </form>
           </section>
