@@ -1,6 +1,7 @@
-import { Home, LayoutDashboard, PencilLine } from "lucide-react";
+import { Home, PencilLine } from "lucide-react";
 import RankingTable from "./components/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
+import WeeklyStreak from "./components/WeeklyStreak";
 import StatCard from "../../components/StatCard";
 import { useNavigate } from "react-router-dom";
 import ReadingTable from "./components/ReadingTable/ReadingTable";
@@ -88,11 +89,14 @@ export default function Dashboard() {
             )}
           </section>
 
-          <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 h-60 mb-6">
-            <div className="col-span-2 rounded-md border border-zinc-800 w-full">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-md border border-zinc-800 w-full">
               <ReadingHeatMap />
             </div>
-            <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 overflow-y-auto h-full">
+            <div className="rounded-md border border-zinc-800">
+              <WeeklyStreak />
+            </div>
+            <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 overflow-y-auto">
               <h2 className="text-sm text-zinc-400 mb-4">Ranking Geral</h2>
               <RankingTable />
             </div>

@@ -55,33 +55,33 @@ export function ReadingHeatMap() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4">Streak</h2>
-      <div className="items-center justify-center w-full">
+    <div className="flex flex-col items-center justify-center bg-slate-950 text-white dark:bg-[#18181B] rounded-lg shadow-lg h-full p-4">
+      <h2 className="text-lg font-bold mb-2">Streak Mensal</h2>
+      <div className="items-center justify-center w-full overflow-x-auto">
         <HeatMap
           value={value || []}
-          startDate={new Date(new Date().setDate(new Date().getDate() - 365))}
+          startDate={new Date(new Date().setDate(new Date().getDate() - 150))}
           endDate={new Date()}
           rectSize={12}
-          space={2}
-          weekLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
+          space={3}
+          weekLabels={["D", "S", "T", "Q", "Q", "S", "S"]}
           monthLabels={[
             "Jan",
-            "Feb",
+            "Fev",
             "Mar",
-            "Apr",
-            "May",
+            "Abr",
+            "Mai",
             "Jun",
             "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
+            "Ago",
+            "Set",
+            "Out",
             "Nov",
-            "Dec",
+            "Dez",
           ]}
           monthPlacement="top"
           panelColors={darkPanelColors}
-          rectProps={{ rx: 4 }}
+          rectProps={{ rx: 3 }}
           style={{ color: "#E2E8F0", width: "100%" }}
           legendRender={() => <div key={crypto.randomUUID()}>{}</div>}
         />
