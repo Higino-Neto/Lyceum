@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import getReadings from "../../../utils/getReadings";
-import { Flame, Plus, TrendingUp } from "lucide-react";
+import { Flame, Plus } from "lucide-react";
 
 interface DayStreak {
   date: string;

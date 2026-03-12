@@ -90,7 +90,7 @@ export default function Dashboard() {
           </section>
 
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-md border border-zinc-800 w-full">
+            <div className="rounded-md border border-zinc-800 w-full min-h-[200px]">
               <ReadingHeatMap />
             </div>
             <div className="rounded-md border border-zinc-800">
