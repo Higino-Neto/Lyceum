@@ -51,6 +51,7 @@ export default function useReadingSession() {
       {
         id: crypto.randomUUID(),
         bookTitle: session.sourceName,
+        bookId: null,
         numPages: String(session.finalPage - session.initialPage + 1),
         category: session.category,
         readingTime: String(session.spentTimeMinutes),
