@@ -22,7 +22,7 @@ function getWeekDays(): DayStreak[] {
     const currentDate = new Date(startOfWeek);
     currentDate.setDate(startOfWeek.getDate() + i);
     days.push({
-      date: currentDate.toISOString().slice(0, 10),
+      date: currentDate.toLocaleDateString("sv-SE"),
       dayName: weekDays[currentDate.getDay()],
       dayNumber: currentDate.getDate(),
       hasRead: false,
@@ -38,9 +38,7 @@ function computeCurrentStreak(
 ): number {
   if (!readings || readings.length === 0) return 0;
 
-  const readDates = new Set(
-    readings.map((r) => new Date(r.reading_date).toISOString().slice(0, 10)),
-  );
+  const readDates = new Set(readings.map((r) => r.reading_date));
 
   let streak = 0;
   const today = new Date();
@@ -48,7 +46,7 @@ function computeCurrentStreak(
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = d.toLocaleDateString("sv-SE");
     if (readDates.has(dateStr)) {
       streak++;
     } else {
@@ -122,9 +120,7 @@ export function WeeklyStreak() {
 
   if (readings) {
     readings.forEach((reading) => {
-      const readingDate = new Date(reading.reading_date)
-        .toISOString()
-        .slice(0, 10);
+      const readingDate = reading.reading_date;
       const dayIndex = weekDays.findIndex((day) => day.date === readingDate);
       if (dayIndex !== -1) {
         weekDays[dayIndex].hasRead = true;
@@ -133,7 +129,7 @@ export function WeeklyStreak() {
     });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("sv-SE");
   const currentDayIndex = weekDays.findIndex((day) => day.date === today);
   const readDaysCount = weekDays.filter((day) => day.hasRead).length;
   const currentStreak = computeCurrentStreak(readings ?? []);

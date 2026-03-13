@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ReadingEntry {
   id: string;
@@ -21,6 +22,7 @@ interface ReadingEntry {
 
 export default function AddReadingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [categories, setCategories] = useState<any>();
   const [entries, setEntries] = useState<ReadingEntry[]>([
     {
@@ -98,6 +100,8 @@ export default function AddReadingPage() {
     );
 
     await saveReadingEntries(validEntries);
+
+    queryClient.invalidateQueries({ queryKey: ["readings"] });
 
     navigate("/");
   };
