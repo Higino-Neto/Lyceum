@@ -12,6 +12,7 @@ interface ReadingEntry {
 }
 
 export default async function saveReadingEntries(entries: ReadingEntry[]) {
+  console.log("saveReadingEntries called with:", entries);
   const user = await getUser();
 
   const uniqueBooks = [...new Set(entries.map((e) => e.bookTitle))];
@@ -62,6 +63,8 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
       book_id: bookId ?? null,
     };
   });
+
+  console.log("Payload to insert:", payload);
 
   const { error } = await supabase
     .from("readings")

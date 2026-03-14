@@ -241,6 +241,7 @@ export default function AddReadingPage() {
     await saveReadingEntries(validEntries);
 
     queryClient.invalidateQueries({ queryKey: ["readings"] });
+    queryClient.invalidateQueries({ queryKey: ["ranking"] });
 
     navigate("/");
   };
