@@ -1,4 +1,7 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, Library, BookOpen, CheckCircle } from "lucide-react";
+
+const ICON_SIZE = 16;
+const STROKE_WIDTH = 1.5;
 
 export type SortOption = "title" | "progress" | "pages";
 export type FilterOption = "all" | "reading" | "finished";
@@ -16,16 +19,22 @@ interface FilterBarProps {
   showCategorySelect: boolean;
 }
 
+const filterIcons: Record<FilterOption, React.ReactNode> = {
+  all: <Library size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
+  reading: <BookOpen size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
+  finished: <CheckCircle size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
+};
+
 const filterLabels: Record<FilterOption, string> = {
   all: "Todos",
-  reading: "Em leitura",
-  finished: "Concluídos",
+  reading: "Lendo",
+  finished: "Feito",
 };
 
 const sortLabels: Record<SortOption, string> = {
   title: "Nome",
   progress: "Progresso",
-  pages: "Nº de páginas",
+  pages: "Nº Páginas",
 };
 
 export default function FilterBar({
@@ -44,7 +53,6 @@ export default function FilterBar({
     <section className="flex flex-wrap items-center gap-3">
       {showCategorySelect && categories.length > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">Categoria:</span>
           <select
             value={selectedCategory || ""}
             onChange={(e) => onCategoryChange(e.target.value || null)}
@@ -79,15 +87,16 @@ function SearchInput({
   return (
     <div className="relative flex-1 min-w-48 max-w-72">
       <Search
-        size={14}
+        size={ICON_SIZE}
         className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+        strokeWidth={STROKE_WIDTH}
       />
       <input
         type="text"
-        placeholder="Buscar livro..."
+        placeholder="Buscar..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-3 py-2 text-sm text-zinc-200"
+        className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
       />
     </div>
   );
@@ -106,13 +115,14 @@ function FilterButtons({
         <button
           key={f}
           onClick={() => onChange(f)}
-          className={`px-3 py-1.5 rounded-md cursor-pointer text-xs ${
+          className={`px-3 py-1.5 rounded-md cursor-pointer text-xs flex items-center gap-1.5 ${
             value === f
               ? "bg-green-600 text-black"
-              : "bg-zinc-900 border border-zinc-800 text-zinc-400"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
           }`}
+          aria-label={filterLabels[f]}
         >
-          {filterLabels[f]}
+          {filterIcons[f]}
         </button>
       ))}
     </div>
@@ -128,7 +138,7 @@ function SortSelect({
 }) {
   return (
     <div className="ml-auto flex items-center gap-2">
-      <SlidersHorizontal size={13} className="text-zinc-500" />
+      <SlidersHorizontal size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}

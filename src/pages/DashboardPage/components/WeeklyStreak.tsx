@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import getReadings from "../../../utils/getReadings";
-import { Flame, Plus } from "lucide-react";
+import { Flame, Check, Circle } from "lucide-react";
+
+const ICON_SIZE = 16;
+const STROKE_WIDTH = 1.5;
 
 interface DayStreak {
   date: string;
@@ -12,7 +15,7 @@ interface DayStreak {
 
 function getWeekDays(): DayStreak[] {
   const today = new Date();
-  const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"];
   const days: DayStreak[] = [];
 
   const startOfWeek = new Date(today);
@@ -21,8 +24,11 @@ function getWeekDays(): DayStreak[] {
   for (let i = 0; i < 7; i++) {
     const currentDate = new Date(startOfWeek);
     currentDate.setDate(startOfWeek.getDate() + i);
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const day = String(currentDate.getDate()).padStart(2, "0");
     days.push({
-      date: currentDate.toLocaleDateString("sv-SE"),
+      date: `${year}-${month}-${day}`,
       dayName: weekDays[currentDate.getDay()],
       dayNumber: currentDate.getDate(),
       hasRead: false,
@@ -46,7 +52,10 @@ function computeCurrentStreak(
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toLocaleDateString("sv-SE");
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
     if (readDates.has(dateStr)) {
       streak++;
     } else {
@@ -57,7 +66,7 @@ function computeCurrentStreak(
   return streak;
 }
 
-function CheckIcon({
+function DayIcon({
   filled,
   isToday,
   isFuture,
@@ -65,12 +74,11 @@ function CheckIcon({
   filled: boolean;
   isToday: boolean;
   isFuture: boolean;
-  pages: number;
 }) {
   if (isFuture) {
     return (
       <div className="w-9 h-9 rounded-full border-2 border-dashed border-zinc-700 flex items-center justify-center">
-        <span className="text-zinc-600 text-xs">·</span>
+        <Circle size={8} className="text-zinc-700" strokeWidth={1} />
       </div>
     );
   }
@@ -78,21 +86,9 @@ function CheckIcon({
   if (filled) {
     return (
       <div
-        className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md shadow-green-900/40 ${isToday ? "bg-green-500 ring-2 ring-green-400 ring-offset-2 ring-offset-zinc-900" : "bg-green-600"}`}
+        className={`w-9 h-9 rounded-full flex items-center justify-center ${isToday ? "bg-green-500 ring-2 ring-green-400 ring-offset-2 ring-offset-zinc-900" : "bg-green-600"}`}
       >
-        <svg
-          className="w-5 h-5 text-white"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
+        <Check size={ICON_SIZE} className="text-white" strokeWidth={STROKE_WIDTH + 1} />
       </div>
     );
   }
@@ -102,9 +98,9 @@ function CheckIcon({
       className={`w-9 h-9 rounded-full border-2 flex items-center justify-center ${isToday ? "border-amber-500 bg-amber-500/10" : "border-zinc-700 bg-zinc-800"}`}
     >
       {isToday ? (
-        <span className="text-amber-400 text-xs font-bold">!</span>
+        <span className="text-amber-400 text-[10px] font-bold">!</span>
       ) : (
-        <span className="text-zinc-600 text-xs">—</span>
+        <Circle size={6} className="text-zinc-600" strokeWidth={STROKE_WIDTH} />
       )}
     </div>
   );
@@ -129,8 +125,12 @@ export function WeeklyStreak() {
     });
   }
 
-  const today = new Date().toLocaleDateString("sv-SE");
-  const currentDayIndex = weekDays.findIndex((day) => day.date === today);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const currentDay = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${currentYear}-${currentMonth}-${currentDay}`;
+  const currentDayIndex = weekDays.findIndex((day) => day.date === todayStr);
   const readDaysCount = weekDays.filter((day) => day.hasRead).length;
   const currentStreak = computeCurrentStreak(readings ?? []);
   const todayRead = weekDays[currentDayIndex]?.hasRead ?? false;
@@ -158,21 +158,19 @@ export function WeeklyStreak() {
   }
 
   return (
-    <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 h-full flex flex-col gap-4">
+    <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm text-zinc-400">Streak Semanal</h2>
-        {/* <div className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded-sm px-2.5 py-1">
-          <span className="text-base"></span>
-          <span className="text-sm font-bold text-zinc-100">{readDaysCount}/7</span>
-        </div> */}
+        <div className="flex items-center gap-2">
+          <Flame size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
+        </div>
       </div>
 
       {/* Day circles */}
-      <div className="flex justify-between items-center gap-1 pt-5">
+      <div className="flex justify-between items-center gap-1 pt-3">
         {weekDays.map((day, index) => {
           const isToday = index === currentDayIndex;
-          const isFuture = day.date > today;
+          const isFuture = day.date > todayStr;
 
           return (
             <div
@@ -180,15 +178,14 @@ export function WeeklyStreak() {
               className="flex flex-col items-center gap-1.5 flex-1"
             >
               <div className="relative group">
-                <CheckIcon
+                <DayIcon
                   filled={day.hasRead}
                   isToday={isToday}
                   isFuture={isFuture}
-                  pages={day.pagesRead}
                 />
                 {day.hasRead && (
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-700 text-zinc-100 text-[10px] font-medium px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                    {day.pagesRead}p
+                    {day.pagesRead} págs
                   </div>
                 )}
               </div>
@@ -201,7 +198,7 @@ export function WeeklyStreak() {
                       : isToday
                         ? "text-green-800"
                         : "text-zinc-500"
-                }`}
+                }`} 
               >
                 {day.dayName}
               </span>
@@ -210,67 +207,51 @@ export function WeeklyStreak() {
         })}
       </div>
 
-      {/* Divider */}
-      {/* <div className="h-px bg-zinc-800" /> */}
-
       {/* Stats row */}
-      <div className="flex justify-between items-center pt-5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[11px] text-zinc-500">Streak atual</span>
-          <div className="flex items-center gap-1">
-            {/* <span className="text-base">🔥</span> */}
-            <Flame className="text-green-500" size={20} />
-            <span className="text-sm font-bold text-zinc-100">
-              {currentStreak} dias
-            </span>
-          </div>
+      <div className="flex justify-between items-center pt-3">
+        <div className="flex items-center gap-1">
+          <Flame className="text-green-500" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          <span className="text-sm font-bold text-zinc-100">
+            {currentStreak} dias
+          </span>
         </div>
 
-        {/* <div className="h-8 w-px bg-zinc-800" /> */}
-
-        <div className="flex flex-col gap-0.5 items-end">
-          <span className="text-[11px] text-zinc-500">Hoje</span>
-          <div className="flex items-center">
-            <Plus className="text-green-500" size={16} />
-            {/* <span className="text-base">{todayRead ? "" : "📌"}</span> */}
+        <div className="flex items-center gap-2">
+            <Circle 
+              size={ICON_SIZE} 
+              className={todayRead ? "text-green-500" : "text-amber-400"} 
+              strokeWidth={STROKE_WIDTH} 
+              fill={todayRead ? "currentColor" : "none"}
+            />
             <span
               className={`text-sm font-bold ${todayRead ? "text-green-500" : "text-amber-400"}`}
             >
               {todayRead
                 ? `${weekDays[currentDayIndex]?.pagesRead} págs`
-                : "Pendente"}
+                : "—"}
             </span>
-          </div>
         </div>
       </div>
 
-      {/* Perfect week banner */}
+      {/* Perfect week banner
       {perfectWeek && (
-        <div className="mt-auto bg-amber-500/10 border border-amber-500/20 rounded-sm px-3 py-2 flex items-center justify-center gap-2">
-          <span className="text-base animate-bounce">🏆</span>
-          <span className="text-xs font-semibold text-amber-400">
-            Semana perfeita! Incrível!
-          </span>
-          <span
-            className="text-base animate-bounce"
-            style={{ animationDelay: "0.15s" }}
-          >
-            ✨
+        <div className="mt-auto bg-green-500/10 border border-green-500/20 rounded-sm px-3 py-2 flex items-center justify-center gap-2">
+          <span className="text-xs font-semibold text-green-400">
+            Semana completa
           </span>
         </div>
-      )}
+      )} */}
 
       {/* Today nudge */}
-      {!todayRead && !perfectWeek && currentDayIndex !== -1 && (
-        <div className="mt-auto bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 flex items-center gap-2">
-          <span className="text-base">💡</span>
-          <span className="text-xs text-zinc-400">
+      {/* {!todayRead && !perfectWeek && currentDayIndex !== -1 && (
+        <div className="mt-auto flex items-center justify-center">
+          <span className="text-xs text-zinc-500">
             {currentStreak > 0
-              ? `Mantenha o streak de ${currentStreak} dias! Leia hoje.`
-              : "Que tal começar uma sequência hoje?"}
+              ? `Streak: ${currentStreak} dias`
+              : "Leia hoje"}
           </span>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

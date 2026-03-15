@@ -1,21 +1,24 @@
 import { useState } from "react";
 import useRanking from "../../../hooks/useRanking";
 import { RankingTableSkeleton } from "../../../components/skeletons";
-import { User, Crown } from "lucide-react";
+import { User, Crown, Trophy } from "lucide-react";
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
 interface PeriodOption {
   key: Period;
-  label: string;
+  icon: React.ReactNode;
   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
 }
 
+const ICON_SIZE = 20;
+const STROKE_WIDTH = 1.5;
+
 const PERIODS: PeriodOption[] = [
-  { key: "today", label: "Hoje", field: "today_pages" },
-  { key: "this_week", label: "Semana", field: "this_week_pages" },
-  { key: "this_month", label: "Mês", field: "month_pages" },
-  { key: "all_time", label: "Geral", field: "total_pages" },
+  { key: "today", icon: <span className="text-xs font-medium">Hoje</span>, field: "today_pages" },
+  { key: "this_week", icon: <span className="text-xs font-medium">Semanal</span>, field: "this_week_pages" },
+  { key: "this_month", icon: <span className="text-xs font-medium">Mensal</span>, field: "month_pages" },
+  { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
 ];
 
 export default function RankingTable() {
@@ -36,23 +39,24 @@ export default function RankingTable() {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800">
+    <div className="overflow-hidden rounded-md">
       <div className="flex border-b border-zinc-800">
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-3 text-xs font-medium transition ${
+            className={`flex-1 py-3 flex items-center justify-center gap-1 text-sm font-medium transition ${
               period === p.key
                 ? "bg-zinc-800 text-white"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
             }`}
+            aria-label={p.key === 'today' ? 'Hoje' : p.key === 'this_week' ? 'Esta semana' : p.key === 'this_month' ? 'Este mês' : 'Geral'}
           >
-            {p.label}
+            {p.icon}
           </button>
         ))}
       </div>
-      <table className="w-full text-sm">
+      <table className="w-full text-base">
         <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider" />
         <tbody>
           {sortedRanking.map((user, index) => (
@@ -60,15 +64,15 @@ export default function RankingTable() {
               key={user.user_id}
               className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"
             >
-              <td className="px-6 py-4 font-medium">
+              <td className="px-4 py-4 font-medium w-10">
                 {index === 0 ? (
-                  <Crown className="text-white" size={18} />
+                  <Crown className="text-zinc-300" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
                 ) : (
-                  `#${index + 1}`
+                  <span className="text-zinc-500 text-sm">#{index + 1}</span>
                 )}
               </td>
-              <td>
-                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
+              <td className="py-4">
+                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
                   {user.avatar_url ? (
                     <img
                       src={user.avatar_url}
@@ -77,13 +81,13 @@ export default function RankingTable() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User size={40} className="text-zinc-500" />
+                    <User size={ICON_SIZE} className="text-zinc-500" />
                   )}
                 </div>
               </td>
-              <td className="px-6 py-4">{user.username}</td>
-              <td className="px-6 py-4 text-right font-semibold">
-                {user[currentPeriod!.field] as number}
+              <td className="px-4 py-4 text-zinc-200">{user.username}</td>
+              <td className="px-4 py-4 text-right font-semibold text-zinc-300">
+                {user[currentPeriod!.field] as number}p 
               </td>
             </tr>
           ))}
