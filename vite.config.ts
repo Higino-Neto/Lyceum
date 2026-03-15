@@ -32,6 +32,9 @@ export default defineConfig({
           : {},
     }),
   ],
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(process.env.npm_package_version || "1.0.0"),
+  },
   test: {
     globals: true,
     environment: "jsdom",

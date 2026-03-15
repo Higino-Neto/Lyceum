@@ -37,7 +37,7 @@ export default function Sidebar() {
         <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
       </nav>
 
-      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v1.1.2</div>
+      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v{import.meta.env.VITE_APP_VERSION}</div>
     </aside>
   );
 }
