@@ -200,7 +200,7 @@ export default function ProfilePage() {
         <main className="flex-1 p-4 overflow-auto">
           <div className="mx-auto max-w-2xl space-y-6">
             <header className="flex items-center gap-4">
-              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-10 w-10 rounded-sm" />
               <Skeleton className="h-8 w-24" />
             </header>
             <section className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl">
@@ -227,7 +227,7 @@ export default function ProfilePage() {
           <header className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition"
+              className="cursor-pointer p-2 hover:bg-zinc-800 rounded-sm transition"
             >
               <ArrowLeft size={24} />
             </button>
@@ -235,13 +235,13 @@ export default function ProfilePage() {
           </header>
 
           {message && (
-            <div className="bg-green-900/30 border border-green-600 text-green-400 px-4 py-3 rounded-lg">
+            <div className="bg-green-900/30 border border-green-600 text-green-400 px-4 py-3 rounded-sm">
               {message}
             </div>
           )}
 
           {error && (
-            <div className="bg-red-900/30 border border-red-600 text-red-400 px-4 py-3 rounded-lg">
+            <div className="bg-red-900/30 border border-red-600 text-red-400 px-4 py-3 rounded-sm">
               {error}
             </div>
           )}
@@ -268,7 +268,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute bottom-0 right-0 bg-green-600 p-2 rounded-full hover:bg-green-500 transition disabled:opacity-50"
+                  className="cursor-pointer absolute bottom-0 right-0 bg-green-600 p-2 rounded-full hover:bg-green-500 transition disabled:opacity-50"
                 >
                   <Camera size={14} className="text-black" />
                 </button>
@@ -295,13 +295,13 @@ export default function ProfilePage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-green-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
                 />
               </div>
               <button
                 type="submit"
                 disabled={nameMutation.isPending}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-lg font-medium text-black"
+                className="cursor-pointer flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-sm font-medium text-black"
               >
                 <Save size={18} />
                 {nameMutation.isPending ? "Salvando..." : "Salvar"}
@@ -325,7 +325,7 @@ export default function ProfilePage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-green-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
                 />
               </div>
               <div>
@@ -336,13 +336,13 @@ export default function ProfilePage() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-green-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
                 />
               </div>
               <button
                 type="submit"
                 disabled={passwordMutation.isPending}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-lg font-medium text-black"
+                className="cursor-pointer flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-sm font-medium text-black"
               >
                 <Save size={18} />
                 {passwordMutation.isPending

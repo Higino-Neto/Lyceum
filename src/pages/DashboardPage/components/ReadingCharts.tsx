@@ -14,7 +14,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import getReadings from "../../../utils/getReadings";
+import useGetAllReadings from "../../../hooks/useGetAllReadings";
 import { supabase } from "../../../lib/supabase";
 import { CATEGORY_LABELS } from "../../../types/ReadingTypes";
 
@@ -409,10 +409,8 @@ function WeekdayChart({ data }: { data: ReadingData[] }) {
 export default function ReadingCharts() {
   const [activeChart, setActiveChart] = useState<ChartType>("daily");
 
-  const { data: readings, isLoading } = useQuery<ReadingData[]>({
-    queryKey: ["readings"],
-    queryFn: getReadings,
-  });
+  const { data: readingsResult, isLoading } = useGetAllReadings();
+  const readings = readingsResult?.data || [];
 
   const { data: categories } = useQuery<CategoryData[]>({
     queryKey: ["categories"],
@@ -454,7 +452,7 @@ export default function ReadingCharts() {
           <button
             key={option.key}
             onClick={() => setActiveChart(option.key)}
-            className={`flex-1 py-[14px] text-xs font-medium transition ${
+            className={`cursor-pointer flex-1 py-[14px] text-xs font-medium transition ${
               activeChart === option.key
                 ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"

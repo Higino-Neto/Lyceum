@@ -39,13 +39,13 @@ export default function RankingTable() {
   }
 
   return (
-    <div className="overflow-hidden rounded-md">
+    <div className="overflow-hidden rounded-sm">
       <div className="flex border-b border-zinc-800">
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-3 flex items-center justify-center gap-1 text-sm font-medium transition ${
+            className={`cursor-pointer flex-1 py-3 flex items-center justify-center gap-1 text-sm font-medium transition ${
               period === p.key
                 ? "bg-zinc-800 text-white"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"

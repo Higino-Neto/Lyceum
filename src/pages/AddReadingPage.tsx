@@ -153,7 +153,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
                 e.preventDefault();
                 handleSelect(book);
               }}
-              className="w-full flex items-center gap-2 p-2 hover:bg-zinc-700 transition text-left"
+              className="cursor-pointer w-full flex items-center gap-2 p-2 hover:bg-zinc-700 transition text-left"
             >
               {/* {isLocalBook(book) && book.thumbnailPath ? (
                 <img src={`thumbnail://${book.thumbnailPath}`} alt="" className="w-6 h-8 object-cover rounded flex-shrink-0" onError={(e) => {
@@ -316,9 +316,9 @@ export default function AddReadingPage() {
               <BookPlus size={32} className="text-zinc-300" />
             </div>
 
-            {/* <div className="text-green-500 font-medium">
+            <div className="text-green-500 font-medium">
               Total: {calculateGrandTotal()} pts
-            </div> */}
+            </div>
           </header>
 
           <section>
@@ -335,7 +335,7 @@ export default function AddReadingPage() {
                 {entries.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-lg p-2 hover:border-zinc-700 transition"
+                    className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-sm p-2 hover:border-zinc-700 transition"
                   >
                     <div className="col-span-4">
                       <BookSearch
@@ -399,10 +399,11 @@ export default function AddReadingPage() {
                       />
                     </div>
 
-                    <div className="col-span-2 flex items-between px-3 gap-2">
-                      <span className="text-sm text-green-500 font-mono w-full">
+                    <div className="col-span-2 flex items-between justify-end px-3 gap-2">
+                      {/* <span className="text-sm text-green-500 font-mono w-full">
                         {calculateTotalPoints(entry)}
-                      </span>
+                      </span> */}
+                      
                       <div className="flex gap-2 ">
                         <button
                           type="button"
@@ -446,14 +447,14 @@ export default function AddReadingPage() {
                   <button
                     type="button"
                     onClick={() => navigate("/dashboard")}
-                    className="cursor-pointer px-6 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-lg text-zinc-300 hover:text-zinc-100 transition text-sm"
+                    className="cursor-pointer px-6 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-sm text-zinc-300 hover:text-zinc-100 transition text-sm"
                   >
                     Cancelar
                   </button>
 
                   <button
                     type="submit"
-                    className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-lg transition text-sm"
+                    className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-sm transition text-sm"
                   >
                     <NotebookPen size={15} />
                     Registrar {entries.length} leitura

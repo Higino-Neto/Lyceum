@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import HeatMap from "@uiw/react-heat-map";
-import getReadings from "../../../utils/getReadings";
+import useGetAllReadings from "../../../hooks/useGetAllReadings";
 import { HeatmapSkeleton } from "../../../components/skeletons";
 import { CalendarDays } from "lucide-react";
 
@@ -13,38 +12,37 @@ interface HeatmapData {
   count: number;
 }
 
-async function fetchHeatmapData(): Promise<HeatmapData[]> {
-  const readings = await getReadings();
+function useHeatmapData() {
+  const { data: readingsResult, isLoading } = useGetAllReadings();
+  const readings = readingsResult?.data || [];
 
-  const heatmapData = Object.values(
-    readings.reduce<Record<string, HeatmapData>>(
-      (acc, { reading_date, pages }) => {
-        const [year, month, day] = reading_date.split("-").map(Number);
-        const dateObj = new Date(year, month - 1, day);
-        const yearStr = String(dateObj.getFullYear());
-        const monthStr = String(dateObj.getMonth() + 1).padStart(2, "0");
-        const dayStr = String(dateObj.getDate()).padStart(2, "0");
-        const date = `${yearStr}/${monthStr}/${dayStr}`;
+  const heatmapData = useMemo(() => {
+    return Object.values(
+      readings.reduce<Record<string, HeatmapData>>(
+        (acc, { reading_date, pages }) => {
+          const [year, month, day] = reading_date.split("-").map(Number);
+          const dateObj = new Date(year, month - 1, day);
+          const yearStr = String(dateObj.getFullYear());
+          const monthStr = String(dateObj.getMonth() + 1).padStart(2, "0");
+          const dayStr = String(dateObj.getDate()).padStart(2, "0");
+          const date = `${yearStr}/${monthStr}/${dayStr}`;
 
-        acc[date] = {
-          date,
-          count: (acc[date]?.count || 0) + pages,
-        };
+          acc[date] = {
+            date,
+            count: (acc[date]?.count || 0) + pages,
+          };
+          return acc;
+        },
+        {},
+      ),
+    );
+  }, [readings]);
 
-        return acc;
-      },
-      {}
-    )
-  );
-
-  return heatmapData;
+  return { heatmapData, isLoading };
 }
 
 export function ReadingHeatMap() {
-  const { data: value, isLoading, isError, error } = useQuery<HeatmapData[]>({
-    queryKey: ["heatmap"],
-    queryFn: fetchHeatmapData,
-  });
+  const { heatmapData, isLoading } = useHeatmapData();
 
   const { startDate, endDate } = useMemo(() => {
     const end = new Date();
@@ -70,16 +68,6 @@ export function ReadingHeatMap() {
     return <HeatmapSkeleton />;
   }
 
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center bg-zinc-950 text-white rounded-md h-full p-4">
-        <div className="flex-1 flex items-center justify-center text-red-400 text-sm">
-          Erro: {error?.message}
-        </div>
-      </div>
-    );
-  }
-
   const rectRender = (
     props: React.SVGProps<SVGRectElement>,
     data: HeatmapData & { date: string; column: number; row: number; index: number }
@@ -96,13 +84,13 @@ export function ReadingHeatMap() {
   };
 
   return (
-    <div className="flex flex-col bg-zinc-900 text-white rounded-md h-full p-4">
+    <div className="flex flex-col bg-zinc-900 text-white rounded-sm h-full p-4">
       <div className="flex items-center justify-start gap-2 mb-2">
         <CalendarDays size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
       </div>
       <div className="items-center justify-center w-full overflow-x-auto">
         <HeatMap
-          value={value || []}
+          value={heatmapData || []}
           startDate={startDate}
           endDate={endDate}
           rectSize={12}

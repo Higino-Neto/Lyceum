@@ -53,7 +53,7 @@ export default function BookCard({
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-30"
+                className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg z-30"
                 onMouseLeave={() => setMenuOpen(false)}
               >
                 <button

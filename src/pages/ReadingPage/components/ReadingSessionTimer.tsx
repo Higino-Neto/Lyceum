@@ -314,7 +314,7 @@ export default function ReadingSessionTimer({
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-40 rounded-lg border border-zinc-800 shadow-2xl overflow-hidden"
+          className="absolute right-0 top-full mt-2 z-40 rounded-sm border border-zinc-800 shadow-2xl overflow-hidden"
           style={{
             width: 300,
             background: "rgba(9,9,11,0.97)",
@@ -350,7 +350,7 @@ export default function ReadingSessionTimer({
                 value={sourceName}
                 onChange={(e) => setSourceName(e.target.value)}
                 placeholder="ex: O Senhor dos Anéis"
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
               />
             </div>
 
@@ -362,7 +362,7 @@ export default function ReadingSessionTimer({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
               >
                 <option value="" className="bg-zinc-900">
                   Selecione
@@ -390,7 +390,7 @@ export default function ReadingSessionTimer({
                     <div className="flex flex-col items-center gap-2">
                       <button
                         onClick={() => setHideAll((v) => !v)}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
                       >
                         {hideAll ? <Eye size={12} /> : <EyeOff size={12} />}
                         {hideAll ? "Mostrar tudo" : "Ocultar tudo"}
@@ -398,7 +398,7 @@ export default function ReadingSessionTimer({
                       <button
                         onClick={() => setHideSeconds((v) => !v)}
                         disabled={hideAll}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Clock size={12} />
                         {hideSeconds ? "Mostrar segundos" : "Ocultar segundos"}
@@ -484,7 +484,7 @@ export default function ReadingSessionTimer({
                     <button
                       key={p.label}
                       onClick={() => setDuration(p.minutes)}
-                      className={`cursor-pointer py-2 rounded-lg text-xs font-medium transition-all ${
+                      className={`cursor-pointer py-2 rounded-sm text-xs font-medium transition-all ${
                         totalSeconds === p.minutes * 60
                           ? "bg-green-600/20 border border-green-600/40 text-green-400"
                           : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
@@ -503,11 +503,11 @@ export default function ReadingSessionTimer({
                     value={customMinutes}
                     onChange={(e) => setCustomMinutes(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomDuration()}
-                    className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                    className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
                   />
                   <button
                     onClick={handleCustomDuration}
-                    className="cursor-pointer px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
+                    className="cursor-pointer px-3 py-2 rounded-sm bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
                   >
                     OK
                   </button>

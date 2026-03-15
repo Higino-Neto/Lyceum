@@ -20,7 +20,7 @@ electron.contextBridge.exposeInMainWorld("api", {
   //   ipcRenderer.invoke("thumbnail:get", thumbnailPath),
   // getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
   addDocument: (data) => electron.ipcRenderer.invoke("add-document", data),
-  getDocuments: () => electron.ipcRenderer.invoke("get-documents"),
+  getDocuments: (limit, offset) => electron.ipcRenderer.invoke("get-documents", limit, offset),
   saveReadingState: (payload) => electron.ipcRenderer.invoke("reading:save", payload),
   getReadingState: (fileHash) => electron.ipcRenderer.invoke("reading:get", fileHash),
   openPdf: () => electron.ipcRenderer.invoke("dialog:open-pdf"),

@@ -58,7 +58,7 @@ interface Window {
     // getLibraryPath: () => any;
 
     addDocument: (data: any) => Promise<any>;
-    getDocuments: () => Promise<any[]>;
+    getDocuments: (limit?: number, offset?: number) => Promise<{ data: any[]; total: number }>;
 
     saveReadingState: (payload: any) => Promise<void>;
     getReadingState: (fileHash: string) => Promise<any>;

@@ -216,7 +216,7 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onReset();
             }}
-            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-lg hover:bg-zinc-800"
+            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-sm hover:bg-zinc-800"
           >
             <X size={16} />
           </button>
@@ -225,7 +225,7 @@ export default function ReadingSessionCompletedModal({
         {/* ── BOOK IDENTITY ── */}
         <div className="mx-6 mb-4 p-4 rounded-xl bg-zinc-800/40 border border-zinc-700/30 flex items-center gap-3 shrink-0">
           <div
-            className="w-10 h-14 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
+            className="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
             style={{
               background: "linear-gradient(160deg, #27272a, #18181b)",
               writingMode: "vertical-rl",

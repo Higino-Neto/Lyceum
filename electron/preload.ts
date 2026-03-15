@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld("api", {
 
   addDocument: (data: any) => ipcRenderer.invoke("add-document", data),
 
-  getDocuments: () => ipcRenderer.invoke("get-documents"),
+  getDocuments: (limit?: number, offset?: number) => ipcRenderer.invoke("get-documents", limit, offset),
 
   saveReadingState: (payload: any) =>
     ipcRenderer.invoke("reading:save", payload),

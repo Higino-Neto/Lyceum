@@ -37,7 +37,7 @@ function ViewModeToggle({
   onChange: (mode: "grid" | "list") => void;
 }) {
   return (
-    <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
+    <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-sm p-0.5">
       <button
         onClick={() => onChange("grid")}
         className={`p-1.5 cursor-pointer rounded ${

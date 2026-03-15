@@ -86,7 +86,7 @@ export default function ReadingPage() {
           </header>
 
           {activePdfData && activeFileHash ? (
-            <section className="bg-zinc-900 flex-1 min-h-0 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
+            <section className="bg-zinc-900 flex-1 min-h-0 rounded-sm border border-zinc-800 shadow-xl overflow-hidden">
               <Viewer
                 pdfData={activePdfData}
                 fileHash={activeFileHash}
@@ -97,7 +97,7 @@ export default function ReadingPage() {
               />
             </section>
           ) : (
-            <section className="bg-zinc-900 rounded-lg border border-zinc-800 shadow-xl overflow-hidden">
+            <section className="bg-zinc-900 rounded-sm border border-zinc-800 shadow-xl overflow-hidden">
               <div className="p-4 text-zinc-500 text-sm">
                 {/* TODO: Card list dos livros recentes (localStorage ou Supabase) */}
                 Abra um PDF para começar a leitura.

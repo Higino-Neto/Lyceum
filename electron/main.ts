@@ -259,8 +259,8 @@ ipcMain.handle("add-document", (_, data) => {
   return addDocument(data.title, data.filePath, fileHash);
 });
 
-ipcMain.handle("get-documents", () => {
-  return getAllDocuments();
+ipcMain.handle("get-documents", (_, limit?: number, offset?: number) => {
+  return getAllDocuments(limit, offset);
 });
 
 ipcMain.handle("reading:save", (_, payload) => {

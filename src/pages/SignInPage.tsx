@@ -30,7 +30,7 @@ export default function SignIn() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-green-500"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
           />
 
           <input
@@ -39,12 +39,12 @@ export default function SignIn() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-green-500"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
           />
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-500 transition py-2.5 rounded-lg font-medium text-black cursor-pointer"
+            className="w-full bg-green-600 hover:bg-green-500 transition py-2.5 rounded-sm font-medium text-black cursor-pointer"
           >
             Entrar
           </button>

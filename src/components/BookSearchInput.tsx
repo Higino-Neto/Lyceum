@@ -113,7 +113,7 @@ export function BookSearchInput({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+            className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
           >
             <X size={14} />
           </button>
@@ -121,7 +121,7 @@ export function BookSearchInput({
       </div>
 
       {showResults && (results.length > 0 || loading) && !selectedBook && (
-        <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl max-h-72 overflow-y-auto">
           {loading ? (
             <div className="p-3 text-zinc-400 text-sm">Buscando...</div>
           ) : (
@@ -130,7 +130,7 @@ export function BookSearchInput({
                 key={book.id}
                 type="button"
                 onClick={() => handleSelect(book)}
-                className="w-full flex items-center gap-3 p-2 hover:bg-zinc-700 transition text-left"
+                className="cursor-pointer w-full flex items-center gap-3 p-2 hover:bg-zinc-700 transition text-left"
               >
                 {book.thumbnail_url ? (
                   <img
@@ -164,7 +164,7 @@ export function BookSearchInput({
         results.length === 0 &&
         value.length >= 2 &&
         !selectedBook && (
-          <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-3">
+          <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl p-3">
             {error ? (
               <div className="flex items-center gap-2 text-yellow-400 text-sm">
                 <AlertCircle size={14} />

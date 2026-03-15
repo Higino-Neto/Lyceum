@@ -3,9 +3,13 @@ import { useState } from "react";
 import { LibraryHeader, SectionTabs, FilterBar, FilterOption, SortOption } from "./components";
 import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
+import Pagination from "../../components/Pagination";
+
+const ITEMS_PER_PAGE = 20;
 
 export default function Library() {
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     syncedBooks,
@@ -14,7 +18,8 @@ export default function Library() {
     selectedCategory,
     setSelectedCategory,
     handleSync,
-  } = useBooks();
+    total,
+  } = useBooks({ page: currentPage, limit: ITEMS_PER_PAGE });
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
@@ -66,6 +71,7 @@ export default function Library() {
 
   const currentBooks = activeSection === "synced" ? syncedBooks : unsyncedBooks;
   const filteredBooks = filterBooks(currentBooks);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -103,6 +109,12 @@ export default function Library() {
           onOpen={handleOpen}
           onSync={activeSection === "unsynced" ? handleSync : undefined}
           showSyncActions={activeSection === "unsynced"}
+        />
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
         />
       </main>
     </div>

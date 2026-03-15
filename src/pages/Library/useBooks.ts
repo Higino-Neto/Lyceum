@@ -11,8 +11,14 @@ async function addThumbnailToBook(book: DocumentRecord): Promise<BookWithThumbna
   return { ...book };
 }
 
-export default function useBooks() {
-  const books = useGetBookData();
+interface UseBooksOptions {
+  page?: number;
+  limit?: number;
+}
+
+export default function useBooks({ page = 1, limit = 20 }: UseBooksOptions = {}) {
+  const offset = (page - 1) * limit;
+  const { data: books, total } = useGetBookData(limit, offset);
 
   const [syncedBooks, setSyncedBooks] = useState<BookWithThumbnail[]>([]);
   const [unsyncedBooks, setUnsyncedBooks] = useState<BookWithThumbnail[]>([]);
@@ -66,5 +72,6 @@ export default function useBooks() {
     selectedCategory,
     setSelectedCategory,
     handleSync,
+    total,
   };
 }

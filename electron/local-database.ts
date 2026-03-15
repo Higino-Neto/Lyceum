@@ -131,8 +131,19 @@ export function addDocument(
     numPages,
   );
 }
-export function getAllDocuments(): DocumentRecord[] {
-  return db.prepare<[], DocumentRecord>(`select * from documents`).all();
+export function getAllDocuments(limit?: number, offset?: number): { data: DocumentRecord[]; total: number } {
+  const countResult = db.prepare<[], { count: number }>(`SELECT COUNT(*) as count FROM documents`).get();
+  const total = countResult?.count || 0;
+  
+  let query = `SELECT * FROM documents`;
+  if (limit !== undefined && offset !== undefined) {
+    query += ` LIMIT ? OFFSET ?`;
+    const data = db.prepare<[number, number], DocumentRecord>(query).all(limit, offset);
+    return { data, total };
+  }
+  
+  const data = db.prepare<[], DocumentRecord>(query).all();
+  return { data, total };
 }
 export function getDocumentByHash(
   fileHash: string,

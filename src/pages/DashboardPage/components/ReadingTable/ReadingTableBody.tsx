@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import useGetReadings from "../../../../hooks/useGetReadings";
 import TableReading from "../../../../types/TableReading";
 import { TableSkeleton } from "../../../../components/skeletons";
@@ -7,8 +8,20 @@ const formatDate = (dateString: string) => {
   return `${day}/${month}/${year}`;
 };
 
-export default function ReadingTableBody() {
-  const { data: readings, isLoading } = useGetReadings();
+interface ReadingTableBodyProps {
+  currentPage: number;
+  limit: number;
+  onTotalChange?: (total: number) => void;
+}
+
+export default function ReadingTableBody({ currentPage, limit, onTotalChange }: ReadingTableBodyProps) {
+  const { data, isLoading } = useGetReadings({ page: currentPage, limit });
+
+  useEffect(() => {
+    if (data?.total !== undefined && onTotalChange) {
+      onTotalChange(data.total);
+    }
+  }, [data?.total, onTotalChange]);
 
   if (isLoading) {
     return <TableSkeleton rows={5} />;
@@ -16,7 +29,7 @@ export default function ReadingTableBody() {
 
   return (
     <tbody>
-      {readings?.map((reading: TableReading) => (
+      {data?.data.map((reading: TableReading) => (
         <tr
           key={reading.id}
           className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"

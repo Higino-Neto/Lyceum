@@ -1,5 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import getReadings from "../../../utils/getReadings";
+import useGetAllReadings from "../../../hooks/useGetAllReadings";
 import { Flame, Check, Circle } from "lucide-react";
 
 const ICON_SIZE = 16;
@@ -107,15 +106,13 @@ function DayIcon({
 }
 
 export function WeeklyStreak() {
-  const { data: readings, isLoading } = useQuery({
-    queryKey: ["readings"],
-    queryFn: getReadings,
-  });
+  const { data: readingsResult, isLoading } = useGetAllReadings();
+  const readings = readingsResult?.data || [];
 
   const weekDays = getWeekDays();
 
   if (readings) {
-    readings.forEach((reading) => {
+    readings.forEach((reading: { reading_date: string; pages: number }) => {
       const readingDate = reading.reading_date;
       const dayIndex = weekDays.findIndex((day) => day.date === readingDate);
       if (dayIndex !== -1) {
@@ -138,7 +135,7 @@ export function WeeklyStreak() {
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 h-full">
+      <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-5 h-full">
         <div className="h-5 w-28 bg-zinc-800 animate-pulse rounded mb-5" />
         <div className="flex justify-between gap-2 mb-5">
           {[...Array(7)].map((_, i) => (
@@ -158,7 +155,7 @@ export function WeeklyStreak() {
   }
 
   return (
-    <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
+    <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
