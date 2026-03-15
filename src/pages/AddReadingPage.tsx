@@ -6,32 +6,208 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface Book {
+  id: string;
+  title: string;
+  author: string | null;
+  thumbnail_url: string | null;
+}
+
+interface LocalBook {
+  id: number;
+  title: string;
+  fileHash: string;
+  thumbnailPath: string | null;
+  numPages: number;
+}
 
 interface ReadingEntry {
   id: string;
   bookTitle: string;
+  bookId: string | null;
   numPages: string;
-  category: string;
+  category_id: string;
   readingTime: string;
   date: string;
 }
 
+interface BookSearchProps {
+  value: string;
+  onChange: (value: string) => void;
+  onBookSelect: (book: Book | LocalBook | null) => void;
+}
+
+function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
+  const [results, setResults] = useState<(Book | LocalBook)[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const searchBooks = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const [supabaseResults, localResults] = await Promise.all([
+      supabase
+        .from("books")
+        .select("id, title, author, thumbnail_url")
+        .ilike("title", `%${query}%`)
+        .limit(8),
+      (window as any).api.searchLocalBooks(query).catch(() => []),
+    ]);
+
+    const combinedResults: (Book | LocalBook)[] = [];
+
+    if (supabaseResults.data) {
+      combinedResults.push(...supabaseResults.data);
+    }
+
+    if (localResults && localResults.length > 0) {
+      const localBooks: LocalBook[] = localResults.map((doc: LocalBook) => ({
+        id: `local-${doc.id}`,
+        title: doc.title,
+        fileHash: doc.fileHash,
+        thumbnailPath: doc.thumbnailPath,
+        numPages: doc.numPages,
+      }));
+      combinedResults.push(...localBooks);
+    }
+
+    if (combinedResults.length > 0) {
+      setResults(combinedResults);
+      setShowResults(true);
+    } else {
+      setResults([]);
+      setShowResults(false);
+    }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    onChange(newValue);
+    onBookSelect(null);
+    searchBooks(newValue);
+  };
+
+  const handleSelect = (book: Book | LocalBook) => {
+    onBookSelect(book);
+    onChange(book.title);
+    setInputValue(book.title);
+    setShowResults(false);
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      if (inputValue !== value) {
+        onChange(inputValue);
+      }
+    }, 100);
+  };
+
+  const isLocalBook = (book: Book | LocalBook): book is LocalBook => {
+    return "fileHash" in book;
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onFocus={() => results.length > 0 && setShowResults(true)}
+        placeholder="Buscar ou digitar livro..."
+        className="w-full rounded-sm bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm"
+      />
+
+      {showResults && results.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 max-h-64 overflow-y-auto">
+          {results.map((book) => (
+            <button
+              key={book.id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(book);
+              }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-zinc-700 transition text-left"
+            >
+              {/* {isLocalBook(book) && book.thumbnailPath ? (
+                <img src={`thumbnail://${book.thumbnailPath}`} alt="" className="w-6 h-8 object-cover rounded flex-shrink-0" onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}/>
+              ) : !isLocalBook(book) && book.thumbnail_url ? (
+                <img src={book.thumbnail_url} alt="" className="w-6 h-8 object-cover rounded flex-shrink-0" />
+              ) : (
+                <div className="w-6 h-8 bg-zinc-700 rounded flex-shrink-0" />
+              )} */}
+              <div className="min-w-0">
+                <div className="text-sm text-zinc-100 truncate">{book.title}</div>
+                {"author" in book && book.author && <div className="text-xs text-zinc-400 truncate">{book.author}</div>}
+                {isLocalBook(book) ? (<div className="text-xs text-green-500 truncate">Local</div>) : (<div className="text-xs text-green-500 truncate">Externo</div>)}
+              
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AddReadingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [categories, setCategories] = useState<any>();
   const [entries, setEntries] = useState<ReadingEntry[]>([
     {
       id: crypto.randomUUID(),
       bookTitle: "",
+      bookId: null,
       numPages: "",
-      category: "",
+      category_id: "",
       readingTime: "",
       date: new Date().toLocaleDateString("sv-SE"),
     },
   ]);
+
+  const handleBookSelect = (entryId: string, book: Book | LocalBook | null) => {
+    const isLocal = book && "fileHash" in book;
+    setEntries(
+      entries.map((entry) =>
+        entry.id === entryId
+          ? {
+              ...entry,
+              bookTitle: book?.title || entry.bookTitle,
+              bookId: isLocal ? (book as LocalBook).fileHash : (book as Book)?.id || null,
+            }
+          : entry
+      )
+    );
+  };
 
   const addNewEntry = () => {
     setEntries([
@@ -39,8 +215,9 @@ export default function AddReadingPage() {
       {
         id: crypto.randomUUID(),
         bookTitle: "",
+        bookId: null,
         numPages: "",
-        category: "",
+        category_id: "",
         readingTime: "",
         date: new Date().toLocaleDateString("sv-SE"),
       },
@@ -53,6 +230,7 @@ export default function AddReadingPage() {
       const newEntry = {
         ...entryToDuplicate,
         id: crypto.randomUUID(),
+        bookId: null,
       };
       const index = entries.findIndex((e) => e.id === id);
       const newEntries = [...entries];
@@ -72,6 +250,7 @@ export default function AddReadingPage() {
     field: keyof ReadingEntry,
     value: string,
   ) => {
+    console.log("updateEntry called:", id, field, value);
     setEntries(
       entries.map((entry) =>
         entry.id === id ? { ...entry, [field]: value } : entry,
@@ -93,21 +272,26 @@ export default function AddReadingPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    console.log("All entries:", entries);
+    
     const validEntries = entries.filter(
-      (entry) => entry.bookTitle.trim() !== "" && entry.numPages !== "",
+      (entry) => entry.bookTitle.trim() !== "" && entry.numPages !== "" && entry.category_id !== "",
     );
 
+    console.log("Valid entries:", validEntries);
+
     await saveReadingEntries(validEntries);
+
+    queryClient.invalidateQueries({ queryKey: ["readings"] });
+    queryClient.invalidateQueries({ queryKey: ["ranking"] });
 
     navigate("/");
   };
 
-  // Puxar as categorias do banco de dados para fazer essa conta (Modularizar essa função)
   const calculateTotalPoints = (entry: ReadingEntry) => {
     const pages = parseInt(entry.numPages) || 0;
-    const category_name = entry.category || "other";
     const filteredCategory = categories?.find(
-      (category) => category.name === category_name,
+      (category: any) => category.id === entry.category_id,
     );
     if (!filteredCategory) {
       return pages;
@@ -124,7 +308,7 @@ export default function AddReadingPage() {
 
   return (
     <div className="h-screen bg-zinc-950 text-zinc-100 px-4">
-      <main className="flex-1 overflow-y-auto">
+      <main className="min-h-screen flex-1 overflow-y-auto">
         <div className="py-6 space-y-4">
           <header className="flex items-center justify-between">
 
@@ -132,9 +316,9 @@ export default function AddReadingPage() {
               <BookPlus size={32} className="text-zinc-300" />
             </div>
 
-            <div className="text-green-500 font-medium">
+            {/* <div className="text-green-500 font-medium">
               Total: {calculateGrandTotal()} pts
-            </div>
+            </div> */}
           </header>
 
           <section>
@@ -154,15 +338,10 @@ export default function AddReadingPage() {
                     className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-lg p-2 hover:border-zinc-700 transition"
                   >
                     <div className="col-span-4">
-                      <input
-                        type="text"
+                      <BookSearch
                         value={entry.bookTitle}
-                        onChange={(e) =>
-                          updateEntry(entry.id, "bookTitle", e.target.value)
-                        }
-                        placeholder={`Livro ${index + 1}`}
-                        className="w-full rounded bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm"
-                        autoFocus={index === entries.length - 1}
+                        onChange={(value) => updateEntry(entry.id, "bookTitle", value)}
+                        onBookSelect={(book) => handleBookSelect(entry.id, book)}
                       />
                     </div>
 
@@ -181,26 +360,18 @@ export default function AddReadingPage() {
 
                     <div className="col-span-2">
                       <select
-                        value={entry.category}
+                        value={entry.category_id}
                         onChange={(e) =>
-                          updateEntry(entry.id, "category", e.target.value)
+                          updateEntry(entry.id, "category_id", e.target.value)
                         }
                         className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
                       >
                         <option value="">Selecione</option>
-                        <option value="fiction">Ficção (1x)</option>
-                        <option value="math">Matemática (2.5x)</option>
-                        <option value="math">Ciências naturais (2.5x)</option>
-                        <option value="philosophy">
-                          Filosofia/História (1.5x)
-                        </option>
-                        <option value="computer science">
-                          Computação/Docs (2x)
-                        </option>
-                        <option value="languages">
-                          Idioma em Aprendizado (3x)
-                        </option>
-                        <option value="other">Outro (1x)</option>
+                        {categories?.map((cat: any) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name} ({cat.points_per_page}x)
+                          </option>
+                        ))}
                       </select>
                     </div>
 

@@ -1,23 +1,32 @@
+import { LucideIcon } from "lucide-react";
+
 type Props = {
-  title: string;
+  icon?: LucideIcon;
   value?: JSX.Element;
   extraInfo?: JSX.Element;
-  subtitle?: string;
 };
 
-export default function StatCard({ title, value, extraInfo, subtitle }: Props) {
+const ICON_SIZE = 16;
+const STROKE_WIDTH = 1.5;
+
+export default function StatCard({ icon: Icon, value, extraInfo }: Props) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl hover:border-zinc-700 transition">
-      <>
-        <p className="text-sm text-zinc-400">{title}</p>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-2xl font-semibold mt-2 tracking-tight">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-md p-4 hover:border-zinc-700 transition group">
+      <div className="flex items-center gap-3">
+        {Icon && (
+          <Icon 
+            size={ICON_SIZE} 
+            className="text-zinc-500 group-hover:text-zinc-400 transition-colors" 
+            strokeWidth={STROKE_WIDTH}
+          />
+        )}
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-2xl font-semibold tracking-tight">
             {value}
           </h3>
           <a className="text-green-500 text-sm">{extraInfo}</a>
         </div>
-        {subtitle && <p className="text-xs text-zinc-500 mt-2">{subtitle}</p>}
-      </>
+      </div>
     </div>
   );
 }

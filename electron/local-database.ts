@@ -196,3 +196,9 @@ export function getCategories(): string[] {
   ).all();
   return results.map(r => r.category);
 }
+
+export function searchDocuments(query: string): DocumentRecord[] {
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE title LIKE ? LIMIT 10`
+  ).all(`%${query}%`);
+}

@@ -47,12 +47,14 @@ export default function useReadingSession() {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit session:", session);
     await saveReadingEntries([
       {
         id: crypto.randomUUID(),
         bookTitle: session.sourceName,
+        bookId: null,
         numPages: String(session.finalPage - session.initialPage + 1),
-        category: session.category,
+        category_id: session.category,
         readingTime: String(session.spentTimeMinutes),
         date: new Date().toISOString().split("T")[0],
       },

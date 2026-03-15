@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld("api", {
   syncDocument: (fileHash: string, action: "move" | "copy", category?: string) =>
     ipcRenderer.invoke("library:sync-document", fileHash, action, category),
 
+  searchLocalBooks: (query: string) => ipcRenderer.invoke("library:search-local", query),
+
 });
 
 // --------- Expose some API to the Renderer process ---------

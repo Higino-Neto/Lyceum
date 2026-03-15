@@ -82,5 +82,6 @@ interface Window {
       action: "move" | "copy",
       category?: string,
     ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+    searchLocalBooks: (query: string) => Promise<DocumentRecord[]>;
   };
 }

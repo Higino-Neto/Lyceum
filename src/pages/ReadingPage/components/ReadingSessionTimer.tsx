@@ -11,6 +11,7 @@ import {
   Clock,
 } from "lucide-react";
 import type { TimerState, SessionTimerData } from "../../../types/ReadingTypes";
+import { supabase } from "../../../lib/supabase";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -154,6 +155,15 @@ export default function ReadingSessionTimer({
     fileName?.replace(".pdf", "") ?? "",
   );
   const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<{ id: string; name: string; points_per_page: number }[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await supabase.from("categories").select("*");
+      if (data) setCategories(data);
+    };
+    loadCategories();
+  }, []);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -357,9 +367,9 @@ export default function ReadingSessionTimer({
                 <option value="" className="bg-zinc-900">
                   Selecione
                 </option>
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value} className="bg-zinc-900">
-                    {c.label} ({c.multiplier})
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-zinc-900">
+                    {c.name} ({c.points_per_page}x)
                   </option>
                 ))}
               </select>

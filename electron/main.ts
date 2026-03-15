@@ -17,6 +17,7 @@ import {
   getDocumentsBySyncStatus,
   getCategories,
   updateThumbnailPath,
+  searchDocuments,
 } from "./local-database";
 
 interface DocumentRecord {
@@ -368,6 +369,10 @@ ipcMain.handle("library:get-sync-status", (_, synced: boolean) => {
 
 ipcMain.handle("library:get-categories", () => {
   return getCategories();
+});
+
+ipcMain.handle("library:search-local", (_, query: string) => {
+  return searchDocuments(query);
 });
 
 ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "move" | "copy", category?: string) => {

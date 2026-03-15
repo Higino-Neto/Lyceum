@@ -30,14 +30,14 @@ export default function Sidebar() {
       <nav className="space-y-2 mt-2">
 
         <SidebarItem Icon={Home} label="Dashboard" active={pathname === "/"} onClick={() => navigate("/")} collapsed={collapsed} />
-        <SidebarItem Icon={BookOpenText} label="Ler" active={pathname === "/reading"} onClick={() => navigate("reading")} collapsed={collapsed} />
-        <SidebarItem Icon={LibraryBig} label="Biblioteca" active={pathname === "/library"} onClick={() => navigate("/library")} collapsed={collapsed} />
         <SidebarItem Icon={BookPlus} label="Registrar Leituras" active={pathname === "/add_reading"} onClick={() => navigate("/add_reading")} collapsed={collapsed} />
+        <SidebarItem Icon={LibraryBig} label="Biblioteca" active={pathname === "/library"} onClick={() => navigate("/library")} collapsed={collapsed} />
+        <SidebarItem Icon={BookOpenText} label="Ler" active={pathname === "/reading"} onClick={() => navigate("reading")} collapsed={collapsed} />
         <SidebarItem Icon={User} label="Perfil" active={pathname === "/profile"} onClick={() => navigate("/profile")} collapsed={collapsed} />
         <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
       </nav>
 
-      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v1.1.2</div>
+      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v{import.meta.env.VITE_APP_VERSION}</div>
     </aside>
   );
 }
