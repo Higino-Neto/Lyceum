@@ -10,6 +10,7 @@ import Library from "./pages/Library/Library";
 import ProfilePage from "./pages/ProfilePage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TitleBar from "./components/TitleBar";
 import { useEffect, useState } from "react";
 
 function App() {
@@ -23,9 +24,13 @@ function App() {
 
     checkUser();
   }, []);
+
+  const isElectron = typeof window !== "undefined" && window.api?.windowMinimize;
+
   return (
-    <>
-      <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden">
+      {isElectron && <TitleBar />}
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="w-full overflow-y-auto">
           <Routes>
@@ -84,7 +89,7 @@ function App() {
           </Routes>
         </main>
       </div>
-    </>
+    </div>
   );
 }
 

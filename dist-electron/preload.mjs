@@ -34,7 +34,11 @@ electron.contextBridge.exposeInMainWorld("api", {
   getDocumentsBySyncStatus: (synced) => electron.ipcRenderer.invoke("library:get-sync-status", synced),
   getCategories: () => electron.ipcRenderer.invoke("library:get-categories"),
   syncDocument: (fileHash, action, category) => electron.ipcRenderer.invoke("library:sync-document", fileHash, action, category),
-  searchLocalBooks: (query) => electron.ipcRenderer.invoke("library:search-local", query)
+  searchLocalBooks: (query) => electron.ipcRenderer.invoke("library:search-local", query),
+  windowMinimize: () => electron.ipcRenderer.invoke("window:minimize"),
+  windowMaximize: () => electron.ipcRenderer.invoke("window:maximize"),
+  windowClose: () => electron.ipcRenderer.invoke("window:close"),
+  windowIsMaximized: () => electron.ipcRenderer.invoke("window:isMaximized")
 });
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {
