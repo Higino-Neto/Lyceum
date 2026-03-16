@@ -256,17 +256,15 @@ function CategoryDonutChart({
           name: label,
           ...userPages,
           total,
-          percentage: 0,
         };
       })
       .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
-      .map((item) => ({ ...item, percentage: item.total }));
+      .slice(0, 5);
   }, [usersData, categories]);
 
-  const currentUserData = usersData.find((u) => u.user.isCurrentUser);
-  const currentUserCategoryData = useMemo(() => {
-    if (!currentUserData) return [];
+  const singleUserCategoryData = useMemo(() => {
+    if (usersData.length !== 1) return null;
+    const currentUserData = usersData[0];
     const grouped = currentUserData.readings.reduce<Record<string, number>>((acc, item) => {
       const categoryId = item.category_id || "other";
       acc[categoryId] = (acc[categoryId] || 0) + item.pages;
@@ -287,7 +285,7 @@ function CategoryDonutChart({
       })
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
-  }, [currentUserData, categories]);
+  }, [usersData, categories]);
 
   if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
@@ -297,72 +295,105 @@ function CategoryDonutChart({
     );
   }
 
-  return (
-    <div className="flex gap-8 items-center justify-center">
-      <div className="shrink-0">
-        <ResponsiveContainer width={160} height={160}>
-          <PieChart>
-            <Pie
-              data={currentUserCategoryData}
-              cx="50%"
-              cy="50%"
-              innerRadius={36}
-              outerRadius={64}
-              paddingAngle={2}
-              dataKey="value"
-              animationDuration={150}
+  if (singleUserCategoryData) {
+    return (
+      <div className="flex gap-8 items-center justify-center">
+        <div className="shrink-0">
+          <ResponsiveContainer width={160} height={160}>
+            <PieChart>
+              <Pie
+                data={singleUserCategoryData}
+                cx="50%"
+                cy="50%"
+                innerRadius={36}
+                outerRadius={64}
+                paddingAngle={2}
+                dataKey="value"
+                animationDuration={150}
+              >
+                {singleUserCategoryData.map((_, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    stroke="transparent"
+                  />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex flex-col gap-2 min-w-0 justify-center">
+          {singleUserCategoryData.map((item, index) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between gap-4"
             >
-              {currentUserCategoryData.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  stroke="transparent"
-                />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex flex-col gap-2 min-w-0 justify-center">
-        {chartData.map((item, index) => (
-          <div
-            key={item.name}
-            className="flex items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                }}
-              />
-              <span className="text-zinc-400 text-xs truncate">
-                {item.name}
-              </span>
-            </div>
-            <span className="text-zinc-300 text-xs font-medium shrink-0">
-              {item.percentage}%
-            </span>
-          </div>
-        ))}
-        {usersData.length > 1 && (
-          <div className="mt-2 pt-2 border-t border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-1">Comparação:</p>
-            {usersData.map((userData, idx) => (
-              <div key={userData.user.userId} className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                  }}
                 />
-                <span className={userData.user.isCurrentUser ? "text-zinc-300 font-medium" : "text-zinc-500"}>
-                  {userData.user.username}: {userData.readings.reduce((s, r) => s + r.pages, 0)}p
+                <span className="text-zinc-400 text-xs truncate">
+                  {item.name}
                 </span>
               </div>
-            ))}
-          </div>
-        )}
+              <span className="text-zinc-300 text-xs font-medium shrink-0">
+                {item.percentage}%
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
+        <CartesianGrid
+          strokeDasharray="1 1"
+          stroke="#27272a"
+          vertical={false}
+        />
+        <XAxis
+          dataKey="name"
+          stroke="#52525b"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          stroke="#52525b"
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+          tickCount={5}
+          domain={[0, "dataMax"]}
+          padding={{ top: 10, bottom: 0 }}
+        />
+        <Tooltip
+          content={<ChartTooltip />}
+          cursor={false}
+          position={{ y: 100 }}
+          wrapperStyle={{ pointerEvents: "none" }}
+          animationDuration={150}
+        />
+        {usersData.map((userData, index) => (
+          <Bar
+            key={userData.user.userId}
+            dataKey={userData.user.username}
+            fill={CHART_COLORS[index % CHART_COLORS.length]}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={32}
+            background={{ fill: "transparent" }}
+            opacity={userData.user.isCurrentUser ? 1 : 0.5}
+          />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 

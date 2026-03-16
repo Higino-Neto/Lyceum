@@ -44,7 +44,7 @@ export default function TitleBar({ collapsed, onToggleCollapse }: TitleBarProps)
           {collapsed ? <Menu size={20} /> : <Menu size={20} />}
         </button>
         
-        <span className="text-zinc-400 text-xl font-semibold tracking-wider ml-2 mb-1">Lyceum</span>
+        <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">Lyceum</span>
       </div>
       
       <div className="flex items-center" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

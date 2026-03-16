@@ -59,7 +59,7 @@ export default function RankingTable() {
   }
 
   return (
-    <div className="overflow-hidden rounded-md">
+    <div className="overflow-hidden rounded-sm">
       <div className="flex border-b border-zinc-800">
         {PERIODS.map((p) => (
           <button

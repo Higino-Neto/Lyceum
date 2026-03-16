@@ -20,9 +20,9 @@ export default function BookListItem({
   return (
     <div
       onClick={onOpen}
-      className="cursor-pointer flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-md p-3"
+      className="cursor-pointer flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-sm p-3"
     >
-      <div className="w-10 h-14 bg-zinc-800 rounded overflow-hidden">
+      <div className="w-10 h-14 bg-zinc-800 rounded-sm overflow-hidden">
         {book.thumbnail ? (
           <img
             src={book.thumbnail}

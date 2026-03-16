@@ -11,7 +11,7 @@ const STROKE_WIDTH = 1.5;
 
 export default function StatCard({ icon: Icon, value, extraInfo }: Props) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-md p-4 hover:border-zinc-700 transition group">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-sm p-4 hover:border-zinc-700 transition group">
       <div className="flex items-center gap-3">
         {Icon && (
           <Icon 

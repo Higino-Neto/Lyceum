@@ -24,33 +24,33 @@ export default function Dashboard() {
             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {isLoading ? (
                 <>
-                  <div className="bg-zinc-900 rounded-md border border-zinc-800 md:col-span-2">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
                     <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin m-8" />
                   </div>
-                  <div className="bg-zinc-900 rounded-md border border-zinc-800 md:row-span-2 overflow-y-auto">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:row-span-2 overflow-y-auto">
                     <RankingTable />
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="bg-zinc-900 rounded-md border border-zinc-800 md:col-span-2">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
                     <ReadingCharts />
                   </div>
-                  <div className="bg-zinc-900 rounded-md border border-zinc-800 md:row-span-2 overflow-y-auto">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:row-span-2 overflow-y-auto">
                     <RankingTable />
                   </div>
                 </>
               )}
-             <div className="bg-zinc-900 rounded-md border border-zinc-800">
+             <div className="bg-zinc-900 rounded-sm border border-zinc-800">
                 <ReadingHeatMap />
               </div>
-              <div className="bg-zinc-900 rounded-md">
+              <div className="bg-zinc-900 rounded-sm">
                 <WeeklyStreak />
               </div>
             </section>
 
             <section>
-              <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4">
+              <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <BookOpen size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
@@ -58,7 +58,7 @@ export default function Dashboard() {
                   </div>
                   <button
                     onClick={() => navigate("/add_reading")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-md font-medium text-black bg-green-600 hover:bg-green-500 transition rounded-md"
+                    className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-md font-medium text-black bg-green-600 hover:bg-green-500 transition rounded-sm"
                   >
                     <Plus size={16} />
                     Registrar

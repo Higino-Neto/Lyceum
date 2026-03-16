@@ -72,7 +72,7 @@ export function ReadingHeatMap() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center bg-zinc-950 text-white rounded-md h-full p-4">
+      <div className="flex flex-col items-center justify-center bg-zinc-950 text-white rounded-sm h-full p-4">
         <div className="flex-1 flex items-center justify-center text-red-400 text-sm">
           Erro: {error?.message}
         </div>
@@ -96,7 +96,7 @@ export function ReadingHeatMap() {
   };
 
   return (
-    <div className="flex flex-col bg-zinc-900 text-white rounded-md h-full p-4">
+    <div className="flex flex-col bg-zinc-900 text-white rounded-sm h-full p-4">
       <div className="flex items-center justify-start gap-2 mb-2">
         <CalendarDays size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
       </div>

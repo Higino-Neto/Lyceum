@@ -90,7 +90,7 @@ function StatPill({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center p-3 rounded-xl border ${
+      className={`flex flex-col items-center justify-center p-3 rounded-sm border ${
         accent
           ? "bg-green-950/30 border-green-800/40"
           : "bg-zinc-800/60 border-zinc-700/40"
@@ -176,7 +176,7 @@ export default function ReadingSessionCompletedModal({
       style={{ background: "rgba(0,0,0,0.80)", backdropFilter: "blur(6px)" }}
     >
       <div
-        className="relative bg-zinc-900 border border-zinc-800 rounded-2xl w-full shadow-2xl flex flex-col"
+        className="relative bg-zinc-900 border border-zinc-800 rounded-sm w-full shadow-2xl flex flex-col"
         style={{
           maxWidth: 560,
           maxHeight: "92vh",
@@ -186,7 +186,7 @@ export default function ReadingSessionCompletedModal({
       >
         {/* Top glow stripe */}
         <div
-          className="absolute top-0 left-0 right-0 h-px rounded-t-2xl"
+          className="absolute top-0 left-0 right-0 h-px rounded-t-sm"
           style={{
             background:
               "linear-gradient(90deg, transparent, rgba(22,163,74,0.6), transparent)",
@@ -196,7 +196,7 @@ export default function ReadingSessionCompletedModal({
         {/* ── HEADER ── */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-950/50 border border-green-800/40 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-sm bg-green-950/50 border border-green-800/40 flex items-center justify-center">
               <BookOpen size={18} className="text-green-400" />
             </div>
             <div>
@@ -216,16 +216,16 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onReset();
             }}
-            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-lg hover:bg-zinc-800"
+            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-sm hover:bg-zinc-800"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* ── BOOK IDENTITY ── */}
-        <div className="mx-6 mb-4 p-4 rounded-xl bg-zinc-800/40 border border-zinc-700/30 flex items-center gap-3 shrink-0">
+        <div className="mx-6 mb-4 p-4 rounded-sm bg-zinc-800/40 border border-zinc-700/30 flex items-center gap-3 shrink-0">
           <div
-            className="w-10 h-14 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
+            className="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
             style={{
               background: "linear-gradient(160deg, #27272a, #18181b)",
               writingMode: "vertical-rl",
@@ -344,7 +344,7 @@ export default function ReadingSessionCompletedModal({
           </div>
 
           {/* ── RITMO ── */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-800/40 border border-zinc-700/30">
+          <div className="flex items-center justify-between p-3.5 rounded-sm bg-zinc-800/40 border border-zinc-700/30">
             <div className="flex items-center gap-3">
               <Flame size={18} className={rhythm.color} />
               <div>
@@ -383,7 +383,7 @@ export default function ReadingSessionCompletedModal({
           <button
             title="Continue de onde parou (Seu progresso será salvo)"
             onClick={onClose}
-            className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
+            className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-sm border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
           >
             Continuar Sessão
             <ChevronDown size={16} />
@@ -393,7 +393,7 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onSubmit();
             }}
-            className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
+            className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
           >
             Terminar Sessão
             <ChevronRight size={16} />

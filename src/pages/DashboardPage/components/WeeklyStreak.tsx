@@ -131,14 +131,14 @@ export function WeeklyStreak() {
   const currentDay = String(now.getDate()).padStart(2, "0");
   const todayStr = `${currentYear}-${currentMonth}-${currentDay}`;
   const currentDayIndex = weekDays.findIndex((day) => day.date === todayStr);
-  const readDaysCount = weekDays.filter((day) => day.hasRead).length;
+  // const readDaysCount = weekDays.filter((day) => day.hasRead).length;
   const currentStreak = computeCurrentStreak(readings ?? []);
   const todayRead = weekDays[currentDayIndex]?.hasRead ?? false;
-  const perfectWeek = readDaysCount === 7;
+  // const perfectWeek = readDaysCount === 7;
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 h-full">
+      <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-5 h-full">
         <div className="h-5 w-28 bg-zinc-800 animate-pulse rounded mb-5" />
         <div className="flex justify-between gap-2 mb-5">
           {[...Array(7)].map((_, i) => (
@@ -158,7 +158,7 @@ export function WeeklyStreak() {
   }
 
   return (
-    <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
+    <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

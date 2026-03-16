@@ -2,7 +2,7 @@ import Skeleton from "../Skeleton";
 
 export function RankingTableSkeleton() {
   return (
-    <div className="overflow-hidden rounded-md md:row-span-2">
+    <div className="overflow-hidden rounded-sm md:row-span-2">
       <div className="flex border-b border-zinc-800">
         {["D", "S", "M", "G"].map((d) => (
           <div key={d} className="flex-1 py-2.5 flex items-center justify-center text-xs font-medium text-zinc-400">
