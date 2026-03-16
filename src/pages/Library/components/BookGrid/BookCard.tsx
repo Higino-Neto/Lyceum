@@ -53,7 +53,7 @@ export default function BookCard({
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-30"
+                className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg z-30"
                 onMouseLeave={() => setMenuOpen(false)}
               >
                 <button
@@ -63,7 +63,7 @@ export default function BookCard({
                     onSync("move");
                     setMenuOpen(false);
                   }}
-                  className="flex cursor-pointer items-center gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-t-md"
+                  className="flex cursor-pointer items-center gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-t-sm"
                 >
                   <Move size={12} /> Mover para library
                 </button>
@@ -74,7 +74,7 @@ export default function BookCard({
                     onSync("copy");
                     setMenuOpen(false);
                   }}
-                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-b-md"
+                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-b-sm"
                 >
                   <Copy size={12} /> Copiar para library
                 </button>

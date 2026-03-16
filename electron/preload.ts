@@ -60,6 +60,14 @@ contextBridge.exposeInMainWorld("api", {
 
   searchLocalBooks: (query: string) => ipcRenderer.invoke("library:search-local", query),
 
+  windowMinimize: () => ipcRenderer.invoke("window:minimize"),
+
+  windowMaximize: () => ipcRenderer.invoke("window:maximize"),
+
+  windowClose: () => ipcRenderer.invoke("window:close"),
+
+  windowIsMaximized: () => ipcRenderer.invoke("window:isMaximized"),
+
 });
 
 // --------- Expose some API to the Renderer process ---------

@@ -18,8 +18,11 @@ function getWeekDays(): DayStreak[] {
   const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"];
   const days: DayStreak[] = [];
 
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
+  const dayOfWeek = today.getDay();
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const startOfWeek = new Date(today.getTime());
+  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract);
+  startOfWeek.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < 7; i++) {
     const currentDate = new Date(startOfWeek);
@@ -95,10 +98,10 @@ function DayIcon({
 
   return (
     <div
-      className={`w-9 h-9 rounded-full border-2 flex items-center justify-center ${isToday ? "border-amber-500 bg-amber-500/10" : "border-zinc-700 bg-zinc-800"}`}
+      className={`w-9 h-9 rounded-full border-2 flex items-center justify-center ${isToday ? "border-zinc-500 bg-zinc-500/10" : "border-zinc-700 bg-zinc-800"}`}
     >
       {isToday ? (
-        <span className="text-amber-400 text-[10px] font-bold">!</span>
+        <span className="text-zinc-400 text-[10px] font-bold">!</span>
       ) : (
         <Circle size={6} className="text-zinc-600" strokeWidth={STROKE_WIDTH} />
       )}
@@ -131,14 +134,14 @@ export function WeeklyStreak() {
   const currentDay = String(now.getDate()).padStart(2, "0");
   const todayStr = `${currentYear}-${currentMonth}-${currentDay}`;
   const currentDayIndex = weekDays.findIndex((day) => day.date === todayStr);
-  const readDaysCount = weekDays.filter((day) => day.hasRead).length;
+  // const readDaysCount = weekDays.filter((day) => day.hasRead).length;
   const currentStreak = computeCurrentStreak(readings ?? []);
   const todayRead = weekDays[currentDayIndex]?.hasRead ?? false;
-  const perfectWeek = readDaysCount === 7;
+  // const perfectWeek = readDaysCount === 7;
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 rounded-md border border-zinc-800 p-5 h-full">
+      <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-5 h-full">
         <div className="h-5 w-28 bg-zinc-800 animate-pulse rounded mb-5" />
         <div className="flex justify-between gap-2 mb-5">
           {[...Array(7)].map((_, i) => (
@@ -158,7 +161,7 @@ export function WeeklyStreak() {
   }
 
   return (
-    <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
+    <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-4 h-full flex flex-col gap-3 justify-between">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -210,8 +213,8 @@ export function WeeklyStreak() {
       {/* Stats row */}
       <div className="flex justify-between items-center pt-3">
         <div className="flex items-center gap-1">
-          <Flame className="text-green-500" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
-          <span className="text-sm font-bold text-zinc-100">
+          <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          <span className="text-sm font-bold text-zinc-400">
             {currentStreak} dias
           </span>
         </div>
@@ -219,12 +222,12 @@ export function WeeklyStreak() {
         <div className="flex items-center gap-2">
             <Circle 
               size={ICON_SIZE} 
-              className={todayRead ? "text-green-500" : "text-amber-400"} 
+              className={todayRead ? "text-green-500" : "text-zinc-400"} 
               strokeWidth={STROKE_WIDTH} 
               fill={todayRead ? "currentColor" : "none"}
             />
             <span
-              className={`text-sm font-bold ${todayRead ? "text-green-500" : "text-amber-400"}`}
+              className={`text-sm font-bold ${todayRead ? "text-green-500" : "text-zinc-400"}`}
             >
               {todayRead
                 ? `${weekDays[currentDayIndex]?.pagesRead} págs`

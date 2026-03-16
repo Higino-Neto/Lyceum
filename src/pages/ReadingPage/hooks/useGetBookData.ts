@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { DocumentRecord } from "../../../types/ReadingTypes";
-;
+
 export default function useGetBookData() {
   const [books, setBooks] = useState<DocumentRecord[] | null>(null);
 

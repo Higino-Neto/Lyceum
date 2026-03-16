@@ -277,7 +277,7 @@ export default function ReadingSessionTimer({
           timerState === "running"
             ? "border-green-600/60 bg-green-950/30 hover:bg-green-950/50"
             : timerState === "paused"
-              ? "border-amber-600/60 bg-amber-950/20 hover:bg-amber-950/30"
+              ? "border-zinc-600/60 bg-zinc-950/20 hover:bg-zinc-950/30"
               : "border-zinc-700/60 bg-zinc-900 hover:bg-zinc-800"
         }`}
       >
@@ -314,7 +314,7 @@ export default function ReadingSessionTimer({
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-40 rounded-lg border border-zinc-800 shadow-2xl overflow-hidden"
+          className="absolute right-0 top-full mt-2 z-40 rounded-sm border border-zinc-800 shadow-2xl overflow-hidden"
           style={{
             width: 300,
             background: "rgba(9,9,11,0.97)",
@@ -350,7 +350,7 @@ export default function ReadingSessionTimer({
                 value={sourceName}
                 onChange={(e) => setSourceName(e.target.value)}
                 placeholder="ex: O Senhor dos Anéis"
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
               />
             </div>
 
@@ -362,7 +362,7 @@ export default function ReadingSessionTimer({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
               >
                 <option value="" className="bg-zinc-900">
                   Selecione
@@ -390,7 +390,7 @@ export default function ReadingSessionTimer({
                     <div className="flex flex-col items-center gap-2">
                       <button
                         onClick={() => setHideAll((v) => !v)}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
                       >
                         {hideAll ? <Eye size={12} /> : <EyeOff size={12} />}
                         {hideAll ? "Mostrar tudo" : "Ocultar tudo"}
@@ -398,7 +398,7 @@ export default function ReadingSessionTimer({
                       <button
                         onClick={() => setHideSeconds((v) => !v)}
                         disabled={hideAll}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Clock size={12} />
                         {hideSeconds ? "Mostrar segundos" : "Ocultar segundos"}
@@ -439,7 +439,7 @@ export default function ReadingSessionTimer({
               {(timerState === "idle" || timerState === "paused") && (
                 <button
                   onClick={handleStart}
-                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
                 >
                   <Play size={14} fill="currentColor" />
                   {timerState === "paused" ? "Retomar" : "Iniciar"}
@@ -448,7 +448,7 @@ export default function ReadingSessionTimer({
               {timerState === "running" && (
                 <button
                   onClick={handlePause}
-                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/30 text-amber-400 text-sm font-medium transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-zin-600/20 hover:bg-zinc-600/30 border border-zinc-600/30 text-zinc-400 text-sm font-medium transition-all active:scale-95"
                 >
                   <Pause size={14} fill="currentColor" />
                   Pausar
@@ -457,7 +457,7 @@ export default function ReadingSessionTimer({
               {timerState === "finished" && (
                 <button
                   onClick={handleReset}
-                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                   Nova Sessão
@@ -466,7 +466,7 @@ export default function ReadingSessionTimer({
               {(timerState === "running" || timerState === "paused") && (
                 <button
                   onClick={handleReset}
-                  className="cursor-pointer p-2.5 rounded-xl border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all active:scale-95"
+                  className="cursor-pointer p-2.5 rounded-sm border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                 </button>
@@ -484,7 +484,7 @@ export default function ReadingSessionTimer({
                     <button
                       key={p.label}
                       onClick={() => setDuration(p.minutes)}
-                      className={`cursor-pointer py-2 rounded-lg text-xs font-medium transition-all ${
+                      className={`cursor-pointer py-2 rounded-sm text-xs font-medium transition-all ${
                         totalSeconds === p.minutes * 60
                           ? "bg-green-600/20 border border-green-600/40 text-green-400"
                           : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
@@ -503,11 +503,11 @@ export default function ReadingSessionTimer({
                     value={customMinutes}
                     onChange={(e) => setCustomMinutes(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomDuration()}
-                    className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                    className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
                   />
                   <button
                     onClick={handleCustomDuration}
-                    className="cursor-pointer px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
+                    className="cursor-pointer px-3 py-2 rounded-sm bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
                   >
                     OK
                   </button>

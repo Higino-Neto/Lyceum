@@ -1,7 +1,8 @@
 import { useState } from "react";
 import useRanking from "../../../hooks/useRanking";
 import { RankingTableSkeleton } from "../../../components/skeletons";
-import { User, Crown, Trophy } from "lucide-react";
+import { User, Crown, Trophy, Check, Plus, Minus } from "lucide-react";
+import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
@@ -11,19 +12,30 @@ interface PeriodOption {
   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
 }
 
-const ICON_SIZE = 20;
+// interface RankingUser {
+//   user_id: string;
+//   username: string;
+//   avatar_url: string;
+//   total_pages: number;
+//   today_pages: number;
+//   this_week_pages: number;
+//   month_pages: number;
+// }
+
+const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
 const PERIODS: PeriodOption[] = [
-  { key: "today", icon: <span className="text-xs font-medium">Hoje</span>, field: "today_pages" },
-  { key: "this_week", icon: <span className="text-xs font-medium">Semanal</span>, field: "this_week_pages" },
-  { key: "this_month", icon: <span className="text-xs font-medium">Mensal</span>, field: "month_pages" },
+  { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" },
+  { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" },
+  { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" },
   { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
 ];
 
 export default function RankingTable() {
   const { data: ranking, isLoading } = useRanking();
   const [period, setPeriod] = useState<Period>("all_time");
+  const { selectedUsers, currentUserId, toggleUser, isUserSelected } = useSelectedUsers();
 
   const currentPeriod = PERIODS.find((p) => p.key === period);
 
@@ -34,18 +46,26 @@ export default function RankingTable() {
       })
     : [];
 
+  const canSelectMore = selectedUsers.length < 2;
+
+  const getSelectionState = (userId: string) => {
+    if (userId === currentUserId) return "current";
+    if (isUserSelected(userId)) return "selected";
+    return "none";
+  };
+
   if (isLoading) {
     return <RankingTableSkeleton />;
   }
 
   return (
-    <div className="overflow-hidden rounded-md">
+    <div className="overflow-hidden rounded-sm">
       <div className="flex border-b border-zinc-800">
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-3 flex items-center justify-center gap-1 text-sm font-medium transition ${
+            className={`cursor-pointer flex-1 py-3 flex items-center justify-center gap-1  font-medium transition ${
               period === p.key
                 ? "bg-zinc-800 text-white"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
@@ -85,9 +105,46 @@ export default function RankingTable() {
                   )}
                 </div>
               </td>
-              <td className="px-4 py-4 text-zinc-200">{user.username}</td>
+              <td className="px-4 py-4 text-zinc-200">
+                <div className="flex items-center gap-2">
+                  {user.username}
+                  {/* {user.user_id === currentUserId && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-green-600/20 text-green-500 rounded">
+                      Você
+                    </span>
+                  )} */}
+                </div>
+              </td>
               <td className="px-4 py-4 text-right font-semibold text-zinc-300">
                 {user[currentPeriod!.field] as number}p 
+              </td>
+              <td className="px-2 py-4 w-10">
+                {currentUserId && user.user_id !== currentUserId && (
+                  <button
+                    onClick={() => toggleUser(user)}
+                    className={`p-1.5 rounded transition cursor-pointer ${
+                      getSelectionState(user.user_id) === "selected"
+                        ? "hover:bg-zinc-800 text-zinc-500"
+                        : canSelectMore
+                        ? " hover:text-zinc-300 hover:bg-zinc-800"
+                        : " cursor-not-allowed"
+                    }`}
+                    disabled={!canSelectMore && !isUserSelected(user.user_id)}
+                    title={
+                      getSelectionState(user.user_id) === "selected"
+                        ? "Remover dos gráficos"
+                        : canSelectMore
+                        ? "Adicionar aos gráficos"
+                        : "Limite atingido (máx. 2)"
+                    }
+                  >
+                    {getSelectionState(user.user_id) === "selected" ? (
+                      <Minus size={16} />
+                    ) : (
+                      <Plus size={16} />
+                    )}
+                  </button>
+                )}
               </td>
             </tr>
           ))}

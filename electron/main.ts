@@ -108,7 +108,7 @@ async function scanLibrary() {
 
         console.log("Added new document:", title);
       } else {
-        let needsUpdate = 
+        const needsUpdate = 
           existing.filePath !== filePath || 
           (existing.isSynced !== 1 && existing.isSynced !== undefined) ||
           existing.category !== category;
@@ -221,6 +221,7 @@ function createWindow() {
     title: "Lyceum",
     width: 1200,
     height: 800,
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
     },
@@ -373,6 +374,26 @@ ipcMain.handle("library:get-categories", () => {
 
 ipcMain.handle("library:search-local", (_, query: string) => {
   return searchDocuments(query);
+});
+
+ipcMain.handle("window:minimize", () => {
+  win?.minimize();
+});
+
+ipcMain.handle("window:maximize", () => {
+  if (win?.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win?.maximize();
+  }
+});
+
+ipcMain.handle("window:close", () => {
+  win?.close();
+});
+
+ipcMain.handle("window:isMaximized", () => {
+  return win?.isMaximized() ?? false;
 });
 
 ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "move" | "copy", category?: string) => {

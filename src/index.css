@@ -2,6 +2,11 @@
 
 /* Scrollbar personalizada para toda a aplicação */
 @layer base {
+  html, body, #root {
+    background-color: #09090b;
+    min-height: 100%;
+  }
+
   /* Firefox */
   * {
     scrollbar-width: thin;

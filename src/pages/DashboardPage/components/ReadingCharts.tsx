@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
@@ -13,10 +13,14 @@ import {
   Cell,
   BarChart,
   Bar,
+  Legend,
 } from "recharts";
 import getReadings from "../../../utils/getReadings";
+import getUserReadings from "../../../utils/getUserReadings";
+import getUser from "../../../utils/getUser";
 import { supabase } from "../../../lib/supabase";
 import { CATEGORY_LABELS } from "../../../types/ReadingTypes";
+import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
 
 type ChartType = "daily" | "category" | "weekly" | "weekday";
 
@@ -31,6 +35,12 @@ const CHART_OPTIONS: ChartOption[] = [
   { key: "weekly", label: "Semanal" },
   { key: "category", label: "Categorias" },
 ];
+
+interface UserData {
+  userId: string;
+  username: string;
+  isCurrentUser: boolean;
+}
 
 const CHART_COLORS = [
   "#22c55e",
@@ -48,11 +58,17 @@ interface ReadingData {
   reading_date: string;
   reading_time: number;
   category_id: string;
+  user_id?: string;
 }
 
 interface CategoryData {
   id: string;
   name: string;
+}
+
+interface UserReadingData {
+  user: UserData;
+  readings: ReadingData[];
 }
 
 const formatDate = (dateStr: string | Date) => {
@@ -97,6 +113,7 @@ interface TooltipProps {
   payload?: Array<{
     name: string;
     value: number;
+    color?: string;
     payload: Record<string, unknown>;
   }>;
   label?: string;
@@ -108,27 +125,41 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded px-3 py-2 shadow-xl">
       <p className="text-zinc-400 text-xs">{label}</p>
-      <p className="text-zinc-100 text-sm font-medium">
-        {payload[0]?.value?.toLocaleString("pt-BR")} páginas
-      </p>
+      {payload.map((entry, index) => (
+        <p key={index} className="text-zinc-100 text-sm font-medium" style={{ color: entry.color }}>
+          {entry.name}: {entry.value?.toLocaleString("pt-BR")} páginas
+        </p>
+      ))}
     </div>
   );
 }
 
-function DailyPagesChart({ data }: { data: ReadingData[] }) {
+function DailyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
-    const grouped = data.reduce<Record<string, number>>((acc, item) => {
-      acc[item.reading_date] = (acc[item.reading_date] || 0) + item.pages;
-      return acc;
-    }, {});
+    const allDates = new Set<string>();
+    usersData.forEach((userData) => {
+      userData.readings.forEach((item) => {
+        allDates.add(item.reading_date);
+      });
+    });
 
-    return Object.entries(grouped)
-      .map(([date, pages]) => ({ date, pages }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-30);
-  }, [data]);
+    const sortedDates = Array.from(allDates).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    ).slice(-30);
 
-  if (chartData.length === 0) {
+    return sortedDates.map((date) => {
+      const dataPoint: Record<string, string | number> = { date };
+      usersData.forEach((userData) => {
+        const userPages = userData.readings
+          .filter((r) => r.reading_date === date)
+          .reduce((sum, r) => sum + r.pages, 0);
+        dataPoint[userData.user.username] = userPages;
+      });
+      return dataPoint;
+    });
+  }, [usersData]);
+
+  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -171,29 +202,70 @@ function DailyPagesChart({ data }: { data: ReadingData[] }) {
           wrapperStyle={{ pointerEvents: "none" }}
           animationDuration={150}
         />
-        <Line
-          type="monotone"
-          dataKey="pages"
-          stroke="#16a34a"
-          strokeWidth={3}
-          dot={false}
-          activeDot={false}
-          animationDuration={150}
-        />
+        {usersData.map((userData, index) => (
+          <Line
+            key={userData.user.userId}
+            type="monotone"
+            dataKey={userData.user.username}
+            stroke={CHART_COLORS[index % CHART_COLORS.length]}
+            strokeWidth={userData.user.isCurrentUser ? 3 : 2}
+            strokeDasharray={userData.user.isCurrentUser ? undefined : "5 5"}
+            dot={false}
+            activeDot={false}
+            animationDuration={150}
+            opacity={userData.user.isCurrentUser ? 1 : 0.5}
+          />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   );
 }
 
 function CategoryDonutChart({
-  data,
+  usersData,
   categories,
 }: {
-  data: ReadingData[];
+  usersData: UserReadingData[];
   categories: CategoryData[];
 }) {
   const chartData = useMemo(() => {
-    const grouped = data.reduce<Record<string, number>>((acc, item) => {
+    const grouped: Record<string, Record<string, number>> = {};
+    
+    usersData.forEach((userData) => {
+      userData.readings.forEach((item) => {
+        const categoryId = item.category_id || "other";
+        if (!grouped[categoryId]) {
+          grouped[categoryId] = {};
+        }
+        grouped[categoryId][userData.user.username] = 
+          (grouped[categoryId][userData.user.username] || 0) + item.pages;
+      });
+    });
+
+    const totals: Record<string, number> = {};
+    Object.entries(grouped).forEach(([categoryId, userPages]) => {
+      totals[categoryId] = Object.values(userPages).reduce((sum, val) => sum + val, 0);
+    });
+
+    return Object.entries(grouped)
+      .map(([categoryId, userPages]) => {
+        const category = categories.find((c) => c.id === categoryId);
+        const label = category?.name || CATEGORY_LABELS[categoryId] || "Outro";
+        const total = totals[categoryId];
+        return {
+          name: label,
+          ...userPages,
+          total,
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [usersData, categories]);
+
+  const singleUserCategoryData = useMemo(() => {
+    if (usersData.length !== 1) return null;
+    const currentUserData = usersData[0];
+    const grouped = currentUserData.readings.reduce<Record<string, number>>((acc, item) => {
       const categoryId = item.category_id || "other";
       acc[categoryId] = (acc[categoryId] || 0) + item.pages;
       return acc;
@@ -211,10 +283,11 @@ function CategoryDonutChart({
           percentage: total > 0 ? Math.round((numPages / total) * 100) : 0,
         };
       })
-      .sort((a, b) => b.value - a.value);
-  }, [data, categories]);
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [usersData, categories]);
 
-  if (chartData.length === 0) {
+  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -222,82 +295,142 @@ function CategoryDonutChart({
     );
   }
 
-  return (
-    <div className="flex gap-8 items-center justify-center">
-      <div className="shrink-0">
-        <ResponsiveContainer width={160} height={160}>
-          <PieChart>
-            <Pie
-              data={chartData.slice(0, 5)}
-              cx="50%"
-              cy="50%"
-              innerRadius={36}
-              outerRadius={64}
-              paddingAngle={2}
-              dataKey="value"
-              animationDuration={150}
+  if (singleUserCategoryData) {
+    return (
+      <div className="flex gap-8 items-center justify-center">
+        <div className="shrink-0">
+          <ResponsiveContainer width={160} height={160}>
+            <PieChart>
+              <Pie
+                data={singleUserCategoryData}
+                cx="50%"
+                cy="50%"
+                innerRadius={36}
+                outerRadius={64}
+                paddingAngle={2}
+                dataKey="value"
+                animationDuration={150}
+              >
+                {singleUserCategoryData.map((_, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    stroke="transparent"
+                  />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex flex-col gap-2 min-w-0 justify-center">
+          {singleUserCategoryData.map((item, index) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between gap-4"
             >
-              {chartData.slice(0, 5).map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  stroke="transparent"
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                  }}
                 />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex flex-col gap-2 min-w-0 justify-center">
-        {chartData.slice(0, 5).map((item, index) => (
-          <div
-            key={item.name}
-            className="flex items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                }}
-              />
-              <span className="text-zinc-400 text-xs truncate">
-                {item.name}
+                <span className="text-zinc-400 text-xs truncate">
+                  {item.name}
+                </span>
+              </div>
+              <span className="text-zinc-300 text-xs font-medium shrink-0">
+                {item.percentage}%
               </span>
             </div>
-            <span className="text-zinc-300 text-xs font-medium shrink-0">
-              {item.percentage}%
-            </span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
+        <CartesianGrid
+          strokeDasharray="1 1"
+          stroke="#27272a"
+          vertical={false}
+        />
+        <XAxis
+          dataKey="name"
+          stroke="#52525b"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          stroke="#52525b"
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+          tickCount={5}
+          domain={[0, "dataMax"]}
+          padding={{ top: 10, bottom: 0 }}
+        />
+        <Tooltip
+          content={<ChartTooltip />}
+          cursor={false}
+          position={{ y: 100 }}
+          wrapperStyle={{ pointerEvents: "none" }}
+          animationDuration={150}
+        />
+        {usersData.map((userData, index) => (
+          <Bar
+            key={userData.user.userId}
+            dataKey={userData.user.username}
+            fill={CHART_COLORS[index % CHART_COLORS.length]}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={32}
+            background={{ fill: "transparent" }}
+            opacity={userData.user.isCurrentUser ? 1 : 0.5}
+          />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
-function WeeklyPagesChart({ data }: { data: ReadingData[] }) {
+function WeeklyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
-    const grouped = data.reduce<
-      Record<string, { week: string; pages: number }>
-    >((acc, item) => {
-      const date = parseLocalDate(item.reading_date);
-      const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
-      const weekRange = getWeekRange(date);
+    const allWeeks = new Set<string>();
+    const weekKeys = new Map<string, string>();
+    
+    usersData.forEach((userData) => {
+      userData.readings.forEach((item) => {
+        const date = parseLocalDate(item.reading_date);
+        const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
+        const weekRange = getWeekRange(date);
+        allWeeks.add(weekKey);
+        weekKeys.set(weekKey, weekRange);
+      });
+    });
 
-      if (!acc[weekKey]) {
-        acc[weekKey] = { week: weekRange, pages: 0 };
-      }
-      acc[weekKey].pages += item.pages;
-      return acc;
-    }, {});
+    const sortedWeeks = Array.from(allWeeks).sort().slice(-10);
 
-    return Object.entries(grouped)
-      .map(([key, value]) => ({ key, ...value }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(-10);
-  }, [data]);
+    return sortedWeeks.map((weekKey) => {
+      const dataPoint: Record<string, string | number> = { week: weekKeys.get(weekKey) || weekKey, key: weekKey };
+      usersData.forEach((userData) => {
+        const userPages = userData.readings
+          .filter((r) => {
+            const date = parseLocalDate(r.reading_date);
+            const wK = `${date.getFullYear()}-W${getWeekNumber(date)}`;
+            return wK === weekKey;
+          })
+          .reduce((sum, r) => sum + r.pages, 0);
+        dataPoint[userData.user.username] = userPages;
+      });
+      return dataPoint;
+    });
+  }, [usersData]);
 
-  if (chartData.length === 0) {
+  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -337,31 +470,45 @@ function WeeklyPagesChart({ data }: { data: ReadingData[] }) {
           wrapperStyle={{ pointerEvents: "none" }}
           animationDuration={150}
         />
-        <Bar
-          dataKey="pages"
-          fill="#16a34a"
-          radius={[2, 2, 0, 0]}
-          maxBarSize={32}
-          background={{ fill: "transparent" }}
-        />
+        {usersData.map((userData, index) => (
+          <Bar
+            key={userData.user.userId}
+            dataKey={userData.user.username}
+            fill={CHART_COLORS[index % CHART_COLORS.length]}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={32}
+            background={{ fill: "transparent" }}
+            opacity={userData.user.isCurrentUser ? 1 : 0.5}
+          />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );
 }
 
-function WeekdayChart({ data }: { data: ReadingData[] }) {
+function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
-    const grouped = data.reduce<Record<string, number>>((acc, item) => {
-      const dayOfWeek = parseLocalDate(item.reading_date).getDay();
-      acc[dayOfWeek] = (acc[dayOfWeek] || 0) + item.pages;
-      return acc;
-    }, {});
+    return WEEKDAY_ORDER.map((dayIndex) => {
+      const dataPoint: Record<string, string | number> = { day: WEEKDAY_NAMES[dayIndex] };
+      usersData.forEach((userData) => {
+        const userPages = userData.readings
+          .filter((r) => parseLocalDate(r.reading_date).getDay() === dayIndex)
+          .reduce((sum, r) => sum + r.pages, 0);
+        dataPoint[userData.user.username] = userPages;
+      });
+      return dataPoint;
+    });
+  }, [usersData]);
 
-    return WEEKDAY_ORDER.map((dayIndex) => ({
-      day: WEEKDAY_NAMES[dayIndex],
-      pages: grouped[dayIndex] || 0,
-    }));
-  }, [data]);
+  const hasData = usersData.some((u) => u.readings.length > 0);
+
+  if (!hasData) {
+    return (
+      <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+        Nenhum dado disponível
+      </div>
+    );
+  }
 
   return (
     <ResponsiveContainer width="100%" height={200}>
@@ -394,13 +541,17 @@ function WeekdayChart({ data }: { data: ReadingData[] }) {
           position={{ y: 100 }}
           wrapperStyle={{ pointerEvents: "none" }}
         />
-        <Bar
-          dataKey="pages"
-          fill="#16a34a"
-          radius={[2, 2, 0, 0]}
-          maxBarSize={40}
-          background={{ fill: "transparent" }}
-        />
+        {usersData.map((userData, index) => (
+          <Bar
+            key={userData.user.userId}
+            dataKey={userData.user.username}
+            fill={CHART_COLORS[index % CHART_COLORS.length]}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={40}
+            background={{ fill: "transparent" }}
+            opacity={userData.user.isCurrentUser ? 1 : 0.5}
+          />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -408,8 +559,9 @@ function WeekdayChart({ data }: { data: ReadingData[] }) {
 
 export default function ReadingCharts() {
   const [activeChart, setActiveChart] = useState<ChartType>("daily");
+  const { selectedUsers, currentUserId } = useSelectedUsers();
 
-  const { data: readings, isLoading } = useQuery<ReadingData[]>({
+  const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<ReadingData[]>({
     queryKey: ["readings"],
     queryFn: getReadings,
   });
@@ -422,8 +574,69 @@ export default function ReadingCharts() {
     },
   });
 
+  const selectedUserIds = selectedUsers.map((u) => u.user_id).join(',');
+  const selectedUsersInfo = selectedUsers.map((u) => ({ userId: u.user_id, username: u.username }));
+
+  const { data: selectedUsersReadings, isLoading: isLoadingSelectedUsers, refetch: refetchSelected, error: selectedUsersError } = useQuery<UserReadingData[]>({
+    queryKey: ["selectedUsersReadings", selectedUserIds],
+    queryFn: async () => {
+      if (selectedUsersInfo.length === 0) return [];
+      const results = await Promise.all(
+        selectedUsersInfo.map(async (user) => {
+          const readings = await getUserReadings(user.userId);
+          return {
+            user: {
+              userId: user.userId,
+              username: user.username,
+              isCurrentUser: false,
+            },
+            readings,
+          };
+        })
+      );
+      return results;
+    },
+    enabled: selectedUsers.length > 0,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (selectedUsers.length > 0) {
+      refetchSelected();
+    }
+  }, [selectedUsers, refetchSelected]);
+
+  useEffect(() => {
+    if (selectedUsersError) {
+      console.error("Error fetching selected users readings:", selectedUsersError);
+    }
+  }, [selectedUsersError]);
+
+  const usersData = useMemo(() => {
+    const users: UserReadingData[] = [];
+    
+    if (currentUserId) {
+      users.push({
+        user: {
+          userId: currentUserId,
+          username: "Você",
+          isCurrentUser: true,
+        },
+        readings: currentUserData || [],
+      });
+    }
+
+    if (selectedUsersReadings) {
+      users.push(...selectedUsersReadings);
+    }
+
+    return users;
+  }, [currentUserId, currentUserData, selectedUsersReadings]);
+
+  const isLoading = isLoadingCurrentUser || isLoadingSelectedUsers;
+
   const renderChart = () => {
-    if (isLoading || !readings) {
+    if (isLoading) {
       return (
         <div className="h-48 flex items-center justify-center">
           <div className="w-5 h-5 border border-zinc-700 border-t-green-600 rounded-full animate-spin" />
@@ -433,14 +646,14 @@ export default function ReadingCharts() {
 
     switch (activeChart) {
       case "daily":
-        return <DailyPagesChart data={readings} />;
+        return <DailyPagesChart usersData={usersData} />;
       case "weekday":
-        return <WeekdayChart data={readings} />;
+        return <WeekdayChart usersData={usersData} />;
       case "weekly":
-        return <WeeklyPagesChart data={readings} />;
+        return <WeeklyPagesChart usersData={usersData} />;
       case "category":
         return (
-          <CategoryDonutChart data={readings} categories={categories || []} />
+          <CategoryDonutChart usersData={usersData} categories={categories || []} />
         );
       default:
         return null;
@@ -449,12 +662,12 @@ export default function ReadingCharts() {
 
   return (
     <div className="">
-      <div className="flex border-b border-zinc-800">
+      <div className="flex border-b-2 border-zinc-800">
         {CHART_OPTIONS.map((option) => (
           <button
             key={option.key}
             onClick={() => setActiveChart(option.key)}
-            className={`flex-1 py-[14px] text-xs font-medium transition ${
+            className={`flex-1 py-3.5 cursor-pointer rounded-t-sm text-sm font-medium transition ${
               activeChart === option.key
                 ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
@@ -465,6 +678,21 @@ export default function ReadingCharts() {
         ))}
       </div>
       <div className="p-2 pt-4 min-h-56">{renderChart()}</div>
+      {usersData.length > 1 && (
+        <div className="px-2 pb-2 flex gap-3 justify-center">
+          {usersData.map((userData, index) => (
+            <div key={userData.user.userId} className="flex items-center gap-1.5 text-xs">
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+              />
+              <span className={userData.user.isCurrentUser ? "text-zinc-200 font-medium" : "text-zinc-500"}>
+                {userData.user.username}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

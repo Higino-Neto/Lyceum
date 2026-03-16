@@ -10,10 +10,12 @@ import Library from "./pages/Library/Library";
 import ProfilePage from "./pages/ProfilePage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TitleBar from "./components/TitleBar";
 import { useEffect, useState } from "react";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     async function checkUser() {
@@ -23,11 +25,15 @@ function App() {
 
     checkUser();
   }, []);
+
+  const isElectron = typeof window !== "undefined" && window.api?.windowMinimize;
+
   return (
-    <>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="w-full overflow-y-auto">
+    <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
+      {isElectron && <TitleBar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar collapsed={sidebarCollapsed} />
+        <main className="w-full overflow-y-auto rounded-sm">
           <Routes>
             <Route
               path="/"
@@ -84,7 +90,7 @@ function App() {
           </Routes>
         </main>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -56,7 +56,7 @@ export default function FilterBar({
           <select
             value={selectedCategory || ""}
             onChange={(e) => onCategoryChange(e.target.value || null)}
-            className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-md px-2 py-1.5"
+            className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-sm px-2 py-1.5"
           >
             <option value="">Todas</option>
             {categories.map((cat) => (
@@ -96,7 +96,7 @@ function SearchInput({
         placeholder="Buscar..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
+        className="w-full bg-zinc-900 border border-zinc-800 rounded-sm pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
       />
     </div>
   );
@@ -115,7 +115,7 @@ function FilterButtons({
         <button
           key={f}
           onClick={() => onChange(f)}
-          className={`px-3 py-1.5 rounded-md cursor-pointer text-xs flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 ${
             value === f
               ? "bg-green-600 text-black"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
@@ -142,7 +142,7 @@ function SortSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
-        className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-md px-2 py-1.5"
+        className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-sm px-2 py-1.5"
       >
         {(Object.keys(sortLabels) as SortOption[]).map((key) => (
           <option key={key} value={key}>
