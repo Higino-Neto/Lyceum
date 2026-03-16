@@ -277,7 +277,7 @@ export default function ReadingSessionTimer({
           timerState === "running"
             ? "border-green-600/60 bg-green-950/30 hover:bg-green-950/50"
             : timerState === "paused"
-              ? "border-amber-600/60 bg-amber-950/20 hover:bg-amber-950/30"
+              ? "border-zinc-600/60 bg-zinc-950/20 hover:bg-zinc-950/30"
               : "border-zinc-700/60 bg-zinc-900 hover:bg-zinc-800"
         }`}
       >
@@ -448,7 +448,7 @@ export default function ReadingSessionTimer({
               {timerState === "running" && (
                 <button
                   onClick={handlePause}
-                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/30 text-amber-400 text-sm font-medium transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-zin-600/20 hover:bg-zinc-600/30 border border-zinc-600/30 text-zinc-400 text-sm font-medium transition-all active:scale-95"
                 >
                   <Pause size={14} fill="currentColor" />
                   Pausar

@@ -166,7 +166,7 @@ export function BookSearchInput({
         !selectedBook && (
           <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl p-3">
             {error ? (
-              <div className="flex items-center gap-2 text-yellow-400 text-sm">
+              <div className="flex items-center gap-2 text-zinc-400 text-sm">
                 <AlertCircle size={14} />
                 <span>API temporariamente indisponível. Você pode digitar o nome manualmente.</span>
               </div>
