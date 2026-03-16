@@ -667,7 +667,7 @@ export default function ReadingCharts() {
           <button
             key={option.key}
             onClick={() => setActiveChart(option.key)}
-            className={`flex-1 py-[14px] cursor-pointer rounded-t-sm text-sm font-medium transition ${
+            className={`flex-1 py-3.5 cursor-pointer rounded-t-sm text-sm font-medium transition ${
               activeChart === option.key
                 ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
