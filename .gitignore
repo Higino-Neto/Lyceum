@@ -13,6 +13,7 @@ dist-ssr
 *.local
 release
 dist-electron
+supabase
 
 
 # Editor directories and files
