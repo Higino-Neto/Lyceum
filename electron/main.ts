@@ -217,7 +217,7 @@ async function generateThumbnail(
 }
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC!, "electron-vite.svg"),
+    icon: path.join(process.env.VITE_PUBLIC!, "logo.ico"),
     title: "Lyceum",
     width: 1200,
     height: 800,
