@@ -1,7 +1,8 @@
 import { useState } from "react";
 import useRanking from "../../../hooks/useRanking";
 import { RankingTableSkeleton } from "../../../components/skeletons";
-import { User, Crown, Trophy } from "lucide-react";
+import { User, Crown, Trophy, Check, Plus, Minus } from "lucide-react";
+import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
@@ -11,7 +12,17 @@ interface PeriodOption {
   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
 }
 
-const ICON_SIZE = 20;
+// interface RankingUser {
+//   user_id: string;
+//   username: string;
+//   avatar_url: string;
+//   total_pages: number;
+//   today_pages: number;
+//   this_week_pages: number;
+//   month_pages: number;
+// }
+
+const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
 const PERIODS: PeriodOption[] = [
@@ -24,6 +35,7 @@ const PERIODS: PeriodOption[] = [
 export default function RankingTable() {
   const { data: ranking, isLoading } = useRanking();
   const [period, setPeriod] = useState<Period>("all_time");
+  const { selectedUsers, currentUserId, toggleUser, isUserSelected } = useSelectedUsers();
 
   const currentPeriod = PERIODS.find((p) => p.key === period);
 
@@ -33,6 +45,14 @@ export default function RankingTable() {
         return (b[field] as number) - (a[field] as number);
       })
     : [];
+
+  const canSelectMore = selectedUsers.length < 2;
+
+  const getSelectionState = (userId: string) => {
+    if (userId === currentUserId) return "current";
+    if (isUserSelected(userId)) return "selected";
+    return "none";
+  };
 
   if (isLoading) {
     return <RankingTableSkeleton />;
@@ -85,9 +105,46 @@ export default function RankingTable() {
                   )}
                 </div>
               </td>
-              <td className="px-4 py-4 text-zinc-200">{user.username}</td>
+              <td className="px-4 py-4 text-zinc-200">
+                <div className="flex items-center gap-2">
+                  {user.username}
+                  {/* {user.user_id === currentUserId && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-green-600/20 text-green-500 rounded">
+                      Você
+                    </span>
+                  )} */}
+                </div>
+              </td>
               <td className="px-4 py-4 text-right font-semibold text-zinc-300">
                 {user[currentPeriod!.field] as number}p 
+              </td>
+              <td className="px-2 py-4 w-10">
+                {currentUserId && user.user_id !== currentUserId && (
+                  <button
+                    onClick={() => toggleUser(user)}
+                    className={`p-1.5 rounded transition cursor-pointer ${
+                      getSelectionState(user.user_id) === "selected"
+                        ? "hover:bg-zinc-800 text-zinc-500"
+                        : canSelectMore
+                        ? " hover:text-zinc-300 hover:bg-zinc-800"
+                        : " cursor-not-allowed"
+                    }`}
+                    disabled={!canSelectMore && !isUserSelected(user.user_id)}
+                    title={
+                      getSelectionState(user.user_id) === "selected"
+                        ? "Remover dos gráficos"
+                        : canSelectMore
+                        ? "Adicionar aos gráficos"
+                        : "Limite atingido (máx. 2)"
+                    }
+                  >
+                    {getSelectionState(user.user_id) === "selected" ? (
+                      <Minus size={16} />
+                    ) : (
+                      <Plus size={16} />
+                    )}
+                  </button>
+                )}
               </td>
             </tr>
           ))}
