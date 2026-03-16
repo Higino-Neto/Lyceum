@@ -136,10 +136,10 @@ export function BookSearchInput({
                   <img
                     src={book.thumbnail_url}
                     alt=""
-                    className="w-8 h-12 object-cover rounded flex-shrink-0"
+                    className="w-8 h-12 object-cover rounded shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-12 bg-zinc-700 rounded flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-12 bg-zinc-700 rounded flex items-center justify-center shrink-0">
                     <BookOpen size={14} className="text-zinc-500" />
                   </div>
                 )}
