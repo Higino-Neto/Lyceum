@@ -17,10 +17,21 @@ export default function SidebarItem({
     <button
       title={label}
       onClick={onClick}
-      className={`flex items-center gap-2 cursor-pointer w-full text-left px-4 py-2 rounded-lg bg-zinc-850 text-zinc-200 text-sm ${active && `bg-zinc-800 font-semibold text-zinc-200`}`}
+      className={`
+        group flex items-center px-4 w-full h-12 cursor-pointer
+        ${active ? "bg-zinc-800" : ""}
+        ${collapsed ? "" : "justify-start"}
+      `}
     >
-      <Icon size={active ? 17 : 16} />
-      {!collapsed && label}
+      <Icon 
+        size={18} 
+        className={`group-hover:text-zinc-100 ${active ? "text-zinc-100" : "text-zinc-400"}`} 
+      />
+      {!collapsed && (
+        <span className={`ml-3 ${active ? "text-zinc-100" : "text-zinc-400"}`}>
+          {label}
+        </span>
+      )}
     </button>
   );
 }

@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     async function checkUser() {
@@ -28,11 +29,11 @@ function App() {
   const isElectron = typeof window !== "undefined" && window.api?.windowMinimize;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      {isElectron && <TitleBar />}
+    <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
+      {isElectron && <TitleBar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="w-full overflow-y-auto">
+        <Sidebar collapsed={sidebarCollapsed} />
+        <main className="w-full overflow-y-auto rounded-sm">
           <Routes>
             <Route
               path="/"

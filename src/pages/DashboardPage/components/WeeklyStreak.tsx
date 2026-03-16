@@ -210,8 +210,8 @@ export function WeeklyStreak() {
       {/* Stats row */}
       <div className="flex justify-between items-center pt-3">
         <div className="flex items-center gap-1">
-          <Flame className="text-green-500" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
-          <span className="text-sm font-bold text-zinc-100">
+          <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          <span className="text-sm font-bold text-zinc-400">
             {currentStreak} dias
           </span>
         </div>

@@ -1,43 +1,76 @@
 import {
-  BookMarkedIcon,
   BookOpenText,
   BookPlus,
   Home,
   LibraryBig,
   LogIn,
-  PanelRight,
   User,
 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
-// TODO Add option to hide this SideBar
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+interface SidebarProps {
+  collapsed: boolean;
+}
+
+export default function Sidebar({ collapsed }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
   return (
     <aside
-      className={`bg-zinc-900 border-r text-zinc-100 border-zinc-800 flex flex-col ${collapsed ? "w-14" : "w-60"}`}
+      className={`bg-zinc-900 flex flex-col ${collapsed ? "w-13" : "w-42"}`}
     >
-      <header className={`flex px-4 py-4 text-zinc-300 ${!collapsed && "justify-end"}`}>
-        <button className="cursor-pointer" onClick={() => setCollapsed(!collapsed)}>
-          <PanelRight size={18} className="text-right" />
-        </button>
-      </header>
-      <nav className="space-y-2 mt-2">
-
-        <SidebarItem Icon={Home} label="Dashboard" active={pathname === "/"} onClick={() => navigate("/")} collapsed={collapsed} />
-        <SidebarItem Icon={BookPlus} label="Registrar Leituras" active={pathname === "/add_reading"} onClick={() => navigate("/add_reading")} collapsed={collapsed} />
-        <SidebarItem Icon={LibraryBig} label="Biblioteca" active={pathname === "/library"} onClick={() => navigate("/library")} collapsed={collapsed} />
-        <SidebarItem Icon={BookOpenText} label="Ler" active={pathname === "/reading"} onClick={() => navigate("reading")} collapsed={collapsed} />
-        <SidebarItem Icon={User} label="Perfil" active={pathname === "/profile"} onClick={() => navigate("/profile")} collapsed={collapsed} />
-        <SidebarItem Icon={LogIn} label="Login" active={pathname === "/signin"} onClick={() => navigate("/signin")} collapsed={collapsed} />
+      <nav className="flex flex-col gap-2 mt-4">
+        <SidebarItem
+          Icon={Home}
+          label="Dashboard"
+          active={pathname === "/"}
+          onClick={() => navigate("/")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={BookPlus}
+          label="Registrar"
+          active={pathname === "/add_reading"}
+          onClick={() => navigate("/add_reading")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={LibraryBig}
+          label="Biblioteca"
+          active={pathname === "/library"}
+          onClick={() => navigate("/library")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={BookOpenText}
+          label="Ler"
+          active={pathname === "/reading"}
+          onClick={() => navigate("/reading")}
+          collapsed={collapsed}
+        />
       </nav>
 
-      <div className="mt-auto mb-2 text-xs text-center text-zinc-500">v{import.meta.env.VITE_APP_VERSION}</div>
+      <div className="flex flex-col gap-2 mt-auto mb-3 text-xs text-zinc-500 text-center">
+        <SidebarItem
+          Icon={User}
+          label="Perfil"
+          active={pathname === "/profile"}
+          onClick={() => navigate("/profile")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={LogIn}
+          label="Login"
+          active={pathname === "/signin"}
+          onClick={() => navigate("/signin")}
+          collapsed={collapsed}
+        />
+        <div className="mt-2">
+          <span>v{import.meta.env.VITE_APP_VERSION}</span>
+        </div>
+      </div>
     </aside>
   );
 }

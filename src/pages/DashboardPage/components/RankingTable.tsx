@@ -15,9 +15,9 @@ const ICON_SIZE = 20;
 const STROKE_WIDTH = 1.5;
 
 const PERIODS: PeriodOption[] = [
-  { key: "today", icon: <span className="text-xs font-medium">Hoje</span>, field: "today_pages" },
-  { key: "this_week", icon: <span className="text-xs font-medium">Semanal</span>, field: "this_week_pages" },
-  { key: "this_month", icon: <span className="text-xs font-medium">Mensal</span>, field: "month_pages" },
+  { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" },
+  { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" },
+  { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" },
   { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
 ];
 
@@ -45,7 +45,7 @@ export default function RankingTable() {
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-3 flex items-center justify-center gap-1 text-sm font-medium transition ${
+            className={`cursor-pointer flex-1 py-3 flex items-center justify-center gap-1  font-medium transition ${
               period === p.key
                 ? "bg-zinc-800 text-white"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"

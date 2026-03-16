@@ -39,7 +39,7 @@ export default function Dashboard() {
                 </div>
               </>
             )}
-            <div className="bg-zinc-900 rounded-md border border-zinc-800">
+           <div className="bg-zinc-900 rounded-md border border-zinc-800">
               <ReadingHeatMap />
             </div>
             <div className="bg-zinc-900 rounded-md">
@@ -50,9 +50,9 @@ export default function Dashboard() {
           <section>
             <div className="bg-zinc-900 rounded-md border border-zinc-800 p-4">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <BookOpen size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
-                  <h2 className="text-zinc-100 font-medium">Registros de Leitura</h2>
+                  {/* <h2 className="text-zinc-500">Registros de Leitura</h2> */}
                 </div>
                 <button
                   onClick={() => navigate("/add_reading")}
