@@ -488,11 +488,26 @@ function WeeklyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
 
 function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
     return WEEKDAY_ORDER.map((dayIndex) => {
       const dataPoint: Record<string, string | number> = { day: WEEKDAY_NAMES[dayIndex] };
       usersData.forEach((userData) => {
         const userPages = userData.readings
-          .filter((r) => parseLocalDate(r.reading_date).getDay() === dayIndex)
+          .filter((r) => {
+            const readingDate = parseLocalDate(r.reading_date);
+            return readingDate >= monday && readingDate <= sunday && readingDate.getDay() === dayIndex;
+          })
           .reduce((sum, r) => sum + r.pages, 0);
         dataPoint[userData.user.username] = userPages;
       });
@@ -564,6 +579,7 @@ export default function ReadingCharts() {
   const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<ReadingData[]>({
     queryKey: ["readings"],
     queryFn: getReadings,
+    staleTime: 0,
   });
 
   const { data: categories } = useQuery<CategoryData[]>({
@@ -677,7 +693,7 @@ export default function ReadingCharts() {
           </button>
         ))}
       </div>
-      <div className="p-2 pt-4 min-h-56">{renderChart()}</div>
+      <div className="p-2 pt-4 min-h-56" key={activeChart}>{renderChart()}</div>
       {usersData.length > 1 && (
         <div className="px-2 pb-2 flex gap-3 justify-center">
           {usersData.map((userData, index) => (

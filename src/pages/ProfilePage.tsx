@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { User, Lock, Save, ArrowLeft, Camera } from "lucide-react";
 import Skeleton from "../components/Skeleton";
+import toast from "react-hot-toast";
 
 interface UserMetadata {
   full_name?: string;
@@ -90,8 +91,6 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -105,14 +104,13 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!user?.id) {
-      setError("Usuário não autenticado");
+      toast.error("Usuário não autenticado");
       return;
     }
 
     setUploading(true);
     try {
       const fileExt = file.name.split(".").pop();
-      // const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
@@ -136,9 +134,9 @@ export default function ProfilePage() {
       );
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      setMessage("Foto atualizada com sucesso!");
+      toast.success("Foto atualizada com sucesso!");
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setUploading(false);
     }
@@ -153,26 +151,22 @@ export default function ProfilePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      setMessage("Nome atualizado com sucesso!");
-      setError("");
+      toast.success("Nome atualizado com sucesso!");
     },
     onError: (err: Error) => {
-      setError(err.message);
-      setMessage("");
+      toast.error(err.message);
     },
   });
 
   const passwordMutation = useMutation({
     mutationFn: () => updatePassword(newPassword),
     onSuccess: () => {
-      setMessage("Senha atualizada com sucesso!");
-      setError("");
+      toast.success("Senha atualizada com sucesso!");
       setNewPassword("");
       setConfirmPassword("");
     },
     onError: (err: Error) => {
-      setError(err.message);
-      setMessage("");
+      toast.error(err.message);
     },
   });
 
@@ -184,11 +178,11 @@ export default function ProfilePage() {
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setError("As senhas não coincidem");
+      toast.error("As senhas não coincidem");
       return;
     }
     if (newPassword.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
+      toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
     }
     passwordMutation.mutate();
@@ -233,18 +227,6 @@ export default function ProfilePage() {
             </button>
             <h1 className="text-2xl font-semibold">Perfil</h1>
           </header>
-
-          {message && (
-            <div className="bg-green-900/30 border border-green-600 text-green-400 px-4 py-3 rounded-sm">
-              {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-900/30 border border-red-600 text-red-400 px-4 py-3 rounded-sm">
-              {error}
-            </div>
-          )}
 
           <section className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-6">

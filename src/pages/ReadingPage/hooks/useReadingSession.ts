@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   EMPTY_SESSION,
   ReadingSession,
@@ -8,6 +9,7 @@ import {
 import saveReadingEntries from "../../../utils/saveReadingEntries";
 
 export default function useReadingSession() {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<ReadingSession>(EMPTY_SESSION);
   const [sessionStart, setSessionStart] = useState(false);
   const [sessionFinish, setSessionFinish] = useState(false);
@@ -59,6 +61,9 @@ export default function useReadingSession() {
         date: new Date().toISOString().split("T")[0],
       },
     ]);
+
+    queryClient.invalidateQueries({ queryKey: ["readings"] });
+    queryClient.invalidateQueries({ queryKey: ["readingStats"] });
 
     setSession(EMPTY_SESSION);
     setShowModal(false);
