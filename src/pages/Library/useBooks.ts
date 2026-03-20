@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import useGetBookData from "../ReadingPage/hooks/useGetBookData";
 import { BookWithThumbnail } from "../../types/LibraryTypes";
 import { DocumentRecord } from "../../types/ReadingTypes";
+import toast from "react-hot-toast";
 
 async function addThumbnailToBook(book: DocumentRecord): Promise<BookWithThumbnail> {
   if (book.thumbnailPath) {
@@ -26,10 +27,11 @@ export default function useBooks() {
   ) => {
     const result = await window.api.syncDocument(fileHash, action, category);
     if (result.success) {
+      toast.success("Livro sincronizado com sucesso!");
       await window.api.scanLibrary();
       window.location.reload();
     } else {
-      alert("Erro ao sincronizar: " + result.error);
+      toast.error("Erro ao sincronizar: " + result.error);
     }
   };
 

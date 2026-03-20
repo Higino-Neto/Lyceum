@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 export default function useViewerLoader() {
   const [fileName, setFileName] = useState("");
@@ -27,13 +28,20 @@ export default function useViewerLoader() {
   }, []);
 
   const openFileDialog = async () => {
-    const document = await window.api.openPdf();
-    if (!document) return;
-    const blob = new Blob([document.fileBuffer], { type: "application/pdf" });
-    const blobUrl = URL.createObjectURL(blob);
-    setPdfPath(blobUrl);
-    setFileName(document.title);
-    setFileHash(document.fileHash);
+    try {
+      const document = await window.api.openPdf();
+      if (!document) {
+        toast.error("Falha ao abrir arquivo");
+        return;
+      }
+      const blob = new Blob([document.fileBuffer], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      setPdfPath(blobUrl);
+      setFileName(document.title);
+      setFileHash(document.fileHash);
+    } catch (error) {
+      toast.error("Erro ao carregar o arquivo");
+    }
   };
 
   return {

@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
+import { Toaster } from "react-hot-toast";
 import { useEffect, useState } from "react";
 
 function App() {
@@ -30,6 +31,38 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#27272a",
+            color: "#e4e4e7",
+            border: "1px solid",
+            borderRadius: "4px",
+            padding: "12px 16px",
+            fontSize: "14px",
+          },
+          success: {
+            iconTheme: {
+              primary: "#22c55e",
+              secondary: "#27272a",
+            },
+            style: {
+              borderColor: "#27272a",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#27272a",
+            },
+            style: {
+              borderColor: "#27272a",
+            },
+          },
+        }}
+      />
       {isElectron && <TitleBar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={sidebarCollapsed} />

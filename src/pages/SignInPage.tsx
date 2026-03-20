@@ -2,17 +2,27 @@ import { useNavigate, Link } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import { useState } from "react";
 import { signIn } from "../utils/auth";
+import toast from "react-hot-toast";
 
 export default function SignIn() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    await signIn(email, password);
-    navigate("/");
+    setLoading(true);
+    try {
+      await signIn(email, password);
+      toast.success("Login realizado com sucesso!");
+      navigate("/");
+    } catch (error: any) {
+      toast.error(error.message || "Falha ao fazer login");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -44,9 +54,10 @@ export default function SignIn() {
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-500 transition py-2.5 rounded-sm font-medium text-black cursor-pointer"
+            disabled={loading}
+            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 transition py-2.5 rounded-sm font-medium text-black cursor-pointer"
           >
-            Entrar
+            {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 

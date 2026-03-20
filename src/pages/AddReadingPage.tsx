@@ -1,21 +1,18 @@
-import {
-  Plus,
-  Trash2,
-  Copy,
-  BookPlus,
-  NotebookPen,
-} from "lucide-react";
+import { Plus, Trash2, Copy, BookPlus, NotebookPen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, useCallback } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import ReadingTable from "./DashboardPage/components/ReadingTable/ReadingTable";
 
 interface Book {
   id: string;
   title: string;
   author: string | null;
   thumbnail_url: string | null;
+  category_id?: string | null;
 }
 
 interface LocalBook {
@@ -39,7 +36,10 @@ interface ReadingEntry {
 interface BookSearchProps {
   value: string;
   onChange: (value: string) => void;
-  onBookSelect: (book: Book | LocalBook | null) => void;
+  onBookSelect: (
+    book: Book | LocalBook | null,
+    categoryId?: string | null,
+  ) => void;
 }
 
 function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
@@ -54,7 +54,10 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setShowResults(false);
       }
     };
@@ -72,7 +75,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
     const [supabaseResults, localResults] = await Promise.all([
       supabase
         .from("books")
-        .select("id, title, author, thumbnail_url")
+        .select("id, title, author, thumbnail_url, category_id")
         .ilike("title", `%${query}%`)
         .limit(8),
       (window as any).api.searchLocalBooks(query).catch(() => []),
@@ -113,8 +116,8 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
   };
 
   const handleSelect = (book: Book | LocalBook) => {
-    onBookSelect(book);
-    onChange(book.title);
+    const categoryId = (book as Book).category_id ?? null;
+    onBookSelect(book, categoryId);
     setInputValue(book.title);
     setShowResults(false);
   };
@@ -165,10 +168,19 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
                 <div className="w-6 h-8 bg-zinc-700 rounded flex-shrink-0" />
               )} */}
               <div className="min-w-0">
-                <div className="text-sm text-zinc-100 truncate">{book.title}</div>
-                {"author" in book && book.author && <div className="text-xs text-zinc-400 truncate">{book.author}</div>}
-                {isLocalBook(book) ? (<div className="text-xs text-green-500 truncate">Local</div>) : (<div className="text-xs text-green-500 truncate">Externo</div>)}
-              
+                <div className="text-sm text-zinc-100 truncate">
+                  {book.title}
+                </div>
+                {"author" in book && book.author && (
+                  <div className="text-xs text-zinc-400 truncate">
+                    {book.author}
+                  </div>
+                )}
+                {isLocalBook(book) ? (
+                  <div className="text-xs text-green-500 truncate">Local</div>
+                ) : (
+                  <div className="text-xs text-green-500 truncate">Externo</div>
+                )}
               </div>
             </button>
           ))}
@@ -194,18 +206,30 @@ export default function AddReadingPage() {
     },
   ]);
 
-  const handleBookSelect = (entryId: string, book: Book | LocalBook | null) => {
+  const handleBookSelect = (
+    entryId: string,
+    book: Book | LocalBook | null,
+    categoryId?: string | null,
+  ) => {
     const isLocal = book && "fileHash" in book;
+    const currentEntry = entries.find((e) => e.id === entryId);
+    const selectedCategoryId =
+      categoryId !== undefined && categoryId !== null
+        ? categoryId
+        : currentEntry?.category_id;
     setEntries(
       entries.map((entry) =>
         entry.id === entryId
           ? {
               ...entry,
               bookTitle: book?.title || entry.bookTitle,
-              bookId: isLocal ? (book as LocalBook).fileHash : (book as Book)?.id || null,
+              bookId: isLocal
+                ? (book as LocalBook).fileHash
+                : (book as Book)?.id || null,
+              category_id: selectedCategoryId,
             }
-          : entry
-      )
+          : entry,
+      ),
     );
   };
 
@@ -273,61 +297,70 @@ export default function AddReadingPage() {
     e.preventDefault();
 
     console.log("All entries:", entries);
-    
+
     const validEntries = entries.filter(
-      (entry) => entry.bookTitle.trim() !== "" && entry.numPages !== "" && entry.category_id !== "",
+      (entry) =>
+        entry.bookTitle.trim() !== "" &&
+        entry.numPages !== "" &&
+        entry.category_id !== "",
     );
+
+    if (validEntries.length === 0) {
+      toast.error("Preencha pelo menos uma leitura completa");
+      return;
+    }
 
     console.log("Valid entries:", validEntries);
 
-    await saveReadingEntries(validEntries);
-
-    queryClient.invalidateQueries({ queryKey: ["readings"] });
-    queryClient.invalidateQueries({ queryKey: ["ranking"] });
-
-    navigate("/");
-  };
-
-  const calculateTotalPoints = (entry: ReadingEntry) => {
-    const pages = parseInt(entry.numPages) || 0;
-    const filteredCategory = categories?.find(
-      (category: any) => category.id === entry.category_id,
-    );
-    if (!filteredCategory) {
-      return pages;
+    try {
+      await saveReadingEntries(validEntries);
+      queryClient.invalidateQueries({ queryKey: ["readings"] });
+      queryClient.invalidateQueries({ queryKey: ["ranking"] });
+      toast.success(
+        `${validEntries.length} leitura${validEntries.length > 1 ? "s" : ""} registrada${validEntries.length > 1 ? "s" : ""} com sucesso!`,
+      );
+      navigate("/");
+    } catch (error) {
+      toast.error("Erro ao registrar leituras");
     }
-    return pages * filteredCategory.points_per_page;
   };
 
-  const calculateGrandTotal = () => {
-    return entries.reduce(
-      (total, entry) => total + calculateTotalPoints(entry),
-      0,
-    );
-  };
+  // const calculateTotalPoints = (entry: ReadingEntry) => {
+  //   const pages = parseInt(entry.numPages) || 0;
+  //   const filteredCategory = categories?.find(
+  //     (category: any) => category.id === entry.category_id,
+  //   );
+  //   if (!filteredCategory) {
+  //     return pages;
+  //   }
+  //   return pages * filteredCategory.points_per_page;
+  // };
+
+  // const calculateGrandTotal = () => {
+  //   return entries.reduce(
+  //     (total, entry) => total + calculateTotalPoints(entry),
+  //     0,
+  //   );
+  // };
 
   return (
-    <div className="h-screen bg-zinc-950 text-zinc-100 px-4">
+    <div className=" bg-zinc-950 text-zinc-100 px-4">
       <main className="min-h-screen flex-1 overflow-y-auto">
         <div className="py-6 space-y-4">
-          <header className="flex items-center justify-between">
+          {/* <header className="flex items-center justify-between">
 
             <div className="flex gap-2 items-center pl-4">
               <BookPlus size={32} className="text-zinc-300" />
             </div>
+          </header> */}
 
-            {/* <div className="text-green-500 font-medium">
-              Total: {calculateGrandTotal()} pts
-            </div> */}
-          </header>
-
-          <section>
+          <section className="bg-zinc-950 p-4 rounded-sm">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-12 gap-3 my-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 <div className="col-span-4">Obra</div>
                 <div className="col-span-1">Págs</div>
-                <div className="col-span-2">Categoria</div>
                 <div className="col-span-1">Tempo</div>
+                <div className="col-span-2">Categoria</div>
                 <div className="col-span-2">Data</div>
               </div>
 
@@ -340,8 +373,12 @@ export default function AddReadingPage() {
                     <div className="col-span-4">
                       <BookSearch
                         value={entry.bookTitle}
-                        onChange={(value) => updateEntry(entry.id, "bookTitle", value)}
-                        onBookSelect={(book) => handleBookSelect(entry.id, book)}
+                        onChange={(value) =>
+                          updateEntry(entry.id, "bookTitle", value)
+                        }
+                        onBookSelect={(book, categoryId) =>
+                          handleBookSelect(entry.id, book, categoryId)
+                        }
                       />
                     </div>
 
@@ -358,23 +395,6 @@ export default function AddReadingPage() {
                       />
                     </div>
 
-                    <div className="col-span-2">
-                      <select
-                        value={entry.category_id}
-                        onChange={(e) =>
-                          updateEntry(entry.id, "category_id", e.target.value)
-                        }
-                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
-                      >
-                        <option value="">Selecione</option>
-                        {categories?.map((cat: any) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name} ({cat.points_per_page}x)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
                     <div className="col-span-1">
                       <input
                         type="number"
@@ -388,6 +408,32 @@ export default function AddReadingPage() {
                       />
                     </div>
 
+                    <div className="col-span-2 relative">
+                      <select
+                        value={entry.category_id || ""}
+                        onChange={(e) =>
+                          updateEntry(entry.id, "category_id", e.target.value)
+                        }
+                        className={`border-zinc-700 text-zinc-100 w-full bg-zinc-800/50 border rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer`}
+                      >
+                        <option value="">Selecione</option>
+                        {categories?.map((cat: any) => (
+                          <option
+                            key={cat.id}
+                            value={cat.id}
+                            className="text-zinc-100"
+                          >
+                            {cat.name} ({cat.points_per_page}x)
+                          </option>
+                        ))}
+                      </select>
+                      {/* {entry.category_id && (
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <span className="text-green-500 text-xs">✓</span>
+                        </div>
+                      )} */}
+                    </div>
+
                     <div className="col-span-2">
                       <input
                         type="date"
@@ -399,18 +445,18 @@ export default function AddReadingPage() {
                       />
                     </div>
 
-                    <div className="col-span-2 flex items-between px-3 gap-2">
-                      <span className="text-sm text-green-500 font-mono w-full">
+                    <div className="col-span-2 flex items-center justify-end px-3 gap-2">
+                      {/* <span className="text-sm text-green-500 font-mono w-full">
                         {calculateTotalPoints(entry)}
-                      </span>
-                      <div className="flex gap-2 ">
+                      </span> */}
+                      <div className="flex gap-4">
                         <button
                           type="button"
                           onClick={() => duplicateEntry(entry.id)}
                           className="text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
                           title="Duplicar linha"
                         >
-                          <Copy size={14} />
+                          <Copy size={18} />
                         </button>
 
                         <button
@@ -424,7 +470,7 @@ export default function AddReadingPage() {
                           }
                           title="Remover linha"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
@@ -443,13 +489,13 @@ export default function AddReadingPage() {
                 </button>
 
                 <div className="flex gap-3">
-                  <button
+                  {/* <button
                     type="button"
                     onClick={() => navigate("/dashboard")}
                     className="cursor-pointer px-6 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-sm text-zinc-300 hover:text-zinc-100 transition text-sm"
                   >
                     Cancelar
-                  </button>
+                  </button> */}
 
                   <button
                     type="submit"
@@ -462,6 +508,10 @@ export default function AddReadingPage() {
                 </div>
               </div>
             </form>
+          </section>
+
+          <section className=" bg-zinc-900">
+            <ReadingTable />
           </section>
         </div>
       </main>

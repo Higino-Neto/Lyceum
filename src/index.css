@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+input[type="date"] {
+  color-scheme: dark;
+}
+
 /* Scrollbar personalizada para toda a aplicação */
 @layer base {
   html, body, #root {

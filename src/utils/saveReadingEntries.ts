@@ -19,39 +19,65 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
 
   const { data: existingBooks, error: existingError } = await supabase
     .from("books")
-    .select("id, title")
+    .select("id, title, category_id")
     .in("title", uniqueBooks);
 
   if (existingError) throw existingError;
 
   const existingBookIds = new Map(
-    existingBooks?.map((b) => [b.title, b.id]) ?? []
+    existingBooks?.map((b) => [b.title, { id: b.id, categoryId: b.category_id }]) ?? []
   );
+
+  const bookCategoryMap = new Map<string, string>();
+  entries.forEach((entry) => {
+    if (entry.category_id && !bookCategoryMap.has(entry.bookTitle)) {
+      bookCategoryMap.set(entry.bookTitle, entry.category_id);
+    }
+  });
 
   const booksToCreate = uniqueBooks.filter(
     (title) => !existingBookIds.has(title)
   );
 
   if (booksToCreate.length > 0) {
+    const booksWithCategory = booksToCreate.map((title) => ({
+      title,
+      user_id: user.id,
+      category_id: bookCategoryMap.get(title) || null,
+    }));
+
     const { data: newBooks, error: booksError } = await supabase
       .from("books")
-      .insert(
-        booksToCreate.map((title) => ({
-          title,
-          user_id: user.id,
-        }))
-      )
+      .insert(booksWithCategory)
       .select();
 
     if (booksError) throw booksError;
 
     newBooks?.forEach((book) =>
-      existingBookIds.set(book.title, book.id)
+      existingBookIds.set(book.title, { id: book.id, categoryId: book.category_id })
     );
   }
 
+  const booksToUpdate: { id: string; category_id: string }[] = [];
+  existingBooks?.forEach((book) => {
+    const newCategoryId = bookCategoryMap.get(book.title);
+    if (newCategoryId && book.category_id !== newCategoryId) {
+      booksToUpdate.push({ id: book.id, category_id: newCategoryId });
+    }
+  });
+
+  if (booksToUpdate.length > 0) {
+    for (const book of booksToUpdate) {
+      await supabase
+        .from("books")
+        .update({ category_id: book.category_id })
+        .eq("id", book.id);
+    }
+  }
+
   const payload = entries.map((entry) => {
-    const bookId = entry.bookId || existingBookIds.get(entry.bookTitle);
+    const bookData = existingBookIds.get(entry.bookTitle);
+    const bookId = entry.bookId || bookData?.id;
 
     return {
       source_name: entry.bookTitle,
