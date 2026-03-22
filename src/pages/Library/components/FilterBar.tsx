@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal, Library, BookOpen, CheckCircle } from "lucid
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
-export type SortOption = "title" | "progress" | "pages";
+export type SortOption = "title" | "progress" | "pages" | "rating" | "recent";
 export type FilterOption = "all" | "reading" | "finished";
 
 interface FilterBarProps {
@@ -35,6 +35,8 @@ const sortLabels: Record<SortOption, string> = {
   title: "Nome",
   progress: "Progresso",
   pages: "Nº Páginas",
+  rating: "Avaliação",
+  recent: "Recentes",
 };
 
 export default function FilterBar({

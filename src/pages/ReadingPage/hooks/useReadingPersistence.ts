@@ -38,7 +38,7 @@ export default function useReadingPersistence(
       const saved = await window.api.getReadingState(fileHash);
       if (!saved) return;
 
-      const savedPage = typeof saved.currentPage === 'object' ? saved.currentPage.pageNumber : saved.currentPage;
+      const savedPage = saved.currentPage ?? 1;
 
       const checkReady = () => {
         const scroll = registry.getPlugin<ScrollPlugin>("scroll")?.provides();

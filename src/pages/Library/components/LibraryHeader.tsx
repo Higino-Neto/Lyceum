@@ -1,10 +1,12 @@
-import { BookOpen, LayoutGrid, List } from "lucide-react";
+import { BookOpen, LayoutGrid, List, Heart, FolderOpen } from "lucide-react";
 
 interface LibraryHeaderProps {
   syncedCount: number;
   unsyncedCount: number;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
+  showFavoritesOnly?: boolean;
+  onToggleFavorites?: () => void;
 }
 
 export default function LibraryHeader({
@@ -12,7 +14,14 @@ export default function LibraryHeader({
   unsyncedCount,
   viewMode,
   onViewModeChange,
+  showFavoritesOnly = false,
+  onToggleFavorites,
 }: LibraryHeaderProps) {
+
+  const handleOpenLibraryFolder = async () => {
+    await window.api.openLibraryFolder();
+  };
+
   return (
     <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
@@ -24,7 +33,31 @@ export default function LibraryHeader({
         </span>
       </div>
 
-      <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+      <div className="flex items-center gap-2">
+        {onToggleFavorites && (
+          <button
+            onClick={onToggleFavorites}
+            className={`p-2 rounded-lg transition-colors ${
+              showFavoritesOnly
+                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+            }`}
+            title="Mostrar favoritos"
+          >
+            <Heart size={18} className={showFavoritesOnly ? "fill-red-400" : ""} />
+          </button>
+        )}
+
+        <button
+          onClick={handleOpenLibraryFolder}
+          className="p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg transition-colors"
+          title="Abrir pasta da biblioteca"
+        >
+          <FolderOpen size={18} />
+        </button>
+
+        <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+      </div>
     </header>
   );
 }

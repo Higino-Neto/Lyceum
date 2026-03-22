@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-import useGetBookData from "../ReadingPage/hooks/useGetBookData";
+import { useEffect, useState, useCallback } from "react";
+import useGetBookData, { BookData } from "../ReadingPage/hooks/useGetBookData";
 import { BookWithThumbnail } from "../../types/LibraryTypes";
-import { DocumentRecord } from "../../types/ReadingTypes";
 import toast from "react-hot-toast";
 
-async function addThumbnailToBook(book: DocumentRecord): Promise<BookWithThumbnail> {
+async function addThumbnailToBook(book: BookData): Promise<BookWithThumbnail> {
   if (book.thumbnailPath) {
     const thumbnail = await window.api.getThumbnail(book.thumbnailPath);
     return { ...book, thumbnail: thumbnail || undefined };
@@ -20,6 +19,28 @@ export default function useBooks() {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  const refreshBooks = useCallback(async () => {
+    const allBooks = await window.api.getDocuments();
+    
+    const synced = await Promise.all(
+      allBooks
+        .filter((book) => book.isSynced === 1)
+        .map(addThumbnailToBook),
+    );
+
+    const unsynced = await Promise.all(
+      allBooks
+        .filter((book) => !book.isSynced || book.isSynced !== 1)
+        .map(addThumbnailToBook),
+    );
+
+    setSyncedBooks(synced);
+    setUnsyncedBooks(unsynced);
+
+    const cats = await window.api.getCategories();
+    setCategories(cats);
+  }, []);
+
   const handleSync = async (
     fileHash: string,
     action: "move" | "copy",
@@ -28,38 +49,15 @@ export default function useBooks() {
     const result = await window.api.syncDocument(fileHash, action, category);
     if (result.success) {
       toast.success("Livro sincronizado com sucesso!");
-      await window.api.scanLibrary();
-      window.location.reload();
+      await refreshBooks();
     } else {
       toast.error("Erro ao sincronizar: " + result.error);
     }
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!books) return;
-
-      const synced = await Promise.all(
-        books
-          .filter((book) => book.isSynced === 1)
-          .map(addThumbnailToBook),
-      );
-
-      const unsynced = await Promise.all(
-        books
-          .filter((book) => !book.isSynced || book.isSynced !== 1)
-          .map(addThumbnailToBook),
-      );
-
-      setSyncedBooks(synced);
-      setUnsyncedBooks(unsynced);
-
-      const cats = await window.api.getCategories();
-      setCategories(cats);
-    };
-
-    loadData();
-  }, [books]);
+    refreshBooks();
+  }, [books, refreshBooks]);
 
   return {
     syncedBooks,
@@ -68,5 +66,6 @@ export default function useBooks() {
     selectedCategory,
     setSelectedCategory,
     handleSync,
+    refreshBooks,
   };
 }

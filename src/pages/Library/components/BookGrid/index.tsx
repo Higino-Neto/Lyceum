@@ -12,6 +12,8 @@ interface BookGridProps {
     action: "move" | "copy",
   ) => void;
   showSyncActions?: boolean;
+  onBookClick?: (book: BookWithThumbnail) => void;
+  selectedBookId?: number;
 }
 
 export default function BookGrid({
@@ -20,6 +22,8 @@ export default function BookGrid({
   onOpen,
   onSync,
   showSyncActions,
+  onBookClick,
+  selectedBookId,
 }: BookGridProps) {
   if (books.length === 0) {
     return (
@@ -40,6 +44,8 @@ export default function BookGrid({
             onOpen={() => onOpen(book.filePath)}
             onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
             showSyncActions={showSyncActions ?? false}
+            onClick={() => onBookClick?.(book)}
+            isSelected={selectedBookId === book.id}
           />
         ))}
       </div>
@@ -55,6 +61,8 @@ export default function BookGrid({
           onOpen={() => onOpen(book.filePath)}
           onSync={onSync ? () => onSync(book.fileHash, "move") : undefined}
           showSyncActions={showSyncActions ?? false}
+          onClick={() => onBookClick?.(book)}
+          isSelected={selectedBookId === book.id}
         />
       ))}
     </div>
