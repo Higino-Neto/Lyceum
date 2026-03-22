@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { autoUpdater } from "electron-updater";
+import chokidar, { FSWatcher } from "chokidar";
 import {
   addDocument,
   getAllDocuments,
@@ -18,21 +18,18 @@ import {
   getCategories,
   updateThumbnailPath,
   searchDocuments,
+  toggleFavorite,
+  updateRating,
+  updateNotes,
+  updateMetadata,
+  updateProcessingStatus,
+  getDocumentsPendingProcessing,
+  updateFileSize,
+  updateTitle,
+  deleteDocument,
+  getDocumentById,
+  getFavoriteDocuments,
 } from "./local-database";
-
-interface DocumentRecord {
-  id: number;
-  title: string;
-  filePath: string;
-  fileHash: string;
-  currentPage: number;
-  currentZoom: number | null;
-  currentScroll: number | null;
-  annotations: string | null;
-  thumbnailPath: string | null;
-  numPages: number;
-  createdAt: string;
-}
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,9 +50,15 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null = null;
+let fileWatcher: FSWatcher | null = null;
+
+const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
+const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 
 function getAllPdfFiles(dir: string): string[] {
   let results: string[] = [];
+
+  if (!fs.existsSync(dir)) return results;
 
   const list = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -72,8 +75,203 @@ function getAllPdfFiles(dir: string): string[] {
   return results;
 }
 
+async function processFile(filePath: string): Promise<void> {
+  try {
+    if (!fs.existsSync(filePath)) return;
+
+    const fileHash = generateFileHash(filePath);
+    const existing = getDocumentByHash(fileHash);
+
+    if (existing && existing.processingStatus === "completed") return;
+
+    if (existing) {
+      updateProcessingStatus(fileHash, "processing");
+    }
+
+    const relativePath = path.relative(LIBRARY_PATH(), filePath);
+    const pathParts = relativePath.split(path.sep);
+    const category = pathParts.length > 1 ? pathParts[0] : null;
+
+    const stats = fs.statSync(filePath);
+    const numPages = await getPdfPageCount(filePath);
+    const metadata = await extractMetadata(filePath);
+    const thumbnailPath = await generateThumbnail(filePath, fileHash);
+
+    if (existing) {
+      if (thumbnailPath) {
+        updateThumbnailPath(fileHash, thumbnailPath);
+      }
+      updateFileSize(fileHash, stats.size);
+      if (metadata) {
+        updateMetadata(fileHash, {
+          author: metadata.author,
+          publisher: metadata.producer,
+          publishDate: metadata.creationDate,
+        });
+      }
+      updateProcessingStatus(fileHash, "completed");
+    } else {
+      const title = path.basename(filePath, ".pdf");
+      addDocument(
+        title,
+        filePath,
+        fileHash,
+        thumbnailPath || undefined,
+        numPages || 1
+      );
+      
+      const newDoc = getDocumentByHash(fileHash);
+      if (newDoc) {
+        updateFileSize(fileHash, stats.size);
+        if (metadata) {
+          updateMetadata(fileHash, {
+            author: metadata.author,
+            publisher: metadata.producer,
+            publishDate: metadata.creationDate,
+          });
+        }
+        updateDocumentSyncStatus(fileHash, true, category || undefined);
+        updateProcessingStatus(fileHash, "completed");
+      }
+    }
+    
+    win?.webContents.send("library:updated");
+  } catch (error) {
+    console.error("[Main] Error processing file:", error);
+    const fileHash = generateFileHash(filePath);
+    const existing = getDocumentByHash(fileHash);
+    if (existing) {
+      updateProcessingStatus(fileHash, "failed");
+    }
+  }
+}
+
+async function extractMetadata(
+  filePath: string
+): Promise<{
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string;
+  creator?: string;
+  producer?: string;
+  creationDate?: string;
+  modificationDate?: string;
+} | null> {
+  try {
+    const pdfBytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(pdfBytes, {
+      ignoreEncryption: true,
+    });
+
+    const formatPdfDate = (pdfDate: string | undefined): string | undefined => {
+      if (!pdfDate) return undefined;
+      const match = pdfDate.match(/D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/);
+      if (match) {
+        const year = match[1];
+        const month = match[2] || "01";
+        const day = match[3] || "01";
+        const hour = match[4] || "00";
+        const minute = match[5] || "00";
+        const second = match[6] || "00";
+        return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+      }
+      return pdfDate;
+    };
+
+    const metadata: {
+      title?: string;
+      author?: string;
+      subject?: string;
+      keywords?: string;
+      creator?: string;
+      producer?: string;
+      creationDate?: string;
+      modificationDate?: string;
+    } = {};
+
+    try {
+      const catalog = pdfDoc.catalog as unknown as { get?: (key: string) => unknown } | undefined;
+      if (catalog) {
+        const infoRef = catalog.get?.("Info");
+        if (infoRef) {
+          const info = infoRef as { [key: string]: unknown };
+          const getStr = (key: string): string | undefined => {
+            try {
+              const val = info[key];
+              return typeof val?.toString === "function" ? val.toString() : undefined;
+            } catch {
+              return undefined;
+            }
+          };
+          metadata.title = getStr("Title");
+          metadata.author = getStr("Author");
+          metadata.subject = getStr("Subject");
+          metadata.keywords = getStr("Keywords");
+          metadata.creator = getStr("Creator");
+          metadata.producer = getStr("Producer");
+          
+          const creationDate = getStr("CreationDate");
+          const modDate = getStr("ModDate");
+          if (creationDate) metadata.creationDate = formatPdfDate(creationDate);
+          if (modDate) metadata.modificationDate = formatPdfDate(modDate);
+        }
+      }
+    } catch (e) {
+      console.error("[Main] Catalog metadata extraction failed:", e);
+    }
+
+    return metadata;
+  } catch (error) {
+    console.error("[Main] Metadata extraction error:", error);
+    return null;
+  }
+}
+
+function setupFileWatcher() {
+  const libraryPath = LIBRARY_PATH();
+  
+  if (fileWatcher) {
+    fileWatcher.close();
+  }
+
+  if (!fs.existsSync(libraryPath)) {
+    fs.mkdirSync(libraryPath, { recursive: true });
+  }
+
+  fileWatcher = chokidar.watch(libraryPath, {
+    persistent: true,
+    ignoreInitial: true,
+    depth: 99,
+    awaitWriteFinish: {
+      stabilityThreshold: 1000,
+      pollInterval: 100,
+    },
+  });
+
+  fileWatcher.on("add", (filePath) => {
+    if (filePath.toLowerCase().endsWith(".pdf")) {
+      console.log("[Main] New PDF detected:", filePath);
+      processFile(filePath);
+    }
+  });
+
+  fileWatcher.on("unlink", (filePath) => {
+    if (filePath.toLowerCase().endsWith(".pdf")) {
+      console.log("[Main] PDF removed:", filePath);
+      // Optionally handle file deletion
+    }
+  });
+
+  fileWatcher.on("error", (error) => {
+    console.error("[Main] File watcher error:", error);
+  });
+
+  console.log("[Main] File watcher setup for:", libraryPath);
+}
+
 async function scanLibrary() {
-  const libraryPath = path.join(app.getPath("userData"), "library");
+  const libraryPath = LIBRARY_PATH();
 
   if (!fs.existsSync(libraryPath)) return;
 
@@ -84,48 +282,11 @@ async function scanLibrary() {
       const fileHash = generateFileHash(filePath);
       const existing = getDocumentByHash(fileHash);
 
-      const relativePath = path.relative(libraryPath, filePath);
-      const pathParts = relativePath.split(path.sep);
-      const category = pathParts.length > 1 ? pathParts[0] : null;
-
-      if (!existing) {
-        const title = path.basename(filePath);
-        const thumbnailPath = await generateThumbnail(filePath, fileHash);
-        const numPages = await getPdfPageCount(filePath);
-
-        addDocument(
-          title,
-          filePath,
-          fileHash,
-          thumbnailPath || undefined,
-          numPages,
-        );
-
-        const newDoc = getDocumentByHash(fileHash);
-        if (newDoc) {
-          updateDocumentSyncStatus(fileHash, true, category || undefined);
-        }
-
-        console.log("Added new document:", title);
-      } else {
-        const needsUpdate = 
-          existing.filePath !== filePath || 
-          (existing.isSynced !== 1 && existing.isSynced !== undefined) ||
-          existing.category !== category;
-          
-        if (!existing.thumbnailPath) {
-          const thumbnailPath = await generateThumbnail(filePath, fileHash);
-          if (thumbnailPath) {
-            updateThumbnailPath(fileHash, thumbnailPath);
-          }
-        }
-        
-        if (needsUpdate) {
-          updateDocumentPath(fileHash, filePath);
-          updateDocumentSyncStatus(fileHash, true, category || undefined);
-          console.log("Updated path:", existing.title);
-        }
+      if (existing && existing.processingStatus === "completed") {
+        continue;
       }
+
+      await processFile(filePath);
     } catch (error) {
       console.error("Error scanning:", filePath, error);
     }
@@ -400,7 +561,7 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
   const doc = getDocumentByHash(fileHash);
   if (!doc) return { success: false, error: "Document not found" };
   
-  const libraryPath = path.join(app.getPath("userData"), "library");
+  const libraryPath = LIBRARY_PATH();
   const targetDir = category ? path.join(libraryPath, category) : libraryPath;
   
   if (!fs.existsSync(targetDir)) {
@@ -443,11 +604,89 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
   }
 });
 
+ipcMain.handle("book:toggle-favorite", (_, fileHash: string) => {
+  return toggleFavorite(fileHash);
+});
+
+ipcMain.handle("book:update-rating", (_, fileHash: string, rating: number) => {
+  updateRating(fileHash, rating);
+  return true;
+});
+
+ipcMain.handle("book:update-notes", (_, fileHash: string, notes: string) => {
+  updateNotes(fileHash, notes);
+  return true;
+});
+
+ipcMain.handle("book:update-metadata", (_, fileHash: string, metadata: {
+  author?: string;
+  description?: string;
+  isbn?: string;
+  publisher?: string;
+  publishDate?: string;
+}) => {
+  updateMetadata(fileHash, metadata);
+  return true;
+});
+
+ipcMain.handle("book:update-title", (_, fileHash: string, newTitle: string) => {
+  updateTitle(fileHash, newTitle);
+  return true;
+});
+
+ipcMain.handle("book:delete", (_, fileHash: string) => {
+  return deleteDocument(fileHash);
+});
+
+ipcMain.handle("book:get-by-id", (_, id: number) => {
+  return getDocumentById(id);
+});
+
+ipcMain.handle("book:get-favorites", () => {
+  return getFavoriteDocuments();
+});
+
+ipcMain.handle("book:process-pending", async () => {
+  const pending = getDocumentsPendingProcessing();
+  for (const doc of pending) {
+    await processFile(doc.filePath);
+  }
+  return { processed: pending.length };
+});
+
+ipcMain.handle("book:regenerate-thumbnail", async (_, fileHash: string) => {
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) return { success: false, error: "Document not found" };
+  
+  try {
+    const thumbnailPath = await generateThumbnail(doc.filePath, fileHash);
+    if (thumbnailPath) {
+      updateThumbnailPath(fileHash, thumbnailPath);
+      return { success: true, thumbnailPath };
+    }
+    return { success: false, error: "Failed to generate thumbnail" };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("library:open-folder", () => {
+  const libraryPath = LIBRARY_PATH();
+  require("electron").shell.openPath(libraryPath);
+  return libraryPath;
+});
+
+ipcMain.handle("book:show-in-folder", (_, filePath: string) => {
+  require("electron").shell.showItemInFolder(filePath);
+  return true;
+});
+
 
 app.whenReady().then(async () => {
   initDatabase();
   ensureLibraryFolder();
-
+  setupFileWatcher();
+  
   await scanLibrary();
   autoUpdater.checkForUpdatesAndNotify();
   createWindow();
