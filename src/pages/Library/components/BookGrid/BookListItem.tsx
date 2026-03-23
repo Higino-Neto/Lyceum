@@ -1,4 +1,4 @@
-import { FileText, FolderInput } from "lucide-react";
+import { FileText, FolderInput, Heart } from "lucide-react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import { calculateProgress } from "./progress";
 
@@ -7,6 +7,8 @@ interface BookListItemProps {
   onOpen: () => void;
   onSync?: () => void;
   showSyncActions: boolean;
+  onClick?: () => void;
+  isSelected?: boolean;
 }
 
 export default function BookListItem({
@@ -14,15 +16,29 @@ export default function BookListItem({
   onOpen,
   onSync,
   showSyncActions,
+  onClick,
+  isSelected = false,
 }: BookListItemProps) {
   const progress = calculateProgress(book);
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      onOpen();
+    }
+  };
+
   return (
     <div
-      onClick={onOpen}
-      className="cursor-pointer flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-sm p-3"
+      onClick={handleClick}
+      className={`cursor-pointer flex items-center gap-4 bg-zinc-900 border rounded-sm p-3 transition-all ${
+        isSelected
+          ? "border-zinc-500 ring-1 ring-zinc-500"
+          : "border-zinc-800 hover:border-zinc-700"
+      }`}
     >
-      <div className="w-10 h-14 bg-zinc-800 rounded-sm overflow-hidden">
+      <div className="w-10 h-14 bg-zinc-800 rounded-sm overflow-hidden relative">
         {book.thumbnail ? (
           <img
             src={book.thumbnail}
@@ -32,20 +48,44 @@ export default function BookListItem({
         ) : (
           <FileText size={14} className="text-zinc-600 m-auto" />
         )}
+        {book.isFavorite === 1 && (
+          <div className="absolute -top-1 -right-1">
+            <Heart size={10} className="fill-red-500 text-red-500" />
+          </div>
+        )}
       </div>
 
-      <div className="flex-1">
-        <p className="text-sm text-zinc-200">{book.title}</p>
-        {book.category && (
-          <span className="text-xs text-zinc-500">{book.category}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-zinc-200 truncate">{book.title}</p>
+          {book.rating > 0 && (
+            <span className="text-xs text-yellow-500 flex-shrink-0">
+              {"★".repeat(Math.round(book.rating))}
+            </span>
+          )}
+        </div>
+        {book.author && (
+          <p className="text-xs text-zinc-500 truncate">{book.author}</p>
         )}
-        <div className="h-1 mt-1 bg-zinc-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-xs text-zinc-600">
+            {book.currentPage}/{book.numPages} pág.
+          </span>
+          <div className="h-1 w-20 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-xs text-zinc-600">{progress.toFixed(0)}%</span>
         </div>
       </div>
+
+      {book.category && (
+        <span className="text-xs text-zinc-500 px-2 py-1 bg-zinc-800 rounded">
+          {book.category}
+        </span>
+      )}
 
       {showSyncActions && onSync && (
         <button

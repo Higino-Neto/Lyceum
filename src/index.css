@@ -4,6 +4,19 @@ input[type="date"] {
   color-scheme: dark;
 }
 
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
 /* Scrollbar personalizada para toda a aplicação */
 @layer base {
   html, body, #root {

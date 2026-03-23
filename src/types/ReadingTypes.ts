@@ -52,6 +52,16 @@ export interface DocumentRecord {
   lastOpenedAt: string;
   isSynced: number;
   category: string | null;
+  isFavorite: number;
+  rating: number;
+  notes: string | null;
+  author: string | null;
+  description: string | null;
+  isbn: string | null;
+  publisher: string | null;
+  publishDate: string | null;
+  fileSize: number;
+  processingStatus: "pending" | "processing" | "completed" | "failed";
 }
 
 /** Props do modal de sessão concluída */

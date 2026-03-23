@@ -1,4 +1,4 @@
-import { Copy, FileText, Move, MoreVertical } from "lucide-react";
+import { Copy, FileText, Move, MoreVertical, Heart } from "lucide-react";
 import { useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import { calculateProgress } from "./progress";
@@ -8,6 +8,8 @@ interface BookCardProps {
   onOpen: () => void;
   onSync?: (action: "move" | "copy") => void;
   showSyncActions: boolean;
+  onClick?: () => void;
+  isSelected?: boolean;
 }
 
 export default function BookCard({
@@ -15,15 +17,27 @@ export default function BookCard({
   onOpen,
   onSync,
   showSyncActions,
+  onClick,
+  isSelected = false,
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const progress = calculateProgress(book);
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      onOpen();
+    }
+  };
+
   return (
     <div
-      className="flex flex-col gap-2 cursor-pointer group"
-      onClick={onOpen}
+      className={`flex flex-col gap-2 cursor-pointer group transition-all ${
+        isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-lg" : ""
+      }`}
+      onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -39,6 +53,19 @@ export default function BookCard({
             <FileText size={28} className="text-zinc-600" />
           </div>
         )}
+        
+        {book.isFavorite === 1 && (
+          <div className="absolute top-2 left-2 z-10">
+            <Heart size={14} className="fill-red-500 text-red-500" />
+          </div>
+        )}
+        
+        {book.processingStatus === "processing" && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        
         {showSyncActions && onSync && hovered && (
           <div className="absolute top-2 right-2 z-20">
             <button
@@ -85,7 +112,10 @@ export default function BookCard({
       </div>
 
       <p className="text-xs text-zinc-300 line-clamp-2">{book.title}</p>
-      {book.category && (
+      {book.author && (
+        <p className="text-xs text-zinc-500 truncate">{book.author}</p>
+      )}
+      {book.category && !book.author && (
         <span className="text-xs text-zinc-500">{book.category}</span>
       )}
 

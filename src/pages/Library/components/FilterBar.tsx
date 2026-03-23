@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal, Library, BookOpen, CheckCircle } from "lucid
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
-export type SortOption = "title" | "progress" | "pages";
+export type SortOption = "title" | "progress" | "pages" | "rating" | "recent";
 export type FilterOption = "all" | "reading" | "finished";
 
 interface FilterBarProps {
@@ -13,10 +13,6 @@ interface FilterBarProps {
   onSortChange: (value: SortOption) => void;
   filter: FilterOption;
   onFilterChange: (value: FilterOption) => void;
-  categories: string[];
-  selectedCategory: string | null;
-  onCategoryChange: (value: string | null) => void;
-  showCategorySelect: boolean;
 }
 
 const filterIcons: Record<FilterOption, React.ReactNode> = {
@@ -35,6 +31,8 @@ const sortLabels: Record<SortOption, string> = {
   title: "Nome",
   progress: "Progresso",
   pages: "Nº Páginas",
+  rating: "Avaliação",
+  recent: "Recentes",
 };
 
 export default function FilterBar({
@@ -44,30 +42,9 @@ export default function FilterBar({
   onSortChange,
   filter,
   onFilterChange,
-  categories,
-  selectedCategory,
-  onCategoryChange,
-  showCategorySelect,
 }: FilterBarProps) {
   return (
     <section className="flex flex-wrap items-center gap-3">
-      {showCategorySelect && categories.length > 0 && (
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedCategory || ""}
-            onChange={(e) => onCategoryChange(e.target.value || null)}
-            className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-sm px-2 py-1.5"
-          >
-            <option value="">Todas</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <SearchInput value={search} onChange={onSearchChange} />
 
       <FilterButtons value={filter} onChange={onFilterChange} />
@@ -93,7 +70,7 @@ function SearchInput({
       />
       <input
         type="text"
-        placeholder="Buscar..."
+        placeholder="Buscar livros..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-zinc-900 border border-zinc-800 rounded-sm pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
@@ -115,9 +92,9 @@ function FilterButtons({
         <button
           key={f}
           onClick={() => onChange(f)}
-          className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 transition-colors ${
             value === f
-              ? "bg-green-600 text-black"
+              ? "bg-zinc-700 text-zinc-100"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
           }`}
           aria-label={filterLabels[f]}
@@ -137,7 +114,7 @@ function SortSelect({
   onChange: (value: SortOption) => void;
 }) {
   return (
-    <div className="ml-auto flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <SlidersHorizontal size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
       <select
         value={value}

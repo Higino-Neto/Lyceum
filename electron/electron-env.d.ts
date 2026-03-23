@@ -10,9 +10,124 @@ interface DocumentRecord {
   currentScroll: number | null;
   annotations: string | null;
   thumbnailPath: string | null;
-  category: string | null;
   numPages: number;
   createdAt: string;
+  lastOpenedAt: string;
+  isSynced: number;
+  isFavorite: number;
+  rating: number;
+  notes: string | null;
+  author: string | null;
+  description: string | null;
+  isbn: string | null;
+  publisher: string | null;
+  publishDate: string | null;
+  fileSize: number;
+  processingStatus: "pending" | "processing" | "completed" | "failed";
+}
+
+interface BookCategory {
+  id: number;
+  name: string;
+  color: string;
+  bookCount: number;
+  createdAt: string;
+}
+
+interface OpenPdfResult extends DocumentRecord {
+  fileBuffer: ArrayBuffer;
+}
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    APP_ROOT: string;
+    VITE_PUBLIC: string;
+  }
+}
+
+interface Window {
+  ipcRenderer: import("electron").IpcRenderer;
+  electronAPI: {
+    getFilePath: () => Promise<string>;
+  };
+  api: {
+    addDocument: (data: any) => Promise<any>;
+    getDocuments: () => Promise<DocumentRecord[]>;
+
+    saveReadingState: (payload: any) => Promise<void>;
+    getReadingState: (fileHash: string) => Promise<DocumentRecord | null>;
+
+    openPdf: () => Promise<OpenPdfResult | null>;
+    getLastDocument: () => Promise<DocumentRecord | null>;
+    reopenPdf: (filePath: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string } | null>;
+
+    getThumbnail: (thumbnailPath: string) => Promise<string | null>;
+
+    getLibraryPath: () => Promise<string>;
+    scanLibrary: () => Promise<void>;
+    moveToLibrary: (filePath: string) => Promise<void>;
+
+    openFileDialog: () => Promise<string | null>;
+
+    getDocumentsBySyncStatus: (synced: boolean) => Promise<DocumentRecord[]>;
+    getCategories: () => Promise<string[]>;
+    syncDocument: (
+      fileHash: string,
+      action: "move" | "copy",
+      category?: string,
+    ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+    searchLocalBooks: (query: string) => Promise<DocumentRecord[]>;
+
+    windowMinimize: () => Promise<void>;
+    windowMaximize: () => Promise<void>;
+    windowClose: () => Promise<void>;
+    windowIsMaximized: () => Promise<boolean>;
+
+    toggleFavorite: (fileHash: string) => Promise<boolean>;
+    updateRating: (fileHash: string, rating: number) => Promise<boolean>;
+    updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
+    updateMetadata: (fileHash: string, metadata: {
+      author?: string;
+      description?: string;
+      isbn?: string;
+      publisher?: string;
+      publishDate?: string;
+    }) => Promise<boolean>;
+    updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
+    deleteBook: (fileHash: string) => Promise<{ success: boolean; error?: string }>;
+    getBookById: (id: number) => Promise<DocumentRecord | null>;
+    getFavorites: () => Promise<DocumentRecord[]>;
+    processPendingBooks: () => Promise<{ processed: number }>;
+    regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
+    openLibraryFolder: () => Promise<string>;
+    showBookInFolder: (filePath: string) => Promise<boolean>;
+    onLibraryUpdated: (callback: () => void) => () => void;
+
+    categoryCreate: (name: string, color?: string) => Promise<BookCategory | null>;
+    categoryUpdate: (id: number, name: string, color: string) => Promise<boolean>;
+    categoryDelete: (id: number) => Promise<boolean>;
+    categoryGetAll: () => Promise<BookCategory[]>;
+    categoryGetById: (id: number) => Promise<BookCategory | null>;
+    categoryGetForDocument: (documentId: number) => Promise<BookCategory[]>;
+    categoryGetForDocumentByHash: (fileHash: string) => Promise<BookCategory[]>;
+    categorySetForDocument: (documentId: number, categoryIds: number[]) => Promise<boolean>;
+    categoryAddToDocument: (documentId: number, categoryId: number) => Promise<boolean>;
+    categoryRemoveFromDocument: (documentId: number, categoryId: number) => Promise<boolean>;
+    categoryGetColors: () => Promise<string[]>;
+    categoryImportFromFolders: () => Promise<{ imported: number }>;
+
+    getFolderStructure: () => Promise<FolderInfo[]>;
+    getAllFolders: () => Promise<string[]>;
+    getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
+  };
+}
+
+interface FolderInfo {
+  name: string;
+  path: string;
+  fullPath: string;
+  bookCount: number;
+  subfolders: FolderInfo[];
 }
 
 interface OpenPdfResult extends DocumentRecord {

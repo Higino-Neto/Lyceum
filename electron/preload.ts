@@ -1,5 +1,4 @@
 import { ipcRenderer, contextBridge } from "electron";
-import { addDocument } from "./local-database";
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getFilePath: () => {
@@ -10,23 +9,44 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 });
 
-contextBridge.exposeInMainWorld("api", {
-  // addDocument: (data) => ipcRenderer.invoke("add-document", data),
-  // getDocuments: () => ipcRenderer.invoke("get-documents"),
-  // saveReadingState: (payload) => ipcRenderer.invoke("reading:save", payload),
-  // getReadingState: (fileHash) => ipcRenderer.invoke("reading:get", fileHash),
-  // openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
-  // getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
-  // reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath),
-  // getThumbnail: (thumbnailPath: string) =>
-  //   ipcRenderer.invoke("thumbnail:get", thumbnailPath),
-  // getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
+interface DocumentData {
+  title: string;
+  filePath: string;
+  fileHash: string;
+}
 
-  addDocument: (data: any) => ipcRenderer.invoke("add-document", data),
+interface ReadingState {
+  fileHash: string;
+  state: {
+    currentPage: number;
+    currentZoom: number;
+    currentScroll: number;
+    annotations: string;
+  };
+}
+
+interface MetadataUpdate {
+  author?: string;
+  description?: string;
+  isbn?: string;
+  publisher?: string;
+  publishDate?: string;
+}
+
+interface BookCategory {
+  id: number;
+  name: string;
+  color: string;
+  bookCount: number;
+  createdAt: string;
+}
+
+contextBridge.exposeInMainWorld("api", {
+  addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
-  saveReadingState: (payload: any) =>
+  saveReadingState: (payload: ReadingState) =>
     ipcRenderer.invoke("reading:save", payload),
 
   getReadingState: (fileHash: string) =>
@@ -68,6 +88,91 @@ contextBridge.exposeInMainWorld("api", {
 
   windowIsMaximized: () => ipcRenderer.invoke("window:isMaximized"),
 
+  toggleFavorite: (fileHash: string) =>
+    ipcRenderer.invoke("book:toggle-favorite", fileHash),
+
+  updateRating: (fileHash: string, rating: number) =>
+    ipcRenderer.invoke("book:update-rating", fileHash, rating),
+
+  updateNotes: (fileHash: string, notes: string) =>
+    ipcRenderer.invoke("book:update-notes", fileHash, notes),
+
+  updateMetadata: (fileHash: string, metadata: MetadataUpdate) => 
+    ipcRenderer.invoke("book:update-metadata", fileHash, metadata),
+
+  updateTitle: (fileHash: string, newTitle: string) =>
+    ipcRenderer.invoke("book:update-title", fileHash, newTitle),
+
+  deleteBook: (fileHash: string) =>
+    ipcRenderer.invoke("book:delete", fileHash),
+
+  getBookById: (id: number) =>
+    ipcRenderer.invoke("book:get-by-id", id),
+
+  getFavorites: () =>
+    ipcRenderer.invoke("book:get-favorites"),
+
+  processPendingBooks: () =>
+    ipcRenderer.invoke("book:process-pending"),
+
+  regenerateThumbnail: (fileHash: string) =>
+    ipcRenderer.invoke("book:regenerate-thumbnail", fileHash),
+
+  openLibraryFolder: () =>
+    ipcRenderer.invoke("library:open-folder"),
+
+  showBookInFolder: (filePath: string) =>
+    ipcRenderer.invoke("book:show-in-folder", filePath),
+
+  onLibraryUpdated: (callback: () => void) => {
+    ipcRenderer.on("library:updated", callback);
+    return () => ipcRenderer.removeListener("library:updated", callback);
+  },
+
+  categoryCreate: (name: string, color?: string) =>
+    ipcRenderer.invoke("category:create", name, color),
+
+  categoryUpdate: (id: number, name: string, color: string) =>
+    ipcRenderer.invoke("category:update", id, name, color),
+
+  categoryDelete: (id: number) =>
+    ipcRenderer.invoke("category:delete", id),
+
+  categoryGetAll: () =>
+    ipcRenderer.invoke("category:get-all"),
+
+  categoryGetById: (id: number) =>
+    ipcRenderer.invoke("category:get-by-id", id),
+
+  categoryGetForDocument: (documentId: number) =>
+    ipcRenderer.invoke("category:get-for-document", documentId),
+
+  categoryGetForDocumentByHash: (fileHash: string) =>
+    ipcRenderer.invoke("category:get-for-document-by-hash", fileHash),
+
+  categorySetForDocument: (documentId: number, categoryIds: number[]) =>
+    ipcRenderer.invoke("category:set-for-document", documentId, categoryIds),
+
+  categoryAddToDocument: (documentId: number, categoryId: number) =>
+    ipcRenderer.invoke("category:add-to-document", documentId, categoryId),
+
+  categoryRemoveFromDocument: (documentId: number, categoryId: number) =>
+    ipcRenderer.invoke("category:remove-from-document", documentId, categoryId),
+
+  categoryGetColors: () =>
+    ipcRenderer.invoke("category:get-colors"),
+
+  categoryImportFromFolders: () =>
+    ipcRenderer.invoke("category:import-from-folders"),
+
+  getFolderStructure: () =>
+    ipcRenderer.invoke("library:get-folder-structure"),
+
+  getAllFolders: () =>
+    ipcRenderer.invoke("library:get-all-folders"),
+
+  getBooksInFolder: (folderPath: string | null) =>
+    ipcRenderer.invoke("library:get-books-in-folder", folderPath),
 });
 
 // --------- Expose some API to the Renderer process ---------
