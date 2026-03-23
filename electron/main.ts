@@ -29,6 +29,19 @@ import {
   deleteDocument,
   getDocumentById,
   getFavoriteDocuments,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getAllCategories,
+  getCategoryById,
+  getCategoriesForDocument,
+  getCategoriesForDocumentByHash,
+  setDocumentCategories,
+  addCategoryToDocument,
+  removeCategoryFromDocument,
+  getDocumentsByCategory,
+  getCategoryColors,
+  importCategoriesFromFolders,
 } from "./local-database";
 
 const require = createRequire(import.meta.url);
@@ -55,6 +68,14 @@ let fileWatcher: FSWatcher | null = null;
 const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
 const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 
+interface FolderInfo {
+  name: string;
+  path: string;
+  fullPath: string;
+  bookCount: number;
+  subfolders: FolderInfo[];
+}
+
 function getAllPdfFiles(dir: string): string[] {
   let results: string[] = [];
 
@@ -67,12 +88,83 @@ function getAllPdfFiles(dir: string): string[] {
 
     if (file.isDirectory()) {
       results = results.concat(getAllPdfFiles(fullPath));
-    } else if (file.isFile() && file.name.toLowerCase().endsWith(".pdf")) {
-      results.push(fullPath);
+    } else if (file.isFile()) {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith(".pdf") && !fileName.includes(".tmp")) {
+        results.push(fullPath);
+      }
     }
   }
 
   return results;
+}
+
+function getFolderStructure(libraryPath: string): FolderInfo[] {
+  if (!fs.existsSync(libraryPath)) return [];
+
+  const buildTree = (dirPath: string, relativeTo: string): FolderInfo[] => {
+    if (!fs.existsSync(dirPath)) return [];
+
+    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    const folders: FolderInfo[] = [];
+
+    for (const item of items) {
+      if (item.isDirectory() && !item.name.startsWith(".")) {
+        const itemFullPath = path.join(dirPath, item.name);
+        const relativePath = path.relative(relativeTo, itemFullPath);
+        
+        const pdfFiles = getAllPdfFiles(itemFullPath);
+        
+        folders.push({
+          name: item.name,
+          path: relativePath,
+          fullPath: itemFullPath,
+          bookCount: pdfFiles.length,
+          subfolders: buildTree(itemFullPath, relativeTo),
+        });
+      }
+    }
+
+    return folders.sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  return buildTree(libraryPath, libraryPath);
+}
+
+function getAllFoldersFlat(libraryPath: string): string[] {
+  const folders: string[] = [];
+  
+  const scan = (dir: string) => {
+    if (!fs.existsSync(dir)) return;
+    const items = fs.readdirSync(dir, { withFileTypes: true });
+    for (const item of items) {
+      if (item.isDirectory() && !item.name.startsWith(".")) {
+        const fullPath = path.join(dir, item.name);
+        const relativePath = path.relative(libraryPath, fullPath);
+        folders.push(relativePath);
+        scan(fullPath);
+      }
+    }
+  };
+  
+  scan(libraryPath);
+  return folders.sort((a, b) => a.localeCompare(b));
+}
+
+function getBooksInFolder(folderPath: string | null): DocumentRecord[] {
+  const libraryPath = LIBRARY_PATH();
+  const allDocs = getAllDocuments();
+  
+  if (folderPath === null) {
+    return allDocs.filter(d => d.filePath && d.filePath.startsWith(libraryPath));
+  }
+  
+  const targetPath = path.join(libraryPath, folderPath);
+  return allDocs.filter(d => {
+    if (!d.filePath) return false;
+    const docDir = path.dirname(d.filePath);
+    return docDir === targetPath || docDir.startsWith(targetPath + path.sep);
+  });
 }
 
 async function processFile(filePath: string): Promise<void> {
@@ -681,12 +773,74 @@ ipcMain.handle("book:show-in-folder", (_, filePath: string) => {
   return true;
 });
 
+ipcMain.handle("category:create", (_, name: string, color?: string) => {
+  return createCategory(name, color);
+});
+
+ipcMain.handle("category:update", (_, id: number, name: string, color: string) => {
+  return updateCategory(id, name, color);
+});
+
+ipcMain.handle("category:delete", (_, id: number) => {
+  return deleteCategory(id);
+});
+
+ipcMain.handle("category:get-all", () => {
+  return getAllCategories();
+});
+
+ipcMain.handle("category:get-by-id", (_, id: number) => {
+  return getCategoryById(id);
+});
+
+ipcMain.handle("category:get-for-document", (_, documentId: number) => {
+  return getCategoriesForDocument(documentId);
+});
+
+ipcMain.handle("category:get-for-document-by-hash", (_, fileHash: string) => {
+  return getCategoriesForDocumentByHash(fileHash);
+});
+
+ipcMain.handle("category:set-for-document", (_, documentId: number, categoryIds: number[]) => {
+  return setDocumentCategories(documentId, categoryIds);
+});
+
+ipcMain.handle("category:add-to-document", (_, documentId: number, categoryId: number) => {
+  return addCategoryToDocument(documentId, categoryId);
+});
+
+ipcMain.handle("category:remove-from-document", (_, documentId: number, categoryId: number) => {
+  return removeCategoryFromDocument(documentId, categoryId);
+});
+
+ipcMain.handle("category:get-colors", () => {
+  return getCategoryColors();
+});
+
+ipcMain.handle("category:import-from-folders", () => {
+  const count = importCategoriesFromFolders();
+  return { imported: count };
+});
+
+ipcMain.handle("library:get-folder-structure", () => {
+  return getFolderStructure(LIBRARY_PATH());
+});
+
+ipcMain.handle("library:get-all-folders", () => {
+  return getAllFoldersFlat(LIBRARY_PATH());
+});
+
+ipcMain.handle("library:get-books-in-folder", (_, folderPath: string | null) => {
+  return getBooksInFolder(folderPath);
+});
+
 
 app.whenReady().then(async () => {
   initDatabase();
   ensureLibraryFolder();
   setupFileWatcher();
   
+  importCategoriesFromFolders();
   await scanLibrary();
   autoUpdater.checkForUpdatesAndNotify();
   createWindow();

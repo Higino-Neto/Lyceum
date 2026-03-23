@@ -14,6 +14,7 @@ import {
   Hash,
   Info,
   Save,
+  MapPin,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import { calculateProgress } from "./BookGrid/progress";
@@ -41,6 +42,7 @@ export default function BookDetailPanel({
   const [editedNotes, setEditedNotes] = useState(book.notes || "");
   const [hoverRating, setHoverRating] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [bookPath, setBookPath] = useState<string>("");
 
   const progress = calculateProgress(book);
 
@@ -49,6 +51,19 @@ export default function BookDetailPanel({
     setEditedAuthor(book.author || "");
     setEditedDescription(book.description || "");
     setEditedNotes(book.notes || "");
+    
+    if (book.filePath) {
+      const libraryIndex = book.filePath.toLowerCase().indexOf("library");
+      if (libraryIndex !== -1) {
+        const pathAfterLibrary = book.filePath.substring(libraryIndex + 8);
+        const lastSep = Math.max(
+          pathAfterLibrary.lastIndexOf("\\"),
+          pathAfterLibrary.lastIndexOf("/")
+        );
+        const folderPath = lastSep > 0 ? pathAfterLibrary.substring(0, lastSep) : "";
+        setBookPath(folderPath);
+      }
+    }
   }, [book]);
 
   const handleToggleFavorite = async () => {
@@ -131,6 +146,11 @@ export default function BookDetailPanel({
     } catch {
       return dateStr;
     }
+  };
+
+  const getPathParts = (): string[] => {
+    if (!bookPath) return [];
+    return bookPath.split(/[/\\]/).filter(Boolean);
   };
 
   return (
@@ -219,14 +239,14 @@ export default function BookDetailPanel({
         <div className="flex gap-2">
           <button
             onClick={onOpen}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-medium transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-3 rounded-sm font-medium transition-colors cursor-pointer"
           >
             <BookOpen size={18} />
             {book.currentPage > 1 ? "Continuar Leitura" : "Começar a Ler"}
           </button>
           <button
             onClick={handleToggleFavorite}
-            className={`p-3 rounded-lg transition-colors ${
+            className={`p-3 rounded-sm transition-colors cursor-pointer ${
               book.isFavorite
                 ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -279,12 +299,20 @@ export default function BookDetailPanel({
               </div>
             </div>
 
-            {book.category && (
+            {bookPath && (
               <div className="flex items-start gap-3">
-                <FolderOpen size={16} className="text-zinc-500 mt-0.5" />
-                <div>
-                  <p className="text-xs text-zinc-500">Categoria</p>
-                  <p className="text-sm text-zinc-300">{book.category}</p>
+                <MapPin size={16} className="text-zinc-500 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs text-zinc-500">Localização</p>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-sm text-zinc-300">Biblioteca</span>
+                    {getPathParts().map((part, index) => (
+                      <span key={index} className="flex items-center gap-1">
+                        <span className="text-zinc-600">/</span>
+                        <span className="text-sm text-zinc-300">{part}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -360,13 +388,13 @@ export default function BookDetailPanel({
             <>
               <button
                 onClick={() => setIsEditing(false)}
-                className="flex-1 flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg text-sm transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-sm text-sm transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveEdits}
-                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-2 rounded-sm text-sm transition-colors cursor-pointer"
               >
                 <Save size={16} />
                 Salvar
@@ -375,7 +403,7 @@ export default function BookDetailPanel({
           ) : (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex-1 flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-sm text-sm transition-colors cursor-pointer"
             >
               <Edit3 size={16} />
               Editar
@@ -386,14 +414,14 @@ export default function BookDetailPanel({
         <div className="flex gap-2">
           <button
             onClick={handleRegenerateThumbnail}
-            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-sm text-sm transition-colors cursor-pointer"
           >
             <RefreshCw size={16} />
             Regenerar Thumbnail
           </button>
           <button
             onClick={handleShowInFolder}
-            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-sm text-sm transition-colors cursor-pointer"
           >
             <FolderOpen size={16} />
             Abrir Pasta
@@ -402,7 +430,7 @@ export default function BookDetailPanel({
 
         <button
           onClick={handleDelete}
-          className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-colors ${
+          className={`w-full flex items-center justify-center gap-2 py-2 rounded-sm text-sm transition-colors cursor-pointer ${
             isDeleting
               ? "bg-red-600 hover:bg-red-500 text-white"
               : "bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400"

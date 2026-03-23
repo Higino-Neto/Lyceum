@@ -35,7 +35,7 @@ export default function BookCard({
   return (
     <div
       className={`flex flex-col gap-2 cursor-pointer group transition-all ${
-        isSelected ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-lg" : ""
+        isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-lg" : ""
       }`}
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}

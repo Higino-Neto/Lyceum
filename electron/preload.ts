@@ -33,6 +33,14 @@ interface MetadataUpdate {
   publishDate?: string;
 }
 
+interface BookCategory {
+  id: number;
+  name: string;
+  color: string;
+  bookCount: number;
+  createdAt: string;
+}
+
 contextBridge.exposeInMainWorld("api", {
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 
@@ -120,6 +128,51 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("library:updated", callback);
     return () => ipcRenderer.removeListener("library:updated", callback);
   },
+
+  categoryCreate: (name: string, color?: string) =>
+    ipcRenderer.invoke("category:create", name, color),
+
+  categoryUpdate: (id: number, name: string, color: string) =>
+    ipcRenderer.invoke("category:update", id, name, color),
+
+  categoryDelete: (id: number) =>
+    ipcRenderer.invoke("category:delete", id),
+
+  categoryGetAll: () =>
+    ipcRenderer.invoke("category:get-all"),
+
+  categoryGetById: (id: number) =>
+    ipcRenderer.invoke("category:get-by-id", id),
+
+  categoryGetForDocument: (documentId: number) =>
+    ipcRenderer.invoke("category:get-for-document", documentId),
+
+  categoryGetForDocumentByHash: (fileHash: string) =>
+    ipcRenderer.invoke("category:get-for-document-by-hash", fileHash),
+
+  categorySetForDocument: (documentId: number, categoryIds: number[]) =>
+    ipcRenderer.invoke("category:set-for-document", documentId, categoryIds),
+
+  categoryAddToDocument: (documentId: number, categoryId: number) =>
+    ipcRenderer.invoke("category:add-to-document", documentId, categoryId),
+
+  categoryRemoveFromDocument: (documentId: number, categoryId: number) =>
+    ipcRenderer.invoke("category:remove-from-document", documentId, categoryId),
+
+  categoryGetColors: () =>
+    ipcRenderer.invoke("category:get-colors"),
+
+  categoryImportFromFolders: () =>
+    ipcRenderer.invoke("category:import-from-folders"),
+
+  getFolderStructure: () =>
+    ipcRenderer.invoke("library:get-folder-structure"),
+
+  getAllFolders: () =>
+    ipcRenderer.invoke("library:get-all-folders"),
+
+  getBooksInFolder: (folderPath: string | null) =>
+    ipcRenderer.invoke("library:get-books-in-folder", folderPath),
 });
 
 // --------- Expose some API to the Renderer process ---------

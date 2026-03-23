@@ -14,7 +14,6 @@ interface DocumentRecord {
   createdAt: string;
   lastOpenedAt: string;
   isSynced: number;
-  category: string | null;
   isFavorite: number;
   rating: number;
   notes: string | null;
@@ -25,6 +24,14 @@ interface DocumentRecord {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
+}
+
+interface BookCategory {
+  id: number;
+  name: string;
+  color: string;
+  bookCount: number;
+  createdAt: string;
 }
 
 interface OpenPdfResult extends DocumentRecord {
@@ -95,7 +102,32 @@ interface Window {
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
     onLibraryUpdated: (callback: () => void) => () => void;
+
+    categoryCreate: (name: string, color?: string) => Promise<BookCategory | null>;
+    categoryUpdate: (id: number, name: string, color: string) => Promise<boolean>;
+    categoryDelete: (id: number) => Promise<boolean>;
+    categoryGetAll: () => Promise<BookCategory[]>;
+    categoryGetById: (id: number) => Promise<BookCategory | null>;
+    categoryGetForDocument: (documentId: number) => Promise<BookCategory[]>;
+    categoryGetForDocumentByHash: (fileHash: string) => Promise<BookCategory[]>;
+    categorySetForDocument: (documentId: number, categoryIds: number[]) => Promise<boolean>;
+    categoryAddToDocument: (documentId: number, categoryId: number) => Promise<boolean>;
+    categoryRemoveFromDocument: (documentId: number, categoryId: number) => Promise<boolean>;
+    categoryGetColors: () => Promise<string[]>;
+    categoryImportFromFolders: () => Promise<{ imported: number }>;
+
+    getFolderStructure: () => Promise<FolderInfo[]>;
+    getAllFolders: () => Promise<string[]>;
+    getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
   };
+}
+
+interface FolderInfo {
+  name: string;
+  path: string;
+  fullPath: string;
+  bookCount: number;
+  subfolders: FolderInfo[];
 }
 
 interface OpenPdfResult extends DocumentRecord {

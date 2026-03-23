@@ -34,7 +34,7 @@ export default function BookListItem({
       onClick={handleClick}
       className={`cursor-pointer flex items-center gap-4 bg-zinc-900 border rounded-sm p-3 transition-all ${
         isSelected
-          ? "border-green-500 ring-1 ring-green-500"
+          ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"
       }`}
     >
