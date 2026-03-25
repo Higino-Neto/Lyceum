@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, useCallback } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
+import { getCategories } from "../api/database";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import ReadingTable from "./DashboardPage/components/ReadingTable/ReadingTable";
@@ -284,10 +285,7 @@ export default function AddReadingPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from("categories")
-        .select("*");
-      if (categoriesError) throw categoriesError;
+      const categoriesData = await getCategories();
       setCategories(categoriesData);
     };
     load();

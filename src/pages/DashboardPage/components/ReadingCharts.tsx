@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getCategories } from "../../../api/database";
 import {
   LineChart,
   Line,
@@ -585,8 +586,7 @@ export default function ReadingCharts() {
   const { data: categories } = useQuery<CategoryData[]>({
     queryKey: ["categories"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*");
-      return data || [];
+      return await getCategories();
     },
   });
 

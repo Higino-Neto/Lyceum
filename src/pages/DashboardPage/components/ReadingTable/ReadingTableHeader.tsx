@@ -1,4 +1,4 @@
-import { BookMarked, FileText, Clock, Calendar } from "lucide-react";
+import { BookMarked, FileText, Clock, Calendar, MoreHorizontal } from "lucide-react";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
@@ -29,6 +29,11 @@ export default function ReadingTableHeader() {
           <div className="flex items-center gap-2">
             <Calendar size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
             <span>Data</span>
+          </div>
+        </th>
+        <th className="text-right px-4 py-3">
+          <div className="flex items-center justify-end gap-2">
+            <MoreHorizontal size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
           </div>
         </th>
       </tr>
