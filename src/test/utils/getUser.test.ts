@@ -61,7 +61,7 @@ describe("getUser", () => {
     const authError = new Error("Invalid token");
     vi.mocked(supabase.auth.getUser).mockResolvedValueOnce({
       data: { user: null },
-      error: authError,
+      error: authError as any,
     });
 
     await expect(getUser()).rejects.toThrow(authError);
