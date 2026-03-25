@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { TimerState, SessionTimerData } from "../../../types/ReadingTypes";
 import { supabase } from "../../../lib/supabase";
+import { getCategories } from "../../../api/database";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -155,12 +156,12 @@ export default function ReadingSessionTimer({
     fileName?.replace(".pdf", "") ?? "",
   );
   const [category, setCategory] = useState("");
-  const [categories, setCategories] = useState<{ id: string; name: string; points_per_page: number }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; points_per_page?: number }[]>([]);
 
   useEffect(() => {
     const loadCategories = async () => {
-      const { data } = await supabase.from("categories").select("*");
-      if (data) setCategories(data);
+      const data = await getCategories();
+      setCategories(data);
     };
     loadCategories();
   }, []);

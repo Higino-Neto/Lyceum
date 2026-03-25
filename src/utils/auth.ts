@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { createUserProfile } from "../api/database";
 
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -17,11 +18,9 @@ export async function signUp(email: string, password: string) {
   }
 
   if (data.user) {
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: data.user!.id, name: email.split("@")[0] });
-
-    if (profileError) {
+    try {
+      await createUserProfile(data.user.id, email);
+    } catch (profileError) {
       console.error("Error creating profile:", profileError);
     }
   }

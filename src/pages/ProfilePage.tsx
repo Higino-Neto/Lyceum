@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
+import { getUserProfile, updateUserProfile } from "../api/database";
 import { User, Lock, Save, ArrowLeft, Camera } from "lucide-react";
 import Skeleton from "../components/Skeleton";
 import toast from "react-hot-toast";
@@ -26,22 +27,16 @@ async function fetchCurrentUser(): Promise<{
 
   if (error || !user) throw new Error("Usuário não autenticado");
 
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const profile = await getUserProfile();
 
-  if (profileError) throw profileError;
-
-  console.log(profileData);
+  console.log(profile);
   return {
     id: user.id,
     email: user.email || "",
     metadata: (user.user_metadata as UserMetadata) || {},
-    name: profileData?.name || "",
-    level: profileData?.level || 1,
-    avatar_url: profileData?.avatar_url || "",
+    name: profile?.name || "",
+    level: 1,
+    avatar_url: profile?.avatar_url || "",
   };
 }
 
@@ -53,15 +48,7 @@ async function updateUserMetadata(metadata: UserMetadata, userId: string) {
   if (error) throw error;
   if (!data?.user) throw new Error("Erro ao atualizar usuário");
 
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .update({
-      name: metadata.full_name,
-      avatar_url: metadata.avatar_url,
-    })
-    .eq("id", userId);
-
-  if (profileError) throw profileError;
+  await updateUserProfile(metadata.full_name, metadata.avatar_url);
 
   return data.user;
 }
@@ -77,68 +64,55 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    retry: false,
   });
-
-  const [name, setName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setName(user.name || user.metadata.full_name || "");
-      setAvatarUrl(user.avatar_url || user.metadata.avatar_url || "");
+      setName(user.name || "");
+      setAvatarUrl(user.avatar_url || "");
     }
   }, [user]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!user?.id) {
-      toast.error("Usuário não autenticado");
-      return;
-    }
 
-    setUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
     try {
+      setIsUploading(true);
       const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      setAvatarUrl(publicUrl);
-      await updateUserMetadata(
-        { full_name: name, avatar_url: publicUrl },
-        user.id,
-      );
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      toast.success("Foto atualizada com sucesso!");
-    } catch (err: any) {
-      toast.error(err.message);
+      setAvatarUrl(data.publicUrl);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Erro ao fazer upload da imagem");
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
@@ -146,7 +120,7 @@ export default function ProfilePage() {
     mutationFn: () =>
       updateUserMetadata(
         { full_name: name, avatar_url: avatarUrl },
-        user?.id || "",
+        user?.id || ""
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
@@ -188,58 +162,45 @@ export default function ProfilePage() {
     passwordMutation.mutate();
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <main className="flex-1 p-4 overflow-auto">
-          <div className="mx-auto max-w-2xl space-y-6">
-            <header className="flex items-center gap-4">
-              <Skeleton className="h-10 w-10 rounded-sm" />
-              <Skeleton className="h-8 w-24" />
-            </header>
-            <section className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl">
-              <Skeleton className="h-6 w-48 mb-6" />
-              <Skeleton className="h-10 w-full mb-4" />
-              <Skeleton className="h-10 w-32" />
-            </section>
-            <section className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl">
-              <Skeleton className="h-6 w-40 mb-6" />
-              <Skeleton className="h-10 w-full mb-4" />
-              <Skeleton className="h-10 w-full mb-4" />
-              <Skeleton className="h-10 w-40" />
-            </section>
-          </div>
-        </main>
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
+        <Skeleton className="h-8 w-32 mb-8" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <main className="flex-1 p-4 overflow-auto">
-        <div className="mx-auto max-w-2xl space-y-6">
-          <header className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-zinc-800 rounded-sm transition"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl font-semibold">Perfil</h1>
-          </header>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
+      <button
+        onClick={() => navigate("/")}
+        className="flex items-center gap-2 text-zinc-400 hover:text-zinc-100 mb-8 transition"
+      >
+        <ArrowLeft size={20} />
+        Voltar
+      </button>
 
-          <section className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <User className="text-green-500" size={24} />
-              <h2 className="text-lg font-semibold">Informações do Perfil</h2>
-            </div>
+      <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
+        <User size={32} />
+        Perfil
+      </h1>
 
-            <div className="flex items-center gap-6 mb-6">
+      <div className="max-w-2xl space-y-8">
+        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+          <h2 className="text-xl font-semibold mb-4">Informações pessoais</h2>
+          <form onSubmit={handleNameSubmit} className="space-y-4">
+            <div className="flex items-center gap-6">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
-                  {avatarUrl ? (
+                <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                  {avatarPreview || avatarUrl ? (
                     <img
-                      src={avatarUrl}
+                      src={avatarPreview || avatarUrl}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
@@ -248,93 +209,104 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="absolute bottom-0 right-0 bg-green-600 p-2 rounded-full hover:bg-green-500 transition disabled:opacity-50"
+                  className="absolute bottom-0 right-0 bg-zinc-700 p-2 rounded-full hover:bg-zinc-600 transition"
+                  disabled={isUploading}
                 >
-                  <Camera size={14} className="text-black" />
+                  <Camera size={16} />
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleFileSelect}
+                  onChange={handleFileChange}
                   className="hidden"
                 />
               </div>
-              <div>
-                <p className="text-sm text-zinc-400">Email</p>
-                <p className="text-zinc-200">{user?.email}</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleNameSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">
-                  Nome completo
+              <div className="flex-1">
+                <label className="block text-sm text-zinc-400 mb-1">
+                  Nome
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
                 />
               </div>
-              <button
-                type="submit"
-                disabled={nameMutation.isPending}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-sm font-medium text-black"
-              >
-                <Save size={18} />
-                {nameMutation.isPending ? "Salvando..." : "Salvar"}
-              </button>
-            </form>
-          </section>
-
-          <section className="bg-zinc-900 border border-zinc-800 rounded-sm p-6 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <Lock className="text-green-500" size={24} />
-              <h2 className="text-lg font-semibold">Alterar Senha</h2>
             </div>
-
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">
-                  Nova senha
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">
-                  Confirmar nova senha
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={passwordMutation.isPending}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 transition px-4 py-2 rounded-sm font-medium text-black"
-              >
-                <Save size={18} />
-                {passwordMutation.isPending
-                  ? "Atualizando..."
-                  : "Atualizar Senha"}
-              </button>
-            </form>
-          </section>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={user?.email || ""}
+                disabled
+                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-2 text-zinc-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={nameMutation.isPending}
+              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-zinc-200 transition disabled:opacity-50"
+            >
+              <Save size={18} />
+              {nameMutation.isPending ? "Salvando..." : "Salvar"}
+            </button>
+          </form>
         </div>
-      </main>
+
+        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Lock size={20} />
+            Alterar senha
+          </h2>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">
+                Nova senha
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">
+                Confirmar senha
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={passwordMutation.isPending}
+              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-zinc-200 transition disabled:opacity-50"
+            >
+              <Save size={18} />
+              {passwordMutation.isPending ? "Alterando..." : "Alterar senha"}
+            </button>
+          </form>
+        </div>
+
+        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+          <h2 className="text-xl font-semibold mb-4">Sair</h2>
+          <button
+            onClick={handleSignOut}
+            className="bg-red-500/10 text-red-500 px-6 py-2 rounded-lg font-medium hover:bg-red-500/20 transition"
+          >
+            Sair da conta
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
