@@ -52,7 +52,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
         />
       </nav>
 
-      <div className="flex flex-col gap-2 mt-auto mb-3 text-xs text-zinc-500 text-center">
+      <div className="flex flex-col mt-auto mb-3 text-zinc-500 text-center">
         <SidebarItem
           Icon={User}
           label="Perfil"
@@ -67,7 +67,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
           onClick={() => navigate("/signin")}
           collapsed={collapsed}
         />
-        <div className="mt-2">
+        <div className="mt-2 text-xs">
           <span>v{import.meta.env.VITE_APP_VERSION}</span>
         </div>
       </div>
