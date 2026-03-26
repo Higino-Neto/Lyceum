@@ -9,7 +9,10 @@ import { CategoryData, CHART_COLORS, CHART_OPTIONS, ChartType, ReadingData, User
 import DailyPagesChart from "./DailyPagesChart";
 import WeekdayChart from "./WeekdayChart";
 import WeeklyPagesChart from "./WeeklyPagesChart";
-import CategoryDonutChart from "./CategoryDonutChart";
+import CategoryChart from "./CategoryChart";
+import GaussianCurveChart from "./GaussianCurveChart";
+import AreaChartComponent from "./AreaChartComponent";
+import BoxPlotChart from "./BoxPlotChart";
 
 export default function ReadingCharts() {
   const [activeChart, setActiveChart] = useLocalStorage<ChartType>("chart_type", "daily");
@@ -120,11 +123,17 @@ export default function ReadingCharts() {
         return <WeeklyPagesChart usersData={usersData} />;
       case "category":
         return (
-          <CategoryDonutChart
+          <CategoryChart
             usersData={usersData}
             categories={categories || []}
           />
         );
+      case "area":
+        return <AreaChartComponent usersData={usersData} />;
+      case "gaussian":
+        return <GaussianCurveChart usersData={usersData} />;
+      case "boxplot":
+        return <BoxPlotChart usersData={usersData} />;
       default:
         return null;
     }

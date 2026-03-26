@@ -7,13 +7,23 @@ export const CHART_COLORS = [
   "#ec4899",
 ];
 
-export type ChartType = "daily" | "category" | "weekly" | "weekday";
+export type ChartType = 
+  | "daily" 
+  | "category" 
+  | "weekly" 
+  | "weekday"
+  | "gaussian"
+  | "area"
+  | "boxplot";
 
 export const CHART_OPTIONS: ChartOption[] = [
   { key: "daily", label: "Diário (Line)" },
-  { key: "weekday", label: "Diário (Bar)" },
+  { key: "weekday", label: "Dia da Semana" },
   { key: "weekly", label: "Semanal" },
   { key: "category", label: "Categorias" },
+  { key: "area", label: "Acumulado" },
+  { key: "gaussian", label: "Distribuição" },
+  { key: "boxplot", label: "Estatísticas" },
 ];
 
 export interface ChartOption {

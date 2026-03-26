@@ -133,7 +133,7 @@ export default function CategoryManager({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-sm w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <div className="flex items-center gap-2">
             <Tag size={20} className="text-zinc-400" />
@@ -141,7 +141,7 @@ export default function CategoryManager({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-zinc-800 rounded-sm transition-colors"
           >
             <X size={20} className="text-zinc-400" />
           </button>
@@ -160,7 +160,7 @@ export default function CategoryManager({
             categories.map((cat) => (
               <div
                 key={cat.id}
-                className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg"
+                className="flex items-center gap-3 p-3 bg-zinc-800 rounded-sm"
               >
                 {editingId === cat.id ? (
                   <>
@@ -227,7 +227,7 @@ export default function CategoryManager({
           )}
 
           {isCreating && (
-            <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg border border-zinc-600">
+            <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-sm border border-zinc-600">
               <div
                 className="w-4 h-4 rounded-full flex-shrink-0 cursor-pointer"
                 style={{ backgroundColor: newColor }}

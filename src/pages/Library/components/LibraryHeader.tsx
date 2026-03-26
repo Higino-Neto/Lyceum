@@ -41,7 +41,7 @@ export default function LibraryHeader({
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg transition-colors"
+            className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
             title={showSidebar ? "Ocultar painel de pastas" : "Mostrar painel de pastas"}
           >
             {showSidebar ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
@@ -51,7 +51,7 @@ export default function LibraryHeader({
         {onToggleFavorites && (
           <button
             onClick={onToggleFavorites}
-            className={`cursor-pointer p-2 rounded-lg transition-colors ${
+            className={`cursor-pointer p-2 rounded-sm transition-colors ${
               showFavoritesOnly
                 ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -64,7 +64,7 @@ export default function LibraryHeader({
 
         <button
           onClick={handleOpenLibraryFolder}
-          className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg transition-colors"
+          className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
           title="Abrir pasta da biblioteca"
         >
           <FolderOpen size={18} />
