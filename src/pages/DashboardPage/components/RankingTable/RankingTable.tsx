@@ -1,8 +1,27 @@
 import { useState } from "react";
-import useRanking from "../../../hooks/useRanking";
-import { RankingTableSkeleton } from "../../../components/skeletons";
-import { User, Crown, Trophy, Check, Plus, Minus } from "lucide-react";
-import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
+import useRanking from "../../../../hooks/useRanking";
+import { RankingTableSkeleton } from "../../../../components/skeletons";
+import { User, Crown, Trophy, Plus, Minus } from "lucide-react";
+import { useSelectedUsers } from "../../../../contexts/SelectedUsersContext";
+import SelectPeriodButton from "./SelectPeriodButton";
+
+// type Period = "today" | "this_week" | "this_month" | "all_time";
+
+// interface PeriodOption {
+//   key: Period;
+//   icon: React.ReactNode;
+//   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
+// }
+
+const ICON_SIZE = 16;
+const STROKE_WIDTH = 1.5;
+
+// const PERIODS: PeriodOption[] = [
+//   { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" },
+//   { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" },
+//   { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" },
+//   { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
+// ];
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
@@ -12,36 +31,23 @@ interface PeriodOption {
   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
 }
 
-// interface RankingUser {
-//   user_id: string;
-//   username: string;
-//   avatar_url: string;
-//   total_pages: number;
-//   today_pages: number;
-//   this_week_pages: number;
-//   month_pages: number;
-// }
-
-const ICON_SIZE = 16;
-const STROKE_WIDTH = 1.5;
-
-const PERIODS: PeriodOption[] = [
-  { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" },
-  { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" },
-  { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" },
-  { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
-];
-
 export default function RankingTable() {
   const { data: ranking, isLoading } = useRanking();
-  const [period, setPeriod] = useState<Period>("all_time");
-  const { selectedUsers, currentUserId, toggleUser, isUserSelected } = useSelectedUsers();
+  // const [period, setPeriod] = useState<Period>("all_time");
+  const { selectedUsers, currentUserId, toggleUser, isUserSelected } =
+    useSelectedUsers();
 
-  const currentPeriod = PERIODS.find((p) => p.key === period);
+  // const currentPeriod = PERIODS.find((p) => p.key === period);
+
+  const [currentPeriod, setCurrentPeriod] = useState<PeriodOption>({
+    key: "all_time",
+    icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
+    field: "total_pages",
+  });
 
   const sortedRanking = ranking
     ? [...ranking].sort((a, b) => {
-        const field = currentPeriod!.field;
+        const field = currentPeriod.field;
         return (b[field] as number) - (a[field] as number);
       })
     : [];
@@ -61,7 +67,7 @@ export default function RankingTable() {
   return (
     <div className="overflow-hidden rounded-sm">
       <div className="flex border-b border-zinc-800">
-        {PERIODS.map((p) => (
+        {/* {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
@@ -74,7 +80,8 @@ export default function RankingTable() {
           >
             {p.icon}
           </button>
-        ))}
+        ))} */}
+        <SelectPeriodButton onChange={setCurrentPeriod} />
       </div>
       <table className="w-full text-base">
         <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider" />
@@ -86,7 +93,11 @@ export default function RankingTable() {
             >
               <td className="px-4 py-4 font-medium w-10">
                 {index === 0 ? (
-                  <Crown className="text-zinc-300" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+                  <Crown
+                    className="text-zinc-300"
+                    size={ICON_SIZE}
+                    strokeWidth={STROKE_WIDTH}
+                  />
                 ) : (
                   <span className="text-zinc-500 text-sm">#{index + 1}</span>
                 )}
@@ -106,17 +117,10 @@ export default function RankingTable() {
                 </div>
               </td>
               <td className="px-4 py-4 text-zinc-200">
-                <div className="flex items-center gap-2">
-                  {user.username}
-                  {/* {user.user_id === currentUserId && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-green-600/20 text-green-500 rounded">
-                      Você
-                    </span>
-                  )} */}
-                </div>
+                <div className="flex items-center gap-2">{user.username}</div>
               </td>
               <td className="px-4 py-4 text-right font-semibold text-zinc-300">
-                {user[currentPeriod!.field] as number}p 
+                {user[currentPeriod.field] as number}p
               </td>
               <td className="px-2 py-4 w-10">
                 {currentUserId && user.user_id !== currentUserId && (
@@ -126,16 +130,16 @@ export default function RankingTable() {
                       getSelectionState(user.user_id) === "selected"
                         ? "hover:bg-zinc-800 text-zinc-500"
                         : canSelectMore
-                        ? " hover:text-zinc-300 hover:bg-zinc-800"
-                        : " cursor-not-allowed"
+                          ? " hover:text-zinc-300 hover:bg-zinc-800"
+                          : " cursor-not-allowed"
                     }`}
                     disabled={!canSelectMore && !isUserSelected(user.user_id)}
                     title={
                       getSelectionState(user.user_id) === "selected"
                         ? "Remover dos gráficos"
                         : canSelectMore
-                        ? "Adicionar aos gráficos"
-                        : "Limite atingido (máx. 2)"
+                          ? "Adicionar aos gráficos"
+                          : "Limite atingido (máx. 2)"
                     }
                   >
                     {getSelectionState(user.user_id) === "selected" ? (

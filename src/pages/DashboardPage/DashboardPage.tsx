@@ -1,8 +1,8 @@
 import { Plus, BookOpen } from "lucide-react";
-import RankingTable from "./components/RankingTable";
+import RankingTable from "./components/RankingTable/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
 import WeeklyStreak from "./components/WeeklyStreak";
-import ReadingCharts from "./components/ReadingCharts";
+import ReadingCharts from "./components/ReadingCharts/ReadingCharts";
 import { useNavigate } from "react-router-dom";
 import ReadingTable from "./components/ReadingTable/ReadingTable";
 import useReadingStats from "../../hooks/useReadingStats";
