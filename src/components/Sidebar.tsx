@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
+import { useRouteState } from "../hooks/useRouteState";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -16,6 +17,8 @@ interface SidebarProps {
 export default function Sidebar({ collapsed }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  useRouteState();
 
   return (
     <aside

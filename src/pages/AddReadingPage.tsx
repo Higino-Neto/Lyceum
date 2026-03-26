@@ -1,12 +1,13 @@
 import { Plus, Trash2, Copy, BookPlus, NotebookPen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
 import { getCategories } from "../api/database";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import ReadingTable from "./DashboardPage/components/ReadingTable/ReadingTable";
+import { useRouteState } from "../hooks/useRouteState";
 
 interface Book {
   id: string;
@@ -194,18 +195,29 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
 export default function AddReadingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { saveState, loadState, clearState } = useRouteState();
   const [categories, setCategories] = useState<any>();
-  const [entries, setEntries] = useState<ReadingEntry[]>([
-    {
-      id: crypto.randomUUID(),
-      bookTitle: "",
-      bookId: null,
-      numPages: "",
-      category_id: "",
-      readingTime: "",
-      date: new Date().toLocaleDateString("sv-SE"),
-    },
-  ]);
+  const [entries, setEntries] = useState<ReadingEntry[]>(() => {
+    const saved = loadState();
+    if (saved?.entries) {
+      return saved.entries as ReadingEntry[];
+    }
+    return [
+      {
+        id: crypto.randomUUID(),
+        bookTitle: "",
+        bookId: null,
+        numPages: "",
+        category_id: "",
+        readingTime: "",
+        date: new Date().toLocaleDateString("sv-SE"),
+      },
+    ];
+  });
+
+  useEffect(() => {
+    saveState({ entries });
+  }, [entries, saveState]);
 
   const handleBookSelect = (
     entryId: string,
@@ -317,9 +329,11 @@ export default function AddReadingPage() {
       toast.success(
         `${validEntries.length} leitura${validEntries.length > 1 ? "s" : ""} registrada${validEntries.length > 1 ? "s" : ""} com sucesso!`,
       );
+      clearState();
       navigate("/");
     } catch (error) {
-      toast.error("Erro ao registrar leituras");
+      console.error("Error saving readings:", error);
+      toast.error(`Erro ao registrar leituras: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     }
   };
 

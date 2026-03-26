@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
@@ -12,22 +12,40 @@ import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
 import { Toaster } from "react-hot-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { getLastRoute } from "./hooks/useRouteState";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
     async function checkUser() {
-      const user = await getUser();
-      setIsLoggedIn(user !== null);
+      try {
+        const user = await getUser();
+        setIsLoggedIn(user !== null);
+      } catch {
+        setIsLoggedIn(false);
+      }
     }
 
     checkUser();
   }, []);
 
-  const isElectron = typeof window !== "undefined" && window.api?.windowMinimize;
+  useEffect(() => {
+    if (isLoggedIn === true && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      const lastRoute = getLastRoute();
+      if (lastRoute && lastRoute !== "/signin" && lastRoute !== "/signup") {
+        navigate(lastRoute, { replace: true });
+      }
+    }
+  }, [isLoggedIn, navigate]);
+
+  const isElectron =
+    typeof window !== "undefined" && window.api?.windowMinimize;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
@@ -63,7 +81,12 @@ function App() {
           },
         }}
       />
-      {isElectron && <TitleBar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />}
+      {isElectron && (
+        <TitleBar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      )}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={sidebarCollapsed} />
         <main className="w-full overflow-y-auto rounded-sm">

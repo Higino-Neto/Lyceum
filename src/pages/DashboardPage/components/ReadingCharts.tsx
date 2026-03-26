@@ -22,6 +22,7 @@ import getUser from "../../../utils/getUser";
 import { supabase } from "../../../lib/supabase";
 import { CATEGORY_LABELS } from "../../../types/ReadingTypes";
 import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
 
 type ChartType = "daily" | "category" | "weekly" | "weekday";
 
@@ -66,7 +67,6 @@ interface CategoryData {
   id: string;
   name: string;
 }
-
 interface UserReadingData {
   user: UserData;
   readings: ReadingData[];
@@ -127,7 +127,11 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
     <div className="bg-zinc-950 border border-zinc-800 rounded px-3 py-2 shadow-xl">
       <p className="text-zinc-400 text-xs">{label}</p>
       {payload.map((entry, index) => (
-        <p key={index} className="text-zinc-100 text-sm font-medium" style={{ color: entry.color }}>
+        <p
+          key={index}
+          className="text-zinc-100 text-sm font-medium"
+          style={{ color: entry.color }}
+        >
           {entry.name}: {entry.value?.toLocaleString("pt-BR")} páginas
         </p>
       ))}
@@ -144,9 +148,9 @@ function DailyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
       });
     });
 
-    const sortedDates = Array.from(allDates).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime()
-    ).slice(-30);
+    const sortedDates = Array.from(allDates)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      .slice(-30);
 
     return sortedDates.map((date) => {
       const dataPoint: Record<string, string | number> = { date };
@@ -160,7 +164,10 @@ function DailyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
     });
   }, [usersData]);
 
-  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
+  if (
+    chartData.length === 0 ||
+    usersData.every((u) => u.readings.length === 0)
+  ) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -231,21 +238,24 @@ function CategoryDonutChart({
 }) {
   const chartData = useMemo(() => {
     const grouped: Record<string, Record<string, number>> = {};
-    
+
     usersData.forEach((userData) => {
       userData.readings.forEach((item) => {
         const categoryId = item.category_id || "other";
         if (!grouped[categoryId]) {
           grouped[categoryId] = {};
         }
-        grouped[categoryId][userData.user.username] = 
+        grouped[categoryId][userData.user.username] =
           (grouped[categoryId][userData.user.username] || 0) + item.pages;
       });
     });
 
     const totals: Record<string, number> = {};
     Object.entries(grouped).forEach(([categoryId, userPages]) => {
-      totals[categoryId] = Object.values(userPages).reduce((sum, val) => sum + val, 0);
+      totals[categoryId] = Object.values(userPages).reduce(
+        (sum, val) => sum + val,
+        0,
+      );
     });
 
     return Object.entries(grouped)
@@ -266,11 +276,14 @@ function CategoryDonutChart({
   const singleUserCategoryData = useMemo(() => {
     if (usersData.length !== 1) return null;
     const currentUserData = usersData[0];
-    const grouped = currentUserData.readings.reduce<Record<string, number>>((acc, item) => {
-      const categoryId = item.category_id || "other";
-      acc[categoryId] = (acc[categoryId] || 0) + item.pages;
-      return acc;
-    }, {});
+    const grouped = currentUserData.readings.reduce<Record<string, number>>(
+      (acc, item) => {
+        const categoryId = item.category_id || "other";
+        acc[categoryId] = (acc[categoryId] || 0) + item.pages;
+        return acc;
+      },
+      {},
+    );
 
     const total = Object.values(grouped).reduce((sum, val) => sum + val, 0);
 
@@ -288,7 +301,10 @@ function CategoryDonutChart({
       .slice(0, 5);
   }, [usersData, categories]);
 
-  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
+  if (
+    chartData.length === 0 ||
+    usersData.every((u) => u.readings.length === 0)
+  ) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -402,7 +418,7 @@ function WeeklyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
     const allWeeks = new Set<string>();
     const weekKeys = new Map<string, string>();
-    
+
     usersData.forEach((userData) => {
       userData.readings.forEach((item) => {
         const date = parseLocalDate(item.reading_date);
@@ -416,7 +432,10 @@ function WeeklyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
     const sortedWeeks = Array.from(allWeeks).sort().slice(-10);
 
     return sortedWeeks.map((weekKey) => {
-      const dataPoint: Record<string, string | number> = { week: weekKeys.get(weekKey) || weekKey, key: weekKey };
+      const dataPoint: Record<string, string | number> = {
+        week: weekKeys.get(weekKey) || weekKey,
+        key: weekKey,
+      };
       usersData.forEach((userData) => {
         const userPages = userData.readings
           .filter((r) => {
@@ -431,7 +450,10 @@ function WeeklyPagesChart({ usersData }: { usersData: UserReadingData[] }) {
     });
   }, [usersData]);
 
-  if (chartData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
+  if (
+    chartData.length === 0 ||
+    usersData.every((u) => u.readings.length === 0)
+  ) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
@@ -492,22 +514,28 @@ function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    
+
     const monday = new Date(today);
     monday.setDate(today.getDate() + diffToMonday);
     monday.setHours(0, 0, 0, 0);
-    
+
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
     return WEEKDAY_ORDER.map((dayIndex) => {
-      const dataPoint: Record<string, string | number> = { day: WEEKDAY_NAMES[dayIndex] };
+      const dataPoint: Record<string, string | number> = {
+        day: WEEKDAY_NAMES[dayIndex],
+      };
       usersData.forEach((userData) => {
         const userPages = userData.readings
           .filter((r) => {
             const readingDate = parseLocalDate(r.reading_date);
-            return readingDate >= monday && readingDate <= sunday && readingDate.getDay() === dayIndex;
+            return (
+              readingDate >= monday &&
+              readingDate <= sunday &&
+              readingDate.getDay() === dayIndex
+            );
           })
           .reduce((sum, r) => sum + r.pages, 0);
         dataPoint[userData.user.username] = userPages;
@@ -574,10 +602,12 @@ function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
 }
 
 export default function ReadingCharts() {
-  const [activeChart, setActiveChart] = useState<ChartType>("daily");
+  const [activeChart, setActiveChart] = useLocalStorage<ChartType>("chart_type", "daily");
   const { selectedUsers, currentUserId } = useSelectedUsers();
 
-  const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<ReadingData[]>({
+  const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<
+    ReadingData[]
+  >({
     queryKey: ["readings"],
     queryFn: getReadings,
     staleTime: 0,
@@ -590,10 +620,18 @@ export default function ReadingCharts() {
     },
   });
 
-  const selectedUserIds = selectedUsers.map((u) => u.user_id).join(',');
-  const selectedUsersInfo = selectedUsers.map((u) => ({ userId: u.user_id, username: u.username }));
+  const selectedUserIds = selectedUsers.map((u) => u.user_id).join(",");
+  const selectedUsersInfo = selectedUsers.map((u) => ({
+    userId: u.user_id,
+    username: u.username,
+  }));
 
-  const { data: selectedUsersReadings, isLoading: isLoadingSelectedUsers, refetch: refetchSelected, error: selectedUsersError } = useQuery<UserReadingData[]>({
+  const {
+    data: selectedUsersReadings,
+    isLoading: isLoadingSelectedUsers,
+    refetch: refetchSelected,
+    error: selectedUsersError,
+  } = useQuery<UserReadingData[]>({
     queryKey: ["selectedUsersReadings", selectedUserIds],
     queryFn: async () => {
       if (selectedUsersInfo.length === 0) return [];
@@ -608,7 +646,7 @@ export default function ReadingCharts() {
             },
             readings,
           };
-        })
+        }),
       );
       return results;
     },
@@ -624,13 +662,16 @@ export default function ReadingCharts() {
 
   useEffect(() => {
     if (selectedUsersError) {
-      console.error("Error fetching selected users readings:", selectedUsersError);
+      console.error(
+        "Error fetching selected users readings:",
+        selectedUsersError,
+      );
     }
   }, [selectedUsersError]);
 
   const usersData = useMemo(() => {
     const users: UserReadingData[] = [];
-    
+
     if (currentUserId) {
       users.push({
         user: {
@@ -669,7 +710,10 @@ export default function ReadingCharts() {
         return <WeeklyPagesChart usersData={usersData} />;
       case "category":
         return (
-          <CategoryDonutChart usersData={usersData} categories={categories || []} />
+          <CategoryDonutChart
+            usersData={usersData}
+            categories={categories || []}
+          />
         );
       default:
         return null;
@@ -693,16 +737,29 @@ export default function ReadingCharts() {
           </button>
         ))}
       </div>
-      <div className="p-2 pt-4 min-h-56" key={activeChart}>{renderChart()}</div>
+      <div className="p-2 pt-4 min-h-56" key={activeChart}>
+        {renderChart()}
+      </div>
       {usersData.length > 1 && (
         <div className="px-2 pb-2 flex gap-3 justify-center">
           {usersData.map((userData, index) => (
-            <div key={userData.user.userId} className="flex items-center gap-1.5 text-xs">
+            <div
+              key={userData.user.userId}
+              className="flex items-center gap-1.5 text-xs"
+            >
               <div
                 className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                style={{
+                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                }}
               />
-              <span className={userData.user.isCurrentUser ? "text-zinc-200 font-medium" : "text-zinc-500"}>
+              <span
+                className={
+                  userData.user.isCurrentUser
+                    ? "text-zinc-200 font-medium"
+                    : "text-zinc-500"
+                }
+              >
                 {userData.user.username}
               </span>
             </div>
