@@ -12,9 +12,7 @@ export type ChartType =
   | "category" 
   | "weekly" 
   | "weekday"
-  | "gaussian"
-  | "area"
-  | "boxplot";
+  | "area";
 
 export const CHART_OPTIONS: ChartOption[] = [
   { key: "daily", label: "Diário (Line)" },
@@ -22,8 +20,6 @@ export const CHART_OPTIONS: ChartOption[] = [
   { key: "weekly", label: "Semanal" },
   { key: "category", label: "Categorias" },
   { key: "area", label: "Acumulado" },
-  { key: "gaussian", label: "Distribuição" },
-  { key: "boxplot", label: "Estatísticas" },
 ];
 
 export interface ChartOption {
