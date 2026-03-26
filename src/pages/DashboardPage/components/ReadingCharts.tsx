@@ -604,6 +604,7 @@ function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
 export default function ReadingCharts() {
   const [activeChart, setActiveChart] = useLocalStorage<ChartType>("chart_type", "daily");
   const { selectedUsers, currentUserId } = useSelectedUsers();
+  console.log("Usuários selecionados: ", selectedUsers, currentUserId);
 
   const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<
     ReadingData[]
