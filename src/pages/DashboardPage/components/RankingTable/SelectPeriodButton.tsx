@@ -37,7 +37,7 @@ const PERIODS: PeriodOption[] = [
 ];
 
 interface SelectPeriodButtonProps {
-  onChange: (period: PeriodOption) => void;
+  onChange: (period: Period) => void;
 }
 
 export default function SelectPeriodButton({
@@ -55,7 +55,7 @@ export default function SelectPeriodButton({
           key={p.key}
           onClick={() => {
             setPeriod(p.key);
-            onChange(p);
+            onChange(p.key);
           }}
           className={`cursor-pointer flex-1 py-3 flex items-center justify-center gap-1  font-medium transition ${
             period === p.key
