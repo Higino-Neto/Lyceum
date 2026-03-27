@@ -159,7 +159,7 @@ export default function BookDetailPanel({
         <h2 className="text-lg font-semibold text-zinc-100">Detalhes do Livro</h2>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+          className="p-2 hover:bg-zinc-800 rounded-sm transition-colors"
         >
           <X size={20} className="text-zinc-400" />
         </button>
@@ -167,7 +167,7 @@ export default function BookDetailPanel({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="relative">
-          <div className="aspect-[4/5] bg-zinc-800 rounded-lg overflow-hidden shadow-lg">
+          <div className="aspect-[4/5] bg-zinc-800 rounded-sm overflow-hidden shadow-lg">
             {book.thumbnail ? (
               <img
                 src={book.thumbnail}
@@ -193,7 +193,7 @@ export default function BookDetailPanel({
               type="text"
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xl font-bold text-zinc-100 focus:outline-none focus:border-zinc-500"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-xl font-bold text-zinc-100 focus:outline-none focus:border-zinc-500"
             />
           ) : (
             <h3 className="text-xl font-bold text-zinc-100">{book.title}</h3>
@@ -349,7 +349,7 @@ export default function BookDetailPanel({
                   onChange={(e) => setEditedDescription(e.target.value)}
                   placeholder="Adicionar descrição..."
                   rows={3}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 resize-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 resize-none"
                 />
               </div>
 
@@ -360,7 +360,7 @@ export default function BookDetailPanel({
                   onChange={(e) => setEditedNotes(e.target.value)}
                   placeholder="Suas anotações pessoais..."
                   rows={4}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 resize-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 resize-none"
                 />
               </div>
             </div>

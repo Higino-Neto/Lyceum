@@ -1,8 +1,9 @@
 import { Plus, BookOpen } from "lucide-react";
-import RankingTable from "./components/RankingTable";
+import RankingTable from "./components/RankingTable/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
 import WeeklyStreak from "./components/WeeklyStreak";
-import ReadingCharts from "./components/ReadingCharts";
+import ReadingStatsCard from "./components/ReadingStatsCard";
+import ReadingCharts from "./components/ReadingCharts/ReadingCharts";
 import { useNavigate } from "react-router-dom";
 import ReadingTable from "./components/ReadingTable/ReadingTable";
 import useReadingStats from "../../hooks/useReadingStats";
@@ -27,7 +28,7 @@ export default function Dashboard() {
                   <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
                     <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin m-8" />
                   </div>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:row-span-2 overflow-y-auto">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 overflow-y-auto">
                     <RankingTable />
                   </div>
                 </>
@@ -36,16 +37,19 @@ export default function Dashboard() {
                   <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
                     <ReadingCharts />
                   </div>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:row-span-2 overflow-y-auto">
+                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 overflow-y-auto">
                     <RankingTable />
                   </div>
                 </>
               )}
-             <div className="bg-zinc-900 rounded-sm border border-zinc-800">
+              <div className="bg-zinc-900 rounded-sm border border-zinc-800">
                 <ReadingHeatMap />
               </div>
               <div className="bg-zinc-900 rounded-sm">
                 <WeeklyStreak />
+              </div>
+              <div className="bg-zinc-900 rounded-sm">
+                <ReadingStatsCard />
               </div>
             </section>
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import RankingTable from "../pages/DashboardPage/components/RankingTable";
+import RankingTable from "../pages/DashboardPage/components/RankingTable/RankingTable";
 import { createTestQueryClient } from "./helpers/renderWithProviders";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";

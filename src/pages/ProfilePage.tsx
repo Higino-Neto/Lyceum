@@ -192,7 +192,7 @@ export default function ProfilePage() {
       </h1>
 
       <div className="max-w-2xl space-y-8">
-        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+        <div className="bg-zinc-900 rounded-sm p-6 border border-zinc-800">
           <h2 className="text-xl font-semibold mb-4">Informações pessoais</h2>
           <form onSubmit={handleNameSubmit} className="space-y-4">
             <div className="flex items-center gap-6">
@@ -232,7 +232,7 @@ export default function ProfilePage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
                 />
               </div>
             </div>
@@ -244,13 +244,13 @@ export default function ProfilePage() {
                 type="email"
                 value={user?.email || ""}
                 disabled
-                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-2 text-zinc-500"
+                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-sm px-4 py-2 text-zinc-500"
               />
             </div>
             <button
               type="submit"
               disabled={nameMutation.isPending}
-              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-zinc-200 transition disabled:opacity-50"
+              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-sm font-medium hover:bg-zinc-200 transition disabled:opacity-50"
             >
               <Save size={18} />
               {nameMutation.isPending ? "Salvando..." : "Salvar"}
@@ -258,7 +258,7 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+        <div className="bg-zinc-900 rounded-sm p-6 border border-zinc-800">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Lock size={20} />
             Alterar senha
@@ -272,7 +272,7 @@ export default function ProfilePage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
               />
             </div>
             <div>
@@ -283,13 +283,13 @@ export default function ProfilePage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
               />
             </div>
             <button
               type="submit"
               disabled={passwordMutation.isPending}
-              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-zinc-200 transition disabled:opacity-50"
+              className="flex items-center gap-2 bg-zinc-100 text-zinc-900 px-6 py-2 rounded-sm font-medium hover:bg-zinc-200 transition disabled:opacity-50"
             >
               <Save size={18} />
               {passwordMutation.isPending ? "Alterando..." : "Alterar senha"}
@@ -297,11 +297,11 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+        <div className="bg-zinc-900 rounded-sm p-6 border border-zinc-800">
           <h2 className="text-xl font-semibold mb-4">Sair</h2>
           <button
             onClick={handleSignOut}
-            className="bg-red-500/10 text-red-500 px-6 py-2 rounded-lg font-medium hover:bg-red-500/20 transition"
+            className="bg-red-500/10 text-red-500 px-6 py-2 rounded-sm font-medium hover:bg-red-500/20 transition"
           >
             Sair da conta
           </button>
