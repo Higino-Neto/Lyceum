@@ -66,17 +66,53 @@ export function ReadingHeatMap() {
     return { startDate: start, endDate: end };
   }, [value]);
 
-  const darkPanelColors: Record<number, string> = {
-    0: "#27272a",
-    1: "#16a34a",
-    2: "#16a34a",
-    3: "#16a34a",
-    4: "#22c55e",
-    5: "#22c55e",
-    6: "#22c55e",
-    7: "#22c55e",
-    8: "#22c55e",
-    9: "#22c55e",
+  const darkPanelColors = useMemo(() => {
+    if (!value || value.length === 0) {
+      return {
+        0: "#27272a",
+        1: "#16a34a",
+        2: "#16a34a",
+        3: "#16a34a",
+        4: "#22c55e",
+        5: "#22c55e",
+        6: "#22c55e",
+        7: "#22c55e",
+        8: "#22c55e",
+        9: "#22c55e",
+      };
+    }
+
+    const counts = value.map(d => d.count);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    const range = max - min || 1;
+
+    const colors = [
+      "#27272a",
+      "#14532d",
+      "#166534",
+      "#15803d",
+      "#16a34a",
+      "#22c55e",
+      "#4ade80",
+      "#86efac",
+      "#bbf7d0",
+      "#dcfce7",
+    ];
+
+    return colors;
+  }, [value]);
+
+  const getColorIndex = (count: number) => {
+    if (!value || value.length === 0 || count === 0) return 0;
+    
+    const counts = value.map(d => d.count);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    const range = max - min || 1;
+    
+    const normalized = (count - min) / range;
+    return Math.min(9, Math.floor(normalized * 9) + 1);
   };
 
   if (isLoading) {
@@ -100,9 +136,12 @@ export function ReadingHeatMap() {
     const tooltipContent = data.count
       ? `${data.count} p`
       : "Sem dados";
+    
+    const colorIndex = getColorIndex(data.count || 0);
+    const fillColor = darkPanelColors[colorIndex];
 
     return (
-      <rect {...props}>
+      <rect {...props} fill={fillColor}>
         <title>{`${data.date}: ${tooltipContent}`}</title>
       </rect>
     );
