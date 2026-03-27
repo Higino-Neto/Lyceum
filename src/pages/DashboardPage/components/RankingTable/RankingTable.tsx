@@ -1,27 +1,13 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import useRanking from "../../../../hooks/useRanking";
 import { RankingTableSkeleton } from "../../../../components/skeletons";
 import { User, Crown, Trophy, Plus, Minus } from "lucide-react";
 import { useSelectedUsers } from "../../../../contexts/SelectedUsersContext";
 import SelectPeriodButton from "./SelectPeriodButton";
-
-// type Period = "today" | "this_week" | "this_month" | "all_time";
-
-// interface PeriodOption {
-//   key: Period;
-//   icon: React.ReactNode;
-//   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
-// }
+import { useLocalStorage } from "../../../../hooks/useLocalStorage";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
-
-// const PERIODS: PeriodOption[] = [
-//   { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" },
-//   { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" },
-//   { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" },
-//   { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" },
-// ];
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
@@ -33,17 +19,23 @@ interface PeriodOption {
 
 export default function RankingTable() {
   const { data: ranking, isLoading } = useRanking();
-  // const [period, setPeriod] = useState<Period>("all_time");
   const { selectedUsers, currentUserId, toggleUser, isUserSelected } =
     useSelectedUsers();
 
-  // const currentPeriod = PERIODS.find((p) => p.key === period);
+  const [period, setPeriod] = useLocalStorage<Period>("ranking_type", "all_time");
 
-  const [currentPeriod, setCurrentPeriod] = useState<PeriodOption>({
-    key: "all_time",
-    icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
-    field: "total_pages",
-  });
+  const currentPeriod = useMemo((): PeriodOption => {
+    switch (period) {
+      case "today":
+        return { key: "today", icon: <span className="text-sm font-medium">Hoje</span>, field: "today_pages" };
+      case "this_week":
+        return { key: "this_week", icon: <span className="text-sm font-medium">Semanal</span>, field: "this_week_pages" };
+      case "this_month":
+        return { key: "this_month", icon: <span className="text-sm font-medium">Mensal</span>, field: "month_pages" };
+      default:
+        return { key: "all_time", icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />, field: "total_pages" };
+    }
+  }, [period]);
 
   const sortedRanking = ranking
     ? [...ranking].sort((a, b) => {
@@ -81,7 +73,7 @@ export default function RankingTable() {
             {p.icon}
           </button>
         ))} */}
-        <SelectPeriodButton onChange={setCurrentPeriod} />
+        <SelectPeriodButton onChange={setPeriod} />
       </div>
       <table className="w-full text-base">
         <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider" />
