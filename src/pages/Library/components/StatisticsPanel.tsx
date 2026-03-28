@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { SupabaseBook, BookReading, getBookReadings } from "../../../api/database";
-import { FileBarChart, PanelLeftClose } from "lucide-react";
+import { FileBarChart, PanelLeftClose, Edit3, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface StatisticsPanelProps {
   book: SupabaseBook | null;
   onClose: () => void;
+  onEdit: (book: SupabaseBook) => void;
+  onDelete: (book: SupabaseBook) => void;
 }
 
-export default function StatisticsPanel({ book, onClose }: StatisticsPanelProps) {
+export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: StatisticsPanelProps) {
   const [bookReadings, setBookReadings] = useState<BookReading[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -101,12 +104,26 @@ export default function StatisticsPanel({ book, onClose }: StatisticsPanelProps)
           </div>
         )}
 
-        <button
-          onClick={onClose}
-          className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-700 hover:border-zinc-600 rounded-sm transition-colors"
-        >
-          Limpar seleção
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onEdit(book)}
+            className="flex-1 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-sm transition-colors flex items-center justify-center gap-1"
+          >
+            <Edit3 size={12} />
+            Editar
+          </button>
+          <button
+            onClick={() => {
+              if (confirm(`Tem certeza que deseja excluir "${book.title}"?`)) {
+                onDelete(book);
+              }
+            }}
+            className="flex-1 py-2 text-xs text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 border border-red-800 hover:border-red-700 rounded-sm transition-colors flex items-center justify-center gap-1"
+          >
+            <Trash2 size={12} />
+            Excluir
+          </button>
+        </div>
       </div>
     </aside>
   );

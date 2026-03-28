@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { SupabaseBook, BookReading, getBookReadings, getOrCreateBook } from "../../../api/database";
 import { DocumentRecord } from "../../../types/ReadingTypes";
-import { Link2, AlertTriangle, Check, Edit3, FileText, BookOpen, FolderOpen, PanelLeftClose, PanelLeft, GitMerge } from "lucide-react";
+import { AlertTriangle, Check, FileText, BookOpen, PanelLeftClose, PanelLeft, GitMerge } from "lucide-react";
 import toast from "react-hot-toast";
 import { updateBook, mergeBooks } from "../../../api/database";
 
@@ -15,6 +15,7 @@ interface BooksSectionProps {
   onSelectBook?: (book: SupabaseBook | null) => void;
   onToggleSidebar?: () => void;
   onRefresh: () => void;
+  editingBook?: SupabaseBook | null;
 }
 
 interface DuplicatedGroup {
@@ -31,7 +32,8 @@ export default function BooksSection({
   selectedBook,
   onSelectBook,
   onToggleSidebar,
-  onRefresh 
+  onRefresh,
+  editingBook: externalEditingBook
 }: BooksSectionProps) {
   const [selectedGroup, setSelectedGroup] = useState<DuplicatedGroup | null>(null);
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
@@ -42,12 +44,40 @@ export default function BooksSection({
   const [bookReadings, setBookReadings] = useState<BookReading[]>([]);
   const [loadingReadings, setLoadingReadings] = useState(false);
 
+  useEffect(() => {
+    if (externalEditingBook) {
+      setEditingBook(externalEditingBook);
+      setEditForm({ title: externalEditingBook.title, author: externalEditingBook.author || "" });
+    }
+  }, [externalEditingBook]);
+
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
   const [showMergeNameDialog, setShowMergeNameDialog] = useState(false);
   const [mergeFinalName, setMergeFinalName] = useState("");
+  const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
 
   const internalSelectedBook = selectedBook;
+
+  useEffect(() => {
+    const loadThumbnails = async () => {
+      const thumbnails: Record<string, string> = {};
+      for (const doc of localDocuments) {
+        if (doc.thumbnailPath) {
+          try {
+            const thumb = await window.api.getThumbnail(doc.thumbnailPath);
+            if (thumb) {
+              thumbnails[doc.fileHash] = thumb;
+            }
+          } catch (e) {
+            console.error("Error loading thumbnail:", e);
+          }
+        }
+      }
+      setLocalThumbnails(thumbnails);
+    };
+    loadThumbnails();
+  }, [localDocuments]);
 
   useEffect(() => {
     if (internalSelectedBook) {
@@ -204,7 +234,10 @@ export default function BooksSection({
         for (const fileHash of localIds) {
           const doc = localDocuments.find(d => d.fileHash === fileHash);
           if (doc && doc.thumbnailPath) {
-            await updateBook(targetBook.id, { thumbnail_url: `thumbnail://${doc.thumbnailPath}` });
+            const thumb = await window.api.getThumbnail(doc.thumbnailPath);
+            if (thumb) {
+              await updateBook(targetBook.id, { thumbnail_url: thumb });
+            }
           }
           await window.api.updateBookId(fileHash, targetBook.id);
         }
@@ -212,10 +245,15 @@ export default function BooksSection({
         if (localIds.length >= 2) {
           const firstDoc = localDocuments.find(d => d.fileHash === localIds[0]);
           if (firstDoc) {
+            let thumbUrl: string | undefined;
+            if (firstDoc.thumbnailPath) {
+              const thumb = await window.api.getThumbnail(firstDoc.thumbnailPath);
+              thumbUrl = thumb || undefined;
+            }
             const newBookId = await getOrCreateBook(
               mergeFinalName.trim(),
               firstDoc.author || undefined,
-              firstDoc.thumbnailPath ? `thumbnail://${firstDoc.thumbnailPath}` : undefined,
+              thumbUrl,
               firstDoc.numPages || undefined
             );
 
@@ -268,7 +306,7 @@ export default function BooksSection({
 
   const filteredLocalDocs = search
     ? localDocuments.filter(doc => {
-        const score = calculateSimilarity(doc.title, null, search);
+        const score = calculateSimilarity(doc.title, doc.author, search);
         return score > 0.2;
       })
     : [];
@@ -381,7 +419,10 @@ export default function BooksSection({
     );
   }
 
-  if (filteredBooks.length === 0) {
+  const hasSearch = search.length > 0;
+  const showLocalDocsInMerge = mergeMode && hasSearch && filteredLocalDocs.length > 0;
+
+  if (filteredBooks.length === 0 && !showLocalDocsInMerge) {
     return (
       <div className="w-full">
         <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -395,7 +436,7 @@ export default function BooksSection({
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mt-3">
           {mergeMode ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400">{selectedForMerge.size} selecionado{selectedForMerge.size !== 1 ? 's' : ''}</span>
@@ -551,47 +592,6 @@ export default function BooksSection({
                   </div>
                 )}
                 
-                <div className={`absolute inset-0 bg-black/60 ${mergeMode ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'} transition-opacity flex items-center justify-center gap-2`}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); startEdit(book); }}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm"
-                    title="Editar"
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                  {linkingBook?.id === book.id ? (
-                    <select
-                      className="text-xs bg-zinc-800 border border-zinc-700 rounded-sm px-2 py-1 max-w-[120px] truncate"
-                      autoFocus
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const doc = localDocuments.find(d => d.fileHash === e.target.value);
-                          if (doc) handleLinkDocument(book, doc);
-                        }
-                        setLinkingBook(null);
-                      }}
-                      onBlur={() => setLinkingBook(null)}
-                    >
-                      <option value="">Vincular...</option>
-                      {localDocuments
-                        .filter(d => !d.bookId)
-                        .slice(0, 10)
-                        .map((doc) => (
-                          <option key={doc.fileHash} value={doc.fileHash}>
-                            {doc.title}
-                          </option>
-                        ))}
-                    </select>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setLinkingBook(book); }}
-                      className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm"
-                      title="Vincular documento"
-                    >
-                      <Link2 size={14} />
-                    </button>
-                  )}
-                </div>
               </div>
               
               <p className="text-xs text-zinc-300 line-clamp-2">{book.title}</p>
@@ -628,9 +628,9 @@ export default function BooksSection({
                 </div>
               )}
               <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
-                {doc.thumbnailPath ? (
+                {localThumbnails[doc.fileHash] ? (
                   <img
-                    src={`thumbnail://${doc.thumbnailPath}`}
+                    src={localThumbnails[doc.fileHash]}
                     alt={doc.title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -652,82 +652,6 @@ export default function BooksSection({
           );
         })}
       </div>
-
-      {!mergeMode && filteredUnlinkedDocs.length > 0 && (
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-4">
-            <FolderOpen size={16} className="text-zinc-500" />
-            <h3 className="text-sm font-medium text-zinc-400">
-              Documentos Locais ({filteredUnlinkedDocs.length})
-            </h3>
-          </div>
-          <p className="text-xs text-zinc-500 mb-4">
-            Estes documentos locais não estão vinculados a nenhum livro. Vincule-os para sincronizar metadados.
-          </p>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {filteredUnlinkedDocs.map((doc) => {
-              const matchingBooks = books.filter(book => {
-                const normalized = book.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-                const docNormalized = doc.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-                return normalized.includes(docNormalized) || docNormalized.includes(normalized);
-              });
-              
-              return (
-                <div
-                  key={doc.fileHash}
-                  className="flex flex-col gap-2 group"
-                >
-                  <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
-                    {doc.thumbnailPath ? (
-                      <img
-                        src={`thumbnail://${doc.thumbnailPath}`}
-                        alt={doc.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <FileText size={28} className="text-zinc-600" />
-                      </div>
-                    )}
-                    
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      {matchingBooks.length > 0 ? (
-                        <select
-                          className="text-xs bg-zinc-800 border border-zinc-700 rounded-sm px-2 py-1 max-w-[120px] truncate"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleLinkDocumentToLocal(doc, e.target.value);
-                            }
-                          }}
-                        >
-                          <option value="">Vincular a...</option>
-                          {matchingBooks.map((book) => (
-                            <option key={book.id} value={book.id}>
-                              {book.title}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="text-xs text-zinc-400 px-2 text-center">
-                          Nenhum livro correspondente
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-zinc-300 line-clamp-2">{doc.title}</p>
-                  <p className="text-xs text-zinc-500 truncate">{doc.numPages} páginas</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {showMergeConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

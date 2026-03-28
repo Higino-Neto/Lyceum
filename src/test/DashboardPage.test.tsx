@@ -60,7 +60,7 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-vi.mock("../pages/DashboardPage/components/RankingTable", () => ({
+vi.mock("../pages/DashboardPage/components/RankingTable/RankingTable", () => ({
   default: () => <div data-testid="ranking-table">Ranking Table</div>,
 }));
 
@@ -72,12 +72,16 @@ vi.mock("../pages/DashboardPage/components/WeeklyStreak", () => ({
   default: () => <div data-testid="weekly-streak">Weekly Streak</div>,
 }));
 
-vi.mock("../pages/DashboardPage/components/ReadingCharts", () => ({
+vi.mock("../pages/DashboardPage/components/ReadingCharts/ReadingCharts", () => ({
   default: () => <div data-testid="reading-charts">Reading Charts</div>,
 }));
 
 vi.mock("../pages/DashboardPage/components/ReadingTable/ReadingTable", () => ({
   default: () => <div data-testid="reading-table">Reading Table</div>,
+}));
+
+vi.mock("../pages/DashboardPage/components/ReadingStatsCard", () => ({
+  default: () => <div data-testid="reading-stats">Reading Stats</div>,
 }));
 
 vi.mock("../contexts/SelectedUsersContext", () => ({

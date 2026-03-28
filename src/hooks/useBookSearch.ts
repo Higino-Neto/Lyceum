@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { getOrCreateBook } from "../api/database";
+import { DocumentRecord } from "../types/ReadingTypes";
 
 export interface Book {
   id: string;
@@ -12,6 +13,16 @@ export interface Book {
   description: string | null;
   published_date: string | null;
   external_id: string | null;
+}
+
+export interface LocalBook {
+  id: number;
+  title: string;
+  fileHash: string;
+  thumbnailPath: string | null;
+  numPages: number;
+  author: string | null;
+  description: string | null;
 }
 
 export function useBookSearch() {
@@ -32,22 +43,40 @@ export function useBookSearch() {
     setError(null);
 
     try {
-      const { data: localBooks, error: localError } = await supabase
-        .from("books")
-        .select("*")
-        .ilike("title", `%${query}%`)
-        .limit(10);
+      const [supabaseResults, localResults] = await Promise.all([
+        supabase
+          .from("books")
+          .select("*")
+          .ilike("title", `%${query}%`)
+          .limit(10),
+        window.api?.searchLocalBooks
+          ? window.api.searchLocalBooks(query).catch(() => [])
+          : Promise.resolve([]),
+      ]);
 
-      if (localError) {
-        console.error("Error searching books:", localError);
-        setError("Erro ao buscar livros");
-        setResults([]);
-        setLoading(false);
-        return;
+      if (supabaseResults.error) {
+        console.error("Error searching books:", supabaseResults.error);
       }
 
-      if (localBooks && localBooks.length > 0) {
-        setResults(localBooks);
+      const combinedResults: Book[] = [...(supabaseResults.data || [])];
+
+      if (localResults && localResults.length > 0) {
+        const localBooks: Book[] = localResults.map((doc: DocumentRecord) => ({
+          id: doc.fileHash || `local-${doc.id}`,
+          title: doc.title,
+          author: doc.author || null,
+          thumbnail_url: doc.thumbnailPath ? `file://${doc.thumbnailPath}` : null,
+          total_pages: doc.numPages || null,
+          isbn: null,
+          description: doc.description || null,
+          published_date: null,
+          external_id: doc.fileHash || null,
+        }));
+        combinedResults.push(...localBooks);
+      }
+
+      if (combinedResults.length > 0) {
+        setResults(combinedResults);
       } else {
         setResults([]);
         setError("Nenhum livro encontrado. Digite o nome manualmente.");

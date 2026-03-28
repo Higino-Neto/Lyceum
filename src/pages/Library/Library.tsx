@@ -5,7 +5,8 @@ import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
 import { BookWithThumbnail } from "../../types/LibraryTypes";
 import { FolderOpen } from "lucide-react";
-import { getAllBooks, SupabaseBook, mergeBooks, updateBook, getUserReadings } from "../../api/database";
+import toast from "react-hot-toast";
+import { getAllBooks, SupabaseBook, mergeBooks, updateBook, getUserReadings, deleteBook } from "../../api/database";
 import { DocumentRecord } from "../../types/ReadingTypes";
 
 interface FolderInfo {
@@ -41,6 +42,8 @@ export default function Library() {
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [selectedSupabaseBook, setSelectedSupabaseBook] =
+    useState<SupabaseBook | null>(null);
+  const [editingSupabaseBook, setEditingSupabaseBook] =
     useState<SupabaseBook | null>(null);
 
   const loadFolderStructure = useCallback(async () => {
@@ -106,6 +109,25 @@ export default function Library() {
   const handleBookDeleted = () => {
     setSelectedBook(null);
     refreshBooks();
+  };
+
+  const handleSupabaseBookDelete = async (book: SupabaseBook) => {
+    try {
+      await deleteBook(book.id);
+      setSelectedSupabaseBook(null);
+      const books = await getAllBooks();
+      setSupabaseBooks(books);
+      toast.success("Livro excluído!");
+    } catch (error) {
+      console.error("Error deleting book:", error);
+      toast.error("Erro ao excluir livro");
+    }
+  };
+
+  const handleSupabaseBookEdit = (book: SupabaseBook) => {
+    setSelectedSupabaseBook(book);
+    setEditingSupabaseBook(book);
+    setShowBooksSidebar(true);
   };
 
   const handleBookRefresh = () => {
@@ -240,11 +262,13 @@ export default function Library() {
                 selectedBook={selectedSupabaseBook}
                 onSelectBook={setSelectedSupabaseBook}
                 onToggleSidebar={() => setShowBooksSidebar(!showBooksSidebar)}
+                editingBook={editingSupabaseBook}
                 onRefresh={async () => {
                   const books = await getAllBooks();
                   setSupabaseBooks(books);
                   const docs = await window.api.getDocuments();
                   setLocalDocuments(docs);
+                  setEditingSupabaseBook(null);
                 }}
               />
             ) : (
@@ -276,6 +300,8 @@ export default function Library() {
         <StatisticsPanel
           book={selectedSupabaseBook}
           onClose={() => setShowBooksSidebar(false)}
+          onEdit={handleSupabaseBookEdit}
+          onDelete={handleSupabaseBookDelete}
         />
       )}
             
