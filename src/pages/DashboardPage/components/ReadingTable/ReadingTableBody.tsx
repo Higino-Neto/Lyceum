@@ -14,7 +14,11 @@ const formatDate = (dateString: string) => {
   return `${day}/${month}/${year}`;
 };
 
-export default function ReadingTableBody() {
+interface ReadingTableBodyProps {
+  onlyTable?: boolean;
+}
+
+export default function ReadingTableBody({ onlyTable = false }: ReadingTableBodyProps) {
   const { data: readings, isLoading } = useGetReadings();
   const queryClient = useQueryClient();
 
@@ -34,11 +38,11 @@ export default function ReadingTableBody() {
   });
 
   if (isLoading) {
-    return <TableSkeleton rows={5} />;
+    return onlyTable ? <TableSkeleton rows={5} /> : null;
   }
 
-  return (
-    <>
+  if (onlyTable) {
+    return (
       <tbody>
         {readings?.map((reading: TableReading) => (
           <tr
@@ -75,7 +79,11 @@ export default function ReadingTableBody() {
           </tr>
         ))}
       </tbody>
+    );
+  }
 
+  return (
+    <>
       <ConfirmDialog
         isOpen={!!deleteReading}
         title="Excluir Leitura"

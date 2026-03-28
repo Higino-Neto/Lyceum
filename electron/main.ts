@@ -42,6 +42,9 @@ import {
   getDocumentsByCategory,
   getCategoryColors,
   importCategoriesFromFolders,
+  updateDocumentBookId,
+  getDocumentsByBookId,
+  getDocumentByTitle,
 } from "./local-database";
 
 const require = createRequire(import.meta.url);
@@ -766,6 +769,19 @@ ipcMain.handle("library:open-folder", () => {
   const libraryPath = LIBRARY_PATH();
   require("electron").shell.openPath(libraryPath);
   return libraryPath;
+});
+
+ipcMain.handle("book:update-book-id", (_, fileHash: string, bookId: string) => {
+  updateDocumentBookId(fileHash, bookId);
+  return { success: true };
+});
+
+ipcMain.handle("book:get-by-book-id", (_, bookId: string) => {
+  return getDocumentsByBookId(bookId);
+});
+
+ipcMain.handle("book:get-by-title", (_, title: string) => {
+  return getDocumentByTitle(title);
 });
 
 ipcMain.handle("book:show-in-folder", (_, filePath: string) => {

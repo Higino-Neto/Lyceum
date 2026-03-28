@@ -134,3 +134,95 @@ export async function createUserProfile(
   });
   if (error) throw error;
 }
+
+export interface SupabaseBook {
+  id: string;
+  title: string;
+  author: string | null;
+  thumbnail_url: string | null;
+  total_pages: number | null;
+  isbn: string | null;
+  description: string | null;
+  published_date: string | null;
+  external_id: string | null;
+}
+
+export async function getAllBooks(): Promise<SupabaseBook[]> {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return [];
+  }
+  
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("title");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getBookById(bookId: string): Promise<SupabaseBook | null> {
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("id", bookId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBook(
+  bookId: string,
+  updates: Partial<SupabaseBook>
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update(updates)
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+export async function deleteBook(bookId: string): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .delete()
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+export async function mergeBooks(
+  sourceBookId: string,
+  targetBookId: string
+): Promise<void> {
+  const { error: updateError } = await supabase
+    .from("readings")
+    .update({ book_id: targetBookId })
+    .eq("book_id", sourceBookId);
+  if (updateError) throw updateError;
+
+  const { error: deleteError } = await supabase
+    .from("books")
+    .delete()
+    .eq("id", sourceBookId);
+  if (deleteError) throw deleteError;
+}
+
+export interface BookReading {
+  id: string;
+  source_name: string;
+  pages: number;
+  reading_date: string;
+  reading_time: number;
+  category_id: string | null;
+}
+
+export async function getBookReadings(bookId: string): Promise<BookReading[]> {
+  const { data, error } = await supabase
+    .from("readings")
+    .select("id, source_name, pages, reading_date, reading_time, category_id")
+    .eq("book_id", bookId)
+    .order("reading_date", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}

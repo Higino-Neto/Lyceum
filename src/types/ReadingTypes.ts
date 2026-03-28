@@ -62,6 +62,7 @@ export interface DocumentRecord {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
+  bookId: string | null;
 }
 
 /** Props do modal de sessão concluída */

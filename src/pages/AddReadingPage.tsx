@@ -80,7 +80,9 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
         .select("id, title, author, thumbnail_url, category_id")
         .ilike("title", `%${query}%`)
         .limit(8),
-      (window as any).api.searchLocalBooks(query).catch(() => []),
+      window.api?.searchLocalBooks 
+        ? window.api.searchLocalBooks(query).catch(() => []) 
+        : Promise.resolve([]),
     ]);
 
     const combinedResults: (Book | LocalBook)[] = [];
@@ -90,8 +92,8 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
     }
 
     if (localResults && localResults.length > 0) {
-      const localBooks: LocalBook[] = localResults.map((doc: LocalBook) => ({
-        id: `local-${doc.id}`,
+      const localBooks = localResults.map((doc: any) => ({
+        id: doc.fileHash || `local-${doc.id}`,
         title: doc.title,
         fileHash: doc.fileHash,
         thumbnailPath: doc.thumbnailPath,

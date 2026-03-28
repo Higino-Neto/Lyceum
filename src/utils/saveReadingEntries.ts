@@ -23,10 +23,43 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
     });
 
     const bookIdMap = new Map<string, string>();
+    
     for (const title of uniqueBooks) {
       const categoryId = bookCategoryMap.get(title) || null;
+      
+      const entriesWithThisTitle = entries.filter(e => e.bookTitle === title);
+      const existingBookId = entriesWithThisTitle.find(e => e.bookId)?.bookId;
+      
+      if (existingBookId && existingBookId.startsWith('local-')) {
+        bookIdMap.set(title, null);
+        continue;
+      }
+      
+      if (existingBookId && !existingBookId.startsWith('local-') && existingBookId.length === 36) {
+        bookIdMap.set(title, existingBookId);
+        continue;
+      }
+      
+      const fileHash = existingBookId;
+      
       try {
-        const bookId = await getOrCreateBook(title, undefined, undefined, undefined, undefined, undefined, undefined, undefined, categoryId || undefined);
+        let bookId: string;
+        
+        if (fileHash && window.api) {
+          bookId = await getOrCreateBook(title, undefined, undefined, undefined, undefined, undefined, undefined, undefined, categoryId || undefined);
+          
+          try {
+            const doc = await window.api.getDocumentByTitle(title);
+            if (doc && !doc.bookId) {
+              await window.api.updateBookId(doc.fileHash, bookId);
+            }
+          } catch (linkErr) {
+            console.warn(`Could not link document to book "${title}":`, linkErr);
+          }
+        } else {
+          bookId = await getOrCreateBook(title, undefined, undefined, undefined, undefined, undefined, undefined, undefined, categoryId || undefined);
+        }
+        
         bookIdMap.set(title, bookId);
       } catch (err) {
         console.error(`Error creating book "${title}":`, err);
@@ -35,7 +68,7 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
     }
 
     for (const entry of entries) {
-      const bookId = entry.bookId || bookIdMap.get(entry.bookTitle);
+      const bookId = bookIdMap.get(entry.bookTitle);
       try {
         await createReadingEntry(
           entry.bookTitle,
