@@ -1,12 +1,10 @@
-import { BookOpen, LayoutGrid, List, Heart, FolderOpen, PanelLeftClose, PanelLeft } from "lucide-react";
+import { BookOpen, LayoutGrid, List, FolderOpen, PanelLeftClose, PanelLeft } from "lucide-react";
 
 interface LibraryHeaderProps {
   syncedCount: number;
   unsyncedCount: number;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
-  showFavoritesOnly?: boolean;
-  onToggleFavorites?: () => void;
   showSidebar?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -16,8 +14,6 @@ export default function LibraryHeader({
   unsyncedCount,
   viewMode,
   onViewModeChange,
-  showFavoritesOnly = false,
-  onToggleFavorites,
   showSidebar = true,
   onToggleSidebar,
 }: LibraryHeaderProps) {
@@ -45,20 +41,6 @@ export default function LibraryHeader({
             title={showSidebar ? "Ocultar painel de pastas" : "Mostrar painel de pastas"}
           >
             {showSidebar ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
-          </button>
-        )}
-
-        {onToggleFavorites && (
-          <button
-            onClick={onToggleFavorites}
-            className={`cursor-pointer p-2 rounded-sm transition-colors ${
-              showFavoritesOnly
-                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            }`}
-            title="Mostrar favoritos"
-          >
-            <Heart size={18} className={showFavoritesOnly ? "fill-red-400" : ""} />
           </button>
         )}
 

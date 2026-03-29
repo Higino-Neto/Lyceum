@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { SupabaseBook, BookReading, getBookReadings } from "../../../api/database";
-import { FileBarChart, PanelLeftClose, Edit3, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { X, Edit3, Trash2, FileText, BookOpen, Clock, Calendar } from "lucide-react";
 
 interface StatisticsPanelProps {
   book: SupabaseBook | null;
@@ -30,101 +29,122 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
     return bookReadings.reduce((sum, r) => sum + r.pages, 0);
   }, [bookReadings]);
 
-  if (!book) {
-    return (
-      <aside className="w-72 flex-shrink-0 bg-zinc-900/50 border-l border-zinc-800 p-4 h-full">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <FileBarChart size={16} />
-            <span className="text-sm font-medium">Estatísticas</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-zinc-800 rounded-sm text-zinc-500"
-            title="Ocultar painel"
-          >
-            <PanelLeftClose size={16} />
-          </button>
-        </div>
-        <div className="text-center py-8">
-          <FileBarChart size={32} className="mx-auto text-zinc-600 mb-2" />
-          <p className="text-xs text-zinc-500">Selecione um livro para ver as estatísticas</p>
-        </div>
-      </aside>
-    );
-  }
+  const totalTime = useMemo(() => {
+    return bookReadings.reduce((sum, r) => sum + (r.reading_time || 0), 0);
+  }, [bookReadings]);
+
+  const formatTime = (minutes: number) => {
+    if (minutes === 0) return "0 min";
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours === 0) return `${mins} min`;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}h ${mins}min`;
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("pt-BR");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (!book) return null;
 
   return (
-    <aside className="w-72 flex-shrink-0 bg-zinc-900/50 border-l border-zinc-800 p-4 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-zinc-400">
-          <FileBarChart size={16} />
-          <span className="text-sm font-medium">Estatísticas</span>
-        </div>
+    <div className="overflow-hidden w-100 bg-zinc-900 shadow-2xl z-50 flex flex-col h-full max-h-[calc(100vh-8.5rem)]">
+      <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+        <h2 className="text-lg font-semibold text-zinc-100">Estatísticas</h2>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-zinc-800 rounded-sm text-zinc-500"
-          title="Ocultar painel"
+          className="p-2 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer"
         >
-          <PanelLeftClose size={16} />
+          <X size={20} className="text-zinc-400" />
         </button>
       </div>
 
-      <div className="space-y-3">
-        <div className="p-3 bg-zinc-800/50 rounded-sm">
-          <p className="text-xs text-zinc-500 mb-1">Livro selecionado</p>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="p-3 bg-zinc-800 rounded-sm">
           <p className="text-sm text-zinc-200 font-medium line-clamp-2">{book.title}</p>
-          <p className="text-xs text-zinc-500 mt-1">{book.author || 'Autor desconhecido'}</p>
+          <p className="text-xs text-zinc-500 mt-1">{book.author || "Autor desconhecido"}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="p-3 bg-zinc-800/50 rounded-sm text-center">
-            <p className="text-lg font-semibold text-zinc-200">{totalPages}</p>
-            <p className="text-xs text-zinc-500">páginas lidas</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-3 bg-zinc-800 rounded-sm text-center">
+            <p className="text-lg font-semibold text-green-500">{totalPages}</p>
+            <p className="text-xs text-zinc-500">páginas</p>
           </div>
-          <div className="p-3 bg-zinc-800/50 rounded-sm text-center">
+          <div className="p-3 bg-zinc-800 rounded-sm text-center">
             <p className="text-lg font-semibold text-zinc-200">{bookReadings.length}</p>
             <p className="text-xs text-zinc-500">registros</p>
           </div>
+          <div className="p-3 bg-zinc-800 rounded-sm text-center">
+            <p className="text-lg font-semibold text-zinc-200">{formatTime(totalTime)}</p>
+            <p className="text-xs text-zinc-500">tempo</p>
+          </div>
         </div>
 
-        {bookReadings.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs text-zinc-500 font-medium">Histórico de leituras</p>
-            <div className="max-h-48 overflow-y-auto space-y-1">
+        <div className="border-t border-zinc-800 pt-4">
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">Histórico de Leituras</h3>
+          {loading ? (
+            <div className="text-center py-4">
+              <p className="text-xs text-zinc-500">Carregando...</p>
+            </div>
+          ) : bookReadings.length === 0 ? (
+            <div className="text-center py-4">
+              <BookOpen size={32} className="mx-auto text-zinc-600 mb-2" />
+              <p className="text-xs text-zinc-500">Nenhum registro de leitura</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
               {bookReadings.map((reading) => (
-                <div key={reading.id} className="flex items-center justify-between text-xs p-2 bg-zinc-800/30 rounded-sm">
-                  <span className="text-zinc-400">{reading.pages} páginas</span>
-                  <span className="text-zinc-500">
-                    {new Date(reading.reading_date).toLocaleDateString('pt-BR')}
-                  </span>
+                <div key={reading.id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-sm">
+                  <div className="flex items-center gap-3">
+                    <FileText size={16} className="text-zinc-500" />
+                    <div>
+                      <p className="text-sm text-zinc-300">{reading.pages} páginas</p>
+                      {reading.reading_time && (
+                        <p className="text-xs text-zinc-500 flex items-center gap-1">
+                          <Clock size={10} />
+                          {formatTime(reading.reading_time)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-zinc-500">
+                    <Calendar size={12} />
+                    <span className="text-xs">{formatDate(reading.reading_date)}</span>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEdit(book)}
-            className="cursor-pointer flex-1 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-sm transition-colors flex items-center justify-center gap-1"
-          >
-            <Edit3 size={12} />
-            Editar
-          </button>
-          <button
-            onClick={() => {
-              if (confirm(`Tem certeza que deseja excluir "${book.title}"?`)) {
-                onDelete(book);
-              }
-            }}
-            className="cursor-pointer   flex-1 py-2 text-xs text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 border border-red-800 hover:border-red-700 rounded-sm transition-colors flex items-center justify-center gap-1"
-          >
-            <Trash2 size={12} />
-            Excluir
-          </button>
+          )}
         </div>
       </div>
-    </aside>
+
+      <div className="p-4 border-t border-zinc-800 space-y-2">
+        <button
+          onClick={() => onEdit(book)}
+          className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-3 rounded-sm font-medium transition-colors cursor-pointer"
+        >
+          <Edit3 size={16} />
+          Editar Livro
+        </button>
+        <button
+          onClick={() => {
+            if (confirm(`Tem certeza que deseja excluir "${book.title}"?`)) {
+              onDelete(book);
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-sm text-sm transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400"
+        >
+          <Trash2 size={16} />
+          Excluir Livro
+        </button>
+      </div>
+    </div>
   );
 }

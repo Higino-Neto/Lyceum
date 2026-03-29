@@ -1,4 +1,4 @@
-import { Copy, FileText, Move, MoreVertical, Heart } from "lucide-react";
+import { Copy, FileText, Move, MoreVertical } from "lucide-react";
 import { useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import { calculateProgress } from "./progress";
@@ -51,12 +51,6 @@ export default function BookCard({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <FileText size={28} className="text-zinc-600" />
-          </div>
-        )}
-        
-        {book.isFavorite === 1 && (
-          <div className="absolute top-2 left-2 z-10">
-            <Heart size={14} className="fill-red-500 text-red-500" />
           </div>
         )}
         

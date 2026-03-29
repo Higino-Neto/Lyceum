@@ -1,11 +1,28 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
-import { LibraryHeader, SectionTabs, FilterBar, BookDetailPanel, FolderTree, BooksSection, FilterOption, SortOption, StatisticsPanel } from "./components";
+import {
+  LibraryHeader,
+  SectionTabs,
+  FilterBar,
+  BookDetailPanel,
+  FolderTree,
+  BooksSection,
+  FilterOption,
+  SortOption,
+  StatisticsPanel,
+} from "./components";
 import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
 import { BookWithThumbnail, FolderInfo } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
-import { getAllBooks, SupabaseBook, mergeBooks, updateBook, getUserReadings, deleteBook } from "../../api/database";
+import {
+  getAllBooks,
+  SupabaseBook,
+  mergeBooks,
+  updateBook,
+  getUserReadings,
+  deleteBook,
+} from "../../api/database";
 import { DocumentRecord } from "../../types/ReadingTypes";
 
 export default function Library() {
@@ -20,7 +37,7 @@ export default function Library() {
   const [activeSection, setActiveSection] = useState<
     "synced" | "unsynced" | "books"
   >("synced");
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
   const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
     null,
   );
@@ -138,8 +155,6 @@ export default function Library() {
   const filterBooks = (booksToFilter: BookWithThumbnail[]) => {
     return booksToFilter
       .filter((book) => {
-        if (showFavoritesOnly && !book.isFavorite) return false;
-
         if (selectedFolder !== null && book.filePath) {
           const libraryIndex = book.filePath.toLowerCase().indexOf("library");
           if (libraryIndex === -1) return false;
@@ -185,8 +200,6 @@ export default function Library() {
 
         if (sort === "pages") return b.numPages - a.numPages;
 
-        if (sort === "rating") return b.rating - a.rating;
-
         if (sort === "recent") {
           return (
             new Date(b.lastOpenedAt).getTime() -
@@ -218,8 +231,6 @@ export default function Library() {
           unsyncedCount={unsyncedBooks.length}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
-          showFavoritesOnly={showFavoritesOnly}
-          onToggleFavorites={() => setShowFavoritesOnly(!showFavoritesOnly)}
           showSidebar={showSidebar}
           onToggleSidebar={() => setShowSidebar(!showSidebar)}
         />
@@ -272,7 +283,7 @@ export default function Library() {
               />
             )}
           </div>
-          <div className="sticky top-0 h-fit">
+          <div className="sticky top-0 h-screen max-h-screen">
             {selectedBook && (
               <BookDetailPanel
                 book={selectedBook}
@@ -285,21 +296,17 @@ export default function Library() {
               />
             )}
 
-            {activeSection === "books" && showBooksSidebar && (
-        <StatisticsPanel
-          book={selectedSupabaseBook}
-          onClose={() => setShowBooksSidebar(false)}
-          onEdit={handleSupabaseBookEdit}
-          onDelete={handleSupabaseBookDelete}
-        />
-      )}
-            
+            {activeSection === "books" && selectedSupabaseBook && (
+              <StatisticsPanel
+                book={selectedSupabaseBook}
+                onClose={() => setSelectedSupabaseBook(null)}
+                onEdit={handleSupabaseBookEdit}
+                onDelete={handleSupabaseBookDelete}
+              />
+            )}
           </div>
-
-          
         </main>
       </div>
-
     </div>
   );
 }
