@@ -81,24 +81,40 @@ export async function getOrCreateBook(
   thumbnailUrl?: string,
   totalPages?: number,
   isbn?: string,
-  description?: string,
-  publishedDate?: string,
-  externalId?: string,
+  _description?: string,
+  _publishedDate?: string,
+  _externalId?: string,
   categoryId?: string
 ): Promise<string> {
-  const { data, error } = await supabase.rpc("get_or_create_book", {
-    p_title: title,
-    p_author: author || null,
-    p_thumbnail_url: thumbnailUrl || null,
-    p_total_pages: totalPages || null,
-    p_isbn: isbn || null,
-    p_description: description || null,
-    p_published_date: publishedDate || null,
-    p_external_id: externalId || null,
-    p_category_id: categoryId || null,
-  });
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.rpc("get_or_create_book", {
+      p_title: title,
+      p_author: author || null,
+      p_thumbnail_url: thumbnailUrl || null,
+      p_total_pages: totalPages ? Number(totalPages) : null,
+      p_isbn: isbn || null,
+      p_category_id: categoryId || null,
+    });
+
+    console.log("getOrCreateBook response:", { data, error, title });
+
+    if (error) {
+      console.error("Supabase RPC error for book:", title, error);
+      throw new Error(error.message || "Erro ao criar livro no banco de dados");
+    }
+
+    if (!data) {
+      throw new Error(`Livro "${title}" não pôde ser criado - resposta vazia`);
+    }
+
+    return String(data);
+  } catch (err) {
+    console.error("getOrCreateBook exception:", err);
+    if (err instanceof Error) {
+      throw new Error(`Erro ao criar livro "${title}": ${err.message}`);
+    }
+    throw new Error(`Erro ao criar livro "${title}": Erro desconhecido`);
+  }
 }
 
 export async function getCategories(): Promise<Category[]> {

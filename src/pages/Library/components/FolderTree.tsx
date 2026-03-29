@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, RefreshCw, ChevronsDown, ChevronsRight } from "lucide-react";
-
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
+import { FolderInfo } from "../../../types/LibraryTypes";
 
 interface FolderTreeProps {
   selectedFolder: string | null;

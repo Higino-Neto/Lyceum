@@ -107,7 +107,7 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
         <div className="flex gap-2">
           <button
             onClick={() => onEdit(book)}
-            className="flex-1 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-sm transition-colors flex items-center justify-center gap-1"
+            className="cursor-pointer flex-1 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-sm transition-colors flex items-center justify-center gap-1"
           >
             <Edit3 size={12} />
             Editar
@@ -118,7 +118,7 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
                 onDelete(book);
               }
             }}
-            className="flex-1 py-2 text-xs text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 border border-red-800 hover:border-red-700 rounded-sm transition-colors flex items-center justify-center gap-1"
+            className="cursor-pointer   flex-1 py-2 text-xs text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40 border border-red-800 hover:border-red-700 rounded-sm transition-colors flex items-center justify-center gap-1"
           >
             <Trash2 size={12} />
             Excluir

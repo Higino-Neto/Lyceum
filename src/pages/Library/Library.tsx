@@ -3,19 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 import { LibraryHeader, SectionTabs, FilterBar, BookDetailPanel, FolderTree, BooksSection, FilterOption, SortOption, StatisticsPanel } from "./components";
 import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
-import { BookWithThumbnail } from "../../types/LibraryTypes";
-import { FolderOpen } from "lucide-react";
+import { BookWithThumbnail, FolderInfo } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { getAllBooks, SupabaseBook, mergeBooks, updateBook, getUserReadings, deleteBook } from "../../api/database";
 import { DocumentRecord } from "../../types/ReadingTypes";
-
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
 
 export default function Library() {
   const navigate = useNavigate();
@@ -258,10 +249,8 @@ export default function Library() {
                 localDocuments={localDocuments}
                 search={search}
                 loading={loadingBooks}
-                showSidebar={showBooksSidebar}
                 selectedBook={selectedSupabaseBook}
                 onSelectBook={setSelectedSupabaseBook}
-                onToggleSidebar={() => setShowBooksSidebar(!showBooksSidebar)}
                 editingBook={editingSupabaseBook}
                 onRefresh={async () => {
                   const books = await getAllBooks();

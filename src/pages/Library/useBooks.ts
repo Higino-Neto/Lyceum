@@ -57,7 +57,7 @@ export default function useBooks() {
 
   useEffect(() => {
     refreshBooks();
-  }, [books, refreshBooks]);
+  }, [refreshBooks]);
 
   return {
     syncedBooks,

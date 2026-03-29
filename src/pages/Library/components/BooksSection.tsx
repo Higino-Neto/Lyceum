@@ -1,19 +1,18 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { SupabaseBook, BookReading, getBookReadings, getOrCreateBook } from "../../../api/database";
 import { DocumentRecord } from "../../../types/ReadingTypes";
-import { AlertTriangle, Check, FileText, BookOpen, PanelLeftClose, PanelLeft, GitMerge } from "lucide-react";
+import { AlertTriangle, Check, FileText, BookOpen, GitMerge } from "lucide-react";
 import toast from "react-hot-toast";
 import { updateBook, mergeBooks } from "../../../api/database";
+import { LOCAL_BOOK_PREFIX, calculateSimilarity, normalizeText } from "../utils";
 
 interface BooksSectionProps {
   books: SupabaseBook[];
   localDocuments: DocumentRecord[];
   search: string;
   loading: boolean;
-  showSidebar?: boolean;
   selectedBook?: SupabaseBook | null;
   onSelectBook?: (book: SupabaseBook | null) => void;
-  onToggleSidebar?: () => void;
   onRefresh: () => void;
   editingBook?: SupabaseBook | null;
 }
@@ -28,10 +27,8 @@ export default function BooksSection({
   localDocuments, 
   search, 
   loading, 
-  showSidebar = true,
   selectedBook,
   onSelectBook,
-  onToggleSidebar,
   onRefresh,
   editingBook: externalEditingBook
 }: BooksSectionProps) {
@@ -40,7 +37,6 @@ export default function BooksSection({
   const [merging, setMerging] = useState(false);
   const [editingBook, setEditingBook] = useState<SupabaseBook | null>(null);
   const [editForm, setEditForm] = useState({ title: "", author: "" });
-  const [linkingBook, setLinkingBook] = useState<SupabaseBook | null>(null);
   const [bookReadings, setBookReadings] = useState<BookReading[]>([]);
   const [loadingReadings, setLoadingReadings] = useState(false);
 
@@ -62,18 +58,26 @@ export default function BooksSection({
   useEffect(() => {
     const loadThumbnails = async () => {
       const thumbnails: Record<string, string> = {};
-      for (const doc of localDocuments) {
-        if (doc.thumbnailPath) {
+      const docsWithThumbnails = localDocuments.filter((doc) => doc.thumbnailPath);
+      
+      const results = await Promise.all(
+        docsWithThumbnails.map(async (doc) => {
           try {
-            const thumb = await window.api.getThumbnail(doc.thumbnailPath);
-            if (thumb) {
-              thumbnails[doc.fileHash] = thumb;
-            }
+            const thumb = await window.api.getThumbnail(doc.thumbnailPath!);
+            return { fileHash: doc.fileHash, thumbnail: thumb || undefined };
           } catch (e) {
             console.error("Error loading thumbnail:", e);
+            return { fileHash: doc.fileHash, thumbnail: undefined };
           }
+        })
+      );
+
+      results.forEach(({ fileHash, thumbnail }) => {
+        if (thumbnail) {
+          thumbnails[fileHash] = thumbnail;
         }
-      }
+      });
+      
       setLocalThumbnails(thumbnails);
     };
     loadThumbnails();
@@ -91,92 +95,6 @@ export default function BooksSection({
     }
   }, [internalSelectedBook]);
 
-  const normalizeText = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[-_\s]+/g, ' ')
-      .trim();
-  };
-
-  const tokenize = (text: string): string[] => {
-    return normalizeText(text).split(' ').filter(t => t.length > 0);
-  };
-
-  const calculateSimilarity = (title: string, author: string | null, query: string): number => {
-    const normalizedQuery = normalizeText(query);
-    const queryTokens = tokenize(query);
-    
-    if (queryTokens.length === 0) return 0;
-
-    const normalizedTitle = normalizeText(title);
-    const normalizedAuthor = author ? normalizeText(author) : '';
-    
-    let maxScore = 0;
-
-    for (const token of queryTokens) {
-      if (token.length < 2) continue;
-
-      let tokenScore = 0;
-
-      if (normalizedTitle === token || normalizedTitle.startsWith(token) || normalizedTitle.endsWith(token)) {
-        tokenScore = 1;
-      } else if (normalizedTitle.includes(token)) {
-        const position = normalizedTitle.indexOf(token);
-        if (position < 5) {
-          tokenScore = 0.95;
-        } else if (position < normalizedTitle.length / 2) {
-          tokenScore = 0.85;
-        } else {
-          tokenScore = 0.75;
-        }
-      } else if (normalizedAuthor && (normalizedAuthor === token || normalizedAuthor.includes(token))) {
-        tokenScore = 0.7;
-      } else {
-        const levenshteinScore = levenshteinSimilarity(token, normalizedTitle);
-        tokenScore = levenshteinScore * 0.6;
-      }
-
-      maxScore = Math.max(maxScore, tokenScore);
-    }
-
-    const allTokensMatch = queryTokens.every(token => 
-      normalizedTitle.includes(token) || (normalizedAuthor && normalizedAuthor.includes(token))
-    );
-    if (allTokensMatch) {
-      maxScore = Math.max(maxScore, 0.9);
-    }
-
-    return maxScore;
-  };
-
-  const levenshteinSimilarity = (s1: string, s2: string): number => {
-    if (s1.length === 0 || s2.length === 0) return 0;
-    if (s1 === s2) return 1;
-
-    const len1 = s1.length;
-    const len2 = s2.length;
-    const matrix: number[][] = Array(len2 + 1).fill(null).map(() => Array(len1 + 1).fill(0));
-
-    for (let i = 0; i <= len1; i++) matrix[0][i] = i;
-    for (let j = 0; j <= len2; j++) matrix[j][0] = j;
-
-    for (let i = 1; i <= len2; i++) {
-      for (let j = 1; j <= len1; j++) {
-        const cost = s1[j - 1] === s2[i - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j - 1] + cost
-        );
-      }
-    }
-
-    const maxLen = Math.max(len1, len2);
-    return 1 - (matrix[len2][len1] / maxLen);
-  };
-
   const toggleMergeSelection = (itemId: string) => {
     const newSet = new Set(selectedForMerge);
     if (newSet.has(itemId)) {
@@ -193,8 +111,8 @@ export default function BooksSection({
       return;
     }
 
-    const hasSupabase = Array.from(selectedForMerge).some(id => !id.startsWith('local-'));
-    const hasLocal = Array.from(selectedForMerge).some(id => id.startsWith('local-'));
+    const hasSupabase = Array.from(selectedForMerge).some(id => !id.startsWith(LOCAL_BOOK_PREFIX));
+    const hasLocal = Array.from(selectedForMerge).some(id => id.startsWith(LOCAL_BOOK_PREFIX));
 
     if (hasLocal && !hasSupabase) {
       toast.error("Selecione pelo menos um livro do Supabase para mesclar");
@@ -205,8 +123,8 @@ export default function BooksSection({
     if (selectedBooks.length > 0) {
       setMergeFinalName(selectedBooks[0]?.title || "");
     } else {
-      const firstLocalId = Array.from(selectedForMerge).find(id => id.startsWith('local-'));
-      const firstLocalDoc = localDocuments.find(d => `local-${d.fileHash}` === firstLocalId);
+      const firstLocalId = Array.from(selectedForMerge).find(id => id.startsWith(LOCAL_BOOK_PREFIX));
+      const firstLocalDoc = localDocuments.find(d => `${LOCAL_BOOK_PREFIX}${d.fileHash}` === firstLocalId);
       setMergeFinalName(firstLocalDoc?.title || "");
     }
     setShowMergeNameDialog(true);
@@ -218,8 +136,8 @@ export default function BooksSection({
     setMerging(true);
     try {
       const selectedIds = Array.from(selectedForMerge);
-      const supabaseIds = selectedIds.filter(id => !id.startsWith('local-'));
-      const localIds = selectedIds.filter(id => id.startsWith('local-')).map(id => id.replace('local-', ''));
+      const supabaseIds = selectedIds.filter(id => !id.startsWith(LOCAL_BOOK_PREFIX));
+      const localIds = selectedIds.filter(id => id.startsWith(LOCAL_BOOK_PREFIX)).map(id => id.replace(LOCAL_BOOK_PREFIX, ''));
 
       if (supabaseIds.length > 0) {
         const selectedBooks = books.filter(b => supabaseIds.includes(b.id));
@@ -298,15 +216,15 @@ export default function BooksSection({
   }, [books]);
 
   const filteredBooks = search
-    ? books.filter(b => {
-        const score = calculateSimilarity(b.title, b.author, search);
+    ? books.filter((b) => {
+        const { score } = calculateSimilarity(b.title, b.author, search);
         return score > 0.2;
       })
     : books;
 
   const filteredLocalDocs = search
-    ? localDocuments.filter(doc => {
-        const score = calculateSimilarity(doc.title, doc.author, search);
+    ? localDocuments.filter((doc) => {
+        const { score } = calculateSimilarity(doc.title, doc.author, search);
         return score > 0.2;
       })
     : [];
@@ -382,7 +300,6 @@ export default function BooksSection({
     try {
       await window.api.updateBookId(doc.fileHash, book.id);
       await onRefresh();
-      setLinkingBook(null);
       toast.success(`"${doc.title}" vinculado a "${book.title}"`);
     } catch (error) {
       console.error("Error linking document:", error);
@@ -450,7 +367,7 @@ export default function BooksSection({
               </button>
               <button
                 onClick={() => { setMergeMode(false); setSelectedForMerge(new Set()); }}
-                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm transition-colors"
+                className="cursor-pointer px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm transition-colors"
               >
                 Cancelar
               </button>
@@ -458,7 +375,7 @@ export default function BooksSection({
           ) : (
             <button
               onClick={() => setMergeMode(true)}
-              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm flex items-center gap-2 transition-colors"
+              className="cursor-pointer px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm flex items-center gap-2 transition-colors"
             >
               <GitMerge size={14} />
               Mesclar Livros
@@ -482,7 +399,7 @@ export default function BooksSection({
               <button
                 key={idx}
                 onClick={() => setSelectedGroup(group)}
-                className={`px-3 py-1 rounded-sm text-xs transition-colors ${
+                className={`cursor-pointer px-3 py-1 rounded-sm text-xs transition-colors ${
                   selectedGroup?.normalizedTitle === group.normalizedTitle
                     ? "bg-yellow-600 text-white"
                     : "bg-yellow-900/50 text-yellow-200 hover:bg-yellow-800"
@@ -506,7 +423,7 @@ export default function BooksSection({
             <h3 className="text-sm font-medium">Mesclar: "{selectedGroup.books[0].title}"</h3>
             <button
               onClick={() => { setSelectedGroup(null); onSelectBook?.(null); }}
-              className="text-zinc-400 hover:text-white p-1"
+              className="cursor-pointer text-zinc-400 hover:text-white p-1"
             >
               ✕
             </button>
@@ -542,7 +459,7 @@ export default function BooksSection({
           {selectedBook && selectedGroup.books.length > 1 && (
             <button
               onClick={() => setShowMergeConfirm(true)}
-              className="w-full py-2 bg-zinc-700 hover:bg-zinc-600 rounded-sm text-sm flex items-center justify-center gap-2 transition-colors"
+              className="cursor-pointer w-full py-2 bg-zinc-700 hover:bg-zinc-600 rounded-sm text-sm flex items-center justify-center gap-2 transition-colors"
             >
               Mesclar em "{selectedBook.title}"
             </button>
@@ -607,8 +524,8 @@ export default function BooksSection({
         })}
 
         {mergeMode && search && filteredLocalDocs.map((doc) => {
-          const isSelectedForMerge = selectedForMerge.has(`local-${doc.fileHash}`);
-          const itemId = `local-${doc.fileHash}`;
+          const isSelectedForMerge = selectedForMerge.has(`${LOCAL_BOOK_PREFIX}${doc.fileHash}`);
+          const itemId = `${LOCAL_BOOK_PREFIX}${doc.fileHash}`;
           
           return (
             <div
@@ -664,14 +581,14 @@ export default function BooksSection({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowMergeConfirm(false)}
-                className="px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleMerge}
                 disabled={merging}
-                className="px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? "Mesclando..." : "Confirmar"}
               </button>
@@ -707,13 +624,13 @@ export default function BooksSection({
             <div className="flex gap-3 justify-end mt-6">
               <button
                 onClick={() => setEditingBook(null)}
-                className="px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors"
               >
                 Salvar
               </button>
@@ -740,14 +657,14 @@ export default function BooksSection({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => { setShowMergeNameDialog(false); setMergeFinalName(""); }}
-                className="px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={executeMerge}
                 disabled={merging || !mergeFinalName.trim()}
-                className="px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? "Mesclando..." : "Mesclar"}
               </button>
