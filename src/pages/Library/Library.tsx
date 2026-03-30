@@ -1,39 +1,58 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
-import { LibraryHeader, SectionTabs, FilterBar, BookDetailPanel, FolderTree, FilterOption, SortOption } from "./components";
+import {
+  LibraryHeader,
+  SectionTabs,
+  FilterBar,
+  BookDetailPanel,
+  FolderTree,
+  BooksSection,
+  FilterOption,
+  SortOption,
+  StatisticsPanel,
+} from "./components";
 import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
-import { BookWithThumbnail } from "../../types/LibraryTypes";
-import { FolderOpen } from "lucide-react";
-
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
+import { BookWithThumbnail, FolderInfo } from "../../types/LibraryTypes";
+import toast from "react-hot-toast";
+import {
+  getAllBooks,
+  SupabaseBook,
+  mergeBooks,
+  updateBook,
+  getUserReadings,
+  deleteBook,
+} from "../../api/database";
+import { DocumentRecord } from "../../types/ReadingTypes";
 
 export default function Library() {
   const navigate = useNavigate();
 
-  const {
-    syncedBooks,
-    unsyncedBooks,
-    handleSync,
-    refreshBooks,
-  } = useBooks();
+  const { syncedBooks, unsyncedBooks, handleSync, refreshBooks } = useBooks();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("title");
   const [filter, setFilter] = useState<FilterOption>("all");
-  const [activeSection, setActiveSection] = useState<"synced" | "unsynced">("synced");
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(null);
+  const [activeSection, setActiveSection] = useState<
+    "synced" | "unsynced" | "books"
+  >("synced");
+
+  const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
+    null,
+  );
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folderStructure, setFolderStructure] = useState<FolderInfo[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showBooksSidebar, setShowBooksSidebar] = useState(true);
+
+  const [supabaseBooks, setSupabaseBooks] = useState<SupabaseBook[]>([]);
+  const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const [selectedSupabaseBook, setSelectedSupabaseBook] =
+    useState<SupabaseBook | null>(null);
+  const [editingSupabaseBook, setEditingSupabaseBook] =
+    useState<SupabaseBook | null>(null);
 
   const loadFolderStructure = useCallback(async () => {
     try {
@@ -55,6 +74,25 @@ export default function Library() {
   useEffect(() => {
     loadFolderStructure();
   }, [loadFolderStructure]);
+
+  useEffect(() => {
+    if (activeSection === "books") {
+      const loadSupabaseBooks = async () => {
+        setLoadingBooks(true);
+        try {
+          const books = await getAllBooks();
+          setSupabaseBooks(books);
+          const docs = await window.api.getDocuments();
+          setLocalDocuments(docs);
+        } catch (error) {
+          console.error("Error loading books:", error);
+        } finally {
+          setLoadingBooks(false);
+        }
+      };
+      loadSupabaseBooks();
+    }
+  }, [activeSection]);
 
   const handleOpen = async (filePath: string) => {
     const result = await window.api.reopenPdf(filePath);
@@ -81,11 +119,30 @@ export default function Library() {
     refreshBooks();
   };
 
+  const handleSupabaseBookDelete = async (book: SupabaseBook) => {
+    try {
+      await deleteBook(book.id);
+      setSelectedSupabaseBook(null);
+      const books = await getAllBooks();
+      setSupabaseBooks(books);
+      toast.success("Livro excluído!");
+    } catch (error) {
+      console.error("Error deleting book:", error);
+      toast.error("Erro ao excluir livro");
+    }
+  };
+
+  const handleSupabaseBookEdit = (book: SupabaseBook) => {
+    setSelectedSupabaseBook(book);
+    setEditingSupabaseBook(book);
+    setShowBooksSidebar(true);
+  };
+
   const handleBookRefresh = () => {
     refreshBooks();
     if (selectedBook) {
       const updatedBook = [...syncedBooks, ...unsyncedBooks].find(
-        (b) => b.fileHash === selectedBook.fileHash
+        (b) => b.fileHash === selectedBook.fileHash,
       );
       if (updatedBook) {
         setSelectedBook(updatedBook);
@@ -98,19 +155,21 @@ export default function Library() {
   const filterBooks = (booksToFilter: BookWithThumbnail[]) => {
     return booksToFilter
       .filter((book) => {
-        if (showFavoritesOnly && !book.isFavorite) return false;
-
         if (selectedFolder !== null && book.filePath) {
           const libraryIndex = book.filePath.toLowerCase().indexOf("library");
           if (libraryIndex === -1) return false;
-          
+
           const afterLibrary = book.filePath.substring(libraryIndex + 8);
           const lastSlash = afterLibrary.lastIndexOf("\\");
           const lastSlashFwd = afterLibrary.lastIndexOf("/");
           const lastSep = Math.max(lastSlash, lastSlashFwd);
-          const bookFolder = lastSep > 0 ? afterLibrary.substring(0, lastSep) : "";
-          
-          if (!bookFolder.startsWith(selectedFolder) && bookFolder !== selectedFolder) {
+          const bookFolder =
+            lastSep > 0 ? afterLibrary.substring(0, lastSep) : "";
+
+          if (
+            !bookFolder.startsWith(selectedFolder) &&
+            bookFolder !== selectedFolder
+          ) {
             return false;
           }
         }
@@ -128,7 +187,8 @@ export default function Library() {
         return (
           book.title.toLowerCase().includes(searchLower) ||
           (book.author && book.author.toLowerCase().includes(searchLower)) ||
-          (book.description && book.description.toLowerCase().includes(searchLower))
+          (book.description &&
+            book.description.toLowerCase().includes(searchLower))
         );
       })
       .sort((a, b) => {
@@ -140,10 +200,11 @@ export default function Library() {
 
         if (sort === "pages") return b.numPages - a.numPages;
 
-        if (sort === "rating") return b.rating - a.rating;
-
         if (sort === "recent") {
-          return new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime();
+          return (
+            new Date(b.lastOpenedAt).getTime() -
+            new Date(a.lastOpenedAt).getTime()
+          );
         }
 
         return a.title.localeCompare(b.title);
@@ -157,12 +218,6 @@ export default function Library() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex">
       {showSidebar && (
         <aside className="w-64 border-r border-zinc-800 bg-zinc-900/50 flex-shrink-0 overflow-y-auto">
-          {/* <div className="p-4 border-b border-zinc-800">
-            <h3 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-              <FolderOpen size={14} />
-              Pastas
-            </h3>
-          </div> */}
           <FolderTree
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
@@ -176,52 +231,82 @@ export default function Library() {
           unsyncedCount={unsyncedBooks.length}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
-          showFavoritesOnly={showFavoritesOnly}
-          onToggleFavorites={() => setShowFavoritesOnly(!showFavoritesOnly)}
           showSidebar={showSidebar}
           onToggleSidebar={() => setShowSidebar(!showSidebar)}
         />
 
-        <main className="p-6 space-y-6 flex-1">
-          <SectionTabs
-            activeSection={activeSection}
-            onSectionChange={setActiveSection}
-            syncedCount={syncedBooks.length}
-            unsyncedCount={unsyncedBooks.length}
-          />
+        <main className="p-6 flex gap-4">
+          <div className="flex-1 min-w-0">
+            <SectionTabs
+              activeSection={activeSection}
+              onSectionChange={setActiveSection}
+              syncedCount={syncedBooks.length}
+              unsyncedCount={unsyncedBooks.length}
+              booksCount={supabaseBooks.length}
+            />
 
-          <FilterBar
-            search={search}
-            onSearchChange={setSearch}
-            sort={sort}
-            onSortChange={setSort}
-            filter={filter}
-            onFilterChange={setFilter}
-          />
+            <FilterBar
+              search={search}
+              onSearchChange={setSearch}
+              sort={sort}
+              onSortChange={setSort}
+              filter={filter}
+              onFilterChange={setFilter}
+            />
 
-          <BookGrid
-            books={filteredBooks}
-            viewMode={viewMode}
-            onOpen={handleOpen}
-            onSync={activeSection === "unsynced" ? handleSync : undefined}
-            showSyncActions={activeSection === "unsynced"}
-            onBookClick={handleBookClick}
-            selectedBookId={selectedBook?.id}
-          />
+            {activeSection === "books" ? (
+              <BooksSection
+                books={supabaseBooks}
+                localDocuments={localDocuments}
+                search={search}
+                loading={loadingBooks}
+                selectedBook={selectedSupabaseBook}
+                onSelectBook={setSelectedSupabaseBook}
+                editingBook={editingSupabaseBook}
+                onRefresh={async () => {
+                  const books = await getAllBooks();
+                  setSupabaseBooks(books);
+                  const docs = await window.api.getDocuments();
+                  setLocalDocuments(docs);
+                  setEditingSupabaseBook(null);
+                }}
+              />
+            ) : (
+              <BookGrid
+                books={filteredBooks}
+                viewMode={viewMode}
+                onOpen={handleOpen}
+                onSync={activeSection === "unsynced" ? handleSync : undefined}
+                showSyncActions={activeSection === "unsynced"}
+                onBookClick={handleBookClick}
+                selectedBookId={selectedBook?.id}
+              />
+            )}
+          </div>
+          <div className="sticky top-0 h-screen max-h-screen">
+            {selectedBook && (
+              <BookDetailPanel
+                book={selectedBook}
+                onClose={handleClosePanel}
+                onOpen={() => handleOpen(selectedBook.filePath)}
+                onDelete={handleBookDeleted}
+                onRefresh={() => {
+                  handleBookRefresh();
+                }}
+              />
+            )}
+
+            {activeSection === "books" && selectedSupabaseBook && (
+              <StatisticsPanel
+                book={selectedSupabaseBook}
+                onClose={() => setSelectedSupabaseBook(null)}
+                onEdit={handleSupabaseBookEdit}
+                onDelete={handleSupabaseBookDelete}
+              />
+            )}
+          </div>
         </main>
       </div>
-
-      {selectedBook && (
-        <BookDetailPanel
-          book={selectedBook}
-          onClose={handleClosePanel}
-          onOpen={() => handleOpen(selectedBook.filePath)}
-          onDelete={handleBookDeleted}
-          onRefresh={() => {
-            handleBookRefresh();
-          }}
-        />
-      )}
     </div>
   );
 }

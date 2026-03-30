@@ -14,6 +14,8 @@ dist-ssr
 release
 dist-electron
 supabase
+coverage
+AGENTS.md
 
 
 # Editor directories and files

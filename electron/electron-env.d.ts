@@ -14,6 +14,7 @@ interface DocumentRecord {
   createdAt: string;
   lastOpenedAt: string;
   isSynced: number;
+  category: string | null;
   isFavorite: number;
   rating: number;
   notes: string | null;
@@ -24,6 +25,7 @@ interface DocumentRecord {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
+  bookId: string | null;
 }
 
 interface BookCategory {
@@ -99,6 +101,9 @@ interface Window {
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
     regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
+    updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
+    getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
+    getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
     onLibraryUpdated: (callback: () => void) => () => void;

@@ -80,7 +80,9 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
         .select("id, title, author, thumbnail_url, category_id")
         .ilike("title", `%${query}%`)
         .limit(8),
-      (window as any).api.searchLocalBooks(query).catch(() => []),
+      window.api?.searchLocalBooks 
+        ? window.api.searchLocalBooks(query).catch(() => []) 
+        : Promise.resolve([]),
     ]);
 
     const combinedResults: (Book | LocalBook)[] = [];
@@ -90,8 +92,8 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
     }
 
     if (localResults && localResults.length > 0) {
-      const localBooks: LocalBook[] = localResults.map((doc: LocalBook) => ({
-        id: `local-${doc.id}`,
+      const localBooks = localResults.map((doc: any) => ({
+        id: doc.fileHash || `local-${doc.id}`,
         title: doc.title,
         fileHash: doc.fileHash,
         thumbnailPath: doc.thumbnailPath,
@@ -501,14 +503,6 @@ export default function AddReadingPage() {
                 </button>
 
                 <div className="flex gap-3">
-                  {/* <button
-                    type="button"
-                    onClick={() => navigate("/dashboard")}
-                    className="cursor-pointer px-6 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-sm text-zinc-300 hover:text-zinc-100 transition text-sm"
-                  >
-                    Cancelar
-                  </button> */}
-
                   <button
                     type="submit"
                     className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-sm transition text-sm"

@@ -1,74 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const mockRpc = vi.fn();
 
 vi.mock("../../lib/supabase", () => ({
   supabase: {
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: "test-user", email: "test@test.com" } },
-        error: null,
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({
-        data: [
-          {
-            id: "reading-1",
-            source_name: "The Pragmatic Programmer",
-            pages: 50,
-            reading_date: "2024-01-15",
-            reading_time: 120,
-            category_id: "cat-1",
-          },
-          {
-            id: "reading-2",
-            source_name: "Clean Code",
-            pages: 30,
-            reading_date: "2024-01-14",
-            reading_time: 90,
-            category_id: "cat-1",
-          },
-        ],
-        error: null,
-      }),
-    }),
+    rpc: mockRpc,
   },
-  default: {
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: "test-user", email: "test@test.com" } },
-        error: null,
-      }),
+}));
+
+vi.mock("../../api/database", () => ({
+  getUserReadings: vi.fn().mockResolvedValue([
+    {
+      id: "reading-1",
+      source_name: "The Pragmatic Programmer",
+      pages: 50,
+      reading_date: "2024-01-15",
+      reading_time: 120,
+      category_id: "cat-1",
     },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({
-        data: [
-          {
-            id: "reading-1",
-            source_name: "The Pragmatic Programmer",
-            pages: 50,
-            reading_date: "2024-01-15",
-            reading_time: 120,
-            category_id: "cat-1",
-          },
-          {
-            id: "reading-2",
-            source_name: "Clean Code",
-            pages: 30,
-            reading_date: "2024-01-14",
-            reading_time: 90,
-            category_id: "cat-1",
-          },
-        ],
-        error: null,
-      }),
-    }),
-  },
+    {
+      id: "reading-2",
+      source_name: "Clean Code",
+      pages: 30,
+      reading_date: "2024-01-14",
+      reading_time: 90,
+      category_id: "cat-1",
+    },
+  ]),
 }));
 
 import getReadings from "../../utils/getReadings";
@@ -82,7 +40,7 @@ describe("getReadings", () => {
     const readings = await getReadings();
 
     expect(readings).toBeDefined();
-    expect(readings.length).toBeGreaterThan(0);
+    expect(readings.length).toBe(2);
   });
 
   it("returns readings with correct structure", async () => {
@@ -94,10 +52,10 @@ describe("getReadings", () => {
     expect(readings[0]).toHaveProperty("reading_date");
   });
 
-  it("filters readings by user id", async () => {
+  it("fetches readings via getUserReadings", async () => {
     await getReadings();
 
-    const { supabase } = await import("../../lib/supabase");
-    expect(supabase.from).toHaveBeenCalledWith("readings");
+    const { getUserReadings } = await import("../../api/database");
+    expect(getUserReadings).toHaveBeenCalled();
   });
 });

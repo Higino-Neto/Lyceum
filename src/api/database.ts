@@ -81,24 +81,40 @@ export async function getOrCreateBook(
   thumbnailUrl?: string,
   totalPages?: number,
   isbn?: string,
-  description?: string,
-  publishedDate?: string,
-  externalId?: string,
+  _description?: string,
+  _publishedDate?: string,
+  _externalId?: string,
   categoryId?: string
 ): Promise<string> {
-  const { data, error } = await supabase.rpc("get_or_create_book", {
-    p_title: title,
-    p_author: author || null,
-    p_thumbnail_url: thumbnailUrl || null,
-    p_total_pages: totalPages || null,
-    p_isbn: isbn || null,
-    p_description: description || null,
-    p_published_date: publishedDate || null,
-    p_external_id: externalId || null,
-    p_category_id: categoryId || null,
-  });
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.rpc("get_or_create_book", {
+      p_title: title,
+      p_author: author || null,
+      p_thumbnail_url: thumbnailUrl || null,
+      p_total_pages: totalPages ? Number(totalPages) : null,
+      p_isbn: isbn || null,
+      p_category_id: categoryId || null,
+    });
+
+    console.log("getOrCreateBook response:", { data, error, title });
+
+    if (error) {
+      console.error("Supabase RPC error for book:", title, error);
+      throw new Error(error.message || "Erro ao criar livro no banco de dados");
+    }
+
+    if (!data) {
+      throw new Error(`Livro "${title}" não pôde ser criado - resposta vazia`);
+    }
+
+    return String(data);
+  } catch (err) {
+    console.error("getOrCreateBook exception:", err);
+    if (err instanceof Error) {
+      throw new Error(`Erro ao criar livro "${title}": ${err.message}`);
+    }
+    throw new Error(`Erro ao criar livro "${title}": Erro desconhecido`);
+  }
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -133,4 +149,96 @@ export async function createUserProfile(
     p_email: email,
   });
   if (error) throw error;
+}
+
+export interface SupabaseBook {
+  id: string;
+  title: string;
+  author: string | null;
+  thumbnail_url: string | null;
+  total_pages: number | null;
+  isbn: string | null;
+  description: string | null;
+  published_date: string | null;
+  external_id: string | null;
+}
+
+export async function getAllBooks(): Promise<SupabaseBook[]> {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return [];
+  }
+  
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("title");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getBookById(bookId: string): Promise<SupabaseBook | null> {
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("id", bookId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBook(
+  bookId: string,
+  updates: Partial<SupabaseBook>
+): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .update(updates)
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+export async function deleteBook(bookId: string): Promise<void> {
+  const { error } = await supabase
+    .from("books")
+    .delete()
+    .eq("id", bookId);
+  if (error) throw error;
+}
+
+export async function mergeBooks(
+  sourceBookId: string,
+  targetBookId: string
+): Promise<void> {
+  const { error: updateError } = await supabase
+    .from("readings")
+    .update({ book_id: targetBookId })
+    .eq("book_id", sourceBookId);
+  if (updateError) throw updateError;
+
+  const { error: deleteError } = await supabase
+    .from("books")
+    .delete()
+    .eq("id", sourceBookId);
+  if (deleteError) throw deleteError;
+}
+
+export interface BookReading {
+  id: string;
+  source_name: string;
+  pages: number;
+  reading_date: string;
+  reading_time: number;
+  category_id: string | null;
+}
+
+export async function getBookReadings(bookId: string): Promise<BookReading[]> {
+  const { data, error } = await supabase
+    .from("readings")
+    .select("id, source_name, pages, reading_date, reading_time, category_id")
+    .eq("book_id", bookId)
+    .order("reading_date", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }

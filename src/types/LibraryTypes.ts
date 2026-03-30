@@ -25,3 +25,11 @@ export interface BookWithThumbnail {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
 }
+
+export interface FolderInfo {
+  name: string;
+  path: string;
+  fullPath: string;
+  bookCount: number;
+  subfolders: FolderInfo[];
+}

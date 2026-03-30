@@ -83,7 +83,7 @@ export default function EditReadingDialog({
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-zinc-800 rounded-sm transition-colors"
+            className="cursor-pointer p-2 hover:bg-zinc-800 rounded-sm transition-colors"
           >
             <X size={20} className="text-zinc-400" />
           </button>

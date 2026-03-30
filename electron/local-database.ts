@@ -16,6 +16,7 @@ export interface DocumentRecord {
   createdAt: string;
   lastOpenedAt: string;
   isSynced: number;
+  category: string | null;
   isFavorite: number;
   rating: number;
   notes: string | null;
@@ -26,6 +27,7 @@ export interface DocumentRecord {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
+  bookId: string | null;
 }
 
 export interface BookCategory {
@@ -94,13 +96,14 @@ export function initDatabase() {
     publisher TEXT,
     publishDate TEXT,
     fileSize INTEGER DEFAULT 0,
-    processingStatus TEXT DEFAULT 'pending'
+    processingStatus TEXT DEFAULT 'pending',
+    bookId TEXT
   )
   `);
 
   const migrationColumns = [
     "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus"
+    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId"
   ];
 
   for (const col of migrationColumns) {
@@ -399,6 +402,24 @@ export function getLastDocument(): DocumentRecord | undefined {
       DocumentRecord
     >(`SELECT * FROM documents ORDER BY lastOpenedAt DESC LIMIT 1`)
     .get();
+}
+
+export function updateDocumentBookId(fileHash: string, bookId: string): void {
+  db.prepare(
+    `UPDATE documents SET bookId = ? WHERE fileHash = ?`
+  ).run(bookId, fileHash);
+}
+
+export function getDocumentsByBookId(bookId: string): DocumentRecord[] {
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE bookId = ?`
+  ).all(bookId);
+}
+
+export function getDocumentByTitle(title: string): DocumentRecord | undefined {
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE title = ? LIMIT 1`
+  ).get(title);
 }
 
 export function updateDocumentPath(fileHash: string, newPath: string) {

@@ -118,6 +118,15 @@ contextBridge.exposeInMainWorld("api", {
   regenerateThumbnail: (fileHash: string) =>
     ipcRenderer.invoke("book:regenerate-thumbnail", fileHash),
 
+  updateBookId: (fileHash: string, bookId: string) =>
+    ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
+
+  getDocumentsByBookId: (bookId: string) =>
+    ipcRenderer.invoke("book:get-by-book-id", bookId),
+
+  getDocumentByTitle: (title: string) =>
+    ipcRenderer.invoke("book:get-by-title", title),
+
   openLibraryFolder: () =>
     ipcRenderer.invoke("library:open-folder"),
 
