@@ -61,7 +61,7 @@ interface Window {
 
     openPdf: () => Promise<OpenPdfResult | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
-    reopenPdf: (filePath: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string } | null>;
+    reopenPdf: (filePath: string, fileHash?: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string; foundAt?: string } | { error: string; message: string } | null>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
 
@@ -96,6 +96,7 @@ interface Window {
       publishDate?: string;
     }) => Promise<boolean>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
+    renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
     deleteBook: (fileHash: string) => Promise<{ success: boolean; error?: string }>;
     getBookById: (id: number) => Promise<DocumentRecord | null>;
     getFavorites: () => Promise<DocumentRecord[]>;
@@ -124,6 +125,9 @@ interface Window {
     getFolderStructure: () => Promise<FolderInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
+    createFolder: (folderName: string) => Promise<{ success: boolean; error?: string }>;
+    renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
+    deleteFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

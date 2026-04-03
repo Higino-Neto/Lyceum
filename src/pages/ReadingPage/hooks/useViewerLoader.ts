@@ -15,14 +15,14 @@ export default function useViewerLoader() {
       const last = await window.api.getLastDocument();
       if (!last) return;
 
-      const result = await window.api.reopenPdf(last.filePath);
-      if (!result) return; // arquivo foi deletado/movido
+      const result = await window.api.reopenPdf(last.filePath, last.fileHash);
+      if (!result || "error" in result) return;
 
       const blob = new Blob([result.fileBuffer], { type: "application/pdf" });
       const blobUrl = URL.createObjectURL(blob);
       setPdfPath(blobUrl);
       setFileName(last.title);
-      setFileHash(last.fileHash);
+      setFileHash(result.fileHash);
     };
     reopenLast();
   }, []);

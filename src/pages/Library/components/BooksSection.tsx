@@ -588,7 +588,7 @@ export default function BooksSection({
               <button
                 onClick={handleMerge}
                 disabled={merging}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? "Mesclando..." : "Confirmar"}
               </button>
@@ -664,7 +664,7 @@ export default function BooksSection({
               <button
                 onClick={executeMerge}
                 disabled={merging || !mergeFinalName.trim()}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? "Mesclando..." : "Mesclar"}
               </button>

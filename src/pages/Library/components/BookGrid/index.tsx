@@ -6,7 +6,7 @@ import BookListItem from "./BookListItem";
 interface BookGridProps {
   books: BookWithThumbnail[];
   viewMode: "grid" | "list";
-  onOpen: (filePath: string) => void;
+  onOpen: (filePath: string, fileHash?: string) => void;
   onSync?: (
     fileHash: string,
     action: "move" | "copy",
@@ -41,7 +41,7 @@ export default function BookGrid({
           <BookCard
             key={book.id}
             book={book}
-            onOpen={() => onOpen(book.filePath)}
+            onOpen={() => onOpen(book.filePath, book.fileHash)}
             onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
             showSyncActions={showSyncActions ?? false}
             onClick={() => onBookClick?.(book)}
@@ -58,7 +58,7 @@ export default function BookGrid({
         <BookListItem
           key={book.id}
           book={book}
-          onOpen={() => onOpen(book.filePath)}
+          onOpen={() => onOpen(book.filePath, book.fileHash)}
           onSync={onSync ? () => onSync(book.fileHash, "move") : undefined}
           showSyncActions={showSyncActions ?? false}
           onClick={() => onBookClick?.(book)}

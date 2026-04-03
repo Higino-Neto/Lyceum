@@ -60,6 +60,10 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
+vi.mock("../api/database", () => ({
+  getUserReadings: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("../pages/DashboardPage/components/RankingTable/RankingTable", () => ({
   default: () => <div data-testid="ranking-table">Ranking Table</div>,
 }));
@@ -167,5 +171,74 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("reading-table")).toBeInTheDocument();
     });
+  });
+
+  it("renders the daily readings copy button", async () => {
+    renderWithProviders(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Leituras diárias")).toBeInTheDocument();
+    });
+  });
+
+  it("copies today's readings to clipboard", async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const mockReadings = [
+      { id: "1", source_name: "Book A", pages: 50, reading_date: today, reading_time: 60, category_id: "cat1", book_id: undefined },
+      { id: "2", source_name: "Book B", pages: 30, reading_date: today, reading_time: 45, category_id: "cat1", book_id: undefined },
+    ];
+
+    const writeText = vi.fn().mockResolvedValueOnce(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      writable: true,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    queryClient.setQueryData(["readings"], mockReadings);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Leituras diárias")).toBeInTheDocument();
+    });
+
+    const button = screen.getByText("Leituras diárias");
+    button.click();
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("Book A: 50\nBook B: 30\nTotal: 80");
+    });
+  });
+
+  it("shows error when no readings today", async () => {
+    const { getUserReadings } = await import("../api/database");
+    vi.mocked(getUserReadings).mockResolvedValueOnce([]);
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Leituras diárias")).toBeInTheDocument();
+    });
+
+    const button = screen.getByText("Leituras diárias");
+    button.click();
   });
 });

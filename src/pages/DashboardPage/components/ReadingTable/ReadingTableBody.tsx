@@ -1,3 +1,4 @@
+import { useMemo, useEffect } from "react";
 import useGetReadings from "../../../../hooks/useGetReadings";
 import TableReading from "../../../../types/TableReading";
 import { TableSkeleton } from "../../../../components/skeletons";
@@ -12,10 +13,36 @@ interface ReadingTableBodyProps {
   onlyTable?: boolean;
   onEdit?: (reading: TableReading) => void;
   onDelete?: (reading: TableReading) => void;
+  currentPage?: number;
+  itemsPerPage?: number;
+  onTotalPagesChange?: (total: number) => void;
 }
 
-export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete }: ReadingTableBodyProps) {
+export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, currentPage = 1, itemsPerPage = 10, onTotalPagesChange }: ReadingTableBodyProps) {
   const { data: readings, isLoading } = useGetReadings();
+
+  const sortedReadings = useMemo(() => {
+    if (!readings) return [];
+    return [...readings].sort((a, b) => {
+      const dateA = a.reading_date;
+      const dateB = b.reading_date;
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+      const createdA = a.created_at || "";
+      const createdB = b.created_at || "";
+      return createdB.localeCompare(createdA);
+    });
+  }, [readings]);
+
+  useEffect(() => {
+    onTotalPagesChange?.(sortedReadings.length);
+  }, [sortedReadings.length, onTotalPagesChange]);
+
+  const paginatedReadings = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedReadings.slice(start, start + itemsPerPage);
+  }, [sortedReadings, currentPage, itemsPerPage]);
 
   if (isLoading) {
     return onlyTable ? <TableSkeleton rows={5} /> : null;
@@ -24,7 +51,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete }
   if (onlyTable) {
     return (
       <tbody>
-        {readings?.map((reading: TableReading) => (
+        {paginatedReadings.map((reading: TableReading) => (
           <tr
             key={reading.id}
             className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"
