@@ -125,6 +125,9 @@ interface Window {
     getFolderStructure: () => Promise<FolderInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
+    createFolder: (folderName: string) => Promise<{ success: boolean; error?: string }>;
+    renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
+    deleteFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
   };
 }
 

@@ -948,6 +948,65 @@ ipcMain.handle("library:get-books-in-folder", (_, folderPath: string | null) => 
   return getBooksInFolder(folderPath);
 });
 
+ipcMain.handle("library:create-folder", async (_, folderName: string) => {
+  try {
+    const libraryPath = LIBRARY_PATH();
+    const newFolderPath = path.join(libraryPath, folderName);
+    
+    if (fs.existsSync(newFolderPath)) {
+      return { success: false, error: "Pasta já existe" };
+    }
+    
+    fs.mkdirSync(newFolderPath, { recursive: true });
+    return { success: true };
+  } catch (error) {
+    console.error("[library:create-folder] Error:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
+  try {
+    const parentPath = path.dirname(oldPath);
+    const newPath = path.join(parentPath, newName);
+    
+    if (fs.existsSync(newPath)) {
+      return { success: false, error: "Já existe uma pasta com este nome" };
+    }
+    
+    fs.renameSync(oldPath, newPath);
+    return { success: true };
+  } catch (error) {
+    console.error("[library:rename-folder] Error:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("library:delete-folder", async (_, folderPath: string) => {
+  try {
+    const libraryPath = LIBRARY_PATH();
+    
+    if (!folderPath.startsWith(libraryPath)) {
+      return { success: false, error: "Caminho inválido" };
+    }
+
+    if (!fs.existsSync(folderPath)) {
+      return { success: false, error: "Pasta não existe" };
+    }
+
+    const items = fs.readdirSync(folderPath);
+    if (items.length > 0) {
+      return { success: false, error: "Pasta não está vazia" };
+    }
+
+    fs.rmdirSync(folderPath);
+    return { success: true };
+  } catch (error) {
+    console.error("[library:delete-folder] Error:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
 
 app.whenReady().then(async () => {
   initDatabase();

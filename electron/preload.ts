@@ -185,6 +185,15 @@ contextBridge.exposeInMainWorld("api", {
 
   getBooksInFolder: (folderPath: string | null) =>
     ipcRenderer.invoke("library:get-books-in-folder", folderPath),
+
+  createFolder: (folderName: string) =>
+    ipcRenderer.invoke("library:create-folder", folderName),
+
+  renameFolder: (oldPath: string, newName: string) =>
+    ipcRenderer.invoke("library:rename-folder", oldPath, newName),
+
+  deleteFolder: (folderPath: string) =>
+    ipcRenderer.invoke("library:delete-folder", folderPath),
 });
 
 // --------- Expose some API to the Renderer process ---------

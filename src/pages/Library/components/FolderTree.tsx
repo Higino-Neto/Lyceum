@@ -1,20 +1,87 @@
-import { useState, useEffect } from "react";
-import { ChevronRight, ChevronDown, Folder, FolderOpen, RefreshCw, ChevronsDown, ChevronsRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { 
+  ChevronRight, 
+  ChevronDown, 
+  Folder, 
+  FolderOpen, 
+  RefreshCw, 
+  ChevronsDown, 
+  ChevronsRight,
+  Search,
+  FolderPlus,
+  Pencil,
+  Trash2,
+  MoreVertical
+} from "lucide-react";
 import { FolderInfo } from "../../../types/LibraryTypes";
+import toast from "react-hot-toast";
 
 interface FolderTreeProps {
   selectedFolder: string | null;
   onFolderSelect: (folderPath: string | null) => void;
 }
 
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  folder: FolderInfo | null;
+}
+
 function countAllBooks(folder: FolderInfo): number {
   return folder.bookCount + folder.subfolders.reduce((acc, f) => acc + countAllBooks(f), 0);
+}
+
+function filterFolders(folders: FolderInfo[], searchTerm: string): FolderInfo[] {
+  if (!searchTerm) return folders;
+  
+  const term = searchTerm.toLowerCase();
+  
+  return folders
+    .map(folder => {
+      const matchesName = folder.name.toLowerCase().includes(term);
+      const matchingSubfolders = filterFolders(folder.subfolders, term);
+      
+      if (matchesName || matchingSubfolders.length > 0) {
+        return {
+          ...folder,
+          subfolders: matchingSubfolders
+        };
+      }
+      return null;
+    })
+    .filter((f): f is FolderInfo => f !== null);
+}
+
+function flattenFolders(folders: FolderInfo[]): FolderInfo[] {
+  const result: FolderInfo[] = [];
+  
+  const traverse = (items: FolderInfo[]) => {
+    for (const item of items) {
+      result.push(item);
+      if (item.subfolders.length > 0) {
+        traverse(item.subfolders);
+      }
+    }
+  };
+  
+  traverse(folders);
+  return result;
 }
 
 export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTreeProps) {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    folder: null
+  });
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const loadFolders = async () => {
     setLoading(true);
@@ -23,11 +90,17 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
       const filtered = structure.filter(f => !f.name.startsWith("."));
       
       const initialExpanded = new Set<string>();
-      filtered.forEach(f => {
-        if (f.subfolders.length > 0) initialExpanded.add(f.path);
-      });
-      setExpandedPaths(initialExpanded);
+      const collectPaths = (items: FolderInfo[]) => {
+        items.forEach(f => {
+          if (f.subfolders.length > 0) {
+            initialExpanded.add(f.path);
+            collectPaths(f.subfolders);
+          }
+        });
+      };
+      collectPaths(filtered);
       
+      setExpandedPaths(initialExpanded);
       setFolders(filtered);
     } catch (error) {
       console.error("Error loading folders:", error);
@@ -39,6 +112,26 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
   useEffect(() => {
     loadFolders();
   }, []);
+
+  const filteredFolders = useMemo(() => {
+    return filterFolders(folders, searchTerm);
+  }, [folders, searchTerm]);
+
+  const filteredFlatFolders = useMemo(() => {
+    return flattenFolders(filteredFolders);
+  }, [filteredFolders]);
+
+  useEffect(() => {
+    if (selectedFolder && searchTerm) {
+      const folder = filteredFlatFolders.find(f => f.path === selectedFolder);
+      if (!folder) {
+        const parent = filteredFlatFolders.find(f => selectedFolder.startsWith(f.path));
+        if (parent && !expandedPaths.has(parent.path)) {
+          setExpandedPaths(prev => new Set([...prev, parent.path]));
+        }
+      }
+    }
+  }, [selectedFolder, searchTerm, filteredFlatFolders]);
 
   const toggleExpand = (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,27 +146,125 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
     });
   };
 
-  const allExpanded = folders.length > 0 && folders.every(f => expandedPaths.has(f.path) || f.subfolders.length === 0);
+  const allExpanded = filteredFolders.length > 0 && filteredFolders.every(f => 
+    expandedPaths.has(f.path) || f.subfolders.length === 0
+  );
 
   const toggleExpandAll = () => {
     if (allExpanded) {
       setExpandedPaths(new Set());
     } else {
       const allPaths = new Set<string>();
-      const collectPaths = (folders: FolderInfo[]) => {
-        folders.forEach(f => {
+      const collectPaths = (items: FolderInfo[]) => {
+        items.forEach(f => {
           if (f.subfolders.length > 0) {
             allPaths.add(f.path);
             collectPaths(f.subfolders);
           }
         });
       };
-      collectPaths(folders);
+      collectPaths(filteredFolders);
       setExpandedPaths(allPaths);
     }
   };
 
-  const totalBooks = folders.reduce((acc, f) => acc + countAllBooks(f), 0);
+  const handleContextMenu = (e: React.MouseEvent, folder: FolderInfo) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      folder
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ visible: false, x: 0, y: 0, folder: null });
+  };
+
+  const handleRename = () => {
+    if (contextMenu.folder) {
+      setRenamingFolder(contextMenu.folder.path);
+      setRenameValue(contextMenu.folder.name);
+    }
+    closeContextMenu();
+  };
+
+  const handleDelete = async () => {
+    if (contextMenu.folder) {
+      const folderPath = contextMenu.folder.fullPath;
+      try {
+        const result = await window.api.deleteFolder(folderPath);
+        if (result.success) {
+          toast.success("Pasta excluída");
+          loadFolders();
+          if (selectedFolder === contextMenu.folder.path) {
+            onFolderSelect(null);
+          }
+        } else {
+          toast.error("Erro ao excluir pasta");
+        }
+      } catch (error) {
+        toast.error("Erro ao excluir pasta");
+      }
+    }
+    closeContextMenu();
+  };
+
+  const handleCreateFolder = async () => {
+    const newFolderName = prompt("Nome da nova pasta:");
+    if (!newFolderName) return;
+
+    try {
+      const result = await window.api.createFolder(newFolderName);
+      if (result.success) {
+        toast.success("Pasta criada");
+        loadFolders();
+      } else {
+        toast.error("Erro ao criar pasta");
+      }
+    } catch (error) {
+      toast.error("Erro ao criar pasta");
+    }
+    closeContextMenu();
+  };
+
+  const submitRename = async () => {
+    if (!renamingFolder || !renameValue.trim()) {
+      setRenamingFolder(null);
+      return;
+    }
+
+    try {
+      const folder = folders.find(f => f.path === renamingFolder);
+      if (folder) {
+        const result = await window.api.renameFolder(folder.fullPath, renameValue.trim());
+        if (result.success) {
+          toast.success("Pasta renomeada");
+          loadFolders();
+        } else {
+          toast.error("Erro ao renomear pasta");
+        }
+      }
+    } catch (error) {
+      toast.error("Erro ao renomear pasta");
+    }
+    
+    setRenamingFolder(null);
+    setRenameValue("");
+  };
+
+  useEffect(() => {
+    const handleClickOutside = () => closeContextMenu();
+    if (contextMenu.visible) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [contextMenu.visible]);
+
+  const totalBooks = useMemo(() => {
+    return filteredFolders.reduce((acc, f) => acc + countAllBooks(f), 0);
+  }, [filteredFolders]);
 
   if (loading) {
     return (
@@ -86,26 +277,39 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <FolderOpen size={16} className="text-zinc-500" />
-          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Pastas</span>
+      <div className="flex flex-col gap-2 p-3 border-b border-zinc-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FolderOpen size={16} className="text-zinc-500" />
+            <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Pastas</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleExpandAll}
+              className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+              title={allExpanded ? "Recolher todas" : "Expandir todas"}
+            >
+              {allExpanded ? <ChevronsDown size={14} /> : <ChevronsRight size={14} />}
+            </button>
+            <button
+              onClick={loadFolders}
+              className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+              title="Atualizar"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={toggleExpandAll}
-            className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-            title={allExpanded ? "Recolher todas" : "Expandir todas"}
-          >
-            {allExpanded ? <ChevronsDown size={14} /> : <ChevronsRight size={14} />}
-          </button>
-          <button
-            onClick={loadFolders}
-            className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-            title="Atualizar"
-          >
-            <RefreshCw size={14} />
-          </button>
+        
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar pastas..."
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-sm pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-green-500"
+          />
         </div>
       </div>
 
@@ -133,7 +337,7 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
               </span>
             </button>
 
-            {folders.map((folder) => (
+            {filteredFolders.map((folder) => (
               <FolderNode
                 key={folder.path}
                 folder={folder}
@@ -142,14 +346,59 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
                 level={0}
                 expandedPaths={expandedPaths}
                 onToggleExpand={toggleExpand}
+                onContextMenu={handleContextMenu}
+                renamingPath={renamingFolder}
+                renameValue={renameValue}
+                onRenameChange={setRenameValue}
+                onRenameSubmit={submitRename}
+                onRenameCancel={() => { setRenamingFolder(null); setRenameValue(""); }}
+                searchTerm={searchTerm}
               />
             ))}
           </div>
           
-          <div className="px-3 py-2 border-t border-zinc-800 text-xs text-zinc-500 cursor-default">
-            {folders.length} pasta{folders.length !== 1 ? "s" : ""} • {totalBooks} livro{totalBooks !== 1 ? "s" : ""}
+          <div className="px-3 py-2 border-t border-zinc-800 text-xs text-zinc-500 cursor-default flex items-center justify-between">
+            <span>{filteredFolders.length} pasta{filteredFolders.length !== 1 ? "s" : ""} • {totalBooks} livro{totalBooks !== 1 ? "s" : ""}</span>
+            <button
+              onClick={handleCreateFolder}
+              className="p-1 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+              title="Criar nova pasta"
+            >
+              <FolderPlus size={14} />
+            </button>
           </div>
         </>
+      )}
+
+      {contextMenu.visible && (
+        <div
+          className="fixed bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg py-1 z-50 min-w-[140px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleCreateFolder}
+            className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+          >
+            <FolderPlus size={14} />
+            Nova pasta
+          </button>
+          <button
+            onClick={handleRename}
+            className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+          >
+            <Pencil size={14} />
+            Renomear
+          </button>
+          <div className="border-t border-zinc-700 my-1" />
+          <button
+            onClick={handleDelete}
+            className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700 flex items-center gap-2"
+          >
+            <Trash2 size={14} />
+            Excluir
+          </button>
+        </div>
       )}
     </div>
   );
@@ -162,6 +411,13 @@ function FolderNode({
   level,
   expandedPaths,
   onToggleExpand,
+  onContextMenu,
+  renamingPath,
+  renameValue,
+  onRenameChange,
+  onRenameSubmit,
+  onRenameCancel,
+  searchTerm
 }: {
   folder: FolderInfo;
   selectedPath: string | null;
@@ -169,24 +425,45 @@ function FolderNode({
   level: number;
   expandedPaths: Set<string>;
   onToggleExpand: (path: string, e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent, folder: FolderInfo) => void;
+  renamingPath: string | null;
+  renameValue: string;
+  onRenameChange: (value: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
+  searchTerm: string;
 }) {
   const hasChildren = folder.subfolders.length > 0;
   const isExpanded = expandedPaths.has(folder.path);
-  
   const isSelected = folder.path === selectedPath;
+  const isRenaming = renamingPath === folder.path;
+  
+  const isEmpty = folder.bookCount === 0 && folder.subfolders.every(f => f.bookCount === 0);
+  const hasBooksDirectly = folder.bookCount > 0;
+  const subfoldersBooks = folder.subfolders.reduce((acc, f) => acc + f.bookCount, 0);
+  const totalBooks = folder.bookCount + subfoldersBooks;
 
-  const totalBooks = countAllBooks(folder);
+  const highlightMatch = (text: string, term: string) => {
+    if (!term) return text;
+    const parts = text.split(new RegExp(`(${term})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === term.toLowerCase() 
+        ? <span key={i} className="bg-green-500/30 text-green-300">{part}</span>
+        : part
+    );
+  };
 
   return (
     <div className="mb-0.5">
       <div
-        className={`flex items-center gap-1.5 cursor-pointer rounded-sm transition-colors ${
+        className={`group flex items-center gap-1.5 cursor-pointer rounded-sm transition-colors ${
           isSelected
             ? "bg-zinc-800 text-zinc-100"
             : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
         }`}
         style={{ paddingLeft: `${level * 16 + 8}px`, paddingRight: "8px", paddingTop: "6px", paddingBottom: "6px" }}
-        onClick={() => onSelect(folder.path)}
+        onClick={() => !isRenaming && onSelect(folder.path)}
+        onContextMenu={(e) => onContextMenu(e, folder)}
       >
         {hasChildren ? (
           <button
@@ -203,15 +480,54 @@ function FolderNode({
           <span className="w-5" />
         )}
 
-        <Folder size={15} className={isSelected ? "text-zinc-300" : "text-zinc-500"} />
+        {isEmpty ? (
+          <Folder size={15} className="text-zinc-600" />
+        ) : hasBooksDirectly ? (
+          <FolderOpen size={15} className={isSelected ? "text-green-400" : "text-green-500"} />
+        ) : (
+          <Folder size={15} className={isSelected ? "text-zinc-300" : "text-zinc-500"} />
+        )}
         
-        <span className="flex-1 truncate text-sm">{folder.name}</span>
+        {isRenaming ? (
+          <input
+            type="text"
+            value={renameValue}
+            onChange={(e) => onRenameChange(e.target.value)}
+            onBlur={onRenameSubmit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onRenameSubmit();
+              if (e.key === "Escape") onRenameCancel();
+            }}
+            className="flex-1 bg-zinc-700 border border-zinc-600 rounded-sm px-1.5 py-0.5 text-sm text-zinc-100 focus:outline-none"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="flex-1 truncate text-sm">
+            {searchTerm ? highlightMatch(folder.name, searchTerm) : folder.name}
+          </span>
+        )}
         
-        <span className={`text-xs px-1.5 py-0.5 rounded-sm ${
-          isSelected ? "bg-zinc-700 text-zinc-300" : "bg-zinc-800 text-zinc-500"
+        <div className={`flex items-center gap-1 text-xs ${
+          isSelected ? "text-zinc-300" : "text-zinc-500"
         }`}>
-          {totalBooks}
-        </span>
+          {subfoldersBooks > 0 && (
+            <span className="text-[10px]" title={`${folder.bookCount} neste local, ${subfoldersBooks} em subpastas`}>
+              +{subfoldersBooks}
+            </span>
+          )}
+          <span className={`px-1.5 py-0.5 rounded-sm ${
+            isSelected ? "bg-zinc-700 text-zinc-300" : "bg-zinc-800"
+          }`}>
+            {totalBooks}
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onContextMenu(e, folder); }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-zinc-700 rounded-sm transition-opacity"
+          >
+            <MoreVertical size={12} />
+          </button>
+        </div>
       </div>
 
       {isExpanded && folder.subfolders.length > 0 && (
@@ -227,6 +543,13 @@ function FolderNode({
                 level={level + 1}
                 expandedPaths={expandedPaths}
                 onToggleExpand={onToggleExpand}
+                onContextMenu={onContextMenu}
+                renamingPath={renamingPath}
+                renameValue={renameValue}
+                onRenameChange={onRenameChange}
+                onRenameSubmit={onRenameSubmit}
+                onRenameCancel={onRenameCancel}
+                searchTerm={searchTerm}
               />
             ))}
         </div>
