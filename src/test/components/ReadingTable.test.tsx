@@ -10,7 +10,38 @@ const mockGetCategories = vi.fn().mockResolvedValue([]);
 vi.mock("../../hooks/useGetReadings", () => ({
   __esModule: true,
   default: () => ({
-    data: [
+    data: undefined,
+    isLoading: false,
+  }),
+}));
+
+vi.mock("../../lib/supabase", () => ({
+  supabase: {
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user" } }, error: null }),
+    },
+  },
+  default: {
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user" } }, error: null }),
+    },
+  },
+}));
+
+vi.mock("../../utils/getUser", () => ({
+  default: vi.fn().mockResolvedValue({ id: "test-user", name: "Test User" }),
+}));
+
+vi.mock("../../api/database", async () => {
+  const actual = await vi.importActual("../../api/database");
+  return {
+    ...actual,
+    deleteReadingEntry: vi.fn(() => Promise.resolve()),
+    getCategories: vi.fn(() => Promise.resolve([])),
+    updateReadingEntry: vi.fn(() => Promise.resolve()),
+    getUserReadings: vi.fn().mockResolvedValue([
       {
         id: "1",
         source_name: "Test Book",
@@ -27,16 +58,9 @@ vi.mock("../../hooks/useGetReadings", () => ({
         reading_time: 60,
         category_id: "cat-2",
       },
-    ],
-    isLoading: false,
-  }),
-}));
-
-vi.mock("../../api/database", () => ({
-  deleteReadingEntry: vi.fn(() => Promise.resolve()),
-  getCategories: vi.fn(() => Promise.resolve([])),
-  updateReadingEntry: vi.fn(() => Promise.resolve()),
-}));
+    ]),
+  };
+});
 
 vi.mock("@tanstack/react-query", async () => {
   const actual = await vi.importActual("@tanstack/react-query");
@@ -44,6 +68,45 @@ vi.mock("@tanstack/react-query", async () => {
     ...actual,
     useQueryClient: () => ({
       invalidateQueries: mockInvalidate,
+      fetchQuery: vi.fn().mockResolvedValue([
+        {
+          id: "1",
+          source_name: "Test Book",
+          pages: 50,
+          reading_date: "2024-01-15",
+          reading_time: 120,
+          category_id: "cat-1",
+        },
+        {
+          id: "2",
+          source_name: "Another Book",
+          pages: 30,
+          reading_date: "2024-01-16",
+          reading_time: 60,
+          category_id: "cat-2",
+        },
+      ]),
+    }),
+    useQuery: () => ({
+      data: [
+        {
+          id: "1",
+          source_name: "Test Book",
+          pages: 50,
+          reading_date: "2024-01-15",
+          reading_time: 120,
+          category_id: "cat-1",
+        },
+        {
+          id: "2",
+          source_name: "Another Book",
+          pages: 30,
+          reading_date: "2024-01-16",
+          reading_time: 60,
+          category_id: "cat-2",
+        },
+      ],
+      isLoading: false,
     }),
     useMutation: () => ({
       mutate: mockDelete,
