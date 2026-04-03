@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import useGetReadings from "../../../../hooks/useGetReadings";
 import TableReading from "../../../../types/TableReading";
 import { TableSkeleton } from "../../../../components/skeletons";
@@ -17,6 +18,20 @@ interface ReadingTableBodyProps {
 export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete }: ReadingTableBodyProps) {
   const { data: readings, isLoading } = useGetReadings();
 
+  const sortedReadings = useMemo(() => {
+    if (!readings) return [];
+    return [...readings].sort((a, b) => {
+      const dateA = a.reading_date;
+      const dateB = b.reading_date;
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+      const createdA = a.created_at || "";
+      const createdB = b.created_at || "";
+      return createdB.localeCompare(createdA);
+    });
+  }, [readings]);
+
   if (isLoading) {
     return onlyTable ? <TableSkeleton rows={5} /> : null;
   }
@@ -24,7 +39,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete }
   if (onlyTable) {
     return (
       <tbody>
-        {readings?.map((reading: TableReading) => (
+        {sortedReadings.map((reading: TableReading) => (
           <tr
             key={reading.id}
             className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"

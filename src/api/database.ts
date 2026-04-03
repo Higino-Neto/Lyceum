@@ -6,6 +6,7 @@ export interface ReadingEntry {
   pages: number;
   reading_date: string;
   reading_time: number;
+  created_at?: string;
   category_id: string;
   book_id?: string;
 }
