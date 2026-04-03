@@ -549,6 +549,10 @@ export function updateTitle(fileHash: string, newTitle: string): void {
   db.prepare(`UPDATE documents SET title = ? WHERE fileHash = ?`).run(newTitle, fileHash);
 }
 
+export function updateAuthor(fileHash: string, author: string | null): void {
+  db.prepare(`UPDATE documents SET author = ? WHERE fileHash = ?`).run(author, fileHash);
+}
+
 export function deleteDocument(fileHash: string): { success: boolean; error?: string } {
   try {
     const doc = getDocumentByHash(fileHash);

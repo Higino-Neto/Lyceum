@@ -56,7 +56,7 @@ contextBridge.exposeInMainWorld("api", {
 
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 
-  reopenPdf: (filePath: string) => ipcRenderer.invoke("pdf:reopen", filePath),
+  reopenPdf: (filePath: string, fileHash?: string) => ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
 
   getThumbnail: (thumbnailPath: string) =>
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),
@@ -102,6 +102,9 @@ contextBridge.exposeInMainWorld("api", {
 
   updateTitle: (fileHash: string, newTitle: string) =>
     ipcRenderer.invoke("book:update-title", fileHash, newTitle),
+
+  renameBook: (fileHash: string, newTitle: string, newAuthor: string) =>
+    ipcRenderer.invoke("book:rename", fileHash, newTitle, newAuthor),
 
   deleteBook: (fileHash: string) =>
     ipcRenderer.invoke("book:delete", fileHash),

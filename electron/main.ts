@@ -45,6 +45,7 @@ import {
   updateDocumentBookId,
   getDocumentsByBookId,
   getDocumentByTitle,
+  updateAuthor,
 } from "./local-database";
 
 const require = createRequire(import.meta.url);
@@ -602,13 +603,57 @@ ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
   }
 });
 
-ipcMain.handle("pdf:reopen", async (_, filePath: string) => {
+function findFileByHash(fileHash: string, searchPaths: string[]): string | null {
+  for (const searchPath of searchPaths) {
+    if (!fs.existsSync(searchPath)) continue;
+    
+    const files = getAllPdfFiles(searchPath);
+    for (const filePath of files) {
+      try {
+        const hash = generateFileHash(filePath);
+        if (hash === fileHash) {
+          return filePath;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
   try {
-    const fileBuffer = fs.readFileSync(filePath).buffer;
-    const fileHash = generateFileHash(filePath);
-    return { fileBuffer, fileHash };
-  } catch {
-    return null;
+    if (fs.existsSync(filePath)) {
+      const fileBuffer = fs.readFileSync(filePath).buffer;
+      const hash = generateFileHash(filePath);
+      return { fileBuffer, fileHash: hash };
+    }
+
+    console.log("[pdf:reopen] File not found, searching by hash:", filePath);
+
+    if (!fileHash) {
+      return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado e hash não fornecido" };
+    }
+
+    const libraryPath = LIBRARY_PATH();
+    const userDataPath = app.getPath("userData");
+    const searchPaths = [libraryPath, userDataPath];
+
+    const foundPath = findFileByHash(fileHash, searchPaths);
+
+    if (!foundPath) {
+      return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado em nenhuma pasta da biblioteca" };
+    }
+
+    console.log("[pdf:reopen] Found file at new location:", foundPath);
+    updateDocumentPath(fileHash, foundPath);
+
+    const fileBuffer = fs.readFileSync(foundPath).buffer;
+    return { fileBuffer, fileHash, foundAt: foundPath };
+  } catch (error) {
+    console.error("[pdf:reopen] Error:", error);
+    return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
   }
 });
 
@@ -727,6 +772,59 @@ ipcMain.handle("book:update-metadata", (_, fileHash: string, metadata: {
 ipcMain.handle("book:update-title", (_, fileHash: string, newTitle: string) => {
   updateTitle(fileHash, newTitle);
   return true;
+});
+
+ipcMain.handle("book:rename", async (_, fileHash: string, newTitle: string, newAuthor: string) => {
+  try {
+    let doc = getDocumentByHash(fileHash);
+    
+    if (!doc) {
+      return { success: false, error: "Documento não encontrado" };
+    }
+
+    let filePath = doc.filePath;
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      console.log("[book:rename] File not found at stored path, searching by hash:", filePath);
+      
+      const libraryPath = LIBRARY_PATH();
+      const userDataPath = app.getPath("userData");
+      const searchPaths = [libraryPath, userDataPath];
+      
+      const foundPath = findFileByHash(fileHash, searchPaths);
+      
+      if (!foundPath) {
+        return { success: false, error: "Arquivo não encontrado em nenhuma pasta da biblioteca" };
+      }
+      
+      filePath = foundPath;
+      updateDocumentPath(fileHash, foundPath);
+      console.log("[book:rename] Found file at new location:", foundPath);
+    }
+
+    const dir = path.dirname(filePath);
+    const ext = path.extname(filePath);
+    const newFileName = `${newTitle}${ext}`;
+    const newFilePath = path.join(dir, newFileName);
+
+    if (filePath !== newFilePath) {
+      if (fs.existsSync(newFilePath)) {
+        return { success: false, error: "Já existe um arquivo com este nome" };
+      }
+      fs.renameSync(filePath, newFilePath);
+      filePath = newFilePath;
+      updateDocumentPath(fileHash, newFilePath);
+    }
+
+    const finalTitle = newTitle.toLowerCase().endsWith(".pdf") ? newTitle : `${newTitle}.pdf`;
+    updateTitle(fileHash, finalTitle);
+    updateAuthor(fileHash, newAuthor || null);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[book:rename] Error:", error);
+    return { success: false, error: String(error) };
+  }
 });
 
 ipcMain.handle("book:delete", (_, fileHash: string) => {

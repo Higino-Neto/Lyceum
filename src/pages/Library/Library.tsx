@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   LibraryHeader,
   SectionTabs,
@@ -24,6 +24,7 @@ import {
   deleteBook,
 } from "../../api/database";
 import { DocumentRecord } from "../../types/ReadingTypes";
+import { calculateSimilarity } from "./utils";
 
 export default function Library() {
   const navigate = useNavigate();
@@ -94,9 +95,23 @@ export default function Library() {
     }
   }, [activeSection]);
 
-  const handleOpen = async (filePath: string) => {
-    const result = await window.api.reopenPdf(filePath);
-    if (!result) return;
+  const handleOpen = async (filePath: string, fileHash?: string) => {
+    const result = await window.api.reopenPdf(filePath, fileHash);
+    
+    if (!result) {
+      toast.error("Erro ao abrir o arquivo");
+      return;
+    }
+
+    if ("error" in result) {
+      toast.error(result.message || "Erro ao abrir o arquivo");
+      return;
+    }
+
+    if (result.foundAt && result.foundAt !== filePath) {
+      toast.success("Livro encontrado em nova localização");
+      refreshBooks();
+    }
 
     navigate("/reading", {
       state: {
@@ -138,14 +153,18 @@ export default function Library() {
     setShowBooksSidebar(true);
   };
 
-  const handleBookRefresh = () => {
-    refreshBooks();
+  const handleBookRefresh = async () => {
+    await refreshBooks();
     if (selectedBook) {
-      const updatedBook = [...syncedBooks, ...unsyncedBooks].find(
-        (b) => b.fileHash === selectedBook.fileHash,
+      const allBooks = await window.api.getDocuments();
+      const updatedBook = allBooks.find(
+        (b: any) => b.fileHash === selectedBook.fileHash,
       );
       if (updatedBook) {
-        setSelectedBook(updatedBook);
+        const thumbnail = updatedBook.thumbnailPath 
+          ? await window.api.getThumbnail(updatedBook.thumbnailPath) 
+          : null;
+        setSelectedBook({ ...updatedBook, thumbnail: thumbnail || undefined });
       } else {
         setSelectedBook(null);
       }
@@ -156,20 +175,13 @@ export default function Library() {
     return booksToFilter
       .filter((book) => {
         if (selectedFolder !== null && book.filePath) {
-          const libraryIndex = book.filePath.toLowerCase().indexOf("library");
-          if (libraryIndex === -1) return false;
-
-          const afterLibrary = book.filePath.substring(libraryIndex + 8);
-          const lastSlash = afterLibrary.lastIndexOf("\\");
-          const lastSlashFwd = afterLibrary.lastIndexOf("/");
-          const lastSep = Math.max(lastSlash, lastSlashFwd);
-          const bookFolder =
-            lastSep > 0 ? afterLibrary.substring(0, lastSep) : "";
-
-          if (
-            !bookFolder.startsWith(selectedFolder) &&
-            bookFolder !== selectedFolder
-          ) {
+          const normalizedFilePath = book.filePath.replace(/\\/g, "/").toLowerCase();
+          const normalizedSelectedFolder = selectedFolder.replace(/\\/g, "/").toLowerCase();
+          
+          const lastSlashIdx = normalizedFilePath.lastIndexOf("/");
+          const bookFolder = lastSlashIdx > 0 ? normalizedFilePath.substring(0, lastSlashIdx) : "";
+          
+          if (!bookFolder.includes(normalizedSelectedFolder)) {
             return false;
           }
         }
@@ -183,15 +195,17 @@ export default function Library() {
         return true;
       })
       .filter((book) => {
-        const searchLower = search.toLowerCase();
-        return (
-          book.title.toLowerCase().includes(searchLower) ||
-          (book.author && book.author.toLowerCase().includes(searchLower)) ||
-          (book.description &&
-            book.description.toLowerCase().includes(searchLower))
-        );
+        if (!search) return true;
+        const { score } = calculateSimilarity(book.title, book.author, search);
+        return score > 0.2;
       })
       .sort((a, b) => {
+        if (search) {
+          const scoreA = calculateSimilarity(a.title, a.author, search).score;
+          const scoreB = calculateSimilarity(b.title, b.author, search).score;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+        }
+
         if (sort === "progress") {
           const pa = a.numPages > 0 ? a.currentPage / a.numPages : 0;
           const pb = b.numPages > 0 ? b.currentPage / b.numPages : 0;
@@ -288,7 +302,13 @@ export default function Library() {
               <BookDetailPanel
                 book={selectedBook}
                 onClose={handleClosePanel}
-                onOpen={() => handleOpen(selectedBook.filePath)}
+                onOpen={async () => {
+                  if (!selectedBook.filePath) {
+                    toast.error("Caminho do arquivo não encontrado");
+                    return;
+                  }
+                  await handleOpen(selectedBook.filePath, selectedBook.fileHash);
+                }}
                 onDelete={handleBookDeleted}
                 onRefresh={() => {
                   handleBookRefresh();
