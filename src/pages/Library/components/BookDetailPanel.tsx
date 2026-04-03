@@ -155,8 +155,8 @@ export default function BookDetailPanel({
   };
 
   return (
-    <div className="w-96 bg-zinc-900 border-l border-zinc-800 flex flex-col h-full max-h-[calc(100vh-8.5rem)]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
+    <div className="w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
         <h2 className="text-base font-semibold text-zinc-100">Detalhes do Livro</h2>
         <button
           onClick={onClose}
@@ -345,14 +345,14 @@ export default function BookDetailPanel({
 
         <button
           onClick={onOpen}
-          className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer"
         >
           <BookOpen size={16} />
           {book.currentPage > 1 ? "Continuar Leitura" : "Começar a Ler"}
         </button>
       </div>
 
-      <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 space-y-2">
+      <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900/50 space-y-2">
         <div className="flex gap-2">
           <button
             onClick={handleRegenerateThumbnail}

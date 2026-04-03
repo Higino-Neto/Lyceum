@@ -277,7 +277,7 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex flex-col gap-2 p-3 border-b border-zinc-800">
+      <div className="flex-shrink-0 flex flex-col gap-2 p-3 border-b border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderOpen size={16} className="text-zinc-500" />
@@ -314,12 +314,12 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
       </div>
 
       {folders.length === 0 ? (
-        <div className="p-4 text-center text-xs text-zinc-500 cursor-default">
+        <div className="flex-shrink-0 p-4 text-center text-xs text-zinc-500 cursor-default">
           Nenhuma pasta na biblioteca
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto py-2 px-1">
+          <div className="flex-shrink-0 flex-1 overflow-y-auto py-2 px-1">
             <button
               onClick={() => onFolderSelect(null)}
               className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-sm mb-1 transition-colors cursor-pointer ${
@@ -357,7 +357,7 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
             ))}
           </div>
           
-          <div className="px-3 py-2 border-t border-zinc-800 text-xs text-zinc-500 cursor-default flex items-center justify-between">
+          <div className="flex-shrink-0 px-3 py-2 border-t border-zinc-800 text-xs text-zinc-500 cursor-default flex items-center justify-between">
             <span>{filteredFolders.length} pasta{filteredFolders.length !== 1 ? "s" : ""} • {totalBooks} livro{totalBooks !== 1 ? "s" : ""}</span>
             <button
               onClick={handleCreateFolder}

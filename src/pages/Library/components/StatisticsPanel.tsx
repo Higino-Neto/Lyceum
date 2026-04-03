@@ -128,7 +128,7 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
       <div className="p-4 border-t border-zinc-800 space-y-2">
         <button
           onClick={() => onEdit(book)}
-          className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-3 rounded-sm font-medium transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-3 rounded-sm font-medium transition-colors cursor-pointer"
         >
           <Edit3 size={16} />
           Editar Livro

@@ -284,7 +284,7 @@ export default function CategoryManager({
           ) : (
             <button
               onClick={startCreating}
-              className="w-full flex items-center justify-center gap-2 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 py-2.5 rounded-sm font-medium transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm font-medium transition-colors cursor-pointer"
             >
               <Plus size={18} />
               Nova Categoria
