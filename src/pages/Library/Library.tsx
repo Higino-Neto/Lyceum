@@ -72,15 +72,26 @@ export default function Library() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = window.api.onLibraryUpdated(() => {
+    const unsubscribe = window.api.onLibraryUpdated(async () => {
       refreshBooks();
       loadFolderStructure();
+      const docs = await window.api.getDocuments();
+      setLocalDocuments(docs);
     });
     return () => unsubscribe();
   }, [refreshBooks, loadFolderStructure]);
 
   useEffect(() => {
     loadFolderStructure();
+    const loadLocalDocs = async () => {
+      try {
+        const docs = await window.api.getDocuments();
+        setLocalDocuments(docs);
+      } catch (error) {
+        console.error("Error loading local documents:", error);
+      }
+    };
+    loadLocalDocs();
   }, [loadFolderStructure]);
 
   useEffect(() => {
@@ -243,6 +254,7 @@ export default function Library() {
             <FolderTree
               selectedFolder={selectedFolder}
               onFolderSelect={setSelectedFolder}
+              localDocuments={localDocuments}
             />
           </div>
         </aside>

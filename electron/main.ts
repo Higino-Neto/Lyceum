@@ -958,6 +958,7 @@ ipcMain.handle("library:create-folder", async (_, folderName: string) => {
     }
     
     fs.mkdirSync(newFolderPath, { recursive: true });
+    win?.webContents.send("library:updated");
     return { success: true };
   } catch (error) {
     console.error("[library:create-folder] Error:", error);
@@ -975,6 +976,7 @@ ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: stri
     }
     
     fs.renameSync(oldPath, newPath);
+    win?.webContents.send("library:updated");
     return { success: true };
   } catch (error) {
     console.error("[library:rename-folder] Error:", error);
@@ -1000,6 +1002,7 @@ ipcMain.handle("library:delete-folder", async (_, folderPath: string) => {
     }
 
     fs.rmdirSync(folderPath);
+    win?.webContents.send("library:updated");
     return { success: true };
   } catch (error) {
     console.error("[library:delete-folder] Error:", error);

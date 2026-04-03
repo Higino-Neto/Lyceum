@@ -14,11 +14,13 @@ import {
   MoreVertical
 } from "lucide-react";
 import { FolderInfo } from "../../../types/LibraryTypes";
+import { DocumentRecord } from "../../../types/ReadingTypes";
 import toast from "react-hot-toast";
 
 interface FolderTreeProps {
   selectedFolder: string | null;
   onFolderSelect: (folderPath: string | null) => void;
+  localDocuments: DocumentRecord[];
 }
 
 interface ContextMenuState {
@@ -69,7 +71,7 @@ function flattenFolders(folders: FolderInfo[]): FolderInfo[] {
   return result;
 }
 
-export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTreeProps) {
+export default function FolderTree({ selectedFolder, onFolderSelect, localDocuments }: FolderTreeProps) {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -262,9 +264,29 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
     }
   }, [contextMenu.visible]);
 
+  const [libraryPath, setLibraryPath] = useState<string>("");
+
+  useEffect(() => {
+    window.api.getLibraryPath().then(setLibraryPath);
+  }, []);
+
+  const countDocsInFolder = (folderPath: string | null): number => {
+    if (!libraryPath || !localDocuments.length) return 0;
+    
+    const targetPath = folderPath 
+      ? `${libraryPath}\\${folderPath.replace(/\//g, '\\')}`
+      : libraryPath;
+    
+    return localDocuments.filter(doc => {
+      if (!doc.filePath) return false;
+      const docDir = doc.filePath.substring(0, doc.filePath.lastIndexOf('\\'));
+      return docDir === targetPath || docDir.startsWith(targetPath + '\\');
+    }).length;
+  };
+
   const totalBooks = useMemo(() => {
-    return filteredFolders.reduce((acc, f) => acc + countAllBooks(f), 0);
-  }, [filteredFolders]);
+    return countDocsInFolder(null);
+  }, [libraryPath, localDocuments]);
 
   if (loading) {
     return (
@@ -353,6 +375,7 @@ export default function FolderTree({ selectedFolder, onFolderSelect }: FolderTre
                 onRenameSubmit={submitRename}
                 onRenameCancel={() => { setRenamingFolder(null); setRenameValue(""); }}
                 searchTerm={searchTerm}
+                localDocuments={localDocuments}
               />
             ))}
           </div>
@@ -417,7 +440,8 @@ function FolderNode({
   onRenameChange,
   onRenameSubmit,
   onRenameCancel,
-  searchTerm
+  searchTerm,
+  localDocuments
 }: {
   folder: FolderInfo;
   selectedPath: string | null;
@@ -432,16 +456,34 @@ function FolderNode({
   onRenameSubmit: () => void;
   onRenameCancel: () => void;
   searchTerm: string;
+  localDocuments: DocumentRecord[];
 }) {
+  const libraryPath = localDocuments[0]?.filePath 
+    ? localDocuments[0].filePath.substring(0, localDocuments[0].filePath.lastIndexOf('\\'))
+    : '';
+  
+  const countDocsInFolder = (folderPath: string | null): number => {
+    if (!libraryPath || !localDocuments.length) return 0;
+    
+    const targetPath = folderPath 
+      ? `${libraryPath}\\${folderPath.replace(/\//g, '\\')}`
+      : libraryPath;
+    
+    return localDocuments.filter(doc => {
+      if (!doc.filePath) return false;
+      const docDir = doc.filePath.substring(0, doc.filePath.lastIndexOf('\\'));
+      return docDir === targetPath || docDir.startsWith(targetPath + '\\');
+    }).length;
+  };
+
+  const folderBookCount = countDocsInFolder(folder.path);
+  const subfoldersBooks = folder.subfolders.reduce((acc, f) => acc + countDocsInFolder(f.path), 0);
+  const totalBooks = folderBookCount + subfoldersBooks;
+  
   const hasChildren = folder.subfolders.length > 0;
   const isExpanded = expandedPaths.has(folder.path);
   const isSelected = folder.path === selectedPath;
   const isRenaming = renamingPath === folder.path;
-  
-  const isEmpty = folder.bookCount === 0 && folder.subfolders.every(f => f.bookCount === 0);
-  const hasBooksDirectly = folder.bookCount > 0;
-  const subfoldersBooks = folder.subfolders.reduce((acc, f) => acc + f.bookCount, 0);
-  const totalBooks = folder.bookCount + subfoldersBooks;
 
   const highlightMatch = (text: string, term: string) => {
     if (!term) return text;
@@ -480,9 +522,9 @@ function FolderNode({
           <span className="w-5" />
         )}
 
-        {isEmpty ? (
+        {folderBookCount === 0 && subfoldersBooks === 0 ? (
           <Folder size={15} className="text-zinc-600" />
-        ) : hasBooksDirectly ? (
+        ) : folderBookCount > 0 ? (
           <FolderOpen size={15} className={isSelected ? "text-green-400" : "text-green-500"} />
         ) : (
           <Folder size={15} className={isSelected ? "text-zinc-300" : "text-zinc-500"} />
@@ -550,6 +592,7 @@ function FolderNode({
                 onRenameSubmit={onRenameSubmit}
                 onRenameCancel={onRenameCancel}
                 searchTerm={searchTerm}
+                localDocuments={localDocuments}
               />
             ))}
         </div>
