@@ -46,7 +46,7 @@ export default function FilterBar({
     <section className="flex flex-wrap items-center gap-3">
       <SearchInput value={search} onChange={onSearchChange} />
 
-      <FilterButtons value={filter} onChange={onFilterChange} />
+      {/* <FilterButtons value={filter} onChange={onFilterChange} /> */}
 
       <SortSelect value={sort} onChange={onSortChange} />
     </section>
@@ -78,32 +78,32 @@ function SearchInput({
   );
 }
 
-function FilterButtons({
-  value,
-  onChange,
-}: {
-  value: FilterOption;
-  onChange: (value: FilterOption) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1">
-      {(Object.keys(filterLabels) as FilterOption[]).map((f) => (
-        <button
-          key={f}
-          onClick={() => onChange(f)}
-          className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 transition-colors ${
-            value === f
-              ? "bg-zinc-700 text-zinc-100"
-              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
-          }`}
-          aria-label={filterLabels[f]}
-        >
-          {filterIcons[f]}
-        </button>
-      ))}
-    </div>
-  );
-}
+// function FilterButtons({
+//   value,
+//   onChange,
+// }: {
+//   value: FilterOption;
+//   onChange: (value: FilterOption) => void;
+// }) {
+//   return (
+//     <div className="flex items-center gap-1">
+//       {(Object.keys(filterLabels) as FilterOption[]).map((f) => (
+//         <button
+//           key={f}
+//           onClick={() => onChange(f)}
+//           className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 transition-colors ${
+//             value === f
+//               ? "bg-zinc-700 text-zinc-100"
+//               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
+//           }`}
+//           aria-label={filterLabels[f]}
+//         >
+//           {filterIcons[f]}
+//         </button>
+//       ))}
+//     </div>
+//   );
+// }
 
 function SortSelect({
   value,

@@ -60,6 +60,8 @@ interface Window {
     getReadingState: (fileHash: string) => Promise<DocumentRecord | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
+    importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
+    openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
     reopenPdf: (filePath: string, fileHash?: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string; foundAt?: string } | { error: string; message: string } | null>;
 
@@ -103,6 +105,7 @@ interface Window {
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
     regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
+    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; error?: string }>;
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
     getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
@@ -128,7 +131,7 @@ interface Window {
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
     createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
     renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
-    deleteFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
+    deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
   };

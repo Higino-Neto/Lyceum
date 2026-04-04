@@ -438,6 +438,16 @@ export function updateDocumentPath(fileHash: string, newPath: string) {
   ).run(newPath, fileHash);
 }
 
+export function updateDocumentNumPages(fileHash: string, numPages: number) {
+  db.prepare(
+    `
+    UPDATE documents
+    SET numPages = ?
+    WHERE fileHash = ?
+  `,
+  ).run(numPages, fileHash);
+}
+
 export function updateDocumentSyncStatus(fileHash: string, isSynced: boolean, category?: string) {
   db.prepare(
     `

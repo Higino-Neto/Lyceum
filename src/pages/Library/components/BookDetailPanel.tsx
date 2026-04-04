@@ -13,10 +13,13 @@ import {
   Pencil,
   Save,
   XCircle,
+  Image,
+  Upload,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import { calculateProgress } from "./BookGrid/progress";
 import toast from "react-hot-toast";
+import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
@@ -42,6 +45,12 @@ export default function BookDetailPanel({
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [thumbnailDialog, setThumbnailDialog] = useState<{
+    open: boolean;
+    imagePath: string;
+  }>({ open: false, imagePath: "" });
+  const [thumbnailKey, setThumbnailKey] = useState(0);
 
   const progress = calculateProgress(book);
 
@@ -131,9 +140,65 @@ export default function BookDetailPanel({
     const result = await window.api.regenerateThumbnail(book.fileHash);
     if (result.success) {
       toast.success("Thumbnail regenerada!");
+      setThumbnailKey(prev => prev + 1);
       onRefresh();
     } else {
       toast.error("Erro ao regenerar thumbnail");
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+
+    const file = files[0];
+    const ext = file.name.toLowerCase().split(".").pop();
+    
+    if (ext !== "jpg" && ext !== "jpeg" && ext !== "png") {
+      toast.error("Formato não suportado. Use JPG ou PNG.");
+      return;
+    }
+
+    setThumbnailDialog({ open: true, imagePath: file.path });
+  };
+
+  const handleThumbnailClick = async () => {
+    const result = await window.api.openImageDialog();
+    if (result) {
+      setThumbnailDialog({ open: true, imagePath: result });
+    }
+  };
+
+  const handleSetThumbnail = async (mode: "replace" | "prepend") => {
+    const result = await window.api.setThumbnail(
+      book.fileHash,
+      thumbnailDialog.imagePath,
+      mode
+    );
+
+    if (result.success) {
+      toast.success(mode === "replace" ? "Thumbnail substituída!" : "Página adicionada!");
+      setThumbnailDialog({ open: false, imagePath: "" });
+      setThumbnailKey(prev => prev + 1);
+      onRefresh();
+    } else {
+      toast.error(result.error || "Erro ao definir thumbnail");
     }
   };
 
@@ -178,21 +243,47 @@ export default function BookDetailPanel({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div className="relative aspect-[3/4] bg-zinc-800 rounded-sm overflow-hidden shadow-lg">
+          <div 
+            className={`relative aspect-[3/4] bg-zinc-800 rounded-md overflow-hidden shadow-lg cursor-pointer transition-all group ${
+              isDragging ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900" : "hover:ring-2 hover:ring-zinc-600"
+            }`}
+            onClick={handleThumbnailClick}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            title="Clique para selecionar ou arraste uma imagem"
+          >
             {book.thumbnail ? (
               <img
+                key={thumbnailKey}
                 src={book.thumbnail}
                 alt={book.title}
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <FileText size={32} className="text-zinc-600" />
+              <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600">
+                <FileText size={32} />
               </div>
             )}
             {book.processingStatus === "processing" && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <RefreshCw size={24} className="text-white animate-spin" />
+              </div>
+            )}
+            {isDragging && (
+              <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-green-400">
+                  <Image size={32} />
+                  <span className="text-sm font-medium">Solte para definir capa</span>
+                </div>
+              </div>
+            )}
+            {!isDragging && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-white">
+                  <Upload size={24} />
+                  <span className="text-xs font-medium">Definir capa</span>
+                </div>
               </div>
             )}
           </div>
@@ -422,6 +513,13 @@ export default function BookDetailPanel({
             </div>
           </div>
         )}
+
+        <SetThumbnailDialog
+          isOpen={thumbnailDialog.open}
+          imagePath={thumbnailDialog.imagePath}
+          onSetThumbnail={handleSetThumbnail}
+          onClose={() => setThumbnailDialog({ open: false, imagePath: "" })}
+        />
       </div>
     </div>
   );

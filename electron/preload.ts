@@ -54,6 +54,11 @@ contextBridge.exposeInMainWorld("api", {
 
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 
+  importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
+    ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
+
+  openImageDialog: () => ipcRenderer.invoke("dialog:open-image"),
+
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 
   reopenPdf: (filePath: string, fileHash?: string) => ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
@@ -122,6 +127,9 @@ contextBridge.exposeInMainWorld("api", {
 
   regenerateThumbnail: (fileHash: string) =>
     ipcRenderer.invoke("book:regenerate-thumbnail", fileHash),
+
+  setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") =>
+    ipcRenderer.invoke("pdf:set-thumbnail", fileHash, imagePath, mode),
 
   updateBookId: (fileHash: string, bookId: string) =>
     ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
@@ -194,8 +202,8 @@ contextBridge.exposeInMainWorld("api", {
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),
 
-  deleteFolder: (folderPath: string) =>
-    ipcRenderer.invoke("library:delete-folder", folderPath),
+  deleteFolder: (folderPath: string, force = false) =>
+    ipcRenderer.invoke("library:delete-folder", folderPath, force),
 
   moveFolder: (sourcePath: string, targetPath: string | null) =>
     ipcRenderer.invoke("library:move-folder", sourcePath, targetPath),

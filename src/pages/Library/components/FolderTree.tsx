@@ -15,6 +15,7 @@ import {
   Check,
   X,
   FolderInput,
+  FilePlus,
 } from "lucide-react";
 import { FolderInfo } from "../../../types/LibraryTypes";
 import { DocumentRecord } from "../../../types/ReadingTypes";
@@ -26,6 +27,7 @@ interface FolderTreeProps {
   localDocuments: DocumentRecord[];
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
   draggingBookHash?: string | null;
+  onImportBook?: (targetFolder: string | null) => Promise<void>;
 }
 
 interface ContextMenuState {
@@ -88,6 +90,7 @@ export default function FolderTree({
   localDocuments,
   onMoveBook,
   draggingBookHash,
+  onImportBook,
 }: FolderTreeProps) {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,6 +112,11 @@ export default function FolderTree({
   const [draggingFolder, setDraggingFolder] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    folder: FolderInfo | null;
+  }>({ open: false, folder: null });
 
   const draggingBook = draggingBookHash || null;
 
@@ -226,25 +234,36 @@ export default function FolderTree({
     closeContextMenu();
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
     if (contextMenu.folder) {
-      const folderPath = contextMenu.folder.fullPath;
-      try {
-        const result = await window.api.deleteFolder(folderPath);
-        if (result.success) {
-          toast.success("Pasta excluída");
-          loadFolders();
-          if (selectedFolder === contextMenu.folder.path) {
-            onFolderSelect(null);
-          }
-        } else {
-          toast.error(result.error || "Erro ao excluir pasta");
-        }
-      } catch (error) {
-        toast.error("Erro ao excluir pasta");
-      }
+      setDeleteDialog({ open: true, folder: contextMenu.folder });
     }
     closeContextMenu();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.folder) return;
+    
+    const folderPath = deleteDialog.folder.fullPath;
+    try {
+      const result = await window.api.deleteFolder(folderPath, true);
+      if (result.success) {
+        toast.success("Pasta excluída");
+        loadFolders();
+        if (selectedFolder === deleteDialog.folder.path) {
+          onFolderSelect(null);
+        }
+      } else {
+        toast.error(result.error || "Erro ao excluir pasta");
+      }
+    } catch (error) {
+      toast.error("Erro ao excluir pasta");
+    }
+    setDeleteDialog({ open: false, folder: null });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, folder: null });
   };
 
   const handleCreateFolderAt = async (parentPath: string | null) => {
@@ -436,6 +455,15 @@ export default function FolderTree({
               >
                 <FolderPlus size={14} />
               </button>
+              {onImportBook && (
+                <button
+                  onClick={() => onImportBook("")}
+                  className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                  title="Adicionar livro"
+                >
+                  <FilePlus size={14} />
+                </button>
+              )}
             <button
               onClick={toggleExpandAll}
               className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
@@ -600,6 +628,18 @@ export default function FolderTree({
              <FolderPlus size={14} />
              Nova pasta
            </button>
+           {onImportBook && (
+             <button
+               onClick={() => {
+                 closeContextMenu();
+                 onImportBook(contextMenu.folder?.path || "");
+               }}
+               className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+             >
+               <FilePlus size={14} />
+               Adicionar livro
+             </button>
+           )}
            <button
              onClick={handleRename}
              className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
@@ -609,12 +649,55 @@ export default function FolderTree({
            </button>
            <div className="border-t border-zinc-700 my-1" />
            <button
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700 flex items-center gap-2"
           >
             <Trash2 size={14} />
             Excluir
           </button>
+        </div>
+      )}
+
+      {deleteDialog.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-sm w-full max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+              <div className="flex items-center gap-2">
+                <Trash2 size={20} className="text-red-400" />
+                <h2 className="text-lg font-semibold text-zinc-100">Excluir pasta</h2>
+              </div>
+              <button
+                onClick={handleDeleteCancel}
+                className="p-2 hover:bg-zinc-800 rounded-sm cursor-pointer"
+              >
+                <X size={20} className="text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-zinc-400 text-sm">
+                Tem certeza que deseja excluir a pasta <span className="text-zinc-200 font-medium">"{deleteDialog.folder?.name}"</span>?
+              </p>
+              <p className="text-zinc-500 text-xs mt-2">
+                Esta pasta e todo o seu conteúdo serão excluídos permanentemente.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 p-4 border-t border-zinc-700">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 rounded-sm cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-sm font-medium cursor-pointer"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

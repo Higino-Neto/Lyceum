@@ -11,6 +11,7 @@ import {
   getLastDocument,
   initDatabase,
   updateDocumentPath,
+  updateDocumentNumPages,
   updateDocumentSyncStatus,
   updateLastOpened,
   updateReadingState,
@@ -176,10 +177,28 @@ async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
 
+    // First check if document exists by path (handles file modifications that change hash)
+    const existingByPath = getDocumentByPath(filePath);
+    
     const fileHash = generateFileHash(filePath);
-    const existing = getDocumentByHash(fileHash);
+    const existing = existingByPath || getDocumentByHash(fileHash);
 
-    if (existing && existing.processingStatus === "completed") return;
+    // If document exists with same path but different hash (file was modified), update the hash
+    if (existingByPath && existingByPath.fileHash !== fileHash) {
+      // Update the document with new hash but keep the same record
+      updateDocumentPath(fileHash, filePath);
+    }
+
+    if (existing && existing.processingStatus === "completed") {
+      // Still update thumbnail and page count
+      const thumbnailPath = await generateThumbnail(filePath, fileHash, true);
+      if (thumbnailPath) {
+        updateThumbnailPath(fileHash, thumbnailPath);
+      }
+      const numPages = await getPdfPageCount(filePath);
+      updateDocumentNumPages(fileHash, numPages);
+      return;
+    }
 
     if (existing) {
       updateProcessingStatus(fileHash, "processing");
@@ -494,6 +513,7 @@ function generateFileHash(filePath: string) {
 async function generateThumbnail(
   filePath: string,
   fileHash: string,
+  force = false,
 ): Promise<string | null> {
   try {
     const pdfRequire = require("pdf-poppler");
@@ -517,9 +537,22 @@ async function generateThumbnail(
       return null;
     };
 
-    const existingPath = findExistingThumbnail();
-    if (existingPath) {
-      return existingPath;
+    if (!force) {
+      const existingPath = findExistingThumbnail();
+      if (existingPath) {
+        return existingPath;
+      }
+    }
+
+    // Delete existing thumbnail if force regenerating
+    if (force) {
+      const existingFiles = fs.readdirSync(thumbnailsDir);
+      for (const file of existingFiles) {
+        if (file.startsWith(`${fileHash}-`) && file.endsWith(".jpg")) {
+          fs.unlinkSync(path.join(thumbnailsDir, file));
+          console.log(`Deleted existing thumbnail: ${file}`);
+        }
+      }
     }
 
     const opts = {
@@ -641,6 +674,70 @@ ipcMain.handle("dialog:open-pdf", async () => {
   updateDocumentSyncStatus(fileHash, false);
   
   return { ...doc, fileBuffer, thumbnailPath };
+});
+
+ipcMain.handle("dialog:open-image", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+
+  const libraryPath = LIBRARY_PATH();
+  const targetDir = targetFolder 
+    ? path.join(libraryPath, targetFolder)
+    : libraryPath;
+
+  if (!fs.existsSync(targetDir)) {
+    return { success: false, errors: ["Pasta de destino não existe"] };
+  }
+
+  const imported: string[] = [];
+  const errors: string[] = [];
+
+  for (const filePath of result.filePaths) {
+    try {
+      const fileName = path.basename(filePath);
+      const destPath = path.join(targetDir, fileName);
+      
+      if (fs.existsSync(destPath)) {
+        errors.push(`${fileName} já existe na pasta`);
+        continue;
+      }
+
+      if (action === "move") {
+        fs.renameSync(filePath, destPath);
+      } else {
+        fs.copyFileSync(filePath, destPath);
+      }
+      imported.push(fileName);
+    } catch (err) {
+      const error = err as Error & { code?: string };
+      errors.push(`${path.basename(filePath)}: ${error.message}`);
+    }
+  }
+
+  const actionWord = action === "move" ? "movido(s)" : "copiado(s)";
+  return { 
+    success: true, 
+    imported, 
+    errors,
+    message: imported.length > 0 
+      ? `${imported.length} livro(s) ${actionWord}` 
+      : "Nenhum livro importado"
+  };
 });
 
 ipcMain.handle("app:get-last-document", () => {
@@ -948,7 +1045,7 @@ ipcMain.handle("book:regenerate-thumbnail", async (_, fileHash: string) => {
   if (!doc) return { success: false, error: "Document not found" };
   
   try {
-    const thumbnailPath = await generateThumbnail(doc.filePath, fileHash);
+    const thumbnailPath = await generateThumbnail(doc.filePath, fileHash, true);
     if (thumbnailPath) {
       updateThumbnailPath(fileHash, thumbnailPath);
       return { success: true, thumbnailPath };
@@ -1106,7 +1203,7 @@ ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: stri
   }
 });
 
-ipcMain.handle("library:delete-folder", async (_, folderPath: string) => {
+ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
   try {
     const libraryPath = LIBRARY_PATH();
     
@@ -1118,11 +1215,13 @@ ipcMain.handle("library:delete-folder", async (_, folderPath: string) => {
       return { success: false, error: "Pasta não existe" };
     }
 
-    const items = fs.readdirSync(folderPath, { withFileTypes: true });
-    const nonEmpty = items.filter(item => !item.name.startsWith("."));
-    
-    if (nonEmpty.length > 0) {
-      return { success: false, error: "Pasta não está vazia" };
+    if (!force) {
+      const items = fs.readdirSync(folderPath, { withFileTypes: true });
+      const nonEmpty = items.filter(item => !item.name.startsWith("."));
+      
+      if (nonEmpty.length > 0) {
+        return { success: false, error: "Pasta não está vazia" };
+      }
     }
 
     fs.rmSync(folderPath, { recursive: true, force: true });
@@ -1238,6 +1337,79 @@ ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath
       errorMessage = "Permissão negada";
     }
     return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle("pdf:set-thumbnail", async (_, fileHash: string, imagePath: string, mode: "replace" | "prepend") => {
+  try {
+    const doc = getDocumentByHash(fileHash);
+    if (!doc || !doc.filePath) {
+      return { success: false, error: "Livro não encontrado" };
+    }
+
+    if (!fs.existsSync(doc.filePath)) {
+      return { success: false, error: "Arquivo não encontrado" };
+    }
+
+    if (!fs.existsSync(imagePath)) {
+      return { success: false, error: "Imagem não encontrada" };
+    }
+
+    const pdfDoc = await PDFDocument.load(fs.readFileSync(doc.filePath));
+    const imageExt = path.extname(imagePath).toLowerCase();
+    
+    let image;
+    if (imageExt === ".png") {
+      const pngImage = fs.readFileSync(imagePath);
+      image = await pdfDoc.embedPng(pngImage);
+    } else if (imageExt === ".jpg" || imageExt === ".jpeg") {
+      const jpgImage = fs.readFileSync(imagePath);
+      image = await pdfDoc.embedJpg(jpgImage);
+    } else {
+      return { success: false, error: "Formato de imagem não suportado. Use PNG ou JPG." };
+    }
+
+    const { width, height } = pdfDoc.getPage(0).getSize();
+    const imageDims = image.scaleToFit(width, height);
+
+    if (mode === "replace") {
+      pdfDoc.removePage(0);
+      const newPage = pdfDoc.insertPage(0, [width, height]);
+      newPage.drawImage(image, {
+        x: imageDims.x,
+        y: imageDims.y,
+        width: imageDims.width,
+        height: imageDims.height,
+      });
+    } else {
+      const newPage = pdfDoc.insertPage(0, [width, height]);
+      newPage.drawImage(image, {
+        x: imageDims.x,
+        y: imageDims.y,
+        width: imageDims.width,
+        height: imageDims.height,
+      });
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    
+    // Write to a temp file first, then rename to avoid triggering file watcher
+    const tempPath = doc.filePath + ".tmp";
+    fs.writeFileSync(tempPath, Buffer.from(pdfBytes));
+    fs.unlinkSync(doc.filePath);
+    fs.renameSync(tempPath, doc.filePath);
+
+    await generateThumbnail(doc.filePath, fileHash, true);
+    
+    if (mode === "replace") {
+      updateDocumentNumPages(fileHash, pdfDoc.getPageCount());
+    }
+    
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as Error & { message?: string };
+    console.error("[pdf:set-thumbnail] Error:", err);
+    return { success: false, error: err.message || "Erro ao modificar PDF" };
   }
 });
 
