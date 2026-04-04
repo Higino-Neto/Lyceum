@@ -67,6 +67,7 @@ interface Window {
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;
+    resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
     openFileDialog: () => Promise<string | null>;
@@ -97,7 +98,7 @@ interface Window {
     }) => Promise<boolean>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
     renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
-    deleteBook: (fileHash: string) => Promise<{ success: boolean; error?: string }>;
+    deleteBook: (fileHash: string, deleteFile?: boolean) => Promise<{ success: boolean; error?: string }>;
     getBookById: (id: number) => Promise<DocumentRecord | null>;
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
@@ -125,9 +126,11 @@ interface Window {
     getFolderStructure: () => Promise<FolderInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
-    createFolder: (folderName: string) => Promise<{ success: boolean; error?: string }>;
+    createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
     renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
     deleteFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
+    moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
+    moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
   };
 }
 
@@ -195,6 +198,7 @@ interface Window {
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;
+    resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
     openFileDialog: () => Promise<string | null>;
@@ -206,7 +210,7 @@ interface Window {
       action: "move" | "copy",
       category?: string,
     ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
-    searchLocalBooks: (query: string) => Promise<DocumentRecord[]>;
+    searchLocalBooks: (query: string) => Promise<any[]>;
 
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;

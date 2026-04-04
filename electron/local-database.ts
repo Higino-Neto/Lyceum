@@ -422,6 +422,12 @@ export function getDocumentByTitle(title: string): DocumentRecord | undefined {
   ).get(title);
 }
 
+export function getDocumentByPath(filePath: string): DocumentRecord | undefined {
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE filePath = ? LIMIT 1`
+  ).get(filePath);
+}
+
 export function updateDocumentPath(fileHash: string, newPath: string) {
   db.prepare(
     `

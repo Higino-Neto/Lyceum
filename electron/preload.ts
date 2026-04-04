@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld("api", {
 
   scanLibrary: () => ipcRenderer.invoke("library:scan"),
 
+  resyncLibrary: () => ipcRenderer.invoke("library:resync"),
+
   moveToLibrary: (filePath: string) =>
     ipcRenderer.invoke("library:move", filePath),
 
@@ -106,8 +108,8 @@ contextBridge.exposeInMainWorld("api", {
   renameBook: (fileHash: string, newTitle: string, newAuthor: string) =>
     ipcRenderer.invoke("book:rename", fileHash, newTitle, newAuthor),
 
-  deleteBook: (fileHash: string) =>
-    ipcRenderer.invoke("book:delete", fileHash),
+  deleteBook: (fileHash: string, deleteFile?: boolean) =>
+    ipcRenderer.invoke("book:delete", fileHash, deleteFile),
 
   getBookById: (id: number) =>
     ipcRenderer.invoke("book:get-by-id", id),
@@ -186,14 +188,20 @@ contextBridge.exposeInMainWorld("api", {
   getBooksInFolder: (folderPath: string | null) =>
     ipcRenderer.invoke("library:get-books-in-folder", folderPath),
 
-  createFolder: (folderName: string) =>
-    ipcRenderer.invoke("library:create-folder", folderName),
+   createFolder: (folderName: string, parentPath: string | null = null) =>
+     ipcRenderer.invoke("library:create-folder", folderName, parentPath),
 
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),
 
   deleteFolder: (folderPath: string) =>
     ipcRenderer.invoke("library:delete-folder", folderPath),
+
+  moveFolder: (sourcePath: string, targetPath: string | null) =>
+    ipcRenderer.invoke("library:move-folder", sourcePath, targetPath),
+
+  moveBook: (fileHash: string, targetFolderPath: string | null) =>
+    ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
 });
 
 // --------- Expose some API to the Renderer process ---------

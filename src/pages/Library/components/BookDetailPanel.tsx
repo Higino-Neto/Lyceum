@@ -36,6 +36,8 @@ export default function BookDetailPanel({
   onRefresh,
 }: BookDetailPanelProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteFileAlso, setDeleteFileAlso] = useState(false);
   const [bookPath, setBookPath] = useState<string>("");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
@@ -102,19 +104,27 @@ export default function BookDetailPanel({
   };
 
   const handleDelete = async () => {
-    if (!isDeleting) {
-      setIsDeleting(true);
+    if (!showDeleteDialog) {
+      setShowDeleteDialog(true);
       return;
     }
-    
-    const result = await window.api.deleteBook(book.fileHash);
+
+    const result = await window.api.deleteBook(book.fileHash, deleteFileAlso);
     if (result.success) {
-      toast.success("Livro removido da biblioteca");
+      toast.success(deleteFileAlso ? "Livro excluído do disco" : "Livro removido da biblioteca");
+      setShowDeleteDialog(false);
+      setDeleteFileAlso(false);
       onDelete?.();
     } else {
       toast.error("Erro ao remover: " + result.error);
-      setIsDeleting(false);
     }
+    setIsDeleting(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeleteFileAlso(false);
+    setIsDeleting(false);
   };
 
   const handleRegenerateThumbnail = async () => {
@@ -372,15 +382,46 @@ export default function BookDetailPanel({
 
         <button
           onClick={handleDelete}
-          className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer ${
-            isDeleting
-              ? "bg-red-600 hover:bg-red-500 text-white"
-              : "bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400"
-          }`}
+          disabled={showDeleteDialog}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 disabled:opacity-50"
         >
           <Trash2 size={12} />
-          {isDeleting ? "Confirmar exclusão" : "Remover"}
+          Remover
         </button>
+
+        {showDeleteDialog && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+              <h3 className="text-base font-medium mb-2">Confirmar exclusão</h3>
+              <p className="text-sm text-zinc-400 mb-4">
+                Tem certeza que deseja remover "{book.title}" da biblioteca?
+              </p>
+              <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteFileAlso}
+                  onChange={(e) => setDeleteFileAlso(e.target.checked)}
+                  className="w-4 h-4 accent-green-500 cursor-pointer"
+                />
+                Também excluir arquivo do disco
+              </label>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={cancelDelete}
+                  className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

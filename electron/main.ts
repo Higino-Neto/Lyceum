@@ -45,6 +45,7 @@ import {
   updateDocumentBookId,
   getDocumentsByBookId,
   getDocumentByTitle,
+  getDocumentByPath,
   updateAuthor,
 } from "./local-database";
 
@@ -343,7 +344,7 @@ function setupFileWatcher() {
       stabilityThreshold: 1000,
       pollInterval: 100,
     },
-  });
+  } as any);
 
   fileWatcher.on("add", (filePath) => {
     if (filePath.toLowerCase().endsWith(".pdf")) {
@@ -355,7 +356,31 @@ function setupFileWatcher() {
   fileWatcher.on("unlink", (filePath) => {
     if (filePath.toLowerCase().endsWith(".pdf")) {
       console.log("[Main] PDF removed:", filePath);
-      // Optionally handle file deletion
+      // Try to find by path first (most reliable)
+      const doc = getDocumentByPath(filePath);
+      if (doc) {
+        const result = deleteDocument(doc.fileHash);
+        if (result.success) {
+          console.log("[Main] Document deleted from DB:", doc.fileHash);
+          win?.webContents.send("library:updated");
+        }
+        return;
+      }
+      // Fallback: try hash but handle errors gracefully
+      try {
+        if (fs.existsSync(filePath)) {
+          return; // File still exists, maybe a rename
+        }
+        const fileHash = generateFileHash(filePath);
+        const result = deleteDocument(fileHash);
+        if (result.success) {
+          console.log("[Main] Document deleted from DB:", fileHash);
+          win?.webContents.send("library:updated");
+        }
+      } catch (err) {
+        // File doesn't exist or can't be read - ignore
+        console.log("[Main] Could not process unlink event:", filePath);
+      }
     }
   });
 
@@ -387,6 +412,56 @@ async function scanLibrary() {
       console.error("Error scanning:", filePath, error);
     }
   }
+}
+
+async function resyncLibrary(): Promise<{ added: number; removed: number; updated: number }> {
+  const libraryPath = LIBRARY_PATH();
+  let added = 0, removed = 0, updated = 0;
+
+  if (!fs.existsSync(libraryPath)) {
+    return { added: 0, removed: 0, updated: 0 };
+  }
+
+  const pdfFiles = getAllPdfFiles(libraryPath);
+  const pdfFileSet = new Set(pdfFiles.map(f => f.toLowerCase()));
+
+  const allDocs = getAllDocuments();
+  const docsInLibrary = allDocs.filter(d => d.filePath && d.filePath.startsWith(libraryPath));
+
+  for (const doc of docsInLibrary) {
+    if (doc.filePath && !pdfFileSet.has(doc.filePath.toLowerCase())) {
+      console.log("[Main] Resync: PDF no longer exists, removing from DB:", doc.filePath);
+      deleteDocument(doc.fileHash);
+      removed++;
+    }
+  }
+
+  const processInBatches = async (files: string[], batchSize: number) => {
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (filePath) => {
+        try {
+          const fileHash = generateFileHash(filePath);
+          const existing = getDocumentByHash(fileHash);
+
+          if (!existing) {
+            await processFile(filePath);
+            added++;
+          } else if (existing.filePath !== filePath) {
+            updateDocumentPath(fileHash, filePath);
+            updated++;
+          }
+        } catch (error) {
+          console.error("[Main] Resync error:", filePath, error);
+        }
+      }));
+    }
+  };
+
+  await processInBatches(pdfFiles, 10);
+
+  console.log(`[Main] Resync complete: added=${added}, removed=${removed}, updated=${updated}`);
+  return { added, removed, updated };
 }
 
 async function getPdfPageCount(filePath: string): Promise<number> {
@@ -665,6 +740,12 @@ ipcMain.handle("library:scan", async () => {
   await scanLibrary();
 });
 
+ipcMain.handle("library:resync", async () => {
+  const result = await resyncLibrary();
+  win?.webContents.send("library:updated");
+  return result;
+});
+
 ipcMain.handle("library:get-sync-status", (_, synced: boolean) => {
   return getDocumentsBySyncStatus(synced);
 });
@@ -827,7 +908,22 @@ ipcMain.handle("book:rename", async (_, fileHash: string, newTitle: string, newA
   }
 });
 
-ipcMain.handle("book:delete", (_, fileHash: string) => {
+ipcMain.handle("book:delete", (_, fileHash: string, deleteFile: boolean = false) => {
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) return { success: false, error: "Document not found" };
+  
+  if (deleteFile && doc.filePath) {
+    try {
+      if (fs.existsSync(doc.filePath)) {
+        fs.unlinkSync(doc.filePath);
+        console.log("[Main] Deleted file:", doc.filePath);
+      }
+    } catch (error) {
+      console.error("[Main] Error deleting file:", error);
+      return { success: false, error: "Erro ao excluir arquivo do disco" };
+    }
+  }
+  
   return deleteDocument(fileHash);
 });
 
@@ -948,39 +1044,65 @@ ipcMain.handle("library:get-books-in-folder", (_, folderPath: string | null) => 
   return getBooksInFolder(folderPath);
 });
 
-ipcMain.handle("library:create-folder", async (_, folderName: string) => {
-  try {
-    const libraryPath = LIBRARY_PATH();
-    const newFolderPath = path.join(libraryPath, folderName);
-    
-    if (fs.existsSync(newFolderPath)) {
-      return { success: false, error: "Pasta já existe" };
-    }
-    
-    fs.mkdirSync(newFolderPath, { recursive: true });
-    win?.webContents.send("library:updated");
-    return { success: true };
-  } catch (error) {
-    console.error("[library:create-folder] Error:", error);
-    return { success: false, error: String(error) };
-  }
-});
+ipcMain.handle("library:create-folder", async (_, folderName: string, parentPath: string | null = null) => {
+   try {
+     const libraryPath = LIBRARY_PATH();
+     const basePath = parentPath ? path.join(libraryPath, parentPath) : libraryPath;
+     const newFolderPath = path.join(basePath, folderName);
+     
+     if (fs.existsSync(newFolderPath)) {
+       return { success: false, error: "Pasta já existe" };
+     }
+     
+     fs.mkdirSync(newFolderPath, { recursive: true });
+     win?.webContents.send("library:updated");
+     return { success: true };
+   } catch (error: unknown) {
+     const err = error as Error & { code?: string };
+     console.error("[library:create-folder] Error:", err);
+     let errorMessage = "Erro ao criar pasta";
+     if (err.code === "EACCES") {
+       errorMessage = "Permissão negada";
+     }
+     return { success: false, error: errorMessage };
+   }
+ });
 
 ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
   try {
+    console.log("[library:rename-folder] oldPath:", oldPath, "newName:", newName);
     const parentPath = path.dirname(oldPath);
     const newPath = path.join(parentPath, newName);
+    console.log("[library:rename-folder] newPath:", newPath);
     
     if (fs.existsSync(newPath)) {
       return { success: false, error: "Já existe uma pasta com este nome" };
     }
     
+    const allDocs = getAllDocuments();
+    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(oldPath));
+    
     fs.renameSync(oldPath, newPath);
+    
+    for (const doc of docsInFolder) {
+      if (doc.filePath) {
+        const newFilePath = doc.filePath.replace(oldPath, newPath);
+        updateDocumentPath(doc.fileHash, newFilePath);
+      }
+    }
+    
     win?.webContents.send("library:updated");
     return { success: true };
-  } catch (error) {
-    console.error("[library:rename-folder] Error:", error);
-    return { success: false, error: String(error) };
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
+    console.error("[library:rename-folder] Error:", err);
+    let errorMessage = "Erro ao renomear pasta";
+    if (err.code === "EBUSY" || err.code === "ENOTEMPTY") {
+      errorMessage = "Pasta está sendo usada";
+    } else if (err.code === "EPERM") {
+      errorMessage = "Permissão negada";
+    }
+    return { success: false, error: errorMessage };
   }
 });
 
@@ -996,17 +1118,126 @@ ipcMain.handle("library:delete-folder", async (_, folderPath: string) => {
       return { success: false, error: "Pasta não existe" };
     }
 
-    const items = fs.readdirSync(folderPath);
-    if (items.length > 0) {
+    const items = fs.readdirSync(folderPath, { withFileTypes: true });
+    const nonEmpty = items.filter(item => !item.name.startsWith("."));
+    
+    if (nonEmpty.length > 0) {
       return { success: false, error: "Pasta não está vazia" };
     }
 
-    fs.rmdirSync(folderPath);
+    fs.rmSync(folderPath, { recursive: true, force: true });
     win?.webContents.send("library:updated");
     return { success: true };
-  } catch (error) {
-    console.error("[library:delete-folder] Error:", error);
-    return { success: false, error: String(error) };
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
+    console.error("[library:delete-folder] Error:", err);
+    let errorMessage = "Erro ao excluir pasta";
+    if (err.code === "EBUSY" || err.code === "ENOTEMPTY") {
+      errorMessage = "Pasta está sendo usada";
+    } else if (err.code === "EPERM") {
+      errorMessage = "Permissão negada";
+    }
+    return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: string | null) => {
+  try {
+    const libraryPath = LIBRARY_PATH();
+    
+    if (!sourcePath.startsWith(libraryPath)) {
+      return { success: false, error: "Caminho inválido" };
+    }
+
+    if (!fs.existsSync(sourcePath)) {
+      return { success: false, error: "Pasta não existe" };
+    }
+
+    const targetDir = targetPath ? path.join(libraryPath, targetPath) : libraryPath;
+    
+    const folderName = path.basename(sourcePath);
+    const destinationPath = path.join(targetDir, folderName);
+    
+    if (fs.existsSync(destinationPath)) {
+      return { success: false, error: "Já existe uma pasta com este nome no destino" };
+    }
+
+    if (targetPath && sourcePath.startsWith(destinationPath + path.sep)) {
+      return { success: false, error: "Não pode mover uma pasta para dentro de si mesma" };
+    }
+
+    const allDocs = getAllDocuments();
+    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(sourcePath));
+    
+    fs.renameSync(sourcePath, destinationPath);
+    
+    for (const doc of docsInFolder) {
+      if (doc.filePath) {
+        const newFilePath = doc.filePath.replace(sourcePath, destinationPath);
+        updateDocumentPath(doc.fileHash, newFilePath);
+      }
+    }
+    
+    win?.webContents.send("library:updated");
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
+    console.error("[library:move-folder] Error:", err);
+    let errorMessage = "Erro ao mover pasta";
+    if (err.code === "EBUSY" || err.code === "ENOTEMPTY") {
+      errorMessage = "Pasta está sendo usada";
+    } else if (err.code === "EPERM") {
+      errorMessage = "Permissão negada";
+    }
+    return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath: string | null) => {
+  try {
+    const libraryPath = LIBRARY_PATH();
+    const doc = getDocumentByHash(fileHash);
+    
+    if (!doc || !doc.filePath) {
+      return { success: false, error: "Livro não encontrado" };
+    }
+
+    const currentDir = path.dirname(doc.filePath);
+    const fileName = path.basename(doc.filePath);
+    
+    const targetDir = targetFolderPath 
+      ? path.join(libraryPath, targetFolderPath)
+      : libraryPath;
+
+    if (currentDir === targetDir) {
+      return { success: true };
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      return { success: false, error: "Pasta de destino não existe" };
+    }
+
+    const newFilePath = path.join(targetDir, fileName);
+    
+    if (fs.existsSync(newFilePath)) {
+      return { success: false, error: "Já existe um arquivo com este nome na pasta de destino" };
+    }
+
+    fs.renameSync(doc.filePath, newFilePath);
+    updateDocumentPath(fileHash, newFilePath);
+    
+    win?.webContents.send("library:updated");
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string };
+    console.error("[library:move-book] Error:", err);
+    let errorMessage = "Erro ao mover livro";
+    if (err.code === "EBUSY") {
+      errorMessage = "Arquivo está sendo usado";
+    } else if (err.code === "EPERM") {
+      errorMessage = "Permissão negada";
+    }
+    return { success: false, error: errorMessage };
   }
 });
 

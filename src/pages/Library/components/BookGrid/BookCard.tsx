@@ -10,6 +10,8 @@ interface BookCardProps {
   showSyncActions: boolean;
   onClick?: () => void;
   isSelected?: boolean;
+  onDragStart?: (fileHash: string) => void;
+  onDragEnd?: () => void;
 }
 
 export default function BookCard({
@@ -19,6 +21,8 @@ export default function BookCard({
   showSyncActions,
   onClick,
   isSelected = false,
+  onDragStart,
+  onDragEnd,
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -40,6 +44,12 @@ export default function BookCard({
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", book.fileHash);
+        onDragStart?.(book.fileHash);
+      }}
+      onDragEnd={() => onDragEnd?.()}
     >
       <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
         {book.thumbnail ? (
