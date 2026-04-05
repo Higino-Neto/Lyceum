@@ -1,6 +1,7 @@
 import {
   BookOpenText,
   BookPlus,
+  CheckSquare,
   Home,
   LibraryBig,
   LogIn,
@@ -51,6 +52,13 @@ export default function Sidebar({ collapsed }: SidebarProps) {
           label="Ler"
           active={pathname === "/reading"}
           onClick={() => navigate("/reading")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={CheckSquare}
+          label="Hábitos"
+          active={pathname === "/habit_tracker"}
+          onClick={() => navigate("/habit_tracker")}
           collapsed={collapsed}
         />
       </nav>

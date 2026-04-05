@@ -8,6 +8,7 @@ import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
 import ProfilePage from "./pages/ProfilePage";
+import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
@@ -137,6 +138,16 @@ function App() {
                 <ProtectedRoute
                   isLoggedIn={isLoggedIn}
                   children={<ProfilePage />}
+                />
+              }
+            />
+
+            <Route
+              path="/habit_tracker"
+              element={
+                <ProtectedRoute
+                  isLoggedIn={isLoggedIn}
+                  children={<HabitTrackerPage />}
                 />
               }
             />

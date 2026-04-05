@@ -21,6 +21,7 @@ describe("Sidebar", () => {
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Registrar")).toBeInTheDocument();
     expect(screen.getByText("Biblioteca")).toBeInTheDocument();
+    expect(screen.getByText("Hábitos")).toBeInTheDocument();
     expect(screen.getByText("Perfil")).toBeInTheDocument();
     expect(screen.getByText("Login")).toBeInTheDocument();
   });
