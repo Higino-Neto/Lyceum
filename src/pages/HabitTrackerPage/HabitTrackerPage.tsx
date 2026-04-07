@@ -18,6 +18,8 @@ export default function HabitTrackerPage() {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
   const [newHabitName, setNewHabitName] = useState("");
+  const [newHabitIsMeasured, setNewHabitIsMeasured] = useState(false);
+  const [newHabitUnit, setNewHabitUnit] = useState("");
   const [draggedHabitId, setDraggedHabitId] = useState<string | null>(null);
   const [dropTargetHabitId, setDropTargetHabitId] = useState<string | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
@@ -29,6 +31,7 @@ export default function HabitTrackerPage() {
     deleteHabit,
     reorderHabits,
     toggleHabitCompletion,
+    setHabitMeasurement,
   } = useHabitTrackerStorage();
 
   const year = currentMonth.getFullYear();
@@ -52,20 +55,29 @@ export default function HabitTrackerPage() {
 
   const monthLabel = useMemo(() => getMonthLabel(currentMonth), [currentMonth]);
   const gridTemplateColumns = useMemo(
-    () => `minmax(220px, 280px) repeat(${daysInMonth}, minmax(0, 1fr))`,
+    () => `minmax(220px, 240px) repeat(${daysInMonth}, minmax(0, 1fr))`,
     [daysInMonth]
   );
+  const canCreateHabit =
+    newHabitName.trim().length > 0 &&
+    (!newHabitIsMeasured || newHabitUnit.trim().length > 0);
 
   const handleCreateHabit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = newHabitName.trim();
+    const trimmedUnit = newHabitUnit.trim();
 
-    if (!trimmedName) {
+    if (!trimmedName || (newHabitIsMeasured && !trimmedUnit)) {
       return;
     }
 
-    addHabit(trimmedName);
+    addHabit(trimmedName, {
+      unit: newHabitIsMeasured ? trimmedUnit : null,
+      valueMode: newHabitIsMeasured ? "measure" : "toggle",
+    });
     setNewHabitName("");
+    setNewHabitIsMeasured(false);
+    setNewHabitUnit("");
   };
 
   const handleDropHabit = (targetHabitId: string) => {
@@ -97,14 +109,10 @@ export default function HabitTrackerPage() {
                 className="grid items-center border-b border-zinc-800/80 bg-zinc-900/90"
                 style={{ gridTemplateColumns }}
               >
-                <div className="px-3 flex justify-center">
+                <div className="px-1 flex justify-center">
                   <p className="text-[11px] uppercase tracking-[0.28em] text-zinc-500">
                     Hábitos
                   </p>
-                  {/* <p className="mt-2 text-sm text-zinc-400">
-                    Clique em qualquer célula para marcar. Arraste o handle para
-                    reorganizar.
-                  </p> */}
                 </div>
                 {days.map((item, index) => (
                   <div
@@ -114,7 +122,7 @@ export default function HabitTrackerPage() {
                     } ${item.isCurrentDay ? "bg-zinc-800/35" : ""}`}
                   >
                     <span
-                      className={`text-[10px] uppercase tracking-[0.2em] ${
+                      className={`text-[11px] uppercase tracking-[0.2em] ${
                         item.isCurrentDay ? "text-green-400" : "text-zinc-600"
                       }`}
                     >
@@ -144,7 +152,7 @@ export default function HabitTrackerPage() {
                       key={habit.id}
                       habit={habit}
                       days={days}
-                      completedDates={completions[habit.id] ?? []}
+                      completions={completions[habit.id] ?? {}}
                       gridTemplateColumns={gridTemplateColumns}
                       isDragging={draggedHabitId === habit.id}
                       isDropTarget={
@@ -154,8 +162,11 @@ export default function HabitTrackerPage() {
                       onToggle={(dateKey) =>
                         toggleHabitCompletion(habit.id, dateKey)
                       }
+                      onMeasure={(dateKey, value) =>
+                        setHabitMeasurement(habit.id, dateKey, value)
+                      }
                       onDelete={() => setHabitToDelete(habit)}
-                      onUpdate={(name) => updateHabit(habit.id, name)}
+                      onUpdate={(name) => updateHabit(habit.id, { name })}
                       onDragStart={() => {
                         setDraggedHabitId(habit.id);
                         setDropTargetHabitId(habit.id);
@@ -181,21 +192,55 @@ export default function HabitTrackerPage() {
                 style={{ gridTemplateColumns }}
               >
                 <div className="px-3 py-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={newHabitName}
-                      onChange={(event) => setNewHabitName(event.target.value)}
-                      placeholder="Ex: Dormir Cedo"
-                      className="min-w-0 flex-1 h-8 w-8 rounded-sm border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500"
-                      maxLength={48}
-                    />
-                    <button
-                      type="submit"
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-medium text-zinc-950 transition hover:bg-green-600 cursor-pointer"
-                    >
-                      <Plus size={16} />
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={newHabitName}
+                        onChange={(event) => setNewHabitName(event.target.value)}
+                        placeholder="Ex: Dormir Cedo"
+                        aria-label="Nome do hábito"
+                        className="h-8 min-w-0 w-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                        maxLength={48}
+                      />
+                      <button
+                        type="submit"
+                        aria-label="Adicionar hábito"
+                        disabled={!canCreateHabit}
+                        className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-medium text-zinc-950 transition hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                        <input
+                          type="checkbox"
+                          checked={newHabitIsMeasured}
+                          onChange={(event) => {
+                            const nextChecked = event.target.checked;
+
+                            setNewHabitIsMeasured(nextChecked);
+                            if (!nextChecked) {
+                              setNewHabitUnit("");
+                            }
+                          }}
+                          className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-950 text-green-500 focus:ring-0"
+                        />
+                        Mensurar
+                      </label>
+                      {newHabitIsMeasured && (
+                        <input
+                          type="text"
+                          value={newHabitUnit}
+                          onChange={(event) => setNewHabitUnit(event.target.value)}
+                          placeholder="Unidade ex: horas"
+                          aria-label="Unidade de medida"
+                          className="h-8 min-w-0 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                          maxLength={16}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 {days.map((item, index) => (

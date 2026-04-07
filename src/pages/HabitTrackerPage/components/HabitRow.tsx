@@ -1,6 +1,6 @@
 import { Check, Edit3, GripVertical, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Habit } from "../types";
+import type { Habit, HabitCompletionValue } from "../types";
 import { DayCell } from "./DayCell";
 
 interface HabitRowProps {
@@ -11,11 +11,12 @@ interface HabitRowProps {
     weekday: string;
     isCurrentDay: boolean;
   }>;
-  completedDates: string[];
+  completions: Record<string, HabitCompletionValue>;
   gridTemplateColumns: string;
   isDragging: boolean;
   isDropTarget: boolean;
   onToggle: (dateKey: string) => void;
+  onMeasure: (dateKey: string, value: number | null) => void;
   onDelete: () => void;
   onUpdate: (name: string) => void;
   onDragStart: () => void;
@@ -27,11 +28,12 @@ interface HabitRowProps {
 export function HabitRow({
   habit,
   days,
-  completedDates,
+  completions,
   gridTemplateColumns,
   isDragging,
   isDropTarget,
   onToggle,
+  onMeasure,
   onDelete,
   onUpdate,
   onDragStart,
@@ -46,7 +48,8 @@ export function HabitRow({
     setDraftName(habit.name);
   }, [habit.name]);
 
-  const completedSet = new Set(completedDates);
+  const isMeasuredHabit = habit.valueMode === "measure" && Boolean(habit.unit);
+  const habitDisplayName = isMeasuredHabit ? `${habit.name} (${habit.unit})` : habit.name;
 
   const handleSave = () => {
     const trimmedName = draftName.trim();
@@ -122,7 +125,7 @@ export function HabitRow({
               <GripVertical size={15} />
             </button>
             <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">
-              {habit.name}
+              {habitDisplayName}
             </h3>
             <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover/habit:opacity-100 focus-within:opacity-100">
               <button
@@ -146,16 +149,25 @@ export function HabitRow({
         )}
       </div>
 
-      {days.map((item, index) => (
-        <DayCell
-          key={item.dateKey}
-          label={`${habit.name} - dia ${item.day}`}
-          active={completedSet.has(item.dateKey)}
-          isCurrentDay={item.isCurrentDay}
-          isLastColumn={index === days.length - 1}
-          onClick={() => onToggle(item.dateKey)}
-        />
-      ))}
+      {days.map((item, index) => {
+        const completionValue = completions[item.dateKey];
+
+        return (
+          <DayCell
+            key={item.dateKey}
+            label={`${habitDisplayName} - dia ${item.day}`}
+            active={Boolean(completionValue)}
+            isCurrentDay={item.isCurrentDay}
+            isLastColumn={index === days.length - 1}
+            isMeasured={isMeasuredHabit}
+            measurementValue={
+              typeof completionValue === "number" ? completionValue : null
+            }
+            onClick={() => onToggle(item.dateKey)}
+            onMeasureSave={(value) => onMeasure(item.dateKey, value)}
+          />
+        );
+      })}
     </div>
   );
 }
