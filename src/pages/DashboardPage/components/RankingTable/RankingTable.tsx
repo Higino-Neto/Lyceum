@@ -95,7 +95,7 @@ export default function RankingTable() {
                 )}
               </td>
               <td className="py-4">
-                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-zinc-900 bg-zinc-800 overflow-hidden flex items-center justify-center">
                   {user.avatar_url ? (
                     <img
                       src={user.avatar_url}

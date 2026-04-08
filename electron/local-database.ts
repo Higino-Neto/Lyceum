@@ -135,6 +135,28 @@ export function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_doc ON document_categories(documentId)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_cat ON document_categories(categoryId)`);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      unit TEXT,
+      valueMode TEXT DEFAULT 'toggle'
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_completions (
+      habitId TEXT NOT NULL,
+      dateKey TEXT NOT NULL,
+      value TEXT,
+      PRIMARY KEY (habitId, dateKey),
+      FOREIGN KEY (habitId) REFERENCES habits(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_habit_completions_habit ON habit_completions(habitId)`);
+
   const updateStmt = db.prepare(`
     UPDATE documents
     SET thumbnailPath = REPLACE(thumbnailPath, '.jpg', '-1.jpg')
@@ -422,6 +444,12 @@ export function getDocumentByTitle(title: string): DocumentRecord | undefined {
   ).get(title);
 }
 
+export function getDocumentByPath(filePath: string): DocumentRecord | undefined {
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE filePath = ? LIMIT 1`
+  ).get(filePath);
+}
+
 export function updateDocumentPath(fileHash: string, newPath: string) {
   db.prepare(
     `
@@ -430,6 +458,16 @@ export function updateDocumentPath(fileHash: string, newPath: string) {
     WHERE fileHash = ?
   `,
   ).run(newPath, fileHash);
+}
+
+export function updateDocumentNumPages(fileHash: string, numPages: number) {
+  db.prepare(
+    `
+    UPDATE documents
+    SET numPages = ?
+    WHERE fileHash = ?
+  `,
+  ).run(numPages, fileHash);
 }
 
 export function updateDocumentSyncStatus(fileHash: string, isSynced: boolean, category?: string) {
@@ -575,4 +613,139 @@ export function getFavoriteDocuments(): DocumentRecord[] {
   return db.prepare<[], DocumentRecord>(
     `SELECT * FROM documents WHERE isFavorite = 1`
   ).all();
+}
+
+export function getAllDocumentsWithCategories(): (DocumentRecord & { categories: BookCategory[] })[] {
+  const docs = getAllDocuments();
+  return docs.map(doc => ({
+    ...doc,
+    categories: getCategoriesForDocument(doc.id),
+  }));
+}
+
+export function getDocumentsForBackup(): {
+  id: number;
+  fileHash: string;
+  title: string;
+  filePath: string | null;
+  fileSize: number;
+  numPages: number;
+  currentPage: number;
+  currentZoom: number | null;
+  currentScroll: number | null;
+  annotations: string | null;
+  thumbnailPath: string | null;
+  createdAt: string;
+  lastOpenedAt: string;
+  isSynced: number;
+  isFavorite: number;
+  rating: number;
+  notes: string | null;
+  author: string | null;
+  description: string | null;
+  isbn: string | null;
+  publisher: string | null;
+  publishDate: string | null;
+  category: string | null;
+  processingStatus: string;
+  bookId: string | null;
+  categoryIds: number[];
+}[] {
+  const docs = getAllDocuments();
+  return docs.map(doc => {
+    const cats = getCategoriesForDocument(doc.id);
+    return {
+      ...doc,
+      categoryIds: cats.map(c => c.id),
+    };
+  });
+}
+
+export interface HabitRecord {
+  id: string;
+  name: string;
+  createdAt: string;
+  unit: string | null;
+  valueMode: string;
+}
+
+export interface HabitCompletionRecord {
+  habitId: string;
+  dateKey: string;
+  value: string | null;
+}
+
+export function getAllHabits(): HabitRecord[] {
+  return db.prepare<[], HabitRecord>(`SELECT * FROM habits ORDER BY createdAt`).all();
+}
+
+export function getHabitById(id: string): HabitRecord | undefined {
+  return db.prepare<[string], HabitRecord>(`SELECT * FROM habits WHERE id = ?`).get(id);
+}
+
+export function addHabit(habit: Omit<HabitRecord, "createdAt">): void {
+  db.prepare(
+    `INSERT INTO habits (id, name, unit, valueMode) VALUES (?, ?, ?, ?)`
+  ).run(habit.id, habit.name, habit.unit, habit.valueMode);
+}
+
+export function updateHabit(id: string, updates: Partial<Omit<HabitRecord, "id" | "createdAt">>): void {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.name !== undefined) {
+    sets.push("name = ?");
+    values.push(updates.name);
+  }
+  if (updates.unit !== undefined) {
+    sets.push("unit = ?");
+    values.push(updates.unit);
+  }
+  if (updates.valueMode !== undefined) {
+    sets.push("valueMode = ?");
+    values.push(updates.valueMode);
+  }
+
+  if (sets.length > 0) {
+    values.push(id);
+    db.prepare(`UPDATE habits SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+  }
+}
+
+export function deleteHabit(id: string): void {
+  db.prepare(`DELETE FROM habit_completions WHERE habitId = ?`).run(id);
+  db.prepare(`DELETE FROM habits WHERE id = ?`).run(id);
+}
+
+export function getHabitCompletions(habitId: string): HabitCompletionRecord[] {
+  return db.prepare<[string], HabitCompletionRecord>(
+    `SELECT * FROM habit_completions WHERE habitId = ?`
+  ).all(habitId);
+}
+
+export function getAllHabitCompletions(): HabitCompletionRecord[] {
+  return db.prepare<[], HabitCompletionRecord>(`SELECT * FROM habit_completions`).all();
+}
+
+export function setHabitCompletion(habitId: string, dateKey: string, value: string | null): void {
+  if (value === null) {
+    db.prepare(`DELETE FROM habit_completions WHERE habitId = ? AND dateKey = ?`).run(habitId, dateKey);
+  } else {
+    db.prepare(
+      `INSERT OR REPLACE INTO habit_completions (habitId, dateKey, value) VALUES (?, ?, ?)`
+    ).run(habitId, dateKey, value);
+  }
+}
+
+export function deleteHabitCompletion(habitId: string, dateKey: string): void {
+  db.prepare(`DELETE FROM habit_completions WHERE habitId = ? AND dateKey = ?`).run(habitId, dateKey);
+}
+
+export interface DocumentCategoryRecord {
+  documentId: number;
+  categoryId: number;
+}
+
+export function getAllDocumentCategories(): DocumentCategoryRecord[] {
+  return db.prepare<[], DocumentCategoryRecord>(`SELECT documentId, categoryId FROM document_categories`).all();
 }

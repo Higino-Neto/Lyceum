@@ -23,39 +23,23 @@ async function fetchRanking(): Promise<RankingUser[]> {
     return [];
   }
 
-  if (error) {
-    console.error("Error fetching ranking:", error);
-    return [];
-  }
-
   const userIds = statsData?.map((s) => s.user_id) || [];
 
   if (userIds.length === 0) return [];
 
-  const { data: usersData } = await supabase
+  const { data: usersData, error: profilesError } = await supabase
     .from("profiles")
     .select("id, name")
     .in("id", userIds);
 
-  console.log(usersData);
+  if (profilesError) {
+    console.warn("Profiles are not available for ranking names:", profilesError.message);
+  }
 
   const usersMap = new Map<string, string>();
   if (usersData && usersData.length > 0) {
     for (const u of usersData) {
       usersMap.set(u.id, u.name || "Usuário");
-    }
-  } else {
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.listUsers();
-    for (const u of authData.users) {
-      const metadata = u.user_metadata || {};
-      const name =
-        metadata.name ||
-        metadata.full_name ||
-        metadata.display_name ||
-        u.email?.split("@")[0] ||
-        "Usuário";
-      usersMap.set(u.id, name);
     }
   }
 

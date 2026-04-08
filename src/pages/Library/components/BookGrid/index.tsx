@@ -14,6 +14,8 @@ interface BookGridProps {
   showSyncActions?: boolean;
   onBookClick?: (book: BookWithThumbnail) => void;
   selectedBookId?: number;
+  onDragStart?: (fileHash: string) => void;
+  onDragEnd?: () => void;
 }
 
 export default function BookGrid({
@@ -24,6 +26,8 @@ export default function BookGrid({
   showSyncActions,
   onBookClick,
   selectedBookId,
+  onDragStart,
+  onDragEnd,
 }: BookGridProps) {
   if (books.length === 0) {
     return (
@@ -46,6 +50,8 @@ export default function BookGrid({
             showSyncActions={showSyncActions ?? false}
             onClick={() => onBookClick?.(book)}
             isSelected={selectedBookId === book.id}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         ))}
       </div>
@@ -63,6 +69,8 @@ export default function BookGrid({
           showSyncActions={showSyncActions ?? false}
           onClick={() => onBookClick?.(book)}
           isSelected={selectedBookId === book.id}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         />
       ))}
     </div>

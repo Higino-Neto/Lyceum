@@ -48,7 +48,6 @@ declare namespace NodeJS {
 }
 
 interface Window {
-  ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
     getFilePath: () => Promise<string>;
   };
@@ -60,6 +59,8 @@ interface Window {
     getReadingState: (fileHash: string) => Promise<DocumentRecord | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
+    importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
+    openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
     reopenPdf: (filePath: string, fileHash?: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string; foundAt?: string } | { error: string; message: string } | null>;
 
@@ -67,6 +68,7 @@ interface Window {
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;
+    resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
     openFileDialog: () => Promise<string | null>;
@@ -97,11 +99,12 @@ interface Window {
     }) => Promise<boolean>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
     renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
-    deleteBook: (fileHash: string) => Promise<{ success: boolean; error?: string }>;
+    deleteBook: (fileHash: string, deleteFile?: boolean) => Promise<{ success: boolean; error?: string }>;
     getBookById: (id: number) => Promise<DocumentRecord | null>;
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
     regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
+    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; error?: string }>;
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
     getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
@@ -125,22 +128,50 @@ interface Window {
     getFolderStructure: () => Promise<FolderInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
-    createFolder: (folderName: string) => Promise<{ success: boolean; error?: string }>;
+    createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
     renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
-    deleteFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
+    deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
+    moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
+    moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
+
+    backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
+    backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
+    backupClearSession: () => Promise<{ success: boolean; error?: string }>;
+    backupAllDocuments: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllHabits: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllCategories: () => Promise<{ success: number; failed: number; errors: string[] }>;
+
+    habitsGetAll: () => Promise<any[]>;
+    habitsGetById: (id: string) => Promise<any | undefined>;
+    habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) => Promise<{ success: boolean }>;
+    habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => Promise<{ success: boolean }>;
+    habitsDelete: (id: string) => Promise<{ success: boolean }>;
+    habitsGetCompletions: (habitId: string) => Promise<any[]>;
+    habitsGetAllCompletions: () => Promise<any[]>;
+    habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
+    habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
   };
 }
 
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
-
-interface OpenPdfResult extends DocumentRecord {
-  fileBuffer: ArrayBuffer;
+declare namespace NodeJS {
+  interface ProcessEnv {
+    /**
+     * The built directory structure
+     *
+     * ```tree
+     * ├─┬─┬ dist
+     * │ │ └── index.html
+     * │ │
+     * │ ├─┬ dist-electron
+     * │ │ ├── main.js
+     * │ │ └── preload.js
+     * │ │
+     * ```
+     */
+    APP_ROOT: string;
+    /** /dist/ or /public/ */
+    VITE_PUBLIC: string;
+  }
 }
 
 declare namespace NodeJS {
@@ -166,7 +197,6 @@ declare namespace NodeJS {
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
     getFilePath: () => Promise<string>;
   };
@@ -195,6 +225,7 @@ interface Window {
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;
+    resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
     openFileDialog: () => Promise<string | null>;
@@ -206,11 +237,27 @@ interface Window {
       action: "move" | "copy",
       category?: string,
     ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
-    searchLocalBooks: (query: string) => Promise<DocumentRecord[]>;
+    searchLocalBooks: (query: string) => Promise<any[]>;
 
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;
     windowClose: () => Promise<void>;
     windowIsMaximized: () => Promise<boolean>;
+
+    backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
+    backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
+    backupClearSession: () => Promise<{ success: boolean; error?: string }>;
+    backupAllDocuments: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllHabits: () => Promise<{ success: number; failed: number; errors: string[] }>;
+
+    habitsGetAll: () => Promise<any[]>;
+    habitsGetById: (id: string) => Promise<any | undefined>;
+    habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) => Promise<{ success: boolean }>;
+    habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => Promise<{ success: boolean }>;
+    habitsDelete: (id: string) => Promise<{ success: boolean }>;
+    habitsGetCompletions: (habitId: string) => Promise<any[]>;
+    habitsGetAllCompletions: () => Promise<any[]>;
+    habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
+    habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
   };
 }

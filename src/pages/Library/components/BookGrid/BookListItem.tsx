@@ -9,6 +9,8 @@ interface BookListItemProps {
   showSyncActions: boolean;
   onClick?: () => void;
   isSelected?: boolean;
+  onDragStart?: (fileHash: string) => void;
+  onDragEnd?: () => void;
 }
 
 export default function BookListItem({
@@ -18,6 +20,8 @@ export default function BookListItem({
   showSyncActions,
   onClick,
   isSelected = false,
+  onDragStart,
+  onDragEnd,
 }: BookListItemProps) {
   const progress = calculateProgress(book);
 
@@ -37,6 +41,12 @@ export default function BookListItem({
           ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"
       }`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", book.fileHash);
+        onDragStart?.(book.fileHash);
+      }}
+      onDragEnd={() => onDragEnd?.()}
     >
       <div className="w-10 h-14 bg-zinc-800 rounded-sm overflow-hidden">
         {book.thumbnail ? (

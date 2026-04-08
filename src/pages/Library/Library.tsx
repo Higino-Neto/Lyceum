@@ -20,6 +20,7 @@ import {
 } from "./components";
 import BookGrid from "./components/BookGrid";
 import useBooks from "./useBooks";
+import ImportBookDialog from "../../components/ImportBookDialog";
 import { BookWithThumbnail, FolderInfo } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import {
@@ -61,6 +62,12 @@ export default function Library() {
     useState<SupabaseBook | null>(null);
   const [editingSupabaseBook, setEditingSupabaseBook] =
     useState<SupabaseBook | null>(null);
+  const [draggingBookHash, setDraggingBookHash] = useState<string | null>(null);
+  const [importDialog, setImportDialog] = useState<{
+    open: boolean;
+    targetFolder: string | null;
+    targetFolderName: string;
+  }>({ open: false, targetFolder: null, targetFolderName: "" });
 
   const loadFolderStructure = useCallback(async () => {
     try {
@@ -150,6 +157,47 @@ export default function Library() {
   const handleBookDeleted = () => {
     setSelectedBook(null);
     refreshBooks();
+  };
+
+  const handleMoveBook = async (fileHash: string, targetFolder: string | null): Promise<boolean> => {
+    const result = await window.api.moveBook(fileHash, targetFolder);
+    if (result.success) {
+      await refreshBooks();
+      const docs = await window.api.getDocuments();
+      setLocalDocuments(docs);
+      return true;
+    } else {
+      toast.error(result.error || "Erro ao mover livro");
+      return false;
+    }
+  };
+
+  const handleImportBook = async (targetFolder: string | null) => {
+    setImportDialog({
+      open: true,
+      targetFolder,
+      targetFolderName: targetFolder || "",
+    });
+  };
+
+  const handleImportConfirm = async (action: "move" | "copy") => {
+    const { targetFolder } = importDialog;
+    const result = await window.api.importPdf(targetFolder, action);
+    
+    setImportDialog({ open: false, targetFolder: null, targetFolderName: "" });
+    
+    if (result.canceled) return;
+    
+    if (result.success) {
+      if (result.errors.length > 0) {
+        toast.error(result.errors.join(", "));
+      } else {
+        toast.success(result.message);
+      }
+      refreshBooks();
+    } else {
+      toast.error(result.errors.join(", ") || "Erro ao importar livro");
+    }
   };
 
   const handleSupabaseBookDelete = async (book: SupabaseBook) => {
@@ -255,6 +303,9 @@ export default function Library() {
               selectedFolder={selectedFolder}
               onFolderSelect={setSelectedFolder}
               localDocuments={localDocuments}
+              onMoveBook={handleMoveBook}
+              draggingBookHash={draggingBookHash}
+              onImportBook={handleImportBook}
             />
           </div>
         </aside>
@@ -360,6 +411,8 @@ export default function Library() {
                 showSyncActions={activeSection === "unsynced"}
                 onBookClick={handleBookClick}
                 selectedBookId={selectedBook?.id}
+                onDragStart={(fileHash) => setDraggingBookHash(fileHash)}
+                onDragEnd={() => setDraggingBookHash(null)}
               />
             )}
           </main>
@@ -396,6 +449,13 @@ export default function Library() {
           </aside>
         )}
       </div>
+
+      <ImportBookDialog
+        isOpen={importDialog.open}
+        targetFolderName={importDialog.targetFolderName}
+        onImport={handleImportConfirm}
+        onClose={() => setImportDialog({ open: false, targetFolder: null, targetFolderName: "" })}
+      />
     </div>
   );
 }

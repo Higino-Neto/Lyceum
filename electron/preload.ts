@@ -54,6 +54,11 @@ contextBridge.exposeInMainWorld("api", {
 
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 
+  importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
+    ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
+
+  openImageDialog: () => ipcRenderer.invoke("dialog:open-image"),
+
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 
   reopenPdf: (filePath: string, fileHash?: string) => ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
@@ -64,6 +69,8 @@ contextBridge.exposeInMainWorld("api", {
   getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
 
   scanLibrary: () => ipcRenderer.invoke("library:scan"),
+
+  resyncLibrary: () => ipcRenderer.invoke("library:resync"),
 
   moveToLibrary: (filePath: string) =>
     ipcRenderer.invoke("library:move", filePath),
@@ -106,8 +113,8 @@ contextBridge.exposeInMainWorld("api", {
   renameBook: (fileHash: string, newTitle: string, newAuthor: string) =>
     ipcRenderer.invoke("book:rename", fileHash, newTitle, newAuthor),
 
-  deleteBook: (fileHash: string) =>
-    ipcRenderer.invoke("book:delete", fileHash),
+  deleteBook: (fileHash: string, deleteFile?: boolean) =>
+    ipcRenderer.invoke("book:delete", fileHash, deleteFile),
 
   getBookById: (id: number) =>
     ipcRenderer.invoke("book:get-by-id", id),
@@ -120,6 +127,9 @@ contextBridge.exposeInMainWorld("api", {
 
   regenerateThumbnail: (fileHash: string) =>
     ipcRenderer.invoke("book:regenerate-thumbnail", fileHash),
+
+  setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") =>
+    ipcRenderer.invoke("pdf:set-thumbnail", fileHash, imagePath, mode),
 
   updateBookId: (fileHash: string, bookId: string) =>
     ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
@@ -186,37 +196,58 @@ contextBridge.exposeInMainWorld("api", {
   getBooksInFolder: (folderPath: string | null) =>
     ipcRenderer.invoke("library:get-books-in-folder", folderPath),
 
-  createFolder: (folderName: string) =>
-    ipcRenderer.invoke("library:create-folder", folderName),
+   createFolder: (folderName: string, parentPath: string | null = null) =>
+     ipcRenderer.invoke("library:create-folder", folderName, parentPath),
 
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),
 
-  deleteFolder: (folderPath: string) =>
-    ipcRenderer.invoke("library:delete-folder", folderPath),
-});
+  deleteFolder: (folderPath: string, force = false) =>
+    ipcRenderer.invoke("library:delete-folder", folderPath, force),
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld("ipcRenderer", {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args;
-    return ipcRenderer.on(channel, (event, ...args) =>
-      listener(event, ...args),
-    );
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.off(channel, ...omit);
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.invoke(channel, ...omit);
-  },
+  moveFolder: (sourcePath: string, targetPath: string | null) =>
+    ipcRenderer.invoke("library:move-folder", sourcePath, targetPath),
 
-  // You can expose other APTs you need here.
-  // ...
+  moveBook: (fileHash: string, targetFolderPath: string | null) =>
+    ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
+
+  backupInit: (supabaseUrl: string, supabaseAnonKey: string) =>
+    ipcRenderer.invoke("backup:init", supabaseUrl, supabaseAnonKey),
+
+  backupSetSession: (accessToken: string, refreshToken: string) =>
+    ipcRenderer.invoke("backup:set-session", accessToken, refreshToken),
+
+  backupClearSession: () =>
+    ipcRenderer.invoke("backup:clear-session"),
+
+  backupAllDocuments: () =>
+    ipcRenderer.invoke("backup:all-documents"),
+
+  habitsGetAll: () => ipcRenderer.invoke("habits:get-all"),
+
+  habitsGetById: (id: string) => ipcRenderer.invoke("habits:get-by-id", id),
+
+  habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) =>
+    ipcRenderer.invoke("habits:add", habit),
+
+  habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) =>
+    ipcRenderer.invoke("habits:update", id, updates),
+
+  habitsDelete: (id: string) => ipcRenderer.invoke("habits:delete", id),
+
+  habitsGetCompletions: (habitId: string) => ipcRenderer.invoke("habits:get-completions", habitId),
+
+  habitsGetAllCompletions: () => ipcRenderer.invoke("habits:get-all-completions"),
+
+  habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) =>
+    ipcRenderer.invoke("habits:set-completion", habitId, dateKey, value),
+
+  habitsDeleteCompletion: (habitId: string, dateKey: string) =>
+    ipcRenderer.invoke("habits:delete-completion", habitId, dateKey),
+
+  backupAllHabits: () =>
+    ipcRenderer.invoke("backup:all-habits"),
+
+  backupAllCategories: () =>
+    ipcRenderer.invoke("backup:all-categories"),
 });

@@ -1,7 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
-import { signUp } from "../utils/auth";
+import { signUp, validatePasswordStrength, MIN_PASSWORD_LENGTH } from "../utils/auth";
 import toast from "react-hot-toast";
 
 export default function SignUp() {
@@ -17,6 +17,12 @@ export default function SignUp() {
 
     if (password !== confirmPassword) {
       toast.error("As senhas não coincidem");
+      return;
+    }
+
+    const passwordError = validatePasswordStrength(password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -58,6 +64,7 @@ export default function SignUp() {
             type="password"
             placeholder="Senha"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
@@ -67,6 +74,7 @@ export default function SignUp() {
             type="password"
             placeholder="Confirmar senha"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"

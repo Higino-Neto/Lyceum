@@ -214,7 +214,7 @@ describe("DashboardPage", () => {
     button.click();
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith("Book A: 50\nBook B: 30\nTotal: 80");
+      expect(writeText).toHaveBeenCalledWith("Book A: 50\nBook B: 30\n\nTotal: 80");
     });
   });
 
