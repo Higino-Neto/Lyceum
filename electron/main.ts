@@ -48,7 +48,26 @@ import {
   getDocumentByTitle,
   getDocumentByPath,
   updateAuthor,
+  getDocumentsForBackup,
+  getAllHabits,
+  getHabitById,
+  addHabit,
+  updateHabit,
+  deleteHabit,
+  getHabitCompletions,
+  getAllHabitCompletions,
+  setHabitCompletion,
+  deleteHabitCompletion,
+  getAllDocumentCategories,
 } from "./local-database";
+import {
+  initBackupClient,
+  backupAllDocuments,
+  backupAllHabits,
+  backupAllCategories,
+  setBackupSession,
+  clearBackupSession,
+} from "./backup";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,6 +92,7 @@ let fileWatcher: FSWatcher | null = null;
 
 const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
 const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
+const USER_DATA_PATH = () => app.getPath("userData");
 
 interface FolderInfo {
   name: string;
@@ -80,6 +100,59 @@ interface FolderInfo {
   fullPath: string;
   bookCount: number;
   subfolders: FolderInfo[];
+}
+
+function isPathWithin(basePath: string, targetPath: string): boolean {
+  const relative = path.relative(path.resolve(basePath), path.resolve(targetPath));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function assertPathWithin(basePath: string, targetPath: string, errorMessage: string): string {
+  const resolvedPath = path.resolve(targetPath);
+  if (!isPathWithin(basePath, resolvedPath)) {
+    throw new Error(errorMessage);
+  }
+  return resolvedPath;
+}
+
+function isSafeRelativePath(targetPath: string): boolean {
+  if (!targetPath || path.isAbsolute(targetPath)) {
+    return false;
+  }
+
+  const parts = targetPath.split(/[\\/]+/).filter(Boolean);
+  return parts.length > 0 && parts.every((part) => part !== "." && part !== "..");
+}
+
+function resolveLibraryRelativePath(targetPath: string | null | undefined): string {
+  const libraryPath = LIBRARY_PATH();
+  if (!targetPath) {
+    return libraryPath;
+  }
+
+  if (!isSafeRelativePath(targetPath)) {
+    throw new Error("Caminho inválido");
+  }
+
+  return assertPathWithin(
+    libraryPath,
+    path.resolve(libraryPath, targetPath),
+    "Caminho inválido",
+  );
+}
+
+function sanitizeFolderName(folderName: string): string {
+  const trimmedName = folderName.trim();
+  if (
+    !trimmedName ||
+    trimmedName === "." ||
+    trimmedName === ".." ||
+    /[\\/:*?"<>|]/.test(trimmedName)
+  ) {
+    throw new Error("Nome de pasta inválido");
+  }
+
+  return trimmedName;
 }
 
 function getAllPdfFiles(dir: string): string[] {
@@ -589,6 +662,10 @@ function createWindow() {
     frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
     },
     autoHideMenuBar: true,
   });
@@ -600,6 +677,10 @@ function createWindow() {
   }
   win.webContents.on("did-finish-load", () => {
     win?.webContents.setZoomFactor(1.0);
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
   });
 }
 
@@ -695,49 +776,50 @@ ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, actio
     return { success: false, canceled: true };
   }
 
-  const libraryPath = LIBRARY_PATH();
-  const targetDir = targetFolder 
-    ? path.join(libraryPath, targetFolder)
-    : libraryPath;
+  try {
+    const targetDir = resolveLibraryRelativePath(targetFolder);
 
-  if (!fs.existsSync(targetDir)) {
-    return { success: false, errors: ["Pasta de destino não existe"] };
-  }
-
-  const imported: string[] = [];
-  const errors: string[] = [];
-
-  for (const filePath of result.filePaths) {
-    try {
-      const fileName = path.basename(filePath);
-      const destPath = path.join(targetDir, fileName);
-      
-      if (fs.existsSync(destPath)) {
-        errors.push(`${fileName} já existe na pasta`);
-        continue;
-      }
-
-      if (action === "move") {
-        fs.renameSync(filePath, destPath);
-      } else {
-        fs.copyFileSync(filePath, destPath);
-      }
-      imported.push(fileName);
-    } catch (err) {
-      const error = err as Error & { code?: string };
-      errors.push(`${path.basename(filePath)}: ${error.message}`);
+    if (!fs.existsSync(targetDir)) {
+      return { success: false, errors: ["Pasta de destino não existe"] };
     }
-  }
 
-  const actionWord = action === "move" ? "movido(s)" : "copiado(s)";
-  return { 
-    success: true, 
-    imported, 
-    errors,
-    message: imported.length > 0 
-      ? `${imported.length} livro(s) ${actionWord}` 
-      : "Nenhum livro importado"
-  };
+    const imported: string[] = [];
+    const errors: string[] = [];
+
+    for (const filePath of result.filePaths) {
+      try {
+        const fileName = path.basename(filePath);
+        const destPath = path.join(targetDir, fileName);
+        
+        if (fs.existsSync(destPath)) {
+          errors.push(`${fileName} já existe na pasta`);
+          continue;
+        }
+
+        if (action === "move") {
+          fs.renameSync(filePath, destPath);
+        } else {
+          fs.copyFileSync(filePath, destPath);
+        }
+        imported.push(fileName);
+      } catch (err) {
+        const error = err as Error & { code?: string };
+        errors.push(`${path.basename(filePath)}: ${error.message}`);
+      }
+    }
+
+    const actionWord = action === "move" ? "movido(s)" : "copiado(s)";
+    return { 
+      success: true, 
+      imported, 
+      errors,
+      message: imported.length > 0 
+        ? `${imported.length} livro(s) ${actionWord}` 
+        : "Nenhum livro importado"
+    };
+  } catch (error) {
+    return { success: false, errors: [error instanceof Error ? error.message : "Caminho inválido"] };
+  }
 });
 
 ipcMain.handle("app:get-last-document", () => {
@@ -750,20 +832,26 @@ ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
       return null;
     }
 
-    if (fs.existsSync(thumbnailPath)) {
-      const buffer = fs.readFileSync(thumbnailPath);
+    const thumbnailsDir = THUMBNAILS_DIR();
+    const normalizedThumbnailPath = path.resolve(thumbnailPath);
+
+    if (!isPathWithin(thumbnailsDir, normalizedThumbnailPath)) {
+      return null;
+    }
+
+    if (fs.existsSync(normalizedThumbnailPath)) {
+      const buffer = fs.readFileSync(normalizedThumbnailPath);
       return `data:image/jpeg;base64,${buffer.toString("base64")}`;
     }
 
-    const dir = path.dirname(thumbnailPath);
-    const baseName = path.basename(thumbnailPath, path.extname(thumbnailPath));
+    const baseName = path.basename(normalizedThumbnailPath, path.extname(normalizedThumbnailPath));
     const hash = baseName.replace(/-\d+$/, "").replace(/-0+\d+$/, "");
     
-    if (fs.existsSync(dir)) {
-      const files = fs.readdirSync(dir);
+    if (fs.existsSync(thumbnailsDir)) {
+      const files = fs.readdirSync(thumbnailsDir);
       const match = files.find(f => f.startsWith(hash) && f.endsWith(".jpg"));
       if (match) {
-        const buffer = fs.readFileSync(path.join(dir, match));
+        const buffer = fs.readFileSync(path.join(thumbnailsDir, match));
         return `data:image/jpeg;base64,${buffer.toString("base64")}`;
       }
     }
@@ -796,20 +884,31 @@ function findFileByHash(fileHash: string, searchPaths: string[]): string | null 
 
 ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
   try {
-    if (fs.existsSync(filePath)) {
-      const fileBuffer = fs.readFileSync(filePath).buffer;
-      const hash = generateFileHash(filePath);
+    const knownDocument =
+      (fileHash ? getDocumentByHash(fileHash) : undefined) ||
+      getDocumentByPath(filePath);
+
+    if (!knownDocument?.filePath) {
+      return {
+        error: "FILE_NOT_FOUND",
+        message: "O arquivo solicitado não pertence à biblioteca da aplicação",
+      };
+    }
+
+    if (fs.existsSync(knownDocument.filePath)) {
+      const fileBuffer = fs.readFileSync(knownDocument.filePath).buffer;
+      const hash = generateFileHash(knownDocument.filePath);
       return { fileBuffer, fileHash: hash };
     }
 
-    console.log("[pdf:reopen] File not found, searching by hash:", filePath);
+    console.log("[pdf:reopen] File not found, searching by hash:", knownDocument.filePath);
 
     if (!fileHash) {
       return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado e hash não fornecido" };
     }
 
     const libraryPath = LIBRARY_PATH();
-    const userDataPath = app.getPath("userData");
+    const userDataPath = USER_DATA_PATH();
     const searchPaths = [libraryPath, userDataPath];
 
     const foundPath = findFileByHash(fileHash, searchPaths);
@@ -879,17 +978,16 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
   const doc = getDocumentByHash(fileHash);
   if (!doc) return { success: false, error: "Document not found" };
   
-  const libraryPath = LIBRARY_PATH();
-  const targetDir = category ? path.join(libraryPath, category) : libraryPath;
-  
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-  
-  const fileName = path.basename(doc.filePath);
-  const targetPath = path.join(targetDir, fileName);
-  
   try {
+    const targetDir = resolveLibraryRelativePath(category);
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const fileName = path.basename(doc.filePath);
+    const targetPath = path.join(targetDir, fileName);
+
     if (action === "move") {
       fs.renameSync(doc.filePath, targetPath);
     } else {
@@ -898,7 +996,7 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
     
     if (doc.thumbnailPath && fs.existsSync(doc.thumbnailPath)) {
       const thumbFileName = path.basename(doc.thumbnailPath);
-      const targetThumbPath = path.join(app.getPath("userData"), "thumbnails", thumbFileName);
+      const targetThumbPath = path.join(USER_DATA_PATH(), "thumbnails", thumbFileName);
       if (action === "move") {
         fs.renameSync(doc.thumbnailPath, targetThumbPath);
       } else {
@@ -1076,7 +1174,12 @@ ipcMain.handle("book:get-by-title", (_, title: string) => {
 });
 
 ipcMain.handle("book:show-in-folder", (_, filePath: string) => {
-  require("electron").shell.showItemInFolder(filePath);
+  const doc = getDocumentByPath(filePath);
+  if (!doc?.filePath) {
+    return false;
+  }
+
+  require("electron").shell.showItemInFolder(doc.filePath);
   return true;
 });
 
@@ -1143,9 +1246,13 @@ ipcMain.handle("library:get-books-in-folder", (_, folderPath: string | null) => 
 
 ipcMain.handle("library:create-folder", async (_, folderName: string, parentPath: string | null = null) => {
    try {
-     const libraryPath = LIBRARY_PATH();
-     const basePath = parentPath ? path.join(libraryPath, parentPath) : libraryPath;
-     const newFolderPath = path.join(basePath, folderName);
+     const basePath = resolveLibraryRelativePath(parentPath);
+     const safeFolderName = sanitizeFolderName(folderName);
+     const newFolderPath = assertPathWithin(
+       LIBRARY_PATH(),
+       path.join(basePath, safeFolderName),
+       "Caminho inválido",
+     );
      
      if (fs.existsSync(newFolderPath)) {
        return { success: false, error: "Pasta já existe" };
@@ -1168,8 +1275,14 @@ ipcMain.handle("library:create-folder", async (_, folderName: string, parentPath
 ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
   try {
     console.log("[library:rename-folder] oldPath:", oldPath, "newName:", newName);
-    const parentPath = path.dirname(oldPath);
-    const newPath = path.join(parentPath, newName);
+    const safeOldPath = assertPathWithin(LIBRARY_PATH(), oldPath, "Caminho inválido");
+    const parentPath = path.dirname(safeOldPath);
+    const safeFolderName = sanitizeFolderName(newName);
+    const newPath = assertPathWithin(
+      LIBRARY_PATH(),
+      path.join(parentPath, safeFolderName),
+      "Caminho inválido",
+    );
     console.log("[library:rename-folder] newPath:", newPath);
     
     if (fs.existsSync(newPath)) {
@@ -1177,13 +1290,13 @@ ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: stri
     }
     
     const allDocs = getAllDocuments();
-    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(oldPath));
+    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(safeOldPath));
     
-    fs.renameSync(oldPath, newPath);
+    fs.renameSync(safeOldPath, newPath);
     
     for (const doc of docsInFolder) {
       if (doc.filePath) {
-        const newFilePath = doc.filePath.replace(oldPath, newPath);
+        const newFilePath = doc.filePath.replace(safeOldPath, newPath);
         updateDocumentPath(doc.fileHash, newFilePath);
       }
     }
@@ -1205,18 +1318,18 @@ ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: stri
 
 ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
   try {
-    const libraryPath = LIBRARY_PATH();
-    
-    if (!folderPath.startsWith(libraryPath)) {
-      return { success: false, error: "Caminho inválido" };
+    const safeFolderPath = assertPathWithin(LIBRARY_PATH(), folderPath, "Caminho inválido");
+
+    if (safeFolderPath === LIBRARY_PATH()) {
+      return { success: false, error: "A pasta raiz não pode ser excluída" };
     }
 
-    if (!fs.existsSync(folderPath)) {
+    if (!fs.existsSync(safeFolderPath)) {
       return { success: false, error: "Pasta não existe" };
     }
 
     if (!force) {
-      const items = fs.readdirSync(folderPath, { withFileTypes: true });
+      const items = fs.readdirSync(safeFolderPath, { withFileTypes: true });
       const nonEmpty = items.filter(item => !item.name.startsWith("."));
       
       if (nonEmpty.length > 0) {
@@ -1224,7 +1337,7 @@ ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = fa
       }
     }
 
-    fs.rmSync(folderPath, { recursive: true, force: true });
+    fs.rmSync(safeFolderPath, { recursive: true, force: true });
     win?.webContents.send("library:updated");
     return { success: true };
   } catch (error: unknown) {
@@ -1243,36 +1356,37 @@ ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = fa
 ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: string | null) => {
   try {
     const libraryPath = LIBRARY_PATH();
-    
-    if (!sourcePath.startsWith(libraryPath)) {
-      return { success: false, error: "Caminho inválido" };
-    }
+    const safeSourcePath = assertPathWithin(libraryPath, sourcePath, "Caminho inválido");
 
-    if (!fs.existsSync(sourcePath)) {
+    if (!fs.existsSync(safeSourcePath)) {
       return { success: false, error: "Pasta não existe" };
     }
 
-    const targetDir = targetPath ? path.join(libraryPath, targetPath) : libraryPath;
+    const targetDir = resolveLibraryRelativePath(targetPath);
     
-    const folderName = path.basename(sourcePath);
+    const folderName = path.basename(safeSourcePath);
     const destinationPath = path.join(targetDir, folderName);
     
     if (fs.existsSync(destinationPath)) {
       return { success: false, error: "Já existe uma pasta com este nome no destino" };
     }
 
-    if (targetPath && sourcePath.startsWith(destinationPath + path.sep)) {
+    if (safeSourcePath === destinationPath) {
+      return { success: true };
+    }
+
+    if (isPathWithin(safeSourcePath, destinationPath)) {
       return { success: false, error: "Não pode mover uma pasta para dentro de si mesma" };
     }
 
     const allDocs = getAllDocuments();
-    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(sourcePath));
+    const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(safeSourcePath));
     
-    fs.renameSync(sourcePath, destinationPath);
+    fs.renameSync(safeSourcePath, destinationPath);
     
     for (const doc of docsInFolder) {
       if (doc.filePath) {
-        const newFilePath = doc.filePath.replace(sourcePath, destinationPath);
+        const newFilePath = doc.filePath.replace(safeSourcePath, destinationPath);
         updateDocumentPath(doc.fileHash, newFilePath);
       }
     }
@@ -1294,7 +1408,6 @@ ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: 
 
 ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath: string | null) => {
   try {
-    const libraryPath = LIBRARY_PATH();
     const doc = getDocumentByHash(fileHash);
     
     if (!doc || !doc.filePath) {
@@ -1304,9 +1417,7 @@ ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath
     const currentDir = path.dirname(doc.filePath);
     const fileName = path.basename(doc.filePath);
     
-    const targetDir = targetFolderPath 
-      ? path.join(libraryPath, targetFolderPath)
-      : libraryPath;
+    const targetDir = resolveLibraryRelativePath(targetFolderPath);
 
     if (currentDir === targetDir) {
       return { success: true };
@@ -1411,6 +1522,120 @@ ipcMain.handle("pdf:set-thumbnail", async (_, fileHash: string, imagePath: strin
     console.error("[pdf:set-thumbnail] Error:", err);
     return { success: false, error: err.message || "Erro ao modificar PDF" };
   }
+});
+
+ipcMain.handle("backup:init", (_, supabaseUrl: string, supabaseAnonKey: string) => {
+  try {
+    initBackupClient(supabaseUrl, supabaseAnonKey);
+    console.log("[Backup] Supabase client initialized");
+    return { success: true };
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Error initializing:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("backup:set-session", async (_, accessToken: string, refreshToken: string) => {
+  try {
+    return await setBackupSession(accessToken, refreshToken);
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Error setting session:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("backup:clear-session", async () => {
+  try {
+    return await clearBackupSession();
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Error clearing session:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("backup:all-documents", async () => {
+  try {
+    const docs = getDocumentsForBackup();
+    const result = await backupAllDocuments(docs);
+    console.log(`[Backup] Completed: ${result.success} succeeded, ${result.failed} failed`);
+    return result;
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Error:", err);
+    return { success: 0, failed: 0, errors: [err.message] };
+  }
+});
+
+ipcMain.handle("backup:all-habits", async () => {
+  try {
+    const habits = getAllHabits();
+    const completions = getAllHabitCompletions();
+    const result = await backupAllHabits(habits, completions);
+    console.log(`[Backup] Habits completed: ${result.success} succeeded, ${result.failed} failed`);
+    return result;
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Habits error:", err);
+    return { success: 0, failed: 0, errors: [err.message] };
+  }
+});
+
+ipcMain.handle("backup:all-categories", async () => {
+  try {
+    const categories = getAllCategories();
+    const documentCategories = getAllDocumentCategories();
+    const result = await backupAllCategories(categories, documentCategories);
+    console.log(`[Backup] Categories completed: ${result.success} succeeded, ${result.failed} failed`);
+    return result;
+  } catch (error) {
+    const err = error as Error & { message?: string };
+    console.error("[Backup] Categories error:", err);
+    return { success: 0, failed: 0, errors: [err.message] };
+  }
+});
+
+ipcMain.handle("habits:get-all", () => {
+  return getAllHabits();
+});
+
+ipcMain.handle("habits:get-by-id", (_, id: string) => {
+  return getHabitById(id);
+});
+
+ipcMain.handle("habits:add", (_, habit: { id: string; name: string; unit: string | null; valueMode: string }) => {
+  addHabit(habit);
+  return { success: true };
+});
+
+ipcMain.handle("habits:update", (_, id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => {
+  updateHabit(id, updates);
+  return { success: true };
+});
+
+ipcMain.handle("habits:delete", (_, id: string) => {
+  deleteHabit(id);
+  return { success: true };
+});
+
+ipcMain.handle("habits:get-completions", (_, habitId: string) => {
+  return getHabitCompletions(habitId);
+});
+
+ipcMain.handle("habits:get-all-completions", () => {
+  return getAllHabitCompletions();
+});
+
+ipcMain.handle("habits:set-completion", (_, habitId: string, dateKey: string, value: string | null) => {
+  setHabitCompletion(habitId, dateKey, value);
+  return { success: true };
+});
+
+ipcMain.handle("habits:delete-completion", (_, habitId: string, dateKey: string) => {
+  deleteHabitCompletion(habitId, dateKey);
+  return { success: true };
 });
 
 

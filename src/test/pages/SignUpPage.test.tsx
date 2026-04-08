@@ -7,6 +7,8 @@ const mockSignUp = vi.fn();
 
 vi.mock("../../utils/auth", () => ({
   signUp: (...args: unknown[]) => mockSignUp(...args),
+  validatePasswordStrength: vi.fn(() => null),
+  MIN_PASSWORD_LENGTH: 10,
 }));
 
 vi.mock("react-hot-toast", () => ({

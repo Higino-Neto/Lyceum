@@ -1,8 +1,6 @@
-import { useCallback, useMemo } from "react";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import React, { useCallback, useMemo } from "react";
 import type {
   Habit,
-  HabitCompletionValue,
   HabitTrackerState,
   HabitValueMode,
 } from "./types";
@@ -20,105 +18,39 @@ function createHabitId() {
   return `habit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalizeHabit(rawHabit: unknown): Habit | null {
-  if (!rawHabit || typeof rawHabit !== "object") {
-    return null;
-  }
-
-  const maybeHabit = rawHabit as Partial<Habit>;
-
-  if (typeof maybeHabit.id !== "string" || typeof maybeHabit.name !== "string") {
-    return null;
-  }
-
-  const normalizedUnit =
-    typeof maybeHabit.unit === "string" && maybeHabit.unit.trim()
-      ? maybeHabit.unit.trim()
-      : null;
-  const normalizedValueMode: HabitValueMode =
-    maybeHabit.valueMode === "measure" && normalizedUnit ? "measure" : "toggle";
-
-  return {
-    id: maybeHabit.id,
-    name: maybeHabit.name,
-    createdAt:
-      typeof maybeHabit.createdAt === "string"
-        ? maybeHabit.createdAt
-        : new Date().toISOString(),
-    unit: normalizedUnit,
-    valueMode: normalizedValueMode,
-  };
-}
-
 function normalizeCompletions(
-  completions: HabitTrackerState["completions"] | Record<string, unknown>
-) {
+  completions: Record<string, { habitId: string; dateKey: string; value: string | null }[]>
+): HabitTrackerState["completions"] {
   const normalized: HabitTrackerState["completions"] = {};
 
-  Object.entries(completions || {}).forEach(([habitId, rawValue]) => {
-    if (Array.isArray(rawValue)) {
-      normalized[habitId] = rawValue.reduce<Record<string, HabitCompletionValue>>(
-        (dates, value) => {
-          if (typeof value === "string") {
-            dates[value] = true;
-          }
-
-          return dates;
-        },
-        {}
-      );
-      return;
-    }
-
-    if (rawValue && typeof rawValue === "object") {
-      normalized[habitId] = Object.entries(rawValue).reduce<
-        Record<string, HabitCompletionValue>
-      >((entries, [dateKey, value]) => {
-        if (value === true) {
-          entries[dateKey] = true;
-        }
-
-        if (typeof value === "number" && Number.isFinite(value)) {
-          entries[dateKey] = value;
-        }
-
-        if (typeof value === "string") {
-          const parsedValue = Number(value.replace(",", "."));
-
-          if (Number.isFinite(parsedValue)) {
-            entries[dateKey] = parsedValue;
-          }
-        }
-
-        return entries;
-      }, {});
-      return;
-    }
-
+  Object.entries(completions).forEach(([habitId, records]) => {
     normalized[habitId] = {};
+    
+    for (const record of records) {
+      if (record.value === null) {
+        normalized[habitId][record.dateKey] = true;
+      } else if (record.value === "true") {
+        normalized[habitId][record.dateKey] = true;
+      } else {
+        const parsedValue = Number(record.value);
+        if (Number.isFinite(parsedValue)) {
+          normalized[habitId][record.dateKey] = parsedValue;
+        }
+      }
+    }
   });
 
   return normalized;
 }
 
-function normalizeState(rawState: HabitTrackerState) {
-  return {
-    habits: Array.isArray(rawState.habits)
-      ? rawState.habits
-          .map((habit) => normalizeHabit(habit))
-          .filter((habit): habit is Habit => habit !== null)
-      : [],
-    completions: normalizeCompletions(rawState.completions),
-  };
-}
-
 export function useHabitTrackerStorage() {
-  const [state, setState] = useLocalStorage<HabitTrackerState>(
-    "habit_tracker",
-    INITIAL_STATE
-  );
+  const [state, setState, _remove] = useSQLiteHabits();
 
-  const normalizedState = useMemo(() => normalizeState(state), [state]);
+  const normalizedState = useMemo(() => {
+    if (!state) return INITIAL_STATE;
+    return state;
+  }, [state]);
+
   const habits = useMemo(() => normalizedState.habits, [normalizedState.habits]);
   const completions = useMemo(
     () => normalizedState.completions,
@@ -126,7 +58,7 @@ export function useHabitTrackerStorage() {
   );
 
   const addHabit = useCallback(
-    (
+    async (
       name: string,
       options?: {
         unit?: string | null;
@@ -153,12 +85,17 @@ export function useHabitTrackerStorage() {
         valueMode,
       };
 
-      setState((previous) => {
-        const safePrevious = normalizeState(previous);
+      await window.api.habitsAdd({
+        id: newHabit.id,
+        name: newHabit.name,
+        unit: newHabit.unit,
+        valueMode: newHabit.valueMode,
+      });
 
+      setState((previous) => {
         return {
-          ...safePrevious,
-          habits: [...safePrevious.habits, newHabit],
+          ...previous,
+          habits: [...previous.habits, newHabit],
         };
       });
     },
@@ -166,7 +103,7 @@ export function useHabitTrackerStorage() {
   );
 
   const updateHabit = useCallback(
-    (
+    async (
       habitId: string,
       updates: {
         name?: string;
@@ -185,12 +122,16 @@ export function useHabitTrackerStorage() {
         return;
       }
 
-      setState((previous) => {
-        const safePrevious = normalizeState(previous);
+      await window.api.habitsUpdate(habitId, {
+        name: trimmedName,
+        unit: trimmedUnit,
+        valueMode: updates.valueMode,
+      });
 
+      setState((previous) => {
         return {
-          ...safePrevious,
-          habits: safePrevious.habits.map((habit) =>
+          ...previous,
+          habits: previous.habits.map((habit) =>
             habit.id === habitId
               ? {
                   ...habit,
@@ -217,14 +158,15 @@ export function useHabitTrackerStorage() {
   );
 
   const deleteHabit = useCallback(
-    (habitId: string) => {
+    async (habitId: string) => {
+      await window.api.habitsDelete(habitId);
+
       setState((previous) => {
-        const safePrevious = normalizeState(previous);
-        const nextCompletions = { ...safePrevious.completions };
+        const nextCompletions = { ...previous.completions };
         delete nextCompletions[habitId];
 
         return {
-          habits: safePrevious.habits.filter((habit) => habit.id !== habitId),
+          habits: previous.habits.filter((habit) => habit.id !== habitId),
           completions: nextCompletions,
         };
       });
@@ -239,24 +181,23 @@ export function useHabitTrackerStorage() {
       }
 
       setState((previous) => {
-        const safePrevious = normalizeState(previous);
-        const fromIndex = safePrevious.habits.findIndex(
+        const fromIndex = previous.habits.findIndex(
           (habit) => habit.id === fromHabitId
         );
-        const toIndex = safePrevious.habits.findIndex(
+        const toIndex = previous.habits.findIndex(
           (habit) => habit.id === toHabitId
         );
 
         if (fromIndex === -1 || toIndex === -1) {
-          return safePrevious;
+          return previous;
         }
 
-        const nextHabits = [...safePrevious.habits];
+        const nextHabits = [...previous.habits];
         const [movedHabit] = nextHabits.splice(fromIndex, 1);
         nextHabits.splice(toIndex, 0, movedHabit);
 
         return {
-          ...safePrevious,
+          ...previous,
           habits: nextHabits,
         };
       });
@@ -265,11 +206,18 @@ export function useHabitTrackerStorage() {
   );
 
   const toggleHabitCompletion = useCallback(
-    (habitId: string, dateKey: string) => {
+    async (habitId: string, dateKey: string) => {
+      const currentEntries = normalizedState.completions[habitId] ?? {};
+      const hasCompleted = Boolean(currentEntries[dateKey]);
+
+      if (hasCompleted) {
+        await window.api.habitsDeleteCompletion(habitId, dateKey);
+      } else {
+        await window.api.habitsSetCompletion(habitId, dateKey, "true");
+      }
+
       setState((previous) => {
-        const safePrevious = normalizeState(previous);
-        const habitEntries = safePrevious.completions[habitId] ?? {};
-        const hasCompleted = Boolean(habitEntries[dateKey]);
+        const habitEntries = previous.completions[habitId] ?? {};
         const nextEntries = { ...habitEntries };
 
         if (hasCompleted) {
@@ -279,22 +227,24 @@ export function useHabitTrackerStorage() {
         }
 
         return {
-          ...safePrevious,
+          ...previous,
           completions: {
-            ...safePrevious.completions,
+            ...previous.completions,
             [habitId]: nextEntries,
           },
         };
       });
     },
-    [setState]
+    [normalizedState.completions, setState]
   );
 
   const setHabitMeasurement = useCallback(
-    (habitId: string, dateKey: string, value: number | null) => {
+    async (habitId: string, dateKey: string, value: number | null) => {
+      const valueStr = value === null ? null : String(value);
+      await window.api.habitsSetCompletion(habitId, dateKey, valueStr);
+
       setState((previous) => {
-        const safePrevious = normalizeState(previous);
-        const habitEntries = safePrevious.completions[habitId] ?? {};
+        const habitEntries = previous.completions[habitId] ?? {};
         const nextEntries = { ...habitEntries };
 
         if (value === null) {
@@ -304,9 +254,9 @@ export function useHabitTrackerStorage() {
         }
 
         return {
-          ...safePrevious,
+          ...previous,
           completions: {
-            ...safePrevious.completions,
+            ...previous.completions,
             [habitId]: nextEntries,
           },
         };
@@ -325,4 +275,66 @@ export function useHabitTrackerStorage() {
     toggleHabitCompletion,
     setHabitMeasurement,
   };
+}
+
+function useSQLiteHabits(): [
+  HabitTrackerState,
+  (value: HabitTrackerState | ((prev: HabitTrackerState) => HabitTrackerState)) => void,
+  () => void
+] {
+  const [state, setState] = React.useState<HabitTrackerState>(INITIAL_STATE);
+
+  React.useEffect(() => {
+    async function loadHabits() {
+      if (!window.api?.habitsGetAll) {
+        return;
+      }
+
+      try {
+        const habits = await window.api.habitsGetAll();
+        const allCompletions = await window.api.habitsGetAllCompletions();
+
+        const completionsByHabit: Record<string, { habitId: string; dateKey: string; value: string | null }[]> = {};
+        for (const comp of allCompletions) {
+          if (!completionsByHabit[comp.habitId]) {
+            completionsByHabit[comp.habitId] = [];
+          }
+          completionsByHabit[comp.habitId].push(comp);
+        }
+
+        const completions = normalizeCompletions(completionsByHabit);
+
+        setState({
+          habits: habits.map((h: any) => ({
+            id: h.id,
+            name: h.name,
+            createdAt: h.createdAt,
+            unit: h.unit,
+            valueMode: h.valueMode as HabitValueMode,
+          })),
+          completions,
+        });
+      } catch (error) {
+        console.error("[HabitTracker] Error loading habits:", error);
+      }
+    }
+
+    loadHabits();
+  }, []);
+
+  const setValue = useCallback(
+    (value: HabitTrackerState | ((prev: HabitTrackerState) => HabitTrackerState)) => {
+      setState((prev) => {
+        const newValue = value instanceof Function ? value(prev) : value;
+        return newValue;
+      });
+    },
+    []
+  );
+
+  const remove = useCallback(() => {
+    // Not implemented for SQLite
+  }, []);
+
+  return [state, setValue, remove];
 }

@@ -210,29 +210,44 @@ contextBridge.exposeInMainWorld("api", {
 
   moveBook: (fileHash: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
-});
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld("ipcRenderer", {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args;
-    return ipcRenderer.on(channel, (event, ...args) =>
-      listener(event, ...args),
-    );
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.off(channel, ...omit);
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.invoke(channel, ...omit);
-  },
+  backupInit: (supabaseUrl: string, supabaseAnonKey: string) =>
+    ipcRenderer.invoke("backup:init", supabaseUrl, supabaseAnonKey),
 
-  // You can expose other APTs you need here.
-  // ...
+  backupSetSession: (accessToken: string, refreshToken: string) =>
+    ipcRenderer.invoke("backup:set-session", accessToken, refreshToken),
+
+  backupClearSession: () =>
+    ipcRenderer.invoke("backup:clear-session"),
+
+  backupAllDocuments: () =>
+    ipcRenderer.invoke("backup:all-documents"),
+
+  habitsGetAll: () => ipcRenderer.invoke("habits:get-all"),
+
+  habitsGetById: (id: string) => ipcRenderer.invoke("habits:get-by-id", id),
+
+  habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) =>
+    ipcRenderer.invoke("habits:add", habit),
+
+  habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) =>
+    ipcRenderer.invoke("habits:update", id, updates),
+
+  habitsDelete: (id: string) => ipcRenderer.invoke("habits:delete", id),
+
+  habitsGetCompletions: (habitId: string) => ipcRenderer.invoke("habits:get-completions", habitId),
+
+  habitsGetAllCompletions: () => ipcRenderer.invoke("habits:get-all-completions"),
+
+  habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) =>
+    ipcRenderer.invoke("habits:set-completion", habitId, dateKey, value),
+
+  habitsDeleteCompletion: (habitId: string, dateKey: string) =>
+    ipcRenderer.invoke("habits:delete-completion", habitId, dateKey),
+
+  backupAllHabits: () =>
+    ipcRenderer.invoke("backup:all-habits"),
+
+  backupAllCategories: () =>
+    ipcRenderer.invoke("backup:all-categories"),
 });

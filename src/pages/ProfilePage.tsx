@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { getUserProfile, updateUserProfile } from "../api/database";
+import { validatePasswordStrength, MIN_PASSWORD_LENGTH } from "../utils/auth";
 import { User, Lock, Save, ArrowLeft, Camera } from "lucide-react";
 import Skeleton from "../components/Skeleton";
 import toast from "react-hot-toast";
@@ -87,6 +88,17 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowedTypes.has(file.type)) {
+      toast.error("Use uma imagem JPG, PNG ou WEBP");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 5MB");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result as string);
@@ -96,8 +108,8 @@ export default function ProfilePage() {
     try {
       setIsUploading(true);
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${user?.id || "anonymous"}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
@@ -155,8 +167,10 @@ export default function ProfilePage() {
       toast.error("As senhas não coincidem");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+
+    const passwordError = validatePasswordStrength(newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     passwordMutation.mutate();
@@ -164,7 +178,7 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate("/login");
+    navigate("/signin");
   };
 
   if (isLoading) {
@@ -268,23 +282,25 @@ export default function ProfilePage() {
               <label className="block text-sm text-zinc-400 mb-1">
                 Nova senha
               </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
-              />
+                <input
+                  type="password"
+                  minLength={MIN_PASSWORD_LENGTH}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
+                />
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-1">
                 Confirmar senha
               </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
-              />
+                <input
+                  type="password"
+                  minLength={MIN_PASSWORD_LENGTH}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500"
+                />
             </div>
             <button
               type="submit"

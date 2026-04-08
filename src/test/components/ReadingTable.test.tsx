@@ -10,7 +10,24 @@ const mockGetCategories = vi.fn().mockResolvedValue([]);
 vi.mock("../../hooks/useGetReadings", () => ({
   __esModule: true,
   default: () => ({
-    data: undefined,
+    data: [
+      {
+        id: "1",
+        source_name: "Test Book",
+        pages: 50,
+        reading_date: "2024-01-15",
+        reading_time: 120,
+        category_id: "cat-1",
+      },
+      {
+        id: "2",
+        source_name: "Another Book",
+        pages: 30,
+        reading_date: "2024-01-16",
+        reading_time: 60,
+        category_id: "cat-2",
+      },
+    ],
     isLoading: false,
   }),
 }));
@@ -62,52 +79,42 @@ vi.mock("../../api/database", async () => {
   };
 });
 
+const mockReadingsData = [
+  {
+    id: "1",
+    source_name: "Test Book",
+    pages: 50,
+    reading_date: "2024-01-15",
+    reading_time: 120,
+    category_id: "cat-1",
+  },
+  {
+    id: "2",
+    source_name: "Another Book",
+    pages: 30,
+    reading_date: "2024-01-16",
+    reading_time: 60,
+    category_id: "cat-2",
+  },
+];
+
 vi.mock("@tanstack/react-query", async () => {
   const actual = await vi.importActual("@tanstack/react-query");
   return {
     ...actual,
     useQueryClient: () => ({
       invalidateQueries: mockInvalidate,
-      fetchQuery: vi.fn().mockResolvedValue([
-        {
-          id: "1",
-          source_name: "Test Book",
-          pages: 50,
-          reading_date: "2024-01-15",
-          reading_time: 120,
-          category_id: "cat-1",
-        },
-        {
-          id: "2",
-          source_name: "Another Book",
-          pages: 30,
-          reading_date: "2024-01-16",
-          reading_time: 60,
-          category_id: "cat-2",
-        },
-      ]),
+      fetchQuery: vi.fn().mockResolvedValue(mockReadingsData),
     }),
-    useQuery: () => ({
-      data: [
-        {
-          id: "1",
-          source_name: "Test Book",
-          pages: 50,
-          reading_date: "2024-01-15",
-          reading_time: 120,
-          category_id: "cat-1",
-        },
-        {
-          id: "2",
-          source_name: "Another Book",
-          pages: 30,
-          reading_date: "2024-01-16",
-          reading_time: 60,
-          category_id: "cat-2",
-        },
-      ],
-      isLoading: false,
-    }),
+    useQuery: ({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === "readings") {
+        return {
+          data: mockReadingsData,
+          isLoading: false,
+        };
+      }
+      return { data: undefined, isLoading: false };
+    },
     useMutation: () => ({
       mutate: mockDelete,
       isPending: false,

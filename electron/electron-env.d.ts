@@ -48,7 +48,6 @@ declare namespace NodeJS {
 }
 
 interface Window {
-  ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
     getFilePath: () => Promise<string>;
   };
@@ -134,19 +133,45 @@ interface Window {
     deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
+
+    backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
+    backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
+    backupClearSession: () => Promise<{ success: boolean; error?: string }>;
+    backupAllDocuments: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllHabits: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllCategories: () => Promise<{ success: number; failed: number; errors: string[] }>;
+
+    habitsGetAll: () => Promise<any[]>;
+    habitsGetById: (id: string) => Promise<any | undefined>;
+    habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) => Promise<{ success: boolean }>;
+    habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => Promise<{ success: boolean }>;
+    habitsDelete: (id: string) => Promise<{ success: boolean }>;
+    habitsGetCompletions: (habitId: string) => Promise<any[]>;
+    habitsGetAllCompletions: () => Promise<any[]>;
+    habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
+    habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
   };
 }
 
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
-
-interface OpenPdfResult extends DocumentRecord {
-  fileBuffer: ArrayBuffer;
+declare namespace NodeJS {
+  interface ProcessEnv {
+    /**
+     * The built directory structure
+     *
+     * ```tree
+     * ├─┬─┬ dist
+     * │ │ └── index.html
+     * │ │
+     * │ ├─┬ dist-electron
+     * │ │ ├── main.js
+     * │ │ └── preload.js
+     * │ │
+     * ```
+     */
+    APP_ROOT: string;
+    /** /dist/ or /public/ */
+    VITE_PUBLIC: string;
+  }
 }
 
 declare namespace NodeJS {
@@ -172,7 +197,6 @@ declare namespace NodeJS {
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  ipcRenderer: import("electron").IpcRenderer;
   electronAPI: {
     getFilePath: () => Promise<string>;
   };
@@ -219,5 +243,21 @@ interface Window {
     windowMaximize: () => Promise<void>;
     windowClose: () => Promise<void>;
     windowIsMaximized: () => Promise<boolean>;
+
+    backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
+    backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
+    backupClearSession: () => Promise<{ success: boolean; error?: string }>;
+    backupAllDocuments: () => Promise<{ success: number; failed: number; errors: string[] }>;
+    backupAllHabits: () => Promise<{ success: number; failed: number; errors: string[] }>;
+
+    habitsGetAll: () => Promise<any[]>;
+    habitsGetById: (id: string) => Promise<any | undefined>;
+    habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) => Promise<{ success: boolean }>;
+    habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => Promise<{ success: boolean }>;
+    habitsDelete: (id: string) => Promise<{ success: boolean }>;
+    habitsGetCompletions: (habitId: string) => Promise<any[]>;
+    habitsGetAllCompletions: () => Promise<any[]>;
+    habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
+    habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
   };
 }

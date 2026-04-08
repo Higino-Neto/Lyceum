@@ -1,6 +1,24 @@
 import { supabase } from "../lib/supabase";
 import { createUserProfile } from "../api/database";
 
+export const MIN_PASSWORD_LENGTH = 10;
+
+export function validatePasswordStrength(password: string): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres`;
+  }
+
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+
+  if (!hasUpper || !hasLower || !hasNumber) {
+    return "A senha deve incluir letras maiúsculas, minúsculas e números";
+  }
+
+  return null;
+}
+
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
     email,
