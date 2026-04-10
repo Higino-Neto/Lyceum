@@ -2,28 +2,49 @@ import PDFViewer, {
   DocumentManagerPlugin,
   PDFViewerRef,
   PluginRegistry,
-  ScrollPlugin,
   ScrollStrategy,
 } from "@embedpdf/react-pdf-viewer";
+import pdfiumWasmUrl from "@embedpdf/pdfium/pdfium.wasm?url";
 import { DARK_THEME } from "./theme";
 import { useRef } from "react";
+import toast from "react-hot-toast";
 
 interface ViewerCoreProps {
-  pdfData: string;
+  pdfData: ArrayBuffer;
+  documentId: string;
+  fileName?: string;
   onReady: (registry: PluginRegistry) => void;
 }
 
-export default function ViewerCore({ pdfData, onReady }: ViewerCoreProps) {
+export default function ViewerCore({
+  pdfData,
+  documentId,
+  fileName,
+  onReady,
+}: ViewerCoreProps) {
   const viewerRef = useRef<PDFViewerRef>(null);
 
   const handleReady = async () => {
     const registry = await viewerRef.current?.registry;
     if (!registry) return;
 
-    const docManager = registry.getPlugin<DocumentManagerPlugin>("document-manager")?.provides();
-    const scroll = registry.getPlugin<ScrollPlugin>("scroll")?.provides();
-    const zoom = registry.getPlugin("zoom")?.provides();
-    const annotation = registry.getPlugin("annotation")?.provides();
+    const documentManager = registry
+      .getPlugin<DocumentManagerPlugin>("document-manager")
+      ?.provides();
+
+    if (documentManager) {
+      documentManager.onDocumentError((event) => {
+        toast.error(event.message || "Erro ao carregar PDF");
+      });
+
+      await documentManager.closeAllDocuments().toPromise();
+      documentManager.openDocumentBuffer({
+        buffer: pdfData,
+        documentId,
+        name: fileName || `${documentId}.pdf`,
+        autoActivate: true,
+      });
+    }
 
     onReady(registry);
   };
@@ -31,11 +52,12 @@ export default function ViewerCore({ pdfData, onReady }: ViewerCoreProps) {
   return (
     <>
       <PDFViewer
-        key={pdfData}
+        key={documentId}
         ref={viewerRef}
         onReady={handleReady}
         config={{
-          src: pdfData,
+          wasmUrl: pdfiumWasmUrl,
+          worker: false,
           scroll: {
             defaultStrategy: ScrollStrategy.Vertical,
             defaultPageGap: 20,

@@ -12,12 +12,14 @@ export default function ReadingPage() {
   const location = useLocation();
   const locationFileBuffer = location.state?.fileBuffer as ArrayBuffer | undefined;
   const locationFileHash = location.state?.fileHash as string | undefined;
-  console.log(locationFileBuffer, locationFileHash);
+  const locationFileName = location.state?.fileName as string | undefined;
   const pdf = useViewerLoader();
   const session = useReadingSession();
+  // const timer = useSessionTimer();
   const [libraryPdfData, setLibraryPdfData] = useState<{
-    url: string;
+    buffer: ArrayBuffer;
     hash: string;
+    fileName: string;
   } | null>(null);
   const [activeSource, setActiveSource] = useState<"library" | "local">(
     "local",
@@ -25,21 +27,22 @@ export default function ReadingPage() {
 
   useEffect(() => {
     if (locationFileBuffer && locationFileHash) {
-      const blob = new Blob([locationFileBuffer], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
-      setLibraryPdfData({ url: blobUrl, hash: locationFileHash });
+      setLibraryPdfData({
+        buffer: locationFileBuffer,
+        hash: locationFileHash,
+        fileName: locationFileName,
+      });
       setActiveSource("library");
     }
-  }, [locationFileBuffer, locationFileHash]);
+  }, [locationFileBuffer, locationFileHash, locationFileName]);
 
   const activePdfData =
-    activeSource === "library" ? libraryPdfData?.url : pdf.pdfData;
+    activeSource === "library" ? libraryPdfData?.buffer : pdf.pdfData;
 
   const activeFileHash =
     activeSource === "library" ? libraryPdfData?.hash : pdf.fileHash;
-  // const bookData = useGetBookData();
-
-  // console.log(bookData)
+  const activeFileName =
+    activeSource === "library" ? libraryPdfData?.fileName : pdf.fileName;
 
   return (
     <>
@@ -59,12 +62,15 @@ export default function ReadingPage() {
             <div className="flex items-center gap-4">
               <div className="flex gap-2 items-center pl-6">
                 <BookOpenText size={32} className="text-zinc-300" />
+                {/* <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-300">
+                  EmbedPDF
+                </span> */}
               </div>
             </div>
             <div className="flex gap-2 items-center">
               {activePdfData && (
                 <ReadingSessionTimer
-                  fileName={pdf.fileName}
+                  fileName={activeFileName}
                   onSessionStart={session.handleSessionStart}
                   onSessionData={session.handleSessionData}
                   onSessionFinish={session.handleTimerDone}
@@ -90,6 +96,7 @@ export default function ReadingPage() {
               <Viewer
                 pdfData={activePdfData}
                 fileHash={activeFileHash}
+                fileName={activeFileName}
                 hasSessionStarted={session.sessionStart}
                 hasSessionFinished={session.sessionFinish}
                 onReadingInfo={session.handleReadingInfo}
@@ -99,7 +106,6 @@ export default function ReadingPage() {
           ) : (
             <section className="bg-zinc-900 rounded-sm border border-zinc-800 shadow-xl overflow-hidden">
               <div className="p-4 text-zinc-500 text-sm">
-                {/* TODO: Card list dos livros recentes (localStorage ou Supabase) */}
                 Abra um PDF para começar a leitura.
               </div>
             </section>

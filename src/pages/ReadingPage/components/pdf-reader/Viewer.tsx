@@ -11,8 +11,9 @@ import getWordCount from "../../../../utils/getWordCount";
 import useReadingPersistence from "../../hooks/useReadingPersistence";
 
 interface ViewerProps {
-  pdfData: string;
-  fileHash: string; 
+  pdfData: ArrayBuffer;
+  fileHash: string;
+  fileName?: string;
   hasSessionStarted: boolean;
   hasSessionFinished: boolean;
   onTotalBookPages: (totalBookPages: number) => void;
@@ -22,6 +23,7 @@ interface ViewerProps {
 export default function Viewer({
   pdfData,
   fileHash,
+  fileName,
   hasSessionStarted,
   hasSessionFinished,
   onTotalBookPages,
@@ -64,6 +66,8 @@ export default function Viewer({
     <div className="w-full relative">
       <PdfViewerCore
         pdfData={pdfData}
+        documentId={fileHash}
+        fileName={fileName}
         onReady={(registry) => {
           setRegistry(registry);
         }}

@@ -40,6 +40,14 @@ interface OpenPdfResult extends DocumentRecord {
   fileBuffer: ArrayBuffer;
 }
 
+interface NativePdfViewerState {
+  page: number;
+  currentScale: number;
+  scrollTop: number;
+  totalPages: number;
+  canAccess: boolean;
+}
+
 declare namespace NodeJS {
   interface ProcessEnv {
     APP_ROOT: string;
@@ -57,8 +65,14 @@ interface Window {
 
     saveReadingState: (payload: any) => Promise<void>;
     getReadingState: (fileHash: string) => Promise<DocumentRecord | null>;
+    getNativePdfViewerState: (sourceUrl: string) => Promise<NativePdfViewerState | null>;
+    applyNativePdfViewerState: (
+      sourceUrl: string,
+      state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+    ) => Promise<NativePdfViewerState | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
+    getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) => Promise<string | null>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
@@ -216,6 +230,11 @@ interface Window {
 
     saveReadingState: (payload: any) => Promise<void>;
     getReadingState: (fileHash: string) => Promise<any>;
+    getNativePdfViewerState: (sourceUrl: string) => Promise<NativePdfViewerState | null>;
+    applyNativePdfViewerState: (
+      sourceUrl: string,
+      state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+    ) => Promise<NativePdfViewerState | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
     getLastDocument: () => Promise<any>;

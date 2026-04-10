@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 
 export default function useViewerLoader() {
   const [fileName, setFileName] = useState("");
-  const [pdfPath, setPdfPath] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [fileHash, setFileHash] = useState<string | null>(null);
   const [totalBookPages, setTotalBookPages] = useState<number | null>(null);
 
@@ -18,9 +18,7 @@ export default function useViewerLoader() {
       const result = await window.api.reopenPdf(last.filePath, last.fileHash);
       if (!result || "error" in result) return;
 
-      const blob = new Blob([result.fileBuffer], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
-      setPdfPath(blobUrl);
+      setPdfData(result.fileBuffer);
       setFileName(last.title);
       setFileHash(result.fileHash);
     };
@@ -34,9 +32,7 @@ export default function useViewerLoader() {
         toast.error("Falha ao abrir arquivo");
         return;
       }
-      const blob = new Blob([document.fileBuffer], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
-      setPdfPath(blobUrl);
+      setPdfData(document.fileBuffer);
       setFileName(document.title);
       setFileHash(document.fileHash);
     } catch (error) {
@@ -45,7 +41,7 @@ export default function useViewerLoader() {
   };
 
   return {
-    pdfData: pdfPath,
+    pdfData,
     fileName,
     fileHash,
     totalBookPages,

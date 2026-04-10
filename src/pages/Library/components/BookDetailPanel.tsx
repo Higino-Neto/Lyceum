@@ -24,7 +24,7 @@ import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
   onClose: () => void;
-  onOpen: () => void;
+  onOpenEmbed: () => void;
   onDelete?: () => void;
   onRefresh: () => void;
 }
@@ -34,7 +34,7 @@ type EditMode = "title" | "author" | null;
 export default function BookDetailPanel({
   book,
   onClose,
-  onOpen,
+  onOpenEmbed,
   onDelete,
   onRefresh,
 }: BookDetailPanelProps) {
@@ -239,6 +239,7 @@ export default function BookDetailPanel({
         >
           <X size={18} className="text-zinc-400" />
         </button>
+
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -445,10 +446,13 @@ export default function BookDetailPanel({
         </div>
 
         <button
-          onClick={onOpen}
+          onClick={onOpenEmbed}
           className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer"
         >
           <BookOpen size={16} />
+          {/* <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+            EmbedPDF
+          </span> */}
           {book.currentPage > 1 ? "Continuar Leitura" : "Começar a Ler"}
         </button>
       </div>
