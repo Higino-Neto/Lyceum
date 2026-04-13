@@ -72,6 +72,7 @@ interface Window {
     ) => Promise<NativePdfViewerState | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
+    openEpub: () => Promise<OpenPdfResult | null>;
     getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) => Promise<string | null>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
@@ -237,6 +238,7 @@ interface Window {
     ) => Promise<NativePdfViewerState | null>;
 
     openPdf: () => Promise<OpenPdfResult | null>;
+    openEpub: () => Promise<OpenPdfResult | null>;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath: string) => Promise<any>;
 

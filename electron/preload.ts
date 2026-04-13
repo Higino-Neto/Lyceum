@@ -70,6 +70,8 @@ contextBridge.exposeInMainWorld("api", {
 
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 
+  openEpub: () => ipcRenderer.invoke("dialog:open-epub"),
+
   getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) =>
     ipcRenderer.invoke("temp:get-pdf-file", fileBuffer, fileHash),
 

@@ -955,6 +955,32 @@ ipcMain.handle("dialog:open-pdf", async () => {
   return { ...doc, fileBuffer };
 });
 
+ipcMain.handle("dialog:open-epub", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "EPUB", extensions: ["epub"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const title = path.basename(filePath, ".epub");
+  const fileHash = generateFileHash(filePath);
+  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+  const existing = getDocumentByHash(fileHash);
+  if (existing) {
+    updateLastOpened(fileHash);
+    return { ...existing, fileBuffer };
+  }
+
+  const thumbnailPath = await generateThumbnail(filePath, fileHash);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, 0);
+
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) return null;
+
+  return { ...doc, fileBuffer };
+});
+
 ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
   const tempDir = app.getPath("temp");
   const tempFilePath = path.join(tempDir, `${fileHash}.pdf`);
