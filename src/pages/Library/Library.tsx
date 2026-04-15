@@ -120,7 +120,10 @@ export default function Library() {
     }
   }, [activeSection]);
 
-  const handleOpen = async (filePath: string, fileHash?: string) => {
+  const handleOpen = async (
+    filePath: string,
+    fileHash?: string,
+  ) => {
     const result = await window.api.reopenPdf(filePath, fileHash);
     
     if (!result) {
@@ -142,6 +145,7 @@ export default function Library() {
       state: {
         fileBuffer: result.fileBuffer,
         fileHash: result.fileHash,
+        fileName: filePath.split(/[/\\]/).pop(),
       },
     });
   };
@@ -423,12 +427,15 @@ export default function Library() {
             <BookDetailPanel
               book={selectedBook}
               onClose={handleClosePanel}
-              onOpen={async () => {
+              onOpenEmbed={async () => {
                 if (!selectedBook.filePath) {
                   toast.error("Caminho do arquivo não encontrado");
                   return;
                 }
-                await handleOpen(selectedBook.filePath, selectedBook.fileHash);
+                await handleOpen(
+                  selectedBook.filePath,
+                  selectedBook.fileHash,
+                );
               }}
               onDelete={handleBookDeleted}
               onRefresh={() => {

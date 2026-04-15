@@ -25,6 +25,14 @@ interface ReadingState {
   };
 }
 
+interface NativePdfViewerState {
+  page: number;
+  currentScale: number;
+  scrollTop: number;
+  totalPages: number;
+  canAccess: boolean;
+}
+
 interface MetadataUpdate {
   author?: string;
   description?: string;
@@ -52,7 +60,20 @@ contextBridge.exposeInMainWorld("api", {
   getReadingState: (fileHash: string) =>
     ipcRenderer.invoke("reading:get", fileHash),
 
+  getNativePdfViewerState: (sourceUrl: string) =>
+    ipcRenderer.invoke("native-pdf-viewer:get-state", sourceUrl),
+
+  applyNativePdfViewerState: (
+    sourceUrl: string,
+    state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+  ) => ipcRenderer.invoke("native-pdf-viewer:apply-state", sourceUrl, state),
+
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
+
+  openEpub: () => ipcRenderer.invoke("dialog:open-epub"),
+
+  getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) =>
+    ipcRenderer.invoke("temp:get-pdf-file", fileBuffer, fileHash),
 
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),

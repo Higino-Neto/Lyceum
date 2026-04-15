@@ -1,9 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, protocol, session } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { autoUpdater } from "electron-updater";
 import chokidar, { FSWatcher } from "chokidar";
+import { Readable } from "node:stream";
 import {
   addDocument,
   getAllDocuments,
@@ -583,6 +584,178 @@ function generateFileHash(filePath: string) {
   hash.update(fileBuffer);
   return hash.digest("hex");
 }
+
+function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return Uint8Array.from(buffer).buffer;
+}
+
+interface NativePdfViewerState {
+  page: number;
+  currentScale: number;
+  scrollTop: number;
+  totalPages: number;
+  canAccess: boolean;
+}
+
+interface NativePdfViewerRestoreState {
+  page: number;
+  currentScale: number;
+  scrollTop: number;
+}
+
+function findNativePdfViewerFrame(sourceUrl: string) {
+  if (!win || !sourceUrl) return null;
+
+  const normalizedUrl = sourceUrl.replace(/#.*$/, "");
+  
+  const candidates = [
+    sourceUrl,
+    normalizedUrl,
+    encodeURIComponent(sourceUrl),
+    encodeURIComponent(normalizedUrl),
+    encodeURIComponent(sourceUrl.replace(/#/g, "")),
+  ];
+
+  return (
+    win.webContents.mainFrame.framesInSubtree.find((frame) => {
+      const frameUrl = frame.url || "";
+      return candidates.some((candidate) => candidate && frameUrl.includes(candidate));
+    }) ?? null
+  );
+}
+
+async function waitForNativePdfViewerFrame(
+  sourceUrl: string,
+  timeoutMs = 8000,
+) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const frame = findNativePdfViewerFrame(sourceUrl);
+    if (frame) {
+      return frame;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  return null;
+}
+
+async function getNativePdfViewerState(
+  sourceUrl: string,
+): Promise<NativePdfViewerState | null> {
+  const frame = await waitForNativePdfViewerFrame(sourceUrl);
+  if (!frame) return null;
+
+  try {
+    const result = (await frame.executeJavaScript(
+      `
+        (async () => {
+          const app = globalThis.PDFViewerApplication;
+          if (!app) {
+            return null;
+          }
+
+          try {
+            await app.initializedPromise;
+          } catch {}
+
+          const viewer = app.pdfViewer;
+          const container = viewer?.container;
+          const page = Number(app.page ?? viewer?.currentPageNumber ?? 1);
+          const currentScale = Number(viewer?.currentScale ?? 1);
+          const scrollTop = Number(container?.scrollTop ?? 0);
+          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
+
+          return {
+            page: Number.isFinite(page) && page > 0 ? page : 1,
+            currentScale: Number.isFinite(currentScale) && currentScale > 0 ? currentScale : 1,
+            scrollTop: Number.isFinite(scrollTop) && scrollTop >= 0 ? scrollTop : 0,
+            totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 0,
+            canAccess: true,
+          };
+        })();
+      `,
+      true,
+    )) as NativePdfViewerState | null;
+
+    return result ?? null;
+  } catch (error) {
+    console.error("[native-pdf-viewer:get-state] Error:", error);
+    return null;
+  }
+}
+
+async function applyNativePdfViewerState(
+  sourceUrl: string,
+  state: NativePdfViewerRestoreState,
+): Promise<NativePdfViewerState | null> {
+  const frame = await waitForNativePdfViewerFrame(sourceUrl);
+  if (!frame) return null;
+
+  try {
+    const payload = JSON.stringify({
+      page: state.page,
+      currentScale: state.currentScale,
+      scrollTop: state.scrollTop,
+    });
+
+    const result = (await frame.executeJavaScript(
+      `
+        (async () => {
+          const app = globalThis.PDFViewerApplication;
+          if (!app) {
+            return null;
+          }
+
+          try {
+            await app.initializedPromise;
+          } catch {}
+
+          const viewer = app.pdfViewer;
+          const container = viewer?.container;
+          const nextState = ${payload};
+
+          if (Number.isFinite(nextState.page) && nextState.page > 0) {
+            app.page = nextState.page;
+          }
+
+          if (viewer && Number.isFinite(nextState.currentScale) && nextState.currentScale > 0) {
+            viewer.currentScale = nextState.currentScale;
+          }
+
+          if (container && Number.isFinite(nextState.scrollTop) && nextState.scrollTop >= 0) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            container.scrollTop = nextState.scrollTop;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            container.scrollTop = nextState.scrollTop;
+          }
+
+          const page = Number(app.page ?? viewer?.currentPageNumber ?? nextState.page ?? 1);
+          const currentScale = Number(viewer?.currentScale ?? nextState.currentScale ?? 1);
+          const scrollTop = Number(container?.scrollTop ?? nextState.scrollTop ?? 0);
+          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
+
+          return {
+            page: Number.isFinite(page) && page > 0 ? page : 1,
+            currentScale: Number.isFinite(currentScale) && currentScale > 0 ? currentScale : 1,
+            scrollTop: Number.isFinite(scrollTop) && scrollTop >= 0 ? scrollTop : 0,
+            totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 0,
+            canAccess: true,
+          };
+        })();
+      `,
+      true,
+    )) as NativePdfViewerState | null;
+
+    return result ?? null;
+  } catch (error) {
+    console.error("[native-pdf-viewer:apply-state] Error:", error);
+    return null;
+  }
+}
+
 async function generateThumbnail(
   filePath: string,
   fileHash: string,
@@ -728,6 +901,33 @@ ipcMain.handle("reading:get", (_, fileHash) => {
   return getDocumentByHash(fileHash);
 });
 
+ipcMain.handle("native-pdf-viewer:get-state", async (_, sourceUrl: string) => {
+  try {
+    return await getNativePdfViewerState(sourceUrl);
+  } catch (error) {
+    console.error("[native-pdf-viewer:get-state] IPC Error:", error);
+    return null;
+  }
+});
+
+ipcMain.handle(
+  "native-pdf-viewer:apply-state",
+  async (_, sourceUrl: string, state: NativePdfViewerRestoreState) => {
+    if (!state) return null;
+
+    try {
+      return await applyNativePdfViewerState(sourceUrl, {
+        page: state.page ?? 1,
+        currentScale: state.currentScale ?? 1,
+        scrollTop: state.scrollTop ?? 0,
+      });
+    } catch (error) {
+      console.error("[native-pdf-viewer:apply-state] IPC Error:", error);
+      return null;
+    }
+  },
+);
+
 ipcMain.handle("dialog:open-pdf", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -737,7 +937,7 @@ ipcMain.handle("dialog:open-pdf", async () => {
   const filePath = result.filePaths[0];
   const title = path.basename(filePath);
   const fileHash = generateFileHash(filePath);
-  const fileBuffer = fs.readFileSync(filePath).buffer;
+  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
 
   const existing = getDocumentByHash(fileHash);
   if (existing) {
@@ -752,9 +952,46 @@ ipcMain.handle("dialog:open-pdf", async () => {
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
   
-  updateDocumentSyncStatus(fileHash, false);
+  return { ...doc, fileBuffer };
+});
+
+ipcMain.handle("dialog:open-epub", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "EPUB", extensions: ["epub"] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const title = path.basename(filePath, ".epub");
+  const fileHash = generateFileHash(filePath);
+  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+  const existing = getDocumentByHash(fileHash);
+  if (existing) {
+    updateLastOpened(fileHash);
+    return { ...existing, fileBuffer };
+  }
+
+  const thumbnailPath = await generateThumbnail(filePath, fileHash);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, 0);
+
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) return null;
+
+  return { ...doc, fileBuffer };
+});
+
+ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
+  const tempDir = app.getPath("temp");
+  const tempFilePath = path.join(tempDir, `${fileHash}.pdf`);
   
-  return { ...doc, fileBuffer, thumbnailPath };
+  try {
+    fs.writeFileSync(tempFilePath, Buffer.from(fileBuffer));
+    return tempFilePath;
+  } catch (error) {
+    console.error("[temp:get-pdf-file] Error:", error);
+    return null;
+  }
 });
 
 ipcMain.handle("dialog:open-image", async () => {
@@ -896,7 +1133,7 @@ ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
     }
 
     if (fs.existsSync(knownDocument.filePath)) {
-      const fileBuffer = fs.readFileSync(knownDocument.filePath).buffer;
+      const fileBuffer = toArrayBuffer(fs.readFileSync(knownDocument.filePath));
       const hash = generateFileHash(knownDocument.filePath);
       return { fileBuffer, fileHash: hash };
     }
@@ -920,7 +1157,7 @@ ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
     console.log("[pdf:reopen] Found file at new location:", foundPath);
     updateDocumentPath(fileHash, foundPath);
 
-    const fileBuffer = fs.readFileSync(foundPath).buffer;
+    const fileBuffer = toArrayBuffer(fs.readFileSync(foundPath));
     return { fileBuffer, fileHash, foundAt: foundPath };
   } catch (error) {
     console.error("[pdf:reopen] Error:", error);
@@ -1640,10 +1877,49 @@ ipcMain.handle("habits:delete-completion", (_, habitId: string, dateKey: string)
 
 
 app.whenReady().then(async () => {
+  const fs = require("fs");
+  protocol.handle("pdf-resource", (request) => {
+    const filePath = request.url.replace(/^pdf-resource:\/\//, "");
+    return new Promise((resolve, reject) => {
+      try {
+        const fileBuffer = fs.readFileSync(decodeURIComponent(filePath));
+        resolve(new Response(fileBuffer, { headers: { "Content-Type": "application/pdf" } }));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org; object-src 'none'; base-uri 'self';";
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const url = details.url;
+    if (url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+    if (url.startsWith("file://") || url.startsWith("pdf-resource://")) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+    if (url.startsWith("blob:") || url.startsWith("data:")) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+    const csp = process.env.VITE_DEV_SERVER_URL ? cspDev : cspProd;
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [csp],
+      },
+    });
+  });
+
   initDatabase();
   ensureLibraryFolder();
   setupFileWatcher();
-  
+
   importCategoriesFromFolders();
   await scanLibrary();
   autoUpdater.checkForUpdatesAndNotify();

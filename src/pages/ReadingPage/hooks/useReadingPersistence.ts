@@ -4,6 +4,7 @@ import {
   ZoomPlugin,
 } from "@embedpdf/react-pdf-viewer";
 import { useEffect, useRef } from "react";
+import useReadingStatePersistence from "./useReadingStatePersistence";
 
 export default function useReadingPersistence(
   registry: PluginRegistry | null,
@@ -12,8 +13,12 @@ export default function useReadingPersistence(
   const registryRef = useRef(registry);
   const fileHashRef = useRef(fileHash);
   const currentPageRef = useRef(1);
+  const currentZoomRef = useRef(1);
+  const currentScrollRef = useRef(0);
   const restoredRef = useRef(false);
   const engineRef = useRef<any>(null);
+
+  const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
 
   useEffect(() => {
     registryRef.current = registry;
@@ -21,6 +26,7 @@ export default function useReadingPersistence(
       engineRef.current = registry.getEngine();
     }
   }, [registry]);
+
   useEffect(() => {
     fileHashRef.current = fileHash;
   }, [fileHash]);
@@ -32,78 +38,79 @@ export default function useReadingPersistence(
   useEffect(() => {
     if (!registry || !fileHash) return;
 
-    let tryRestore: NodeJS.Timeout;
+    let tryRestore: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
 
     const restore = async () => {
-      const saved = await window.api.getReadingState(fileHash);
-      if (!saved) return;
+      const saved = await loadState();
+      if (cancelled || !saved) return;
 
-      const savedPage = saved.currentPage ?? 1;
+      currentPageRef.current = saved.currentPage;
+      currentZoomRef.current = saved.currentZoom;
+      currentScrollRef.current = saved.currentScroll;
 
-      const checkReady = () => {
+      const attempt = () => {
+        if (cancelled) return;
+
         const scroll = registry.getPlugin<ScrollPlugin>("scroll")?.provides();
         const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom")?.provides();
         const docManager = registry.getPlugin("document-manager")?.provides();
         const doc = docManager?.getActiveDocument();
         const documentId = doc?.id;
-
         const totalPages = scroll?.getTotalPages() ?? 0;
 
-        if (!scroll || !doc || totalPages === 0) {
-          return null;
-        }
-
-        return { scroll, zoomPlugin, documentId, totalPages, savedPage, saved };
-      };
-
-      const attempt = () => {
-        const ready = checkReady();
-        if (!ready) {
-          if (!tryRestore || !restoredRef.current) {
-            tryRestore = setTimeout(attempt, 300);
-          }
+        if (!scroll || !doc || !documentId || totalPages === 0) {
+          tryRestore = setTimeout(attempt, 300);
           return;
         }
 
-        const { scroll, zoomPlugin, documentId, savedPage, saved } = ready;
         restoredRef.current = true;
-        if (tryRestore) clearTimeout(tryRestore);
-
-        if (savedPage > 1 && documentId) {
-          setTimeout(() => {
-            const docScroll = scroll.forDocument(documentId);
-            docScroll?.scrollToPage({ pageNumber: savedPage });
-          }, 500);
+        if (tryRestore) {
+          clearTimeout(tryRestore);
+          tryRestore = null;
         }
 
-        if (saved.currentZoom && documentId) {
+        const docScroll = scroll.forDocument(documentId);
+
+        if (saved.currentZoom) {
           const docZoom = zoomPlugin?.forDocument(documentId);
           docZoom?.requestZoom(saved.currentZoom);
         }
 
-        if (saved.annotations && documentId) {
+        setTimeout(() => {
+          docScroll?.scrollToPage({
+            pageNumber: saved.currentPage,
+            pageCoordinates:
+              saved.currentScroll > 0
+                ? { x: 0, y: saved.currentScroll }
+                : undefined,
+            behavior: "instant",
+          });
+        }, 350);
+
+        if (saved.annotations) {
           try {
             const annotation = registry.getPlugin("annotation")?.provides();
             const parsed = JSON.parse(saved.annotations);
-            
+
             if (Array.isArray(parsed) && parsed.length > 0 && annotation) {
               const docAnnotation = annotation.forDocument(documentId);
-              
+
               if (docAnnotation?.createAnnotation) {
                 for (const ann of parsed) {
                   if (ann.pageIndex !== undefined && ann.id && ann.rect) {
                     try {
                       docAnnotation.createAnnotation(ann.pageIndex, ann);
-                    } catch (e) {
-                      console.error("Failed to create annotation:", ann.id, e);
+                    } catch (error) {
+                      console.error("Failed to create annotation:", ann.id, error);
                     }
                   }
                 }
                 docAnnotation?.commit();
               }
             }
-          } catch (e) {
-            console.error("Failed to restore annotations:", e);
+          } catch (error) {
+            console.error("Failed to restore annotations:", error);
           }
         }
       };
@@ -111,25 +118,63 @@ export default function useReadingPersistence(
       attempt();
     };
 
-    restore();
+    void restore();
 
     return () => {
+      cancelled = true;
       if (tryRestore) clearTimeout(tryRestore);
     };
-  }, [registry, fileHash]);
+  }, [fileHash, loadState, registry]);
 
   useEffect(() => {
     if (!registry) return;
 
-    const scroll = registry.getPlugin("scroll")?.provides();
-    if (!scroll) return;
+    const scroll = registry.getPlugin<ScrollPlugin>("scroll")?.provides();
+    const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom")?.provides();
+    const cleanups: Array<() => void> = [];
 
-    const unsub = scroll.onPageChange((event: { pageNumber: number }) => {
-      currentPageRef.current = event.pageNumber;
-    });
+    if (scroll) {
+      cleanups.push(
+        scroll.onPageChange((event) => {
+          currentPageRef.current = event.pageNumber;
+          scheduleSave({
+            currentPage: event.pageNumber,
+            currentZoom: currentZoomRef.current,
+            currentScroll: currentScrollRef.current,
+          });
+        }),
+      );
 
-    return () => unsub?.();
-  }, [registry]);
+      cleanups.push(
+        scroll.onScroll((event) => {
+          currentPageRef.current = event.metrics.currentPage;
+          currentScrollRef.current = event.metrics.scrollOffset.y;
+          scheduleSave({
+            currentPage: event.metrics.currentPage,
+            currentZoom: currentZoomRef.current,
+            currentScroll: event.metrics.scrollOffset.y,
+          });
+        }),
+      );
+    }
+
+    if (zoomPlugin) {
+      cleanups.push(
+        zoomPlugin.onStateChange((event) => {
+          currentZoomRef.current = event.state.currentZoomLevel;
+          scheduleSave({
+            currentPage: currentPageRef.current,
+            currentZoom: event.state.currentZoomLevel,
+            currentScroll: currentScrollRef.current,
+          });
+        }),
+      );
+    }
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [registry, scheduleSave]);
 
   useEffect(() => {
     const save = async () => {
@@ -145,12 +190,10 @@ export default function useReadingPersistence(
 
       if (!doc || (scroll?.getTotalPages() ?? 0) === 0) return;
 
-      const rawPage = currentPageRef.current as number | { pageNumber: number } | null | undefined;
-      const pageValue = rawPage || 1;
-      const currentPage = typeof pageValue === 'object' 
-        ? pageValue.pageNumber 
-        : pageValue;
-      const currentZoom = zoomPlugin?.getState()?.currentZoomLevel ?? 1;
+      const currentPage = currentPageRef.current || 1;
+      const currentZoom = zoomPlugin?.getState()?.currentZoomLevel ?? currentZoomRef.current;
+      const currentScroll =
+        scroll?.getMetrics()?.scrollOffset.y ?? currentScrollRef.current;
       const pageAnnotations: any[] = [];
 
       try {
@@ -160,28 +203,35 @@ export default function useReadingPersistence(
           const anns = await engine.getPageAnnotations(doc, page).toPromise();
           pageAnnotations.push(...(anns || []));
         }
-      } catch (e) {
-        console.error("Failed to get annotations:", e);
+      } catch (error) {
+        console.error("Failed to get annotations:", error);
       }
 
-      window.api.saveReadingState({
-        fileHash: hash,
-        state: {
-          currentPage: currentPage,
-          currentZoom: currentZoom,
-          currentScroll: 0,
-          annotations: JSON.stringify(pageAnnotations),
-        },
+      currentZoomRef.current = currentZoom;
+      currentScrollRef.current = currentScroll;
+
+      await saveNow({
+        currentPage,
+        currentZoom,
+        currentScroll,
+        annotations: JSON.stringify(pageAnnotations),
       });
     };
 
-    const interval = setInterval(save, 5000);
-    window.addEventListener("beforeunload", save);
+    const interval = setInterval(() => {
+      void save();
+    }, 5000);
+
+    const handleBeforeUnload = () => {
+      void save();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("beforeunload", save);
-      save();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      void save();
     };
-  }, [fileHash]);
+  }, [saveNow]);
 }

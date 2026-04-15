@@ -12,24 +12,24 @@
 ## Demonstrações
 
 ### Leitor Integrado
-![Reading Page](public/reader-v2.png)
+![Reading Page](public/reader-v3.png)
 _Leitor integrado com persistência automática de progresso (página, zoom, scroll)_
 
 ### Biblioteca
-[![Demo em vídeo](https://img.youtube.com/vi/kOLPatER_J4/0.jpg)](https://youtube.com/watch?v=kOLPatER_J4)
+![Reading Page](public/library-v1.png)
 
 _Organização por categorias, thumbnails automáticos, filtros e busca_
 
 ### Dashboard
-![Dashboard](public/dashboard-v2.png)
+![Dashboard](public/dashboard-v3.png)
 _Estatísticas, heatmap de atividades e ranking geral_
 
 ### Registrar Leitura
-![Add Reading](public/addReading-v2.png)
+![Add Reading](public/addReading-v3.png)
 _Registro de sessões com categoria e tempo_
 
 ### Auto Update
-![Auto Update](public/autoUpdate-v1.png)
+![Auto Update](public/autoUpdate-v2.png)
 
 _Atualizações automáticas via GitHub Releases_
 
