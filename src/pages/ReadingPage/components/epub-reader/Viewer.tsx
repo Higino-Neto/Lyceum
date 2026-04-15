@@ -163,6 +163,10 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setLineHeight,
     setContentWidth,
     setLearningMode,
+    setSourceLanguage,
+    setTargetLanguage,
+    setShowHighlights,
+    setShowPages,
   } = useReaderSettings();
   const {
     entries,
@@ -253,10 +257,10 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     const [dictionaryResult, translationResult] = await Promise.allSettled([
       cachedDictionary
         ? Promise.resolve(cachedDictionary)
-        : fetchDictionaryEntry(normalizedWord, controller.signal),
+        : fetchDictionaryEntry(normalizedWord, controller.signal, settings.sourceLanguage),
       cachedTranslation
         ? Promise.resolve({ translatedText: cachedTranslation })
-        : translateText(normalizedWord, "en", "pt-BR", controller.signal),
+        : translateText(normalizedWord, settings.sourceLanguage, settings.targetLanguage, controller.signal),
     ]);
 
     if (controller.signal.aborted) {
@@ -357,8 +361,8 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
       if (action === "translate") {
         const result = await translateText(
           activeSelectionLookup.selectedText,
-          "en",
-          "pt-BR",
+          settings.sourceLanguage,
+          settings.targetLanguage,
           controller.signal,
         );
 
@@ -381,6 +385,8 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
       const simplifiedText = await simplifySelectedText(
         activeSelectionLookup.selectedText,
         controller.signal,
+        settings.sourceLanguage,
+        settings.targetLanguage,
       );
 
       if (controller.signal.aborted) return;
@@ -470,6 +476,10 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
         onToggleVocabularyPanel={() =>
           setIsVocabularyPanelOpen((current) => !current)
         }
+        onSourceLanguageChange={setSourceLanguage}
+        onTargetLanguageChange={setTargetLanguage}
+        onShowHighlightsChange={setShowHighlights}
+        onShowPagesChange={setShowPages}
       />
 
       <div ref={overlayHostRef} className="relative flex-1 min-h-0 overflow-hidden">

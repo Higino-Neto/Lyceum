@@ -1,5 +1,32 @@
 import { sanitizeLookupWord, simplifyEnglishText } from "./languageLearning";
 
+export const SUPPORTED_LANGUAGES = [
+  { code: "en", name: "Inglês", flag: "🇬🇧" },
+  { code: "fr", name: "Francês", flag: "🇫🇷" },
+  { code: "es", name: "Espanhol", flag: "🇪🇸" },
+  { code: "de", name: "Alemão", flag: "🇩🇪" },
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "ja", name: "Japonês", flag: "🇯🇵" },
+  { code: "ko", name: "Coreano", flag: "🇰🇷" },
+  { code: "zh", name: "Chinês", flag: "🇨🇳" },
+  { code: "ru", name: "Russo", flag: "🇷🇺" },
+  { code: "nl", name: "Holandês", flag: "🇳🇱" },
+  { code: "pl", name: "Polonês", flag: "🇵🇱" },
+  { code: "pt", name: "Português", flag: "🇧🇷" },
+  { code: "la", name: "Latim", flag: "🇻🇦" },
+] as const;
+
+export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]["code"];
+
+export const DEFAULT_SOURCE_LANGUAGE: LanguageCode = "en";
+export const DEFAULT_TARGET_LANGUAGE: LanguageCode = "pt";
+
+export const DICTIONARY_SUPPORTED_LANGUAGES: LanguageCode[] = ["en", "fr", "es", "de", "it", "pt"];
+
+export function isDictionarySupported(lang: LanguageCode): boolean {
+  return DICTIONARY_SUPPORTED_LANGUAGES.includes(lang);
+}
+
 export interface DictionaryDefinition {
   definition: string;
   example?: string;
@@ -18,7 +45,7 @@ export interface TranslationResult {
   provider: "mymemory";
 }
 
-const DICTIONARY_API_BASE_URL = "https://api.dictionaryapi.dev/api/v2/entries/en";
+const DICTIONARY_API_BASE_URL = "https://api.dictionaryapi.dev/api/v2/entries";
 const MY_MEMORY_URL = "https://api.mymemory.translated.net/get";
 const MAX_TRANSLATION_CHARACTERS = 280;
 
@@ -35,6 +62,7 @@ function cleanText(text: string) {
 export async function fetchDictionaryEntry(
   word: string,
   signal?: AbortSignal,
+  lang: LanguageCode = "en",
 ): Promise<DictionaryLookupResult> {
   const lookupWord = sanitizeLookupWord(word);
 
@@ -43,7 +71,7 @@ export async function fetchDictionaryEntry(
   }
 
   const response = await fetch(
-    `${DICTIONARY_API_BASE_URL}/${encodeURIComponent(lookupWord)}`,
+    `${DICTIONARY_API_BASE_URL}/${lang}/${encodeURIComponent(lookupWord)}`,
     { signal },
   );
 
@@ -136,8 +164,8 @@ async function requestMyMemoryTranslation(
 
 export async function translateText(
   text: string,
-  sourceLanguage = "en",
-  targetLanguage = "pt-BR",
+  sourceLanguage: LanguageCode = "en",
+  targetLanguage: LanguageCode = "pt",
   signal?: AbortSignal,
 ): Promise<TranslationResult> {
   const cleaned = cleanText(text);
@@ -163,24 +191,27 @@ export async function translateText(
 export async function simplifySelectedText(
   text: string,
   signal?: AbortSignal,
+  sourceLanguage: LanguageCode = "en",
+  targetLanguage: LanguageCode = "pt",
 ) {
   const cleaned = cleanText(text);
   if (!cleaned) {
     throw new Error("Nao ha texto para simplificar.");
   }
 
-  const heuristicVersion = simplifyEnglishText(cleaned);
-
-  if (heuristicVersion && heuristicVersion !== cleaned) {
-    return heuristicVersion;
+  if (sourceLanguage === "en") {
+    const heuristicVersion = simplifyEnglishText(cleaned);
+    if (heuristicVersion && heuristicVersion !== cleaned) {
+      return heuristicVersion;
+    }
   }
 
   const translated = await requestMyMemoryTranslation(
     cleaned,
-    "en",
-    "pt-BR",
+    sourceLanguage,
+    targetLanguage,
     signal,
   );
 
-  return requestMyMemoryTranslation(translated, "pt-BR", "en", signal);
+  return requestMyMemoryTranslation(translated, targetLanguage, sourceLanguage, signal);
 }

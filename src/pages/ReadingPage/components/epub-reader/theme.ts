@@ -1,6 +1,7 @@
 export type ThemeName = "light" | "dark" | "sepia";
 export type FontFamily = "serif" | "sans-serif" | "Georgia" | "OpenDyslexic";
 export type TextAlignment = "left" | "justify";
+export type LanguageCode = "en" | "fr" | "es" | "de" | "it" | "ja" | "ko" | "zh" | "ru" | "nl" | "pl" | "pt" | "la";
 
 export interface ReaderSettings {
   fontSize: number;
@@ -10,6 +11,10 @@ export interface ReaderSettings {
   contentWidth: number;
   textAlign: TextAlignment;
   learningMode: boolean;
+  showHighlights: boolean;
+  showPages: boolean;
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
@@ -20,6 +25,10 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   contentWidth: 60,
   textAlign: "justify",
   learningMode: true,
+  showHighlights: true,
+  showPages: false,
+  sourceLanguage: "en",
+  targetLanguage: "pt",
 };
 
 export interface ThemeColors {
@@ -33,19 +42,19 @@ export const THEME_COLORS: Record<ThemeName, ThemeColors> = {
   light: {
     background: "#ffffff",
     text: "#1a1a1a",
-    accent: "#2563eb",
+    accent: "#64748b",
     border: "#e5e5e5",
   },
   dark: {
     background: "#18181b",
     text: "#fafafa",
-    accent: "#22c55e",
+    accent: "#94a3b8",
     border: "#3f3f46",
   },
   sepia: {
     background: "#f4ecd8",
     text: "#5c4b37",
-    accent: "#b45309",
+    accent: "#a89984",
     border: "#d4c4a8",
   },
 };

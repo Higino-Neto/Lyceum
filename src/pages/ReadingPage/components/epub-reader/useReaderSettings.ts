@@ -5,6 +5,7 @@ import {
   ThemeName,
   FontFamily,
   TextAlignment,
+  LanguageCode,
 } from "./theme";
 
 const STORAGE_KEY = "lyceum-reader-settings";
@@ -86,6 +87,26 @@ export function useReaderSettings() {
     [updateSetting],
   );
 
+  const setSourceLanguage = useCallback(
+    (sourceLanguage: LanguageCode) => updateSetting("sourceLanguage", sourceLanguage),
+    [updateSetting],
+  );
+
+  const setTargetLanguage = useCallback(
+    (targetLanguage: LanguageCode) => updateSetting("targetLanguage", targetLanguage),
+    [updateSetting],
+  );
+
+  const setShowHighlights = useCallback(
+    (showHighlights: boolean) => updateSetting("showHighlights", showHighlights),
+    [updateSetting],
+  );
+
+  const setShowPages = useCallback(
+    (showPages: boolean) => updateSetting("showPages", showPages),
+    [updateSetting],
+  );
+
   return {
     settings,
     setFontSize,
@@ -95,7 +116,11 @@ export function useReaderSettings() {
     setContentWidth,
     setTextAlign,
     setLearningMode,
+    setSourceLanguage,
+    setTargetLanguage,
+    setShowHighlights,
+    setShowPages,
   };
 }
 
-export type { ReaderSettings, ThemeName, FontFamily, TextAlignment };
+export type { ReaderSettings, ThemeName, FontFamily, TextAlignment, LanguageCode };

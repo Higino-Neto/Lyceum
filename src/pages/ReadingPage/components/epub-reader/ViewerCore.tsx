@@ -140,6 +140,14 @@ export default function ViewerCore({
       img, svg, video, audio, picture {
         background: transparent !important;
       }
+
+      ${settingsRef.current.showPages ? `
+      .page-break {
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.3) !important;
+        margin: 24px 0 !important;
+        page-break-after: always !important;
+      }
+      ` : ""}
     `;
 
     let wordStyle = doc.getElementById(
@@ -152,6 +160,8 @@ export default function ViewerCore({
       doc.head.appendChild(wordStyle);
     }
 
+    const showHighlights = settingsRef.current.showHighlights;
+
     wordStyle.textContent = `
       .word {
         cursor: pointer !important;
@@ -160,27 +170,121 @@ export default function ViewerCore({
       }
 
       .word:hover {
-        background: rgba(59, 130, 246, 0.14) !important;
+        background: rgba(59, 130, 246, 0.08) !important;
       }
 
+      ${showHighlights ? `
       .word.word-learning {
-        background: rgba(245, 158, 11, 0.16) !important;
-        box-shadow: inset 0 -0.45em 0 rgba(245, 158, 11, 0.18);
+        background: rgba(245, 158, 11, 0.1) !important;
+        box-shadow: inset 0 -0.45em 0 rgba(245, 158, 11, 0.1);
       }
 
       .word.word-known {
-        background: rgba(34, 197, 94, 0.14) !important;
-        box-shadow: inset 0 -0.45em 0 rgba(34, 197, 94, 0.18);
+        background: rgba(34, 197, 94, 0.08) !important;
+        box-shadow: inset 0 -0.45em 0 rgba(34, 197, 94, 0.1);
       }
 
       .word.word-saved {
-        text-decoration: underline dotted rgba(250, 204, 21, 0.75);
+        text-decoration: underline dotted rgba(250, 204, 21, 0.5);
         text-underline-offset: 0.22em;
       }
+      ` : ""}
     `;
   };
 
+  const injectPageBreaks = (doc: Document) => {
+    if (!settingsRef.current.showPages) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const content = doc.body;
+    if (!content) return;
+
+    const existingBreaks = content.querySelectorAll(".lyceum-page-break");
+    existingBreaks.forEach((el) => el.remove());
+
+    const themeColors = THEME_COLORS[settingsRef.current.theme];
+    const borderColor = themeColors.border || "rgba(128, 128, 128, 0.3)";
+
+    requestAnimationFrame(() => {
+      const pageHeight = container.clientHeight * 0.92;
+      let currentPageTop = 0;
+      let pageNumber = 1;
+      let inserted = false;
+
+      const walker = doc.createTreeWalker(content, NodeFilter.SHOW_ELEMENT, {
+        acceptNode: (node) => {
+          const el = node as HTMLElement;
+          if (el.classList.contains("lyceum-page-break")) return NodeFilter.FILTER_REJECT;
+          if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "HEAD") return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+
+      const elements: { el: HTMLElement; top: number }[] = [];
+      let node = walker.currentNode;
+      while (node) {
+        if (node instanceof HTMLElement) {
+          const rect = node.getBoundingClientRect();
+          const relTop = rect.top + content.scrollTop - content.getBoundingClientRect().top;
+          if (rect.height > 10) {
+            elements.push({ el: node, top: relTop });
+          }
+        }
+        node = walker.nextNode();
+      }
+
+      const breaks: { after: HTMLElement; top: number }[] = [];
+
+      elements.forEach(({ el, top }) => {
+        while (currentPageTop + pageHeight <= top && pageNumber < 500) {
+          currentPageTop += pageHeight;
+          pageNumber++;
+        }
+      });
+
+      currentPageTop = 0;
+      pageNumber = 1;
+
+      elements.forEach(({ el, top }) => {
+        while (currentPageTop + pageHeight <= top && pageNumber < 500) {
+          breaks.push({ after: el, top: currentPageTop + pageHeight });
+          currentPageTop += pageHeight;
+          pageNumber++;
+        }
+      });
+
+      breaks.forEach(({ after, top }) => {
+        const breakEl = doc.createElement("div");
+        breakEl.className = "lyceum-page-break";
+        breakEl.style.cssText = `
+          height: 1px;
+          margin: 80px 0;
+          border: none;
+          border-top: 2px dashed ${borderColor};
+        `;
+        after.parentNode?.insertBefore(breakEl, after.nextSibling);
+        inserted = true;
+      });
+
+      if (!inserted && elements.length > 0) {
+        const lastEl = elements[elements.length - 1].el;
+        const breakEl = doc.createElement("div");
+        breakEl.className = "lyceum-page-break";
+        breakEl.style.cssText = `
+          height: 1px;
+          margin: 80px 0;
+          border: none;
+          border-top: 2px dashed ${borderColor};
+        `;
+        lastEl.parentNode?.insertBefore(breakEl, lastEl.nextSibling);
+      }
+    });
+  };
+
   const syncWordStates = (doc: Document) => {
+    const showHighlights = settingsRef.current.showHighlights;
     const spans = doc.querySelectorAll<HTMLElement>(".word[data-word]");
     spans.forEach((span) => {
       const wordKey = span.dataset.word || "";
@@ -188,9 +292,12 @@ export default function ViewerCore({
       const status = entry?.status || "new";
 
       span.classList.remove(...WORD_STATE_CLASSES);
-      span.classList.add(`word-${status}`);
 
-      if (entry?.saved) {
+      if (showHighlights) {
+        span.classList.add(`word-${status}`);
+      }
+
+      if (showHighlights && entry?.saved) {
         span.classList.add("word-saved");
       }
     });
@@ -350,6 +457,7 @@ export default function ViewerCore({
     attachDocumentListeners(typedDoc);
     wrapTextNodes(typedDoc, sectionKey);
     syncWordStates(typedDoc);
+    injectPageBreaks(typedDoc);
   };
 
   const processAllIframes = () => {

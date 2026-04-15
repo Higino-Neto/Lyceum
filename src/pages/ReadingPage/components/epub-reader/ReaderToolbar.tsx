@@ -8,15 +8,21 @@ import {
   Maximize2,
   BookMarked,
   Languages,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  BookOpen,
 } from "lucide-react";
 import {
   ThemeName,
   FontFamily,
+  LanguageCode,
   ReaderSettings,
   THEME_COLORS,
   FONT_OPTIONS,
   getFontStack,
 } from "./theme";
+import { SUPPORTED_LANGUAGES } from "./languageServices";
 
 interface ReaderToolbarProps {
   settings: ReaderSettings;
@@ -28,6 +34,10 @@ interface ReaderToolbarProps {
   onContentWidthChange: (width: number) => void;
   onLearningModeChange: (enabled: boolean) => void;
   onToggleVocabularyPanel: () => void;
+  onSourceLanguageChange: (lang: LanguageCode) => void;
+  onTargetLanguageChange: (lang: LanguageCode) => void;
+  onShowHighlightsChange: (show: boolean) => void;
+  onShowPagesChange: (show: boolean) => void;
 }
 
 export default function ReaderToolbar({
@@ -40,11 +50,20 @@ export default function ReaderToolbar({
   onContentWidthChange,
   onLearningModeChange,
   onToggleVocabularyPanel,
-}: ReaderToolbarProps) {
+  onSourceLanguageChange,
+  onTargetLanguageChange,
+  onShowHighlightsChange,
+  onShowPagesChange,
+}) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const toggleMenu = (menu: string) => {
     setOpenMenu((current) => (current === menu ? null : menu));
+  };
+
+  const getLanguageName = (code: LanguageCode) => {
+    const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
+    return lang ? lang.name : code;
   };
 
   const triggerClasses =
@@ -93,7 +112,7 @@ export default function ReaderToolbar({
                 step="10"
                 value={settings.fontSize}
                 onChange={(event) => onFontSizeChange(Number(event.target.value))}
-                className="w-full accent-green-500"
+                className="w-full accent-zinc-400"
               />
             </div>
           )}
@@ -209,7 +228,7 @@ export default function ReaderToolbar({
                 step="0.1"
                 value={settings.lineHeight}
                 onChange={(event) => onLineHeightChange(Number(event.target.value))}
-                className="w-full accent-green-500"
+                className="w-full accent-zinc-400"
               />
             </div>
           )}
@@ -238,8 +257,72 @@ export default function ReaderToolbar({
                 step="5"
                 value={settings.contentWidth}
                 onChange={(event) => onContentWidthChange(Number(event.target.value))}
-                className="w-full accent-green-500"
+                className="w-full accent-zinc-400"
               />
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => toggleMenu("language")}
+            className={triggerClasses}
+          >
+            <Languages size={16} />
+            <span>{getLanguageName(settings.sourceLanguage)}</span>
+            <ArrowRight size={14} className="text-zinc-500" />
+            <span>{getLanguageName(settings.targetLanguage)}</span>
+            <ChevronDown size={14} className="text-zinc-500" />
+          </button>
+
+          {openMenu === "language" && (
+            <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
+              <div className="mb-3">
+                <label className="mb-2 block text-xs text-zinc-500">Idioma de origem</label>
+                <div className="grid grid-cols-2 gap-1">
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        onSourceLanguageChange(lang.code);
+                      }}
+                      className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-xs transition ${
+                        settings.sourceLanguage === lang.code
+                          ? "bg-zinc-700 text-zinc-100"
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                      }`}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs text-zinc-500">Idioma de destino</label>
+                <div className="grid grid-cols-2 gap-1">
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        onTargetLanguageChange(lang.code);
+                      }}
+                      className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-xs transition ${
+                        settings.targetLanguage === lang.code
+                          ? "bg-zinc-700 text-zinc-100"
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                      }`}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -247,10 +330,38 @@ export default function ReaderToolbar({
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={() => onShowPagesChange(!settings.showPages)}
+            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
+              settings.showPages
+                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
+                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+            }`}
+            title={settings.showPages ? "Ocultar páginas" : "Mostrar páginas"}
+          >
+            <BookOpen size={16} />
+            {settings.showPages ? "Páginas" : "Sem páginas"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onShowHighlightsChange(!settings.showHighlights)}
+            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
+              settings.showHighlights
+                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
+                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+            }`}
+            title={settings.showHighlights ? "Ocultar destaques" : "Mostrar destaques"}
+          >
+            {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
+            {settings.showHighlights ? "Destaques" : "Sem destaque"}
+          </button>
+
+          <button
+            type="button"
             onClick={() => onLearningModeChange(!settings.learningMode)}
             className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
               settings.learningMode
-                ? "border-green-500/40 bg-green-500/10 text-green-100"
+                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
                 : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             }`}
           >
