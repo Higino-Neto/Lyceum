@@ -51,7 +51,7 @@ export default function ReadingPage() {
                   window.api.openDefaultAppsSettings();
                   toast.dismiss(t.id);
                 }}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition"
+                className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500 transition"
               >
                 Configurar
               </button>
@@ -67,7 +67,7 @@ export default function ReadingPage() {
         {
           id: toastId,
           duration: 15000,
-          icon: "📖",
+          // icon: "📖",
           style: {
             background: "#27272a",
             color: "#e4e4e7",

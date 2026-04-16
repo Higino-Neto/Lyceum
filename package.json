@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.6.3",
+  "version": "1.6.4",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {
@@ -24,12 +24,14 @@
       {
         "ext": "pdf",
         "name": "PDF Document",
-        "description": "PDF Document"
+        "description": "PDF Document",
+        "icon": "pdf-icon"
       },
       {
         "ext": "epub",
         "name": "EPUB Book",
-        "description": "EPUB Book"
+        "description": "EPUB Book",
+        "icon": "epub-icon"
       }
     ],
     "nsis": {
