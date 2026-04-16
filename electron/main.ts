@@ -2048,10 +2048,13 @@ ipcMain.handle("habits:delete-completion", (_, habitId: string, dateKey: string)
 });
 
 ipcMain.handle("file:open-external", async (_, filePath: string) => {
+  console.log("[Main] file:open-external called with:", filePath);
+  
   try {
     const isEpub = filePath.toLowerCase().endsWith(".epub");
     const isPdf = filePath.toLowerCase().endsWith(".pdf");
     if (!isEpub && !isPdf) {
+      console.log("[Main] Invalid file type");
       return { success: false, error: "Invalid file type" };
     }
 
@@ -2059,24 +2062,41 @@ ipcMain.handle("file:open-external", async (_, filePath: string) => {
     const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
     const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
+    console.log("[Main] Searching for document by filePath...");
     const existingByPath = getDocumentByFilePath(filePath);
     
     if (existingByPath) {
+      console.log("[Main] Document found by filePath:", { id: existingByPath.id, title: existingByPath.title });
+      console.log("[Main] Document has progress:", { currentPage: existingByPath.currentPage });
       updateLastOpened(existingByPath.fileHash);
       return { success: true, ...existingByPath, filePath, fileBuffer, fileType, title };
     }
 
+    console.log("[Main] Document NOT found by filePath, trying by fileHash...");
     const fileHash = generateFileHash(filePath);
+    const existingByHash = getDocumentByHash(fileHash);
+    
+    if (existingByHash) {
+      console.log("[Main] Document found by fileHash (fallback):", { id: existingByHash.id, title: existingByHash.title });
+      console.log("[Main] Document has progress:", { currentPage: existingByHash.currentPage });
+      updateLastOpened(existingByHash.fileHash);
+      return { success: true, ...existingByHash, filePath, fileBuffer, fileType, title };
+    }
+
+    console.log("[Main] Document NOT found anywhere, creating new entry...");
     const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
     const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
     
     addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+    console.log("[Main] New document added to database");
     
     const doc = getDocumentByHash(fileHash);
     if (!doc) {
+      console.log("[Main] Failed to add document");
       return { success: false, error: "Failed to add document" };
     }
     
+    console.log("[Main] Returning new document:", { id: doc.id, title: doc.title });
     return { success: true, ...doc, fileBuffer, fileType };
   } catch (error) {
     console.error("[Main] Error opening external file:", error);
@@ -2096,6 +2116,8 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on("second-instance", async (_, commandLine) => {
+    console.log("[Main] second-instance event triggered", { commandLine });
+    
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -2105,16 +2127,23 @@ if (!gotTheLock) {
       (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
     );
     
+    console.log("[Main] File path found from commandLine:", filePath);
+    
     if (filePath && fs.existsSync(filePath)) {
       const isEpub = filePath.toLowerCase().endsWith(".epub");
-      const isPdf = filePath.toLowerCase().endsWith(".epub");
+      const isPdf = filePath.toLowerCase().endsWith(".pdf"); // Fixed: was .epub
       const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
       const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
       const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
+      console.log("[Main] Opening file:", { filePath, fileType, title });
+      console.log("[Main] Searching for document by filePath...");
+
       const existingByPath = getDocumentByFilePath(filePath);
       
       if (existingByPath) {
+        console.log("[Main] Document found by filePath:", { id: existingByPath.id, title: existingByPath.title, fileHash: existingByPath.fileHash });
+        console.log("[Main] Document has progress:", { currentPage: existingByPath.currentPage, currentScroll: existingByPath.currentScroll });
         updateLastOpened(existingByPath.fileHash);
         win?.webContents.send("file-opened", { 
           ...existingByPath, 
@@ -2123,24 +2152,53 @@ if (!gotTheLock) {
           fileType,
           title 
         });
+        console.log("[Main] Sent file-opened event to renderer");
       } else {
+        console.log("[Main] Document NOT found by filePath, trying by fileHash...");
+        
         const fileHash = generateFileHash(filePath);
-        const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
-        const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+        const existingByHash = getDocumentByHash(fileHash);
         
-        addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
-        
-        const doc = getDocumentByHash(fileHash);
-        if (doc) {
-          win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
+        if (existingByHash) {
+          console.log("[Main] Document found by fileHash (fallback):", { id: existingByHash.id, title: existingByHash.title, fileHash: existingByHash.fileHash });
+          console.log("[Main] Document has progress:", { currentPage: existingByHash.currentPage, currentScroll: existingByHash.currentScroll });
+          updateLastOpened(existingByHash.fileHash);
+          win?.webContents.send("file-opened", { 
+            ...existingByHash, 
+            filePath, 
+            fileBuffer, 
+            fileType,
+            title 
+          });
+          console.log("[Main] Sent file-opened event to renderer (via hash fallback)");
+        } else {
+          console.log("[Main] Document NOT found anywhere, creating new entry...");
+          const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
+          const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+          
+          addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+          console.log("[Main] New document added to database");
+          
+          const doc = getDocumentByHash(fileHash);
+          if (doc) {
+            win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
+            console.log("[Main] Sent file-opened event for new document");
+          }
         }
       }
+    } else {
+      console.log("[Main] File does not exist or path is invalid:", filePath);
     }
   });
 }
 
 function handleFileArg(filePath: string) {
-  if (!win) return;
+  console.log("[Main] handleFileArg called with:", filePath);
+  
+  if (!win) {
+    console.log("[Main] Window not ready, skipping");
+    return;
+  }
   
   if (!fs.existsSync(filePath)) {
     console.error("[Main] File not found:", filePath);
@@ -2154,13 +2212,18 @@ function handleFileArg(filePath: string) {
     return;
   }
 
+  console.log("[Main] Opening file:", { filePath, isEpub, isPdf });
+  
   const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
   const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
   const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
+  console.log("[Main] Searching for document by filePath...");
   const existingByPath = getDocumentByFilePath(filePath);
   
   if (existingByPath) {
+    console.log("[Main] Document found by filePath:", { id: existingByPath.id, title: existingByPath.title });
+    console.log("[Main] Document has progress:", { currentPage: existingByPath.currentPage });
     updateLastOpened(existingByPath.fileHash);
     win.webContents.send("file-opened", { 
       ...existingByPath, 
@@ -2170,17 +2233,36 @@ function handleFileArg(filePath: string) {
       title 
     });
   } else {
+    console.log("[Main] Document NOT found by filePath, trying by fileHash...");
+    
     const fileHash = generateFileHash(filePath);
-    generateThumbnail(filePath, fileHash, false, fileType).then(async (thumbnailPath) => {
-      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
-      
-      addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
-      
-      const doc = getDocumentByHash(fileHash);
-      if (doc) {
-        win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
-      }
-    });
+    const existingByHash = getDocumentByHash(fileHash);
+    
+    if (existingByHash) {
+      console.log("[Main] Document found by fileHash (fallback):", { id: existingByHash.id, title: existingByHash.title });
+      console.log("[Main] Document has progress:", { currentPage: existingByHash.currentPage });
+      updateLastOpened(existingByHash.fileHash);
+      win.webContents.send("file-opened", { 
+        ...existingByHash, 
+        filePath, 
+        fileBuffer, 
+        fileType,
+        title 
+      });
+    } else {
+      console.log("[Main] Document NOT found anywhere, creating new entry...");
+      generateThumbnail(filePath, fileHash, false, fileType).then(async (thumbnailPath) => {
+        const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+        
+        addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+        console.log("[Main] New document added to database");
+        
+        const doc = getDocumentByHash(fileHash);
+        if (doc) {
+          win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
+        }
+      });
+    }
   }
 }
 
