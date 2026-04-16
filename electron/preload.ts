@@ -50,6 +50,15 @@ interface BookCategory {
 }
 
 contextBridge.exposeInMainWorld("api", {
+  openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
+
+  onFileOpened: (callback: (data: any) => void) => {
+    ipcRenderer.on("file-opened", (_, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners("file-opened");
+  },
+
+  openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
+
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 
   getDocuments: () => ipcRenderer.invoke("get-documents"),

@@ -116,6 +116,12 @@ export function cycleVocabularyStatus(status: VocabularyStatus): VocabularyStatu
   return "new";
 }
 
+export function cycleVocabularyStatusInverse(status: VocabularyStatus): VocabularyStatus {
+  if (status === "new") return "known";
+  if (status === "known") return "learning";
+  return "new";
+}
+
 export function sanitizeLookupWord(word: string) {
   return normalizeVocabularyWord(word).replace(/'/g, "");
 }

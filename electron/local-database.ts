@@ -28,6 +28,7 @@ export interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
+  fileType: "pdf" | "epub";
 }
 
 export interface BookCategory {
@@ -103,7 +104,7 @@ export function initDatabase() {
 
   const migrationColumns = [
     "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId"
+    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId", "fileType"
   ];
 
   for (const col of migrationColumns) {
@@ -111,6 +112,7 @@ export function initDatabase() {
       col === "isSynced" || col === "isFavorite" ? "INTEGER DEFAULT 0" :
       col === "rating" ? "REAL DEFAULT 0" :
       col === "fileSize" ? "INTEGER DEFAULT 0" :
+      col === "fileType" ? "TEXT DEFAULT 'pdf'" :
       "TEXT"
     }`;
     try {
@@ -388,12 +390,13 @@ export function addDocument(
   title: string,
   filePath: string,
   fileHash: string,
-  thumbnailPath?: string,
+  thumbnailPath: string | undefined,
   numPages: number = 1,
+  fileType: "pdf" | "epub" = "pdf",
 ) {
   const statement = db.prepare(`
-        INSERT INTO documents (title, filePath, fileHash, thumbnailPath, numPages)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO documents (title, filePath, fileHash, thumbnailPath, numPages, fileType)
+        VALUES (?, ?, ?, ?, ?, ?)
         `);
   return statement.run(
     title,
@@ -401,6 +404,7 @@ export function addDocument(
     fileHash,
     thumbnailPath || null,
     numPages,
+    fileType,
   );
 }
 export function getAllDocuments(): DocumentRecord[] {
@@ -529,6 +533,7 @@ export function updateNotes(fileHash: string, notes: string): void {
 export function updateMetadata(
   fileHash: string,
   metadata: {
+    title?: string;
     author?: string;
     description?: string;
     isbn?: string;
@@ -539,6 +544,11 @@ export function updateMetadata(
   const sets: string[] = [];
   const values: any[] = [];
   
+  if (metadata.title !== undefined) {
+    sets.push("title = ?");
+    values.push(metadata.title);
+  }
+
   if (metadata.author !== undefined) {
     sets.push("author = ?");
     values.push(metadata.author);

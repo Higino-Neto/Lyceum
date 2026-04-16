@@ -162,19 +162,18 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setFontFamily,
     setLineHeight,
     setContentWidth,
-    setLearningMode,
     setSourceLanguage,
     setTargetLanguage,
     setShowHighlights,
     setShowPages,
   } = useReaderSettings();
-  const {
+const {
     entries,
     trackedEntries,
     stats,
     ensureWord,
     setWordStatus,
-    cycleWordStatus,
+    cycleWordStatusInverse,
     toggleWordSaved,
     setIndexedWordCount,
   } = useBookVocabulary(fileHash);
@@ -219,17 +218,21 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const handleWordClick = async ({
     displayWord,
     normalizedWord,
+  }: WordInteractionPayload) => {
+    ensureWord(normalizedWord, displayWord);
+    setActiveSelectionLookup(null);
+    cycleWordStatusInverse(normalizedWord, displayWord);
+    setActiveWordLookup(null);
+  };
+
+  const handleWordRightClick = async ({
+    displayWord,
+    normalizedWord,
     anchor,
     scrollTop,
   }: WordInteractionPayload) => {
     ensureWord(normalizedWord, displayWord);
     setActiveSelectionLookup(null);
-
-    if (!settings.learningMode) {
-      cycleWordStatus(normalizedWord, displayWord);
-      setActiveWordLookup(null);
-      return;
-    }
 
     const cachedDictionary = dictionaryCacheRef.current.get(normalizedWord) || null;
     const cachedTranslation =
@@ -308,11 +311,6 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     anchor,
     scrollTop,
   }: TextSelectionPayload) => {
-    if (!settings.learningMode) {
-      setActiveSelectionLookup(null);
-      return;
-    }
-
     setActiveWordLookup(null);
     setActiveSelectionLookup({
       anchor,
@@ -338,6 +336,8 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
         : current,
     );
   };
+
+  const handleScrollPositionChange = (_scrollTop: number) => {};
 
   const runSelectionAction = async (action: "translate" | "simplify") => {
     if (!activeSelectionLookup) return;
@@ -472,7 +472,6 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
         onFontFamilyChange={setFontFamily}
         onLineHeightChange={setLineHeight}
         onContentWidthChange={setContentWidth}
-        onLearningModeChange={setLearningMode}
         onToggleVocabularyPanel={() =>
           setIsVocabularyPanelOpen((current) => !current)
         }
@@ -489,10 +488,12 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
           settings={settings}
           vocabularyEntries={entries}
           onWordClick={handleWordClick}
+          onWordRightClick={handleWordRightClick}
           onTextSelection={handleSelection}
           onVocabularyIndex={setIndexedWordCount}
           onDismissOverlays={handleDismissOverlays}
           onViewerScroll={handleViewerScroll}
+          onScrollPositionChange={handleScrollPositionChange}
         />
 
         {activeWordLookup && (

@@ -165,49 +165,11 @@ interface Window {
     habitsGetAllCompletions: () => Promise<any[]>;
     habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
     habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
+
+openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: string } & OpenPdfResult>;
+    onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
+    openDefaultAppsSettings: () => Promise<{ success: boolean }>;
   };
-}
-
-declare namespace NodeJS {
-  interface ProcessEnv {
-    /**
-     * The built directory structure
-     *
-     * ```tree
-     * ├─┬─┬ dist
-     * │ │ └── index.html
-     * │ │
-     * │ ├─┬ dist-electron
-     * │ │ ├── main.js
-     * │ │ └── preload.js
-     * │ │
-     * ```
-     */
-    APP_ROOT: string;
-    /** /dist/ or /public/ */
-    VITE_PUBLIC: string;
-  }
-}
-
-declare namespace NodeJS {
-  interface ProcessEnv {
-    /**
-     * The built directory structure
-     *
-     * ```tree
-     * ├─┬─┬ dist
-     * │ │ └── index.html
-     * │ │
-     * │ ├─┬ dist-electron
-     * │ │ ├── main.js
-     * │ │ └── preload.js
-     * │
-     * ```
-     */
-    APP_ROOT: string;
-    /** /dist/ or /public/ */
-    VITE_PUBLIC: string;
-  }
 }
 
 // Used in Renderer process, expose in `preload.ts`
@@ -280,5 +242,9 @@ interface Window {
     habitsGetAllCompletions: () => Promise<any[]>;
     habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) => Promise<{ success: boolean }>;
     habitsDeleteCompletion: (habitId: string, dateKey: string) => Promise<{ success: boolean }>;
+
+    openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: string } & OpenPdfResult>;
+    onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
+    openDefaultAppsSettings: () => Promise<{ success: boolean }>;
   };
 }

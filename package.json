@@ -20,6 +20,18 @@
     "asarUnpack": [
       "node_modules/better-sqlite3/**"
     ],
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "PDF Document",
+        "description": "PDF Document"
+      },
+      {
+        "ext": "epub",
+        "name": "EPUB Book",
+        "description": "EPUB Book"
+      }
+    ],
     "nsis": {
       "oneClick": true,
       "perMachine": false,

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { X, FilePlus, Copy, ArrowRight } from "lucide-react";
 
 interface ImportBookDialogProps {
@@ -34,7 +33,7 @@ export default function ImportBookDialog({
 
         <div className="p-4">
           <p className="text-zinc-400 text-sm mb-4">
-            Selecione uma opção para importar os arquivos PDF para a biblioteca:
+            Selecione uma opção para importar os arquivos para a biblioteca:
           </p>
           <p className="text-zinc-500 text-xs mb-4">
             Pasta de destino: <span className="text-zinc-300">{targetFolderName || "Raiz da biblioteca"}</span>

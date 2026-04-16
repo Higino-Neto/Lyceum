@@ -24,6 +24,7 @@ export interface BookWithThumbnail {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
+  fileType?: "pdf" | "epub";
 }
 
 export interface FolderInfo {

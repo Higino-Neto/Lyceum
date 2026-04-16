@@ -2,6 +2,13 @@ import { FileText, FolderInput } from "lucide-react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import { calculateProgress } from "./progress";
 
+const getTitleWithoutExtension = (title: string, fileType?: string) => {
+  if (fileType === "epub") {
+    return title.replace(/\.epub$/i, "");
+  }
+  return title.replace(/\.pdf$/i, "");
+};
+
 interface BookListItemProps {
   book: BookWithThumbnail;
   onOpen: () => void;
@@ -61,7 +68,7 @@ export default function BookListItem({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-zinc-200 truncate">{book.title}</p>
+        <p className="text-sm text-zinc-200 truncate">{getTitleWithoutExtension(book.title, book.fileType)}</p>
         {book.author && (
           <p className="text-xs text-zinc-500 truncate">{book.author}</p>
         )}

@@ -76,6 +76,7 @@ export interface BackupDocument {
   processing_status: string;
   book_id: string | null;
   categories_json: string | null;
+  file_type?: string;
 }
 
 export async function backupDocument(doc: {
@@ -105,6 +106,7 @@ export async function backupDocument(doc: {
   processingStatus: string;
   bookId: string | null;
   categoryIds: number[];
+  fileType?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase client not initialized" };
@@ -114,7 +116,7 @@ export async function backupDocument(doc: {
     const { error } = await supabase.rpc("upsert_document_backup", {
       p_local_id: doc.id,
       p_file_hash: doc.fileHash,
-      p_title: doc.title,
+      p_title: doc.title?.replace(/\.pdf$/i, "").replace(/\.epub$/i, ""),
       p_file_path: doc.filePath,
       p_file_size: doc.fileSize,
       p_num_pages: doc.numPages,
@@ -138,6 +140,7 @@ export async function backupDocument(doc: {
       p_processing_status: doc.processingStatus,
       p_book_id: doc.bookId,
       p_categories_json: JSON.stringify(doc.categoryIds),
+      p_file_type: doc.fileType || null,
     });
 
     if (error) {

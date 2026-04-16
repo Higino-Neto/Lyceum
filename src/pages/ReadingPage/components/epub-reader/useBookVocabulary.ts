@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  DEFAULT_VOCABULARY_STATE,
-  PersistedVocabularyState,
   VocabularyEntry,
+  VocabularyStats,
   VocabularyStatus,
-  buildVocabularyStorageKey,
-  cycleVocabularyStatus,
+  PersistedVocabularyState,
+  DEFAULT_VOCABULARY_STATE,
+  VOCABULARY_STORAGE_PREFIX,
   normalizeVocabularyWord,
+  extractUniqueWords,
+  cycleVocabularyStatus,
+  cycleVocabularyStatusInverse,
+  buildVocabularyStorageKey,
 } from "./languageLearning";
 
 function loadVocabularyState(fileHash: string): PersistedVocabularyState {
@@ -164,6 +168,28 @@ export default function useBookVocabulary(fileHash: string) {
     [updateWord],
   );
 
+  const cycleWordStatusInverse = useCallback(
+    (rawWord: string, displayWord?: string) => {
+      updateWord(rawWord, (current) => {
+        const nextStatus = cycleVocabularyStatusInverse(current?.status || "new");
+        const saved = current?.saved ?? false;
+
+        if (nextStatus === "new" && !saved) {
+          return null;
+        }
+
+        return {
+          normalizedWord: normalizeVocabularyWord(rawWord),
+          displayWord: displayWord || current?.displayWord || rawWord,
+          status: nextStatus,
+          saved,
+          updatedAt: Date.now(),
+        };
+      });
+    },
+    [updateWord],
+  );
+
   const toggleWordSaved = useCallback(
     (rawWord: string, displayWord?: string) => {
       updateWord(rawWord, (current) => {
@@ -238,6 +264,7 @@ export default function useBookVocabulary(fileHash: string) {
     ensureWord,
     setWordStatus,
     cycleWordStatus,
+    cycleWordStatusInverse,
     toggleWordSaved,
     setIndexedWordCount,
   };
