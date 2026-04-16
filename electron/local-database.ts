@@ -421,6 +421,17 @@ export function getDocumentByHash(
     .get(fileHash);
 }
 
+export function getDocumentByFilePath(
+  filePath: string,
+): DocumentRecord | undefined {
+  return db
+    .prepare<
+      [string],
+      DocumentRecord
+    >(`select * from documents where filePath = ?`)
+    .get(filePath);
+}
+
 export function getLastDocument(): DocumentRecord | undefined {
   return db
     .prepare<
