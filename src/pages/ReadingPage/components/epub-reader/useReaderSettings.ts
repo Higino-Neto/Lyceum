@@ -82,11 +82,6 @@ export function useReaderSettings() {
     [updateSetting],
   );
 
-  const setLearningMode = useCallback(
-    (learningMode: boolean) => updateSetting("learningMode", learningMode),
-    [updateSetting],
-  );
-
   const setSourceLanguage = useCallback(
     (sourceLanguage: LanguageCode) => updateSetting("sourceLanguage", sourceLanguage),
     [updateSetting],
@@ -115,7 +110,6 @@ export function useReaderSettings() {
     setLineHeight,
     setContentWidth,
     setTextAlign,
-    setLearningMode,
     setSourceLanguage,
     setTargetLanguage,
     setShowHighlights,

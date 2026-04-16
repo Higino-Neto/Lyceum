@@ -32,7 +32,6 @@ interface ReaderToolbarProps {
   onFontFamilyChange: (font: FontFamily) => void;
   onLineHeightChange: (height: number) => void;
   onContentWidthChange: (width: number) => void;
-  onLearningModeChange: (enabled: boolean) => void;
   onToggleVocabularyPanel: () => void;
   onSourceLanguageChange: (lang: LanguageCode) => void;
   onTargetLanguageChange: (lang: LanguageCode) => void;
@@ -48,7 +47,6 @@ export default function ReaderToolbar({
   onFontFamilyChange,
   onLineHeightChange,
   onContentWidthChange,
-  onLearningModeChange,
   onToggleVocabularyPanel,
   onSourceLanguageChange,
   onTargetLanguageChange,
@@ -354,19 +352,6 @@ export default function ReaderToolbar({
           >
             {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
             {settings.showHighlights ? "Destaques" : "Sem destaque"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onLearningModeChange(!settings.learningMode)}
-            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
-              settings.learningMode
-                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
-                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-            }`}
-          >
-            <Languages size={16} />
-            {settings.learningMode ? "Modo aprendizado" : "Modo leitura"}
           </button>
 
           <button

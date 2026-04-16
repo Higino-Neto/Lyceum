@@ -8,6 +8,7 @@ import EpubViewer from "./components/epub-reader/Viewer";
 import { BookOpenText, FolderOpen } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 type FileType = "pdf" | "epub" | null;
 
@@ -30,6 +31,39 @@ export default function ReadingPage() {
     useState<LibraryDocumentData | null>(null);
   const [activeSource, setActiveSource] = useState<"library" | "local">("local");
   const [activeType, setActiveType] = useState<FileType>(null);
+
+  useEffect(() => {
+    const showDefaultAppToast = () => {
+      const settingsButton = () => {
+        window.api.openDefaultAppsSettings();
+      };
+
+      toast(
+        (t) => (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm">
+              Defina o Lyceum como leitor padrão de PDF e EPUB para abrir arquivos diretamente do explorador.
+            </span>
+            <button
+              onClick={() => {
+                settingsButton();
+                toast.dismiss(t.id);
+              }}
+              className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-500"
+            >
+              Configurar
+            </button>
+          </div>
+        ),
+        {
+          duration: 10000,
+          icon: "📖",
+        }
+      );
+    };
+
+    showDefaultAppToast();
+  }, []);
 
   useEffect(() => {
     if (!locationFileBuffer || !locationFileHash) {

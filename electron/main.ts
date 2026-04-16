@@ -167,10 +167,32 @@ function getAllPdfFiles(dir: string): string[] {
     const fullPath = path.join(dir, file.name);
 
     if (file.isDirectory()) {
-      results = results.concat(getAllPdfFiles(fullPath));
+      results = results.concat(getAllBookFiles(fullPath));
     } else if (file.isFile()) {
       const fileName = file.name.toLowerCase();
-      if (fileName.endsWith(".pdf") && !fileName.includes(".tmp")) {
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
+        results.push(fullPath);
+      }
+    }
+  }
+
+  return results;
+}
+
+function getAllBookFiles(dir: string): string[] {
+  const results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
+
+  const list = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const file of list) {
+    const fullPath = path.join(dir, file.name);
+
+    if (file.isDirectory()) {
+      results.push(...getAllBookFiles(fullPath));
+    } else if (file.isFile()) {
+      const fileName = file.name.toLowerCase();
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
         results.push(fullPath);
       }
     }
@@ -193,13 +215,13 @@ function getFolderStructure(libraryPath: string): FolderInfo[] {
         const itemFullPath = path.join(dirPath, item.name);
         const relativePath = path.relative(relativeTo, itemFullPath);
         
-        const pdfFiles = getAllPdfFiles(itemFullPath);
+        const bookFiles = getAllBookFiles(itemFullPath);
         
         folders.push({
           name: item.name,
           path: relativePath,
           fullPath: itemFullPath,
-          bookCount: pdfFiles.length,
+          bookCount: bookFiles.length,
           subfolders: buildTree(itemFullPath, relativeTo),
         });
       }
@@ -251,6 +273,10 @@ async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
 
+    const isEpub = filePath.toLowerCase().endsWith(".epub");
+    const isPdf = filePath.toLowerCase().endsWith(".pdf");
+    const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+
     // First check if document exists by path (handles file modifications that change hash)
     const existingByPath = getDocumentByPath(filePath);
     
@@ -265,11 +291,11 @@ async function processFile(filePath: string): Promise<void> {
 
     if (existing && existing.processingStatus === "completed") {
       // Still update thumbnail and page count
-      const thumbnailPath = await generateThumbnail(filePath, fileHash, true);
+      const thumbnailPath = await generateThumbnail(filePath, fileHash, true, fileType);
       if (thumbnailPath) {
         updateThumbnailPath(fileHash, thumbnailPath);
       }
-      const numPages = await getPdfPageCount(filePath);
+      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
       return;
     }
@@ -283,9 +309,9 @@ async function processFile(filePath: string): Promise<void> {
     const category = pathParts.length > 1 ? pathParts[0] : null;
 
     const stats = fs.statSync(filePath);
-    const numPages = await getPdfPageCount(filePath);
-    const metadata = await extractMetadata(filePath);
-    const thumbnailPath = await generateThumbnail(filePath, fileHash);
+    const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+    const metadata = isPdf ? await extractMetadata(filePath) : await extractEpubMetadata(filePath);
+    const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
 
     if (existing) {
       if (thumbnailPath) {
@@ -294,6 +320,7 @@ async function processFile(filePath: string): Promise<void> {
       updateFileSize(fileHash, stats.size);
       if (metadata) {
         updateMetadata(fileHash, {
+          title: metadata.title,
           author: metadata.author,
           publisher: metadata.producer,
           publishDate: metadata.creationDate,
@@ -301,13 +328,15 @@ async function processFile(filePath: string): Promise<void> {
       }
       updateProcessingStatus(fileHash, "completed");
     } else {
-      const title = path.basename(filePath, ".pdf");
+      const ext = isEpub ? ".epub" : ".pdf";
+      const title = path.basename(filePath, ext);
       addDocument(
         title,
         filePath,
         fileHash,
         thumbnailPath || undefined,
-        numPages || 1
+        numPages || 1,
+        fileType,
       );
       
       const newDoc = getDocumentByHash(fileHash);
@@ -315,6 +344,7 @@ async function processFile(filePath: string): Promise<void> {
         updateFileSize(fileHash, stats.size);
         if (metadata) {
           updateMetadata(fileHash, {
+            title: metadata.title,
             author: metadata.author,
             publisher: metadata.producer,
             publishDate: metadata.creationDate,
@@ -440,15 +470,19 @@ function setupFileWatcher() {
   } as any);
 
   fileWatcher.on("add", (filePath) => {
-    if (filePath.toLowerCase().endsWith(".pdf")) {
-      console.log("[Main] New PDF detected:", filePath);
+    const isPdf = filePath.toLowerCase().endsWith(".pdf");
+    const isEpub = filePath.toLowerCase().endsWith(".epub");
+    if (isPdf || isEpub) {
+      console.log(`[Main] New ${isEpub ? "EPUB" : "PDF"} detected:`, filePath);
       processFile(filePath);
     }
   });
 
   fileWatcher.on("unlink", (filePath) => {
-    if (filePath.toLowerCase().endsWith(".pdf")) {
-      console.log("[Main] PDF removed:", filePath);
+    const isPdf = filePath.toLowerCase().endsWith(".pdf");
+    const isEpub = filePath.toLowerCase().endsWith(".epub");
+    if (isPdf || isEpub) {
+      console.log(`[Main] ${isEpub ? "EPUB" : "PDF"} removed:`, filePath);
       // Try to find by path first (most reliable)
       const doc = getDocumentByPath(filePath);
       if (doc) {
@@ -565,6 +599,134 @@ async function getPdfPageCount(filePath: string): Promise<number> {
   } catch (error) {
     console.error("Error getting PDF page count:", error);
     return 1;
+  }
+}
+
+async function getEpubChapterCount(filePath: string): Promise<number> {
+  try {
+    const AdmZip = require("adm-zip");
+    const zip = new AdmZip(filePath);
+    const entries = zip.getEntries();
+    const htmlEntries = entries.filter(
+      (entry: any) => entry.entryName.endsWith(".html") || entry.entryName.endsWith(".xhtml") || entry.entryName.endsWith(".htm")
+    );
+    return Math.max(htmlEntries.length, 1);
+  } catch (error) {
+    console.error("Error getting EPUB chapter count:", error);
+    return 1;
+  }
+}
+
+async function extractEpubMetadata(filePath: string): Promise<{
+  title?: string;
+  author?: string;
+  producer?: string;
+  creationDate?: string;
+} | null> {
+  try {
+    const AdmZip = require("adm-zip");
+    const zip = new AdmZip(filePath);
+    const entries = zip.getEntries();
+    
+    // Find container.xml to get the path to content.opf
+    const containerEntry = entries.find((e: any) => e.entryName === "META-INF/container.xml");
+    if (!containerEntry) return null;
+    
+    const containerXml = containerEntry.getData().toString("utf8");
+    const rootFileMatch = containerXml.match(/full-path="([^"]+)"/);
+    if (!rootFileMatch) return null;
+    
+    const opfPath = rootFileMatch[1];
+    const opfDir = opfPath.split("/").slice(0, -1).join("/");
+    
+    // Find and parse the OPF file
+    const opfEntry = entries.find((e: any) => e.entryName === opfPath || e.entryName.endsWith(".opf"));
+    if (!opfEntry) return null;
+    
+    const opfXml = opfEntry.getData().toString("utf8");
+    
+    // Extract title
+    const titleMatch = opfXml.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : undefined;
+    
+    // Extract author
+    const authorMatch = opfXml.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i);
+    const author = authorMatch ? authorMatch[1].trim() : undefined;
+    
+    // Extract publisher
+    const publisherMatch = opfXml.match(/<dc:publisher[^>]*>([^<]+)<\/dc:publisher>/i);
+    const producer = publisherMatch ? publisherMatch[1].trim() : undefined;
+    
+    return { title, author, producer };
+  } catch (error) {
+    console.error("Error extracting EPUB metadata:", error);
+    return null;
+  }
+}
+
+async function generateEpubThumbnail(
+  filePath: string,
+  fileHash: string,
+  thumbnailsDir: string
+): Promise<string | null> {
+  try {
+    const AdmZip = require("adm-zip");
+    const zip = new AdmZip(filePath);
+    const entries = zip.getEntries();
+    
+    // Find cover image - look in images folder and root
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    let coverImage: any = null;
+    
+    // First try to find a cover image by common naming conventions
+    const coverNames = ["cover.jpg", "cover.jpeg", "cover.png", "cover.webp", "Cover.jpg", "Cover.jpeg"];
+    for (const name of coverNames) {
+      const found = entries.find((e: any) => e.entryName.toLowerCase().endsWith(name));
+      if (found) {
+        coverImage = found;
+        break;
+      }
+    }
+    
+    // If not found by name, look in images directory
+    if (!coverImage) {
+      const imageEntries = entries.filter((entry: any) => {
+        const name = entry.entryName.toLowerCase();
+        return imageExtensions.some(ext => name.endsWith(ext)) && 
+               (name.includes("cover") || name.includes("front"));
+      });
+      if (imageEntries.length > 0) {
+        coverImage = imageEntries[0];
+      }
+    }
+    
+    if (!coverImage) {
+      // Just create a placeholder - first image in the epub
+      const anyImage = entries.find((e: any) => {
+        const name = e.entryName.toLowerCase();
+        return imageExtensions.some(ext => name.endsWith(ext));
+      });
+      if (anyImage) {
+        coverImage = anyImage;
+      }
+    }
+    
+    if (!coverImage) {
+      console.log("No cover image found in EPUB");
+      return null;
+    }
+    
+    // Save the cover image as thumbnail
+    const ext = coverImage.entryName.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
+    const outputPath = path.join(thumbnailsDir, `${fileHash}-cover${ext}`);
+    
+    fs.writeFileSync(outputPath, coverImage.getData());
+    console.log(`Generated EPUB thumbnail: ${outputPath}`);
+    
+    return outputPath;
+  } catch (error) {
+    console.error("Error generating EPUB thumbnail:", error);
+    return null;
   }
 }
 
@@ -760,9 +922,9 @@ async function generateThumbnail(
   filePath: string,
   fileHash: string,
   force = false,
+  fileType: "pdf" | "epub" = "pdf",
 ): Promise<string | null> {
   try {
-    const pdfRequire = require("pdf-poppler");
     const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
 
     if (!fs.existsSync(thumbnailsDir)) {
@@ -800,6 +962,14 @@ async function generateThumbnail(
         }
       }
     }
+
+    // Generate thumbnail based on file type
+    if (fileType === "epub") {
+      return await generateEpubThumbnail(filePath, fileHash, thumbnailsDir);
+    }
+
+    // PDF thumbnail generation
+    const pdfRequire = require("pdf-poppler");
 
     const opts = {
       format: "jpeg",
@@ -876,7 +1046,7 @@ ipcMain.handle("add-document", (_, data) => {
   const existing = getDocumentByHash(fileHash);
   if (existing) return existing;
 
-  return addDocument(data.title, data.filePath, fileHash);
+  return addDocument(data.title, data.filePath, fileHash, undefined, 1, "pdf");
 });
 
 ipcMain.handle("get-documents", () => {
@@ -945,9 +1115,9 @@ ipcMain.handle("dialog:open-pdf", async () => {
     return { ...existing, fileBuffer };
   }
 
-  const thumbnailPath = await generateThumbnail(filePath, fileHash);
+  const thumbnailPath = await generateThumbnail(filePath, fileHash, false, "pdf");
   const numPages = await getPdfPageCount(filePath);
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, "pdf");
   
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
@@ -972,8 +1142,9 @@ ipcMain.handle("dialog:open-epub", async () => {
     return { ...existing, fileBuffer };
   }
 
-  const thumbnailPath = await generateThumbnail(filePath, fileHash);
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, 0);
+  const thumbnailPath = await generateThumbnail(filePath, fileHash, false, "epub");
+  const numPages = await getEpubChapterCount(filePath);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, "epub");
 
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
@@ -1006,7 +1177,7 @@ ipcMain.handle("dialog:open-image", async () => {
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile", "multiSelections"],
-    filters: [{ name: "PDF", extensions: ["pdf"] }],
+    filters: [{ name: "Livros", extensions: ["pdf", "epub"] }],
   });
   
   if (result.canceled || result.filePaths.length === 0) {
@@ -1875,6 +2046,132 @@ ipcMain.handle("habits:delete-completion", (_, habitId: string, dateKey: string)
   return { success: true };
 });
 
+ipcMain.handle("file:open-external", async (_, filePath: string) => {
+  try {
+    const isEpub = filePath.toLowerCase().endsWith(".epub");
+    const isPdf = filePath.toLowerCase().endsWith(".pdf");
+    if (!isEpub && !isPdf) {
+      return { success: false, error: "Invalid file type" };
+    }
+
+    const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+    const fileHash = generateFileHash(filePath);
+    const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+    const existing = getDocumentByHash(fileHash);
+    if (existing) {
+      updateLastOpened(fileHash);
+      return { success: true, ...existing, fileBuffer };
+    }
+
+    const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+    const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
+    const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+    
+    addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+    
+    const doc = getDocumentByHash(fileHash);
+    if (!doc) {
+      return { success: false, error: "Failed to add document" };
+    }
+    
+    return { success: true, ...doc, fileBuffer };
+  } catch (error) {
+    console.error("[Main] Error opening external file:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("settings:open-default-apps", async () => {
+  const { shell } = require("electron");
+  await shell.openExternal("ms-settings:defaultapps");
+  return { success: true };
+});
+
+const gotTheLock = (app as any).requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", async (_, commandLine) => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+
+    const filePath = commandLine.find(
+      (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
+    );
+    
+    if (filePath && fs.existsSync(filePath)) {
+      const isEpub = filePath.toLowerCase().endsWith(".epub");
+      const isPdf = filePath.toLowerCase().endsWith(".pdf");
+      const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+      const fileHash = generateFileHash(filePath);
+      const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+      const existing = getDocumentByHash(fileHash);
+      if (existing) {
+        updateLastOpened(fileHash);
+        win?.webContents.send("file-opened", { ...existing, fileBuffer, fileType });
+      } else {
+        const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+        const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
+        const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+        
+        addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+        
+        const doc = getDocumentByHash(fileHash);
+        if (doc) {
+          win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
+        }
+      }
+    }
+  });
+}
+
+function handleFileArg(filePath: string) {
+  if (!win) return;
+  
+  if (!fs.existsSync(filePath)) {
+    console.error("[Main] File not found:", filePath);
+    return;
+  }
+
+  const isEpub = filePath.toLowerCase().endsWith(".epub");
+  const isPdf = filePath.toLowerCase().endsWith(".pdf");
+  if (!isEpub && !isPdf) {
+    console.error("[Main] Invalid file type:", filePath);
+    return;
+  }
+
+  const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+  const fileHash = generateFileHash(filePath);
+  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+  const existing = getDocumentByHash(fileHash);
+  if (existing) {
+    updateLastOpened(fileHash);
+    win.webContents.send("file-opened", { ...existing, fileBuffer, fileType });
+  } else {
+    const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+    generateThumbnail(filePath, fileHash, false, fileType).then(async (thumbnailPath) => {
+      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+      
+      addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+      
+      const doc = getDocumentByHash(fileHash);
+      if (doc) {
+        win?.webContents.send("file-opened", { ...doc, fileBuffer, fileType });
+      }
+    });
+  }
+}
+
+const startArgs = process.argv.slice(1);
+const startupFile = startArgs.find(
+  (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
+);
 
 app.whenReady().then(async () => {
   const fs = require("fs");
@@ -1924,4 +2221,8 @@ app.whenReady().then(async () => {
   await scanLibrary();
   autoUpdater.checkForUpdatesAndNotify();
   createWindow();
+
+  if (startupFile) {
+    handleFileArg(startupFile);
+  }
 });

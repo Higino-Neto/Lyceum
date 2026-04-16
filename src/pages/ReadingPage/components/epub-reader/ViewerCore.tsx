@@ -15,10 +15,12 @@ interface ViewerCoreProps {
   settings: ReaderSettings;
   vocabularyEntries: Record<string, VocabularyEntry>;
   onWordClick: (payload: WordInteractionPayload) => void;
+  onWordRightClick: (payload: WordInteractionPayload) => void;
   onTextSelection: (payload: TextSelectionPayload) => void;
   onVocabularyIndex: (count: number) => void;
   onDismissOverlays: () => void;
   onViewerScroll: (scrollTop: number) => void;
+  onScrollPositionChange?: (scrollTop: number) => void;
 }
 
 interface LyceumDocument extends Document {
@@ -36,10 +38,12 @@ export default function ViewerCore({
   settings,
   vocabularyEntries,
   onWordClick,
+  onWordRightClick,
   onTextSelection,
   onVocabularyIndex,
   onDismissOverlays,
   onViewerScroll,
+  onScrollPositionChange,
 }: ViewerCoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
@@ -47,12 +51,15 @@ export default function ViewerCore({
   const isInitializedRef = useRef(false);
   const settingsRef = useRef(settings);
   const vocabularyEntriesRef = useRef(vocabularyEntries);
+  const isRestoringScrollRef = useRef(false);
   const callbacksRef = useRef({
     onWordClick,
+    onWordRightClick,
     onTextSelection,
     onVocabularyIndex,
     onDismissOverlays,
     onViewerScroll,
+    onScrollPositionChange,
   });
   const renderedSectionWordsRef = useRef(new Map<string, Set<string>>());
 
@@ -60,10 +67,12 @@ export default function ViewerCore({
   vocabularyEntriesRef.current = vocabularyEntries;
   callbacksRef.current = {
     onWordClick,
+    onWordRightClick,
     onTextSelection,
     onVocabularyIndex,
     onDismissOverlays,
     onViewerScroll,
+    onScrollPositionChange,
   };
 
   const getAnchorFromRect = (doc: Document, rect: DOMRect) => {
@@ -237,7 +246,7 @@ export default function ViewerCore({
 
       const breaks: { after: HTMLElement; top: number }[] = [];
 
-      elements.forEach(({ el, top }) => {
+      elements.forEach(({ top }) => {
         while (currentPageTop + pageHeight <= top && pageNumber < 500) {
           currentPageTop += pageHeight;
           pageNumber++;
@@ -403,6 +412,32 @@ export default function ViewerCore({
     });
   };
 
+  const handleDocumentContextMenu = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    const wordElement = target?.closest(".word") as HTMLElement | null;
+    const doc = target?.ownerDocument;
+    if (!wordElement || !doc) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const normalizedWord = wordElement.dataset.word || "";
+    const displayWord = wordElement.dataset.displayWord || wordElement.textContent || "";
+    const anchor = getAnchorFromRect(doc, wordElement.getBoundingClientRect());
+    if (!normalizedWord || !anchor) {
+      return;
+    }
+
+    callbacksRef.current.onWordRightClick({
+      displayWord,
+      normalizedWord,
+      anchor,
+      scrollTop: containerRef.current?.scrollTop || 0,
+    });
+  };
+
   const handleSelectionFromDocument = (doc: Document) => {
     const selection = doc.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) {
@@ -433,6 +468,7 @@ export default function ViewerCore({
     }
 
     doc.addEventListener("click", handleDocumentClick);
+    doc.addEventListener("contextmenu", handleDocumentContextMenu);
     doc.addEventListener("pointerdown", (event) => {
       const target = event.target as HTMLElement | null;
       if (!target?.closest(".word")) {
@@ -571,6 +607,14 @@ export default function ViewerCore({
 
         registerThemes(rendition);
 
+        rendition.hooks.content.register((contents: Contents) => {
+          const doc = contents.document;
+          if (doc) {
+            doc.documentElement.style.overflowAnchor = "none";
+            doc.body.style.overflowAnchor = "none";
+          }
+        });
+
         rendition.on("rendered", (section: { href?: string }, contents: Contents) => {
           const iframe = contents?.window?.frameElement as HTMLIFrameElement | null;
           if (iframe && section?.href) {
@@ -610,7 +654,16 @@ export default function ViewerCore({
   }, [settings]);
 
   useEffect(() => {
-    processAllIframes();
+    if (!containerRef.current) return;
+    const iframes = containerRef.current.querySelectorAll("iframe");
+    iframes.forEach((iframe) => {
+      try {
+        const doc = (iframe as HTMLIFrameElement).contentDocument;
+        if (doc?.body) {
+          syncWordStates(doc);
+        }
+      } catch { /* cross-origin iframe */ }
+    });
   }, [vocabularyEntries]);
 
   useEffect(() => {
@@ -618,7 +671,9 @@ export default function ViewerCore({
     if (!container) return;
 
     const handleScroll = () => {
+      if (isRestoringScrollRef.current) return;
       callbacksRef.current.onViewerScroll(container.scrollTop);
+      callbacksRef.current.onScrollPositionChange?.(container.scrollTop);
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
@@ -636,7 +691,25 @@ export default function ViewerCore({
         .epub-container {
           height: 100%;
           overflow-y: auto;
+          overflow-x: hidden;
           background-color: #18181b;
+          overscroll-behavior: contain;
+          overflow-anchor: none !important;
+          scrollbar-width: thin;
+          scrollbar-color: #3f3f46 transparent;
+        }
+        
+        .epub-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .epub-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .epub-container::-webkit-scrollbar-thumb {
+          background-color: #3f3f46;
+          border-radius: 3px;
         }
 
         .epub-container > div {
@@ -648,6 +721,7 @@ export default function ViewerCore({
           display: block !important;
           width: 100% !important;
           border: none !important;
+          overflow-anchor: none !important;
         }
       `}</style>
       <div ref={containerRef} className="epub-container" />

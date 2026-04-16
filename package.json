@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.6.0",
+  "version": "1.6.1",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {
@@ -19,6 +19,18 @@
     "productName": "Lyceum",
     "asarUnpack": [
       "node_modules/better-sqlite3/**"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "PDF Document",
+        "description": "PDF Document"
+      },
+      {
+        "ext": "epub",
+        "name": "EPUB Book",
+        "description": "EPUB Book"
+      }
     ],
     "nsis": {
       "oneClick": true,

@@ -175,6 +175,24 @@ function App() {
   const isElectron =
     typeof window !== "undefined" && window.api?.windowMinimize;
 
+  useEffect(() => {
+    if (!isElectron || !window.api?.onFileOpened) return;
+
+    const unsubscribe = window.api.onFileOpened((data) => {
+      if (data && data.fileHash) {
+        navigate("/reading", {
+          state: {
+            fileHash: data.fileHash,
+            fileBuffer: data.fileBuffer,
+            fileName: data.title,
+          },
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [isElectron, navigate]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
       <Toaster

@@ -3,6 +3,13 @@ import { useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import { calculateProgress } from "./progress";
 
+const getTitleWithoutExtension = (title: string, fileType?: string) => {
+  if (fileType === "epub") {
+    return title.replace(/\.epub$/i, "");
+  }
+  return title.replace(/\.pdf$/i, "");
+};
+
 interface BookCardProps {
   book: BookWithThumbnail;
   onOpen: () => void;
@@ -115,7 +122,7 @@ export default function BookCard({
         )}
       </div>
 
-      <p className="text-xs text-zinc-300 line-clamp-2">{book.title}</p>
+      <p className="text-xs text-zinc-300 line-clamp-2">{getTitleWithoutExtension(book.title, book.fileType)}</p>
       {book.author && (
         <p className="text-xs text-zinc-500 truncate">{book.author}</p>
       )}

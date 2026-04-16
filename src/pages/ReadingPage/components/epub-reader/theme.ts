@@ -10,7 +10,6 @@ export interface ReaderSettings {
   lineHeight: number;
   contentWidth: number;
   textAlign: TextAlignment;
-  learningMode: boolean;
   showHighlights: boolean;
   showPages: boolean;
   sourceLanguage: LanguageCode;
@@ -24,7 +23,6 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   lineHeight: 1.5,
   contentWidth: 60,
   textAlign: "justify",
-  learningMode: true,
   showHighlights: true,
   showPages: false,
   sourceLanguage: "en",

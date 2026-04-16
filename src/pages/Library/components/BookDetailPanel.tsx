@@ -15,8 +15,16 @@ import {
   XCircle,
   Image,
   Upload,
+  FileType,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
+
+const getTitleWithoutExtension = (title: string, fileType?: string) => {
+  if (fileType === "epub") {
+    return title.replace(/\.epub$/i, "");
+  }
+  return title.replace(/\.pdf$/i, "");
+};
 import { calculateProgress } from "./BookGrid/progress";
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
@@ -71,7 +79,7 @@ export default function BookDetailPanel({
   }, [book]);
 
   const handleStartEditTitle = () => {
-    setEditValue(book.title.replace(/\.pdf$/i, ""));
+    setEditValue(getTitleWithoutExtension(book.title, book.fileType));
     setEditMode("title");
   };
 
@@ -88,7 +96,7 @@ export default function BookDetailPanel({
 
     setIsSaving(true);
     try {
-      const newTitle = editMode === "title" ? editValue.trim() : book.title.replace(/\.pdf$/i, "");
+      const newTitle = editMode === "title" ? editValue.trim() : getTitleWithoutExtension(book.title, book.fileType);
       const newAuthor = editMode === "author" ? editValue.trim() : (book.author || "");
       
       const result = await window.api.renameBook(book.fileHash, newTitle, newAuthor);
@@ -322,6 +330,12 @@ export default function BookDetailPanel({
                       </span>
                     ))}
                   </div>
+                  {book.fileType && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <FileType size={12} className="text-zinc-500" />
+                      <span className="text-xs text-zinc-400 uppercase">{book.fileType}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -377,7 +391,7 @@ export default function BookDetailPanel({
             ) : (
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-zinc-100 leading-tight flex-1 line-clamp-2">
-                  {book.title.replace(/\.pdf$/i, "")}
+                  {getTitleWithoutExtension(book.title, book.fileType)}
                 </h3>
                 <button
                   onClick={handleStartEditTitle}
