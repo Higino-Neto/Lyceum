@@ -57,9 +57,10 @@ import {
   deleteHabit,
   getHabitCompletions,
   getAllHabitCompletions,
-  setHabitCompletion,
+setHabitCompletion,
   deleteHabitCompletion,
   getAllDocumentCategories,
+  getDocumentByFilePath,
 } from "./local-database";
 import {
   initBackupClient,
@@ -2055,16 +2056,17 @@ ipcMain.handle("file:open-external", async (_, filePath: string) => {
     }
 
     const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
-    const fileHash = generateFileHash(filePath);
     const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+    const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
-    const existing = getDocumentByHash(fileHash);
-    if (existing) {
-      updateLastOpened(fileHash);
-      return { success: true, ...existing, fileBuffer };
+    const existingByPath = getDocumentByFilePath(filePath);
+    
+    if (existingByPath) {
+      updateLastOpened(existingByPath.fileHash);
+      return { success: true, ...existingByPath, filePath, fileBuffer, fileType, title };
     }
 
-    const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+    const fileHash = generateFileHash(filePath);
     const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
     const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
     
@@ -2075,7 +2077,7 @@ ipcMain.handle("file:open-external", async (_, filePath: string) => {
       return { success: false, error: "Failed to add document" };
     }
     
-    return { success: true, ...doc, fileBuffer };
+    return { success: true, ...doc, fileBuffer, fileType };
   } catch (error) {
     console.error("[Main] Error opening external file:", error);
     return { success: false, error: String(error) };
@@ -2105,17 +2107,24 @@ if (!gotTheLock) {
     
     if (filePath && fs.existsSync(filePath)) {
       const isEpub = filePath.toLowerCase().endsWith(".epub");
-      const isPdf = filePath.toLowerCase().endsWith(".pdf");
+      const isPdf = filePath.toLowerCase().endsWith(".epub");
       const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
-      const fileHash = generateFileHash(filePath);
       const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+      const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
-      const existing = getDocumentByHash(fileHash);
-      if (existing) {
-        updateLastOpened(fileHash);
-        win?.webContents.send("file-opened", { ...existing, fileBuffer, fileType });
+      const existingByPath = getDocumentByFilePath(filePath);
+      
+      if (existingByPath) {
+        updateLastOpened(existingByPath.fileHash);
+        win?.webContents.send("file-opened", { 
+          ...existingByPath, 
+          filePath, 
+          fileBuffer, 
+          fileType,
+          title 
+        });
       } else {
-        const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+        const fileHash = generateFileHash(filePath);
         const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
         const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
         
@@ -2146,15 +2155,22 @@ function handleFileArg(filePath: string) {
   }
 
   const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
-  const fileHash = generateFileHash(filePath);
   const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+  const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
 
-  const existing = getDocumentByHash(fileHash);
-  if (existing) {
-    updateLastOpened(fileHash);
-    win.webContents.send("file-opened", { ...existing, fileBuffer, fileType });
+  const existingByPath = getDocumentByFilePath(filePath);
+  
+  if (existingByPath) {
+    updateLastOpened(existingByPath.fileHash);
+    win.webContents.send("file-opened", { 
+      ...existingByPath, 
+      filePath, 
+      fileBuffer, 
+      fileType,
+      title 
+    });
   } else {
-    const title = path.basename(filePath, isEpub ? ".epub" : ".pdf");
+    const fileHash = generateFileHash(filePath);
     generateThumbnail(filePath, fileHash, false, fileType).then(async (thumbnailPath) => {
       const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
       
