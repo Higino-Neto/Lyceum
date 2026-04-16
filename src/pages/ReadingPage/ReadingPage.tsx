@@ -5,7 +5,7 @@ import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedMo
 import ReadingSessionTimer from "./components/ReadingSessionTimer";
 import PdfViewer from "./components/pdf-reader/Viewer";
 import EpubViewer from "./components/epub-reader/Viewer";
-import { BookOpenText, FolderOpen } from "lucide-react";
+import { BookOpenText, FolderOpen, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -34,30 +34,48 @@ export default function ReadingPage() {
 
   useEffect(() => {
     const showDefaultAppToast = () => {
-      const settingsButton = () => {
-        window.api.openDefaultAppsSettings();
-      };
+      const isDev = import.meta.env.DEV;
+      if (isDev) return;
+
+      const toastId = "default-app-toast";
 
       toast(
         (t) => (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-zinc-300">
               Defina o Lyceum como leitor padrão de PDF e EPUB para abrir arquivos diretamente do explorador.
             </span>
-            <button
-              onClick={() => {
-                settingsButton();
-                toast.dismiss(t.id);
-              }}
-              className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              Configurar
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  window.api.openDefaultAppsSettings();
+                  toast.dismiss(t.id);
+                }}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition"
+              >
+                Configurar
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="text-zinc-400 hover:text-zinc-200 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         ),
         {
-          duration: 10000,
+          id: toastId,
+          duration: 15000,
           icon: "📖",
+          style: {
+            background: "#27272a",
+            color: "#e4e4e7",
+            border: "1px solid #3f3f46",
+            borderRadius: "4px",
+            padding: "12px 16px",
+            fontSize: "14px",
+          },
         }
       );
     };
