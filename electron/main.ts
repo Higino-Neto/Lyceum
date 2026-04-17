@@ -2321,6 +2321,10 @@ app.whenReady().then(async () => {
   createWindow();
 
   if (startupFile) {
-    handleFileArg(startupFile);
+    console.log("[Main] Startup file detected, waiting for window to load...");
+    win?.webContents.once("did-finish-load", () => {
+      console.log("[Main] Window loaded, now calling handleFileArg...");
+      handleFileArg(startupFile);
+    });
   }
 });
