@@ -14,9 +14,10 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import ViewerCore from "./ViewerCore";
+import ViewerCore, { NavItem } from "./ViewerCore";
 import ReaderToolbar from "./ReaderToolbar";
 import VocabularyPanel from "./VocabularyPanel";
+import TableOfContents from "./TableOfContents";
 import { useReaderSettings } from "./useReaderSettings";
 import {
   DictionaryLookupResult,
@@ -149,6 +150,9 @@ function LearningDock({
 export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const overlayHostRef = useRef<HTMLDivElement>(null);
   const [isVocabularyPanelOpen, setIsVocabularyPanelOpen] = useState(false);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [toc, setToc] = useState<NavItem[]>([]);
+  const [currentSectionHref, setCurrentSectionHref] = useState<string | undefined>();
   const [vocabularyFilter, setVocabularyFilter] =
     useState<VocabularyFilter>("all");
   const [activeWordLookup, setActiveWordLookup] =
@@ -185,6 +189,8 @@ const {
 
   useEffect(() => {
     setIsVocabularyPanelOpen(false);
+    setIsTocOpen(false);
+    setToc([]);
     setVocabularyFilter("all");
     setActiveWordLookup(null);
     setActiveSelectionLookup(null);
@@ -204,6 +210,7 @@ const {
       setActiveWordLookup(null);
       setActiveSelectionLookup(null);
       setIsVocabularyPanelOpen(false);
+      setIsTocOpen(false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -316,12 +323,47 @@ const {
       anchor,
       selectedText,
       originScrollTop: scrollTop,
-      activeAction: null,
-      isLoading: false,
+      activeAction: "translate",
+      isLoading: true,
       error: null,
       translation: null,
       simplifiedText: null,
     });
+
+    selectionLookupAbortRef.current?.abort();
+    const controller = new AbortController();
+    selectionLookupAbortRef.current = controller;
+
+    translateText(
+      selectedText,
+      settings.sourceLanguage,
+      settings.targetLanguage,
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setActiveSelectionLookup((current) =>
+          current && current.anchor === anchor
+            ? {
+                ...current,
+                isLoading: false,
+                translation: result.translatedText,
+              }
+            : current,
+        );
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setActiveSelectionLookup((current) =>
+          current && current.anchor === anchor
+            ? {
+                ...current,
+                isLoading: false,
+                error: err instanceof Error ? err.message : "Erro ao traduzir",
+              }
+            : current,
+        );
+      });
   };
 
   const handleViewerScroll = (scrollTop: number) => {
@@ -339,51 +381,55 @@ const {
 
   const handleScrollPositionChange = (_scrollTop: number) => {};
 
-  const runSelectionAction = async (action: "translate" | "simplify") => {
-    if (!activeSelectionLookup) return;
+  const runSelectionAction = async (action: "translate" | "simplify", text: string) => {
+    if (!activeSelectionLookup) {
+      return;
+    }
 
     selectionLookupAbortRef.current?.abort();
     const controller = new AbortController();
     selectionLookupAbortRef.current = controller;
 
-    setActiveSelectionLookup((current) =>
-      current
-        ? {
-            ...current,
-            activeAction: action,
-            isLoading: true,
-            error: null,
-          }
-        : current,
-    );
-
     try {
       if (action === "translate") {
-        const result = await translateText(
-          activeSelectionLookup.selectedText,
-          settings.sourceLanguage,
-          settings.targetLanguage,
-          controller.signal,
-        );
+        try {
+          const result = await translateText(
+            text,
+            settings.sourceLanguage,
+            settings.targetLanguage,
+            controller.signal,
+          );
 
-        if (controller.signal.aborted) return;
+          if (controller.signal.aborted) return;
 
-        setActiveSelectionLookup((current) =>
-          current
-            ? {
-                ...current,
-                activeAction: action,
-                isLoading: false,
-                translation: result.translatedText,
-              }
-            : current,
-        );
+          setActiveSelectionLookup((current) =>
+            current
+              ? {
+                  ...current,
+                  activeAction: action,
+                  isLoading: false,
+                  translation: result.translatedText,
+                }
+              : current,
+          );
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          setActiveSelectionLookup((current) =>
+            current
+              ? {
+                  ...current,
+                  isLoading: false,
+                  error: err instanceof Error ? err.message : "Erro ao traduzir",
+                }
+              : current,
+          );
+        }
 
         return;
       }
 
       const simplifiedText = await simplifySelectedText(
-        activeSelectionLookup.selectedText,
+        text,
         controller.signal,
         settings.sourceLanguage,
         settings.targetLanguage,
@@ -467,6 +513,7 @@ const {
       <ReaderToolbar
         settings={settings}
         isVocabularyPanelOpen={isVocabularyPanelOpen}
+        isTocOpen={isTocOpen}
         onFontSizeChange={setFontSize}
         onThemeChange={setTheme}
         onFontFamilyChange={setFontFamily}
@@ -475,6 +522,7 @@ const {
         onToggleVocabularyPanel={() =>
           setIsVocabularyPanelOpen((current) => !current)
         }
+        onToggleToc={() => setIsTocOpen((current) => !current)}
         onSourceLanguageChange={setSourceLanguage}
         onTargetLanguageChange={setTargetLanguage}
         onShowHighlightsChange={setShowHighlights}
@@ -494,6 +542,9 @@ const {
           onDismissOverlays={handleDismissOverlays}
           onViewerScroll={handleViewerScroll}
           onScrollPositionChange={handleScrollPositionChange}
+          onNavigationLoaded={setToc}
+          onNavigateToChapter={(href) => setCurrentSectionHref(href)}
+          currentSectionHref={currentSectionHref}
         />
 
         {activeWordLookup && (
@@ -624,35 +675,6 @@ const {
           <LearningDock
             title="Trecho selecionado"
             subtitle={<span className="line-clamp-2">{activeSelectionLookup.selectedText}</span>}
-            actions={
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeSelectionLookup.activeAction === "translate"
-                      ? "border border-blue-300/30 bg-blue-500/10 text-blue-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() => runSelectionAction("translate")}
-                >
-                  <Languages size={14} />
-                  Traduzir
-                </button>
-
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeSelectionLookup.activeAction === "simplify"
-                      ? "border border-zinc-600 bg-zinc-800 text-zinc-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() => runSelectionAction("simplify")}
-                >
-                  <Sparkles size={14} />
-                  Simplificar
-                </button>
-              </div>
-            }
             onClose={handleDismissOverlays}
           >
             {activeSelectionLookup.isLoading ? (
@@ -705,6 +727,17 @@ const {
           onToggleSaved={(word) => toggleWordSaved(word)}
           onExportCsv={handleExportCsv}
           onClose={() => setIsVocabularyPanelOpen(false)}
+        />
+
+        <TableOfContents
+          isOpen={isTocOpen}
+          toc={toc}
+          currentHref={currentSectionHref}
+          onSelectChapter={(href) => {
+            setCurrentSectionHref(href);
+            setIsTocOpen(false);
+          }}
+          onClose={() => setIsTocOpen(false)}
         />
       </div>
     </div>

@@ -57,6 +57,38 @@ export const THEME_COLORS: Record<ThemeName, ThemeColors> = {
   },
 };
 
+export interface HighlightColors {
+  learningBg: string;
+  learningUnderline: string;
+  knownBg: string;
+  knownUnderline: string;
+  saved: string;
+}
+
+export const HIGHLIGHT_COLORS: Record<ThemeName, HighlightColors> = {
+  light: {
+    learningBg: "rgba(59, 130, 246, 0.12)",
+    learningUnderline: "rgba(59, 130, 246, 0.2)",
+    knownBg: "rgba(34, 197, 94, 0.1)",
+    knownUnderline: "rgba(34, 197, 94, 0.15)",
+    saved: "rgba(234, 179, 8, 0.6)",
+  },
+  dark: {
+    learningBg: "rgba(34, 211, 238, 0.15)",
+    learningUnderline: "rgba(34, 211, 238, 0.25)",
+    knownBg: "rgba(52, 211, 153, 0.15)",
+    knownUnderline: "rgba(52, 211, 153, 0.25)",
+    saved: "rgba(251, 191, 36, 0.6)",
+  },
+  sepia: {
+    learningBg: "rgba(107, 114, 128, 0.15)",
+    learningUnderline: "rgba(107, 114, 128, 0.25)",
+    knownBg: "rgba(90, 118, 73, 0.15)",
+    knownUnderline: "rgba(90, 118, 73, 0.25)",
+    saved: "rgba(180, 83, 9, 0.5)",
+  },
+};
+
 export const FONT_OPTIONS: { value: FontFamily; label: string }[] = [
   { value: "Georgia", label: "Georgia" },
   { value: "serif", label: "Serif" },

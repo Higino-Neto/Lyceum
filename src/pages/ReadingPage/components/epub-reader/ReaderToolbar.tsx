@@ -3,15 +3,18 @@ import {
   Minus,
   Plus,
   ChevronDown,
+  ChevronRight,
   Type,
   ArrowUpDown,
-  Maximize2,
+  ArrowLeftRight,
   BookMarked,
   Languages,
   ArrowRight,
   Eye,
   EyeOff,
   BookOpen,
+  Settings,
+  PanelRightClose,
 } from "lucide-react";
 import {
   ThemeName,
@@ -24,15 +27,17 @@ import {
 } from "./theme";
 import { SUPPORTED_LANGUAGES } from "./languageServices";
 
-interface ReaderToolbarProps {
+export interface ReaderToolbarProps {
   settings: ReaderSettings;
   isVocabularyPanelOpen: boolean;
+  isTocOpen: boolean;
   onFontSizeChange: (size: number) => void;
   onThemeChange: (theme: ThemeName) => void;
   onFontFamilyChange: (font: FontFamily) => void;
   onLineHeightChange: (height: number) => void;
   onContentWidthChange: (width: number) => void;
   onToggleVocabularyPanel: () => void;
+  onToggleToc: () => void;
   onSourceLanguageChange: (lang: LanguageCode) => void;
   onTargetLanguageChange: (lang: LanguageCode) => void;
   onShowHighlightsChange: (show: boolean) => void;
@@ -42,12 +47,14 @@ interface ReaderToolbarProps {
 export default function ReaderToolbar({
   settings,
   isVocabularyPanelOpen,
+  isTocOpen,
   onFontSizeChange,
   onThemeChange,
   onFontFamilyChange,
   onLineHeightChange,
   onContentWidthChange,
   onToggleVocabularyPanel,
+  onToggleToc,
   onSourceLanguageChange,
   onTargetLanguageChange,
   onShowHighlightsChange,
@@ -208,9 +215,9 @@ export default function ReaderToolbar({
             type="button"
             onClick={() => toggleMenu("spacing")}
             className={triggerClasses}
+            title="Espaçamento"
           >
             <ArrowUpDown size={16} />
-            <span>Espaçamento</span>
             <ChevronDown size={14} className="text-zinc-500" />
           </button>
 
@@ -237,9 +244,9 @@ export default function ReaderToolbar({
             type="button"
             onClick={() => toggleMenu("width")}
             className={triggerClasses}
+            title="Largura do conteúdo"
           >
-            <Maximize2 size={16} />
-            <span>Largura</span>
+            <ArrowLeftRight size={16} />
             <ChevronDown size={14} className="text-zinc-500" />
           </button>
 
@@ -325,46 +332,88 @@ export default function ReaderToolbar({
           )}
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onShowPagesChange(!settings.showPages)}
-            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
-              settings.showPages
-                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
-                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-            }`}
-            title={settings.showPages ? "Ocultar páginas" : "Mostrar páginas"}
-          >
-            <BookOpen size={16} />
-            {settings.showPages ? "Páginas" : "Sem páginas"}
-          </button>
+<div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => toggleMenu("settings")}
+              className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
+                openMenu === "settings"
+                  ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
+                  : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              }`}
+            >
+              <Settings size={16} />
+              <ChevronRight
+                size={14}
+                className={`text-zinc-500 transition-transform ${
+                  openMenu === "settings" ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+
+            {openMenu === "settings" && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-2 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onShowHighlightsChange(!settings.showHighlights);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
+                    settings.showHighlights
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "text-zinc-300 hover:bg-zinc-800/80"
+                  }`}
+                >
+                  {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
+                  {settings.showHighlights ? "Ocultar Detalhes" : "Mostrar Detalhes"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onShowPagesChange(!settings.showPages);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
+                    settings.showPages
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "text-zinc-300 hover:bg-zinc-800/80"
+                  }`}
+                >
+                  <BookOpen size={16} />
+                  {settings.showPages ? "Ocultar Páginas" : "Mostrar Páginas"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleVocabularyPanel();
+                    setOpenMenu(null);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
+                    isVocabularyPanelOpen
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "text-zinc-300 hover:bg-zinc-800/80"
+                  }`}
+                >
+                  <BookMarked size={16} />
+                  Vocabulário
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
-            onClick={() => onShowHighlightsChange(!settings.showHighlights)}
+            onClick={onToggleToc}
             className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
-              settings.showHighlights
-                ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
-                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-            }`}
-            title={settings.showHighlights ? "Ocultar destaques" : "Mostrar destaques"}
-          >
-            {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
-            {settings.showHighlights ? "Destaques" : "Sem destaque"}
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleVocabularyPanel}
-            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
-              isVocabularyPanelOpen
+              isTocOpen
                 ? "border-zinc-600 bg-zinc-800 text-zinc-100"
                 : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             }`}
+            title="Índice"
           >
-            <BookMarked size={16} />
-            Vocabulário
+            <PanelRightClose size={16} />
           </button>
         </div>
       </div>

@@ -13,16 +13,57 @@ import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
 import { Toaster } from "react-hot-toast";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
 import { supabase } from "./lib/supabase";
+
+const AUTO_HIDE_STORAGE_KEY = "lyceum_auto_hide";
+
+function loadAutoHideSetting(): boolean {
+  try {
+    const stored = localStorage.getItem(AUTO_HIDE_STORAGE_KEY);
+    return stored === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveAutoHideSetting(enabled: boolean): void {
+  try {
+    localStorage.setItem(AUTO_HIDE_STORAGE_KEY, String(enabled));
+  } catch (e) {
+    console.warn("Failed to save auto-hide setting:", e);
+  }
+}
 
 function App() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [autoHideEnabled, setAutoHideEnabled] = useState(loadAutoHideSetting);
+  const [panelsVisible, setPanelsVisible] = useState(true);
+  const hideTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
+
+  const showPanels = useCallback(() => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setPanelsVisible(true);
+  }, []);
+
+  const hidePanels = useCallback(() => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+    }
+    if (autoHideEnabled) {
+      hideTimerRef.current = window.setTimeout(() => {
+        setPanelsVisible(false);
+      }, 400);
+    }
+  }, [autoHideEnabled]);
   const backupInitializedRef = useRef(false);
   const backupScheduledRef = useRef(false);
   const backupTimeoutsRef = useRef<number[]>([]);
@@ -193,8 +234,16 @@ function App() {
     return unsubscribe;
   }, [isElectron, navigate]);
 
+  const handleAutoHideToggle = (enabled: boolean) => {
+    setAutoHideEnabled(enabled);
+    saveAutoHideSetting(enabled);
+  };
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-zinc-900">
+    <div className={`relative flex flex-col h-screen overflow-hidden bg-zinc-900${
+      autoHideEnabled && !panelsVisible && isElectron ? " border-[3px] border-zinc-600" : ""
+    }`}
+>
       <Toaster
         position="top-center"
         toastOptions={{
@@ -231,11 +280,37 @@ function App() {
         <TitleBar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          autoHideEnabled={autoHideEnabled}
+          onAutoHideToggle={handleAutoHideToggle}
+          panelsVisible={panelsVisible}
+          onShowPanels={showPanels}
+          onHidePanels={hidePanels}
         />
       )}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar collapsed={sidebarCollapsed} />
-        <main className="w-full overflow-y-auto rounded-sm">
+      {autoHideEnabled && isElectron && (
+        <div
+          className="absolute top-0 left-0 right-0 h-2 hover:bg-red-500 z-[100]"
+          onMouseEnter={showPanels}
+        />
+      )}
+      <div className="flex flex-1 overflow-hidden relative">
+        {autoHideEnabled && isElectron && (
+          <div
+            className="absolute top-0 left-0 w-2 h-full hover:bg-red-500 z-[100]"
+            onMouseEnter={showPanels}
+          />
+        )}
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          autoHideEnabled={autoHideEnabled}
+          panelsVisible={panelsVisible}
+          onShowPanels={showPanels}
+          onHidePanels={hidePanels}
+        />
+        <main
+          className="flex-1 overflow-y-auto rounded-sm"
+          onMouseEnter={() => autoHideEnabled && hidePanels()}
+        >
           <Routes>
             <Route
               path="/"

@@ -3,10 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
-const renderSidebar = (collapsed = false) => {
+const renderSidebar = (collapsed = false, autoHideEnabled = false, panelsVisible = true) => {
   return render(
     <BrowserRouter>
-      <Sidebar collapsed={collapsed} />
+      <Sidebar
+        collapsed={collapsed}
+        autoHideEnabled={autoHideEnabled}
+        panelsVisible={panelsVisible}
+        onShowPanels={() => {}}
+        onHidePanels={() => {}}
+      />
     </BrowserRouter>
   );
 };

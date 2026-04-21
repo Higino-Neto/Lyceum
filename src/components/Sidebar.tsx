@@ -13,18 +13,29 @@ import { useRouteState } from "../hooks/useRouteState";
 
 interface SidebarProps {
   collapsed: boolean;
+  autoHideEnabled: boolean;
+  panelsVisible: boolean;
+  onShowPanels: () => void;
+  onHidePanels: () => void;
 }
 
-export default function Sidebar({ collapsed }: SidebarProps) {
+export default function Sidebar({
+  collapsed,
+  autoHideEnabled,
+  panelsVisible,
+  onShowPanels,
+  onHidePanels,
+}: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
   useRouteState();
 
+  const sidebarWidth = autoHideEnabled && !panelsVisible ? "w-0" : (collapsed ? "w-13" : "w-42");
+  const sidebarClasses = `bg-zinc-900 flex flex-col transition-all duration-200 ${sidebarWidth}`;
+
   return (
-    <aside
-      className={`bg-zinc-900 flex flex-col ${collapsed ? "w-13" : "w-42"}`}
-    >
+    <aside className={sidebarClasses} onMouseEnter={onShowPanels}>
       <nav className="flex flex-col gap-2 mt-4">
         <SidebarItem
           Icon={Home}

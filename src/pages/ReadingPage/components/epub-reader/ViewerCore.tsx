@@ -7,7 +7,14 @@ import {
   extractUniqueWords,
   tokenizeText,
 } from "./languageLearning";
-import { ReaderSettings, THEME_COLORS, getFontStack } from "./theme";
+import { ReaderSettings, THEME_COLORS, HIGHLIGHT_COLORS, getFontStack } from "./theme";
+
+export interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+  subitems?: NavItem[];
+}
 
 interface ViewerCoreProps {
   epubData: ArrayBuffer;
@@ -21,6 +28,9 @@ interface ViewerCoreProps {
   onDismissOverlays: () => void;
   onViewerScroll: (scrollTop: number) => void;
   onScrollPositionChange?: (scrollTop: number) => void;
+  onNavigationLoaded?: (toc: NavItem[]) => void;
+  onNavigateToChapter?: (href: string) => void;
+  currentSectionHref?: string;
 }
 
 interface LyceumDocument extends Document {
@@ -44,6 +54,9 @@ export default function ViewerCore({
   onDismissOverlays,
   onViewerScroll,
   onScrollPositionChange,
+  onNavigationLoaded,
+  onNavigateToChapter,
+  currentSectionHref,
 }: ViewerCoreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
@@ -60,6 +73,8 @@ export default function ViewerCore({
     onDismissOverlays,
     onViewerScroll,
     onScrollPositionChange,
+    onNavigationLoaded,
+    onNavigateToChapter,
   });
   const renderedSectionWordsRef = useRef(new Map<string, Set<string>>());
 
@@ -73,6 +88,8 @@ export default function ViewerCore({
     onDismissOverlays,
     onViewerScroll,
     onScrollPositionChange,
+    onNavigationLoaded,
+    onNavigateToChapter,
   };
 
   const getAnchorFromRect = (doc: Document, rect: DOMRect) => {
@@ -101,6 +118,7 @@ export default function ViewerCore({
     if (!doc.head || !doc.body) return;
 
     const themeColors = THEME_COLORS[settingsRef.current.theme];
+    const highlightColors = HIGHLIGHT_COLORS[settingsRef.current.theme];
     const fontFamily = getFontStack(settingsRef.current.fontFamily);
     const paddingValue = Math.round((100 - settingsRef.current.contentWidth) / 2);
 
@@ -184,17 +202,15 @@ export default function ViewerCore({
 
       ${showHighlights ? `
       .word.word-learning {
-        background: rgba(245, 158, 11, 0.1) !important;
-        box-shadow: inset 0 -0.45em 0 rgba(245, 158, 11, 0.1);
+        background: ${highlightColors.learningBg} !important;
       }
 
       .word.word-known {
-        background: rgba(34, 197, 94, 0.08) !important;
-        box-shadow: inset 0 -0.45em 0 rgba(34, 197, 94, 0.1);
+        background: ${highlightColors.knownBg} !important;
       }
 
       .word.word-saved {
-        text-decoration: underline dotted rgba(250, 204, 21, 0.5);
+        text-decoration: underline dotted ${highlightColors.saved};
         text-underline-offset: 0.22em;
       }
       ` : ""}
@@ -590,6 +606,21 @@ export default function ViewerCore({
         bookRef.current = book;
         await book.ready;
 
+        const tocObj = await book.loaded.navigation;
+        const tocArray = tocObj?.toc;
+        if (!tocArray || !Array.isArray(tocArray)) {
+          console.warn("No TOC found in EPUB");
+        } else {
+          const convertNavItem = (item: { id: string; label: string; href: string; subitems?: unknown[] }): NavItem => ({
+            id: item.id,
+            label: item.label,
+            href: item.href,
+            subitems: item.subitems?.map((sub: unknown) => convertNavItem(sub as { id: string; label: string; href: string })),
+          });
+          const tocItems: NavItem[] = tocArray.map(convertNavItem);
+          callbacksRef.current.onNavigationLoaded?.(tocItems);
+        }
+
         if (!isMounted || !containerRef.current) {
           book.destroy();
           return;
@@ -645,6 +676,14 @@ export default function ViewerCore({
       bookRef.current = null;
     };
   }, [epubData, fileHash]);
+
+  useEffect(() => {
+    const rendition = renditionRef.current;
+    const href = currentSectionHref;
+    if (!rendition || !href) return;
+
+    rendition.display(href).catch(console.error);
+  }, [currentSectionHref]);
 
   useEffect(() => {
     if (!renditionRef.current) return;
