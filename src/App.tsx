@@ -241,7 +241,7 @@ function App() {
 
   return (
     <div className={`relative flex flex-col h-screen overflow-hidden bg-zinc-900${
-      autoHideEnabled && !panelsVisible && isElectron ? " border-[3px] border-zinc-600" : ""
+      autoHideEnabled && !panelsVisible && isElectron ? " border-[4px] rounded border-zinc-800" : ""
     }`}
 >
       <Toaster
@@ -289,14 +289,14 @@ function App() {
       )}
       {autoHideEnabled && isElectron && (
         <div
-          className="absolute top-0 left-0 right-0 h-2 hover:bg-red-500 z-[100]"
+          className="absolute top-0 left-0 right-0 h-2 z-[100]"
           onMouseEnter={showPanels}
         />
       )}
       <div className="flex flex-1 overflow-hidden relative">
         {autoHideEnabled && isElectron && (
           <div
-            className="absolute top-0 left-0 w-2 h-full hover:bg-red-500 z-[100]"
+            className="absolute top-0 left-0 w-2 h-full z-[100]"
             onMouseEnter={showPanels}
           />
         )}
