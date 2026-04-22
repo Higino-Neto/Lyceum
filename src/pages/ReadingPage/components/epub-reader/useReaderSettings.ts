@@ -102,6 +102,29 @@ export function useReaderSettings() {
     [updateSetting],
   );
 
+  const setFocusMode = useCallback(
+    (focusMode: boolean) => {
+      updateSetting("focusMode", focusMode);
+      if (focusMode) {
+        updateSetting("showHighlights", false);
+      }
+      try {
+        localStorage.setItem("lyceum-focus-mode", String(focusMode));
+      } catch {
+        // ignore
+      }
+    },
+    [updateSetting],
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("lyceum-focus-mode", String(settings.focusMode));
+    } catch {
+      // ignore
+    }
+  }, [settings.focusMode]);
+
   return {
     settings,
     setFontSize,
@@ -114,6 +137,7 @@ export function useReaderSettings() {
     setTargetLanguage,
     setShowHighlights,
     setShowPages,
+    setFocusMode,
   };
 }
 

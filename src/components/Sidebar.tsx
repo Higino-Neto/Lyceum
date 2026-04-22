@@ -14,6 +14,7 @@ import { useRouteState } from "../hooks/useRouteState";
 interface SidebarProps {
   collapsed: boolean;
   autoHideEnabled: boolean;
+  autoHideOverlay: boolean;
   panelsVisible: boolean;
   onShowPanels: () => void;
   onHidePanels: () => void;
@@ -22,6 +23,7 @@ interface SidebarProps {
 export default function Sidebar({
   collapsed,
   autoHideEnabled,
+  autoHideOverlay,
   panelsVisible,
   onShowPanels,
   onHidePanels,
@@ -31,8 +33,11 @@ export default function Sidebar({
 
   useRouteState();
 
-  const sidebarWidth = autoHideEnabled && !panelsVisible ? "w-0" : (collapsed ? "w-13" : "w-42");
-  const sidebarClasses = `bg-zinc-900 flex flex-col transition-all duration-200 ${sidebarWidth}`;
+  const sidebarWidth = autoHideEnabled && !panelsVisible && !autoHideOverlay ? "w-0" : (collapsed ? "w-13" : "w-42");
+  const sidebarVisibility = autoHideEnabled && autoHideOverlay && !panelsVisible ? "opacity-0 pointer-events-none" : "";
+  const sidebarClasses = `bg-zinc-900 flex flex-col transition-all duration-200 ${sidebarWidth} ${
+    autoHideEnabled && autoHideOverlay ? "fixed top-10 left-0 h-full z-40" : ""
+  } ${sidebarVisibility}`;
 
   return (
     <aside className={sidebarClasses} onMouseEnter={onShowPanels}>

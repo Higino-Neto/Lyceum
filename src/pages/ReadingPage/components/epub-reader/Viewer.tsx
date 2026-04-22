@@ -12,6 +12,7 @@ import {
   Sparkles,
   Languages,
   X,
+  Focus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ViewerCore, { NavItem } from "./ViewerCore";
@@ -160,7 +161,6 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const [activeSelectionLookup, setActiveSelectionLookup] =
     useState<ActiveSelectionLookup | null>(null);
   const {
-    settings,
     setFontSize,
     setTheme,
     setFontFamily,
@@ -170,8 +170,10 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setTargetLanguage,
     setShowHighlights,
     setShowPages,
+    setFocusMode,
+    settings,
   } = useReaderSettings();
-const {
+  const {
     entries,
     trackedEntries,
     stats,
@@ -197,6 +199,15 @@ const {
   }, [fileHash]);
 
   useEffect(() => {
+    if (settings.focusMode) {
+      setIsVocabularyPanelOpen(false);
+      setIsTocOpen(false);
+      setActiveWordLookup(null);
+      setActiveSelectionLookup(null);
+    }
+  }, [settings.focusMode]);
+
+  useEffect(() => {
     return () => {
       wordLookupAbortRef.current?.abort();
       selectionLookupAbortRef.current?.abort();
@@ -207,6 +218,11 @@ const {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
+      if (settings.focusMode) {
+        setFocusMode(false);
+        return;
+      }
+
       setActiveWordLookup(null);
       setActiveSelectionLookup(null);
       setIsVocabularyPanelOpen(false);
@@ -215,7 +231,7 @@ const {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [settings.focusMode, setFocusMode]);
 
   const handleDismissOverlays = () => {
     setActiveWordLookup(null);
@@ -510,24 +526,41 @@ const {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <ReaderToolbar
-        settings={settings}
-        isVocabularyPanelOpen={isVocabularyPanelOpen}
-        isTocOpen={isTocOpen}
-        onFontSizeChange={setFontSize}
-        onThemeChange={setTheme}
-        onFontFamilyChange={setFontFamily}
-        onLineHeightChange={setLineHeight}
-        onContentWidthChange={setContentWidth}
-        onToggleVocabularyPanel={() =>
-          setIsVocabularyPanelOpen((current) => !current)
-        }
-        onToggleToc={() => setIsTocOpen((current) => !current)}
-        onSourceLanguageChange={setSourceLanguage}
-        onTargetLanguageChange={setTargetLanguage}
-        onShowHighlightsChange={setShowHighlights}
-        onShowPagesChange={setShowPages}
-      />
+      {!settings.focusMode && (
+        <ReaderToolbar
+          settings={settings}
+          isVocabularyPanelOpen={isVocabularyPanelOpen}
+          isTocOpen={isTocOpen}
+          onFontSizeChange={setFontSize}
+          onThemeChange={setTheme}
+          onFontFamilyChange={setFontFamily}
+          onLineHeightChange={setLineHeight}
+          onContentWidthChange={setContentWidth}
+          onToggleVocabularyPanel={() =>
+            setIsVocabularyPanelOpen((current) => !current)
+          }
+          onToggleToc={() => setIsTocOpen((current) => !current)}
+          onSourceLanguageChange={setSourceLanguage}
+          onTargetLanguageChange={setTargetLanguage}
+          onShowHighlightsChange={setShowHighlights}
+          onShowPagesChange={setShowPages}
+          onFocusModeChange={setFocusMode}
+        />
+      )}
+
+      {settings.focusMode && (
+        <div className="absolute top-2 right-2 z-50 opacity-0 hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="flex items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition"
+            title="Sair do Modo Foco (Esc)"
+          >
+            <Focus size={16} />
+            Sair
+          </button>
+        </div>
+      )}
 
       <div ref={overlayHostRef} className="relative flex-1 min-h-0 overflow-hidden">
         <ViewerCore

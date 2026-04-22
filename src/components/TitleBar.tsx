@@ -5,7 +5,9 @@ interface TitleBarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   autoHideEnabled: boolean;
+  autoHideOverlay: boolean;
   onAutoHideToggle: (enabled: boolean) => void;
+  onAutoHideOverlayToggle: (enabled: boolean) => void;
   panelsVisible: boolean;
   onShowPanels: () => void;
   onHidePanels: () => void;
@@ -15,7 +17,9 @@ export default function TitleBar({
   collapsed,
   onToggleCollapse,
   autoHideEnabled,
+  autoHideOverlay,
   onAutoHideToggle,
+  onAutoHideOverlayToggle,
   panelsVisible,
   onShowPanels,
   onHidePanels,
@@ -34,6 +38,11 @@ export default function TitleBar({
     onAutoHideToggle(!autoHideEnabled);
     setShowContextMenu(false);
   }, [autoHideEnabled, onAutoHideToggle]);
+
+  const handleToggleAutoHideOverlay = useCallback(() => {
+    onAutoHideOverlayToggle(!autoHideOverlay);
+    setShowContextMenu(false);
+  }, [autoHideOverlay, onAutoHideOverlayToggle]);
 
   useEffect(() => {
     const handleClickOutside = () => setShowContextMenu(false);
@@ -68,8 +77,11 @@ export default function TitleBar({
     window.api.windowClose();
   };
 
-  const titleBarHeight = autoHideEnabled && !panelsVisible ? "h-0" : "h-10";
-  const titleBarClasses = `bg-zinc-900 flex items-center justify-between select-none transition-all duration-200 ${titleBarHeight}`;
+  const titleBarHeight = autoHideEnabled && !panelsVisible && !autoHideOverlay ? "h-0" : "h-10";
+  const titleBarVisibility = autoHideEnabled && autoHideOverlay && !panelsVisible ? "opacity-0 pointer-events-none" : "";
+  const titleBarClasses = `bg-zinc-900 flex items-center justify-between select-none transition-all duration-200 ${titleBarHeight} ${
+    autoHideEnabled && autoHideOverlay ? "fixed top-0 left-0 right-0 z-50" : ""
+  } ${titleBarVisibility}`;
 
   return (
     <>
@@ -136,6 +148,15 @@ export default function TitleBar({
             {autoHideEnabled && <Check size={14} />}
             Auto-ocultar {autoHideEnabled ? "(Ativado)" : ""}
           </button>
+          {autoHideEnabled && (
+            <button
+              onClick={handleToggleAutoHideOverlay}
+              className="w-full px-4 py-2 text-left text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
+            >
+              {autoHideOverlay && <Check size={14} />}
+              Sobrepor {autoHideOverlay ? "(Ativado)" : ""}
+            </button>
+          )}
         </div>
       )}
     </>

@@ -19,6 +19,7 @@ import { getLastRoute } from "./hooks/useRouteState";
 import { supabase } from "./lib/supabase";
 
 const AUTO_HIDE_STORAGE_KEY = "lyceum_auto_hide";
+const AUTO_HIDE_OVERLAY_KEY = "lyceum_auto_hide_overlay";
 
 function loadAutoHideSetting(): boolean {
   try {
@@ -37,11 +38,29 @@ function saveAutoHideSetting(enabled: boolean): void {
   }
 }
 
+function loadAutoHideOverlaySetting(): boolean {
+  try {
+    const stored = localStorage.getItem(AUTO_HIDE_OVERLAY_KEY);
+    return stored === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveAutoHideOverlaySetting(enabled: boolean): void {
+  try {
+    localStorage.setItem(AUTO_HIDE_OVERLAY_KEY, String(enabled));
+  } catch (e) {
+    console.warn("Failed to save auto-hide overlay setting:", e);
+  }
+}
+
 function App() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [autoHideEnabled, setAutoHideEnabled] = useState(loadAutoHideSetting);
+  const [autoHideOverlay, setAutoHideOverlay] = useState(loadAutoHideOverlaySetting);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -239,6 +258,11 @@ function App() {
     saveAutoHideSetting(enabled);
   };
 
+  const handleAutoHideOverlayToggle = (enabled: boolean) => {
+    setAutoHideOverlay(enabled);
+    saveAutoHideOverlaySetting(enabled);
+  };
+
   return (
     <div className={`relative flex flex-col h-screen overflow-hidden bg-zinc-900${
       autoHideEnabled && !panelsVisible && isElectron ? " border-[4px] rounded border-zinc-800" : ""
@@ -281,7 +305,9 @@ function App() {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           autoHideEnabled={autoHideEnabled}
+          autoHideOverlay={autoHideOverlay}
           onAutoHideToggle={handleAutoHideToggle}
+          onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
           panelsVisible={panelsVisible}
           onShowPanels={showPanels}
           onHidePanels={hidePanels}
@@ -303,6 +329,7 @@ function App() {
         <Sidebar
           collapsed={sidebarCollapsed}
           autoHideEnabled={autoHideEnabled}
+          autoHideOverlay={autoHideOverlay}
           panelsVisible={panelsVisible}
           onShowPanels={showPanels}
           onHidePanels={hidePanels}

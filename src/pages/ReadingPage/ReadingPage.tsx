@@ -7,8 +7,16 @@ import PdfViewer from "./components/pdf-reader/Viewer";
 import EpubViewer from "./components/epub-reader/Viewer";
 import { BookOpenText, FolderOpen, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
+
+function isFocusModeActive(): boolean {
+  try {
+    return localStorage.getItem("lyceum-focus-mode") === "true";
+  } catch {
+    return false;
+  }
+}
 
 type FileType = "pdf" | "epub" | null;
 
@@ -31,6 +39,17 @@ export default function ReadingPage() {
     useState<LibraryDocumentData | null>(null);
   const [activeSource, setActiveSource] = useState<"library" | "local">("local");
   const [activeType, setActiveType] = useState<FileType>(null);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+
+  useEffect(() => {
+    const checkFocusMode = () => {
+      const focusMode = isFocusModeActive();
+      setIsFocusMode(focusMode && activeType === "epub");
+    };
+    checkFocusMode();
+    const interval = setInterval(checkFocusMode, 500);
+    return () => clearInterval(interval);
+  }, [activeType]);
 
   useEffect(() => {
     const showDefaultAppToast = () => {
@@ -185,6 +204,7 @@ export default function ReadingPage() {
 
       <div className="min-h-screen bg-zinc-950 text-zinc-100">
         <div className="h-screen flex flex-col p-4 space-y-4">
+          {!isFocusMode && (
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 pl-6">
@@ -220,6 +240,7 @@ export default function ReadingPage() {
               </button>
             </div>
           </header>
+          )}
 
           {hasContent ? (
             <section className="flex-1 min-h-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl">

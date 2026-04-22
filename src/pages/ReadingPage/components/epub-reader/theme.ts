@@ -14,6 +14,7 @@ export interface ReaderSettings {
   showPages: boolean;
   sourceLanguage: LanguageCode;
   targetLanguage: LanguageCode;
+  focusMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   showPages: false,
   sourceLanguage: "en",
   targetLanguage: "pt",
+  focusMode: false,
 };
 
 export interface ThemeColors {

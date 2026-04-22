@@ -15,6 +15,7 @@ import {
   BookOpen,
   Settings,
   PanelRightClose,
+  Focus,
 } from "lucide-react";
 import {
   ThemeName,
@@ -42,6 +43,7 @@ export interface ReaderToolbarProps {
   onTargetLanguageChange: (lang: LanguageCode) => void;
   onShowHighlightsChange: (show: boolean) => void;
   onShowPagesChange: (show: boolean) => void;
+  onFocusModeChange: (focusMode: boolean) => void;
 }
 
 export default function ReaderToolbar({
@@ -59,6 +61,7 @@ export default function ReaderToolbar({
   onTargetLanguageChange,
   onShowHighlightsChange,
   onShowPagesChange,
+  onFocusModeChange,
 }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -414,6 +417,19 @@ export default function ReaderToolbar({
             title="Índice"
           >
             <PanelRightClose size={16} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onFocusModeChange(!settings.focusMode)}
+            className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
+              settings.focusMode
+                ? "border-green-600 bg-green-900/50 text-green-400"
+                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+            }`}
+            title="Modo Foco"
+          >
+            <Focus size={16} />
           </button>
         </div>
       </div>
