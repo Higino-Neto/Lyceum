@@ -204,7 +204,10 @@ export default function useReadingPersistence(
           pageAnnotations.push(...(anns || []));
         }
       } catch (error) {
-        console.error("Failed to get annotations:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("document does not open")) {
+          console.error("Failed to get annotations:", error);
+        }
       }
 
       currentZoomRef.current = currentZoom;

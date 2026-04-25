@@ -1,14 +1,28 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BookOpenText, X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import useReadingSession from "./hooks/useReadingSession";
-import useViewerLoader from "./hooks/useViewerLoader";
-import useEpubViewerLoader from "./hooks/useEpubViewerLoader";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
 import ReadingSessionTimer from "./components/ReadingSessionTimer";
 import PdfViewer from "./components/pdf-reader/Viewer";
 import EpubViewer from "./components/epub-reader/Viewer";
-import { BookOpenText, FolderOpen, X } from "lucide-react";
-import { useLocation } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
-import toast from "react-hot-toast";
+import { TabProvider, useTabContext } from "../../contexts/TabContext";
+import TabBar from "../../components/tabs/TabBar";
+import { FileType } from "../../types/DocumentTab";
+
+interface ReadingRouteState {
+  fileBuffer?: ArrayBuffer;
+  fileHash?: string;
+  fileName?: string;
+  filePath?: string;
+  fileType?: FileType;
+  source?: "library" | "local";
+  libraryDocumentId?: string;
+  navigationId?: string;
+}
+
+const processedNavigationIds = new Set<string>();
 
 function isFocusModeActive(): boolean {
   try {
@@ -18,34 +32,31 @@ function isFocusModeActive(): boolean {
   }
 }
 
-type FileType = "pdf" | "epub" | null;
+function inferFileType(fileName?: string, fileType?: FileType): FileType {
+  if (fileType) {
+    return fileType;
+  }
 
-interface LibraryDocumentData {
-  buffer: ArrayBuffer;
-  hash: string;
-  fileName: string;
-  type: Exclude<FileType, null>;
+  const extension = fileName?.toLowerCase().split(".").pop();
+  return extension === "epub" ? "epub" : "pdf";
 }
 
-export default function ReadingPage() {
+function ReadingContent() {
   const location = useLocation();
-  const locationFileBuffer = location.state?.fileBuffer as ArrayBuffer | undefined;
-  const locationFileHash = location.state?.fileHash as string | undefined;
-  const locationFileName = location.state?.fileName as string | undefined;
-  const pdf = useViewerLoader();
-  const epub = useEpubViewerLoader();
+  const navigate = useNavigate();
+  const routeState = (location.state as ReadingRouteState | null) ?? null;
   const session = useReadingSession();
-  const [libraryDocumentData, setLibraryDocumentData] =
-    useState<LibraryDocumentData | null>(null);
-  const [activeSource, setActiveSource] = useState<"library" | "local">("local");
-  const [activeType, setActiveType] = useState<FileType>(null);
+  const { activeTab, addTab } = useTabContext();
+  const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const navigationId = routeState?.navigationId;
 
   useEffect(() => {
     const checkFocusMode = () => {
       const focusMode = isFocusModeActive();
       setIsFocusMode(focusMode && activeType === "epub");
     };
+
     checkFocusMode();
     const interval = setInterval(checkFocusMode, 500);
     return () => clearInterval(interval);
@@ -54,15 +65,15 @@ export default function ReadingPage() {
   useEffect(() => {
     const showDefaultAppToast = () => {
       const isDev = import.meta.env.DEV;
-      if (isDev) return;
-
-      const toastId = "default-app-toast";
+      if (isDev) {
+        return;
+      }
 
       toast(
         (t) => (
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-zinc-300">
-              Defina o Lyceum como leitor padrão de PDF e EPUB para abrir arquivos diretamente do explorador.
+              Defina o Lyceum como leitor padrÃ£o de PDF e EPUB para abrir arquivos diretamente do explorador.
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -70,13 +81,13 @@ export default function ReadingPage() {
                   window.api.openDefaultAppsSettings();
                   toast.dismiss(t.id);
                 }}
-                className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500 transition"
+                className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-green-500"
               >
                 Configurar
               </button>
               <button
                 onClick={() => toast.dismiss(t.id)}
-                className="text-zinc-400 hover:text-zinc-200 transition"
+                className="text-zinc-400 transition hover:text-zinc-200"
               >
                 <X size={16} />
               </button>
@@ -84,9 +95,8 @@ export default function ReadingPage() {
           </div>
         ),
         {
-          id: toastId,
+          id: "default-app-toast",
           duration: 15000,
-          // icon: "📖",
           style: {
             background: "#27272a",
             color: "#e4e4e7",
@@ -103,99 +113,100 @@ export default function ReadingPage() {
   }, []);
 
   useEffect(() => {
-    if (!locationFileBuffer || !locationFileHash) {
+    if (!routeState?.fileHash) {
       return;
     }
 
-    const extension = locationFileName?.toLowerCase().split(".").pop();
-    const type = extension === "epub" ? "epub" : "pdf";
+    if (navigationId && processedNavigationIds.has(navigationId)) {
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: null,
+      });
+      return;
+    }
 
-    setLibraryDocumentData({
-      buffer: locationFileBuffer,
-      hash: locationFileHash,
-      fileName: locationFileName || "Livro sem nome",
-      type,
+    if (navigationId) {
+      processedNavigationIds.add(navigationId);
+    }
+
+    addTab(
+      routeState.fileHash,
+      routeState.fileName || "Livro sem nome",
+      inferFileType(routeState.fileName, routeState.fileType),
+      {
+        buffer: routeState.fileBuffer,
+        filePath: routeState.filePath,
+        source: routeState.source || "local",
+        libraryDocumentId: routeState.libraryDocumentId,
+      }
+    );
+
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
     });
-    setActiveSource("library");
-    setActiveType(type);
-  }, [locationFileBuffer, locationFileHash, locationFileName]);
+  }, [addTab, location.pathname, location.search, navigate, navigationId, routeState]);
 
-  const activePdfData =
-    activeSource === "library" && activeType === "pdf"
-      ? libraryDocumentData?.buffer
-      : pdf.pdfData;
-  const activePdfHash =
-    activeSource === "library" && activeType === "pdf"
-      ? libraryDocumentData?.hash
-      : pdf.fileHash;
-  const activePdfName =
-    activeSource === "library" && activeType === "pdf"
-      ? libraryDocumentData?.fileName
-      : pdf.fileName;
-
-  const activeEpubData =
-    activeSource === "library" && activeType === "epub"
-      ? libraryDocumentData?.buffer
-      : epub.epubData;
-  const activeEpubHash =
-    activeSource === "library" && activeType === "epub"
-      ? libraryDocumentData?.hash
-      : epub.fileHash;
-  const activeEpubName =
-    activeSource === "library" && activeType === "epub"
-      ? libraryDocumentData?.fileName
-      : epub.fileName;
-
-  const handleOpenPdf = async () => {
-    await pdf.openFileDialog();
-    setActiveSource("local");
-    setActiveType("pdf");
-  };
-
-  const handleOpenEpub = async () => {
-    await epub.openFileDialog();
-    setActiveSource("local");
-    setActiveType("epub");
-  };
+  useEffect(() => {
+    setActiveType(activeTab?.fileType ?? null);
+  }, [activeTab]);
 
   const renderViewer = () => {
-    if (activeType === "epub" && activeEpubData && activeEpubHash) {
+    if (!activeTab) {
+      return null;
+    }
+
+    if (activeTab.loadError) {
+      return (
+        <div className="flex h-full items-center justify-center px-6 text-center text-zinc-400">
+          <div className="space-y-2">
+            <p className="text-base text-zinc-200">Nao foi possivel reabrir esta aba.</p>
+            <p className="text-sm text-zinc-500">{activeTab.loadError}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!activeTab.buffer || activeTab.isLoading) {
+      return (
+        <div className="flex h-full items-center justify-center text-zinc-500">
+          Carregando {activeTab.fileType.toUpperCase()}...
+        </div>
+      );
+    }
+
+    if (activeTab.fileType === "epub") {
       return (
         <EpubViewer
-          epubData={activeEpubData}
-          fileHash={activeEpubHash}
-          fileName={activeEpubName}
+          epubData={activeTab.buffer}
+          fileHash={activeTab.fileHash}
+          fileName={activeTab.fileName}
         />
       );
     }
 
-    if (activeType === "pdf" && activePdfData && activePdfHash) {
-      return (
-        <PdfViewer
-          pdfData={activePdfData}
-          fileHash={activePdfHash}
-          fileName={activePdfName}
-          hasSessionStarted={session.sessionStart}
-          hasSessionFinished={session.sessionFinish}
-          onReadingInfo={session.handleReadingInfo}
-          onTotalBookPages={pdf.handleTotalBookPages}
-        />
-      );
-    }
-
-    return null;
+    return (
+      <PdfViewer
+        pdfData={activeTab.buffer}
+        fileHash={activeTab.fileHash}
+        fileName={activeTab.fileName}
+        hasSessionStarted={session.sessionStart}
+        hasSessionFinished={session.sessionFinish}
+        onReadingInfo={session.handleReadingInfo}
+        onTotalBookPages={() => {}}
+      />
+    );
   };
 
-  const hasContent =
-    (activeType === "epub" && Boolean(activeEpubData)) ||
-    (activeType === "pdf" && Boolean(activePdfData));
+  const hasOpenTab = Boolean(activeTab);
+  const hasLoadedContent = Boolean(activeTab?.buffer);
 
   return (
     <>
       {session.showModal && (
         <ReadingSessionCompletedModal
           session={session.session}
-          totalBookPages={pdf.totalBookPages}
+          totalBookPages={0}
           onReset={session.handleReset}
           onClose={() => session.setShowModal(false)}
           onSubmit={session.handleSubmit}
@@ -203,46 +214,30 @@ export default function ReadingPage() {
       )}
 
       <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <div className="h-screen flex flex-col p-4 space-y-4">
+        <div className="flex h-screen flex-col p-2">
           {!isFocusMode && (
-          <header className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 pl-6">
-                <BookOpenText size={32} className="text-zinc-300" />
-              </div>
-            </div>
+            <header className="flex items-center justify-between">
+              {/* <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 pl-6">
+                  <BookOpenText size={32} className="text-zinc-300" />
+                </div>
+              </div> */}
 
-            <div className="flex items-center gap-2">
-              {hasContent && (
-                <ReadingSessionTimer
-                  fileName={activeType === "epub" ? activeEpubName : activePdfName}
-                  onSessionStart={session.handleSessionStart}
-                  onSessionData={session.handleSessionData}
-                  onSessionFinish={session.handleTimerDone}
-                  onTimerDone={session.handleTimerDone}
-                />
-              )}
-
-              <button
-                onClick={handleOpenPdf}
-                className="flex items-center gap-2 rounded-sm bg-green-600 px-4 py-2 text-lg font-medium text-black transition hover:bg-green-500"
-              >
-                <FolderOpen size={16} />
-                Abrir PDF
-              </button>
-
-              <button
-                onClick={handleOpenEpub}
-                className="flex items-center gap-2 rounded-sm bg-blue-600 px-4 py-2 text-lg font-medium text-black transition hover:bg-blue-500"
-              >
-                <FolderOpen size={16} />
-                Abrir EPUB
-              </button>
-            </div>
-          </header>
+              {/* <div className="flex items-center gap-2">
+                {hasLoadedContent && (
+                  <ReadingSessionTimer
+                    fileName={activeTab?.fileName || ""}
+                    onSessionStart={session.handleSessionStart}
+                    onSessionData={session.handleSessionData}
+                    onSessionFinish={session.handleTimerDone}
+                    onTimerDone={session.handleTimerDone}
+                  />
+                )}
+              </div> */}
+            </header>
           )}
 
-          {hasContent ? (
+          {hasOpenTab ? (
             <section className="flex-1 min-h-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl">
               {renderViewer()}
             </section>
@@ -256,5 +251,83 @@ export default function ReadingPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function TabBarWithContent() {
+  const { addTab, openPdfFile, openEpubFile } = useTabContext();
+
+  const handleOpenPdf = useCallback(async () => {
+    const result = await openPdfFile();
+    if (!result) {
+      return;
+    }
+
+    addTab(result.fileHash, result.fileName, "pdf", {
+      source: "local",
+      filePath: result.filePath,
+      buffer: result.buffer,
+    });
+  }, [addTab, openPdfFile]);
+
+  const handleOpenEpub = useCallback(async () => {
+    const result = await openEpubFile();
+    if (!result) {
+      return;
+    }
+
+    addTab(result.fileHash, result.fileName, "epub", {
+      source: "local",
+      filePath: result.filePath,
+      buffer: result.buffer,
+    });
+  }, [addTab, openEpubFile]);
+
+  return (
+    <div className="flex h-full flex-col">
+      <TabBar onOpenPdf={handleOpenPdf} onOpenEpub={handleOpenEpub} />
+      <div className="flex-1 overflow-hidden">
+        <ReadingContent />
+      </div>
+    </div>
+  );
+}
+
+export default function ReadingPage() {
+  const location = useLocation();
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
+
+  const mode = searchParams.get("mode");
+  const detached = mode === "detached";
+  const fileHash = searchParams.get("fileHash");
+  const fileType = searchParams.get("fileType");
+  const fileName = searchParams.get("fileName");
+
+  const initialTab = useMemo(() => {
+    if (!detached || !fileHash || (fileType !== "pdf" && fileType !== "epub")) {
+      return null;
+    }
+
+    const detachedFileType: FileType = fileType === "epub" ? "epub" : "pdf";
+    const detachedSource: "library" | "local" =
+      searchParams.get("source") === "library" ? "library" : "local";
+
+    return {
+      fileHash,
+      fileName: fileName || "Livro sem nome",
+      fileType: detachedFileType,
+      filePath: searchParams.get("filePath") || undefined,
+      libraryDocumentId: searchParams.get("libraryDocumentId") || undefined,
+      source: detachedSource,
+    };
+  }, [detached, fileHash, fileName, fileType, searchParams]);
+
+  return (
+    <TabProvider scope={detached ? "detached" : "main"} initialTab={initialTab}>
+      <TabBarWithContent />
+    </TabProvider>
   );
 }

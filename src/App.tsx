@@ -245,6 +245,10 @@ function App() {
             fileHash: data.fileHash,
             fileBuffer: data.fileBuffer,
             fileName: data.title,
+            filePath: data.filePath,
+            fileType: data.fileType,
+            source: "local",
+            navigationId: crypto.randomUUID(),
           },
         });
       }
@@ -264,8 +268,8 @@ function App() {
   };
 
   return (
-    <div className={`relative flex flex-col h-screen overflow-hidden bg-zinc-900${
-      autoHideEnabled && !panelsVisible && isElectron ? " border-[4px] rounded border-zinc-800" : ""
+    <div className={`relative flex flex-col h-screen overflow-hidden border-[7px] border-zinc-800 rounded bg-zinc-900${
+      autoHideEnabled && !panelsVisible && isElectron ? "" : ""
     }`}
 >
       <Toaster

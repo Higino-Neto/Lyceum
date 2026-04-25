@@ -69,12 +69,16 @@
     }
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@embedpdf/react-pdf-viewer": "^2.6.2",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
     "@types/chokidar": "^1.7.5",
     "@uiw/react-heat-map": "^2.3.3",
+    "adm-zip": "^0.5.17",
     "better-sqlite3": "^12.6.2",
     "chokidar": "^5.0.0",
     "electron-updater": "^6.8.3",

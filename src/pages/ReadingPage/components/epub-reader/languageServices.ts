@@ -1,4 +1,12 @@
 import { sanitizeLookupWord, simplifyEnglishText } from "./languageLearning";
+import {
+  getCachedWord,
+  setCachedWord,
+  saveWord,
+  getSavedWords,
+  removeSavedWord,
+  isWordSaved,
+} from "./offlineDictionary";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "Inglês", flag: "🇬🇧" },
@@ -18,6 +26,8 @@ export const SUPPORTED_LANGUAGES = [
 
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]["code"];
 
+export type LookupSource = "cache" | "api" | "fallback";
+
 export const DEFAULT_SOURCE_LANGUAGE: LanguageCode = "en";
 export const DEFAULT_TARGET_LANGUAGE: LanguageCode = "pt";
 
@@ -30,14 +40,19 @@ export function isDictionarySupported(lang: LanguageCode): boolean {
 export interface DictionaryDefinition {
   definition: string;
   example?: string;
+  synonyms?: string[];
 }
 
 export interface DictionaryLookupResult {
   word: string;
   phonetic?: string;
   audioUrl?: string;
-  partOfSpeech?: string;
-  definitions: DictionaryDefinition[];
+  meanings: Array<{
+    partOfSpeech: string;
+    definitions: DictionaryDefinition[];
+  }>;
+  source: LookupSource;
+  lookedUpAt?: number;
 }
 
 export interface TranslationResult {
@@ -83,7 +98,11 @@ export async function fetchDictionaryEntry(
     phonetics?: Array<{ text?: string; audio?: string }>;
     meanings?: Array<{
       partOfSpeech?: string;
-      definitions?: Array<{ definition?: string; example?: string }>;
+      definitions?: Array<{
+        definition?: string;
+        example?: string;
+        synonyms?: string[];
+      }>;
     }>;
   }>;
 
@@ -97,17 +116,22 @@ export async function fetchDictionaryEntry(
   const audioUrl = entry.phonetics
     ?.map((item) => item.audio?.trim())
     .find(Boolean);
-  const meaning = entry.meanings?.find((item) => item.definitions?.length);
-  const definitions =
-    meaning?.definitions
-      ?.map((item) => ({
-        definition: cleanText(item.definition || ""),
-        example: item.example ? cleanText(item.example) : undefined,
-      }))
-      .filter((item) => item.definition)
-      .slice(0, 3) || [];
 
-  if (!definitions.length) {
+  const meanings = entry.meanings
+    ?.map((meaning) => ({
+      partOfSpeech: meaning.partOfSpeech || "unknown",
+      definitions: meaning.definitions
+        ?.map((item) => ({
+          definition: cleanText(item.definition || ""),
+          example: item.example ? cleanText(item.example) : undefined,
+          synonyms: item.synonyms || [],
+        }))
+        .filter((item) => item.definition)
+        .slice(0, 5) || [],
+    }))
+    .filter((meaning) => meaning.definitions.length > 0);
+
+  if (!meanings || meanings.length === 0) {
     throw new Error("Nenhuma definicao foi encontrada.");
   }
 
@@ -119,8 +143,9 @@ export async function fetchDictionaryEntry(
         ? `https:${audioUrl}`
         : audioUrl
       : undefined,
-    partOfSpeech: meaning?.partOfSpeech,
-    definitions,
+    meanings,
+    source: "api",
+    lookedUpAt: Date.now(),
   };
 }
 
@@ -135,6 +160,7 @@ async function requestMyMemoryTranslation(
   sourceLanguage: string,
   targetLanguage: string,
   signal?: AbortSignal,
+  fallback = true,
 ) {
   const query = new URLSearchParams({
     q: text,
@@ -145,7 +171,13 @@ async function requestMyMemoryTranslation(
     signal,
   });
 
-  ensureOkResponse(response, "Nao foi possivel traduzir este trecho agora.");
+  if (!response.ok) {
+    if (fallback && sourceLanguage !== "pt" && targetLanguage !== "pt") {
+      const intermediate = await requestMyMemoryTranslation(text, sourceLanguage, "pt", signal, false);
+      return requestMyMemoryTranslation(intermediate, "pt", targetLanguage, signal, false);
+    }
+    throw new Error("Não foi possível traduzir este trecho agora.");
+  }
 
   const payload = (await response.json()) as {
     responseData?: {
@@ -156,7 +188,11 @@ async function requestMyMemoryTranslation(
   const translatedText = cleanText(payload.responseData?.translatedText || "");
 
   if (!translatedText) {
-    throw new Error("A traducao retornou vazia.");
+    if (fallback && sourceLanguage !== "pt" && targetLanguage !== "pt") {
+      const intermediate = await requestMyMemoryTranslation(text, sourceLanguage, "pt", signal, false);
+      return requestMyMemoryTranslation(intermediate, "pt", targetLanguage, signal, false);
+    }
+    throw new Error("A tradução retornou vazia.");
   }
 
   return translatedText;
@@ -214,4 +250,163 @@ export async function simplifySelectedText(
   );
 
   return requestMyMemoryTranslation(translated, targetLanguage, sourceLanguage, signal);
+}
+
+export interface LookupOptions {
+  useCache?: boolean;
+  saveToCache?: boolean;
+  saveToFavorites?: boolean;
+}
+
+export async function lookupWord(
+  word: string,
+  lang: LanguageCode = "en",
+  signal?: AbortSignal,
+  options: LookupOptions = { useCache: true, saveToCache: true },
+): Promise<DictionaryLookupResult> {
+  const { useCache = true, saveToCache = true, saveToFavorites = false } = options;
+  const normalizedWord = sanitizeLookupWord(word);
+
+  if (!normalizedWord) {
+    throw new Error("Palavra inválida para consulta.");
+  }
+
+  if (useCache) {
+    const cached = await getCachedWord(normalizedWord, lang);
+    if (cached) {
+      return { ...cached, source: "cache" };
+    }
+  }
+
+  try {
+    const result = await fetchDictionaryEntry(normalizedWord, signal, lang);
+
+    if (saveToCache) {
+      await setCachedWord(normalizedWord, lang, result);
+    }
+
+    if (saveToFavorites) {
+      await saveWord(normalizedWord, lang, result);
+    }
+
+    return result;
+  } catch (apiError) {
+    if (useCache) {
+      const cached = await getCachedWord(normalizedWord, lang);
+      if (cached) {
+        return { ...cached, source: "fallback" };
+      }
+    }
+
+    throw apiError;
+  }
+}
+
+export async function lookupWithTranslation(
+  word: string,
+  sourceLang: LanguageCode = "en",
+  targetLang: LanguageCode = "pt",
+  signal?: AbortSignal,
+): Promise<{
+  source: DictionaryLookupResult;
+  translated: DictionaryLookupResult | null;
+}> {
+  const normalizedWord = sanitizeLookupWord(word);
+
+  if (!normalizedWord) {
+    throw new Error("Palavra inválida para consulta.");
+  }
+
+  const source = await lookupWord(normalizedWord, sourceLang, signal, { useCache: true, saveToCache: true });
+
+  if (sourceLang === targetLang) {
+    return { source, translated: null };
+  }
+
+  try {
+    const translatedMeanings = await Promise.all(
+      source.meanings.map(async (meaning) => ({
+        partOfSpeech: meaning.partOfSpeech,
+        definitions: await Promise.all(
+          meaning.definitions.map(async (def) => {
+            let translatedDef = def.definition;
+            let translatedExample = def.example;
+
+            if (def.definition) {
+              try {
+                const result = await requestMyMemoryTranslation(def.definition, sourceLang, targetLang, signal);
+                if (result) {
+                  translatedDef = result;
+                }
+              } catch { }
+            }
+
+            if (def.example) {
+              try {
+                const result = await requestMyMemoryTranslation(def.example, sourceLang, targetLang, signal);
+                if (result) {
+                  translatedExample = result;
+                }
+              } catch { }
+            }
+
+            return {
+              definition: translatedDef,
+              example: translatedExample,
+              synonyms: def.synonyms || [],
+            };
+          }),
+        ),
+      })),
+    );
+
+    return {
+      source,
+      translated: {
+        ...source,
+        meanings: translatedMeanings,
+      },
+    };
+  } catch {
+    return { source, translated: null };
+  }
+}
+
+export async function toggleFavoriteWord(
+  word: string,
+  lang: LanguageCode = "en",
+): Promise<boolean> {
+  const normalizedWord = sanitizeLookupWord(word);
+  if (!normalizedWord) return false;
+
+  const saved = await isWordSaved(normalizedWord, lang);
+  if (saved) {
+    await removeSavedWord(normalizedWord, lang);
+    return false;
+  }
+
+  const cached = await getCachedWord(normalizedWord, lang);
+  if (cached) {
+    await saveWord(normalizedWord, lang, cached);
+    return true;
+  }
+
+  const result = await fetchDictionaryEntry(normalizedWord, undefined, lang);
+  await saveWord(normalizedWord, lang, result);
+  return true;
+}
+
+export async function isFavoriteWord(
+  word: string,
+  lang: LanguageCode = "en",
+): Promise<boolean> {
+  const normalizedWord = sanitizeLookupWord(word);
+  if (!normalizedWord) return false;
+  return isWordSaved(normalizedWord, lang);
+}
+
+export async function getFavoriteWords(
+  lang?: LanguageCode,
+): Promise<DictionaryLookupResult[]> {
+  return getSavedWords(lang);
 }

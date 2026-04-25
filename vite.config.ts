@@ -15,7 +15,7 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ["better-sqlite3", "bindings"],
+              external: ["better-sqlite3", "bindings", "adm-zip"],
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
@@ -34,6 +34,16 @@ export default defineConfig({
   ],
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(process.env.npm_package_version || "1.0.0"),
+    global: "globalThis",
+  },
+  optimizeDeps: {
+    exclude: ["crypto"],
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      crypto: "node:crypto",
+    },
   },
   test: {
     globals: true,
@@ -43,11 +53,6 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-    },
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
     },
   },
 });

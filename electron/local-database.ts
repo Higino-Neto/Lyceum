@@ -138,6 +138,19 @@ export function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_cat ON document_categories(categoryId)`);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS book_word_index (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fileHash TEXT NOT NULL,
+      word TEXT NOT NULL,
+      count INTEGER NOT NULL,
+      UNIQUE(fileHash, word)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS habits (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -165,6 +178,16 @@ export function initDatabase() {
     WHERE thumbnailPath IS NOT NULL AND thumbnailPath NOT LIKE '%-1.jpg'
   `);
   updateStmt.run();
+
+  db.exec(`
+    UPDATE documents
+    SET fileType = CASE
+      WHEN LOWER(filePath) LIKE '%.epub' THEN 'epub'
+      WHEN LOWER(filePath) LIKE '%.pdf' THEN 'pdf'
+      ELSE fileType
+    END
+    WHERE filePath IS NOT NULL
+  `);
 }
 
 export function createCategory(name: string, color?: string): BookCategory | null {
@@ -475,6 +498,19 @@ export function updateDocumentPath(fileHash: string, newPath: string) {
   ).run(newPath, fileHash);
 }
 
+export function updateDocumentFileType(
+  fileHash: string,
+  fileType: "pdf" | "epub"
+) {
+  db.prepare(
+    `
+    UPDATE documents
+    SET fileType = ?
+    WHERE fileHash = ?
+  `,
+  ).run(fileType, fileHash);
+}
+
 export function updateDocumentNumPages(fileHash: string, numPages: number) {
   db.prepare(
     `
@@ -769,4 +805,53 @@ export interface DocumentCategoryRecord {
 
 export function getAllDocumentCategories(): DocumentCategoryRecord[] {
   return db.prepare<[], DocumentCategoryRecord>(`SELECT documentId, categoryId FROM document_categories`).all();
+}
+
+export interface WordIndexEntry {
+  word: string;
+  count: number;
+}
+
+export function saveWordIndex(fileHash: string, words: WordIndexEntry[]): void {
+  db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
+  
+  const insertStmt = db.prepare(`INSERT INTO book_word_index (fileHash, word, count) VALUES (?, ?, ?)`);
+  const insertMany = db.transaction((entries: WordIndexEntry[]) => {
+    for (const entry of entries) {
+      insertStmt.run(fileHash, entry.word, entry.count);
+    }
+  });
+  
+  insertMany(words);
+}
+
+export function getWordIndex(fileHash: string): WordIndexEntry[] {
+  return db.prepare<[string], WordIndexEntry>(
+    `SELECT word, count FROM book_word_index WHERE fileHash = ? ORDER BY count DESC`
+  ).all(fileHash);
+}
+
+export function getWordCount(fileHash: string, word: string): number {
+  const result = db.prepare<[string, string], { count: number }>(
+    `SELECT count FROM book_word_index WHERE fileHash = ? AND word = ?`
+  ).get(fileHash, word.toLowerCase());
+  return result?.count || 0;
+}
+
+export function getBookStats(fileHash: string): { totalWords: number; uniqueWords: number } | null {
+  const result = db.prepare<[string], { totalWords: number; uniqueWords: number }>(
+    `SELECT COALESCE(SUM(count), 0) as totalWords, COUNT(*) as uniqueWords FROM book_word_index WHERE fileHash = ?`
+  ).get(fileHash);
+  return result || null;
+}
+
+export function hasWordIndex(fileHash: string): boolean {
+  const result = db.prepare<[string], { exists: number }>(
+    `SELECT 1 as exists FROM book_word_index WHERE fileHash = ? LIMIT 1`
+  ).get(fileHash);
+  return result !== undefined;
+}
+
+export function deleteWordIndex(fileHash: string): void {
+  db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
 }

@@ -53,8 +53,9 @@ contextBridge.exposeInMainWorld("api", {
   openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
 
   onFileOpened: (callback: (data: any) => void) => {
-    ipcRenderer.on("file-opened", (_, data) => callback(data));
-    return () => ipcRenderer.removeAllListeners("file-opened");
+    const listener = (_: Electron.IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on("file-opened", listener);
+    return () => ipcRenderer.removeListener("file-opened", listener);
   },
 
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
@@ -91,7 +92,10 @@ contextBridge.exposeInMainWorld("api", {
 
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 
-  reopenPdf: (filePath: string, fileHash?: string) => ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
+  reopenPdf: (filePath?: string, fileHash?: string) =>
+    ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
+  openDocumentByHash: (fileHash: string, filePath?: string) =>
+    ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
 
   getThumbnail: (thumbnailPath: string) =>
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),
@@ -278,6 +282,28 @@ contextBridge.exposeInMainWorld("api", {
   backupAllHabits: () =>
     ipcRenderer.invoke("backup:all-habits"),
 
-  backupAllCategories: () =>
+backupAllCategories: () =>
     ipcRenderer.invoke("backup:all-categories"),
+
+  extractVocabulary: (fileHash: string) =>
+    ipcRenderer.invoke("book:extract-vocabulary", fileHash),
+
+  getVocabularyStats: (fileHash: string) =>
+    ipcRenderer.invoke("book:get-vocabulary-stats", fileHash),
+
+  getWordCount: (fileHash: string, word: string) =>
+    ipcRenderer.invoke("book:get-word-count", fileHash, word),
+
+  deleteVocabulary: (fileHash: string) =>
+    ipcRenderer.invoke("book:delete-vocabulary", fileHash),
+
+  openInNewWindow: (data: {
+    fileHash: string;
+    fileName: string;
+    fileType: "pdf" | "epub";
+    filePath?: string;
+    libraryDocumentId?: string;
+    source?: "library" | "local";
+  }) =>
+    ipcRenderer.invoke("window:open-new", data),
 });

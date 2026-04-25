@@ -13,6 +13,7 @@ import {
   Languages,
   X,
   Focus,
+  Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ViewerCore, { NavItem } from "./ViewerCore";
@@ -22,7 +23,8 @@ import TableOfContents from "./TableOfContents";
 import { useReaderSettings } from "./useReaderSettings";
 import {
   DictionaryLookupResult,
-  fetchDictionaryEntry,
+  lookupWord,
+  lookupWithTranslation,
   simplifySelectedText,
   translateText,
 } from "./languageServices";
@@ -50,7 +52,9 @@ interface ActiveWordLookup {
   isLoading: boolean;
   error: string | null;
   dictionary: DictionaryLookupResult | null;
+  translatedDictionary: DictionaryLookupResult | null;
   translation: string | null;
+  wordCount?: number;
 }
 
 interface ActiveSelectionLookup {
@@ -105,18 +109,16 @@ function sanitizeExportFileName(fileName?: string) {
 function LearningDock({
   title,
   subtitle,
-  actions,
   children,
   onClose,
 }: {
   title: string;
   subtitle?: ReactNode;
-  actions?: ReactNode;
   children: ReactNode;
   onClose: () => void;
 }) {
   return (
-    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex h-[min(60%,520px)] min-h-[280px] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[380px]">
+    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[380px]">
       <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-zinc-100">{title}</p>
@@ -137,10 +139,6 @@ function LearningDock({
         </button>
       </div>
 
-      {actions ? (
-        <div className="border-b border-zinc-800 px-4 py-3">{actions}</div>
-      ) : null}
-
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {children}
       </div>
@@ -154,6 +152,9 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [toc, setToc] = useState<NavItem[]>([]);
   const [currentSectionHref, setCurrentSectionHref] = useState<string | undefined>();
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [currentLocation, setCurrentLocation] = useState(0);
+  const [totalLocations, setTotalLocations] = useState(0);
   const [vocabularyFilter, setVocabularyFilter] =
     useState<VocabularyFilter>("all");
   const [activeWordLookup, setActiveWordLookup] =
@@ -206,6 +207,13 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
       setActiveSelectionLookup(null);
     }
   }, [settings.focusMode]);
+
+  useEffect(() => {
+    dictionaryCacheRef.current.clear();
+    wordTranslationCacheRef.current.clear();
+    setActiveWordLookup(null);
+    setActiveSelectionLookup(null);
+  }, [settings.sourceLanguage, settings.targetLanguage]);
 
   useEffect(() => {
     return () => {
@@ -261,72 +269,66 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     const cachedTranslation =
       wordTranslationCacheRef.current.get(normalizedWord) || null;
 
+    const wordCountResult = await (window.api as any).getWordCount(fileHash, normalizedWord).catch(() => null);
+
     setActiveWordLookup({
       anchor,
       displayWord,
       normalizedWord,
       originScrollTop: scrollTop,
-      isLoading: !cachedDictionary || !cachedTranslation,
+      isLoading: true,
       error: null,
       dictionary: cachedDictionary,
+      translatedDictionary: null,
       translation: cachedTranslation,
+      wordCount: wordCountResult?.count || null,
     });
-
-    if (cachedDictionary && cachedTranslation) {
-      return;
-    }
 
     wordLookupAbortRef.current?.abort();
     const controller = new AbortController();
     wordLookupAbortRef.current = controller;
 
-    const [dictionaryResult, translationResult] = await Promise.allSettled([
-      cachedDictionary
-        ? Promise.resolve(cachedDictionary)
-        : fetchDictionaryEntry(normalizedWord, controller.signal, settings.sourceLanguage),
-      cachedTranslation
-        ? Promise.resolve({ translatedText: cachedTranslation })
-        : translateText(normalizedWord, settings.sourceLanguage, settings.targetLanguage, controller.signal),
-    ]);
+    try {
+      const { source, translated } = await lookupWithTranslation(
+        normalizedWord,
+        settings.sourceLanguage,
+        settings.targetLanguage,
+        controller.signal,
+      );
 
-    if (controller.signal.aborted) {
-      return;
+      if (controller.signal.aborted) return;
+
+      dictionaryCacheRef.current.set(normalizedWord, source);
+      
+      const translationResult = await translateText(
+        normalizedWord,
+        settings.sourceLanguage,
+        settings.targetLanguage,
+        controller.signal,
+      ).catch(() => null);
+
+      setActiveWordLookup((current) => {
+        if (!current || current.normalizedWord !== normalizedWord) return current;
+        return {
+          ...current,
+          isLoading: false,
+          dictionary: source,
+          translatedDictionary: translated,
+          translation: translationResult?.translatedText || cachedTranslation || null,
+        };
+      });
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      
+      setActiveWordLookup((current) => {
+        if (!current || current.normalizedWord !== normalizedWord) return current;
+        return {
+          ...current,
+          isLoading: false,
+          error: err instanceof Error ? err.message : "Erro ao carregar definições",
+        };
+      });
     }
-
-    const resolvedDictionary =
-      dictionaryResult.status === "fulfilled"
-        ? dictionaryResult.value
-        : cachedDictionary;
-    const resolvedTranslation =
-      translationResult.status === "fulfilled"
-        ? translationResult.value.translatedText
-        : cachedTranslation;
-    const error =
-      dictionaryResult.status === "rejected" && translationResult.status === "rejected"
-        ? "Nao foi possivel carregar definicao ou traducao agora."
-        : null;
-
-    if (resolvedDictionary) {
-      dictionaryCacheRef.current.set(normalizedWord, resolvedDictionary);
-    }
-
-    if (resolvedTranslation) {
-      wordTranslationCacheRef.current.set(normalizedWord, resolvedTranslation);
-    }
-
-    setActiveWordLookup((current) => {
-      if (!current || current.normalizedWord !== normalizedWord) {
-        return current;
-      }
-
-      return {
-        ...current,
-        isLoading: false,
-        error,
-        dictionary: resolvedDictionary || null,
-        translation: resolvedTranslation || null,
-      };
-    });
   };
 
   const handleSelection = ({
@@ -396,6 +398,14 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   };
 
   const handleScrollPositionChange = (_scrollTop: number) => {};
+
+  const handleProgressChange = (percentage: number, total?: number) => {
+    setReadingProgress(percentage);
+    if (total !== undefined && total > 0) {
+      setTotalLocations(total);
+      setCurrentLocation(Math.round(total * (percentage / 100)));
+    }
+  };
 
   const runSelectionAction = async (action: "translate" | "simplify", text: string) => {
     if (!activeSelectionLookup) {
@@ -531,6 +541,9 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
           settings={settings}
           isVocabularyPanelOpen={isVocabularyPanelOpen}
           isTocOpen={isTocOpen}
+          readingProgress={readingProgress}
+          currentLocation={currentLocation}
+          totalLocations={totalLocations}
           onFontSizeChange={setFontSize}
           onThemeChange={setTheme}
           onFontFamilyChange={setFontFamily}
@@ -575,6 +588,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
           onDismissOverlays={handleDismissOverlays}
           onViewerScroll={handleViewerScroll}
           onScrollPositionChange={handleScrollPositionChange}
+          onProgressChange={handleProgressChange}
           onNavigationLoaded={setToc}
           onNavigateToChapter={(href) => setCurrentSectionHref(href)}
           currentSectionHref={currentSectionHref}
@@ -585,71 +599,18 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
             title={activeWordLookup.displayWord}
             subtitle={
               <>
-                {activeWordLookup.dictionary?.partOfSpeech && (
-                  <span>{activeWordLookup.dictionary.partOfSpeech}</span>
+                {activeWordLookup.translatedDictionary?.meanings?.[0]?.partOfSpeech && (
+                  <span>{activeWordLookup.translatedDictionary.meanings[0].partOfSpeech}</span>
                 )}
                 {activeWordLookup.dictionary?.phonetic && (
                   <span>{activeWordLookup.dictionary.phonetic}</span>
                 )}
-              </>
-            }
-            actions={
-              <div className="flex flex-wrap gap-2">
-                {(["new", "learning", "known"] as VocabularyStatus[]).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={`rounded-sm px-3 py-1.5 text-sm transition ${
-                      activeWordEntry?.status === status
-                        ? getVocabularyStatusClasses(status)
-                        : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                    }`}
-                    onClick={() =>
-                      setWordStatus(
-                        activeWordLookup.normalizedWord,
-                        status,
-                        activeWordLookup.displayWord,
-                      )
-                    }
-                  >
-                    {getVocabularyStatusLabel(status)}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeWordEntry?.saved
-                      ? "border border-yellow-300/30 bg-yellow-400/10 text-yellow-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() =>
-                    toggleWordSaved(
-                      activeWordLookup.normalizedWord,
-                      activeWordLookup.displayWord,
-                    )
-                  }
-                >
-                  <Bookmark
-                    size={14}
-                    fill={activeWordEntry?.saved ? "currentColor" : "none"}
-                  />
-                  {activeWordEntry?.saved ? "Salva" : "Salvar"}
-                </button>
-
-                {activeWordLookup.dictionary?.audioUrl && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 transition hover:bg-zinc-800"
-                    onClick={() =>
-                      handlePlayPronunciation(activeWordLookup.dictionary?.audioUrl)
-                    }
-                  >
-                    <Play size={14} />
-                    Ouvir
-                  </button>
+                {activeWordLookup.wordCount !== null && activeWordLookup.wordCount !== undefined && (
+                  <span className="ml-2 text-zinc-500">
+                    {activeWordLookup.wordCount.toLocaleString()} {activeWordLookup.wordCount === 1 ? "vez" : "vezes"}
+                  </span>
                 )}
-              </div>
+              </>
             }
             onClose={handleDismissOverlays}
           >
@@ -663,7 +624,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
                 {activeWordLookup.translation && (
                   <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
                     <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Traducao PT-BR
+                      Tradução ({settings.targetLanguage.toUpperCase()})
                     </p>
                     <p className="mt-2 text-sm leading-6 text-zinc-100">
                       {activeWordLookup.translation}
@@ -671,24 +632,34 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
                   </div>
                 )}
 
-                {activeWordLookup.dictionary?.definitions?.length ? (
+{activeWordLookup.translatedDictionary?.meanings?.length ? (
                   <div className="space-y-3">
                     <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Definicao em ingles
+                      Definicoes
                     </p>
-                    {activeWordLookup.dictionary.definitions.map((definition, index) => (
-                      <div
-                        key={`${activeWordLookup.normalizedWord}-${index}`}
-                        className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3"
-                      >
-                        <p className="text-sm leading-6 text-zinc-100">
-                          {definition.definition}
+                    {activeWordLookup.translatedDictionary.meanings.map((meaning, mi) => (
+                      <div key={`trans-meaning-${mi}`} className="space-y-2">
+                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
+                          {meaning.partOfSpeech}
                         </p>
-                        {definition.example && (
-                          <p className="mt-2 text-xs italic text-zinc-400">
-                            {definition.example}
-                          </p>
-                        )}
+                        {meaning.definitions.map((definition, di) => {
+                          const sourceDef = activeWordLookup.dictionary?.meanings?.[mi]?.definitions?.[di];
+                          return (
+                            <div
+                              key={`${activeWordLookup.normalizedWord}-trans-${mi}-${di}`}
+                              className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3"
+                            >
+                              <p className="text-sm leading-6 text-zinc-100">
+                                {definition.definition}
+                              </p>
+                              {sourceDef?.example && (
+                                <p className="mt-2 text-xs italic text-zinc-400">
+                                  "{sourceDef.example}"
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
@@ -720,7 +691,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
                 {activeSelectionLookup.translation && (
                   <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
                     <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Traducao PT-BR
+                      Tradução ({settings.targetLanguage.toUpperCase()})
                     </p>
                     <p className="mt-2 text-sm leading-6 text-zinc-100">
                       {activeSelectionLookup.translation}

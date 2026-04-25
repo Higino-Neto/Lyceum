@@ -32,6 +32,9 @@ export interface ReaderToolbarProps {
   settings: ReaderSettings;
   isVocabularyPanelOpen: boolean;
   isTocOpen: boolean;
+  readingProgress?: number;
+  currentLocation?: number;
+  totalLocations?: number;
   onFontSizeChange: (size: number) => void;
   onThemeChange: (theme: ThemeName) => void;
   onFontFamilyChange: (font: FontFamily) => void;
@@ -50,6 +53,9 @@ export default function ReaderToolbar({
   settings,
   isVocabularyPanelOpen,
   isTocOpen,
+  readingProgress = 0,
+  currentLocation = 0,
+  totalLocations = 0,
   onFontSizeChange,
   onThemeChange,
   onFontFamilyChange,
@@ -80,6 +86,22 @@ export default function ReaderToolbar({
   return (
     <div className="border-b border-zinc-800 bg-zinc-900/95">
       <div className="flex flex-wrap items-center gap-2 p-3">
+        <div className="flex items-center gap-2 text-sm text-zinc-400 tabular-nums">
+          {totalLocations > 0 && (
+            <span className="font-medium text-zinc-200">
+              {currentLocation}
+              <span className="text-zinc-500">/{totalLocations}</span>
+            </span>
+          )}
+          <span className="font-medium text-zinc-200">{readingProgress}%</span>
+          <div className="h-3 w-24 overflow-hidden rounded-full bg-zinc-800">
+            <div
+              className="h-full rounded-full bg-zinc-400 transition-all"
+              style={{ width: `${readingProgress}%` }}
+            />
+          </div>
+        </div>
+
         <div className="relative">
           <button
             type="button"
