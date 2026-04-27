@@ -16,13 +16,31 @@ interface VocabularyExtractResult {
   error?: string;
 }
 
+interface DictionaryInfo {
+  id: string;
+  name: string;
+  sourceLang: string;
+  targetLang: string;
+  size: number;
+  url: string;
+  version: string;
+  hash: string;
+  downloadedAt?: string;
+  isDownloaded?: boolean;
+}
+
+interface LookupResult {
+  word: string;
+  lemma: string;
+  content: string;
+  source: "exact" | "normalized" | "lemma" | "fallback";
+  found: boolean;
+}
+
 declare global {
   interface Window {
-    api: Window["api"] & {
-      extractVocabulary: (fileHash: string) => Promise<VocabularyExtractResult>;
-      getVocabularyStats: (fileHash: string) => Promise<VocabularyStats>;
-      getWordCount: (fileHash: string, word: string) => Promise<WordCountResult>;
-      deleteVocabulary: (fileHash: string) => Promise<{ success: boolean }>;
+    api: {
+      [key: string]: any;
     };
   }
 }

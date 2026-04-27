@@ -85,6 +85,9 @@ import {
   setBackupSession,
   clearBackupSession,
 } from "./backup";
+import { dictionaryManager, DictionaryInfo } from "./dictionary-manager";
+import { LookupEngine, getLookupEngine, quickLookup, LookupResult } from "./lookup-engine";
+import { closeAllStorage } from "./dictionary-storage";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -2350,6 +2353,49 @@ ipcMain.handle("settings:open-default-apps", async () => {
   const { shell } = require("electron");
   await shell.openExternal("ms-settings:defaultapps");
   return { success: true };
+});
+
+ipcMain.handle("dictionary:get-index", async () => {
+  const index = await dictionaryManager.loadLocalIndex();
+  return index.dictionaries;
+});
+
+ipcMain.handle("dictionary:fetch-index", async () => {
+  const index = await dictionaryManager.fetchIndex();
+  return index.dictionaries;
+});
+
+ipcMain.handle("dictionary:download", async (_, dictId: string) => {
+  try {
+    const progress = (p: number) => {
+      win?.webContents.send("dictionary:download-progress", { dictId, progress: p });
+    };
+    await dictionaryManager.downloadDictionary(dictId, progress);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("dictionary:delete", async (_, dictId: string) => {
+  // Close storage first before deleting
+  closeAllStorage();
+  const success = await dictionaryManager.deleteDictionary(dictId);
+  return { success };
+});
+
+ipcMain.handle("dictionary:lookup", async (_, word: string, dictId: string = "eng-por") => {
+  try {
+    const result = await quickLookup(word, dictId);
+    return result;
+  } catch (error) {
+    return { found: false, word, lemma: word, content: "", source: "fallback", error: String(error) };
+  }
+});
+
+ipcMain.handle("dictionary:get-info", (_, dictId: string) => {
+  const info = dictionaryManager.getDictionaryInfo(dictId);
+  return info || null;
 });
 
 const gotTheLock = (app as any).requestSingleInstanceLock();

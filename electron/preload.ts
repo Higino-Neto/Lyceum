@@ -297,7 +297,7 @@ backupAllCategories: () =>
   deleteVocabulary: (fileHash: string) =>
     ipcRenderer.invoke("book:delete-vocabulary", fileHash),
 
-  openInNewWindow: (data: {
+openInNewWindow: (data: {
     fileHash: string;
     fileName: string;
     fileType: "pdf" | "epub";
@@ -306,4 +306,23 @@ backupAllCategories: () =>
     source?: "library" | "local";
   }) =>
     ipcRenderer.invoke("window:open-new", data),
+
+  dictionaryGetIndex: () => ipcRenderer.invoke("dictionary:get-index"),
+
+  dictionaryFetchIndex: () => ipcRenderer.invoke("dictionary:fetch-index"),
+
+  dictionaryDownload: (dictId: string) => ipcRenderer.invoke("dictionary:download", dictId),
+
+  dictionaryDelete: (dictId: string) => ipcRenderer.invoke("dictionary:delete", dictId),
+
+  dictionaryLookup: (word: string, dictId?: string) =>
+    ipcRenderer.invoke("dictionary:lookup", word, dictId),
+
+  dictionaryGetInfo: (dictId: string) => ipcRenderer.invoke("dictionary:get-info", dictId),
+
+  onDictionaryDownloadProgress: (callback: (data: { dictId: string; progress: number }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, data: { dictId: string; progress: number }) => callback(data);
+    ipcRenderer.on("dictionary:download-progress", listener);
+    return () => ipcRenderer.removeListener("dictionary:download-progress", listener);
+  },
 });

@@ -57,12 +57,104 @@ export interface DictionaryLookupResult {
 
 export interface TranslationResult {
   translatedText: string;
-  provider: "mymemory";
+  provider: "mymemory" | "local-dictionary";
 }
 
 const DICTIONARY_API_BASE_URL = "https://api.dictionaryapi.dev/api/v2/entries";
 const MY_MEMORY_URL = "https://api.mymemory.translated.net/get";
 const MAX_TRANSLATION_CHARACTERS = 280;
+
+async function getDownloadedDictionaries() {
+  try {
+    const windowApi = window.api as any;
+    if (!windowApi?.dictionaryGetIndex) return [];
+    const dicts = await windowApi.dictionaryGetIndex();
+    return dicts.filter((d: { isDownloaded?: boolean }) => d.isDownloaded);
+  } catch {
+    return [];
+  }
+}
+
+async function findDictionaryForPair(sourceLang: string, targetLang: string) {
+  const downloaded = await getDownloadedDictionaries();
+  const pair = downloaded.find(
+    (d: { sourceLang: string; targetLang: string }) =>
+      d.sourceLang === sourceLang && d.targetLang === targetLang
+  );
+  return pair;
+}
+
+async function translateWithLocalDictionary(
+  word: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<{ translations: string[]; phonetic?: string } | null> {
+  const dict = await findDictionaryForPair(sourceLang, targetLang);
+  if (!dict) {
+    console.log(`[Translation] No local dictionary found for ${sourceLang} → ${targetLang}`);
+    return null;
+  }
+
+  try {
+    const windowApi = window.api as any;
+    if (!windowApi?.dictionaryLookup) return null;
+
+    console.log(`[Translation] Looking up "${word}" in ${dict.id}...`);
+    const result = await windowApi.dictionaryLookup(word, dict.id);
+    if (result?.found && result.content) {
+      console.log(`[Translation] Using local dictionary (${dict.id}): ${sourceLang} → ${targetLang}`, { word });
+      return cleanDictionaryHtml(result.content);
+    } else {
+      console.log(`[Translation] Word "${word}" not found in local dictionary`);
+    }
+  } catch (error) {
+    console.error("[Translation] Local dictionary error:", error);
+  }
+  return null;
+}
+
+function cleanDictionaryHtml(html: string): { translations: string[]; phonetic?: string } {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  
+  const translations: string[] = [];
+  let phonetic = "";
+  
+  // Get phonetic from font tags
+  const fontElements = doc.querySelectorAll('font[color="gray"]');
+  fontElements.forEach(font => {
+    const text = font.textContent?.trim();
+    if (text && (text.includes("ː") || text.includes("/"))) {
+      phonetic = text.replace(/\//g, "").trim();
+    }
+  });
+  
+  // Process divs to extract translations
+  // Each main div contains: phonetic line (with /br) and translations in ol/li structure
+  const mainDivs = doc.querySelectorAll("div");
+  
+  mainDivs.forEach(div => {
+    // Skip divs that contain font (phonetic) elements - they're the header
+    if (div.querySelector('font[color="gray"]')) {
+      return;
+    }
+    
+    const text = div.textContent?.trim();
+    if (!text) return;
+    
+    // Split by common delimiters and filter
+    const parts = text
+      .split(/[,;]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && s.length < 100);
+    
+    translations.push(...parts);
+  });
+  
+  // Remove duplicates
+  const unique = [...new Set(translations)];
+  
+  return { translations: unique, phonetic: phonetic || undefined };
+}
 
 function ensureOkResponse(response: Response, fallbackMessage: string) {
   if (!response.ok) {
@@ -162,6 +254,8 @@ async function requestMyMemoryTranslation(
   signal?: AbortSignal,
   fallback = true,
 ) {
+  console.log(`[Translation] Using MyMemory API: ${sourceLanguage} → ${targetLanguage}`, { text: text.substring(0, 50) });
+  
   const query = new URLSearchParams({
     q: text,
     langpair: `${sourceLanguage}|${targetLanguage}`,
@@ -211,16 +305,36 @@ export async function translateText(
 
   ensureTextLength(cleaned);
 
-  const translatedText = await requestMyMemoryTranslation(
-    cleaned,
-    sourceLanguage,
-    targetLanguage,
-    signal,
-  );
+  // Try local dictionary first for single words
+  const isSingleWord = cleaned.split(/\s+/).length === 1;
+  let translatedText: string;
+  let provider: "mymemory" | "local-dictionary" = "mymemory";
+
+  if (isSingleWord) {
+    const localResult = await translateWithLocalDictionary(cleaned, sourceLanguage, targetLanguage);
+    if (localResult) {
+      translatedText = localResult.translations.join(", ");
+      provider = "local-dictionary";
+    } else {
+      translatedText = await requestMyMemoryTranslation(
+        cleaned,
+        sourceLanguage,
+        targetLanguage,
+        signal,
+      );
+    }
+  } else {
+    translatedText = await requestMyMemoryTranslation(
+      cleaned,
+      sourceLanguage,
+      targetLanguage,
+      signal,
+    );
+  }
 
   return {
     translatedText,
-    provider: "mymemory",
+    provider,
   };
 }
 
@@ -321,6 +435,29 @@ export async function lookupWithTranslation(
 
   if (sourceLang === targetLang) {
     return { source, translated: null };
+  }
+
+  // Try to get translation from local dictionary
+  const localTranslation = await translateWithLocalDictionary(normalizedWord, sourceLang, targetLang);
+  
+  if (localTranslation) {
+    // Create a simple translated result from local dictionary
+    return {
+      source,
+      translated: {
+        word: normalizedWord,
+        phonetic: localTranslation.phonetic,
+        meanings: [
+          {
+            partOfSpeech: "dictionary",
+            definitions: localTranslation.translations.map(t => ({
+              definition: t,
+            })),
+          },
+        ],
+        source: "cache",
+      },
+    };
   }
 
   try {

@@ -106,6 +106,112 @@ function sanitizeExportFileName(fileName?: string) {
   return `${baseName || "book"}-vocabulary.csv`;
 }
 
+function TranslationCard({
+  label,
+  text,
+}: {
+  label: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-zinc-100">{text}</p>
+    </div>
+  );
+}
+
+function DictionaryMeanings({
+  dictionary,
+  translatedDictionary,
+}: {
+  dictionary?: DictionaryLookupResult | null;
+  translatedDictionary?: DictionaryLookupResult | null;
+}) {
+  if (!translatedDictionary?.meanings?.length) return null;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">Traducoes</p>
+      {translatedDictionary.meanings.map((meaning, mi) => (
+        <div key={`trans-meaning-${mi}`}>
+          {meaning.partOfSpeech !== "dictionary" && (
+            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400 mb-2">
+              {meaning.partOfSpeech}
+            </p>
+          )}
+          <ul className="space-y-1">
+            {meaning.definitions.map((definition, di) => {
+              const sourceDef = dictionary?.meanings?.[mi]?.definitions?.[di];
+              return (
+                <li key={`def-${mi}-${di}`} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-600" />
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-100">{definition.definition}</span>
+                    {sourceDef?.example && (
+                      <p className="mt-1 text-xs italic text-zinc-500">"{sourceDef.example}"</p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TranslationDock({
+  title,
+  subtitle,
+  isLoading,
+  translation,
+  simplifiedText,
+  translatedDictionary,
+  dictionary,
+  error,
+  targetLanguage,
+  onClose,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  isLoading: boolean;
+  translation?: string | null;
+  simplifiedText?: string | null;
+  translatedDictionary?: DictionaryLookupResult | null;
+  dictionary?: DictionaryLookupResult | null;
+  error?: string | null;
+  targetLanguage: string;
+  onClose: () => void;
+}) {
+  return (
+    <LearningDock title={title} subtitle={subtitle} onClose={onClose}>
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <LoaderCircle size={16} className="animate-spin" />
+          Processando...
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {translation && (
+            <TranslationCard label={`Traducao (${targetLanguage.toUpperCase()})`} text={translation} />
+          )}
+          {simplifiedText && (
+            <TranslationCard label="Versao simplificada" text={simplifiedText} />
+          )}
+          <DictionaryMeanings dictionary={dictionary} translatedDictionary={translatedDictionary} />
+          {error && (
+            <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+    </LearningDock>
+  );
+}
+
 function LearningDock({
   title,
   subtitle,
@@ -186,6 +292,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   } = useBookVocabulary(fileHash);
   const dictionaryCacheRef = useRef(new Map<string, DictionaryLookupResult>());
   const wordTranslationCacheRef = useRef(new Map<string, string>());
+  const selectionTranslationCacheRef = useRef(new Map<string, string>());
   const wordLookupAbortRef = useRef<AbortController | null>(null);
   const selectionLookupAbortRef = useRef<AbortController | null>(null);
   const overlayScrollThreshold = 120;
@@ -211,6 +318,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   useEffect(() => {
     dictionaryCacheRef.current.clear();
     wordTranslationCacheRef.current.clear();
+    selectionTranslationCacheRef.current.clear();
     setActiveWordLookup(null);
     setActiveSelectionLookup(null);
   }, [settings.sourceLanguage, settings.targetLanguage]);
@@ -296,16 +404,20 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
         controller.signal,
       );
 
-      if (controller.signal.aborted) return;
+if (controller.signal.aborted) return;
 
       dictionaryCacheRef.current.set(normalizedWord, source);
-      
+
       const translationResult = await translateText(
         normalizedWord,
         settings.sourceLanguage,
         settings.targetLanguage,
         controller.signal,
       ).catch(() => null);
+
+      if (translationResult?.translatedText) {
+        wordTranslationCacheRef.current.set(normalizedWord, translationResult.translatedText);
+      }
 
       setActiveWordLookup((current) => {
         if (!current || current.normalizedWord !== normalizedWord) return current;
@@ -317,15 +429,18 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
           translation: translationResult?.translatedText || cachedTranslation || null,
         };
       });
-    } catch (err) {
+} catch (err) {
       if (controller.signal.aborted) return;
-      
+
+      const fallbackTranslation = wordTranslationCacheRef.current.get(normalizedWord) || null;
+
       setActiveWordLookup((current) => {
         if (!current || current.normalizedWord !== normalizedWord) return current;
         return {
           ...current,
           isLoading: false,
-          error: err instanceof Error ? err.message : "Erro ao carregar definições",
+          error: err instanceof Error ? err.message : "Erro ao carregar definicoes",
+          translation: fallbackTranslation || current.translation || null,
         };
       });
     }
@@ -336,6 +451,9 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     anchor,
     scrollTop,
   }: TextSelectionPayload) => {
+    const cacheKey = `${settings.sourceLanguage}:${settings.targetLanguage}:${selectedText}`;
+    const cachedTranslation = selectionTranslationCacheRef.current.get(cacheKey) || null;
+
     setActiveWordLookup(null);
     setActiveSelectionLookup({
       anchor,
@@ -344,7 +462,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
       activeAction: "translate",
       isLoading: true,
       error: null,
-      translation: null,
+      translation: cachedTranslation,
       simplifiedText: null,
     });
 
@@ -360,12 +478,15 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     )
       .then((result) => {
         if (controller.signal.aborted) return;
+        if (result.translatedText) {
+          selectionTranslationCacheRef.current.set(cacheKey, result.translatedText);
+        }
         setActiveSelectionLookup((current) =>
           current && current.anchor === anchor
             ? {
                 ...current,
                 isLoading: false,
-                translation: result.translatedText,
+                translation: result.translatedText || cachedTranslation || null,
               }
             : current,
         );
@@ -595,7 +716,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
         />
 
         {activeWordLookup && (
-          <LearningDock
+          <TranslationDock
             title={activeWordLookup.displayWord}
             subtitle={
               <>
@@ -612,112 +733,27 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
                 )}
               </>
             }
+            isLoading={activeWordLookup.isLoading}
+            translation={activeWordLookup.translation}
+            dictionary={activeWordLookup.dictionary}
+            translatedDictionary={activeWordLookup.translatedDictionary}
+            error={activeWordLookup.error}
+            targetLanguage={settings.targetLanguage}
             onClose={handleDismissOverlays}
-          >
-            {activeWordLookup.isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <LoaderCircle size={16} className="animate-spin" />
-                Buscando definicao e traducao...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeWordLookup.translation && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Tradução ({settings.targetLanguage.toUpperCase()})
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeWordLookup.translation}
-                    </p>
-                  </div>
-                )}
-
-{activeWordLookup.translatedDictionary?.meanings?.length ? (
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Definicoes
-                    </p>
-                    {activeWordLookup.translatedDictionary.meanings.map((meaning, mi) => (
-                      <div key={`trans-meaning-${mi}`} className="space-y-2">
-                        <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
-                          {meaning.partOfSpeech}
-                        </p>
-                        {meaning.definitions.map((definition, di) => {
-                          const sourceDef = activeWordLookup.dictionary?.meanings?.[mi]?.definitions?.[di];
-                          return (
-                            <div
-                              key={`${activeWordLookup.normalizedWord}-trans-${mi}-${di}`}
-                              className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3"
-                            >
-                              <p className="text-sm leading-6 text-zinc-100">
-                                {definition.definition}
-                              </p>
-                              {sourceDef?.example && (
-                                <p className="mt-2 text-xs italic text-zinc-400">
-                                  "{sourceDef.example}"
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {activeWordLookup.error && (
-                  <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
-                    {activeWordLookup.error}
-                  </div>
-                )}
-              </div>
-            )}
-          </LearningDock>
+          />
         )}
 
         {activeSelectionLookup && (
-          <LearningDock
+          <TranslationDock
             title="Trecho selecionado"
             subtitle={<span className="line-clamp-2">{activeSelectionLookup.selectedText}</span>}
+            isLoading={activeSelectionLookup.isLoading}
+            translation={activeSelectionLookup.translation}
+            simplifiedText={activeSelectionLookup.simplifiedText}
+            error={activeSelectionLookup.error}
+            targetLanguage={settings.targetLanguage}
             onClose={handleDismissOverlays}
-          >
-            {activeSelectionLookup.isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <LoaderCircle size={16} className="animate-spin" />
-                Processando trecho...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeSelectionLookup.translation && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Tradução ({settings.targetLanguage.toUpperCase()})
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeSelectionLookup.translation}
-                    </p>
-                  </div>
-                )}
-
-                {activeSelectionLookup.simplifiedText && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Versao simplificada
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeSelectionLookup.simplifiedText}
-                    </p>
-                  </div>
-                )}
-
-                {activeSelectionLookup.error && (
-                  <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
-                    {activeSelectionLookup.error}
-                  </div>
-                )}
-              </div>
-            )}
-          </LearningDock>
+          />
         )}
 
         <VocabularyPanel
