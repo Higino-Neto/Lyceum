@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.6.7",
+  "version": "1.7.0",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {
@@ -69,12 +69,16 @@
     }
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@embedpdf/react-pdf-viewer": "^2.6.2",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
     "@types/chokidar": "^1.7.5",
     "@uiw/react-heat-map": "^2.3.3",
+    "adm-zip": "^0.5.17",
     "better-sqlite3": "^12.6.2",
     "chokidar": "^5.0.0",
     "electron-updater": "^6.8.3",
@@ -86,7 +90,8 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.13.0",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.0",
+    "wink-lemmatizer": "^3.0.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
@@ -110,11 +115,13 @@
     "postcss": "^8.5.6",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18",
+    "tar": "^7.5.13",
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5",
-    "vitest": "^1.4.0"
+    "vitest": "^1.4.0",
+    "xz-decompress": "^0.2.3"
   },
   "main": "dist-electron/main.js"
 }

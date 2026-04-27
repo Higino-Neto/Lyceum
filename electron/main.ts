@@ -1,4 +1,12 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  protocol,
+  session,
+  IpcMainInvokeEvent,
+} from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -48,6 +56,7 @@ import {
   getDocumentsByBookId,
   getDocumentByTitle,
   getDocumentByPath,
+  updateDocumentFileType,
   updateAuthor,
   getDocumentsForBackup,
   getAllHabits,
@@ -61,6 +70,12 @@ setHabitCompletion,
   deleteHabitCompletion,
   getAllDocumentCategories,
   getDocumentByFilePath,
+  saveWordIndex,
+  getWordIndex,
+  getWordCount,
+  getBookStats,
+  hasWordIndex,
+  deleteWordIndex,
 } from "./local-database";
 import {
   initBackupClient,
@@ -70,6 +85,9 @@ import {
   setBackupSession,
   clearBackupSession,
 } from "./backup";
+import { dictionaryManager, DictionaryInfo } from "./dictionary-manager";
+import { LookupEngine, getLookupEngine, quickLookup, LookupResult } from "./lookup-engine";
+import { closeAllStorage } from "./dictionary-storage";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +96,7 @@ const __filename = fileURLToPath(import.meta.url);
 import crypto from "crypto";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
+import AdmZip from "adm-zip";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -155,6 +174,17 @@ function sanitizeFolderName(folderName: string): string {
   }
 
   return trimmedName;
+}
+
+function inferFileTypeFromPath(
+  filePath?: string | null,
+  fallback: "pdf" | "epub" = "pdf"
+): "pdf" | "epub" {
+  if (!filePath) {
+    return fallback;
+  }
+
+  return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
 }
 
 function getAllPdfFiles(dir: string): string[] {
@@ -605,7 +635,6 @@ async function getPdfPageCount(filePath: string): Promise<number> {
 
 async function getEpubChapterCount(filePath: string): Promise<number> {
   try {
-    const AdmZip = require("adm-zip");
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
     const htmlEntries = entries.filter(
@@ -625,7 +654,6 @@ async function extractEpubMetadata(filePath: string): Promise<{
   creationDate?: string;
 } | null> {
   try {
-    const AdmZip = require("adm-zip");
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
     
@@ -671,7 +699,6 @@ async function generateEpubThumbnail(
   thumbnailsDir: string
 ): Promise<string | null> {
   try {
-    const AdmZip = require("adm-zip");
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
     
@@ -997,13 +1024,16 @@ async function generateThumbnail(
     return null;
   }
 }
-function createWindow() {
-  win = new BrowserWindow({
+function createAppWindow(
+  options: Electron.BrowserWindowConstructorOptions = {}
+) {
+  const appWindow = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC!, "logo.ico"),
     title: "Lyceum",
     width: 1200,
     height: 800,
     frame: false,
+    backgroundColor: "#09090b",
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
@@ -1012,20 +1042,53 @@ function createWindow() {
       webSecurity: true,
     },
     autoHideMenuBar: true,
+    ...options,
   });
 
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
-  }
-  win.webContents.on("did-finish-load", () => {
-    win?.webContents.setZoomFactor(1.0);
+  appWindow.webContents.on("did-finish-load", () => {
+    appWindow.webContents.setZoomFactor(1.0);
   });
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-navigate", (event) => {
+  appWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  appWindow.webContents.on("will-navigate", (event) => {
     event.preventDefault();
   });
+
+  return appWindow;
+}
+
+function loadRendererRoute(
+  targetWindow: BrowserWindow,
+  route = "/",
+  params?: Record<string, string | undefined>
+) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value) {
+      searchParams.set(key, value);
+    }
+  });
+
+  const queryString = searchParams.toString();
+
+  if (VITE_DEV_SERVER_URL) {
+    const url = new URL(VITE_DEV_SERVER_URL);
+    url.pathname = route;
+    url.search = queryString;
+    targetWindow.loadURL(url.toString());
+  } else {
+    const hash = queryString ? `${route}?${queryString}` : route;
+    targetWindow.loadFile(path.join(RENDERER_DIST, "index.html"), { hash });
+  }
+}
+
+function createWindow() {
+  win = createAppWindow();
+  loadRendererRoute(win);
+}
+
+function getTargetWindow(event: IpcMainInvokeEvent): BrowserWindow | null {
+  return BrowserWindow.fromWebContents(event.sender);
 }
 
 app.on("window-all-closed", () => {
@@ -1291,11 +1354,11 @@ function findFileByHash(fileHash: string, searchPaths: string[]): string | null 
   return null;
 }
 
-ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
+ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => {
   try {
     const knownDocument =
       (fileHash ? getDocumentByHash(fileHash) : undefined) ||
-      getDocumentByPath(filePath);
+      (filePath ? getDocumentByPath(filePath) : undefined);
 
     if (!knownDocument?.filePath) {
       return {
@@ -1307,7 +1370,22 @@ ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
     if (fs.existsSync(knownDocument.filePath)) {
       const fileBuffer = toArrayBuffer(fs.readFileSync(knownDocument.filePath));
       const hash = generateFileHash(knownDocument.filePath);
-      return { fileBuffer, fileHash: hash };
+      const inferredFileType = inferFileTypeFromPath(
+        knownDocument.filePath,
+        knownDocument.fileType,
+      );
+
+      if (inferredFileType !== knownDocument.fileType) {
+        updateDocumentFileType(knownDocument.fileHash, inferredFileType);
+      }
+
+      return {
+        fileBuffer,
+        fileHash: hash,
+        filePath: knownDocument.filePath,
+        fileType: inferredFileType,
+        fileName: knownDocument.title,
+      };
     }
 
     console.log("[pdf:reopen] File not found, searching by hash:", knownDocument.filePath);
@@ -1328,9 +1406,20 @@ ipcMain.handle("pdf:reopen", async (_, filePath: string, fileHash?: string) => {
 
     console.log("[pdf:reopen] Found file at new location:", foundPath);
     updateDocumentPath(fileHash, foundPath);
+    const inferredFileType = inferFileTypeFromPath(foundPath, knownDocument.fileType);
+    if (inferredFileType !== knownDocument.fileType) {
+      updateDocumentFileType(fileHash, inferredFileType);
+    }
 
     const fileBuffer = toArrayBuffer(fs.readFileSync(foundPath));
-    return { fileBuffer, fileHash, foundAt: foundPath };
+    return {
+      fileBuffer,
+      fileHash,
+      filePath: foundPath,
+      fileType: inferredFileType,
+      fileName: knownDocument.title,
+      foundAt: foundPath,
+    };
   } catch (error) {
     console.error("[pdf:reopen] Error:", error);
     return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
@@ -1363,25 +1452,59 @@ ipcMain.handle("library:search-local", (_, query: string) => {
   return searchDocuments(query);
 });
 
-ipcMain.handle("window:minimize", () => {
-  win?.minimize();
+ipcMain.handle("window:minimize", (event) => {
+  getTargetWindow(event)?.minimize();
 });
 
-ipcMain.handle("window:maximize", () => {
-  if (win?.isMaximized()) {
-    win.unmaximize();
+ipcMain.handle("window:maximize", (event) => {
+  const targetWindow = getTargetWindow(event);
+  if (!targetWindow) {
+    return;
+  }
+
+  if (targetWindow.isMaximized()) {
+    targetWindow.unmaximize();
   } else {
-    win?.maximize();
+    targetWindow.maximize();
   }
 });
 
-ipcMain.handle("window:close", () => {
-  win?.close();
+ipcMain.handle("window:close", (event) => {
+  getTargetWindow(event)?.close();
 });
 
-ipcMain.handle("window:isMaximized", () => {
-  return win?.isMaximized() ?? false;
+ipcMain.handle("window:isMaximized", (event) => {
+  return getTargetWindow(event)?.isMaximized() ?? false;
 });
+
+ipcMain.handle(
+  "window:open-new",
+  async (
+    _,
+    data: {
+      fileHash: string;
+      fileName: string;
+      fileType: "pdf" | "epub";
+      filePath?: string;
+      libraryDocumentId?: string;
+      source?: "library" | "local";
+    }
+  ) => {
+    const newWindow = createAppWindow({
+      title: `${data.fileName} - Lyceum`,
+    });
+
+    loadRendererRoute(newWindow, "/reading", {
+      mode: "detached",
+      fileHash: data.fileHash,
+      fileType: data.fileType,
+      fileName: data.fileName,
+      filePath: data.filePath,
+      source: data.source,
+      libraryDocumentId: data.libraryDocumentId,
+    });
+  }
+);
 
 ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "move" | "copy", category?: string) => {
   const doc = getDocumentByHash(fileHash);
@@ -1567,6 +1690,128 @@ ipcMain.handle("library:open-folder", () => {
   const libraryPath = LIBRARY_PATH();
   require("electron").shell.openPath(libraryPath);
   return libraryPath;
+});
+
+const STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "be", "been", "being",
+  "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must",
+  "shall", "can", "need", "dare", "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by",
+  "from", "as", "into", "through", "during", "before", "after", "above", "below", "between", "under",
+  "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "each",
+  "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so",
+  "than", "too", "very", "just", "also", "now", "i", "me", "my", "myself", "we", "our", "ours",
+  "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself",
+  "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs",
+  "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "about",
+  "because", "while", "although", "if", "unless", "until", "whether", "however", "therefore",
+  "otherwise", "either", "neither", "both", "neither", "yet", "still", "already", "always",
+  "never", "ever", "yet", "since", "before", "until", "after", "during", "over", "without",
+  "within", "along", "around", "behind", "beyond", "near", "onto", "off", "out", "up", "down",
+  "away", "back", "even", "much", "many", "any", "every", "another", "such", "him", "her",
+]);
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeWord(word: string): string | null {
+  const normalized = word.toLowerCase().replace(/[^a-zàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ\s-]/g, "");
+  if (normalized.length < 1) return null;
+  return normalized;
+}
+
+function extractVocabularyFromEpub(filePath: string): { word: string; count: number }[] {
+  const zip = new AdmZip(filePath);
+  const entries = zip.getEntries();
+  
+  const textParts: string[] = [];
+  const htmlEntries = entries.filter((entry: any) => {
+    const name = entry.entryName.toLowerCase();
+    return name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm");
+  });
+  
+  for (const entry of htmlEntries) {
+    try {
+      const html = entry.getData().toString("utf8");
+      const text = stripHtml(html);
+      if (text.length > 0) {
+        textParts.push(text);
+      }
+    } catch (e) {
+      console.error("[Vocabulary] Error reading entry:", entry.entryName, e);
+    }
+  }
+  
+  const fullText = textParts.join(" ");
+  const wordCounts = new Map<string, number>();
+  
+  for (const word of fullText.split(/\s+/)) {
+    const normalized = normalizeWord(word);
+    if (normalized) {
+      wordCounts.set(normalized, (wordCounts.get(normalized) || 0) + 1);
+    }
+  }
+  
+  return Array.from(wordCounts.entries())
+    .map(([word, count]) => ({ word, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+ipcMain.handle("book:extract-vocabulary", async (_, fileHash: string) => {
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) {
+    return { success: false, error: "Document not found" };
+  }
+  
+  if (doc.fileType !== "epub") {
+    return { success: false, error: "Vocabulary extraction only supported for EPUB files" };
+  }
+  
+  if (!fs.existsSync(doc.filePath)) {
+    return { success: false, error: "File not found" };
+  }
+  
+  try {
+    const words = extractVocabularyFromEpub(doc.filePath);
+    const totalWords = words.reduce((sum, w) => sum + w.count, 0);
+    
+    saveWordIndex(fileHash, words);
+    
+    return {
+      success: true,
+      totalWords,
+      uniqueWords: words.length,
+    };
+  } catch (error) {
+    console.error("[Vocabulary] Error:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("book:get-vocabulary-stats", (_, fileHash: string) => {
+  const stats = getBookStats(fileHash);
+  return stats ? { hasIndex: true, ...stats } : { hasIndex: false, totalWords: 0, uniqueWords: 0 };
+});
+
+ipcMain.handle("book:get-word-count", (_, fileHash: string, word: string) => {
+  const count = getWordCount(fileHash, word);
+  return { word: word.toLowerCase(), count };
+});
+
+ipcMain.handle("book:delete-vocabulary", (_, fileHash: string) => {
+  deleteWordIndex(fileHash);
+  return { success: true };
 });
 
 ipcMain.handle("book:update-book-id", (_, fileHash: string, bookId: string) => {
@@ -2108,6 +2353,49 @@ ipcMain.handle("settings:open-default-apps", async () => {
   const { shell } = require("electron");
   await shell.openExternal("ms-settings:defaultapps");
   return { success: true };
+});
+
+ipcMain.handle("dictionary:get-index", async () => {
+  const index = await dictionaryManager.loadLocalIndex();
+  return index.dictionaries;
+});
+
+ipcMain.handle("dictionary:fetch-index", async () => {
+  const index = await dictionaryManager.fetchIndex();
+  return index.dictionaries;
+});
+
+ipcMain.handle("dictionary:download", async (_, dictId: string) => {
+  try {
+    const progress = (p: number) => {
+      win?.webContents.send("dictionary:download-progress", { dictId, progress: p });
+    };
+    await dictionaryManager.downloadDictionary(dictId, progress);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("dictionary:delete", async (_, dictId: string) => {
+  // Close storage first before deleting
+  closeAllStorage();
+  const success = await dictionaryManager.deleteDictionary(dictId);
+  return { success };
+});
+
+ipcMain.handle("dictionary:lookup", async (_, word: string, dictId: string = "eng-por") => {
+  try {
+    const result = await quickLookup(word, dictId);
+    return result;
+  } catch (error) {
+    return { found: false, word, lemma: word, content: "", source: "fallback", error: String(error) };
+  }
+});
+
+ipcMain.handle("dictionary:get-info", (_, dictId: string) => {
+  const info = dictionaryManager.getDictionaryInfo(dictId);
+  return info || null;
 });
 
 const gotTheLock = (app as any).requestSingleInstanceLock();

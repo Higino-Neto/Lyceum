@@ -16,6 +16,7 @@ import {
   Image,
   Upload,
   FileType,
+  Sparkles,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 
@@ -59,6 +60,8 @@ export default function BookDetailPanel({
     imagePath: string;
   }>({ open: false, imagePath: "" });
   const [thumbnailKey, setThumbnailKey] = useState(0);
+  const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
+  const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
 
   const progress = calculateProgress(book);
 
@@ -77,6 +80,40 @@ export default function BookDetailPanel({
       }
     }
   }, [book]);
+
+  useEffect(() => {
+    if (book.fileType === "epub") {
+      (window.api as any).getVocabularyStats(book.fileHash).then(setVocabularyStats);
+    } else {
+      setVocabularyStats(null);
+    }
+  }, [book.fileHash, book.fileType]);
+
+  const handleExtractVocabulary = async () => {
+    if (book.fileType !== "epub") {
+      toast.error("Vocabulário só disponível para EPUBs");
+      return;
+    }
+    setIsExtractingVocabulary(true);
+    try {
+      const result = await (window.api as any).extractVocabulary(book.fileHash);
+      if (result.success) {
+        toast.success(`Vocabulário extraído: ${result.uniqueWords?.toLocaleString()} palavras únicas`);
+        setVocabularyStats({
+          hasIndex: true,
+          totalWords: result.totalWords || 0,
+          uniqueWords: result.uniqueWords || 0,
+        });
+        onRefresh?.();
+      } else {
+        toast.error(result.error || "Erro ao extrair vocabulário");
+      }
+    } catch (error) {
+      toast.error("Erro ao extrair vocabulário");
+    } finally {
+      setIsExtractingVocabulary(false);
+    }
+  };
 
   const handleStartEditTitle = () => {
     setEditValue(getTitleWithoutExtension(book.title, book.fileType));
@@ -473,6 +510,20 @@ export default function BookDetailPanel({
 
       <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900/50 space-y-2">
         <div className="flex gap-2">
+          {book.fileType === "epub" && (
+            <button
+              onClick={handleExtractVocabulary}
+              disabled={isExtractingVocabulary}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-sm text-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isExtractingVocabulary ? (
+                <RefreshCw size={12} className="animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
+              {vocabularyStats?.hasIndex ? "Atualizar Vocabulário" : "Extrair Vocabulário"}
+            </button>
+          )}
           <button
             onClick={handleRegenerateThumbnail}
             className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-sm text-xs transition-colors cursor-pointer"
@@ -488,6 +539,13 @@ export default function BookDetailPanel({
             Abrir Pasta
           </button>
         </div>
+
+        {vocabularyStats?.hasIndex && (
+          <div className="px-2 py-1.5 bg-zinc-800/50 rounded-sm text-xs text-zinc-400">
+            <span className="text-zinc-300">{vocabularyStats.uniqueWords.toLocaleString()}</span> palavras únicas em{' '}
+            <span className="text-zinc-300">{vocabularyStats.totalWords.toLocaleString()}</span> palavras
+          </div>
+        )}
 
         <button
           onClick={handleDelete}

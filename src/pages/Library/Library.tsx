@@ -145,7 +145,11 @@ export default function Library() {
       state: {
         fileBuffer: result.fileBuffer,
         fileHash: result.fileHash,
-        fileName: filePath.split(/[/\\]/).pop(),
+        fileName: result.fileName || filePath.split(/[/\\]/).pop(),
+        filePath: result.foundAt || result.filePath || filePath,
+        fileType: result.fileType || (filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf"),
+        source: "library",
+        navigationId: crypto.randomUUID(),
       },
     });
   };

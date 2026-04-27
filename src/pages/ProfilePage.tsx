@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { getUserProfile, updateUserProfile } from "../api/database";
 import { validatePasswordStrength, MIN_PASSWORD_LENGTH } from "../utils/auth";
-import { User, Lock, Save, ArrowLeft, Camera } from "lucide-react";
+import { User, Lock, Save, ArrowLeft, Camera, BookOpen, Download, Trash2, RefreshCw } from "lucide-react";
 import Skeleton from "../components/Skeleton";
 import toast from "react-hot-toast";
+import { useDictionary, DictionaryInfo } from "../hooks/useDictionary";
 
 interface UserMetadata {
   full_name?: string;
@@ -71,6 +72,18 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  const {
+    dictionaries,
+    selectedDict,
+    isLoaded: isDictsLoaded,
+    isDownloading,
+    downloadProgress,
+    selectDictionary,
+    downloadDictionary,
+    deleteDictionary,
+    refreshIndex,
+  } = useDictionary();
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["currentUser"],
@@ -311,6 +324,99 @@ export default function ProfilePage() {
               {passwordMutation.isPending ? "Alterando..." : "Alterar senha"}
             </button>
           </form>
+        </div>
+
+        <div className="bg-zinc-900 rounded-sm p-6 border border-zinc-800">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BookOpen size={20} />
+            Dicionarios Offline
+          </h2>
+          
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-zinc-400">
+              Baixe dicionarios para traducao离线
+            </p>
+            <button
+              onClick={() => refreshIndex()}
+              className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200 transition"
+              title="Atualizar lista"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+
+          {!isDictsLoaded ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : dictionaries.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Nenhum dicionario disponivel</p>
+          ) : (
+            <div className="space-y-2">
+              {dictionaries.map((dict) => {
+                const isDownloaded = dict.isDownloaded;
+                const progress = downloadProgress[dict.id] || 0;
+                const isDownloadingThis = isDownloading && progress > 0 && progress < 100;
+
+                return (
+                  <div
+                    key={dict.id}
+                    className={`flex items-center justify-between p-3 rounded-sm border ${
+                      selectedDict === dict.id
+                        ? "border-zinc-500 bg-zinc-800/50"
+                        : "border-zinc-700 bg-zinc-800/30"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{dict.name}</p>
+                      <p className="text-xs text-zinc-500">
+                        {dict.sourceLang.toUpperCase()} → {dict.targetLang.toUpperCase()}
+                        {dict.size && ` · ${(dict.size / (1024 * 1024)).toFixed(1)}MB`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isDownloadingThis ? (
+                        <div className="flex items-center gap-2 text-sm text-zinc-400">
+                          <RefreshCw size={14} className="animate-spin" />
+                          {progress}%
+                        </div>
+                      ) : isDownloaded ? (
+                        <>
+                          <button
+                            onClick={() => selectDictionary(dict.id)}
+                            className={`px-3 py-1 text-sm rounded-sm transition ${
+                              selectedDict === dict.id
+                                ? "bg-zinc-100 text-zinc-900"
+                                : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
+                            }`}
+                          >
+                            Ativo
+                          </button>
+                          <button
+                            onClick={() => deleteDictionary(dict.id)}
+                            className="p-2 text-zinc-400 hover:text-red-400 transition"
+                            title="Remover"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => downloadDictionary(dict.id)}
+                          disabled={isDownloading}
+                          className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-500 transition disabled:opacity-50"
+                        >
+                          <Download size={14} />
+                          Baixar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="bg-zinc-900 rounded-sm p-6 border border-zinc-800">

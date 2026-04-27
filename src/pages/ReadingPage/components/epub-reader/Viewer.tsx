@@ -12,15 +12,19 @@ import {
   Sparkles,
   Languages,
   X,
+  Focus,
+  Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import ViewerCore from "./ViewerCore";
+import ViewerCore, { NavItem } from "./ViewerCore";
 import ReaderToolbar from "./ReaderToolbar";
 import VocabularyPanel from "./VocabularyPanel";
+import TableOfContents from "./TableOfContents";
 import { useReaderSettings } from "./useReaderSettings";
 import {
   DictionaryLookupResult,
-  fetchDictionaryEntry,
+  lookupWord,
+  lookupWithTranslation,
   simplifySelectedText,
   translateText,
 } from "./languageServices";
@@ -48,7 +52,9 @@ interface ActiveWordLookup {
   isLoading: boolean;
   error: string | null;
   dictionary: DictionaryLookupResult | null;
+  translatedDictionary: DictionaryLookupResult | null;
   translation: string | null;
+  wordCount?: number;
 }
 
 interface ActiveSelectionLookup {
@@ -100,21 +106,125 @@ function sanitizeExportFileName(fileName?: string) {
   return `${baseName || "book"}-vocabulary.csv`;
 }
 
+function TranslationCard({
+  label,
+  text,
+}: {
+  label: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-zinc-100">{text}</p>
+    </div>
+  );
+}
+
+function DictionaryMeanings({
+  dictionary,
+  translatedDictionary,
+}: {
+  dictionary?: DictionaryLookupResult | null;
+  translatedDictionary?: DictionaryLookupResult | null;
+}) {
+  if (!translatedDictionary?.meanings?.length) return null;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">Traducoes</p>
+      {translatedDictionary.meanings.map((meaning, mi) => (
+        <div key={`trans-meaning-${mi}`}>
+          {meaning.partOfSpeech !== "dictionary" && (
+            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400 mb-2">
+              {meaning.partOfSpeech}
+            </p>
+          )}
+          <ul className="space-y-1">
+            {meaning.definitions.map((definition, di) => {
+              const sourceDef = dictionary?.meanings?.[mi]?.definitions?.[di];
+              return (
+                <li key={`def-${mi}-${di}`} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-600" />
+                  <div className="flex-1">
+                    <span className="text-sm text-zinc-100">{definition.definition}</span>
+                    {sourceDef?.example && (
+                      <p className="mt-1 text-xs italic text-zinc-500">"{sourceDef.example}"</p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TranslationDock({
+  title,
+  subtitle,
+  isLoading,
+  translation,
+  simplifiedText,
+  translatedDictionary,
+  dictionary,
+  error,
+  targetLanguage,
+  onClose,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  isLoading: boolean;
+  translation?: string | null;
+  simplifiedText?: string | null;
+  translatedDictionary?: DictionaryLookupResult | null;
+  dictionary?: DictionaryLookupResult | null;
+  error?: string | null;
+  targetLanguage: string;
+  onClose: () => void;
+}) {
+  return (
+    <LearningDock title={title} subtitle={subtitle} onClose={onClose}>
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <LoaderCircle size={16} className="animate-spin" />
+          Processando...
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {translation && (
+            <TranslationCard label={`Traducao (${targetLanguage.toUpperCase()})`} text={translation} />
+          )}
+          {simplifiedText && (
+            <TranslationCard label="Versao simplificada" text={simplifiedText} />
+          )}
+          <DictionaryMeanings dictionary={dictionary} translatedDictionary={translatedDictionary} />
+          {error && (
+            <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+    </LearningDock>
+  );
+}
+
 function LearningDock({
   title,
   subtitle,
-  actions,
   children,
   onClose,
 }: {
   title: string;
   subtitle?: ReactNode;
-  actions?: ReactNode;
   children: ReactNode;
   onClose: () => void;
 }) {
   return (
-    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex h-[min(60%,520px)] min-h-[280px] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[380px]">
+    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[380px]">
       <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-zinc-100">{title}</p>
@@ -135,10 +245,6 @@ function LearningDock({
         </button>
       </div>
 
-      {actions ? (
-        <div className="border-b border-zinc-800 px-4 py-3">{actions}</div>
-      ) : null}
-
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {children}
       </div>
@@ -149,6 +255,12 @@ function LearningDock({
 export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const overlayHostRef = useRef<HTMLDivElement>(null);
   const [isVocabularyPanelOpen, setIsVocabularyPanelOpen] = useState(false);
+  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [toc, setToc] = useState<NavItem[]>([]);
+  const [currentSectionHref, setCurrentSectionHref] = useState<string | undefined>();
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [currentLocation, setCurrentLocation] = useState(0);
+  const [totalLocations, setTotalLocations] = useState(0);
   const [vocabularyFilter, setVocabularyFilter] =
     useState<VocabularyFilter>("all");
   const [activeWordLookup, setActiveWordLookup] =
@@ -156,7 +268,6 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
   const [activeSelectionLookup, setActiveSelectionLookup] =
     useState<ActiveSelectionLookup | null>(null);
   const {
-    settings,
     setFontSize,
     setTheme,
     setFontFamily,
@@ -166,8 +277,10 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setTargetLanguage,
     setShowHighlights,
     setShowPages,
+    setFocusMode,
+    settings,
   } = useReaderSettings();
-const {
+  const {
     entries,
     trackedEntries,
     stats,
@@ -179,16 +292,36 @@ const {
   } = useBookVocabulary(fileHash);
   const dictionaryCacheRef = useRef(new Map<string, DictionaryLookupResult>());
   const wordTranslationCacheRef = useRef(new Map<string, string>());
+  const selectionTranslationCacheRef = useRef(new Map<string, string>());
   const wordLookupAbortRef = useRef<AbortController | null>(null);
   const selectionLookupAbortRef = useRef<AbortController | null>(null);
   const overlayScrollThreshold = 120;
 
   useEffect(() => {
     setIsVocabularyPanelOpen(false);
+    setIsTocOpen(false);
+    setToc([]);
     setVocabularyFilter("all");
     setActiveWordLookup(null);
     setActiveSelectionLookup(null);
   }, [fileHash]);
+
+  useEffect(() => {
+    if (settings.focusMode) {
+      setIsVocabularyPanelOpen(false);
+      setIsTocOpen(false);
+      setActiveWordLookup(null);
+      setActiveSelectionLookup(null);
+    }
+  }, [settings.focusMode]);
+
+  useEffect(() => {
+    dictionaryCacheRef.current.clear();
+    wordTranslationCacheRef.current.clear();
+    selectionTranslationCacheRef.current.clear();
+    setActiveWordLookup(null);
+    setActiveSelectionLookup(null);
+  }, [settings.sourceLanguage, settings.targetLanguage]);
 
   useEffect(() => {
     return () => {
@@ -201,14 +334,20 @@ const {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
+      if (settings.focusMode) {
+        setFocusMode(false);
+        return;
+      }
+
       setActiveWordLookup(null);
       setActiveSelectionLookup(null);
       setIsVocabularyPanelOpen(false);
+      setIsTocOpen(false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [settings.focusMode, setFocusMode]);
 
   const handleDismissOverlays = () => {
     setActiveWordLookup(null);
@@ -238,72 +377,73 @@ const {
     const cachedTranslation =
       wordTranslationCacheRef.current.get(normalizedWord) || null;
 
+    const wordCountResult = await (window.api as any).getWordCount(fileHash, normalizedWord).catch(() => null);
+
     setActiveWordLookup({
       anchor,
       displayWord,
       normalizedWord,
       originScrollTop: scrollTop,
-      isLoading: !cachedDictionary || !cachedTranslation,
+      isLoading: true,
       error: null,
       dictionary: cachedDictionary,
+      translatedDictionary: null,
       translation: cachedTranslation,
+      wordCount: wordCountResult?.count || null,
     });
-
-    if (cachedDictionary && cachedTranslation) {
-      return;
-    }
 
     wordLookupAbortRef.current?.abort();
     const controller = new AbortController();
     wordLookupAbortRef.current = controller;
 
-    const [dictionaryResult, translationResult] = await Promise.allSettled([
-      cachedDictionary
-        ? Promise.resolve(cachedDictionary)
-        : fetchDictionaryEntry(normalizedWord, controller.signal, settings.sourceLanguage),
-      cachedTranslation
-        ? Promise.resolve({ translatedText: cachedTranslation })
-        : translateText(normalizedWord, settings.sourceLanguage, settings.targetLanguage, controller.signal),
-    ]);
+    try {
+      const { source, translated } = await lookupWithTranslation(
+        normalizedWord,
+        settings.sourceLanguage,
+        settings.targetLanguage,
+        controller.signal,
+      );
 
-    if (controller.signal.aborted) {
-      return;
-    }
+if (controller.signal.aborted) return;
 
-    const resolvedDictionary =
-      dictionaryResult.status === "fulfilled"
-        ? dictionaryResult.value
-        : cachedDictionary;
-    const resolvedTranslation =
-      translationResult.status === "fulfilled"
-        ? translationResult.value.translatedText
-        : cachedTranslation;
-    const error =
-      dictionaryResult.status === "rejected" && translationResult.status === "rejected"
-        ? "Nao foi possivel carregar definicao ou traducao agora."
-        : null;
+      dictionaryCacheRef.current.set(normalizedWord, source);
 
-    if (resolvedDictionary) {
-      dictionaryCacheRef.current.set(normalizedWord, resolvedDictionary);
-    }
+      const translationResult = await translateText(
+        normalizedWord,
+        settings.sourceLanguage,
+        settings.targetLanguage,
+        controller.signal,
+      ).catch(() => null);
 
-    if (resolvedTranslation) {
-      wordTranslationCacheRef.current.set(normalizedWord, resolvedTranslation);
-    }
-
-    setActiveWordLookup((current) => {
-      if (!current || current.normalizedWord !== normalizedWord) {
-        return current;
+      if (translationResult?.translatedText) {
+        wordTranslationCacheRef.current.set(normalizedWord, translationResult.translatedText);
       }
 
-      return {
-        ...current,
-        isLoading: false,
-        error,
-        dictionary: resolvedDictionary || null,
-        translation: resolvedTranslation || null,
-      };
-    });
+      setActiveWordLookup((current) => {
+        if (!current || current.normalizedWord !== normalizedWord) return current;
+        return {
+          ...current,
+          isLoading: false,
+          dictionary: source,
+          translatedDictionary: translated,
+          translation: translationResult?.translatedText || cachedTranslation || null,
+        };
+      });
+} catch (err) {
+      if (controller.signal.aborted) return;
+
+      const fallbackTranslation = wordTranslationCacheRef.current.get(normalizedWord) || null;
+
+      setActiveWordLookup((current) => {
+        if (!current || current.normalizedWord !== normalizedWord) return current;
+        return {
+          ...current,
+          isLoading: false,
+          error: err instanceof Error ? err.message : "Erro ao carregar definicoes",
+          translation: fallbackTranslation || current.translation || null,
+        };
+      });
+    }
   };
 
   const handleSelection = ({
@@ -311,17 +451,58 @@ const {
     anchor,
     scrollTop,
   }: TextSelectionPayload) => {
+    const cacheKey = `${settings.sourceLanguage}:${settings.targetLanguage}:${selectedText}`;
+    const cachedTranslation = selectionTranslationCacheRef.current.get(cacheKey) || null;
+
     setActiveWordLookup(null);
     setActiveSelectionLookup({
       anchor,
       selectedText,
       originScrollTop: scrollTop,
-      activeAction: null,
-      isLoading: false,
+      activeAction: "translate",
+      isLoading: true,
       error: null,
-      translation: null,
+      translation: cachedTranslation,
       simplifiedText: null,
     });
+
+    selectionLookupAbortRef.current?.abort();
+    const controller = new AbortController();
+    selectionLookupAbortRef.current = controller;
+
+    translateText(
+      selectedText,
+      settings.sourceLanguage,
+      settings.targetLanguage,
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (result.translatedText) {
+          selectionTranslationCacheRef.current.set(cacheKey, result.translatedText);
+        }
+        setActiveSelectionLookup((current) =>
+          current && current.anchor === anchor
+            ? {
+                ...current,
+                isLoading: false,
+                translation: result.translatedText || cachedTranslation || null,
+              }
+            : current,
+        );
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setActiveSelectionLookup((current) =>
+          current && current.anchor === anchor
+            ? {
+                ...current,
+                isLoading: false,
+                error: err instanceof Error ? err.message : "Erro ao traduzir",
+              }
+            : current,
+        );
+      });
   };
 
   const handleViewerScroll = (scrollTop: number) => {
@@ -339,51 +520,63 @@ const {
 
   const handleScrollPositionChange = (_scrollTop: number) => {};
 
-  const runSelectionAction = async (action: "translate" | "simplify") => {
-    if (!activeSelectionLookup) return;
+  const handleProgressChange = (percentage: number, total?: number) => {
+    setReadingProgress(percentage);
+    if (total !== undefined && total > 0) {
+      setTotalLocations(total);
+      setCurrentLocation(Math.round(total * (percentage / 100)));
+    }
+  };
+
+  const runSelectionAction = async (action: "translate" | "simplify", text: string) => {
+    if (!activeSelectionLookup) {
+      return;
+    }
 
     selectionLookupAbortRef.current?.abort();
     const controller = new AbortController();
     selectionLookupAbortRef.current = controller;
 
-    setActiveSelectionLookup((current) =>
-      current
-        ? {
-            ...current,
-            activeAction: action,
-            isLoading: true,
-            error: null,
-          }
-        : current,
-    );
-
     try {
       if (action === "translate") {
-        const result = await translateText(
-          activeSelectionLookup.selectedText,
-          settings.sourceLanguage,
-          settings.targetLanguage,
-          controller.signal,
-        );
+        try {
+          const result = await translateText(
+            text,
+            settings.sourceLanguage,
+            settings.targetLanguage,
+            controller.signal,
+          );
 
-        if (controller.signal.aborted) return;
+          if (controller.signal.aborted) return;
 
-        setActiveSelectionLookup((current) =>
-          current
-            ? {
-                ...current,
-                activeAction: action,
-                isLoading: false,
-                translation: result.translatedText,
-              }
-            : current,
-        );
+          setActiveSelectionLookup((current) =>
+            current
+              ? {
+                  ...current,
+                  activeAction: action,
+                  isLoading: false,
+                  translation: result.translatedText,
+                }
+              : current,
+          );
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          setActiveSelectionLookup((current) =>
+            current
+              ? {
+                  ...current,
+                  isLoading: false,
+                  error: err instanceof Error ? err.message : "Erro ao traduzir",
+                }
+              : current,
+          );
+        }
 
         return;
       }
 
       const simplifiedText = await simplifySelectedText(
-        activeSelectionLookup.selectedText,
+        text,
         controller.signal,
         settings.sourceLanguage,
         settings.targetLanguage,
@@ -464,22 +657,44 @@ const {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <ReaderToolbar
-        settings={settings}
-        isVocabularyPanelOpen={isVocabularyPanelOpen}
-        onFontSizeChange={setFontSize}
-        onThemeChange={setTheme}
-        onFontFamilyChange={setFontFamily}
-        onLineHeightChange={setLineHeight}
-        onContentWidthChange={setContentWidth}
-        onToggleVocabularyPanel={() =>
-          setIsVocabularyPanelOpen((current) => !current)
-        }
-        onSourceLanguageChange={setSourceLanguage}
-        onTargetLanguageChange={setTargetLanguage}
-        onShowHighlightsChange={setShowHighlights}
-        onShowPagesChange={setShowPages}
-      />
+      {!settings.focusMode && (
+        <ReaderToolbar
+          settings={settings}
+          isVocabularyPanelOpen={isVocabularyPanelOpen}
+          isTocOpen={isTocOpen}
+          readingProgress={readingProgress}
+          currentLocation={currentLocation}
+          totalLocations={totalLocations}
+          onFontSizeChange={setFontSize}
+          onThemeChange={setTheme}
+          onFontFamilyChange={setFontFamily}
+          onLineHeightChange={setLineHeight}
+          onContentWidthChange={setContentWidth}
+          onToggleVocabularyPanel={() =>
+            setIsVocabularyPanelOpen((current) => !current)
+          }
+          onToggleToc={() => setIsTocOpen((current) => !current)}
+          onSourceLanguageChange={setSourceLanguage}
+          onTargetLanguageChange={setTargetLanguage}
+          onShowHighlightsChange={setShowHighlights}
+          onShowPagesChange={setShowPages}
+          onFocusModeChange={setFocusMode}
+        />
+      )}
+
+      {settings.focusMode && (
+        <div className="absolute top-2 right-2 z-50 opacity-0 hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={() => setFocusMode(false)}
+            className="flex items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition"
+            title="Sair do Modo Foco (Esc)"
+          >
+            <Focus size={16} />
+            Sair
+          </button>
+        </div>
+      )}
 
       <div ref={overlayHostRef} className="relative flex-1 min-h-0 overflow-hidden">
         <ViewerCore
@@ -494,204 +709,51 @@ const {
           onDismissOverlays={handleDismissOverlays}
           onViewerScroll={handleViewerScroll}
           onScrollPositionChange={handleScrollPositionChange}
+          onProgressChange={handleProgressChange}
+          onNavigationLoaded={setToc}
+          onNavigateToChapter={(href) => setCurrentSectionHref(href)}
+          currentSectionHref={currentSectionHref}
         />
 
         {activeWordLookup && (
-          <LearningDock
+          <TranslationDock
             title={activeWordLookup.displayWord}
             subtitle={
               <>
-                {activeWordLookup.dictionary?.partOfSpeech && (
-                  <span>{activeWordLookup.dictionary.partOfSpeech}</span>
+                {activeWordLookup.translatedDictionary?.meanings?.[0]?.partOfSpeech && (
+                  <span>{activeWordLookup.translatedDictionary.meanings[0].partOfSpeech}</span>
                 )}
                 {activeWordLookup.dictionary?.phonetic && (
                   <span>{activeWordLookup.dictionary.phonetic}</span>
                 )}
+                {activeWordLookup.wordCount !== null && activeWordLookup.wordCount !== undefined && (
+                  <span className="ml-2 text-zinc-500">
+                    {activeWordLookup.wordCount.toLocaleString()} {activeWordLookup.wordCount === 1 ? "vez" : "vezes"}
+                  </span>
+                )}
               </>
             }
-            actions={
-              <div className="flex flex-wrap gap-2">
-                {(["new", "learning", "known"] as VocabularyStatus[]).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={`rounded-sm px-3 py-1.5 text-sm transition ${
-                      activeWordEntry?.status === status
-                        ? getVocabularyStatusClasses(status)
-                        : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                    }`}
-                    onClick={() =>
-                      setWordStatus(
-                        activeWordLookup.normalizedWord,
-                        status,
-                        activeWordLookup.displayWord,
-                      )
-                    }
-                  >
-                    {getVocabularyStatusLabel(status)}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeWordEntry?.saved
-                      ? "border border-yellow-300/30 bg-yellow-400/10 text-yellow-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() =>
-                    toggleWordSaved(
-                      activeWordLookup.normalizedWord,
-                      activeWordLookup.displayWord,
-                    )
-                  }
-                >
-                  <Bookmark
-                    size={14}
-                    fill={activeWordEntry?.saved ? "currentColor" : "none"}
-                  />
-                  {activeWordEntry?.saved ? "Salva" : "Salvar"}
-                </button>
-
-                {activeWordLookup.dictionary?.audioUrl && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 transition hover:bg-zinc-800"
-                    onClick={() =>
-                      handlePlayPronunciation(activeWordLookup.dictionary?.audioUrl)
-                    }
-                  >
-                    <Play size={14} />
-                    Ouvir
-                  </button>
-                )}
-              </div>
-            }
+            isLoading={activeWordLookup.isLoading}
+            translation={activeWordLookup.translation}
+            dictionary={activeWordLookup.dictionary}
+            translatedDictionary={activeWordLookup.translatedDictionary}
+            error={activeWordLookup.error}
+            targetLanguage={settings.targetLanguage}
             onClose={handleDismissOverlays}
-          >
-            {activeWordLookup.isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <LoaderCircle size={16} className="animate-spin" />
-                Buscando definicao e traducao...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeWordLookup.translation && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Traducao PT-BR
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeWordLookup.translation}
-                    </p>
-                  </div>
-                )}
-
-                {activeWordLookup.dictionary?.definitions?.length ? (
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Definicao em ingles
-                    </p>
-                    {activeWordLookup.dictionary.definitions.map((definition, index) => (
-                      <div
-                        key={`${activeWordLookup.normalizedWord}-${index}`}
-                        className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3"
-                      >
-                        <p className="text-sm leading-6 text-zinc-100">
-                          {definition.definition}
-                        </p>
-                        {definition.example && (
-                          <p className="mt-2 text-xs italic text-zinc-400">
-                            {definition.example}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {activeWordLookup.error && (
-                  <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
-                    {activeWordLookup.error}
-                  </div>
-                )}
-              </div>
-            )}
-          </LearningDock>
+          />
         )}
 
         {activeSelectionLookup && (
-          <LearningDock
+          <TranslationDock
             title="Trecho selecionado"
             subtitle={<span className="line-clamp-2">{activeSelectionLookup.selectedText}</span>}
-            actions={
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeSelectionLookup.activeAction === "translate"
-                      ? "border border-blue-300/30 bg-blue-500/10 text-blue-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() => runSelectionAction("translate")}
-                >
-                  <Languages size={14} />
-                  Traduzir
-                </button>
-
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm transition ${
-                    activeSelectionLookup.activeAction === "simplify"
-                      ? "border border-zinc-600 bg-zinc-800 text-zinc-100"
-                      : "border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                  onClick={() => runSelectionAction("simplify")}
-                >
-                  <Sparkles size={14} />
-                  Simplificar
-                </button>
-              </div>
-            }
+            isLoading={activeSelectionLookup.isLoading}
+            translation={activeSelectionLookup.translation}
+            simplifiedText={activeSelectionLookup.simplifiedText}
+            error={activeSelectionLookup.error}
+            targetLanguage={settings.targetLanguage}
             onClose={handleDismissOverlays}
-          >
-            {activeSelectionLookup.isLoading ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
-                <LoaderCircle size={16} className="animate-spin" />
-                Processando trecho...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeSelectionLookup.translation && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Traducao PT-BR
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeSelectionLookup.translation}
-                    </p>
-                  </div>
-                )}
-
-                {activeSelectionLookup.simplifiedText && (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      Versao simplificada
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-100">
-                      {activeSelectionLookup.simplifiedText}
-                    </p>
-                  </div>
-                )}
-
-                {activeSelectionLookup.error && (
-                  <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
-                    {activeSelectionLookup.error}
-                  </div>
-                )}
-              </div>
-            )}
-          </LearningDock>
+          />
         )}
 
         <VocabularyPanel
@@ -705,6 +767,17 @@ const {
           onToggleSaved={(word) => toggleWordSaved(word)}
           onExportCsv={handleExportCsv}
           onClose={() => setIsVocabularyPanelOpen(false)}
+        />
+
+        <TableOfContents
+          isOpen={isTocOpen}
+          toc={toc}
+          currentHref={currentSectionHref}
+          onSelectChapter={(href) => {
+            setCurrentSectionHref(href);
+            setIsTocOpen(false);
+          }}
+          onClose={() => setIsTocOpen(false)}
         />
       </div>
     </div>

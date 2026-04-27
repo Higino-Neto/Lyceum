@@ -26,6 +26,7 @@ interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
+  fileType: "pdf" | "epub";
 }
 
 interface BookCategory {
@@ -77,7 +78,22 @@ interface Window {
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
-    reopenPdf: (filePath: string, fileHash?: string) => Promise<{ fileBuffer: ArrayBuffer; fileHash: string; foundAt?: string } | { error: string; message: string } | null>;
+    reopenPdf: (filePath?: string, fileHash?: string) => Promise<{
+      fileBuffer: ArrayBuffer;
+      fileHash: string;
+      filePath?: string;
+      fileType?: "pdf" | "epub";
+      fileName?: string;
+      foundAt?: string;
+    } | { error: string; message: string } | null>;
+    openDocumentByHash: (fileHash: string, filePath?: string) => Promise<{
+      fileBuffer: ArrayBuffer;
+      fileHash: string;
+      filePath?: string;
+      fileType?: "pdf" | "epub";
+      fileName?: string;
+      foundAt?: string;
+    } | { error: string; message: string } | null>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
 
@@ -169,6 +185,14 @@ interface Window {
 openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: string } & OpenPdfResult>;
     onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
     openDefaultAppsSettings: () => Promise<{ success: boolean }>;
+    openInNewWindow: (data: {
+      fileHash: string;
+      fileName: string;
+      fileType: "pdf" | "epub";
+      filePath?: string;
+      libraryDocumentId?: string;
+      source?: "library" | "local";
+    }) => Promise<void>;
   };
 }
 
@@ -202,7 +226,8 @@ interface Window {
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;
     getLastDocument: () => Promise<any>;
-    reopenPdf: (filePath: string) => Promise<any>;
+    reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
+    openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
 

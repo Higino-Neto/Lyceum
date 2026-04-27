@@ -73,10 +73,12 @@ export default function useReadingStatePersistence(
   }, []);
 
   const loadState = useCallback(async () => {
+    loadedStateRef.current = DEFAULT_READING_STATE;
+    lastSavedStateRef.current = DEFAULT_READING_STATE;
+    pendingStateRef.current = null;
+    clearScheduledSave();
+
     if (!fileHash) {
-      loadedStateRef.current = DEFAULT_READING_STATE;
-      lastSavedStateRef.current = DEFAULT_READING_STATE;
-      pendingStateRef.current = null;
       return DEFAULT_READING_STATE;
     }
 
@@ -105,30 +107,14 @@ export default function useReadingStatePersistence(
 
       clearScheduledSave();
 
-      const baseState =
-        pendingStateRef.current ||
-        lastSavedStateRef.current ||
-        loadedStateRef.current ||
-        DEFAULT_READING_STATE;
-      const nextState = normalizeReadingState({
-        ...baseState,
-        ...partialState,
-      });
-
-      pendingStateRef.current = nextState;
-
-      if (!hasMeaningfulChange(lastSavedStateRef.current, nextState)) {
-        pendingStateRef.current = null;
+      if (!partialState || !partialState.annotations) {
         return;
       }
 
       await window.api.saveReadingState({
         fileHash,
-        state: nextState,
+        state: partialState,
       });
-
-      lastSavedStateRef.current = nextState;
-      pendingStateRef.current = null;
     },
     [clearScheduledSave, fileHash],
   );
