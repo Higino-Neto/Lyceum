@@ -1,5 +1,5 @@
 export const CHART_COLORS = [
-  "#22c55e",
+  "var(--accent-500)",
   "#3b82f6",
   "#8b5cf6",
   "#f59e0b",

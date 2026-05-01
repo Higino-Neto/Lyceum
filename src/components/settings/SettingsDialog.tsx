@@ -1,0 +1,173 @@
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { BookOpen, Palette, SlidersHorizontal, User, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  AppearanceSettingsPanel,
+  DictionarySettingsPanel,
+  GeneralSettingsPanel,
+} from "./SettingsPanels";
+
+type SettingsTabId = "general" | "appearance" | "dictionaries";
+
+interface SettingsTab {
+  id: SettingsTabId;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  panel: ReactNode;
+}
+
+interface SettingsDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const tabs = useMemo<SettingsTab[]>(
+    () => [
+      {
+        id: "general",
+        label: "Geral",
+        description: "Conta, dados pessoais, segurança e sessão.",
+        icon: User,
+        panel: <GeneralSettingsPanel onRequestClose={onClose} />,
+      },
+      {
+        id: "appearance",
+        label: "Aparência",
+        description: "Tema e cor de destaque da interface.",
+        icon: Palette,
+        panel: <AppearanceSettingsPanel />,
+      },
+      {
+        id: "dictionaries",
+        label: "Dicionários",
+        description: "Pacotes offline para leitura.",
+        icon: BookOpen,
+        panel: <DictionarySettingsPanel />,
+      },
+    ],
+    [onClose],
+  );
+
+  const activeSettingsTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 py-6"
+      onMouseDown={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+    >
+      <div
+        className="flex h-[min(760px,calc(100vh-48px))] w-full max-w-5xl overflow-hidden rounded border border-zinc-700/90 bg-zinc-900 text-zinc-100 shadow-2xl shadow-black/60"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <aside className="hidden w-60 shrink-0 border-r border-zinc-800 bg-zinc-950/80 p-3 sm:block">
+          <div className="mb-4 flex h-10 items-center gap-2 px-2">
+            <SlidersHorizontal size={18} className="text-zinc-400" />
+            <h2 className="text-base font-semibold">
+              Configurações
+            </h2>
+          </div>
+
+          <nav className="space-y-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm transition ${
+                    isActive
+                      ? "bg-zinc-800 text-zinc-50"
+                      : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col bg-zinc-900">
+          <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 px-4 sm:px-6">
+            <div className="min-w-0">
+              <h2 id="settings-title" className="truncate text-base font-semibold text-zinc-100">
+                Configurações
+              </h2>
+              <p className="hidden text-xs text-zinc-500 sm:block">
+                {activeSettingsTab.description}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={activeTab}
+                onChange={(event) =>
+                  setActiveTab(event.target.value as SettingsTabId)
+                }
+                className="h-9 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 sm:hidden"
+                aria-label="Selecionar aba"
+              >
+                {tabs.map((tab) => (
+                  <option key={tab.id} value={tab.id}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+                title="Fechar"
+                aria-label="Fechar configurações"
+              >
+                <X size={17} />
+              </button>
+            </div>
+          </header>
+
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-7">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
+                  {activeSettingsTab.label}
+                </h1>
+                <p className="mt-1 text-sm text-zinc-500 sm:hidden">
+                  {activeSettingsTab.description}
+                </p>
+              </div>
+
+              {activeSettingsTab.panel}
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

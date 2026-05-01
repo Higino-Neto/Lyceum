@@ -69,16 +69,16 @@ export function ReadingHeatMap() {
   const darkPanelColors = useMemo(() => {
     if (!value || value.length === 0) {
       return {
-        0: "#27272a",
-        1: "#16a34a",
-        2: "#16a34a",
-        3: "#16a34a",
-        4: "#22c55e",
-        5: "#22c55e",
-        6: "#22c55e",
-        7: "#22c55e",
-        8: "#22c55e",
-        9: "#22c55e",
+        0: "var(--ui-zinc-800)",
+        1: "var(--accent-600)",
+        2: "var(--accent-600)",
+        3: "var(--accent-600)",
+        4: "var(--accent-500)",
+        5: "var(--accent-500)",
+        6: "var(--accent-500)",
+        7: "var(--accent-500)",
+        8: "var(--accent-500)",
+        9: "var(--accent-500)",
       };
     }
 
@@ -88,16 +88,16 @@ export function ReadingHeatMap() {
     const range = max - min || 1;
 
     const colors = [
-      "#27272a",
-      "#14532d",
-      "#166534",
-      "#15803d",
-      "#16a34a",
-      "#22c55e",
-      "#4ade80",
-      "#86efac",
-      "#bbf7d0",
-      "#dcfce7",
+      "var(--ui-zinc-800)",
+      "var(--accent-900)",
+      "var(--accent-800)",
+      "var(--accent-700)",
+      "var(--accent-600)",
+      "var(--accent-500)",
+      "var(--accent-400)",
+      "var(--accent-300)",
+      "var(--accent-200)",
+      "var(--accent-100)",
     ];
 
     return colors;
@@ -178,7 +178,7 @@ export function ReadingHeatMap() {
           panelColors={darkPanelColors}
           rectProps={{ rx: 2 }}
           legendCellSize={0}
-          style={{ color: "#E2E8F0", width: "100%" }}
+          style={{ color: "var(--ui-zinc-200)", width: "100%" }}
           rectRender={rectRender}
         />
       </div>

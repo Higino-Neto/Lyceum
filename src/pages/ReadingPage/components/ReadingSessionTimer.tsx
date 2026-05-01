@@ -114,8 +114,8 @@ function CircularProgress({
       />
       <defs>
         <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#16a34a" />
-          <stop offset="100%" stopColor="#4ade80" />
+          <stop offset="0%" stopColor="var(--accent-600)" />
+          <stop offset="100%" stopColor="var(--accent-400)" />
         </linearGradient>
       </defs>
     </svg>

@@ -46,10 +46,10 @@ export const THEME_COLORS: Record<ThemeName, ThemeColors> = {
     border: "#e5e5e5",
   },
   dark: {
-    background: "#18181b",
-    text: "#fafafa",
+    background: "var(--ui-zinc-900)",
+    text: "var(--ui-zinc-50)",
     accent: "#94a3b8",
-    border: "#3f3f46",
+    border: "var(--ui-zinc-700)",
   },
   sepia: {
     background: "#f4ecd8",

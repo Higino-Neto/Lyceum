@@ -5,7 +5,7 @@ import {
   Home,
   LibraryBig,
   LogIn,
-  User,
+  Settings,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
@@ -18,6 +18,8 @@ interface SidebarProps {
   panelsVisible: boolean;
   onShowPanels: () => void;
   onHidePanels: () => void;
+  settingsOpen?: boolean;
+  onOpenSettings?: () => void;
 }
 
 export default function Sidebar({
@@ -27,20 +29,33 @@ export default function Sidebar({
   panelsVisible,
   onShowPanels,
   onHidePanels,
+  settingsOpen = false,
+  onOpenSettings,
 }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
   useRouteState();
 
-  const sidebarWidth = autoHideEnabled && !panelsVisible && !autoHideOverlay ? "w-0" : (collapsed ? "w-13" : "w-42");
-  const sidebarVisibility = autoHideEnabled && autoHideOverlay && !panelsVisible ? "opacity-0 pointer-events-none" : "";
-  const sidebarClasses = `bg-zinc-900 flex flex-col transition-all duration-200 ${sidebarWidth} ${
-    autoHideEnabled && autoHideOverlay ? "fixed top-10 left-0 h-full z-40" : ""
-  } ${sidebarVisibility}`;
+  const isOverlayMode = autoHideEnabled && autoHideOverlay;
+  const isHidden = autoHideEnabled && !panelsVisible;
+  const sidebarWidth = isHidden && !autoHideOverlay
+    ? "w-0 overflow-hidden"
+    : (collapsed ? "w-13" : "w-42");
+  const sidebarPosition = isOverlayMode
+    ? "absolute bottom-0 left-0 top-10 z-40 border-r border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/40 backdrop-blur"
+    : "bg-zinc-900";
+  const sidebarVisibility = isOverlayMode && isHidden
+    ? "pointer-events-none -translate-x-full opacity-0"
+    : "translate-x-0 opacity-100";
+  const sidebarClasses = `flex flex-col transition-[width,opacity,transform] duration-200 ease-out ${sidebarWidth} ${sidebarPosition} ${sidebarVisibility}`;
 
   return (
-    <aside className={sidebarClasses} onMouseEnter={onShowPanels}>
+    <aside
+      className={sidebarClasses}
+      onMouseEnter={onShowPanels}
+      onMouseLeave={onHidePanels}
+    >
       <nav className="flex flex-col gap-2 mt-4">
         <SidebarItem
           Icon={Home}
@@ -81,10 +96,10 @@ export default function Sidebar({
 
       <div className="flex flex-col mt-auto mb-3 text-zinc-500 text-center">
         <SidebarItem
-          Icon={User}
-          label="Perfil"
-          active={pathname === "/profile"}
-          onClick={() => navigate("/profile")}
+          Icon={Settings}
+          label="Configurações"
+          active={settingsOpen}
+          onClick={() => onOpenSettings?.()}
           collapsed={collapsed}
         />
         <SidebarItem

@@ -1,13 +1,21 @@
-import { Plus, Trash2, Copy, BookPlus, NotebookPen } from "lucide-react";
+import { Plus, Trash2, Copy, NotebookPen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import saveReadingEntries from "../utils/saveReadingEntries";
 import { supabase } from "../lib/supabase";
-import { getCategories } from "../api/database";
+import {
+  deleteBook,
+  getAllBooks,
+  getCategories,
+  SupabaseBook,
+} from "../api/database";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import ReadingTable from "./DashboardPage/components/ReadingTable/ReadingTable";
 import { useRouteState } from "../hooks/useRouteState";
+import BooksSection from "./Library/components/BooksSection";
+import StatisticsPanel from "./Library/components/StatisticsPanel";
+import { DocumentRecord } from "../types/ReadingTypes";
 
 interface Book {
   id: string;
@@ -199,6 +207,14 @@ export default function AddReadingPage() {
   const queryClient = useQueryClient();
   const { saveState, loadState, clearState } = useRouteState();
   const [categories, setCategories] = useState<any>();
+  const [libraryBooks, setLibraryBooks] = useState<SupabaseBook[]>([]);
+  const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [booksSearch, setBooksSearch] = useState("");
+  const [selectedSupabaseBook, setSelectedSupabaseBook] =
+    useState<SupabaseBook | null>(null);
+  const [editingSupabaseBook, setEditingSupabaseBook] =
+    useState<SupabaseBook | null>(null);
   const [entries, setEntries] = useState<ReadingEntry[]>(() => {
     const saved = loadState();
     if (saved?.entries) {
@@ -304,6 +320,40 @@ export default function AddReadingPage() {
     };
     load();
   }, []);
+
+  const loadBooksPanel = useCallback(async () => {
+    setBooksLoading(true);
+    try {
+      const [books, docs] = await Promise.all([
+        getAllBooks(),
+        window.api?.getDocuments ? window.api.getDocuments() : Promise.resolve([]),
+      ]);
+      setLibraryBooks(books);
+      setLocalDocuments(docs);
+      setEditingSupabaseBook(null);
+    } catch (error) {
+      console.error("Error loading books panel:", error);
+      toast.error("Erro ao carregar Meus Livros");
+    } finally {
+      setBooksLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBooksPanel();
+  }, [loadBooksPanel]);
+
+  const handleSupabaseBookDelete = async (book: SupabaseBook) => {
+    try {
+      await deleteBook(book.id);
+      setSelectedSupabaseBook(null);
+      await loadBooksPanel();
+      toast.success("Livro excluído!");
+    } catch (error) {
+      console.error("Error deleting book:", error);
+      toast.error("Erro ao excluir livro");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -518,6 +568,55 @@ export default function AddReadingPage() {
 
           <section className=" bg-zinc-900">
             <ReadingTable />
+          </section>
+
+          <section className="border-t border-zinc-800 pt-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-zinc-100">
+                  Meus Livros
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Gerencie vínculos, duplicados e estatísticas dos registros.
+                </p>
+              </div>
+              <input
+                type="text"
+                value={booksSearch}
+                onChange={(event) => setBooksSearch(event.target.value)}
+                placeholder="Buscar livro registrado..."
+                className="w-full max-w-xs rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-green-500"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <div className="min-w-0 flex-1">
+                <BooksSection
+                  books={libraryBooks}
+                  localDocuments={localDocuments}
+                  search={booksSearch}
+                  loading={booksLoading}
+                  selectedBook={selectedSupabaseBook}
+                  onSelectBook={setSelectedSupabaseBook}
+                  editingBook={editingSupabaseBook}
+                  onRefresh={loadBooksPanel}
+                />
+              </div>
+
+              {selectedSupabaseBook && (
+                <aside className="w-96 flex-shrink-0 border-l border-zinc-800 bg-zinc-900">
+                  <StatisticsPanel
+                    book={selectedSupabaseBook}
+                    onClose={() => setSelectedSupabaseBook(null)}
+                    onEdit={(book) => {
+                      setSelectedSupabaseBook(book);
+                      setEditingSupabaseBook(book);
+                    }}
+                    onDelete={handleSupabaseBookDelete}
+                  />
+                </aside>
+              )}
+            </div>
           </section>
         </div>
       </main>

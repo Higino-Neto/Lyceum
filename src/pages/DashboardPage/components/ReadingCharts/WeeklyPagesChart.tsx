@@ -61,18 +61,18 @@ export default function WeeklyPagesChart({
       <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="1 1"
-          stroke="#27272a"
+          stroke="var(--ui-zinc-800)"
           vertical={false}
         />
         <XAxis
           dataKey="week"
-          stroke="#52525b"
+          stroke="var(--ui-zinc-600)"
           fontSize={10}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          stroke="#52525b"
+          stroke="var(--ui-zinc-600)"
           fontSize={11}
           tickLine={false}
           axisLine={false}

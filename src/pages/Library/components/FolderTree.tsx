@@ -26,7 +26,9 @@ interface FolderTreeProps {
   onFolderSelect: (folderPath: string | null) => void;
   localDocuments: DocumentRecord[];
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
+  onMoveBooks?: (fileHashes: string[], targetFolder: string | null) => Promise<boolean>;
   draggingBookHash?: string | null;
+  draggingBookHashes?: string[];
   onImportBook?: (targetFolder: string | null) => Promise<void>;
 }
 
@@ -89,7 +91,9 @@ export default function FolderTree({
   onFolderSelect,
   localDocuments,
   onMoveBook,
+  onMoveBooks,
   draggingBookHash,
+  draggingBookHashes = [],
   onImportBook,
 }: FolderTreeProps) {
   const [folders, setFolders] = useState<FolderInfo[]>([]);
@@ -118,7 +122,13 @@ export default function FolderTree({
     folder: FolderInfo | null;
   }>({ open: false, folder: null });
 
-  const draggingBook = draggingBookHash || null;
+  const draggingBooks =
+    draggingBookHashes.length > 0
+      ? draggingBookHashes
+      : draggingBookHash
+        ? [draggingBookHash]
+        : [];
+  const draggingBook = draggingBooks.length > 0;
 
   const isDropTarget = dragOver === "root";
 
@@ -329,11 +339,18 @@ export default function FolderTree({
       } catch (error) {
         toast.error("Erro ao mover pasta");
       }
-    } else if (draggingBook && onMoveBook) {
+    } else if (draggingBook) {
       try {
-        const success = await onMoveBook(draggingBook, targetPath);
-        if (success) {
-          toast.success("Livro movido");
+        const success =
+          draggingBooks.length > 1 && onMoveBooks
+            ? await onMoveBooks(draggingBooks, targetPath)
+            : onMoveBook
+              ? await onMoveBook(draggingBooks[0], targetPath)
+              : false;
+        if (success && draggingBooks.length === 1) {
+          toast.success(
+            "Livro movido",
+          );
         }
       } catch (error) {
         toast.error("Erro ao mover livro");
@@ -515,9 +532,10 @@ export default function FolderTree({
                 selectedFolder === null
                   ? "bg-zinc-800 text-zinc-100"
                   : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-              } ${dragOver === "root" ? "bg-green-900/50 border-2 border-green-500" : ""}`}
+              } ${dragOver === "root" ? "bg-green-500/10 text-green-100 ring-1 ring-green-500" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
                 if (draggingBook) setDragOver("root");
               }}
               onDragLeave={() => setDragOver(null)}
@@ -815,7 +833,7 @@ function FolderNode({
           isSelected
             ? "bg-zinc-800 text-zinc-100"
             : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-        } ${isDropTarget ? "bg-green-900/50 border-2 border-green-500" : ""} ${isDragging ? "opacity-50" : ""}`}
+        } ${isDropTarget ? "bg-green-500/10 text-green-100 ring-1 ring-green-500" : ""} ${isDragging ? "opacity-50" : ""}`}
         style={{
           paddingLeft: `${level * 16 + 8}px`,
           paddingRight: "8px",
@@ -832,6 +850,7 @@ function FolderNode({
         onDragEnd={onDragEnd}
         onDragOver={(e) => {
           e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
           onDragOver(folder.path);
         }}
         onDragLeave={onDragLeave}

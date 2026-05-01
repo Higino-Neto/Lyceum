@@ -19,6 +19,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
+import {
+  formatPageCount,
+  getBookFolderLabel,
+  getFileTypeLabel,
+} from "../utils";
 
 const getTitleWithoutExtension = (title: string, fileType?: string) => {
   if (fileType === "epub") {
@@ -26,7 +31,6 @@ const getTitleWithoutExtension = (title: string, fileType?: string) => {
   }
   return title.replace(/\.pdf$/i, "");
 };
-import { calculateProgress } from "./BookGrid/progress";
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 
@@ -62,8 +66,6 @@ export default function BookDetailPanel({
   const [thumbnailKey, setThumbnailKey] = useState(0);
   const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
   const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
-
-  const progress = calculateProgress(book);
 
   useEffect(() => {
     if (book.filePath) {
@@ -485,14 +487,12 @@ export default function BookDetailPanel({
         </div>
 
         <div className="space-y-2">
-          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
           <p className="text-xs text-zinc-500">
-            {progress.toFixed(0)}% • Página {book.currentPage} de {book.numPages}
+            {formatPageCount(book.numPages, book.fileType)}{" "}
+            <span className="text-zinc-700">|</span>{" "}
+            {getFileTypeLabel(book.fileType, book.filePath)}{" "}
+            <span className="text-zinc-700">|</span>{" "}
+            {getBookFolderLabel(book.filePath)}
           </p>
         </div>
 

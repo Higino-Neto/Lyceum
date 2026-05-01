@@ -58,6 +58,15 @@ contextBridge.exposeInMainWorld("api", {
     return () => ipcRenderer.removeListener("file-opened", listener);
   },
 
+  onReadingShortcut: (callback: (data: { key: string; shift?: boolean }) => void) => {
+    const listener = (
+      _: Electron.IpcRendererEvent,
+      data: { key: string; shift?: boolean },
+    ) => callback(data);
+    ipcRenderer.on("reading-shortcut", listener);
+    return () => ipcRenderer.removeListener("reading-shortcut", listener);
+  },
+
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
 
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
@@ -81,6 +90,8 @@ contextBridge.exposeInMainWorld("api", {
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 
   openEpub: () => ipcRenderer.invoke("dialog:open-epub"),
+
+  openReadableFile: () => ipcRenderer.invoke("dialog:open-readable-file"),
 
   getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) =>
     ipcRenderer.invoke("temp:get-pdf-file", fileBuffer, fileHash),

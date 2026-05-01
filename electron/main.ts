@@ -114,6 +114,7 @@ let fileWatcher: FSWatcher | null = null;
 const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
 const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 const USER_DATA_PATH = () => app.getPath("userData");
+const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 
 interface FolderInfo {
   name: string;
@@ -185,6 +186,57 @@ function inferFileTypeFromPath(
   }
 
   return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
+}
+
+function moveFileAcrossDevices(sourcePath: string, targetPath: string): void {
+  if (path.resolve(sourcePath) === path.resolve(targetPath)) {
+    return;
+  }
+
+  try {
+    fs.renameSync(sourcePath, targetPath);
+  } catch (error: unknown) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== "EXDEV") {
+      throw error;
+    }
+
+    fs.copyFileSync(sourcePath, targetPath);
+    fs.unlinkSync(sourcePath);
+  }
+}
+
+async function openReadableFile(filePath: string): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string }) | null> {
+  const fileType = inferFileTypeFromPath(filePath);
+  const title = path.basename(filePath, path.extname(filePath));
+  const fileHash = generateFileHash(filePath);
+  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+
+  const existingByPath = getDocumentByFilePath(filePath);
+  if (existingByPath) {
+    updateLastOpened(existingByPath.fileHash);
+    return { ...existingByPath, filePath, fileBuffer, fileType, title };
+  }
+
+  const existingByHash = getDocumentByHash(fileHash);
+  if (existingByHash) {
+    updateLastOpened(existingByHash.fileHash);
+    return { ...existingByHash, filePath, fileBuffer, fileType, title };
+  }
+
+  const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
+  const numPages = fileType === "pdf"
+    ? await getPdfPageCount(filePath)
+    : await getEpubChapterCount(filePath);
+
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) {
+    return null;
+  }
+
+  return { ...doc, filePath, fileBuffer, fileType, title };
 }
 
 function getAllPdfFiles(dir: string): string[] {
@@ -701,15 +753,57 @@ async function generateEpubThumbnail(
   try {
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
-    
-    // Find cover image - look in images folder and root
-    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+
+    const getEntry = (entryPath: string) =>
+      entries.find((entry: any) => entry.entryName === entryPath);
+    const normalizeZipPath = (entryPath: string) => entryPath.replace(/\\/g, "/");
+    const joinZipPath = (basePath: string, relativePath: string) =>
+      normalizeZipPath(path.posix.normalize(path.posix.join(basePath, relativePath)));
+
     let coverImage: any = null;
-    
-    // First try to find a cover image by common naming conventions
-    const coverNames = ["cover.jpg", "cover.jpeg", "cover.png", "cover.webp", "Cover.jpg", "Cover.jpeg"];
+
+    const containerEntry = getEntry("META-INF/container.xml");
+    if (containerEntry) {
+      const containerXml = containerEntry.getData().toString("utf8");
+      const rootFileMatch = containerXml.match(/full-path="([^"]+)"/);
+      const opfPath = rootFileMatch?.[1];
+      const opfEntry = opfPath ? getEntry(opfPath) : undefined;
+
+      if (opfEntry && opfPath) {
+        const opfXml = opfEntry.getData().toString("utf8");
+        const opfDir = opfPath.split("/").slice(0, -1).join("/");
+        const metaCoverId = opfXml.match(/<meta[^>]+name=["']cover["'][^>]+content=["']([^"']+)["']/i)?.[1];
+        const manifestItems = Array.from(
+          opfXml.matchAll(/<item\b([^>]+)>/gi),
+        );
+
+        const readAttr = (source: string, attr: string) =>
+          source.match(new RegExp(`${attr}=["']([^"']+)["']`, "i"))?.[1];
+
+        const coverItem = manifestItems.find((match) => {
+          const attrs = match[1];
+          const id = readAttr(attrs, "id");
+          const properties = readAttr(attrs, "properties") || "";
+          const href = readAttr(attrs, "href") || "";
+          return (
+            (metaCoverId && id === metaCoverId) ||
+            properties.split(/\s+/).includes("cover-image") ||
+            /cover|front/i.test(href)
+          );
+        });
+
+        const href = coverItem ? readAttr(coverItem[1], "href") : undefined;
+        if (href) {
+          coverImage = getEntry(joinZipPath(opfDir, href));
+        }
+      }
+    }
+
+    const coverNames = ["cover.jpg", "cover.jpeg", "cover.png", "cover.webp"];
     for (const name of coverNames) {
-      const found = entries.find((e: any) => e.entryName.toLowerCase().endsWith(name));
+      const found = entries.find((e: any) =>
+        e.entryName.toLowerCase().endsWith(name),
+      );
       if (found) {
         coverImage = found;
         break;
@@ -720,7 +814,7 @@ async function generateEpubThumbnail(
     if (!coverImage) {
       const imageEntries = entries.filter((entry: any) => {
         const name = entry.entryName.toLowerCase();
-        return imageExtensions.some(ext => name.endsWith(ext)) && 
+        return THUMBNAIL_EXTENSIONS.some(ext => name.endsWith(ext)) &&
                (name.includes("cover") || name.includes("front"));
       });
       if (imageEntries.length > 0) {
@@ -732,7 +826,7 @@ async function generateEpubThumbnail(
       // Just create a placeholder - first image in the epub
       const anyImage = entries.find((e: any) => {
         const name = e.entryName.toLowerCase();
-        return imageExtensions.some(ext => name.endsWith(ext));
+        return THUMBNAIL_EXTENSIONS.some(ext => name.endsWith(ext));
       });
       if (anyImage) {
         coverImage = anyImage;
@@ -745,7 +839,8 @@ async function generateEpubThumbnail(
     }
     
     // Save the cover image as thumbnail
-    const ext = coverImage.entryName.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
+    const sourceExt = path.extname(coverImage.entryName).toLowerCase();
+    const ext = THUMBNAIL_EXTENSIONS.includes(sourceExt) ? sourceExt : ".jpg";
     const outputPath = path.join(thumbnailsDir, `${fileHash}-cover${ext}`);
     
     fs.writeFileSync(outputPath, coverImage.getData());
@@ -963,7 +1058,9 @@ async function generateThumbnail(
     const findExistingThumbnail = () => {
       const files = fs.readdirSync(thumbnailsDir);
       const matchingFile = files.find(
-        (f) => f.startsWith(`${fileHash}-`) && f.endsWith(".jpg"),
+        (f) =>
+          f.startsWith(`${fileHash}-`) &&
+          THUMBNAIL_EXTENSIONS.includes(path.extname(f).toLowerCase()),
       );
       if (matchingFile) {
         const fullPath = path.join(thumbnailsDir, matchingFile);
@@ -984,7 +1081,10 @@ async function generateThumbnail(
     if (force) {
       const existingFiles = fs.readdirSync(thumbnailsDir);
       for (const file of existingFiles) {
-        if (file.startsWith(`${fileHash}-`) && file.endsWith(".jpg")) {
+        if (
+          file.startsWith(`${fileHash}-`) &&
+          THUMBNAIL_EXTENSIONS.includes(path.extname(file).toLowerCase())
+        ) {
           fs.unlinkSync(path.join(thumbnailsDir, file));
           console.log(`Deleted existing thumbnail: ${file}`);
         }
@@ -1048,12 +1148,49 @@ function createAppWindow(
   appWindow.webContents.on("did-finish-load", () => {
     appWindow.webContents.setZoomFactor(1.0);
   });
+  appWindow.webContents.on("before-input-event", (event, input) => {
+    if (!isReadingRouteUrl(appWindow.webContents.getURL())) {
+      return;
+    }
+
+    if (input.type !== "keyDown" || (!input.control && !input.meta) || input.alt) {
+      return;
+    }
+
+    const key = input.key.toLowerCase();
+    const isTabShortcut =
+      key === "w" ||
+      key === "t" ||
+      key === "tab" ||
+      key === "pageup" ||
+      key === "pagedown" ||
+      /^[1-9]$/.test(key);
+
+    if (!isTabShortcut) {
+      return;
+    }
+
+    event.preventDefault();
+    appWindow.webContents.send("reading-shortcut", {
+      key,
+      shift: input.shift,
+    });
+  });
   appWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   appWindow.webContents.on("will-navigate", (event) => {
     event.preventDefault();
   });
 
   return appWindow;
+}
+
+function isReadingRouteUrl(currentUrl: string): boolean {
+  try {
+    const parsedUrl = new URL(currentUrl);
+    return parsedUrl.pathname === "/reading" || parsedUrl.hash.startsWith("#/reading");
+  } catch {
+    return currentUrl.includes("/reading") || currentUrl.includes("#/reading");
+  }
 }
 
 function loadRendererRoute(
@@ -1084,6 +1221,7 @@ function loadRendererRoute(
 
 function createWindow() {
   win = createAppWindow();
+  win.maximize();
   loadRendererRoute(win);
 }
 
@@ -1168,25 +1306,7 @@ ipcMain.handle("dialog:open-pdf", async () => {
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (result.canceled || !result.filePaths[0]) return null;
-  const filePath = result.filePaths[0];
-  const title = path.basename(filePath);
-  const fileHash = generateFileHash(filePath);
-  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
-
-  const existing = getDocumentByHash(fileHash);
-  if (existing) {
-    updateLastOpened(fileHash);
-    return { ...existing, fileBuffer };
-  }
-
-  const thumbnailPath = await generateThumbnail(filePath, fileHash, false, "pdf");
-  const numPages = await getPdfPageCount(filePath);
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, "pdf");
-  
-  const doc = getDocumentByHash(fileHash);
-  if (!doc) return null;
-  
-  return { ...doc, fileBuffer };
+  return openReadableFile(result.filePaths[0]);
 });
 
 ipcMain.handle("dialog:open-epub", async () => {
@@ -1195,25 +1315,18 @@ ipcMain.handle("dialog:open-epub", async () => {
     filters: [{ name: "EPUB", extensions: ["epub"] }],
   });
   if (result.canceled || !result.filePaths[0]) return null;
-  const filePath = result.filePaths[0];
-  const title = path.basename(filePath, ".epub");
-  const fileHash = generateFileHash(filePath);
-  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+  return openReadableFile(result.filePaths[0]);
+});
 
-  const existing = getDocumentByHash(fileHash);
-  if (existing) {
-    updateLastOpened(fileHash);
-    return { ...existing, fileBuffer };
-  }
-
-  const thumbnailPath = await generateThumbnail(filePath, fileHash, false, "epub");
-  const numPages = await getEpubChapterCount(filePath);
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, "epub");
-
-  const doc = getDocumentByHash(fileHash);
-  if (!doc) return null;
-
-  return { ...doc, fileBuffer };
+ipcMain.handle("dialog:open-readable-file", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [
+      { name: "PDF e EPUB", extensions: ["pdf", "epub"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return openReadableFile(result.filePaths[0]);
 });
 
 ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
@@ -1269,7 +1382,7 @@ ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, actio
         }
 
         if (action === "move") {
-          fs.renameSync(filePath, destPath);
+          moveFileAcrossDevices(filePath, destPath);
         } else {
           fs.copyFileSync(filePath, destPath);
         }
@@ -1311,9 +1424,20 @@ ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
       return null;
     }
 
+    const toDataUrl = (imagePath: string) => {
+      const ext = path.extname(imagePath).toLowerCase();
+      const mime =
+        ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "image/jpeg";
+      const buffer = fs.readFileSync(imagePath);
+      return `data:${mime};base64,${buffer.toString("base64")}`;
+    };
+
     if (fs.existsSync(normalizedThumbnailPath)) {
-      const buffer = fs.readFileSync(normalizedThumbnailPath);
-      return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+      return toDataUrl(normalizedThumbnailPath);
     }
 
     const baseName = path.basename(normalizedThumbnailPath, path.extname(normalizedThumbnailPath));
@@ -1321,10 +1445,13 @@ ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
     
     if (fs.existsSync(thumbnailsDir)) {
       const files = fs.readdirSync(thumbnailsDir);
-      const match = files.find(f => f.startsWith(hash) && f.endsWith(".jpg"));
+      const match = files.find(
+        (f) =>
+          f.startsWith(hash) &&
+          THUMBNAIL_EXTENSIONS.includes(path.extname(f).toLowerCase()),
+      );
       if (match) {
-        const buffer = fs.readFileSync(path.join(thumbnailsDir, match));
-        return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+        return toDataUrl(path.join(thumbnailsDir, match));
       }
     }
 
@@ -1379,6 +1506,9 @@ ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => 
         updateDocumentFileType(knownDocument.fileHash, inferredFileType);
       }
 
+      updateLastOpened(knownDocument.fileHash);
+      win?.webContents.send("library:updated");
+
       return {
         fileBuffer,
         fileHash: hash,
@@ -1406,12 +1536,14 @@ ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => 
 
     console.log("[pdf:reopen] Found file at new location:", foundPath);
     updateDocumentPath(fileHash, foundPath);
+    updateLastOpened(fileHash);
     const inferredFileType = inferFileTypeFromPath(foundPath, knownDocument.fileType);
     if (inferredFileType !== knownDocument.fileType) {
       updateDocumentFileType(fileHash, inferredFileType);
     }
 
     const fileBuffer = toArrayBuffer(fs.readFileSync(foundPath));
+    win?.webContents.send("library:updated");
     return {
       fileBuffer,
       fileHash,
@@ -1520,8 +1652,12 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
     const fileName = path.basename(doc.filePath);
     const targetPath = path.join(targetDir, fileName);
 
+    if (fs.existsSync(targetPath)) {
+      return { success: false, error: "Já existe um arquivo com este nome na pasta de destino" };
+    }
+
     if (action === "move") {
-      fs.renameSync(doc.filePath, targetPath);
+      moveFileAcrossDevices(doc.filePath, targetPath);
     } else {
       fs.copyFileSync(doc.filePath, targetPath);
     }
@@ -1530,7 +1666,7 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
       const thumbFileName = path.basename(doc.thumbnailPath);
       const targetThumbPath = path.join(USER_DATA_PATH(), "thumbnails", thumbFileName);
       if (action === "move") {
-        fs.renameSync(doc.thumbnailPath, targetThumbPath);
+        moveFileAcrossDevices(doc.thumbnailPath, targetThumbPath);
       } else {
         fs.copyFileSync(doc.thumbnailPath, targetThumbPath);
       }
@@ -1545,7 +1681,7 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
         updateThumbnailPath(fileHash, newThumbnail);
       }
     }
-    
+    win?.webContents.send("library:updated");
     return { success: true, newPath: targetPath };
   } catch (error) {
     return { success: false, error: String(error) };
@@ -1675,7 +1811,8 @@ ipcMain.handle("book:regenerate-thumbnail", async (_, fileHash: string) => {
   if (!doc) return { success: false, error: "Document not found" };
   
   try {
-    const thumbnailPath = await generateThumbnail(doc.filePath, fileHash, true);
+    const fileType = inferFileTypeFromPath(doc.filePath, doc.fileType);
+    const thumbnailPath = await generateThumbnail(doc.filePath, fileHash, true, fileType);
     if (thumbnailPath) {
       updateThumbnailPath(fileHash, thumbnailPath);
       return { success: true, thumbnailPath };
@@ -2087,8 +2224,9 @@ ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath
       return { success: false, error: "Já existe um arquivo com este nome na pasta de destino" };
     }
 
-    fs.renameSync(doc.filePath, newFilePath);
+    moveFileAcrossDevices(doc.filePath, newFilePath);
     updateDocumentPath(fileHash, newFilePath);
+    updateDocumentSyncStatus(fileHash, true, targetFolderPath || undefined);
     
     win?.webContents.send("library:updated");
     return { success: true };

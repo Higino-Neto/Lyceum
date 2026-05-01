@@ -77,11 +77,16 @@ export default function TitleBar({
     window.api.windowClose();
   };
 
-  const titleBarHeight = autoHideEnabled && !panelsVisible && !autoHideOverlay ? "h-0" : "h-10";
-  const titleBarVisibility = autoHideEnabled && autoHideOverlay && !panelsVisible ? "opacity-0 pointer-events-none" : "";
-  const titleBarClasses = `bg-zinc-900 flex items-center justify-between select-none transition-all duration-200 ${titleBarHeight} ${
-    autoHideEnabled && autoHideOverlay ? "fixed top-0 left-0 right-0 z-50" : ""
-  } ${titleBarVisibility}`;
+  const isOverlayMode = autoHideEnabled && autoHideOverlay;
+  const isHidden = autoHideEnabled && !panelsVisible;
+  const titleBarHeight = isHidden && !autoHideOverlay ? "h-0 overflow-hidden" : "h-10";
+  const titleBarPosition = isOverlayMode
+    ? "absolute left-0 right-0 top-0 z-50 border-b border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/40 backdrop-blur"
+    : "bg-zinc-900";
+  const titleBarVisibility = isOverlayMode && isHidden
+    ? "pointer-events-none -translate-y-14 opacity-0"
+    : "translate-y-0 opacity-100";
+  const titleBarClasses = `flex items-center justify-between select-none transition-[height,opacity,transform] duration-200 ease-out ${titleBarHeight} ${titleBarPosition} ${titleBarVisibility}`;
 
   return (
     <>
@@ -89,6 +94,7 @@ export default function TitleBar({
         className={titleBarClasses}
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         onMouseEnter={onShowPanels}
+        onMouseLeave={onHidePanels}
       >
         <div
           className="flex items-center h-full"
@@ -138,7 +144,7 @@ export default function TitleBar({
 
       {showContextMenu && (
         <div
-          className="fixed bg-zinc-800 border border-zinc-700 rounded-md shadow-lg py-1 z-50"
+          className="fixed z-[70] min-w-52 overflow-hidden rounded-md border border-zinc-700/80 bg-zinc-800/95 py-1 shadow-2xl shadow-black/40 backdrop-blur"
           style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
         >
           <button

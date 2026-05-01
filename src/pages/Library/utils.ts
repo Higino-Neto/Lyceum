@@ -1,5 +1,61 @@
 export const LOCAL_BOOK_PREFIX = "local-";
 
+export const getTitleWithoutExtension = (title: string, fileType?: string) => {
+  if (fileType === "epub") {
+    return title.replace(/\.epub$/i, "");
+  }
+  return title.replace(/\.pdf$/i, "");
+};
+
+export function getFileTypeLabel(fileType?: string, filePath?: string): string {
+  const inferredType =
+    fileType || filePath?.split(".").pop()?.toLowerCase() || "arquivo";
+  return inferredType.toUpperCase();
+}
+
+export function formatPageCount(numPages: number, fileType?: string): string {
+  const unit = fileType === "epub" ? "cap." : "pags.";
+  return `${numPages || 0} ${unit}`;
+}
+
+export function getBookFolderLabel(filePath?: string | null): string {
+  if (!filePath) return "Sem pasta";
+
+  const normalizedPath = filePath.replace(/\\/g, "/");
+  const parts = normalizedPath.split("/").filter(Boolean);
+  const fileName = parts.at(-1);
+  const folderParts = fileName ? parts.slice(0, -1) : parts;
+  const libraryIndex = folderParts.findIndex(
+    (part) => part.toLowerCase() === "library",
+  );
+  const relativeFolders =
+    libraryIndex >= 0 ? folderParts.slice(libraryIndex + 1) : folderParts.slice(-1);
+
+  if (relativeFolders.length === 0) return "Raiz";
+  return relativeFolders.join(" / ");
+}
+
+export function formatFileSize(bytes?: number): string {
+  if (!bytes) return "-";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+export function formatShortDate(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("pt-BR");
+}
+
 export function normalizeText(text: string): string {
   return text
     .toLowerCase()

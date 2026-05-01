@@ -21,7 +21,9 @@ export default function ReadingStatsCard() {
       timeByDate[date] = (timeByDate[date] || 0) + item.reading_time;
     });
 
-    const dates = Object.keys(pagesByDate).slice(-30);
+    const dates = Object.keys(pagesByDate).sort(
+      (left, right) => new Date(left).getTime() - new Date(right).getTime(),
+    );
     if (dates.length === 0) return null;
 
     const pages = dates.map((d) => pagesByDate[d]);

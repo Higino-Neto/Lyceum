@@ -3,6 +3,7 @@ import { ReactElement } from "react";
 import { render, RenderOptions } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { SelectedUsersProvider } from "../../contexts/SelectedUsersContext";
+import { AppSettingsProvider } from "../../contexts/AppSettingsContext";
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -34,9 +35,11 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <SelectedUsersProvider>
-          <BrowserRouter>{children}</BrowserRouter>
-        </SelectedUsersProvider>
+        <AppSettingsProvider>
+          <SelectedUsersProvider>
+            <BrowserRouter>{children}</BrowserRouter>
+          </SelectedUsersProvider>
+        </AppSettingsProvider>
       </QueryClientProvider>
     );
   }
@@ -55,7 +58,9 @@ export function renderWithBasicProviders(ui: ReactElement) {
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>{children}</BrowserRouter>
+        <AppSettingsProvider>
+          <BrowserRouter>{children}</BrowserRouter>
+        </AppSettingsProvider>
       </QueryClientProvider>
     );
   }

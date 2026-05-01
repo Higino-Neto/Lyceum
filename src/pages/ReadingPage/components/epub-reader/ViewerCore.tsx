@@ -68,10 +68,34 @@ interface PersistedEpubLocation {
   cfi?: string;
   href?: string;
   sectionIndex?: number;
+  location?: number;
+  totalLocations?: number;
+  totalSections?: number;
   percentage?: number;
+  layoutProgress?: number;
   scrollTop?: number;
   sectionScrollTop?: number;
   sectionProgress?: number;
+  updatedAt?: number;
+}
+
+function clampProgress(value: number | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeEpubHref(value: string | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .split("#")[0]
+    .replace(/^\/+/, "")
+    .replace(/^\.\//, "");
 }
 
 export default function ViewerCore({
@@ -99,6 +123,8 @@ export default function ViewerCore({
   const latestLocationRef = useRef<PersistedEpubLocation | null>(null);
   const currentScrollTopRef = useRef(0);
   const currentCfiRef = useRef<string | null>(null);
+  const spineHrefIndexRef = useRef(new Map<string, number>());
+  const totalSpineItemsRef = useRef(0);
   const settingsRef = useRef(settings);
   const vocabularyEntriesRef = useRef(vocabularyEntries);
   const isRestoringScrollRef = useRef(false);
@@ -131,7 +157,7 @@ export default function ViewerCore({
     onNavigationLoaded,
     onNavigateToChapter,
   };
-  const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
+  const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash, 250);
 
   const clearRestoreTimeouts = useCallback(() => {
     restoreTimeoutsRef.current.forEach((timeoutId) => {
@@ -182,21 +208,33 @@ export default function ViewerCore({
 
     try {
       const parsed = JSON.parse(raw) as PersistedEpubLocation | null;
-      if (!parsed || typeof parsed !== "object") {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
         return null;
       }
 
-      return {
+      const normalized = {
         cfi: typeof parsed.cfi === "string" ? parsed.cfi : undefined,
         href: typeof parsed.href === "string" ? parsed.href : undefined,
         sectionIndex:
           typeof parsed.sectionIndex === "number" && Number.isFinite(parsed.sectionIndex)
             ? parsed.sectionIndex
             : undefined,
-        percentage:
-          typeof parsed.percentage === "number" && Number.isFinite(parsed.percentage)
-            ? parsed.percentage
+        location:
+          typeof parsed.location === "number" && Number.isFinite(parsed.location)
+            ? parsed.location
             : undefined,
+        totalLocations:
+          typeof parsed.totalLocations === "number" && Number.isFinite(parsed.totalLocations)
+            ? parsed.totalLocations
+            : undefined,
+        totalSections:
+          typeof parsed.totalSections === "number" && Number.isFinite(parsed.totalSections)
+            ? parsed.totalSections
+            : undefined,
+        percentage:
+          clampProgress(parsed.percentage),
+        layoutProgress:
+          clampProgress(parsed.layoutProgress),
         scrollTop:
           typeof parsed.scrollTop === "number" && Number.isFinite(parsed.scrollTop)
             ? parsed.scrollTop
@@ -209,11 +247,112 @@ export default function ViewerCore({
           typeof parsed.sectionProgress === "number" && Number.isFinite(parsed.sectionProgress)
             ? parsed.sectionProgress
             : undefined,
+        updatedAt:
+          typeof parsed.updatedAt === "number" && Number.isFinite(parsed.updatedAt)
+            ? parsed.updatedAt
+            : undefined,
       };
+
+      return Object.values(normalized).some((value) => value !== undefined)
+        ? normalized
+        : null;
     } catch {
       return null;
     }
   }, []);
+
+  const getSectionIndexFromHref = useCallback((href: string | undefined) => {
+    const normalizedHref = normalizeEpubHref(href);
+    if (!normalizedHref) {
+      return undefined;
+    }
+
+    const directMatch = spineHrefIndexRef.current.get(normalizedHref);
+    if (directMatch !== undefined) {
+      return directMatch;
+    }
+
+    for (const [spineHref, index] of spineHrefIndexRef.current) {
+      if (
+        spineHref.endsWith(normalizedHref) ||
+        normalizedHref.endsWith(spineHref)
+      ) {
+        return index;
+      }
+    }
+
+    return undefined;
+  }, []);
+
+  const getStableSectionProgress = useCallback(
+    (sectionIndex: number | undefined, sectionProgress = 0) => {
+      const totalSections = totalSpineItemsRef.current;
+      if (
+        typeof sectionIndex !== "number" ||
+        !Number.isFinite(sectionIndex) ||
+        sectionIndex < 0 ||
+        totalSections <= 0
+      ) {
+        return undefined;
+      }
+
+      return clampProgress((sectionIndex + clampProgress(sectionProgress)!) / totalSections);
+    },
+    [],
+  );
+
+  const getCurrentRenditionLocationSnapshot = useCallback((): Partial<PersistedEpubLocation> | null => {
+    const book = bookRef.current;
+    const rendition = renditionRef.current;
+    if (!rendition) {
+      return null;
+    }
+
+    const current = rendition.currentLocation() as {
+      location?: number;
+      href?: string;
+      cfi?: string;
+      percentage?: number;
+      index?: number;
+      start?: {
+        cfi?: string;
+        href?: string;
+        index?: number;
+        location?: number;
+        percentage?: number;
+      };
+    } | null;
+    const start = current?.start ?? current ?? undefined;
+    if (!start) {
+      return null;
+    }
+
+    const totalLocations = book?.locations?.length?.() ?? 0;
+    const location = start.location ?? current?.location;
+    const sectionIndex =
+      typeof start.index === "number" && Number.isFinite(start.index)
+        ? start.index
+        : getSectionIndexFromHref(start.href ?? current?.href);
+    const stablePercentage = getStableSectionProgress(sectionIndex);
+    const percentage =
+      stablePercentage ??
+      (book && typeof location === "number" && totalLocations > 0
+        ? clampProgress(book.locations.percentageFromLocation(location))
+        : clampProgress(start.percentage ?? current?.percentage));
+
+    return {
+      cfi: start.cfi ?? current?.cfi,
+      href: start.href ?? current?.href,
+      sectionIndex,
+      location:
+        typeof location === "number" && Number.isFinite(location)
+          ? location
+          : undefined,
+      totalLocations: totalLocations > 0 ? totalLocations : undefined,
+      totalSections: totalSpineItemsRef.current || undefined,
+      percentage,
+    };
+  }, [getSectionIndexFromHref, getStableSectionProgress]);
 
   const captureCurrentLocationSnapshot = useCallback((): Partial<PersistedEpubLocation> | null => {
     const container = containerRef.current;
@@ -258,27 +397,85 @@ export default function ViewerCore({
     const frameTop = activeFrame.offsetTop;
     const frameHeight = activeFrame.offsetHeight || activeFrame.clientHeight || 1;
     const sectionScrollTop = Math.max(0, anchorTop - frameTop);
-    
+    const sectionProgress = Math.max(0, Math.min(1, sectionScrollTop / Math.max(frameHeight, 1)));
     const scrollHeight = container.scrollHeight - container.clientHeight;
-    const percentage = scrollHeight > 0 ? container.scrollTop / scrollHeight : 0;
+    const layoutProgress = scrollHeight > 0 ? container.scrollTop / scrollHeight : 0;
+    const datasetSectionIndex = Number(activeFrame.dataset.sectionIndex);
+    const sectionIndex =
+      Number.isFinite(datasetSectionIndex)
+        ? datasetSectionIndex
+        : getSectionIndexFromHref(activeFrame.dataset.sectionKey);
+    const percentage =
+      getStableSectionProgress(sectionIndex, sectionProgress) ??
+      clampProgress(layoutProgress);
 
     return {
       href: activeFrame.dataset.sectionKey || undefined,
+      sectionIndex: Number.isFinite(sectionIndex) ? sectionIndex : undefined,
+      totalSections: totalSpineItemsRef.current || undefined,
       sectionScrollTop,
-      sectionProgress: Math.max(0, Math.min(1, sectionScrollTop / Math.max(frameHeight, 1))),
+      sectionProgress,
       percentage,
+      layoutProgress,
       scrollTop: container.scrollTop,
     };
+  }, [getSectionIndexFromHref, getStableSectionProgress]);
+
+  const getCurrentEpubPercentage = useCallback(() => {
+    const book = bookRef.current;
+    const rendition = renditionRef.current;
+    if (!book || !rendition) {
+      return undefined;
+    }
+
+    const current = rendition.currentLocation() as {
+      location?: number;
+      start?: {
+        location?: number;
+        percentage?: number;
+      };
+    } | null;
+    const location = current?.location ?? current?.start?.location;
+    const totalLocations = book.locations?.length?.() ?? 0;
+
+    if (typeof location === "number" && totalLocations > 0) {
+      return clampProgress(book.locations.percentageFromLocation(location));
+    }
+
+    const startPercentage = current?.start?.percentage;
+    return clampProgress(startPercentage);
   }, []);
 
 const persistReadingLocation = useCallback(
     (mode: "now" | "schedule", locationOverride?: Partial<PersistedEpubLocation>) => {
+      const renditionSnapshot = getCurrentRenditionLocationSnapshot();
       const liveSnapshot = captureCurrentLocationSnapshot();
+      if (
+        !renditionSnapshot &&
+        !liveSnapshot &&
+        !latestLocationRef.current &&
+        (!locationOverride || Object.keys(locationOverride).length === 0)
+      ) {
+        return;
+      }
+
+      const epubPercentage = clampProgress(
+        locationOverride?.percentage ??
+        renditionSnapshot?.percentage ??
+        liveSnapshot?.percentage ??
+        getCurrentEpubPercentage() ??
+        latestLocationRef.current?.percentage,
+      );
       const nextLocation: PersistedEpubLocation = {
         ...latestLocationRef.current,
+        ...renditionSnapshot,
         ...liveSnapshot,
         ...locationOverride,
       };
+
+      if (epubPercentage !== undefined) {
+        nextLocation.percentage = epubPercentage;
+      }
 
       if (locationOverride?.cfi) {
         nextLocation.cfi = locationOverride.cfi;
@@ -290,7 +487,20 @@ const persistReadingLocation = useCallback(
 
       latestLocationRef.current = nextLocation;
 
-      const currentPage = Math.max(1, (nextLocation.sectionIndex ?? 0) + 1);
+      nextLocation.totalSections =
+        nextLocation.totalSections ?? (totalSpineItemsRef.current || undefined);
+      nextLocation.updatedAt = Date.now();
+
+      const currentPage = Math.max(
+        1,
+        Math.round(
+          typeof nextLocation.sectionIndex === "number"
+            ? nextLocation.sectionIndex + 1
+            : typeof nextLocation.location === "number"
+              ? nextLocation.location + 1
+              : 1,
+        ),
+      );
       const readingState = {
         currentPage,
         currentZoom: 1,
@@ -300,12 +510,24 @@ const persistReadingLocation = useCallback(
 
       if (mode === "now") {
         saveNow(readingState);
+        if (nextLocation.percentage !== undefined) {
+          callbacksRef.current.onProgressChange?.(
+            Math.round(nextLocation.percentage * 100),
+            nextLocation.totalSections,
+          );
+        }
         return;
       }
 
       scheduleSave(readingState);
+      if (nextLocation.percentage !== undefined) {
+        callbacksRef.current.onProgressChange?.(
+          Math.round(nextLocation.percentage * 100),
+          nextLocation.totalSections,
+        );
+      }
     },
-    [saveNow, scheduleSave],
+    [captureCurrentLocationSnapshot, getCurrentEpubPercentage, getCurrentRenditionLocationSnapshot, saveNow, scheduleSave],
   );
 
   const getAnchorFromRect = (doc: Document, rect: DOMRect) => {
@@ -763,6 +985,69 @@ const LINES_PER_PAGE = 30;
     return task;
   };
 
+  const restorePersistedScroll = useCallback(
+    async (location: PersistedEpubLocation | null) => {
+      if (!location) {
+        isRestoringScrollRef.current = false;
+        return;
+      }
+
+      await ensureScrollableContent();
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+
+      const container = containerRef.current;
+      if (!container) {
+        isRestoringScrollRef.current = false;
+        return;
+      }
+
+      const anchorOffset = Math.min(container.clientHeight * 0.35, 240);
+      let targetScrollTop = location.scrollTop ?? 0;
+
+      if (location.href) {
+        const iframes = Array.from(
+          container.querySelectorAll("iframe"),
+        ) as HTMLIFrameElement[];
+        const sectionFrame = iframes.find((iframe) => {
+          const sectionKey = iframe.dataset.sectionKey;
+          return (
+            sectionKey === location.href ||
+            sectionKey?.endsWith(location.href || "") ||
+            location.href?.endsWith(sectionKey || "")
+          );
+        });
+
+        if (sectionFrame) {
+          const frameHeight = sectionFrame.offsetHeight || sectionFrame.clientHeight || 1;
+
+          if (typeof location.sectionScrollTop === "number") {
+            targetScrollTop = sectionFrame.offsetTop + location.sectionScrollTop - anchorOffset;
+          } else if (typeof location.sectionProgress === "number") {
+            targetScrollTop =
+              sectionFrame.offsetTop +
+              frameHeight * Math.max(0, Math.min(1, location.sectionProgress)) -
+              anchorOffset;
+          }
+        }
+      }
+
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+      const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+
+      if (clampedScrollTop <= 0) {
+        window.requestAnimationFrame(() => {
+          isRestoringScrollRef.current = false;
+        });
+        return;
+      }
+
+      stabilizeRestoredScroll(clampedScrollTop);
+    },
+    [stabilizeRestoredScroll],
+  );
+
   const indexBookVocabulary = async (book: Book) => {
     try {
       const allWords = new Set<string>();
@@ -814,22 +1099,19 @@ const LINES_PER_PAGE = 30;
         renditionRef.current?.destroy();
         bookRef.current?.destroy();
 
-const book = ePub(epubData);
+        const book = ePub(epubData);
         bookRef.current = book;
         await book.ready;
 
-        book.locations.generate(100).then(() => {
-          if (!isMounted || !renditionRef.current) return;
-          const total = book.locations.length();
-          if (total > 0 && callbacksRef.current.onProgressChange) {
-            const current = renditionRef.current.currentLocation();
-            if (current && typeof current.location === "number") {
-              const percentage = book.locations.percentageFromLocation(current.location);
-              callbacksRef.current.onProgressChange(
-                Math.round(percentage * 100),
-                total
-              );
-            }
+        const spineItems = (book.spine as unknown as {
+          spineItems?: Array<{ href?: string; index?: number }>;
+        } | undefined)?.spineItems ?? [];
+        totalSpineItemsRef.current = spineItems.length;
+        spineHrefIndexRef.current = new Map();
+        spineItems.forEach((item, index) => {
+          const normalizedHref = normalizeEpubHref(item.href);
+          if (normalizedHref) {
+            spineHrefIndexRef.current.set(normalizedHref, index);
           }
         });
 
@@ -855,13 +1137,27 @@ const book = ePub(epubData);
 
         const savedState = await loadState();
         const savedLocation = parsePersistedEpubLocation(savedState.annotations);
-        latestLocationRef.current = savedLocation;
+        const fallbackLocation: PersistedEpubLocation | null =
+          savedState.currentScroll > 0
+            ? { scrollTop: savedState.currentScroll }
+            : null;
+        const locationToRestore: PersistedEpubLocation | null =
+          savedLocation ||
+          fallbackLocation;
+        latestLocationRef.current = locationToRestore;
         currentScrollTopRef.current =
-          savedLocation?.scrollTop ?? savedState.currentScroll ?? 0;
-        currentCfiRef.current = savedLocation?.cfi ?? null;
+          locationToRestore?.scrollTop ?? savedState.currentScroll ?? 0;
+        currentCfiRef.current = locationToRestore?.cfi ?? null;
 
-        const savedCfi = savedLocation?.cfi;
-        const savedHref = savedLocation?.href;
+        if (locationToRestore?.percentage !== undefined) {
+          callbacksRef.current.onProgressChange?.(
+            Math.round(locationToRestore.percentage * 100),
+            locationToRestore.totalSections,
+          );
+        }
+
+        const savedCfi = locationToRestore?.cfi;
+        const savedHref = locationToRestore?.href;
 
         const rendition = book.renderTo(containerRef.current, {
           flow: "scrolled",
@@ -900,31 +1196,34 @@ const book = ePub(epubData);
           persistReadingLocation("now", {
             cfi: start.cfi,
             href: start.href,
-            sectionIndex: start.index,
-            percentage: start.percentage,
+            sectionIndex:
+              typeof start.index === "number" && Number.isFinite(start.index)
+                ? start.index
+                : getSectionIndexFromHref(start.href),
+            location: start.location,
+            totalSections: totalSpineItemsRef.current || undefined,
+            percentage: getStableSectionProgress(
+              typeof start.index === "number" && Number.isFinite(start.index)
+                ? start.index
+                : getSectionIndexFromHref(start.href),
+            ) ?? start.percentage,
             scrollTop: containerRef.current?.scrollTop ?? currentScrollTopRef.current,
           });
-
-          if (callbacksRef.current.onProgressChange) {
-            const totalLocations = book.locations?.length() ?? 0;
-            if (totalLocations > 0) {
-              const currentLoc = rendition.currentLocation();
-              const locationNum = currentLoc?.location ?? start?.location;
-              if (typeof locationNum === "number") {
-                const percentage = book.locations.percentageFromLocation(locationNum);
-                callbacksRef.current.onProgressChange(
-                  Math.round(percentage * 100),
-                  totalLocations
-                );
-              }
-            }
-          }
         };
 
         rendition.on("rendered", (section: { href?: string }, contents: Contents) => {
           const iframe = contents?.window?.frameElement as HTMLIFrameElement | null;
           if (iframe && section?.href) {
             iframe.dataset.sectionKey = section.href;
+
+            const sectionIndex =
+              typeof (section as { index?: unknown }).index === "number" &&
+              Number.isFinite((section as { index?: number }).index)
+                ? (section as { index: number }).index
+                : getSectionIndexFromHref(section.href);
+            if (typeof sectionIndex === "number" && Number.isFinite(sectionIndex)) {
+              iframe.dataset.sectionIndex = String(sectionIndex);
+            }
           }
 
           if (contents?.document) {
@@ -937,30 +1236,34 @@ const book = ePub(epubData);
 
         isRestoringScrollRef.current = true;
 
-        if (savedCfi) {
-          rendition.display(savedCfi).then(() => {
+        const finishRestore = () => {
+          void restorePersistedScroll(locationToRestore).catch(() => {
             isRestoringScrollRef.current = false;
-          }).catch(() => {
+          });
+        };
+
+        const displayDefault = () => {
+          rendition.display().then(finishRestore).catch(() => {
+            isRestoringScrollRef.current = false;
+          });
+        };
+
+        if (savedCfi) {
+          rendition.display(savedCfi).then(finishRestore).catch(() => {
             if (savedHref) {
-              rendition.display(savedHref).then(() => {
-                isRestoringScrollRef.current = false;
-              }).catch(() => {
-                isRestoringScrollRef.current = false;
+              rendition.display(savedHref).then(finishRestore).catch(() => {
+                displayDefault();
               });
             } else {
-              isRestoringScrollRef.current = false;
+              displayDefault();
             }
           });
         } else if (savedHref) {
-          rendition.display(savedHref).then(() => {
-            isRestoringScrollRef.current = false;
-          }).catch(() => {
-            isRestoringScrollRef.current = false;
+          rendition.display(savedHref).then(finishRestore).catch(() => {
+            displayDefault();
           });
         } else {
-          rendition.display().then(() => {
-            isRestoringScrollRef.current = false;
-          });
+          displayDefault();
         }
 
         void ensureScrollableContent();
@@ -980,10 +1283,12 @@ const book = ePub(epubData);
       renditionRef.current = null;
       bookRef.current?.destroy();
       bookRef.current = null;
+      spineHrefIndexRef.current = new Map();
+      totalSpineItemsRef.current = 0;
       ensureScrollablePromiseRef.current = null;
       clearRestoreTimeouts();
     };
-  }, [clearRestoreTimeouts, epubData, fileHash, stabilizeRestoredScroll]);
+  }, [clearRestoreTimeouts, epubData, fileHash, restorePersistedScroll, stabilizeRestoredScroll]);
 
   useEffect(() => {
     const rendition = renditionRef.current;
@@ -1018,11 +1323,18 @@ const book = ePub(epubData);
     const container = containerRef.current;
     if (!container) return;
 
-    const handleScroll = () => {
+    const saveScrollPosition = () => {
       currentScrollTopRef.current = container.scrollTop;
       if (isRestoringScrollRef.current) return;
       callbacksRef.current.onViewerScroll(container.scrollTop);
       callbacksRef.current.onScrollPositionChange?.(container.scrollTop);
+      persistReadingLocation("schedule", {
+        scrollTop: container.scrollTop,
+      });
+    };
+
+    const handleScroll = () => {
+      saveScrollPosition();
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
@@ -1030,22 +1342,22 @@ const book = ePub(epubData);
     return () => {
       container.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [persistReadingLocation]);
 
   useEffect(() => {
     const flushPersistence = () => {
-      const current = latestLocationRef.current;
-      if (!current) return;
       persistReadingLocation("now", {});
     };
 
     const interval = window.setInterval(flushPersistence, 5000);
     window.addEventListener("beforeunload", flushPersistence);
+    window.addEventListener("pagehide", flushPersistence);
     document.addEventListener("visibilitychange", flushPersistence);
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("beforeunload", flushPersistence);
+      window.removeEventListener("pagehide", flushPersistence);
       document.removeEventListener("visibilitychange", flushPersistence);
       flushPersistence();
     };
@@ -1057,9 +1369,39 @@ const book = ePub(epubData);
       return;
     }
 
+    const saveAfterInteraction = () => {
+      window.setTimeout(() => {
+        if (!containerRef.current || isRestoringScrollRef.current) {
+          return;
+        }
+
+        currentScrollTopRef.current = containerRef.current.scrollTop;
+        persistReadingLocation("schedule", {
+          scrollTop: containerRef.current.scrollTop,
+        });
+      }, 120);
+    };
+
     const handleWheel = () => {
       if (container.scrollHeight <= container.clientHeight + 2) {
         void ensureScrollableContent();
+      }
+      saveAfterInteraction();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const keysThatCanMoveReadingPosition = new Set([
+        "ArrowDown",
+        "ArrowUp",
+        "PageDown",
+        "PageUp",
+        "Home",
+        "End",
+        " ",
+      ]);
+
+      if (keysThatCanMoveReadingPosition.has(event.key)) {
+        saveAfterInteraction();
       }
     };
 
@@ -1070,14 +1412,18 @@ const book = ePub(epubData);
     });
 
     container.addEventListener("wheel", handleWheel, { passive: true });
+    container.addEventListener("touchend", saveAfterInteraction, { passive: true });
+    window.addEventListener("keyup", handleKeyUp);
     resizeObserver.observe(container);
     void ensureScrollableContent();
 
     return () => {
       container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchend", saveAfterInteraction);
+      window.removeEventListener("keyup", handleKeyUp);
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [persistReadingLocation]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
@@ -1087,11 +1433,11 @@ const book = ePub(epubData);
           height: 100%;
           overflow-y: auto;
           overflow-x: hidden;
-          background-color: #18181b;
+          background-color: var(--ui-zinc-900);
           overscroll-behavior: contain;
           overflow-anchor: none !important;
           scrollbar-width: thin;
-          scrollbar-color: #3f3f46 transparent;
+          scrollbar-color: var(--ui-zinc-700) transparent;
         }
         
         .epub-container::-webkit-scrollbar {
@@ -1103,7 +1449,7 @@ const book = ePub(epubData);
         }
         
         .epub-container::-webkit-scrollbar-thumb {
-          background-color: #3f3f46;
+          background-color: var(--ui-zinc-700);
           border-radius: 3px;
         }
 

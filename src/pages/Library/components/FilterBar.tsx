@@ -1,37 +1,25 @@
-import { Search, SlidersHorizontal, Library, BookOpen, CheckCircle } from "lucide-react";
+import { FileText, Search, SlidersHorizontal, X } from "lucide-react";
 
-const ICON_SIZE = 16;
-const STROKE_WIDTH = 1.5;
+const ICON_SIZE = 15;
+const STROKE_WIDTH = 1.6;
 
-export type SortOption = "title" | "progress" | "pages" | "recent";
-export type FilterOption = "all" | "reading" | "finished";
+export type SortOption = "title" | "pages" | "recent" | "size";
+export type FileTypeFilter = "all" | "pdf" | "epub";
 
 interface FilterBarProps {
   search: string;
   onSearchChange: (value: string) => void;
   sort: SortOption;
   onSortChange: (value: SortOption) => void;
-  filter: FilterOption;
-  onFilterChange: (value: FilterOption) => void;
+  fileType: FileTypeFilter;
+  onFileTypeChange: (value: FileTypeFilter) => void;
 }
-
-const filterIcons: Record<FilterOption, React.ReactNode> = {
-  all: <Library size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
-  reading: <BookOpen size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
-  finished: <CheckCircle size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
-};
-
-const filterLabels: Record<FilterOption, string> = {
-  all: "Todos",
-  reading: "Lendo",
-  finished: "Feito",
-};
 
 const sortLabels: Record<SortOption, string> = {
   title: "Nome",
-  progress: "Progresso",
-  pages: "Nº Páginas",
+  pages: "Paginas",
   recent: "Recentes",
+  size: "Tamanho",
 };
 
 export default function FilterBar({
@@ -39,16 +27,16 @@ export default function FilterBar({
   onSearchChange,
   sort,
   onSortChange,
-  filter,
-  onFilterChange,
+  fileType,
+  onFileTypeChange,
 }: FilterBarProps) {
   return (
-    <section className="flex flex-wrap items-center gap-3">
-      <SearchInput value={search} onChange={onSearchChange} />
-
-      {/* <FilterButtons value={filter} onChange={onFilterChange} /> */}
-
-      <SortSelect value={sort} onChange={onSortChange} />
+    <section className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950/70 p-2 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput value={search} onChange={onSearchChange} />
+        <FileTypeButtons value={fileType} onChange={onFileTypeChange} />
+        <SortSelect value={sort} onChange={onSortChange} />
+      </div>
     </section>
   );
 }
@@ -61,7 +49,7 @@ function SearchInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="relative flex-1 min-w-48 max-w-72 my-3">
+    <div className="relative min-w-64 flex-1">
       <Search
         size={ICON_SIZE}
         className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -69,41 +57,51 @@ function SearchInput({
       />
       <input
         type="text"
-        placeholder="Buscar livros..."
+        placeholder="Buscar por titulo, pasta, tipo ou paginas..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-sm pl-8 pr-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
+        className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 pl-9 pr-9 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus-visible:border-green-500 focus-visible:ring-1 focus-visible:ring-green-500"
       />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          title="Limpar busca"
+        >
+          <X size={14} />
+        </button>
+      )}
     </div>
   );
 }
 
-// function FilterButtons({
-//   value,
-//   onChange,
-// }: {
-//   value: FilterOption;
-//   onChange: (value: FilterOption) => void;
-// }) {
-//   return (
-//     <div className="flex items-center gap-1">
-//       {(Object.keys(filterLabels) as FilterOption[]).map((f) => (
-//         <button
-//           key={f}
-//           onClick={() => onChange(f)}
-//           className={`px-3 py-1.5 rounded-sm cursor-pointer text-xs flex items-center gap-1.5 transition-colors ${
-//             value === f
-//               ? "bg-zinc-700 text-zinc-100"
-//               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200"
-//           }`}
-//           aria-label={filterLabels[f]}
-//         >
-//           {filterIcons[f]}
-//         </button>
-//       ))}
-//     </div>
-//   );
-// }
+function FileTypeButtons({
+  value,
+  onChange,
+}: {
+  value: FileTypeFilter;
+  onChange: (value: FileTypeFilter) => void;
+}) {
+  return (
+    <div className="flex h-9 items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
+      <FileText size={14} className="mx-2 text-zinc-500" />
+      {(["all", "pdf", "epub"] as FileTypeFilter[]).map((type) => (
+        <button
+          key={type}
+          onClick={() => onChange(type)}
+          className={`h-7 cursor-pointer rounded-sm px-2.5 text-xs uppercase transition-colors ${
+            value === type
+              ? "bg-zinc-700 text-zinc-100 shadow-sm"
+              : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+          }`}
+        >
+          {type === "all" ? "Todos" : type}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function SortSelect({
   value,
@@ -113,12 +111,16 @@ function SortSelect({
   onChange: (value: SortOption) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <SlidersHorizontal size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
+    <div className="ml-auto flex h-9 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-2">
+      <SlidersHorizontal
+        size={ICON_SIZE}
+        className="text-zinc-500"
+        strokeWidth={STROKE_WIDTH}
+      />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
-        className="bg-zinc-900 border cursor-pointer border-zinc-800 text-xs rounded-sm px-2 py-1.5"
+        className="h-7 cursor-pointer rounded-sm bg-transparent text-xs text-zinc-300 outline-none"
       >
         {(Object.keys(sortLabels) as SortOption[]).map((key) => (
           <option key={key} value={key}>

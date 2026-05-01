@@ -62,6 +62,7 @@ interface TabContextValue {
   getTabById: (tabId: string) => DocumentTab | undefined;
   openPdfFile: () => Promise<OpenFileResult | undefined>;
   openEpubFile: () => Promise<OpenFileResult | undefined>;
+  openReadableFile: () => Promise<OpenFileResult | undefined>;
 }
 
 interface TabProviderProps {
@@ -362,6 +363,28 @@ export function TabProvider({
     }
   }, []);
 
+  const openReadableFile = useCallback(async () => {
+    try {
+      const document = await window.api.openReadableFile();
+      if (!document) {
+        return undefined;
+      }
+
+      const fileType: FileType = document.fileType === "epub" ? "epub" : "pdf";
+
+      return {
+        fileHash: document.fileHash,
+        fileName: document.title,
+        fileType,
+        filePath: document.filePath,
+        buffer: document.fileBuffer,
+      };
+    } catch (error) {
+      console.error("Error opening readable file:", error);
+      return undefined;
+    }
+  }, []);
+
   const addTab = useCallback(
     (
       fileHash: string,
@@ -586,6 +609,7 @@ export function TabProvider({
     getTabById,
     openPdfFile,
     openEpubFile,
+    openReadableFile,
   };
 
   return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

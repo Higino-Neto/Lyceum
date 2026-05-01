@@ -279,7 +279,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setShowPages,
     setFocusMode,
     settings,
-  } = useReaderSettings();
+  } = useReaderSettings(fileHash);
   const {
     entries,
     trackedEntries,

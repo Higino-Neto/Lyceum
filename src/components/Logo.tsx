@@ -1,5 +1,5 @@
 export function Logo({ size = 120, variant = 'color', className = '' }) {
-  const primaryColor = variant === 'color' ? '#22c55e' : variant === 'dark' ? '#000000' : '#ffffff';
+  const primaryColor = variant === 'color' ? 'var(--accent-500)' : variant === 'dark' ? '#000000' : '#ffffff';
   return (
     <svg
       width={size}

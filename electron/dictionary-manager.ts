@@ -128,9 +128,37 @@ export class DictionaryManager {
     }
   }
 
+  private cloneIndex(index: DictionaryIndex): DictionaryIndex {
+    return {
+      dictionaries: index.dictionaries.map((dict) => ({ ...dict })),
+    };
+  }
+
+  private hydrateDownloadState(index: DictionaryIndex): DictionaryIndex {
+    const hydrated = this.cloneIndex(index);
+
+    for (const dict of hydrated.dictionaries) {
+      const dictPath = this.getDictionaryPath(dict.id);
+      dict.isDownloaded = fs.existsSync(dictPath);
+
+      if (dict.isDownloaded) {
+        const metaPath = path.join(dictPath, this.metadataFile);
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+          dict.downloadedAt = meta.downloadedAt;
+        }
+      } else {
+        dict.downloadedAt = undefined;
+      }
+    }
+
+    return hydrated;
+  }
+
   async fetchIndex(): Promise<DictionaryIndex> {
-    this.index = DEFAULT_INDEX;
-    return DEFAULT_INDEX;
+    this.index = this.hydrateDownloadState(DEFAULT_INDEX);
+    await this.saveLocalIndex();
+    return this.index;
   }
 
   async loadLocalIndex(): Promise<DictionaryIndex> {
@@ -138,21 +166,9 @@ export class DictionaryManager {
       if (fs.existsSync(this.indexPath)) {
         const data = fs.readFileSync(this.indexPath, "utf-8");
         const localIndex = JSON.parse(data) as DictionaryIndex;
-        
-        for (const dict of localIndex.dictionaries) {
-          const dictPath = this.getDictionaryPath(dict.id);
-          dict.isDownloaded = fs.existsSync(dictPath);
-          if (dict.isDownloaded) {
-            const metaPath = path.join(dictPath, this.metadataFile);
-            if (fs.existsSync(metaPath)) {
-              const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
-              dict.downloadedAt = meta.downloadedAt;
-            }
-          }
-        }
-        this.index = localIndex;
+        this.index = this.hydrateDownloadState(localIndex);
       } else {
-        this.index = DEFAULT_INDEX;
+        this.index = this.hydrateDownloadState(DEFAULT_INDEX);
       }
     } catch {
       this.index = { dictionaries: [] };

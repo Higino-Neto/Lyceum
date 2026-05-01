@@ -7,19 +7,27 @@ import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
-import ProfilePage from "./pages/ProfilePage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
+import SettingsDialog from "./components/settings/SettingsDialog";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
 import { supabase } from "./lib/supabase";
+import { useAppSettings } from "./contexts/AppSettingsContext";
 
 const AUTO_HIDE_STORAGE_KEY = "lyceum_auto_hide";
 const AUTO_HIDE_OVERLAY_KEY = "lyceum_auto_hide_overlay";
+const AUTO_HIDE_REVEAL_DELAY_MS = 120;
+const AUTO_HIDE_DISMISS_DELAY_MS = 420;
+const APP_FRAME_SIZE = 7;
+const AUTO_HIDE_TRIGGER_SIZE = 18;
+const TITLE_BAR_HEIGHT = 40;
+const SIDEBAR_COLLAPSED_WIDTH = 52;
+const SIDEBAR_EXPANDED_WIDTH = 168;
 
 function loadAutoHideSetting(): boolean {
   try {
@@ -57,32 +65,68 @@ function saveAutoHideOverlaySetting(enabled: boolean): void {
 
 function App() {
   const navigate = useNavigate();
+  const { effectiveTheme } = useAppSettings();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [autoHideEnabled, setAutoHideEnabled] = useState(loadAutoHideSetting);
   const [autoHideOverlay, setAutoHideOverlay] = useState(loadAutoHideOverlaySetting);
   const [panelsVisible, setPanelsVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
+  const showDelayTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
 
-  const showPanels = useCallback(() => {
+  const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
       window.clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
-    setPanelsVisible(true);
   }, []);
 
-  const hidePanels = useCallback(() => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
+  const showPanels = useCallback(() => {
+    if (showDelayTimerRef.current) {
+      window.clearTimeout(showDelayTimerRef.current);
+      showDelayTimerRef.current = null;
     }
+    clearHideTimer();
+    setPanelsVisible(true);
+  }, [clearHideTimer]);
+
+  const hidePanels = useCallback((delay = AUTO_HIDE_DISMISS_DELAY_MS, resetTimer = true) => {
+    if (!resetTimer && hideTimerRef.current) {
+      return;
+    }
+
+    if (resetTimer) {
+      clearHideTimer();
+    }
+
     if (autoHideEnabled) {
       hideTimerRef.current = window.setTimeout(() => {
         setPanelsVisible(false);
-      }, 400);
+        hideTimerRef.current = null;
+      }, delay);
     }
-  }, [autoHideEnabled]);
+  }, [autoHideEnabled, clearHideTimer]);
+
+  const showPanelsAfterEdgeIntent = useCallback(() => {
+    if (showDelayTimerRef.current || panelsVisible) {
+      return;
+    }
+
+    showDelayTimerRef.current = window.setTimeout(() => {
+      showDelayTimerRef.current = null;
+      showPanels();
+    }, AUTO_HIDE_REVEAL_DELAY_MS);
+  }, [panelsVisible, showPanels]);
+
+  const cancelEdgeIntent = useCallback(() => {
+    if (showDelayTimerRef.current) {
+      window.clearTimeout(showDelayTimerRef.current);
+      showDelayTimerRef.current = null;
+    }
+  }, []);
+
   const backupInitializedRef = useRef(false);
   const backupScheduledRef = useRef(false);
   const backupTimeoutsRef = useRef<number[]>([]);
@@ -236,6 +280,79 @@ function App() {
     typeof window !== "undefined" && window.api?.windowMinimize;
 
   useEffect(() => {
+    if (!isElectron) {
+      return;
+    }
+
+    if (autoHideEnabled) {
+      showPanels();
+      hidePanels(1200);
+      return;
+    }
+
+    showPanels();
+  }, [autoHideEnabled, hidePanels, isElectron, showPanels]);
+
+  useEffect(() => {
+    if (!autoHideEnabled || !isElectron) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const revealEdge = AUTO_HIDE_TRIGGER_SIZE;
+      const sidebarWidth = sidebarCollapsed
+        ? SIDEBAR_COLLAPSED_WIDTH
+        : SIDEBAR_EXPANDED_WIDTH;
+
+      const nearTopEdge = event.clientY <= revealEdge;
+      const nearLeftEdge = event.clientX <= revealEdge;
+
+      if (!panelsVisible) {
+        if (nearTopEdge || nearLeftEdge) {
+          showPanelsAfterEdgeIntent();
+        } else {
+          cancelEdgeIntent();
+        }
+        return;
+      }
+
+      const insideTitleBar = event.clientY <= APP_FRAME_SIZE + TITLE_BAR_HEIGHT;
+      const insideSidebar =
+        event.clientX <= APP_FRAME_SIZE + sidebarWidth &&
+        event.clientY >= APP_FRAME_SIZE;
+
+      if (insideTitleBar || insideSidebar || nearTopEdge || nearLeftEdge) {
+        showPanels();
+        return;
+      }
+
+      cancelEdgeIntent();
+      hidePanels(AUTO_HIDE_DISMISS_DELAY_MS, false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [
+    autoHideEnabled,
+    cancelEdgeIntent,
+    hidePanels,
+    isElectron,
+    panelsVisible,
+    showPanels,
+    showPanelsAfterEdgeIntent,
+    sidebarCollapsed,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearHideTimer();
+      if (showDelayTimerRef.current) {
+        window.clearTimeout(showDelayTimerRef.current);
+      }
+    };
+  }, [clearHideTimer]);
+
+  useEffect(() => {
     if (!isElectron || !window.api?.onFileOpened) return;
 
     const unsubscribe = window.api.onFileOpened((data) => {
@@ -259,6 +376,7 @@ function App() {
 
   const handleAutoHideToggle = (enabled: boolean) => {
     setAutoHideEnabled(enabled);
+    setPanelsVisible(true);
     saveAutoHideSetting(enabled);
   };
 
@@ -267,146 +385,161 @@ function App() {
     saveAutoHideOverlaySetting(enabled);
   };
 
+  const toasterStyle = effectiveTheme === "light"
+    ? {
+        background: "#f4f4f5",
+        color: "#18181b",
+        border: "1px solid #d4d4d8",
+        borderRadius: "4px",
+        padding: "12px 16px",
+        fontSize: "14px",
+      }
+    : {
+        background: "#27272a",
+        color: "#e4e4e7",
+        border: "1px solid #27272a",
+        borderRadius: "4px",
+        padding: "12px 16px",
+        fontSize: "14px",
+      };
+
   return (
-    <div className={`relative flex flex-col h-screen overflow-hidden border-[7px] border-zinc-800 rounded bg-zinc-900${
-      autoHideEnabled && !panelsVisible && isElectron ? "" : ""
-    }`}
->
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "#27272a",
-            color: "#e4e4e7",
-            border: "1px solid",
-            borderRadius: "4px",
-            padding: "12px 16px",
-            fontSize: "14px",
-          },
-          success: {
-            iconTheme: {
-              primary: "#22c55e",
-              secondary: "#27272a",
-            },
-            style: {
-              borderColor: "#27272a",
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: "#ef4444",
-              secondary: "#27272a",
-            },
-            style: {
-              borderColor: "#27272a",
-            },
-          },
-        }}
-      />
-      {isElectron && (
-        <TitleBar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          autoHideEnabled={autoHideEnabled}
-          autoHideOverlay={autoHideOverlay}
-          onAutoHideToggle={handleAutoHideToggle}
-          onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
-          panelsVisible={panelsVisible}
-          onShowPanels={showPanels}
-          onHidePanels={hidePanels}
+    <div
+      className="lyceum-app relative h-screen w-screen overflow-hidden bg-zinc-800"
+      style={{ padding: APP_FRAME_SIZE }}
+    >
+      {autoHideEnabled && isElectron && (
+        <div
+          className="absolute left-0 right-0 top-0 z-[100]"
+          style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
+          onMouseEnter={showPanelsAfterEdgeIntent}
+          onMouseLeave={cancelEdgeIntent}
         />
       )}
       {autoHideEnabled && isElectron && (
         <div
-          className="absolute top-0 left-0 right-0 h-2 z-[100]"
-          onMouseEnter={showPanels}
+          className="absolute bottom-0 left-0 top-0 z-[100]"
+          style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
+          onMouseEnter={showPanelsAfterEdgeIntent}
+          onMouseLeave={cancelEdgeIntent}
         />
       )}
-      <div className="flex flex-1 overflow-hidden relative">
-        {autoHideEnabled && isElectron && (
-          <div
-            className="absolute top-0 left-0 w-2 h-full z-[100]"
-            onMouseEnter={showPanels}
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-zinc-950 text-zinc-100">
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              ...toasterStyle,
+            },
+            success: {
+              iconTheme: {
+                primary: "var(--accent-500)",
+                secondary: effectiveTheme === "light" ? "#f4f4f5" : "#27272a",
+              },
+              style: {
+                borderColor: effectiveTheme === "light" ? "#d4d4d8" : "#27272a",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "#ef4444",
+                secondary: effectiveTheme === "light" ? "#f4f4f5" : "#27272a",
+              },
+              style: {
+                borderColor: effectiveTheme === "light" ? "#d4d4d8" : "#27272a",
+              },
+            },
+          }}
+        />
+        {isElectron && (
+          <TitleBar
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            autoHideEnabled={autoHideEnabled}
+            autoHideOverlay={autoHideOverlay}
+            onAutoHideToggle={handleAutoHideToggle}
+            onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
+            panelsVisible={panelsVisible}
+            onShowPanels={showPanels}
+            onHidePanels={() => hidePanels()}
           />
         )}
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          autoHideEnabled={autoHideEnabled}
-          autoHideOverlay={autoHideOverlay}
-          panelsVisible={panelsVisible}
-          onShowPanels={showPanels}
-          onHidePanels={hidePanels}
-        />
-        <main
-          className="flex-1 overflow-y-auto rounded-sm"
-          onMouseEnter={() => autoHideEnabled && hidePanels()}
-        >
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<Dashboard />}
-                />
-              }
-            />
+        <div className="relative flex flex-1 overflow-hidden">
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            autoHideEnabled={autoHideEnabled}
+            autoHideOverlay={autoHideOverlay}
+            panelsVisible={panelsVisible}
+            onShowPanels={showPanels}
+            onHidePanels={() => hidePanels()}
+            settingsOpen={settingsOpen}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <main
+            className="flex-1 overflow-y-auto"
+            onMouseEnter={() => autoHideEnabled && hidePanels(250)}
+          >
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<Dashboard />}
+                  />
+                }
+              />
 
-            <Route
-              path="/add_reading"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<AddReadingPage />}
-                />
-              }
-            />
+              <Route
+                path="/add_reading"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<AddReadingPage />}
+                  />
+                }
+              />
 
-            <Route
-              path="/reading"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<ReadingPage />}
-                />
-              }
-            />
+              <Route
+                path="/reading"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<ReadingPage />}
+                  />
+                }
+              />
 
-            <Route
-              path="/library"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<Library />}
-                />
-              }
-            />
+              <Route
+                path="/library"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<Library />}
+                  />
+                }
+              />
 
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<ProfilePage />}
-                />
-              }
-            />
+              <Route
+                path="/habit_tracker"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<HabitTrackerPage />}
+                  />
+                }
+              />
 
-            <Route
-              path="/habit_tracker"
-              element={
-                <ProtectedRoute
-                  isLoggedIn={isLoggedIn}
-                  children={<HabitTrackerPage />}
-                />
-              }
-            />
-
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-          </Routes>
-        </main>
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+            </Routes>
+          </main>
+          <SettingsDialog
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
       </div>
     </div>
   );

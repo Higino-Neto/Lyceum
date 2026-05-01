@@ -49,13 +49,13 @@ export default function DailyPagesChart({
       <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="1 1"
-          stroke="#27272a"
+          stroke="var(--ui-zinc-800)"
           vertical={false}
         />
         <XAxis
           dataKey="date"
           tickFormatter={formatDate}
-          stroke="#52525b"
+          stroke="var(--ui-zinc-600)"
           fontSize={11}
           tickLine={false}
           axisLine={false}
@@ -63,7 +63,7 @@ export default function DailyPagesChart({
           minTickGap={30}
         />
         <YAxis
-          stroke="#52525b"
+          stroke="var(--ui-zinc-600)"
           fontSize={11}
           tickLine={false}
           axisLine={false}

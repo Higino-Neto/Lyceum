@@ -74,6 +74,7 @@ interface Window {
 
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;
+    openReadableFile: () => Promise<(OpenPdfResult & { fileType: "pdf" | "epub" }) | null>;
     getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) => Promise<string | null>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
@@ -184,6 +185,7 @@ interface Window {
 
 openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: string } & OpenPdfResult>;
     onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
+    onReadingShortcut: (callback: (data: { key: string; shift?: boolean }) => void) => () => void;
     openDefaultAppsSettings: () => Promise<{ success: boolean }>;
     openInNewWindow: (data: {
       fileHash: string;
@@ -225,6 +227,7 @@ interface Window {
 
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;
+    openReadableFile: () => Promise<(OpenPdfResult & { fileType: "pdf" | "epub" }) | null>;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;
@@ -270,6 +273,7 @@ interface Window {
 
     openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: string } & OpenPdfResult>;
     onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
+    onReadingShortcut: (callback: (data: { key: string; shift?: boolean }) => void) => () => void;
     openDefaultAppsSettings: () => Promise<{ success: boolean }>;
   };
 }

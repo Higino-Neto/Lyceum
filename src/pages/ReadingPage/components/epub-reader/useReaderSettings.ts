@@ -10,33 +10,70 @@ import {
 
 const STORAGE_KEY = "lyceum-reader-settings";
 
-function loadSettings(): ReaderSettings {
+function buildBookSettingsKey(fileHash?: string) {
+  return fileHash ? `${STORAGE_KEY}:book:${fileHash}` : STORAGE_KEY;
+}
+
+function readSettingsFromStorage(key: string): Partial<ReaderSettings> | null {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(key);
     if (stored) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      return JSON.parse(stored) as Partial<ReaderSettings>;
     }
   } catch {
     // ignore parse errors
   }
-  return DEFAULT_SETTINGS;
+
+  return null;
 }
 
-function saveSettings(settings: ReaderSettings) {
+function loadSettings(fileHash?: string): ReaderSettings {
+  const globalSettings = readSettingsFromStorage(STORAGE_KEY);
+  const bookSettings = readSettingsFromStorage(buildBookSettingsKey(fileHash));
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...globalSettings,
+    ...bookSettings,
+  };
+}
+
+function saveSettings(settings: ReaderSettings, fileHash?: string) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+    if (fileHash) {
+      localStorage.setItem(buildBookSettingsKey(fileHash), JSON.stringify(settings));
+    }
   } catch {
     // ignore storage errors
   }
 }
 
-export function useReaderSettings() {
-  const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
+export function useReaderSettings(fileHash?: string) {
+  const [settings, setSettings] = useState<ReaderSettings>(() => loadSettings(fileHash));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
+    setSettings(loadSettings(fileHash));
+  }, [fileHash]);
+
+  useEffect(() => {
+    saveSettings(settings, fileHash);
+  }, [fileHash, settings]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const updateSetting = useCallback(<K extends keyof ReaderSettings>(
     key: K,

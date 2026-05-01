@@ -1,14 +1,12 @@
-import { Copy, FileText, Move, MoreVertical } from "lucide-react";
+import { Check, Copy, FileText, Move, MoreVertical } from "lucide-react";
 import { useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
-import { calculateProgress } from "./progress";
-
-const getTitleWithoutExtension = (title: string, fileType?: string) => {
-  if (fileType === "epub") {
-    return title.replace(/\.epub$/i, "");
-  }
-  return title.replace(/\.pdf$/i, "");
-};
+import {
+  formatPageCount,
+  getBookFolderLabel,
+  getFileTypeLabel,
+  getTitleWithoutExtension,
+} from "../../utils";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -19,6 +17,11 @@ interface BookCardProps {
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
   onDragEnd?: () => void;
+  selectionMode?: boolean;
+  isChecked?: boolean;
+  selectedCount?: number;
+  onToggleSelection?: () => void;
+  onContextSelect?: () => void;
 }
 
 export default function BookCard({
@@ -30,12 +33,21 @@ export default function BookCard({
   isSelected = false,
   onDragStart,
   onDragEnd,
+  selectionMode = false,
+  isChecked = false,
+  selectedCount = 0,
+  onToggleSelection,
+  onContextSelect,
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const progress = calculateProgress(book);
 
   const handleClick = () => {
+    if (selectionMode) {
+      onToggleSelection?.();
+      return;
+    }
+
     if (onClick) {
       onClick();
     } else {
@@ -45,20 +57,50 @@ export default function BookCard({
 
   return (
     <div
-      className={`flex flex-col gap-2 cursor-pointer group transition-all ${
+      className={`group relative flex flex-col gap-2 rounded-sm p-1 cursor-pointer transition-all ${
         isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
-      }`}
+      } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""}`}
       onClick={handleClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextSelect?.();
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      draggable
+      draggable={!selectionMode || isChecked}
       onDragStart={(e) => {
+        if (selectionMode && !isChecked) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", book.fileHash);
+        if (isChecked && selectedCount > 1) {
+          const dragPreview = document.createElement("div");
+          dragPreview.className =
+            "fixed -top-96 left-0 rounded-sm border border-green-500/50 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-100 shadow-xl";
+          dragPreview.textContent = `${selectedCount} livros selecionados`;
+          document.body.appendChild(dragPreview);
+          e.dataTransfer.setDragImage(dragPreview, 12, 12);
+          window.setTimeout(() => dragPreview.remove(), 0);
+        }
         onDragStart?.(book.fileHash);
       }}
       onDragEnd={() => onDragEnd?.()}
     >
-      <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
+      {(selectionMode || isChecked) && (
+        <div
+          className={`absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
+            isChecked
+              ? "border-green-500 bg-green-500 text-zinc-950"
+              : "border-zinc-600 bg-zinc-950/80 text-transparent"
+          }`}
+        >
+          <Check size={15} />
+        </div>
+      )}
+
+      <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
         {book.thumbnail ? (
           <img
             src={book.thumbnail}
@@ -122,19 +164,19 @@ export default function BookCard({
         )}
       </div>
 
-      <p className="text-xs text-zinc-300 line-clamp-2">{getTitleWithoutExtension(book.title, book.fileType)}</p>
-      {book.author && (
-        <p className="text-xs text-zinc-500 truncate">{book.author}</p>
-      )}
-      {book.category && !book.author && (
-        <span className="text-xs text-zinc-500">{book.category}</span>
-      )}
-
-      <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-green-500"
-          style={{ width: `${progress}%` }}
-        />
+      <div className="flex h-[72px] flex-col">
+        <p className="text-xs text-zinc-300 line-clamp-2 leading-4">
+          {getTitleWithoutExtension(book.title, book.fileType)}
+        </p>
+        <p className="mt-1 truncate text-xs text-zinc-500">
+          {getBookFolderLabel(book.filePath)}
+        </p>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-zinc-500">
+          <span>{formatPageCount(book.numPages, book.fileType)}</span>
+          <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+            {getFileTypeLabel(book.fileType, book.filePath)}
+          </span>
+        </div>
       </div>
     </div>
   );

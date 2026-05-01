@@ -1,7 +1,4 @@
-import {
-  DocumentManagerPlugin,
-  PluginRegistry,
-} from "@embedpdf/react-pdf-viewer";
+import { PluginRegistry } from "@embedpdf/react-pdf-viewer";
 import { useCallback, useEffect, useState } from "react";
 import type { SessionPdfData } from "../../../../types/ReadingTypes";
 import PdfViewerCore from "./ViewerCore";

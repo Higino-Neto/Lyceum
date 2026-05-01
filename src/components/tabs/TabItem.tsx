@@ -13,6 +13,7 @@ interface TabItemProps extends BaseTabProps {
   onActivate: () => void;
   onClose: () => void;
   onDetach?: () => void;
+  minWidth: number;
 }
 
 function TabVisual({
@@ -55,7 +56,7 @@ function TabVisual({
       {...dragAttributes}
       {...dragListeners}
       className={[
-        "group flex h-full min-w-[150px] max-w-[240px] flex-shrink-0 items-center gap-2 border-r border-zinc-700 px-3 text-left transition-colors duration-150",
+        "group flex h-full w-full min-w-0 max-w-[240px] items-center gap-2 border-r border-zinc-700 px-3 text-left transition-colors duration-150",
         isActive
           ? "bg-zinc-800 text-zinc-100 border-t-2 border-t-green-500"
           : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
@@ -74,7 +75,7 @@ function TabVisual({
             role="button"
             tabIndex={-1}
             onClick={handleDetach}
-            className="rounded p-0.5 hover:bg-zinc-700"
+            className="cursor-default rounded p-0.5 hover:bg-zinc-700"
             title="Abrir em nova janela"
           >
             <ExternalLink size={12} />
@@ -87,7 +88,7 @@ function TabVisual({
           role="button"
           tabIndex={-1}
           onClick={handleClose}
-          className="rounded p-0.5 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100"
+          className="cursor-default rounded p-0.5 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100"
           title="Fechar"
         >
           <X size={14} />
@@ -111,6 +112,7 @@ export default function TabItem({
   onActivate,
   onClose,
   onDetach,
+  minWidth,
 }: TabItemProps) {
   const {
     attributes,
@@ -125,9 +127,17 @@ export default function TabItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const desiredWidth = Math.min(240, Math.max(128, tab.fileName.length * 7 + 76));
 
   return (
-    <div ref={setNodeRef} className="h-full flex-shrink-0">
+    <div
+      ref={setNodeRef}
+      className="h-full min-w-0 max-w-[240px] flex-shrink flex-grow-0"
+      style={{
+        flexBasis: desiredWidth,
+        minWidth,
+      }}
+    >
       <TabVisual
         tab={tab}
         isActive={isActive}

@@ -144,7 +144,7 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
               outerRadius={80}
             >
               {treemapData.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} stroke="#18181b" strokeWidth={2} />
+                <Cell key={index} fill={entry.fill} stroke="var(--ui-zinc-900)" strokeWidth={2} />
               ))}
             </Pie>
             <Tooltip content={<ChartTooltip />} />
@@ -159,16 +159,16 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
       {renderChartTypeSelector()}
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={categoryData} margin={{ top: 10, right: 20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="1 1" stroke="#27272a" vertical={false} />
+          <CartesianGrid strokeDasharray="1 1" stroke="var(--ui-zinc-800)" vertical={false} />
           <XAxis
             dataKey="name"
-            stroke="#52525b"
+            stroke="var(--ui-zinc-600)"
             fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
-            stroke="#52525b"
+            stroke="var(--ui-zinc-600)"
             fontSize={11}
             tickLine={false}
             axisLine={false}

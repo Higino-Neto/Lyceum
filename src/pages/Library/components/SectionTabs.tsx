@@ -1,11 +1,10 @@
-import { FolderSync, Folder, Book } from "lucide-react";
+import { Folder, FolderSync } from "lucide-react";
 
 interface SectionTabsProps {
-  activeSection: "synced" | "unsynced" | "books";
-  onSectionChange: (section: "synced" | "unsynced" | "books") => void;
+  activeSection: "synced" | "unsynced";
+  onSectionChange: (section: "synced" | "unsynced") => void;
   syncedCount: number;
   unsyncedCount: number;
-  booksCount: number;
 }
 
 export default function SectionTabs({
@@ -13,42 +12,36 @@ export default function SectionTabs({
   onSectionChange,
   syncedCount,
   unsyncedCount,
-  booksCount,
 }: SectionTabsProps) {
   return (
-    <div className="flex items-center gap-4 border-b border-zinc-800 pb-4">
+    <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-950 p-0.5">
       <button
         onClick={() => onSectionChange("synced")}
-        className={`flex items-center gap-2 px-4 py-2 cursor-pointer rounded-sm text-sm ${
+        className={`flex h-8 cursor-pointer items-center gap-2 rounded-sm px-3 text-xs transition-colors ${
           activeSection === "synced"
-            ? "bg-green-500 text-zinc-900"
-            : "bg-zinc-900 border border-zinc-800 text-zinc-400"
+            ? "bg-green-500 text-zinc-950"
+            : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
         }`}
       >
-        <FolderSync size={16} />
-        Sincronizados ({syncedCount})
+        <FolderSync size={14} />
+        Sincronizados
+        <span className="rounded-sm bg-black/10 px-1.5 text-[11px]">
+          {syncedCount}
+        </span>
       </button>
       <button
         onClick={() => onSectionChange("unsynced")}
-        className={`flex items-center gap-2 px-4 py-2 cursor-pointer rounded-sm text-sm ${
+        className={`flex h-8 cursor-pointer items-center gap-2 rounded-sm px-3 text-xs transition-colors ${
           activeSection === "unsynced"
-            ? "bg-green-500 text-zinc-900"
-            : "bg-zinc-900 border border-zinc-800 text-zinc-400"
+            ? "bg-green-500 text-zinc-950"
+            : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
         }`}
       >
-        <Folder size={16} />
-        Não Sincronizados ({unsyncedCount})
-      </button>
-      <button
-        onClick={() => onSectionChange("books")}
-        className={`flex items-center gap-2 px-4 py-2 cursor-pointer rounded-sm text-sm ${
-          activeSection === "books"
-            ? "bg-green-500 text-zinc-900"
-            : "bg-zinc-900 border border-zinc-800 text-zinc-400"
-        }`}
-      >
-        <Book size={16} />
-        Meus Livros ({booksCount})
+        <Folder size={14} />
+        Nao sincronizados
+        <span className="rounded-sm bg-black/10 px-1.5 text-[11px]">
+          {unsyncedCount}
+        </span>
       </button>
     </div>
   );

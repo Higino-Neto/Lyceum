@@ -1,7 +1,102 @@
 @import "tailwindcss";
 
+:root {
+  --bg-zinc-50: #fafafa;
+  --bg-zinc-100: #f4f4f5;
+  --bg-zinc-200: #e4e4e7;
+  --bg-zinc-300: #d4d4d8;
+  --bg-zinc-400: #a1a1aa;
+  --bg-zinc-500: #71717a;
+  --bg-zinc-600: #52525b;
+  --bg-zinc-700: #3f3f46;
+  --bg-zinc-800: #27272a;
+  --bg-zinc-900: #18181b;
+  --bg-zinc-950: #09090b;
+  --fg-zinc-50: #fafafa;
+  --fg-zinc-100: #f4f4f5;
+  --fg-zinc-200: #e4e4e7;
+  --fg-zinc-300: #d4d4d8;
+  --fg-zinc-400: #a1a1aa;
+  --fg-zinc-500: #71717a;
+  --fg-zinc-600: #52525b;
+  --fg-zinc-700: #3f3f46;
+  --fg-zinc-800: #27272a;
+  --fg-zinc-900: #18181b;
+  --fg-zinc-950: #09090b;
+  --border-zinc-50: #fafafa;
+  --border-zinc-100: #f4f4f5;
+  --border-zinc-200: #e4e4e7;
+  --border-zinc-300: #d4d4d8;
+  --border-zinc-400: #a1a1aa;
+  --border-zinc-500: #71717a;
+  --border-zinc-600: #52525b;
+  --border-zinc-700: #3f3f46;
+  --border-zinc-800: #27272a;
+  --border-zinc-900: #18181b;
+  --border-zinc-950: #09090b;
+  --ui-zinc-50: var(--bg-zinc-50);
+  --ui-zinc-100: var(--bg-zinc-100);
+  --ui-zinc-200: var(--bg-zinc-200);
+  --ui-zinc-300: var(--bg-zinc-300);
+  --ui-zinc-400: var(--bg-zinc-400);
+  --ui-zinc-500: var(--bg-zinc-500);
+  --ui-zinc-600: var(--bg-zinc-600);
+  --ui-zinc-700: var(--bg-zinc-700);
+  --ui-zinc-800: var(--bg-zinc-800);
+  --ui-zinc-900: var(--bg-zinc-900);
+  --ui-zinc-950: var(--bg-zinc-950);
+  --accent-50: #f0fdf4;
+  --accent-100: #dcfce7;
+  --accent-200: #bbf7d0;
+  --accent-300: #86efac;
+  --accent-400: #4ade80;
+  --accent-500: #22c55e;
+  --accent-600: #16a34a;
+  --accent-700: #15803d;
+  --accent-800: #166534;
+  --accent-900: #14532d;
+  --accent-950: #052e16;
+  --accent-foreground: #ffffff;
+}
+
+.lyceum-theme-light {
+  --bg-zinc-50: #020617;
+  --bg-zinc-100: #111827;
+  --bg-zinc-200: #1f2937;
+  --bg-zinc-300: #374151;
+  --bg-zinc-400: #64748b;
+  --bg-zinc-500: #94a3b8;
+  --bg-zinc-600: #c4ccd8;
+  --bg-zinc-700: #d7dde6;
+  --bg-zinc-800: #e5e9ef;
+  --bg-zinc-900: #edf1f5;
+  --bg-zinc-950: #f3f5f8;
+  --fg-zinc-50: #0b1220;
+  --fg-zinc-100: #111827;
+  --fg-zinc-200: #1e293b;
+  --fg-zinc-300: #334155;
+  --fg-zinc-400: #475569;
+  --fg-zinc-500: #64748b;
+  --fg-zinc-600: #7c8798;
+  --fg-zinc-700: #9aa4b2;
+  --fg-zinc-800: #c0c7d1;
+  --fg-zinc-900: #e2e8f0;
+  --fg-zinc-950: #f8fafc;
+  --border-zinc-50: #020617;
+  --border-zinc-100: #111827;
+  --border-zinc-200: #334155;
+  --border-zinc-300: #475569;
+  --border-zinc-400: #64748b;
+  --border-zinc-500: #9aa4b2;
+  --border-zinc-600: #aeb8c7;
+  --border-zinc-700: #c4ccd8;
+  --border-zinc-800: #d9dee7;
+  --border-zinc-900: #e5e9ef;
+  --border-zinc-950: #edf1f5;
+}
+
 input[type="date"] {
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 
 @keyframes slide-in {
@@ -20,14 +115,14 @@ input[type="date"] {
 /* Scrollbar personalizada para toda a aplicação */
 @layer base {
   html, body, #root {
-    background-color: #09090b;
+    background-color: var(--ui-zinc-950);
     min-height: 100%;
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #18181B #09090B;
+    scrollbar-color: var(--ui-zinc-800) var(--ui-zinc-950);
   }
 
   /* Chrome, Edge, Safari */
@@ -37,18 +132,18 @@ input[type="date"] {
   }
 
   *::-webkit-scrollbar-track {
-    background: #1a202c;
+    background: var(--ui-zinc-900);
     border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb {
-    background: #4a5568;
+    background: var(--ui-zinc-700);
     border-radius: 4px;
     transition: background-color 0.2s;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: #718096;
+    background: var(--ui-zinc-600);
   }
 
   *::-webkit-scrollbar-corner {
@@ -60,18 +155,138 @@ input[type="date"] {
   }
   
   :focus-visible {
-    outline: 2px solid #22c55e !important; /* verde do seu tema */
+    outline: 2px solid var(--accent-500) !important;
     outline-offset: 2px;
   }
 }
 
 .react-heat-map-tooltip {
-  background: #27272a !important;
-  color: #e4e4e7 !important;
-  border: 1px solid #3f3f46 !important;
+  background: var(--ui-zinc-800) !important;
+  color: var(--ui-zinc-200) !important;
+  border: 1px solid var(--ui-zinc-700) !important;
   border-radius: 6px !important;
   padding: 8px 12px !important;
   font-size: 12px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
   z-index: 9999;
 }
+
+.lyceum-app :where(.bg-zinc-50, [class~="hover:bg-zinc-50"]:hover) { background-color: var(--bg-zinc-50) !important; }
+.lyceum-app :where(.bg-zinc-100, [class~="hover:bg-zinc-100"]:hover) { background-color: var(--bg-zinc-100) !important; }
+.lyceum-app :where(.bg-zinc-200, [class~="hover:bg-zinc-200"]:hover) { background-color: var(--bg-zinc-200) !important; }
+.lyceum-app :where(.bg-zinc-300, [class~="hover:bg-zinc-300"]:hover) { background-color: var(--bg-zinc-300) !important; }
+.lyceum-app :where(.bg-zinc-400, [class~="hover:bg-zinc-400"]:hover) { background-color: var(--bg-zinc-400) !important; }
+.lyceum-app :where(.bg-zinc-500, [class~="hover:bg-zinc-500"]:hover) { background-color: var(--bg-zinc-500) !important; }
+.lyceum-app :where(.bg-zinc-600, [class~="hover:bg-zinc-600"]:hover) { background-color: var(--bg-zinc-600) !important; }
+.lyceum-app :where(.bg-zinc-700, [class~="hover:bg-zinc-700"]:hover, [class~="hover:bg-zinc-750"]:hover) { background-color: var(--bg-zinc-700) !important; }
+.lyceum-app :where(.bg-zinc-800, [class~="hover:bg-zinc-800"]:hover) { background-color: var(--bg-zinc-800) !important; }
+.lyceum-app :where(.bg-zinc-900, [class~="hover:bg-zinc-900"]:hover) { background-color: var(--bg-zinc-900) !important; }
+.lyceum-app :where(.bg-zinc-950, [class~="hover:bg-zinc-950"]:hover) { background-color: var(--bg-zinc-950) !important; }
+
+.lyceum-app :where([class~="bg-zinc-100/30"]) { background-color: color-mix(in srgb, var(--bg-zinc-100) 30%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-800/30"]) { background-color: color-mix(in srgb, var(--bg-zinc-800) 30%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-800/50"]) { background-color: color-mix(in srgb, var(--bg-zinc-800) 50%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-800/95"]) { background-color: color-mix(in srgb, var(--bg-zinc-800) 95%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-900/70"]) { background-color: color-mix(in srgb, var(--bg-zinc-900) 70%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-900/95"]) { background-color: color-mix(in srgb, var(--bg-zinc-900) 95%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-950/30"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 30%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-950/40"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 40%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-950/60"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 60%, transparent) !important; }
+.lyceum-app :where([class~="bg-zinc-950/80"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 80%, transparent) !important; }
+
+.lyceum-app :where(.text-zinc-50, [class~="hover:text-zinc-50"]:hover, .group:hover [class~="group-hover:text-zinc-50"]) { color: var(--fg-zinc-50) !important; }
+.lyceum-app :where(.text-zinc-100, [class~="hover:text-zinc-100"]:hover, .group:hover [class~="group-hover:text-zinc-100"]) { color: var(--fg-zinc-100) !important; }
+.lyceum-app :where(.text-zinc-200, [class~="hover:text-zinc-200"]:hover, .group:hover [class~="group-hover:text-zinc-200"]) { color: var(--fg-zinc-200) !important; }
+.lyceum-app :where(.text-zinc-300, [class~="hover:text-zinc-300"]:hover, .group:hover [class~="group-hover:text-zinc-300"]) { color: var(--fg-zinc-300) !important; }
+.lyceum-app :where(.text-zinc-400, [class~="hover:text-zinc-400"]:hover, .group:hover [class~="group-hover:text-zinc-400"]) { color: var(--fg-zinc-400) !important; }
+.lyceum-app :where(.text-zinc-500, [class~="hover:text-zinc-500"]:hover, .group:hover [class~="group-hover:text-zinc-500"]) { color: var(--fg-zinc-500) !important; }
+.lyceum-app :where(.text-zinc-600, [class~="hover:text-zinc-600"]:hover, .group:hover [class~="group-hover:text-zinc-600"]) { color: var(--fg-zinc-600) !important; }
+.lyceum-app :where(.text-zinc-700, [class~="hover:text-zinc-700"]:hover, .group:hover [class~="group-hover:text-zinc-700"]) { color: var(--fg-zinc-700) !important; }
+.lyceum-app :where(.text-zinc-800, [class~="hover:text-zinc-800"]:hover, .group:hover [class~="group-hover:text-zinc-800"]) { color: var(--fg-zinc-800) !important; }
+.lyceum-app :where(.text-zinc-900, [class~="hover:text-zinc-900"]:hover, .group:hover [class~="group-hover:text-zinc-900"]) { color: var(--fg-zinc-900) !important; }
+.lyceum-app :where(.text-zinc-950, [class~="hover:text-zinc-950"]:hover, .group:hover [class~="group-hover:text-zinc-950"]) { color: var(--fg-zinc-950) !important; }
+.lyceum-theme-light .lyceum-app :where([class~="bg-zinc-700"][class~="text-white"], [class~="bg-zinc-800"][class~="text-white"], [class~="bg-zinc-900"][class~="text-white"], [class~="bg-zinc-950"][class~="text-white"]) { color: var(--fg-zinc-100) !important; }
+.lyceum-theme-light .lyceum-app :where(.group:hover [class~="group-hover:text-white"]) { color: var(--fg-zinc-100) !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:bg-white"]:hover) { background-color: var(--bg-zinc-200) !important; }
+
+.lyceum-app :where(.border-zinc-50, [class~="hover:border-zinc-50"]:hover) { border-color: var(--border-zinc-50) !important; }
+.lyceum-app :where(.border-zinc-100, [class~="hover:border-zinc-100"]:hover) { border-color: var(--border-zinc-100) !important; }
+.lyceum-app :where(.border-zinc-200, [class~="hover:border-zinc-200"]:hover) { border-color: var(--border-zinc-200) !important; }
+.lyceum-app :where(.border-zinc-300, [class~="hover:border-zinc-300"]:hover) { border-color: var(--border-zinc-300) !important; }
+.lyceum-app :where(.border-zinc-400, [class~="hover:border-zinc-400"]:hover) { border-color: var(--border-zinc-400) !important; }
+.lyceum-app :where(.border-zinc-500, [class~="hover:border-zinc-500"]:hover, [class~="focus:border-zinc-500"]:focus) { border-color: var(--border-zinc-500) !important; }
+.lyceum-app :where(.border-zinc-600, [class~="hover:border-zinc-600"]:hover) { border-color: var(--border-zinc-600) !important; }
+.lyceum-app :where(.border-zinc-700, [class~="hover:border-zinc-700"]:hover) { border-color: var(--border-zinc-700) !important; }
+.lyceum-app :where(.border-zinc-800, [class~="hover:border-zinc-800"]:hover) { border-color: var(--border-zinc-800) !important; }
+.lyceum-app :where(.border-zinc-900, [class~="hover:border-zinc-900"]:hover) { border-color: var(--border-zinc-900) !important; }
+.lyceum-app :where(.border-zinc-950, [class~="hover:border-zinc-950"]:hover) { border-color: var(--border-zinc-950) !important; }
+.lyceum-app :where([class~="border-zinc-700/80"]) { border-color: color-mix(in srgb, var(--border-zinc-700) 80%, transparent) !important; }
+.lyceum-app :where([class~="border-zinc-700/90"]) { border-color: color-mix(in srgb, var(--border-zinc-700) 90%, transparent) !important; }
+.lyceum-app :where([class~="border-zinc-700/50"]) { border-color: color-mix(in srgb, var(--border-zinc-700) 50%, transparent) !important; }
+.lyceum-app :where([class~="border-zinc-800/80"]) { border-color: color-mix(in srgb, var(--border-zinc-800) 80%, transparent) !important; }
+
+.lyceum-app :where(.divide-zinc-700 > :not([hidden]) ~ :not([hidden])) { border-color: var(--border-zinc-700) !important; }
+.lyceum-app :where(.divide-zinc-800 > :not([hidden]) ~ :not([hidden])) { border-color: var(--border-zinc-800) !important; }
+.lyceum-app :where([class~="placeholder:text-zinc-600"])::placeholder { color: var(--fg-zinc-600) !important; }
+.lyceum-app :where([class~="placeholder:text-zinc-700"])::placeholder { color: var(--fg-zinc-700) !important; }
+.lyceum-app :where(.placeholder-zinc-600)::placeholder { color: var(--fg-zinc-600) !important; }
+.lyceum-app :where(.ring-offset-zinc-900) { --tw-ring-offset-color: var(--bg-zinc-900) !important; }
+.lyceum-app :where(.ring-offset-zinc-950) { --tw-ring-offset-color: var(--bg-zinc-950) !important; }
+.lyceum-app :where(.ring-zinc-600, [class~="hover:ring-zinc-600"]:hover) { --tw-ring-color: var(--border-zinc-600) !important; }
+
+.lyceum-app :where(.bg-green-50, [class~="hover:bg-green-50"]:hover) { background-color: var(--accent-50) !important; }
+.lyceum-app :where(.bg-green-100, [class~="hover:bg-green-100"]:hover) { background-color: var(--accent-100) !important; }
+.lyceum-app :where(.bg-green-200, [class~="hover:bg-green-200"]:hover) { background-color: var(--accent-200) !important; }
+.lyceum-app :where(.bg-green-300, [class~="hover:bg-green-300"]:hover) { background-color: var(--accent-300) !important; }
+.lyceum-app :where(.bg-green-400, [class~="hover:bg-green-400"]:hover) { background-color: var(--accent-400) !important; }
+.lyceum-app :where(.bg-green-500, [class~="hover:bg-green-500"]:hover) { background-color: var(--accent-500) !important; }
+.lyceum-app :where(.bg-green-600, [class~="hover:bg-green-600"]:hover) { background-color: var(--accent-600) !important; }
+.lyceum-app :where(.bg-green-700, [class~="hover:bg-green-700"]:hover) { background-color: var(--accent-700) !important; }
+.lyceum-app :where(.bg-green-800, [class~="hover:bg-green-800"]:hover) { background-color: var(--accent-800) !important; }
+.lyceum-app :where(.bg-green-900, [class~="hover:bg-green-900"]:hover) { background-color: var(--accent-900) !important; }
+.lyceum-app :where(.bg-green-950, [class~="hover:bg-green-950"]:hover) { background-color: var(--accent-950) !important; }
+.lyceum-app :where([class~="bg-green-500/5"]) { background-color: color-mix(in srgb, var(--accent-500) 5%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-500/10"], [class~="hover:bg-green-500/10"]:hover) { background-color: color-mix(in srgb, var(--accent-500) 10%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-500/20"], [class~="hover:bg-green-500/20"]:hover) { background-color: color-mix(in srgb, var(--accent-500) 20%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-500/30"], [class~="hover:bg-green-500/30"]:hover) { background-color: color-mix(in srgb, var(--accent-500) 30%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-500/70"], [class~="hover:bg-green-500/70"]:hover) { background-color: color-mix(in srgb, var(--accent-500) 70%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-600/20"], [class~="hover:bg-green-600/20"]:hover) { background-color: color-mix(in srgb, var(--accent-600) 20%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-900/50"], [class~="hover:bg-green-900/50"]:hover) { background-color: color-mix(in srgb, var(--accent-900) 50%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-950/20"], [class~="hover:bg-green-950/20"]:hover) { background-color: color-mix(in srgb, var(--accent-950) 20%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-950/30"], [class~="hover:bg-green-950/30"]:hover) { background-color: color-mix(in srgb, var(--accent-950) 30%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-950/50"], [class~="hover:bg-green-950/50"]:hover) { background-color: color-mix(in srgb, var(--accent-950) 50%, transparent) !important; }
+.lyceum-app :where([class~="bg-green-950/60"], [class~="hover:bg-green-950/60"]:hover) { background-color: color-mix(in srgb, var(--accent-950) 60%, transparent) !important; }
+
+.lyceum-app :where(.text-green-300, [class~="hover:text-green-300"]:hover) { color: var(--accent-300) !important; }
+.lyceum-app :where(.text-green-100, [class~="hover:text-green-100"]:hover) { color: var(--accent-100) !important; }
+.lyceum-app :where(.text-green-400, [class~="hover:text-green-400"]:hover) { color: var(--accent-400) !important; }
+.lyceum-app :where(.text-green-500, [class~="hover:text-green-500"]:hover) { color: var(--accent-500) !important; }
+.lyceum-app :where(.text-green-600, [class~="hover:text-green-600"]:hover) { color: var(--accent-600) !important; }
+.lyceum-app :where(.text-green-700, [class~="hover:text-green-700"]:hover) { color: var(--accent-700) !important; }
+.lyceum-app :where(.text-green-800, [class~="hover:text-green-800"]:hover) { color: var(--accent-800) !important; }
+.lyceum-app :where(.text-green-900, [class~="hover:text-green-900"]:hover) { color: var(--accent-900) !important; }
+.lyceum-app :where(.text-green-950, [class~="hover:text-green-950"]:hover) { color: var(--accent-950) !important; }
+
+.lyceum-app :where(.border-green-300, [class~="hover:border-green-300"]:hover) { border-color: var(--accent-300) !important; }
+.lyceum-app :where(.border-green-400, [class~="hover:border-green-400"]:hover) { border-color: var(--accent-400) !important; }
+.lyceum-app :where(.border-green-500, [class~="hover:border-green-500"]:hover, [class~="focus:border-green-500"]:focus, [class~="focus-visible:border-green-500"]:focus-visible) { border-color: var(--accent-500) !important; }
+.lyceum-app :where(.border-t-green-500) { border-top-color: var(--accent-500) !important; }
+.lyceum-app :where(.border-t-green-600) { border-top-color: var(--accent-600) !important; }
+.lyceum-app :where(.border-green-600, [class~="hover:border-green-600"]:hover, [class~="focus:border-green-600"]:focus) { border-color: var(--accent-600) !important; }
+.lyceum-app :where(.border-green-700, [class~="hover:border-green-700"]:hover) { border-color: var(--accent-700) !important; }
+.lyceum-app :where(.border-green-800, [class~="hover:border-green-800"]:hover) { border-color: var(--accent-800) !important; }
+.lyceum-app :where([class~="border-green-500/30"]) { border-color: color-mix(in srgb, var(--accent-500) 30%, transparent) !important; }
+.lyceum-app :where([class~="border-green-500/20"]) { border-color: color-mix(in srgb, var(--accent-500) 20%, transparent) !important; }
+.lyceum-app :where([class~="border-green-500/50"], [class~="hover:border-green-500/50"]:hover) { border-color: color-mix(in srgb, var(--accent-500) 50%, transparent) !important; }
+.lyceum-app :where([class~="border-green-600/40"]) { border-color: color-mix(in srgb, var(--accent-600) 40%, transparent) !important; }
+.lyceum-app :where([class~="border-green-600/50"], [class~="focus:border-green-600/50"]:focus) { border-color: color-mix(in srgb, var(--accent-600) 50%, transparent) !important; }
+.lyceum-app :where([class~="border-green-600/60"]) { border-color: color-mix(in srgb, var(--accent-600) 60%, transparent) !important; }
+.lyceum-app :where([class~="border-green-800/40"]) { border-color: color-mix(in srgb, var(--accent-800) 40%, transparent) !important; }
+.lyceum-app :where([class~="ring-green-500"], [class~="focus:ring-green-500"]:focus, [class~="focus-visible:ring-green-500"]:focus-visible) { --tw-ring-color: var(--accent-500) !important; }
+.lyceum-app :where([class~="ring-green-400"]) { --tw-ring-color: var(--accent-400) !important; }
+.lyceum-app :where([class~="outline-green-500"], [class~="focus-visible:outline-green-500"]:focus-visible) { outline-color: var(--accent-500) !important; }
+.lyceum-app :where(.accent-green-500) { accent-color: var(--accent-500) !important; }
+.lyceum-app :where([class~="bg-green-500"][class~="text-black"], [class~="bg-green-600"][class~="text-black"], [class~="bg-green-700"][class~="text-black"], [class~="bg-green-500"][class~="text-white"], [class~="bg-green-600"][class~="text-white"], [class~="bg-green-700"][class~="text-white"], [class~="bg-green-500"][class~="text-zinc-900"], [class~="bg-green-500"][class~="text-zinc-950"], [class~="bg-green-600"][class~="text-zinc-900"], [class~="bg-green-600"][class~="text-zinc-950"]) { color: var(--accent-foreground) !important; }
+.lyceum-app :where([class~="bg-green-500"] .text-white, [class~="bg-green-600"] .text-white, [class~="bg-green-700"] .text-white) { color: var(--accent-foreground) !important; }
+.lyceum-app :where(.shadow-green-900\/20) { --tw-shadow-color: color-mix(in srgb, var(--accent-900) 20%, transparent) !important; }
+.lyceum-app :where(.shadow-green-900\/30) { --tw-shadow-color: color-mix(in srgb, var(--accent-900) 30%, transparent) !important; }

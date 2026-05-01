@@ -227,7 +227,8 @@ export default function ReadingSessionCompletedModal({
           <div
             className="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
             style={{
-              background: "linear-gradient(160deg, #27272a, #18181b)",
+              background:
+                "linear-gradient(160deg, var(--ui-zinc-800), var(--ui-zinc-900))",
               writingMode: "vertical-rl",
             }}
           >
@@ -259,7 +260,7 @@ export default function ReadingSessionCompletedModal({
           className="overflow-y-auto flex-1 px-6 pb-2 space-y-5"
           style={{
             scrollbarWidth: "thin",
-            scrollbarColor: "#3f3f46 transparent",
+            scrollbarColor: "var(--ui-zinc-700) transparent",
           }}
         >
           {/* Progress bar */}
@@ -279,7 +280,8 @@ export default function ReadingSessionCompletedModal({
                 className="h-full rounded-full relative"
                 style={{
                   width: `${accumulatedProgress}%`,
-                  background: "linear-gradient(90deg, #15803d, #22c55e)",
+                  background:
+                    "linear-gradient(90deg, var(--accent-700), var(--accent-500))",
                   transition: "width 0.8s ease",
                 }}
               >
@@ -288,7 +290,8 @@ export default function ReadingSessionCompletedModal({
                   className="absolute right-0 top-0 h-full rounded-r-full opacity-80"
                   style={{
                     width: `${(pagesRead / Number(session.finalPage)) * 100}%`,
-                    background: "rgba(134,239,172,0.5)",
+                    background:
+                      "color-mix(in srgb, var(--accent-300) 50%, transparent)",
                   }}
                 />
               </div>
