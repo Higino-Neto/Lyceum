@@ -188,10 +188,9 @@ export default function useReadingPersistence(
   );
 
   const collectAnnotations = useCallback(
-    async (
+    (
       targetRegistry = registryRef.current,
       targetDocumentId?: string,
-      totalPages?: number,
     ) => {
       if (!targetRegistry || !targetDocumentId) {
         return parsePdfAnnotations(lastAnnotationsRef.current);
@@ -206,27 +205,9 @@ export default function useReadingPersistence(
       }
 
       const scope = annotation.forDocument(targetDocumentId);
-      const stateAnnotations = Object.values(scope.getState().byUid)
+      const annotations = Object.values(scope.getState().byUid)
         .map((tracked) => tracked.object)
         .filter(isPersistableAnnotation);
-
-      if (stateAnnotations.length > 0) {
-        return sortAnnotations(stateAnnotations);
-      }
-
-      const pageCount = Math.max(0, totalPages ?? 0);
-      const annotations: PdfAnnotationObject[] = [];
-
-      for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-        try {
-          const pageAnnotations = await scope
-            .getPageAnnotations({ pageIndex })
-            .toPromise();
-          annotations.push(...pageAnnotations.filter(isPersistableAnnotation));
-        } catch (error) {
-          console.error("Failed to collect PDF annotations:", error);
-        }
-      }
 
       return sortAnnotations(annotations);
     },
@@ -234,16 +215,15 @@ export default function useReadingPersistence(
   );
 
   const saveFullSnapshot = useCallback(
-    async (mode: "now" | "schedule") => {
+    (mode: "now" | "schedule") => {
       const snapshot = readPositionSnapshot();
       if (!snapshot) {
         return;
       }
 
-      const annotations = await collectAnnotations(
+      const annotations = collectAnnotations(
         registryRef.current,
         snapshot.documentId,
-        snapshot.totalPages,
       );
       lastAnnotationsRef.current = serializePdfAnnotations(annotations);
       currentPageRef.current = snapshot.currentPage;
@@ -258,7 +238,7 @@ export default function useReadingPersistence(
       };
 
       if (mode === "now") {
-        await saveNow(nextState);
+        void saveNow(nextState);
         return;
       }
 
@@ -489,7 +469,7 @@ export default function useReadingPersistence(
       cleanups.push(
         annotation.onAnnotationEvent((event) => {
           if (isRestoringRef.current || event.type === "loaded") return;
-          void saveFullSnapshot("schedule");
+          void saveFullSnapshot("now");
         }),
       );
     }
@@ -501,8 +481,8 @@ export default function useReadingPersistence(
 
   useEffect(() => {
     const interval = setInterval(() => {
-      void saveFullSnapshot("now");
-    }, 5000);
+      savePositionSnapshot("now");
+    }, 15000);
 
     const handleBeforeUnload = () => {
       void saveFullSnapshot("now");
@@ -516,5 +496,5 @@ export default function useReadingPersistence(
       clearRestoreTimeouts();
       void saveFullSnapshot("now");
     };
-  }, [clearRestoreTimeouts, saveFullSnapshot]);
+  }, [clearRestoreTimeouts, saveFullSnapshot, savePositionSnapshot]);
 }
