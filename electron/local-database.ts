@@ -416,10 +416,11 @@ export function addDocument(
   thumbnailPath: string | undefined,
   numPages: number = 1,
   fileType: "pdf" | "epub" = "pdf",
+  isSynced: number = 0,
 ) {
   const statement = db.prepare(`
-        INSERT INTO documents (title, filePath, fileHash, thumbnailPath, numPages, fileType)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO documents (title, filePath, fileHash, thumbnailPath, numPages, fileType, isSynced)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
   return statement.run(
     title,
@@ -428,6 +429,7 @@ export function addDocument(
     thumbnailPath || null,
     numPages,
     fileType,
+    isSynced,
   );
 }
 export function getAllDocuments(): DocumentRecord[] {

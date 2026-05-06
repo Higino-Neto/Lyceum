@@ -97,6 +97,11 @@ import crypto from "crypto";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
 import AdmZip from "adm-zip";
+import {
+  convertPdfToEpub,
+  type EpubAsset,
+  type ImageCandidate,
+} from "../src/lib/pdf-to-epub";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -204,6 +209,47 @@ function moveFileAcrossDevices(sourcePath: string, targetPath: string): void {
     fs.copyFileSync(sourcePath, targetPath);
     fs.unlinkSync(sourcePath);
   }
+}
+
+function getUniqueFilePath(targetDir: string, fileName: string): string {
+  const destPath = path.join(targetDir, fileName);
+  if (!fs.existsSync(destPath)) {
+    return destPath;
+  }
+
+  const ext = path.extname(fileName);
+  const baseName = path.basename(fileName, ext);
+
+  const nameHasSuffix = /^(.+)\s\((\d+)\)$/.exec(baseName);
+  const cleanBase = nameHasSuffix ? nameHasSuffix[1] : baseName;
+  let counter = nameHasSuffix ? parseInt(nameHasSuffix[2], 10) : 1;
+
+  let uniquePath: string;
+  do {
+    uniquePath = path.join(targetDir, `${cleanBase} (${counter})${ext}`);
+    counter += 1;
+  } while (fs.existsSync(uniquePath));
+
+  return uniquePath;
+}
+
+function getUniqueDirPath(targetDir: string, folderName: string): string {
+  const destPath = path.join(targetDir, folderName);
+  if (!fs.existsSync(destPath)) {
+    return destPath;
+  }
+
+  const nameHasSuffix = /^(.+)\s\((\d+)\)$/.exec(folderName);
+  const cleanBase = nameHasSuffix ? nameHasSuffix[1] : folderName;
+  let counter = nameHasSuffix ? parseInt(nameHasSuffix[2], 10) : 1;
+
+  let uniquePath: string;
+  do {
+    uniquePath = path.join(targetDir, `${cleanBase} (${counter})`);
+    counter += 1;
+  } while (fs.existsSync(uniquePath));
+
+  return uniquePath;
 }
 
 async function openReadableFile(filePath: string): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string }) | null> {
@@ -874,6 +920,94 @@ function toArrayBuffer(buffer: Buffer): ArrayBuffer {
   return Uint8Array.from(buffer).buffer;
 }
 
+function createUniqueConvertedEpubPath(pdfPath: string): string {
+  const directory = path.dirname(pdfPath);
+  const baseName = path.basename(pdfPath, path.extname(pdfPath));
+  let candidate = path.join(directory, `${baseName}-convertido.epub`);
+  let index = 2;
+
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(directory, `${baseName}-convertido-${index}.epub`);
+    index += 1;
+  }
+
+  return candidate;
+}
+
+function createPdfImageAssetRenderer(pdfPath: string, fileHash: string) {
+  const renderedPages = new Map<number, Promise<{ path: string; width: number; height: number } | null>>();
+  const tempDir = path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", fileHash);
+
+  const renderPage = (pageNumber: number) => {
+    if (!renderedPages.has(pageNumber)) {
+      renderedPages.set(pageNumber, (async () => {
+        const pdfRequire = require("pdf-poppler");
+        const sharp = require("sharp");
+
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        const outPrefix = `page-${pageNumber}`;
+        await pdfRequire.convert(pdfPath, {
+          format: "jpeg",
+          out_dir: tempDir,
+          out_prefix: outPrefix,
+          page: pageNumber,
+        });
+
+        const renderedPath = fs
+          .readdirSync(tempDir)
+          .map((fileName) => path.join(tempDir, fileName))
+          .find((candidatePath) => {
+            const fileName = path.basename(candidatePath).toLowerCase();
+            return fileName.startsWith(outPrefix.toLowerCase()) && /\.(jpg|jpeg|png)$/i.test(fileName);
+          });
+
+        if (!renderedPath) return null;
+
+        const metadata = await sharp(renderedPath).metadata();
+        if (!metadata.width || !metadata.height) return null;
+
+        return {
+          path: renderedPath,
+          width: metadata.width,
+          height: metadata.height,
+        };
+      })());
+    }
+
+    return renderedPages.get(pageNumber)!;
+  };
+
+  return async (candidate: ImageCandidate): Promise<EpubAsset | null> => {
+    const sharp = require("sharp");
+    const rendered = await renderPage(candidate.pageNumber);
+    if (!rendered) return null;
+
+    const scaleX = rendered.width / candidate.pageWidth;
+    const scaleY = rendered.height / candidate.pageHeight;
+    const padding = Math.max(4, Math.round(Math.min(rendered.width, rendered.height) * 0.006));
+    const left = Math.max(0, Math.floor(candidate.bbox.x0 * scaleX) - padding);
+    const top = Math.max(0, Math.floor(candidate.bbox.y0 * scaleY) - padding);
+    const right = Math.min(rendered.width, Math.ceil(candidate.bbox.x1 * scaleX) + padding);
+    const bottom = Math.min(rendered.height, Math.ceil(candidate.bbox.y1 * scaleY) + padding);
+    const width = right - left;
+    const height = bottom - top;
+
+    if (width < 24 || height < 24) return null;
+
+    const data = await sharp(rendered.path)
+      .extract({ left, top, width, height })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    return {
+      href: `images/${candidate.id}.jpg`,
+      mediaType: "image/jpeg",
+      data,
+    };
+  };
+}
+
 interface NativePdfViewerState {
   page: number;
   currentScale: number;
@@ -1342,6 +1476,70 @@ ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash:
   }
 });
 
+ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
+  try {
+    const doc = getDocumentByHash(fileHash);
+
+    if (!doc || !doc.filePath) {
+      return { success: false, error: "PDF nÃ£o encontrado na biblioteca" };
+    }
+
+    if (!doc.filePath.toLowerCase().endsWith(".pdf")) {
+      return { success: false, error: "A conversÃ£o estÃ¡ disponÃ­vel apenas para PDFs" };
+    }
+
+    if (!fs.existsSync(doc.filePath)) {
+      return { success: false, error: "Arquivo PDF nÃ£o encontrado no disco" };
+    }
+
+    const outputPath = createUniqueConvertedEpubPath(doc.filePath);
+    const pdfBuffer = fs.readFileSync(doc.filePath);
+    const renderImageAsset = createPdfImageAssetRenderer(doc.filePath, fileHash);
+    const converted = await convertPdfToEpub(toArrayBuffer(pdfBuffer), {
+      title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, ".pdf"),
+      author: doc.author || undefined,
+      language: "pt-BR",
+      publisher: doc.publisher || undefined,
+      description: doc.description || undefined,
+      renderImageAsset,
+    });
+
+    fs.writeFileSync(outputPath, Buffer.from(converted.epub));
+
+    const epubHash = generateFileHash(outputPath);
+    const existing = getDocumentByHash(epubHash) || getDocumentByPath(outputPath);
+    const thumbnailPath = await generateThumbnail(outputPath, epubHash, false, "epub");
+    const numPages = await getEpubChapterCount(outputPath);
+
+    if (!existing) {
+      addDocument(
+        path.basename(outputPath, ".epub"),
+        outputPath,
+        epubHash,
+        thumbnailPath || undefined,
+        numPages || Math.max(1, converted.report.sectionCount),
+        "epub",
+        doc.isSynced ? 1 : 0,
+      );
+    }
+
+    win?.webContents.send("library:updated");
+
+    return {
+      success: true,
+      outputPath,
+      fileHash: epubHash,
+      report: converted.report,
+    };
+  } catch (error) {
+    console.error("[pdf:convert-to-epub] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao converter PDF para EPUB",
+    };
+  }
+});
+
 ipcMain.handle("dialog:open-image", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -1374,19 +1572,14 @@ ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, actio
     for (const filePath of result.filePaths) {
       try {
         const fileName = path.basename(filePath);
-        const destPath = path.join(targetDir, fileName);
-        
-        if (fs.existsSync(destPath)) {
-          errors.push(`${fileName} já existe na pasta`);
-          continue;
-        }
+        const destPath = getUniqueFilePath(targetDir, fileName);
 
         if (action === "move") {
           moveFileAcrossDevices(filePath, destPath);
         } else {
           fs.copyFileSync(filePath, destPath);
         }
-        imported.push(fileName);
+        imported.push(path.basename(destPath));
       } catch (err) {
         const error = err as Error & { code?: string };
         errors.push(`${path.basename(filePath)}: ${error.message}`);
@@ -1650,11 +1843,7 @@ ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "mov
     }
 
     const fileName = path.basename(doc.filePath);
-    const targetPath = path.join(targetDir, fileName);
-
-    if (fs.existsSync(targetPath)) {
-      return { success: false, error: "Já existe um arquivo com este nome na pasta de destino" };
-    }
+    const targetPath = getUniqueFilePath(targetDir, fileName);
 
     if (action === "move") {
       moveFileAcrossDevices(doc.filePath, targetPath);
@@ -1749,12 +1938,9 @@ ipcMain.handle("book:rename", async (_, fileHash: string, newTitle: string, newA
     const dir = path.dirname(filePath);
     const ext = path.extname(filePath);
     const newFileName = `${newTitle}${ext}`;
-    const newFilePath = path.join(dir, newFileName);
+    const newFilePath = getUniqueFilePath(dir, newFileName);
 
     if (filePath !== newFilePath) {
-      if (fs.existsSync(newFilePath)) {
-        return { success: false, error: "Já existe um arquivo com este nome" };
-      }
       fs.renameSync(filePath, newFilePath);
       filePath = newFilePath;
       updateDocumentPath(fileHash, newFilePath);
@@ -2156,10 +2342,10 @@ ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: 
     const targetDir = resolveLibraryRelativePath(targetPath);
     
     const folderName = path.basename(safeSourcePath);
-    const destinationPath = path.join(targetDir, folderName);
+    let destinationPath = path.join(targetDir, folderName);
     
     if (fs.existsSync(destinationPath)) {
-      return { success: false, error: "Já existe uma pasta com este nome no destino" };
+      destinationPath = getUniqueDirPath(targetDir, folderName);
     }
 
     if (safeSourcePath === destinationPath) {
@@ -2218,11 +2404,7 @@ ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath
       return { success: false, error: "Pasta de destino não existe" };
     }
 
-    const newFilePath = path.join(targetDir, fileName);
-    
-    if (fs.existsSync(newFilePath)) {
-      return { success: false, error: "Já existe um arquivo com este nome na pasta de destino" };
-    }
+    const newFilePath = getUniqueFilePath(targetDir, fileName);
 
     moveFileAcrossDevices(doc.filePath, newFilePath);
     updateDocumentPath(fileHash, newFilePath);

@@ -96,6 +96,9 @@ contextBridge.exposeInMainWorld("api", {
   getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) =>
     ipcRenderer.invoke("temp:get-pdf-file", fileBuffer, fileHash),
 
+  convertPdfToEpub: (fileHash: string) =>
+    ipcRenderer.invoke("pdf:convert-to-epub", fileHash),
+
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
 

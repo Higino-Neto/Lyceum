@@ -76,6 +76,18 @@ interface Window {
     openEpub: () => Promise<OpenPdfResult | null>;
     openReadableFile: () => Promise<(OpenPdfResult & { fileType: "pdf" | "epub" }) | null>;
     getTempPdfFile: (fileBuffer: ArrayBuffer, fileHash: string) => Promise<string | null>;
+    convertPdfToEpub: (fileHash: string) => Promise<{
+      success: boolean;
+      outputPath?: string;
+      fileHash?: string;
+      report?: {
+        pageCount: number;
+        sectionCount: number;
+        blockCount: number;
+        warnings: string[];
+      };
+      error?: string;
+    }>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
@@ -228,6 +240,18 @@ interface Window {
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;
     openReadableFile: () => Promise<(OpenPdfResult & { fileType: "pdf" | "epub" }) | null>;
+    convertPdfToEpub: (fileHash: string) => Promise<{
+      success: boolean;
+      outputPath?: string;
+      fileHash?: string;
+      report?: {
+        pageCount: number;
+        sectionCount: number;
+        blockCount: number;
+        warnings: string[];
+      };
+      error?: string;
+    }>;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;
