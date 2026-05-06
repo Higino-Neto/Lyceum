@@ -7,7 +7,7 @@ interface BookSearchInputProps {
   onChange: (value: string) => void;
   onBookSelect: (book: Book | null) => void;
   selectedBook: Book | null;
-}
+} 
 
 export function BookSearchInput({
   value,
