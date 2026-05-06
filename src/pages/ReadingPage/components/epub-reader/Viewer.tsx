@@ -16,11 +16,13 @@ import {
   Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import ViewerCore, { NavItem } from "./ViewerCore";
+import ViewerCore from "./ViewerCore";
+import InternalViewerCore from "./internal-engine/InternalViewerCore";
 import ReaderToolbar from "./ReaderToolbar";
 import VocabularyPanel from "./VocabularyPanel";
 import TableOfContents from "./TableOfContents";
 import { useReaderSettings } from "./useReaderSettings";
+import type { NavItem } from "./types";
 import {
   DictionaryLookupResult,
   lookupWord,
@@ -278,6 +280,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setShowHighlights,
     setShowPages,
     setFocusMode,
+    setEpubRenderEngine,
     settings,
   } = useReaderSettings(fileHash);
   const {
@@ -654,6 +657,8 @@ if (controller.signal.aborted) return;
       }),
     [trackedEntries, vocabularyFilter],
   );
+  const ActiveEpubCore =
+    settings.epubRenderEngine === "internal" ? InternalViewerCore : ViewerCore;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -679,6 +684,7 @@ if (controller.signal.aborted) return;
           onShowHighlightsChange={setShowHighlights}
           onShowPagesChange={setShowPages}
           onFocusModeChange={setFocusMode}
+          onEpubRenderEngineChange={setEpubRenderEngine}
         />
       )}
 
@@ -697,7 +703,8 @@ if (controller.signal.aborted) return;
       )}
 
       <div ref={overlayHostRef} className="relative flex-1 min-h-0 overflow-hidden">
-        <ViewerCore
+        <ActiveEpubCore
+          key={settings.epubRenderEngine}
           epubData={epubData}
           fileHash={fileHash}
           settings={settings}

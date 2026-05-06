@@ -6,6 +6,7 @@ import {
   FontFamily,
   TextAlignment,
   LanguageCode,
+  EpubRenderEngine,
 } from "./theme";
 
 const STORAGE_KEY = "lyceum-reader-settings";
@@ -30,11 +31,16 @@ function readSettingsFromStorage(key: string): Partial<ReaderSettings> | null {
 function loadSettings(fileHash?: string): ReaderSettings {
   const globalSettings = readSettingsFromStorage(STORAGE_KEY);
   const bookSettings = readSettingsFromStorage(buildBookSettingsKey(fileHash));
-
-  return {
+  const loadedSettings = {
     ...DEFAULT_SETTINGS,
     ...globalSettings,
     ...bookSettings,
+  };
+
+  return {
+    ...loadedSettings,
+    epubRenderEngine:
+      loadedSettings.epubRenderEngine === "internal" ? "internal" : "epubjs",
   };
 }
 
@@ -162,6 +168,11 @@ export function useReaderSettings(fileHash?: string) {
     }
   }, [settings.focusMode]);
 
+  const setEpubRenderEngine = useCallback(
+    (epubRenderEngine: EpubRenderEngine) => updateSetting("epubRenderEngine", epubRenderEngine),
+    [updateSetting],
+  );
+
   return {
     settings,
     setFontSize,
@@ -175,7 +186,8 @@ export function useReaderSettings(fileHash?: string) {
     setShowHighlights,
     setShowPages,
     setFocusMode,
+    setEpubRenderEngine,
   };
 }
 
-export type { ReaderSettings, ThemeName, FontFamily, TextAlignment, LanguageCode };
+export type { ReaderSettings, ThemeName, FontFamily, TextAlignment, LanguageCode, EpubRenderEngine };

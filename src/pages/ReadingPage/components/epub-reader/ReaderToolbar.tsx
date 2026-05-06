@@ -21,6 +21,7 @@ import {
   ThemeName,
   FontFamily,
   LanguageCode,
+  EpubRenderEngine,
   ReaderSettings,
   THEME_COLORS,
   FONT_OPTIONS,
@@ -47,6 +48,7 @@ export interface ReaderToolbarProps {
   onShowHighlightsChange: (show: boolean) => void;
   onShowPagesChange: (show: boolean) => void;
   onFocusModeChange: (focusMode: boolean) => void;
+  onEpubRenderEngineChange: (engine: EpubRenderEngine) => void;
 }
 
 export default function ReaderToolbar({
@@ -68,6 +70,7 @@ export default function ReaderToolbar({
   onShowHighlightsChange,
   onShowPagesChange,
   onFocusModeChange,
+  onEpubRenderEngineChange,
 }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -408,6 +411,32 @@ export default function ReaderToolbar({
                   <BookOpen size={16} />
                   {settings.showPages ? "Ocultar Páginas" : "Mostrar Páginas"}
                 </button>
+
+                <div className="my-1 h-px bg-zinc-800" />
+                <p className="px-3 py-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                  Engine EPUB
+                </p>
+
+                {([
+                  ["epubjs", "EPUB.js"],
+                  ["internal", "Interna"],
+                ] as Array<[EpubRenderEngine, string]>).map(([engine, label]) => (
+                  <button
+                    key={engine}
+                    type="button"
+                    onClick={() => {
+                      onEpubRenderEngineChange(engine);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
+                      settings.epubRenderEngine === engine
+                        ? "bg-zinc-800 text-zinc-100"
+                        : "text-zinc-300 hover:bg-zinc-800/80"
+                    }`}
+                  >
+                    <BookOpen size={16} />
+                    {label}
+                  </button>
+                ))}
 
                 <button
                   type="button"

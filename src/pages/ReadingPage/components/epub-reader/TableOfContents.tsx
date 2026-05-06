@@ -1,5 +1,5 @@
 import { List, X } from "lucide-react";
-import type { NavItem } from "./ViewerCore";
+import type { NavItem } from "./types";
 
 interface TableOfContentsProps {
   isOpen: boolean;

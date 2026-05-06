@@ -2,6 +2,7 @@ export type ThemeName = "light" | "dark" | "sepia";
 export type FontFamily = "serif" | "sans-serif" | "Georgia" | "OpenDyslexic";
 export type TextAlignment = "left" | "justify";
 export type LanguageCode = "en" | "fr" | "es" | "de" | "it" | "ja" | "ko" | "zh" | "ru" | "nl" | "pl" | "pt" | "la";
+export type EpubRenderEngine = "epubjs" | "internal";
 
 export interface ReaderSettings {
   fontSize: number;
@@ -15,6 +16,7 @@ export interface ReaderSettings {
   sourceLanguage: LanguageCode;
   targetLanguage: LanguageCode;
   focusMode: boolean;
+  epubRenderEngine: EpubRenderEngine;
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   sourceLanguage: "en",
   targetLanguage: "pt",
   focusMode: false,
+  epubRenderEngine: "epubjs",
 };
 
 export interface ThemeColors {

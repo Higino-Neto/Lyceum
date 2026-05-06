@@ -9,13 +9,7 @@ import {
 } from "./languageLearning";
 import { ReaderSettings, THEME_COLORS, HIGHLIGHT_COLORS, getFontStack } from "./theme";
 import useReadingStatePersistence from "../../hooks/useReadingStatePersistence";
-
-export interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-  subitems?: NavItem[];
-}
+import type { NavItem } from "./types";
 
 interface ViewerCoreProps {
   epubData: ArrayBuffer;
