@@ -1,4 +1,4 @@
-import { Check, Copy, FileText, Move } from "lucide-react";
+import { Check, Copy, FileText, Move, Trash2 } from "lucide-react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -22,6 +22,7 @@ interface BookListItemProps {
   book: BookWithThumbnail;
   onOpen: () => void;
   onSync?: (action: "move" | "copy") => void;
+  onDelete?: () => void;
   showSyncActions: boolean;
   onClick?: () => void;
   isSelected?: boolean;
@@ -39,6 +40,7 @@ export default function BookListItem({
   book,
   onOpen,
   onSync,
+  onDelete,
   showSyncActions,
   onClick,
   isSelected = false,
@@ -170,6 +172,18 @@ export default function BookListItem({
               <Copy size={15} className="text-zinc-400" />
             </button>
           </>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="cursor-pointer rounded p-2 hover:bg-red-500/20"
+            title="Remover"
+          >
+            <Trash2 size={15} className="text-red-400" />
+          </button>
         )}
       </div>
     </div>

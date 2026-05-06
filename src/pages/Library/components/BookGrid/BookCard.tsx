@@ -1,4 +1,4 @@
-import { Check, Copy, FileText, Move, MoreVertical } from "lucide-react";
+import { Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
@@ -12,6 +12,7 @@ interface BookCardProps {
   book: BookWithThumbnail;
   onOpen: () => void;
   onSync?: (action: "move" | "copy") => void;
+  onDelete?: () => void;
   showSyncActions: boolean;
   onClick?: () => void;
   isSelected?: boolean;
@@ -28,6 +29,7 @@ export default function BookCard({
   book,
   onOpen,
   onSync,
+  onDelete,
   showSyncActions,
   onClick,
   isSelected = false,
@@ -154,10 +156,23 @@ export default function BookCard({
                     onSync("copy");
                     setMenuOpen(false);
                   }}
-                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-b-sm"
+                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700"
                 >
                   <Copy size={12} /> Copiar para library
                 </button>
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDelete();
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 rounded-b-sm border-t border-zinc-700"
+                  >
+                    <Trash2 size={12} /> Remover
+                  </button>
+                )}
               </div>
             )}
           </div>

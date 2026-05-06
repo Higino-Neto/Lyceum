@@ -66,6 +66,7 @@ export default function BookDetailPanel({
   const [thumbnailKey, setThumbnailKey] = useState(0);
   const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
   const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
+  const [isConvertingToEpub, setIsConvertingToEpub] = useState(false);
 
   useEffect(() => {
     if (book.filePath) {
@@ -114,6 +115,37 @@ export default function BookDetailPanel({
       toast.error("Erro ao extrair vocabulário");
     } finally {
       setIsExtractingVocabulary(false);
+    }
+  };
+
+  const handleConvertToEpub = async () => {
+    if (book.fileType === "epub") {
+      toast.error("Este livro jÃ¡ Ã© um EPUB");
+      return;
+    }
+
+    setIsConvertingToEpub(true);
+    const loadingToast = toast.loading("Convertendo PDF para EPUB...");
+
+    try {
+      const result = await window.api.convertPdfToEpub(book.fileHash);
+
+      if (result.success) {
+        const warnings = result.report?.warnings?.length || 0;
+        toast.success(
+          warnings
+            ? `EPUB criado com ${warnings} aviso(s).`
+            : "EPUB criado na biblioteca!",
+          { id: loadingToast },
+        );
+        onRefresh();
+      } else {
+        toast.error(result.error || "Erro ao converter PDF", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error("Erro ao converter PDF", { id: loadingToast });
+    } finally {
+      setIsConvertingToEpub(false);
     }
   };
 
@@ -510,6 +542,21 @@ export default function BookDetailPanel({
 
       <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900/50 space-y-2">
         <div className="flex gap-2">
+          {book.fileType !== "epub" && (
+            <button
+              onClick={handleConvertToEpub}
+              disabled={isConvertingToEpub}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-sm text-xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Converter PDF para EPUB"
+            >
+              {isConvertingToEpub ? (
+                <RefreshCw size={12} className="animate-spin" />
+              ) : (
+                <FileType size={12} />
+              )}
+              EPUB
+            </button>
+          )}
           {book.fileType === "epub" && (
             <button
               onClick={handleExtractVocabulary}

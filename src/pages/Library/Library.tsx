@@ -202,6 +202,16 @@ export default function Library() {
     refreshLibraryState();
   };
 
+  const handleDeleteBook = async (fileHash: string): Promise<boolean> => {
+    const result = await window.api.deleteBook(fileHash, false);
+    if (result.success) {
+      await refreshLibraryState();
+      return true;
+    }
+    toast.error(result.error || "Erro ao remover livro");
+    return false;
+  };
+
   const handleMoveBook = async (
     fileHash: string,
     targetFolder: string | null,
@@ -756,6 +766,7 @@ export default function Library() {
               gridDensity={gridDensity}
               onOpen={handleOpen}
               onSync={activeSection === "unsynced" ? openSyncDialog : undefined}
+              onDelete={activeSection === "unsynced" ? handleDeleteBook : undefined}
               showSyncActions={activeSection === "unsynced"}
               onBookClick={handleBookClick}
               selectedBookId={selectedBook?.id}

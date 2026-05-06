@@ -12,6 +12,7 @@ interface BookGridProps {
   gridDensity?: GridDensity;
   onOpen: (filePath: string, fileHash?: string) => void;
   onSync?: (fileHash: string, action: "move" | "copy") => void;
+  onDelete?: (fileHash: string) => void;
   showSyncActions?: boolean;
   onBookClick?: (book: BookWithThumbnail) => void;
   selectedBookId?: number;
@@ -57,6 +58,7 @@ export default function BookGrid({
   gridDensity = "comfortable",
   onOpen,
   onSync,
+  onDelete,
   showSyncActions,
   onBookClick,
   selectedBookId,
@@ -111,6 +113,7 @@ export default function BookGrid({
             book={book}
             onOpen={() => onOpen(book.filePath, book.fileHash)}
             onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
+            onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
             showSyncActions={showSyncActions ?? false}
             onClick={() => onBookClick?.(book)}
             isSelected={selectedBookId === book.id}
@@ -156,6 +159,7 @@ export default function BookGrid({
             book={book}
             onOpen={() => onOpen(book.filePath, book.fileHash)}
             onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
+            onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
             showSyncActions={showSyncActions ?? false}
             onClick={() => onBookClick?.(book)}
             isSelected={selectedBookId === book.id}
