@@ -5,6 +5,9 @@ interface DocumentRecord {
   title: string;
   filePath: string;
   fileHash: string;
+  fileName: string | null;
+  folderPath: string | null;
+  fileMtime: number | null;
   currentPage: number;
   currentZoom: number | null;
   currentScroll: number | null;
@@ -27,6 +30,26 @@ interface DocumentRecord {
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
   fileType: "pdf" | "epub";
+  importedAt: string | null;
+  updatedAt: string | null;
+}
+
+interface LibraryListQuery {
+  section?: "all" | "synced" | "unsynced";
+  search?: string;
+  folderPath?: string | null;
+  fileType?: "all" | "pdf" | "epub";
+  sort?: "title" | "recent" | "pages" | "size";
+  limit?: number;
+  offset?: number;
+}
+
+interface LibraryListResult {
+  items: DocumentRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 interface BookCategory {
@@ -63,6 +86,7 @@ interface Window {
   api: {
     addDocument: (data: any) => Promise<any>;
     getDocuments: () => Promise<DocumentRecord[]>;
+    listBooks: (query: LibraryListQuery) => Promise<LibraryListResult>;
 
     saveReadingState: (payload: any) => Promise<void>;
     getReadingState: (fileHash: string) => Promise<DocumentRecord | null>;

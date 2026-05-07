@@ -16,6 +16,7 @@ import { Readable } from "node:stream";
 import {
   addDocument,
   getAllDocuments,
+  listDocuments,
   getDocumentByHash,
   getLastDocument,
   initDatabase,
@@ -120,6 +121,7 @@ const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
 const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 const USER_DATA_PATH = () => app.getPath("userData");
 const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 
 interface FolderInfo {
   name: string;
@@ -1258,6 +1260,27 @@ async function generateThumbnail(
     return null;
   }
 }
+
+function getThumbnailHashFromPath(thumbnailPath: string): string | null {
+  const baseName = path.basename(thumbnailPath, path.extname(thumbnailPath));
+  const [candidate] = baseName.split("-");
+  return candidate && SHA256_HEX_PATTERN.test(candidate) ? candidate : null;
+}
+
+function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | null {
+  if (!SHA256_HEX_PATTERN.test(fileHash) || !fs.existsSync(thumbnailsDir)) {
+    return null;
+  }
+
+  const files = fs.readdirSync(thumbnailsDir);
+  const match = files.find((file) => {
+    const ext = path.extname(file).toLowerCase();
+    return file.startsWith(`${fileHash}-`) && THUMBNAIL_EXTENSIONS.includes(ext);
+  });
+
+  return match ? path.join(thumbnailsDir, match) : null;
+}
+
 function createAppWindow(
   options: Electron.BrowserWindowConstructorOptions = {}
 ) {
@@ -1387,6 +1410,10 @@ ipcMain.handle("add-document", (_, data) => {
 
 ipcMain.handle("get-documents", () => {
   return getAllDocuments();
+});
+
+ipcMain.handle("library:list-books", (_, query) => {
+  return listDocuments(query);
 });
 
 ipcMain.handle("reading:save", (_, payload) => {
@@ -1633,19 +1660,10 @@ ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
       return toDataUrl(normalizedThumbnailPath);
     }
 
-    const baseName = path.basename(normalizedThumbnailPath, path.extname(normalizedThumbnailPath));
-    const hash = baseName.replace(/-\d+$/, "").replace(/-0+\d+$/, "");
-    
-    if (fs.existsSync(thumbnailsDir)) {
-      const files = fs.readdirSync(thumbnailsDir);
-      const match = files.find(
-        (f) =>
-          f.startsWith(hash) &&
-          THUMBNAIL_EXTENSIONS.includes(path.extname(f).toLowerCase()),
-      );
-      if (match) {
-        return toDataUrl(path.join(thumbnailsDir, match));
-      }
+    const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
+    const matchingThumbnail = hash ? findThumbnailByHash(thumbnailsDir, hash) : null;
+    if (matchingThumbnail) {
+      return toDataUrl(matchingThumbnail);
     }
 
     return null;

@@ -73,6 +73,16 @@ contextBridge.exposeInMainWorld("api", {
 
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
+  listBooks: (query: {
+    section?: "all" | "synced" | "unsynced";
+    search?: string;
+    folderPath?: string | null;
+    fileType?: "all" | "pdf" | "epub";
+    sort?: "title" | "recent" | "pages" | "size";
+    limit?: number;
+    offset?: number;
+  }) => ipcRenderer.invoke("library:list-books", query),
+
   saveReadingState: (payload: ReadingState) =>
     ipcRenderer.invoke("reading:save", payload),
 

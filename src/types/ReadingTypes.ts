@@ -42,6 +42,9 @@ export interface DocumentRecord {
   title: string;
   filePath: string;
   fileHash: string;
+  fileName?: string | null;
+  folderPath?: string | null;
+  fileMtime?: number | null;
   currentPage: number;
   currentZoom: number | null;
   currentScroll: number | null;
@@ -63,6 +66,9 @@ export interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
+  fileType?: "pdf" | "epub";
+  importedAt?: string | null;
+  updatedAt?: string | null;
 }
 
 /** Props do modal de sessão concluída */

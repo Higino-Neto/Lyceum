@@ -36,18 +36,13 @@ import { BookWithThumbnail } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
-  calculateSimilarity,
-  formatPageCount,
   getBookFolderLabel,
   getFileTypeLabel,
   getTitleWithoutExtension,
-  normalizeText,
 } from "./utils";
 
 export default function Library() {
   const navigate = useNavigate();
-
-  const { syncedBooks, unsyncedBooks, handleSync, refreshBooks } = useBooks();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [gridDensity, setGridDensity] = useState<GridDensity>("comfortable");
@@ -82,6 +77,31 @@ export default function Library() {
     targetFolderName: string;
   }>({ open: false, targetFolder: null, targetFolderName: "" });
 
+  const bookQuery = useMemo(
+    () => ({
+      section: activeSection,
+      search,
+      sort,
+      fileType: fileTypeFilter,
+      folderPath: selectedFolder,
+    }),
+    [activeSection, fileTypeFilter, search, selectedFolder, sort],
+  );
+
+  const {
+    books,
+    total,
+    pageIndex,
+    pageCount,
+    counts,
+    hasMore,
+    loading,
+    handleSync,
+    nextPage,
+    previousPage,
+    refreshBooks,
+  } = useBooks(bookQuery);
+
   const loadLocalDocs = useCallback(async () => {
     try {
       const docs = await window.api.getDocuments();
@@ -115,17 +135,23 @@ export default function Library() {
 
   useEffect(() => {
     setSelectedHashes(new Set());
-  }, [activeSection]);
+  }, [activeSection, fileTypeFilter, search, selectedFolder]);
 
   const startPaneResize = (
     pane: "sidebar" | "details",
     event: ReactPointerEvent,
   ) => {
     event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     const startX = event.clientX;
     const startWidth = pane === "sidebar" ? sidebarWidth : detailPanelWidth;
+    const shellRect =
+      document.querySelector("[data-library-shell]")?.getBoundingClientRect() ??
+      document.body.getBoundingClientRect();
     const minWidth = pane === "sidebar" ? 220 : 300;
-    const maxWidth = pane === "sidebar" ? 420 : 560;
+    const maxWidth = pane === "sidebar"
+      ? 420
+      : Math.max(360, Math.min(760, shellRect.width - 420));
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
 
@@ -133,14 +159,12 @@ export default function Library() {
     document.body.style.userSelect = "none";
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const delta =
-        pane === "sidebar"
-          ? moveEvent.clientX - startX
-          : startX - moveEvent.clientX;
-      const nextWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, startWidth + delta),
-      );
+      const nextWidth = pane === "details"
+        ? Math.min(maxWidth, Math.max(minWidth, shellRect.right - moveEvent.clientX))
+        : Math.min(
+            maxWidth,
+            Math.max(minWidth, startWidth + moveEvent.clientX - startX),
+          );
 
       if (pane === "sidebar") {
         setSidebarWidth(nextWidth);
@@ -216,7 +240,7 @@ export default function Library() {
     fileHash: string,
     targetFolder: string | null,
   ): Promise<boolean> => {
-    const book = [...syncedBooks, ...unsyncedBooks].find(
+    const book = books.find(
       (candidate) => candidate.fileHash === fileHash,
     );
 
@@ -326,10 +350,15 @@ export default function Library() {
   const handleBookRefresh = async () => {
     await refreshLibraryState();
     if (selectedBook) {
-      const allBooks = await window.api.getDocuments();
-      const updatedBook = allBooks.find(
-        (book) => book.fileHash === selectedBook.fileHash,
-      );
+      const result = await window.api.listBooks({
+        section: "all",
+        search: selectedBook.title,
+        limit: 10,
+        offset: 0,
+      });
+      const updatedBook = result.items.find((book: BookWithThumbnail) => (
+        book.fileHash === selectedBook.fileHash
+      ));
       if (updatedBook) {
         const thumbnail = updatedBook.thumbnailPath
           ? await window.api.getThumbnail(updatedBook.thumbnailPath)
@@ -372,112 +401,9 @@ export default function Library() {
     setDraggingBookHashes([]);
   };
 
-  const filterBooks = useCallback(
-    (booksToFilter: BookWithThumbnail[]) => {
-      return booksToFilter
-        .filter((book) => {
-          if (selectedFolder !== null && book.filePath) {
-            const normalizedFilePath = book.filePath
-              .replace(/\\/g, "/")
-              .toLowerCase();
-            const normalizedSelectedFolder = selectedFolder
-              .replace(/\\/g, "/")
-              .toLowerCase();
-
-            const lastSlashIdx = normalizedFilePath.lastIndexOf("/");
-            const bookFolder =
-              lastSlashIdx > 0
-                ? normalizedFilePath.substring(0, lastSlashIdx)
-                : "";
-
-            if (!bookFolder.includes(normalizedSelectedFolder)) {
-              return false;
-            }
-          }
-
-          if (fileTypeFilter !== "all") {
-            const type = getFileTypeLabel(book.fileType, book.filePath).toLowerCase();
-            if (type !== fileTypeFilter) return false;
-          }
-
-          return true;
-        })
-        .filter((book) => {
-          if (!search.trim()) return true;
-          const normalizedSearch = normalizeText(search);
-          const searchable = normalizeText(
-            [
-              book.title,
-              getBookFolderLabel(book.filePath),
-              getFileTypeLabel(book.fileType, book.filePath),
-              String(book.numPages),
-            ]
-              .filter(Boolean)
-              .join(" "),
-          );
-
-          if (normalizedSearch
-            .split(" ")
-            .every((token) => searchable.includes(token))) {
-            return true;
-          }
-
-          const titleScore = calculateSimilarity(
-            book.title,
-            null,
-            search,
-          ).score;
-          const folderScore = calculateSimilarity(
-            getBookFolderLabel(book.filePath),
-            null,
-            search,
-          ).score;
-
-          return Math.max(titleScore, folderScore) > 0.2;
-        })
-        .sort((a, b) => {
-          if (search) {
-            const scoreA = Math.max(
-              calculateSimilarity(a.title, null, search).score,
-              calculateSimilarity(getBookFolderLabel(a.filePath), null, search)
-                .score,
-            );
-            const scoreB = Math.max(
-              calculateSimilarity(b.title, null, search).score,
-              calculateSimilarity(getBookFolderLabel(b.filePath), null, search)
-                .score,
-            );
-            if (scoreA !== scoreB) return scoreB - scoreA;
-          }
-
-          if (sort === "pages") return b.numPages - a.numPages;
-          if (sort === "size") return b.fileSize - a.fileSize;
-
-          if (sort === "recent") {
-            return (
-              new Date(b.lastOpenedAt).getTime() -
-              new Date(a.lastOpenedAt).getTime()
-            );
-          }
-
-          return a.title.localeCompare(b.title);
-        });
-    },
-    [fileTypeFilter, search, selectedFolder, sort],
-  );
-
-  const allBooks = useMemo(
-    () => [...syncedBooks, ...unsyncedBooks],
-    [syncedBooks, unsyncedBooks],
-  );
-  const currentBooks = activeSection === "synced" ? syncedBooks : unsyncedBooks;
-  const filteredBooks = useMemo(
-    () => filterBooks(currentBooks),
-    [currentBooks, filterBooks],
-  );
   const recentBooks = useMemo(
     () =>
-      allBooks
+      books
         .filter((book) => {
           const openedAt = new Date(book.lastOpenedAt).getTime();
           return book.lastOpenedAt && !Number.isNaN(openedAt);
@@ -488,15 +414,15 @@ export default function Library() {
             new Date(a.lastOpenedAt).getTime(),
         )
         .slice(0, 8),
-    [allBooks],
+    [books],
   );
   const selectedBooks = useMemo(
-    () => currentBooks.filter((book) => selectedHashes.has(book.fileHash)),
-    [currentBooks, selectedHashes],
+    () => books.filter((book) => selectedHashes.has(book.fileHash)),
+    [books, selectedHashes],
   );
 
   const selectAllFiltered = () => {
-    setSelectedHashes(new Set(filteredBooks.map((book) => book.fileHash)));
+    setSelectedHashes(new Set(books.map((book) => book.fileHash)));
   };
 
   const runBulkRegenerateThumbnails = async () => {
@@ -564,7 +490,10 @@ export default function Library() {
         </aside>
       )}
 
-      <div className="ml-2 flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
+      <div
+        data-library-shell
+        className="ml-2 flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
+      >
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <header className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -572,13 +501,13 @@ export default function Library() {
               <h1 className="text-base font-semibold tracking-tight">Biblioteca</h1>
               <span className="text-zinc-700">|</span>
               <span className="text-xs text-zinc-500">
-                {syncedBooks.length + unsyncedBooks.length} volumes
+                {counts.synced + counts.unsynced} volumes
               </span>
               <SectionTabs
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
-                syncedCount={syncedBooks.length}
-                unsyncedCount={unsyncedBooks.length}
+                syncedCount={counts.synced}
+                unsyncedCount={counts.unsynced}
               />
             </div>
 
@@ -657,68 +586,17 @@ export default function Library() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4">
-            <FilterBar
-              search={search}
-              onSearchChange={setSearch}
-              sort={sort}
-              onSortChange={setSort}
-              fileType={fileTypeFilter}
-              onFileTypeChange={setFileTypeFilter}
-            />
-
-            {recentBooks.length > 0 && (
-              <section className="mb-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-medium text-zinc-200">
-                    Continuar lendo
-                  </h2>
-                  <span className="text-xs text-zinc-600">
-                    Ultimos abertos
-                  </span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {recentBooks.map((book) => (
-                    <button
-                      key={book.fileHash}
-                      type="button"
-                      onClick={() => handleOpen(book.filePath, book.fileHash)}
-                      className="flex min-w-[250px] max-w-[300px] cursor-pointer items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-900/60 p-2 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
-                    >
-                      <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
-                        {book.thumbnail ? (
-                          <img
-                            src={book.thumbnail}
-                            alt={book.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-zinc-600">
-                            {getFileTypeLabel(book.fileType, book.filePath)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-zinc-200">
-                          {getTitleWithoutExtension(book.title, book.fileType)}
-                        </p>
-                        <p className="mt-1 truncate text-[11px] text-zinc-500">
-                          {getBookFolderLabel(book.filePath)}
-                        </p>
-                        <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
-                          <span>
-                            {formatPageCount(book.numPages, book.fileType)}
-                          </span>
-                          <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
-                            {getFileTypeLabel(book.fileType, book.filePath)}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+            <div className="flex-shrink-0 border-b border-zinc-900 pb-3">
+              <FilterBar
+                search={search}
+                onSearchChange={setSearch}
+                sort={sort}
+                onSortChange={setSort}
+                fileType={fileTypeFilter}
+                onFileTypeChange={setFileTypeFilter}
+              />
+            </div>
 
             {selectedHashes.size > 0 && (
               <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
@@ -760,36 +638,90 @@ export default function Library() {
               </div>
             )}
 
-            <BookGrid
-              books={filteredBooks}
-              viewMode={viewMode}
-              gridDensity={gridDensity}
-              onOpen={handleOpen}
-              onSync={activeSection === "unsynced" ? openSyncDialog : undefined}
-              onDelete={activeSection === "unsynced" ? handleDeleteBook : undefined}
-              showSyncActions={activeSection === "unsynced"}
-              onBookClick={handleBookClick}
-              selectedBookId={selectedBook?.id}
-              onDragStart={handleBookDragStart}
-              onDragEnd={() => setDraggingBookHashes([])}
-              selectionMode={selectedHashes.size > 0}
-              selectedHashes={selectedHashes}
-              selectedCount={selectedHashes.size}
-              onToggleSelection={toggleSelection}
-              onContextSelect={handleContextSelect}
-            />
+            {loading ? (
+              <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
+                <RefreshCw size={16} className="animate-spin" />
+                Carregando biblioteca...
+              </div>
+            ) : (
+              <BookGrid
+                books={books}
+                viewMode={viewMode}
+                gridDensity={gridDensity}
+                onOpen={handleOpen}
+                onSync={activeSection === "unsynced" ? openSyncDialog : undefined}
+                onDelete={activeSection === "unsynced" ? handleDeleteBook : undefined}
+                showSyncActions={activeSection === "unsynced"}
+                onBookClick={handleBookClick}
+                selectedBookId={selectedBook?.id}
+                onDragStart={handleBookDragStart}
+                onDragEnd={() => setDraggingBookHashes([])}
+                selectionMode={selectedHashes.size > 0}
+                selectedHashes={selectedHashes}
+                selectedCount={selectedHashes.size}
+                onToggleSelection={toggleSelection}
+                onContextSelect={handleContextSelect}
+                totalCount={total}
+                pageIndex={pageIndex}
+                pageCount={pageCount}
+                hasMore={hasMore}
+                onNextPage={nextPage}
+                onPreviousPage={previousPage}
+                topContent={
+                  recentBooks.length > 0 ? (
+                    <section className="mb-3">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                          Continuar lendo
+                        </h2>
+                        <span className="text-[11px] text-zinc-700">
+                          Ultimos abertos
+                        </span>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {recentBooks.map((book) => (
+                          <button
+                            key={book.fileHash}
+                            type="button"
+                            onClick={() => handleOpen(book.filePath, book.fileHash)}
+                            className="flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+                          >
+                            <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-[9px] font-medium text-zinc-600">
+                              {getFileTypeLabel(book.fileType, book.filePath)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium text-zinc-200">
+                                {getTitleWithoutExtension(book.title, book.fileType)}
+                              </p>
+                              <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                                {getBookFolderLabel(book.filePath)}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null
+                }
+              />
+            )}
           </main>
         </div>
 
         {selectedBook && (
           <aside
             className="relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
-            style={{ width: detailPanelWidth }}
+            style={{
+              flexBasis: detailPanelWidth,
+              width: detailPanelWidth,
+              minWidth: 300,
+              maxWidth: 760,
+            }}
           >
             <button
               type="button"
               onPointerDown={(event) => startPaneResize("details", event)}
-              className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
+              className="absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70"
               title="Redimensionar detalhes"
             />
             <div className="h-full overflow-y-auto">

@@ -1,5 +1,5 @@
 import { Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -43,6 +43,24 @@ export default function BookCard({
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [thumbnail, setThumbnail] = useState(book.thumbnail);
+
+  useEffect(() => {
+    let canceled = false;
+    setThumbnail(book.thumbnail);
+
+    if (!book.thumbnail && book.thumbnailPath) {
+      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
+        if (!canceled) {
+          setThumbnail(value || undefined);
+        }
+      });
+    }
+
+    return () => {
+      canceled = true;
+    };
+  }, [book.thumbnail, book.thumbnailPath]);
 
   const handleClick = () => {
     if (selectionMode) {
@@ -103,9 +121,9 @@ export default function BookCard({
       )}
 
       <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
-        {book.thumbnail ? (
+        {thumbnail ? (
           <img
-            src={book.thumbnail}
+            src={thumbnail}
             alt={book.title}
             className="w-full h-full object-cover"
           />

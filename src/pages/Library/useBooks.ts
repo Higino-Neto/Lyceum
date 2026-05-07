@@ -1,44 +1,108 @@
-import { useEffect, useState, useCallback } from "react";
-import useGetBookData, { BookData } from "../ReadingPage/hooks/useGetBookData";
-import { BookWithThumbnail } from "../../types/LibraryTypes";
+import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  BookWithThumbnail,
+  LibraryFileTypeFilter,
+  LibraryListResult,
+  LibrarySection,
+  LibrarySortOption,
+} from "../../types/LibraryTypes";
 
-async function addThumbnailToBook(book: BookData): Promise<BookWithThumbnail> {
-  if (book.thumbnailPath) {
-    const thumbnail = await window.api.getThumbnail(book.thumbnailPath);
-    return { ...book, thumbnail: thumbnail || undefined };
-  }
-  return { ...book };
+const PAGE_SIZE = 80;
+
+interface UseBooksOptions {
+  section: LibrarySection;
+  search: string;
+  sort: LibrarySortOption;
+  fileType: LibraryFileTypeFilter;
+  folderPath: string | null;
 }
 
-export default function useBooks() {
-  const books = useGetBookData();
+interface SectionCounts {
+  synced: number;
+  unsynced: number;
+}
 
-  const [syncedBooks, setSyncedBooks] = useState<BookWithThumbnail[]>([]);
-  const [unsyncedBooks, setUnsyncedBooks] = useState<BookWithThumbnail[]>([]);
+async function loadPage(options: UseBooksOptions, offset: number): Promise<LibraryListResult> {
+  return window.api.listBooks({
+    section: options.section,
+    search: options.search,
+    sort: options.sort,
+    fileType: options.fileType,
+    folderPath: options.folderPath,
+    limit: PAGE_SIZE,
+    offset,
+  });
+}
+
+async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
+  const base = {
+    search: options.search,
+    sort: options.sort,
+    fileType: options.fileType,
+    folderPath: options.folderPath,
+    limit: 1,
+    offset: 0,
+  };
+
+  const [synced, unsynced] = await Promise.all([
+    window.api.listBooks({ ...base, section: "synced" }),
+    window.api.listBooks({ ...base, section: "unsynced" }),
+  ]);
+
+  return {
+    synced: synced.total,
+    unsynced: unsynced.total,
+  };
+}
+
+export default function useBooks(options: UseBooksOptions) {
+  const requestId = useRef(0);
+  const [books, setBooks] = useState<BookWithThumbnail[]>([]);
+  const [total, setTotal] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [counts, setCounts] = useState<SectionCounts>({ synced: 0, unsynced: 0 });
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const offset = pageIndex * PAGE_SIZE;
 
   const refreshBooks = useCallback(async () => {
-    const allBooks = await window.api.getDocuments();
-    
-    const synced = await Promise.all(
-      allBooks
-        .filter((book) => book.isSynced === 1)
-        .map(addThumbnailToBook),
-    );
+    const id = ++requestId.current;
+    setLoading(true);
 
-    const unsynced = await Promise.all(
-      allBooks
-        .filter((book) => !book.isSynced || book.isSynced !== 1)
-        .map(addThumbnailToBook),
-    );
+    try {
+      const [page, nextCounts, cats] = await Promise.all([
+        loadPage(options, offset),
+        loadCounts(options),
+        window.api.getCategories(),
+      ]);
 
-    setSyncedBooks(synced);
-    setUnsyncedBooks(unsynced);
+      if (id !== requestId.current) return;
 
-    const cats = await window.api.getCategories();
-    setCategories(cats);
+      setBooks(page.items);
+      setTotal(page.total);
+      setHasMore(page.hasMore);
+      setCounts(nextCounts);
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error loading library page:", error);
+      toast.error("Erro ao carregar biblioteca");
+    } finally {
+      if (id === requestId.current) {
+        setLoading(false);
+      }
+    }
+  }, [offset, options]);
+
+  const nextPage = useCallback(() => {
+    setPageIndex((current) => Math.min(current + 1, pageCount - 1));
+  }, [pageCount]);
+
+  const previousPage = useCallback(() => {
+    setPageIndex((current) => Math.max(current - 1, 0));
   }, []);
 
   const handleSync = async (
@@ -59,13 +123,32 @@ export default function useBooks() {
     refreshBooks();
   }, [refreshBooks]);
 
+  useEffect(() => {
+    setPageIndex(0);
+  }, [options]);
+
+  useEffect(() => {
+    if (pageIndex > 0 && pageIndex >= pageCount) {
+      setPageIndex(pageCount - 1);
+    }
+  }, [pageCount, pageIndex]);
+
   return {
-    syncedBooks,
-    unsyncedBooks,
+    books,
+    total,
+    pageIndex,
+    pageCount,
+    pageSize: PAGE_SIZE,
+    offset,
+    counts,
+    hasMore,
+    loading,
     categories,
     selectedCategory,
     setSelectedCategory,
     handleSync,
+    nextPage,
+    previousPage,
     refreshBooks,
   };
 }

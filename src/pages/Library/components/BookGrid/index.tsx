@@ -1,5 +1,13 @@
-import { BookOpen } from "lucide-react";
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import BookCard from "./BookCard";
 import BookListItem, { ExplorerColumns } from "./BookListItem";
@@ -23,6 +31,13 @@ interface BookGridProps {
   selectedCount?: number;
   onToggleSelection?: (fileHash: string) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
+  totalCount?: number;
+  pageIndex?: number;
+  pageCount?: number;
+  hasMore?: boolean;
+  onNextPage?: () => void;
+  onPreviousPage?: () => void;
+  topContent?: ReactNode;
 }
 
 const DEFAULT_COLUMNS: ExplorerColumns = {
@@ -38,19 +53,37 @@ const LIST_HEADERS: { key: keyof ExplorerColumns; label: string; min: number }[]
   { key: "name", label: "Nome", min: 220 },
   { key: "folder", label: "Pasta", min: 140 },
   { key: "type", label: "Tipo", min: 70 },
-  { key: "pages", label: "Páginas", min: 86 },
+  { key: "pages", label: "Paginas", min: 86 },
   { key: "modified", label: "Aberto em", min: 98 },
   { key: "size", label: "Tamanho", min: 82 },
 ];
 
-const GRID_DENSITY_CLASSES: Record<GridDensity, string> = {
-  compact:
-    "grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8",
-  comfortable:
-    "grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
-  large:
-    "grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; gap: number }> = {
+  compact: { minWidth: 124, rowHeight: 238, gap: 16 },
+  comfortable: { minWidth: 158, rowHeight: 292, gap: 20 },
+  large: { minWidth: 220, rowHeight: 374, gap: 24 },
 };
+
+function useElementWidth<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(entry.contentRect.width);
+    });
+
+    observer.observe(element);
+    setWidth(element.getBoundingClientRect().width);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width] as const;
+}
 
 export default function BookGrid({
   books,
@@ -69,8 +102,49 @@ export default function BookGrid({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
+  pageIndex = 0,
+  pageCount = 1,
+  hasMore = false,
+  onNextPage,
+  onPreviousPage,
+  topContent,
 }: BookGridProps) {
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
+  const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
+  const density = GRID_DENSITY[gridDensity];
+  const gridColumns = Math.max(
+    1,
+    Math.floor((scrollWidth + density.gap) / (density.minWidth + density.gap)),
+  );
+  const gridColumnWidth = gridColumns > 0
+    ? (scrollWidth - density.gap * (gridColumns - 1)) / gridColumns
+    : density.minWidth;
+  const gridRowHeight = Math.ceil(Math.max(
+    density.rowHeight,
+    (gridColumnWidth - 8) * 1.25 + 88 + density.gap,
+  ));
+  const rowCount = viewMode === "grid"
+    ? Math.ceil(books.length / gridColumns)
+    : books.length;
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => viewMode === "grid" ? gridRowHeight : 56,
+    overscan: 8,
+  });
+
+  const virtualRows = virtualizer.getVirtualItems();
+  const canGoBack = pageIndex > 0;
+  const canGoForward = hasMore && pageIndex < pageCount - 1;
+  const pageLabel = useMemo(
+    () => `${pageIndex + 1}/${pageCount}`,
+    [pageCount, pageIndex],
+  );
+
+  useEffect(() => {
+    virtualizer.measure();
+  }, [gridColumns, gridDensity, gridRowHeight, viewMode, virtualizer]);
 
   const startResize = (
     key: keyof ExplorerColumns,
@@ -97,82 +171,177 @@ export default function BookGrid({
 
   if (books.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-20">
         <BookOpen size={22} className="text-zinc-600" />
-        <p className="text-sm text-zinc-500">Nenhum livro nesta seção.</p>
+        <p className="text-sm text-zinc-500">Nenhum livro nesta secao.</p>
       </div>
     );
   }
 
   if (viewMode === "grid") {
     return (
-      <div className={`grid items-start ${GRID_DENSITY_CLASSES[gridDensity]}`}>
-        {books.map((book) => (
-          <BookCard
-            key={book.id}
-            book={book}
-            onOpen={() => onOpen(book.filePath, book.fileHash)}
-            onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
-            onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
-            showSyncActions={showSyncActions ?? false}
-            onClick={() => onBookClick?.(book)}
-            isSelected={selectedBookId === book.id}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            selectionMode={selectionMode}
-            isChecked={selectedHashes.has(book.fileHash)}
-            selectedCount={selectedCount}
-            onToggleSelection={() => onToggleSelection?.(book.fileHash)}
-            onContextSelect={() => onContextSelect?.(book)}
-          />
-        ))}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {topContent}
+          <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualRows.map((virtualRow) => {
+              const rowBooks = books.slice(
+                virtualRow.index * gridColumns,
+                virtualRow.index * gridColumns + gridColumns,
+              );
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  className="absolute left-0 top-0 grid w-full items-start"
+                  style={{
+                    columnGap: density.gap,
+                    gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {rowBooks.map((book) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      onOpen={() => onOpen(book.filePath, book.fileHash)}
+                      onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
+                      onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
+                      showSyncActions={showSyncActions ?? false}
+                      onClick={() => onBookClick?.(book)}
+                      isSelected={selectedBookId === book.id}
+                      onDragStart={onDragStart}
+                      onDragEnd={onDragEnd}
+                      selectionMode={selectionMode}
+                      isChecked={selectedHashes.has(book.fileHash)}
+                      selectedCount={selectedCount}
+                      onToggleSelection={() => onToggleSelection?.(book.fileHash)}
+                      onContextSelect={() => onContextSelect?.(book)}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <PaginationFooter
+          pageLabel={pageLabel}
+          canGoBack={canGoBack}
+          canGoForward={canGoForward}
+          onPreviousPage={onPreviousPage}
+          onNextPage={onNextPage}
+        />
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-max space-y-1">
-        <div
-          className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
-          style={{
-            gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
-          }}
-        >
-          {LIST_HEADERS.map((header) => (
-            <div key={header.key} className="relative flex items-center px-3 py-2">
-              <span>{header.label}</span>
-              <button
-                type="button"
-                className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
-                onPointerDown={(event) => startResize(header.key, header.min, event)}
-                aria-label={`Redimensionar coluna ${header.label}`}
-              />
-            </div>
-          ))}
-          <div />
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto pr-1">
+        {topContent}
+        <div className="min-w-max space-y-1">
+          <div
+            className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
+            style={{
+              gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
+            }}
+          >
+            {LIST_HEADERS.map((header) => (
+              <div key={header.key} className="relative flex items-center px-3 py-2">
+                <span>{header.label}</span>
+                <button
+                  type="button"
+                  className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
+                  onPointerDown={(event) => startResize(header.key, header.min, event)}
+                  aria-label={`Redimensionar coluna ${header.label}`}
+                />
+              </div>
+            ))}
+            <div />
+          </div>
 
-        {books.map((book) => (
-          <BookListItem
-            key={book.id}
-            book={book}
-            onOpen={() => onOpen(book.filePath, book.fileHash)}
-            onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
-            onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
-            showSyncActions={showSyncActions ?? false}
-            onClick={() => onBookClick?.(book)}
-            isSelected={selectedBookId === book.id}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            selectionMode={selectionMode}
-            isChecked={selectedHashes.has(book.fileHash)}
-            selectedCount={selectedCount}
-            onToggleSelection={() => onToggleSelection?.(book.fileHash)}
-            onContextSelect={() => onContextSelect?.(book)}
-            columns={columns}
-          />
-        ))}
+          <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualRows.map((virtualRow) => {
+              const book = books[virtualRow.index];
+              if (!book) return null;
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  className="absolute left-0 top-0 w-full"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                >
+                  <BookListItem
+                    book={book}
+                    onOpen={() => onOpen(book.filePath, book.fileHash)}
+                    onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
+                    onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
+                    showSyncActions={showSyncActions ?? false}
+                    onClick={() => onBookClick?.(book)}
+                    isSelected={selectedBookId === book.id}
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
+                    selectionMode={selectionMode}
+                    isChecked={selectedHashes.has(book.fileHash)}
+                    selectedCount={selectedCount}
+                    onToggleSelection={() => onToggleSelection?.(book.fileHash)}
+                    onContextSelect={() => onContextSelect?.(book)}
+                    columns={columns}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <PaginationFooter
+        pageLabel={pageLabel}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onPreviousPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
+    </div>
+  );
+}
+
+function PaginationFooter({
+  pageLabel,
+  canGoBack,
+  canGoForward,
+  onPreviousPage,
+  onNextPage,
+}: {
+  pageLabel: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
+}) {
+  return (
+    <div className="flex h-8 flex-shrink-0 items-center justify-center border-t border-zinc-800 bg-zinc-950/95 text-xs text-zinc-500">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onPreviousPage}
+          disabled={!canGoBack}
+          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
+          title="Pagina anterior"
+        >
+          <ChevronLeft size={15} />
+        </button>
+        <span className="min-w-10 text-center text-[11px] text-zinc-400">
+          {pageLabel}
+        </span>
+        <button
+          type="button"
+          onClick={onNextPage}
+          disabled={!canGoForward}
+          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
+          title="Proxima pagina"
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
     </div>
   );

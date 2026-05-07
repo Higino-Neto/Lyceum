@@ -1,12 +1,16 @@
 import Database from "better-sqlite3";
 import { app } from "electron";
 import path from "path";
+import fs from "fs";
 
 export interface DocumentRecord {
   id: number;
   title: string;
   filePath: string;
   fileHash: string;
+  fileName: string | null;
+  folderPath: string | null;
+  fileMtime: number | null;
   currentPage: number;
   currentZoom: number | null;
   currentScroll: number | null;
@@ -29,6 +33,8 @@ export interface DocumentRecord {
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
   fileType: "pdf" | "epub";
+  importedAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface BookCategory {
@@ -50,9 +56,155 @@ const DEFAULT_COLORS = [
 
 let db: Database.Database;
 
+export type LibrarySection = "all" | "synced" | "unsynced";
+export type LibrarySortOption = "title" | "recent" | "pages" | "size";
+export type LibraryFileTypeFilter = "all" | "pdf" | "epub";
+
+export interface LibraryListQuery {
+  section?: LibrarySection;
+  search?: string;
+  folderPath?: string | null;
+  fileType?: LibraryFileTypeFilter;
+  sort?: LibrarySortOption;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LibraryListResult {
+  items: DocumentRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+function normalizeStoredPath(filePath: string | null | undefined): string | null {
+  return filePath ? filePath.replace(/\\/g, "/") : null;
+}
+
+function getFileName(filePath: string | null | undefined): string | null {
+  return filePath ? path.basename(filePath) : null;
+}
+
+function getFolderPath(filePath: string | null | undefined): string | null {
+  if (!filePath) return null;
+  return normalizeStoredPath(path.dirname(filePath));
+}
+
+function getFileMtime(filePath: string | null | undefined): number | null {
+  if (!filePath) return null;
+  try {
+    return Math.round(fs.statSync(filePath).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+function hydrateDocumentFileMetadata(): void {
+  try {
+    const docs = db.prepare<[], Pick<DocumentRecord, "id" | "filePath" | "fileName" | "folderPath" | "fileMtime">>(
+      `SELECT id, filePath, fileName, folderPath, fileMtime FROM documents WHERE filePath IS NOT NULL`
+    ).all();
+
+    const update = db.prepare(
+      `UPDATE documents
+       SET fileName = ?,
+           folderPath = ?,
+           fileMtime = COALESCE(?, fileMtime),
+           importedAt = COALESCE(importedAt, createdAt),
+           updatedAt = COALESCE(updatedAt, createdAt)
+       WHERE id = ?`
+    );
+
+    const updateMany = db.transaction((items: typeof docs) => {
+      for (const doc of items) {
+        const nextFileName = doc.fileName || getFileName(doc.filePath);
+        const nextFolderPath = getFolderPath(doc.filePath);
+        const nextMtime = doc.fileMtime ?? getFileMtime(doc.filePath);
+
+        update.run(nextFileName, nextFolderPath, nextMtime, doc.id);
+      }
+    });
+
+    updateMany(docs);
+  } catch (error) {
+    console.error("[DB] Error hydrating document file metadata:", error);
+  }
+}
+
+function tokenizeSearch(query: string): string {
+  const tokens = query
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .match(/[a-z0-9]+/g);
+
+  return tokens?.map((token) => `${token}*`).join(" ") || "";
+}
+
+function refreshDocumentSearchIndexById(documentId: number): void {
+  try {
+    const doc = db.prepare<[number], DocumentRecord>(
+      `SELECT * FROM documents WHERE id = ?`
+    ).get(documentId);
+
+    db.prepare(`DELETE FROM documents_fts WHERE documentId = ?`).run(documentId);
+
+    if (!doc) return;
+
+    db.prepare(
+      `INSERT INTO documents_fts (documentId, title, author, folderPath, fileType)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(
+      doc.id,
+      doc.title || "",
+      doc.author || "",
+      doc.folderPath || getFolderPath(doc.filePath) || "",
+      doc.fileType || "",
+    );
+  } catch (error) {
+    console.error("[DB] Error refreshing document search index:", error);
+  }
+}
+
+function refreshDocumentSearchIndex(fileHash: string): void {
+  const doc = getDocumentByHash(fileHash);
+  if (doc) refreshDocumentSearchIndexById(doc.id);
+}
+
+function rebuildDocumentSearchIndex(): void {
+  try {
+    db.prepare(`DELETE FROM documents_fts`).run();
+    const docs = getAllDocuments();
+    const insert = db.prepare(
+      `INSERT INTO documents_fts (documentId, title, author, folderPath, fileType)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    const insertMany = db.transaction((items: DocumentRecord[]) => {
+      for (const doc of items) {
+        insert.run(
+          doc.id,
+          doc.title || "",
+          doc.author || "",
+          doc.folderPath || getFolderPath(doc.filePath) || "",
+          doc.fileType || "",
+        );
+      }
+    });
+    insertMany(docs);
+  } catch (error) {
+    console.error("[DB] Error rebuilding document search index:", error);
+  }
+}
+
 export function initDatabase() {
   const dbPath = path.join(app.getPath("userData"), "app.db");
   db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+  db.pragma("synchronous = NORMAL");
+  db.pragma("foreign_keys = ON");
+  db.pragma("busy_timeout = 5000");
+  db.pragma("temp_store = MEMORY");
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS categories (
@@ -98,13 +250,19 @@ export function initDatabase() {
     publishDate TEXT,
     fileSize INTEGER DEFAULT 0,
     processingStatus TEXT DEFAULT 'pending',
-    bookId TEXT
+    bookId TEXT,
+    fileName TEXT,
+    folderPath TEXT,
+    fileMtime INTEGER,
+    importedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
   )
   `);
 
   const migrationColumns = [
     "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId", "fileType"
+    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId", "fileType",
+    "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt"
   ];
 
   for (const col of migrationColumns) {
@@ -113,6 +271,8 @@ export function initDatabase() {
       col === "rating" ? "REAL DEFAULT 0" :
       col === "fileSize" ? "INTEGER DEFAULT 0" :
       col === "fileType" ? "TEXT DEFAULT 'pdf'" :
+      col === "fileMtime" ? "INTEGER" :
+      col === "importedAt" || col === "updatedAt" ? "TEXT" :
       "TEXT"
     }`;
     try {
@@ -136,6 +296,101 @@ export function initDatabase() {
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_doc ON document_categories(documentId)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_cat ON document_categories(categoryId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(fileHash)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_path ON documents(filePath)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_folder_path ON documents(folderPath)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents(fileType)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_is_synced ON documents(isSynced)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_last_opened ON documents(lastOpenedAt DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_title ON documents(title COLLATE NOCASE)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author COLLATE NOCASE)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_processing ON documents(processingStatus)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS local_books (
+      id TEXT PRIMARY KEY,
+      canonicalTitle TEXT NOT NULL,
+      sortTitle TEXT,
+      description TEXT,
+      isbn TEXT,
+      publisher TEXT,
+      publishDate TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS authors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      sortName TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS document_authors (
+      documentId INTEGER NOT NULL,
+      authorId INTEGER NOT NULL,
+      role TEXT DEFAULT 'author',
+      PRIMARY KEY (documentId, authorId, role),
+      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE,
+      FOREIGN KEY (authorId) REFERENCES authors(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT NOT NULL DEFAULT '#6b7280',
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS document_tags (
+      documentId INTEGER NOT NULL,
+      tagId INTEGER NOT NULL,
+      PRIMARY KEY (documentId, tagId),
+      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE,
+      FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS processing_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      documentId INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      priority INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(documentId, type),
+      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_authors_doc ON document_authors(documentId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_authors_author ON document_authors(authorId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_tags_doc ON document_tags(documentId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON document_tags(tagId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_processing_jobs_status ON processing_jobs(status, priority DESC, createdAt)`);
+
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+      documentId UNINDEXED,
+      title,
+      author,
+      folderPath,
+      fileType,
+      tokenize = 'unicode61 remove_diacritics 2'
+    )
+  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS book_word_index (
@@ -188,6 +443,10 @@ export function initDatabase() {
     END
     WHERE filePath IS NOT NULL
   `);
+
+  hydrateDocumentFileMetadata();
+
+  rebuildDocumentSearchIndex();
 }
 
 export function createCategory(name: string, color?: string): BookCategory | null {
@@ -419,21 +678,88 @@ export function addDocument(
   isSynced: number = 0,
 ) {
   const statement = db.prepare(`
-        INSERT INTO documents (title, filePath, fileHash, thumbnailPath, numPages, fileType, isSynced)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO documents (title, filePath, fileHash, fileName, folderPath, fileMtime, thumbnailPath, numPages, fileType, isSynced)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-  return statement.run(
+  const result = statement.run(
     title,
     filePath,
     fileHash,
+    getFileName(filePath),
+    getFolderPath(filePath),
+    getFileMtime(filePath),
     thumbnailPath || null,
     numPages,
     fileType,
     isSynced,
   );
+  refreshDocumentSearchIndexById(result.lastInsertRowid as number);
+  return result;
 }
 export function getAllDocuments(): DocumentRecord[] {
   return db.prepare<[], DocumentRecord>(`select * from documents`).all();
+}
+
+export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
+  const limit = Math.min(Math.max(query.limit ?? 60, 1), 200);
+  const offset = Math.max(query.offset ?? 0, 0);
+  const where: string[] = [];
+  const values: unknown[] = [];
+  let join = "";
+
+  if (query.section === "synced") {
+    where.push("d.isSynced = 1");
+  } else if (query.section === "unsynced") {
+    where.push("(d.isSynced IS NULL OR d.isSynced <> 1)");
+  }
+
+  if (query.fileType && query.fileType !== "all") {
+    where.push("LOWER(COALESCE(d.fileType, '')) = ?");
+    values.push(query.fileType);
+  }
+
+  if (query.folderPath) {
+    const absoluteFolder = path.isAbsolute(query.folderPath)
+      ? query.folderPath
+      : path.join(app.getPath("userData"), "library", query.folderPath);
+    const normalizedFolder = normalizeStoredPath(absoluteFolder);
+    where.push("(d.folderPath = ? OR d.folderPath LIKE ? OR REPLACE(d.filePath, '\\', '/') LIKE ?)");
+    values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
+  }
+
+  const ftsQuery = query.search ? tokenizeSearch(query.search) : "";
+  if (ftsQuery) {
+    join = "INNER JOIN documents_fts fts ON fts.documentId = d.id";
+    where.push("documents_fts MATCH ?");
+    values.push(ftsQuery);
+  }
+
+  const orderBy: Record<LibrarySortOption, string> = {
+    title: "LOWER(d.title) ASC, d.id ASC",
+    recent: "datetime(d.lastOpenedAt) DESC, d.id DESC",
+    pages: "d.numPages DESC, LOWER(d.title) ASC",
+    size: "d.fileSize DESC, LOWER(d.title) ASC",
+  };
+
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const baseSql = `FROM documents d ${join} ${whereSql}`;
+  const total = db.prepare<unknown[], { total: number }>(
+    `SELECT COUNT(*) as total ${baseSql}`
+  ).get(...values)?.total ?? 0;
+
+  const items = db.prepare<unknown[], DocumentRecord>(
+    `SELECT d.* ${baseSql}
+     ORDER BY ${orderBy[query.sort || "title"]}
+     LIMIT ? OFFSET ?`
+  ).all(...values, limit, offset);
+
+  return {
+    items,
+    total,
+    limit,
+    offset,
+    hasMore: offset + items.length < total,
+  };
 }
 export function getDocumentByHash(
   fileHash: string,
@@ -494,10 +820,15 @@ export function updateDocumentPath(fileHash: string, newPath: string) {
   db.prepare(
     `
     UPDATE documents
-    SET filePath = ?
+    SET filePath = ?,
+        fileName = ?,
+        folderPath = ?,
+        fileMtime = ?,
+        updatedAt = CURRENT_TIMESTAMP
     WHERE fileHash = ?
   `,
-  ).run(newPath, fileHash);
+  ).run(newPath, getFileName(newPath), getFolderPath(newPath), getFileMtime(newPath), fileHash);
+  refreshDocumentSearchIndex(fileHash);
 }
 
 export function updateDocumentFileType(
@@ -507,10 +838,12 @@ export function updateDocumentFileType(
   db.prepare(
     `
     UPDATE documents
-    SET fileType = ?
+    SET fileType = ?,
+        updatedAt = CURRENT_TIMESTAMP
     WHERE fileHash = ?
   `,
   ).run(fileType, fileHash);
+  refreshDocumentSearchIndex(fileHash);
 }
 
 export function updateDocumentNumPages(fileHash: string, numPages: number) {
@@ -527,7 +860,7 @@ export function updateDocumentSyncStatus(fileHash: string, isSynced: boolean, ca
   db.prepare(
     `
     UPDATE documents
-    SET isSynced = ?, category = ?
+    SET isSynced = ?, category = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE fileHash = ?
   `,
   ).run(isSynced ? 1 : 0, category || null, fileHash);
@@ -537,7 +870,7 @@ export function updateThumbnailPath(fileHash: string, thumbnailPath: string) {
   db.prepare(
     `
     UPDATE documents
-    SET thumbnailPath = ?
+    SET thumbnailPath = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE fileHash = ?
   `,
   ).run(thumbnailPath, fileHash);
@@ -567,16 +900,16 @@ export function toggleFavorite(fileHash: string): boolean {
   if (!doc) return false;
   
   const newValue = doc.isFavorite === 1 ? 0 : 1;
-  db.prepare(`UPDATE documents SET isFavorite = ? WHERE fileHash = ?`).run(newValue, fileHash);
+  db.prepare(`UPDATE documents SET isFavorite = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(newValue, fileHash);
   return newValue === 1;
 }
 
 export function updateRating(fileHash: string, rating: number): void {
-  db.prepare(`UPDATE documents SET rating = ? WHERE fileHash = ?`).run(rating, fileHash);
+  db.prepare(`UPDATE documents SET rating = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(rating, fileHash);
 }
 
 export function updateNotes(fileHash: string, notes: string): void {
-  db.prepare(`UPDATE documents SET notes = ? WHERE fileHash = ?`).run(notes, fileHash);
+  db.prepare(`UPDATE documents SET notes = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(notes, fileHash);
 }
 
 export function updateMetadata(
@@ -620,8 +953,10 @@ export function updateMetadata(
   }
   
   if (sets.length > 0) {
+    sets.push("updatedAt = CURRENT_TIMESTAMP");
     values.push(fileHash);
     db.prepare(`UPDATE documents SET ${sets.join(", ")} WHERE fileHash = ?`).run(...values);
+    refreshDocumentSearchIndex(fileHash);
   }
 }
 
@@ -629,7 +964,7 @@ export function updateProcessingStatus(
   fileHash: string,
   status: "pending" | "processing" | "completed" | "failed"
 ): void {
-  db.prepare(`UPDATE documents SET processingStatus = ? WHERE fileHash = ?`).run(status, fileHash);
+  db.prepare(`UPDATE documents SET processingStatus = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(status, fileHash);
 }
 
 export function getDocumentsPendingProcessing(): DocumentRecord[] {
@@ -639,15 +974,17 @@ export function getDocumentsPendingProcessing(): DocumentRecord[] {
 }
 
 export function updateFileSize(fileHash: string, fileSize: number): void {
-  db.prepare(`UPDATE documents SET fileSize = ? WHERE fileHash = ?`).run(fileSize, fileHash);
+  db.prepare(`UPDATE documents SET fileSize = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(fileSize, fileHash);
 }
 
 export function updateTitle(fileHash: string, newTitle: string): void {
-  db.prepare(`UPDATE documents SET title = ? WHERE fileHash = ?`).run(newTitle, fileHash);
+  db.prepare(`UPDATE documents SET title = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(newTitle, fileHash);
+  refreshDocumentSearchIndex(fileHash);
 }
 
 export function updateAuthor(fileHash: string, author: string | null): void {
-  db.prepare(`UPDATE documents SET author = ? WHERE fileHash = ?`).run(author, fileHash);
+  db.prepare(`UPDATE documents SET author = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(author, fileHash);
+  refreshDocumentSearchIndex(fileHash);
 }
 
 export function deleteDocument(fileHash: string): { success: boolean; error?: string } {
@@ -655,6 +992,7 @@ export function deleteDocument(fileHash: string): { success: boolean; error?: st
     const doc = getDocumentByHash(fileHash);
     if (!doc) return { success: false, error: "Document not found" };
     
+    db.prepare(`DELETE FROM documents_fts WHERE documentId = ?`).run(doc.id);
     db.prepare(`DELETE FROM documents WHERE fileHash = ?`).run(fileHash);
     return { success: true };
   } catch (error) {

@@ -1,4 +1,5 @@
 import { Check, Copy, FileText, Move, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -53,6 +54,25 @@ export default function BookListItem({
   onContextSelect,
   columns,
 }: BookListItemProps) {
+  const [thumbnail, setThumbnail] = useState(book.thumbnail);
+
+  useEffect(() => {
+    let canceled = false;
+    setThumbnail(book.thumbnail);
+
+    if (!book.thumbnail && book.thumbnailPath) {
+      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
+        if (!canceled) {
+          setThumbnail(value || undefined);
+        }
+      });
+    }
+
+    return () => {
+      canceled = true;
+    };
+  }, [book.thumbnail, book.thumbnailPath]);
+
   const handleClick = () => {
     if (selectionMode) {
       onToggleSelection?.();
@@ -115,9 +135,9 @@ export default function BookListItem({
           <Check size={13} />
         </div>
         <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
-          {book.thumbnail ? (
+          {thumbnail ? (
             <img
-              src={book.thumbnail}
+              src={thumbnail}
               alt={book.title}
               className="h-full w-full object-cover"
             />
