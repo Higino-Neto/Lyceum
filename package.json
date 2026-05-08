@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.7.1",
+  "version": "1.7.2",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {
@@ -87,6 +87,7 @@
     "epubjs": "^0.3.93",
     "jszip": "^3.10.1",
     "lucide-react": "^0.564.0",
+    "motion": "^12.38.0",
     "pdf-lib": "^1.17.1",
     "pdf-poppler": "^0.2.3",
     "pdfjs-dist": "^4.10.38",
