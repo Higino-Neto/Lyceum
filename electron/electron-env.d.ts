@@ -112,6 +112,21 @@ interface Window {
       };
       error?: string;
     }>;
+    convertEpubToPdf: (fileHash: string) => Promise<{
+      success: boolean;
+      outputPath?: string;
+      fileHash?: string;
+      report?: {
+        chapterCount: number;
+        pageCount: number;
+        wordCount: number;
+        imageCount: number;
+        skippedImageCount: number;
+        unsupportedCharacterCount: number;
+        warnings: string[];
+      };
+      error?: string;
+    }>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
@@ -272,6 +287,21 @@ interface Window {
         pageCount: number;
         sectionCount: number;
         blockCount: number;
+        warnings: string[];
+      };
+      error?: string;
+    }>;
+    convertEpubToPdf: (fileHash: string) => Promise<{
+      success: boolean;
+      outputPath?: string;
+      fileHash?: string;
+      report?: {
+        chapterCount: number;
+        pageCount: number;
+        wordCount: number;
+        imageCount: number;
+        skippedImageCount: number;
+        unsupportedCharacterCount: number;
         warnings: string[];
       };
       error?: string;

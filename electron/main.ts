@@ -107,6 +107,7 @@ import {
   type EpubAsset,
   type ImageCandidate,
 } from "../src/lib/pdf-to-epub";
+import { convertEpubToPdf } from "../src/lib/epub-to-pdf";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -940,6 +941,20 @@ function createUniqueConvertedEpubPath(pdfPath: string): string {
   return candidate;
 }
 
+function createUniqueConvertedPdfPath(epubPath: string): string {
+  const directory = path.dirname(epubPath);
+  const baseName = path.basename(epubPath, path.extname(epubPath));
+  let candidate = path.join(directory, `${baseName}-convertido.pdf`);
+  let index = 2;
+
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(directory, `${baseName}-convertido-${index}.pdf`);
+    index += 1;
+  }
+
+  return candidate;
+}
+
 function createPdfImageAssetRenderer(pdfPath: string, fileHash: string) {
   const renderedPages = new Map<number, Promise<{ path: string; width: number; height: number } | null>>();
   const tempDir = path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", fileHash);
@@ -1567,6 +1582,64 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao converter PDF para EPUB",
+    };
+  }
+});
+
+ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
+  try {
+    const doc = getDocumentByHash(fileHash);
+
+    if (!doc || !doc.filePath) {
+      return { success: false, error: "EPUB não encontrado na biblioteca" };
+    }
+
+    if (!doc.filePath.toLowerCase().endsWith(".epub")) {
+      return { success: false, error: "A conversão está disponível apenas para EPUBs" };
+    }
+
+    if (!fs.existsSync(doc.filePath)) {
+      return { success: false, error: "Arquivo EPUB não encontrado no disco" };
+    }
+
+    const outputPath = createUniqueConvertedPdfPath(doc.filePath);
+    const epubBuffer = fs.readFileSync(doc.filePath);
+    const converted = await convertEpubToPdf(toArrayBuffer(epubBuffer), {
+      title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, ".epub"),
+      author: doc.author || undefined,
+    });
+
+    fs.writeFileSync(outputPath, Buffer.from(converted.pdf));
+
+    const pdfHash = generateFileHash(outputPath);
+    const existing = getDocumentByHash(pdfHash) || getDocumentByPath(outputPath);
+    const thumbnailPath = await generateThumbnail(outputPath, pdfHash, false, "pdf");
+
+    if (!existing) {
+      addDocument(
+        path.basename(outputPath, ".pdf"),
+        outputPath,
+        pdfHash,
+        thumbnailPath || undefined,
+        converted.report.pageCount,
+        "pdf",
+        doc.isSynced ? 1 : 0,
+      );
+    }
+
+    win?.webContents.send("library:updated");
+
+    return {
+      success: true,
+      outputPath,
+      fileHash: pdfHash,
+      report: converted.report,
+    };
+  } catch (error) {
+    console.error("[epub:convert-to-pdf] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao converter EPUB para PDF",
     };
   }
 });

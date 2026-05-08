@@ -111,6 +111,9 @@ contextBridge.exposeInMainWorld("api", {
   convertPdfToEpub: (fileHash: string) =>
     ipcRenderer.invoke("pdf:convert-to-epub", fileHash),
 
+  convertEpubToPdf: (fileHash: string) =>
+    ipcRenderer.invoke("epub:convert-to-pdf", fileHash),
+
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
 
