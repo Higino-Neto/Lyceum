@@ -91,14 +91,12 @@ export default function Library() {
   const {
     books,
     total,
-    pageIndex,
-    pageCount,
     counts,
     hasMore,
     loading,
+    loadingMore,
     handleSync,
-    nextPage,
-    previousPage,
+    fetchNextPage,
     refreshBooks,
   } = useBooks(bookQuery);
 
@@ -661,12 +659,9 @@ export default function Library() {
                 selectedCount={selectedHashes.size}
                 onToggleSelection={toggleSelection}
                 onContextSelect={handleContextSelect}
-                totalCount={total}
-                pageIndex={pageIndex}
-                pageCount={pageCount}
                 hasMore={hasMore}
-                onNextPage={nextPage}
-                onPreviousPage={previousPage}
+                loadingMore={loadingMore}
+                onLoadMore={fetchNextPage}
                 topContent={
                   recentBooks.length > 0 ? (
                     <section className="mb-3">

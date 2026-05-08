@@ -1,4 +1,4 @@
-import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, RefreshCw } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -31,12 +31,9 @@ interface BookGridProps {
   selectedCount?: number;
   onToggleSelection?: (fileHash: string) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
-  totalCount?: number;
-  pageIndex?: number;
-  pageCount?: number;
   hasMore?: boolean;
-  onNextPage?: () => void;
-  onPreviousPage?: () => void;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   topContent?: ReactNode;
 }
 
@@ -102,11 +99,9 @@ export default function BookGrid({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
-  pageIndex = 0,
-  pageCount = 1,
   hasMore = false,
-  onNextPage,
-  onPreviousPage,
+  loadingMore = false,
+  onLoadMore,
   topContent,
 }: BookGridProps) {
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
@@ -135,12 +130,22 @@ export default function BookGrid({
   });
 
   const virtualRows = virtualizer.getVirtualItems();
-  const canGoBack = pageIndex > 0;
-  const canGoForward = hasMore && pageIndex < pageCount - 1;
-  const pageLabel = useMemo(
-    () => `${pageIndex + 1}/${pageCount}`,
-    [pageCount, pageIndex],
-  );
+  const lastVirtualRow = virtualRows[virtualRows.length - 1];
+
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
+
+  useEffect(() => {
+    if (
+      lastVirtualRow &&
+      lastVirtualRow.index >= rowCount - 5 &&
+      hasMore &&
+      !loadingMore &&
+      onLoadMoreRef.current
+    ) {
+      onLoadMoreRef.current();
+    }
+  }, [lastVirtualRow?.index, rowCount, hasMore, loadingMore]);
 
   useEffect(() => {
     virtualizer.measure();
@@ -168,6 +173,13 @@ export default function BookGrid({
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
   };
+
+  const loadingIndicator = loadingMore ? (
+    <div className="flex items-center justify-center gap-2 py-4 text-xs text-zinc-500">
+      <RefreshCw size={14} className="animate-spin" />
+      Carregando mais livros...
+    </div>
+  ) : null;
 
   if (books.length === 0) {
     return (
@@ -223,14 +235,8 @@ export default function BookGrid({
               );
             })}
           </div>
+          {loadingIndicator}
         </div>
-        <PaginationFooter
-          pageLabel={pageLabel}
-          canGoBack={canGoBack}
-          canGoForward={canGoForward}
-          onPreviousPage={onPreviousPage}
-          onNextPage={onNextPage}
-        />
       </div>
     );
   }
@@ -293,55 +299,7 @@ export default function BookGrid({
             })}
           </div>
         </div>
-      </div>
-      <PaginationFooter
-        pageLabel={pageLabel}
-        canGoBack={canGoBack}
-        canGoForward={canGoForward}
-        onPreviousPage={onPreviousPage}
-        onNextPage={onNextPage}
-      />
-    </div>
-  );
-}
-
-function PaginationFooter({
-  pageLabel,
-  canGoBack,
-  canGoForward,
-  onPreviousPage,
-  onNextPage,
-}: {
-  pageLabel: string;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  onPreviousPage?: () => void;
-  onNextPage?: () => void;
-}) {
-  return (
-    <div className="flex h-8 flex-shrink-0 items-center justify-center border-t border-zinc-800 bg-zinc-950/95 text-xs text-zinc-500">
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onPreviousPage}
-          disabled={!canGoBack}
-          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
-          title="Pagina anterior"
-        >
-          <ChevronLeft size={15} />
-        </button>
-        <span className="min-w-10 text-center text-[11px] text-zinc-400">
-          {pageLabel}
-        </span>
-        <button
-          type="button"
-          onClick={onNextPage}
-          disabled={!canGoForward}
-          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
-          title="Proxima pagina"
-        >
-          <ChevronRight size={15} />
-        </button>
+        {loadingIndicator}
       </div>
     </div>
   );

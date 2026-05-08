@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   BookWithThumbnail,
@@ -57,53 +62,57 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
 }
 
 export default function useBooks(options: UseBooksOptions) {
-  const requestId = useRef(0);
-  const [books, setBooks] = useState<BookWithThumbnail[]>([]);
-  const [total, setTotal] = useState(0);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [counts, setCounts] = useState<SectionCounts>({ synced: 0, unsynced: 0 });
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const booksQueryKey = useMemo(() => ["books", options] as const, [options]);
+
+  const booksQuery = useInfiniteQuery({
+    queryKey: booksQueryKey,
+    queryFn: ({ pageParam }) => loadPage(options, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.offset + lastPage.limit : undefined,
+  });
+
+  const countsQuery = useQuery({
+    queryKey: ["book-counts", options],
+    queryFn: () => loadCounts(options),
+    staleTime: 30_000,
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => window.api.getCategories(),
+    staleTime: 60_000,
+  });
+
+  const books = useMemo(
+    () => booksQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [booksQuery.data],
+  );
+
+  const total = booksQuery.data?.pages[0]?.total ?? 0;
+  const hasMore = !!booksQuery.hasNextPage;
+  const loading = booksQuery.isLoading;
+  const loadingMore = booksQuery.isFetchingNextPage;
+  const counts = useMemo(
+    () => countsQuery.data ?? { synced: 0, unsynced: 0 },
+    [countsQuery.data],
+  );
+  const categories = useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data],
+  );
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const offset = pageIndex * PAGE_SIZE;
 
-  const refreshBooks = useCallback(async () => {
-    const id = ++requestId.current;
-    setLoading(true);
+  const fetchNextPage = useCallback(() => {
+    booksQuery.fetchNextPage();
+  }, [booksQuery]);
 
-    try {
-      const [page, nextCounts, cats] = await Promise.all([
-        loadPage(options, offset),
-        loadCounts(options),
-        window.api.getCategories(),
-      ]);
-
-      if (id !== requestId.current) return;
-
-      setBooks(page.items);
-      setTotal(page.total);
-      setHasMore(page.hasMore);
-      setCounts(nextCounts);
-      setCategories(cats);
-    } catch (error) {
-      console.error("Error loading library page:", error);
-      toast.error("Erro ao carregar biblioteca");
-    } finally {
-      if (id === requestId.current) {
-        setLoading(false);
-      }
-    }
-  }, [offset, options]);
-
-  const nextPage = useCallback(() => {
-    setPageIndex((current) => Math.min(current + 1, pageCount - 1));
-  }, [pageCount]);
-
-  const previousPage = useCallback(() => {
-    setPageIndex((current) => Math.max(current - 1, 0));
-  }, []);
+  const refreshBooks = useCallback(() => {
+    queryClient.resetQueries({ queryKey: booksQueryKey, exact: true });
+    queryClient.refetchQueries({ queryKey: ["book-counts"] });
+    queryClient.refetchQueries({ queryKey: ["categories"] });
+  }, [queryClient, booksQueryKey]);
 
   const handleSync = async (
     fileHash: string,
@@ -119,36 +128,18 @@ export default function useBooks(options: UseBooksOptions) {
     }
   };
 
-  useEffect(() => {
-    refreshBooks();
-  }, [refreshBooks]);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [options]);
-
-  useEffect(() => {
-    if (pageIndex > 0 && pageIndex >= pageCount) {
-      setPageIndex(pageCount - 1);
-    }
-  }, [pageCount, pageIndex]);
-
   return {
     books,
     total,
-    pageIndex,
-    pageCount,
-    pageSize: PAGE_SIZE,
-    offset,
     counts,
     hasMore,
     loading,
+    loadingMore,
     categories,
     selectedCategory,
     setSelectedCategory,
     handleSync,
-    nextPage,
-    previousPage,
+    fetchNextPage,
     refreshBooks,
   };
 }
