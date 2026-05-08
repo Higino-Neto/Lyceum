@@ -8,10 +8,13 @@ import {
   Check,
   Download,
   Lock,
+  Minus,
   Monitor,
   Moon,
   Palette,
+  Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   Sun,
   Trash2,
@@ -633,6 +636,101 @@ export function DictionarySettingsPanel() {
             })}
           </div>
         )}
+      </SettingsSection>
+    </div>
+  );
+}
+
+export function ZoomSettingsPanel() {
+  const [zoomFactor, setZoomFactorLocal] = useState(1);
+
+  useEffect(() => {
+    window.api?.getZoomFactor().then((factor) => {
+      setZoomFactorLocal(factor);
+    });
+
+    const unsubscribe = window.api?.onZoomFactorChanged((factor) => {
+      setZoomFactorLocal(factor);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  const zoomPercent = Math.round(zoomFactor * 100);
+
+  const handleZoomIn = () => {
+    window.api?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    window.api?.zoomOut();
+  };
+
+  const handleReset = () => {
+    window.api?.zoomReset();
+  };
+
+  const handleSliderChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value) / 100;
+    setZoomFactorLocal(value);
+    window.api?.setZoomFactor(value);
+  };
+
+  return (
+    <div>
+      <SettingsSection
+        title="Zoom"
+        description="Ajuste o nível de zoom da interface."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleZoomOut}
+              className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+              title="Diminuir zoom"
+              aria-label="Diminuir zoom"
+            >
+              <Minus size={16} />
+            </button>
+
+            <div className="flex-1">
+              <input
+                type="range"
+                min={50}
+                max={300}
+                value={zoomPercent}
+                onChange={handleSliderChange}
+                className="w-full accent-green-500"
+              />
+            </div>
+
+            <button
+              onClick={handleZoomIn}
+              className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+              title="Aumentar zoom"
+              aria-label="Aumentar zoom"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">{zoomPercent}%</span>
+            <button
+              onClick={handleReset}
+              className="inline-flex h-8 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              <RotateCcw size={14} />
+              Resetar
+            </button>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            Atalhos: Ctrl + / Ctrl - para ajustar o zoom. Ctrl 0 para resetar.
+          </p>
+        </div>
       </SettingsSection>
     </div>
   );

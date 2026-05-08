@@ -246,6 +246,13 @@ openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: stri
       libraryDocumentId?: string;
       source?: "library" | "local";
     }) => Promise<void>;
+
+    zoomIn: () => Promise<void>;
+    zoomOut: () => Promise<void>;
+    zoomReset: () => Promise<void>;
+    getZoomFactor: () => Promise<number>;
+    setZoomFactor: (factor: number) => Promise<void>;
+    onZoomFactorChanged: (callback: (factor: number) => void) => () => void;
   };
 }
 
@@ -353,5 +360,12 @@ interface Window {
     onFileOpened: (callback: (data: OpenPdfResult & { fileType: "pdf" | "epub" }) => void) => () => void;
     onReadingShortcut: (callback: (data: { key: string; shift?: boolean }) => void) => () => void;
     openDefaultAppsSettings: () => Promise<{ success: boolean }>;
+
+    zoomIn: () => Promise<void>;
+    zoomOut: () => Promise<void>;
+    zoomReset: () => Promise<void>;
+    getZoomFactor: () => Promise<number>;
+    setZoomFactor: (factor: number) => Promise<void>;
+    onZoomFactorChanged: (callback: (factor: number) => void) => () => void;
   };
 }

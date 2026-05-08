@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Palette, SlidersHorizontal, User, X } from "lucide-react";
+import { BookOpen, Palette, SlidersHorizontal, User, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   AppearanceSettingsPanel,
   DictionarySettingsPanel,
   GeneralSettingsPanel,
+  ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-type SettingsTabId = "general" | "appearance" | "dictionaries";
+type SettingsTabId = "general" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -54,6 +55,13 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         description: "Tema e cor de destaque da interface.",
         icon: Palette,
         panel: <AppearanceSettingsPanel />,
+      },
+      {
+        id: "zoom",
+        label: "Zoom",
+        description: "Ajuste de zoom da interface.",
+        icon: ZoomIn,
+        panel: <ZoomSettingsPanel />,
       },
       {
         id: "dictionaries",

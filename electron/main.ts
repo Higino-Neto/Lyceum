@@ -1325,6 +1325,33 @@ function createAppWindow(
     appWindow.webContents.setZoomFactor(1.0);
   });
   appWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && (input.control || input.meta) && !input.alt) {
+      const key = input.key.toLowerCase();
+
+      if (key === "=" || key === "+") {
+        event.preventDefault();
+        const current = appWindow.webContents.getZoomFactor();
+        appWindow.webContents.setZoomFactor(Math.min(3.0, current + 0.1));
+        appWindow.webContents.send("zoom-factor-changed", appWindow.webContents.getZoomFactor());
+        return;
+      }
+
+      if (key === "-") {
+        event.preventDefault();
+        const current = appWindow.webContents.getZoomFactor();
+        appWindow.webContents.setZoomFactor(Math.max(0.3, current - 0.1));
+        appWindow.webContents.send("zoom-factor-changed", appWindow.webContents.getZoomFactor());
+        return;
+      }
+
+      if (key === "0" && !input.shift) {
+        event.preventDefault();
+        appWindow.webContents.setZoomFactor(1.0);
+        appWindow.webContents.send("zoom-factor-changed", 1.0);
+        return;
+      }
+    }
+
     if (!isReadingRouteUrl(appWindow.webContents.getURL())) {
       return;
     }
@@ -2811,6 +2838,41 @@ ipcMain.handle("dictionary:lookup", async (_, word: string, dictId: string = "en
 ipcMain.handle("dictionary:get-info", (_, dictId: string) => {
   const info = dictionaryManager.getDictionaryInfo(dictId);
   return info || null;
+});
+
+ipcMain.handle("zoom:in", () => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  const current = win.webContents.getZoomFactor();
+  win.webContents.setZoomFactor(Math.min(3.0, current + 0.1));
+  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
+});
+
+ipcMain.handle("zoom:out", () => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  const current = win.webContents.getZoomFactor();
+  win.webContents.setZoomFactor(Math.max(0.3, current - 0.1));
+  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
+});
+
+ipcMain.handle("zoom:reset", () => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  win.webContents.setZoomFactor(1.0);
+  win.webContents.send("zoom-factor-changed", 1.0);
+});
+
+ipcMain.handle("zoom:get-factor", () => {
+  const win = BrowserWindow.getFocusedWindow();
+  return win?.webContents.getZoomFactor() ?? 1.0;
+});
+
+ipcMain.handle("zoom:set-factor", (_, factor: number) => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (!win) return;
+  win.webContents.setZoomFactor(Math.max(0.3, Math.min(3.0, factor)));
+  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
 });
 
 const gotTheLock = (app as any).requestSingleInstanceLock();

@@ -69,6 +69,17 @@ contextBridge.exposeInMainWorld("api", {
     return () => ipcRenderer.removeListener("reading-shortcut", listener);
   },
 
+  zoomIn: () => ipcRenderer.invoke("zoom:in"),
+  zoomOut: () => ipcRenderer.invoke("zoom:out"),
+  zoomReset: () => ipcRenderer.invoke("zoom:reset"),
+  getZoomFactor: () => ipcRenderer.invoke("zoom:get-factor"),
+  setZoomFactor: (factor: number) => ipcRenderer.invoke("zoom:set-factor", factor),
+  onZoomFactorChanged: (callback: (factor: number) => void) => {
+    const listener = (_: any, factor: number) => callback(factor);
+    ipcRenderer.on("zoom-factor-changed", listener);
+    return () => ipcRenderer.removeListener("zoom-factor-changed", listener);
+  },
+
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
 
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
