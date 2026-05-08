@@ -1,11 +1,7 @@
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  dialog,
-  protocol,
-  session,
-  IpcMainInvokeEvent,
+import electron, {
+  type BrowserWindow as ElectronBrowserWindow,
+  type BrowserWindowConstructorOptions,
+  type IpcMainInvokeEvent,
 } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -90,6 +86,14 @@ import { dictionaryManager, DictionaryInfo } from "./dictionary-manager";
 import { LookupEngine, getLookupEngine, quickLookup, LookupResult } from "./lookup-engine";
 import { closeAllStorage } from "./dictionary-storage";
 
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  protocol,
+  session,
+} = electron;
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const __filename = fileURLToPath(import.meta.url);
@@ -114,7 +118,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
   : RENDERER_DIST;
 
-let win: BrowserWindow | null = null;
+let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
 
 const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
@@ -1282,7 +1286,7 @@ function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | 
 }
 
 function createAppWindow(
-  options: Electron.BrowserWindowConstructorOptions = {}
+  options: BrowserWindowConstructorOptions = {}
 ) {
   const appWindow = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC!, "logo.ico"),
@@ -1351,7 +1355,7 @@ function isReadingRouteUrl(currentUrl: string): boolean {
 }
 
 function loadRendererRoute(
-  targetWindow: BrowserWindow,
+  targetWindow: ElectronBrowserWindow,
   route = "/",
   params?: Record<string, string | undefined>
 ) {
@@ -1382,7 +1386,7 @@ function createWindow() {
   loadRendererRoute(win);
 }
 
-function getTargetWindow(event: IpcMainInvokeEvent): BrowserWindow | null {
+function getTargetWindow(event: IpcMainInvokeEvent): ElectronBrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender);
 }
 

@@ -2,8 +2,10 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
 import zlib from "node:zlib";
-import { app } from "electron";
+import electron from "electron";
 import { dictionaryManager } from "./dictionary-manager";
+
+const { app } = electron;
 
 export interface StarDictEntry {
   word: string;

@@ -1,4 +1,6 @@
-import { ipcRenderer, contextBridge } from "electron";
+import electron from "electron";
+
+const { ipcRenderer, contextBridge } = electron;
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getFilePath: () => {

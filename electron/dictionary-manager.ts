@@ -1,7 +1,9 @@
 import path from "node:path";
 import fs from "node:fs";
-import { app } from "electron";
+import electron from "electron";
 import AdmZip from "adm-zip";
+
+const { app } = electron;
 
 export interface DictionaryInfo {
   id: string;

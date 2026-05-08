@@ -1,7 +1,9 @@
 import Database from "better-sqlite3";
-import { app } from "electron";
+import electron from "electron";
 import path from "path";
 import fs from "fs";
+
+const { app } = electron;
 
 export interface DocumentRecord {
   id: number;
