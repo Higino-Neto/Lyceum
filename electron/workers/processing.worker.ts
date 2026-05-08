@@ -40,11 +40,15 @@ async function generateThumbnail(
 ): Promise<string | null> {
   try {
     const pdfRequire = require("pdf-poppler");
+    const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+    const THUMB_WIDTH = 300;
 
     const findExistingThumbnail = () => {
       const files = fs.readdirSync(thumbnailsDir);
       const matchingFile = files.find(
-        (f: string) => f.startsWith(`${fileHash}-`) && f.endsWith(".jpg")
+        (f: string) =>
+          f.startsWith(`${fileHash}-`) &&
+          THUMBNAIL_EXTENSIONS.includes(path.extname(f).toLowerCase()),
       );
       if (matchingFile) {
         return path.join(thumbnailsDir, matchingFile);
@@ -65,7 +69,21 @@ async function generateThumbnail(
     };
 
     await pdfRequire.convert(filePath, opts);
-    return findExistingThumbnail();
+
+    const generatedPath = findExistingThumbnail();
+    if (generatedPath) {
+      const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
+      const sharp = require("sharp");
+      const imageBuffer = fs.readFileSync(generatedPath);
+      await sharp(imageBuffer)
+        .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toFile(outputPath);
+      fs.unlinkSync(generatedPath);
+      return outputPath;
+    }
+
+    return null;
   } catch (error) {
     console.error("[Worker] Thumbnail generation error:", error);
     return null;

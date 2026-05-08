@@ -127,6 +127,7 @@ const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 const USER_DATA_PATH = () => app.getPath("userData");
 const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
+const THUMB_WIDTH = 300;
 
 interface FolderInfo {
   name: string;
@@ -892,11 +893,14 @@ async function generateEpubThumbnail(
     }
     
     // Save the cover image as thumbnail
-    const sourceExt = path.extname(coverImage.entryName).toLowerCase();
-    const ext = THUMBNAIL_EXTENSIONS.includes(sourceExt) ? sourceExt : ".jpg";
-    const outputPath = path.join(thumbnailsDir, `${fileHash}-cover${ext}`);
+    const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
     
-    fs.writeFileSync(outputPath, coverImage.getData());
+    const sharp = require("sharp");
+    await sharp(coverImage.getData())
+      .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toFile(outputPath);
+    
     console.log(`Generated EPUB thumbnail: ${outputPath}`);
     
     return outputPath;
@@ -1266,8 +1270,16 @@ async function generateThumbnail(
     // After conversion, find the generated file (accounts for variable padding)
     const generatedPath = findExistingThumbnail();
     if (generatedPath) {
-      console.log(`Thumbnail generated: ${generatedPath}`);
-      return generatedPath;
+      const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
+      const sharp = require("sharp");
+      const imageBuffer = fs.readFileSync(generatedPath);
+      await sharp(imageBuffer)
+        .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toFile(outputPath);
+      fs.unlinkSync(generatedPath);
+      console.log(`Thumbnail generated: ${outputPath}`);
+      return outputPath;
     } else {
       console.error(
         `No thumbnail file found after generation for hash: ${fileHash}`,
