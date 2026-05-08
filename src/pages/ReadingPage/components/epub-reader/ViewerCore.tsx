@@ -1,4 +1,5 @@
 import ePub, { Book, Contents, Rendition } from "epubjs";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import {
   TextSelectionPayload,
@@ -349,6 +350,10 @@ export default function ViewerCore({
   }, [getSectionIndexFromHref, getStableSectionProgress]);
 
   const captureCurrentLocationSnapshot = useCallback((): Partial<PersistedEpubLocation> | null => {
+    if (settingsRef.current.epubReadingMode === "paginated") {
+      return null;
+    }
+
     const container = containerRef.current;
     if (!container) {
       return null;
@@ -552,7 +557,10 @@ const persistReadingLocation = useCallback(
     const themeColors = THEME_COLORS[settingsRef.current.theme];
     const highlightColors = HIGHLIGHT_COLORS[settingsRef.current.theme];
     const fontFamily = getFontStack(settingsRef.current.fontFamily);
-    const paddingValue = Math.round((100 - settingsRef.current.contentWidth) / 2);
+    const isPaginated = settingsRef.current.epubReadingMode === "paginated";
+    const paddingValue = isPaginated
+      ? 6
+      : Math.round((100 - settingsRef.current.contentWidth) / 2);
 
     let themeStyle = doc.getElementById(
       "lyceum-theme-styles",
@@ -643,56 +651,6 @@ const persistReadingLocation = useCallback(
       }
       ` : ""}
     `;
-  };
-
-const LINES_PER_PAGE = 30;
-  const BASE_FONT_SIZE_PX = 16;
-
-  const injectPageBreaks = (doc: Document) => {
-    if (!settingsRef.current.showPages) return;
-
-    const content = doc.body;
-    if (!content) return;
-
-    const existingBreaks = content.querySelectorAll(".lyceum-page-break");
-    existingBreaks.forEach((el) => el.remove());
-
-    const themeColors = THEME_COLORS[settingsRef.current.theme];
-    const borderColor = themeColors.border || "rgba(128, 128, 128, 0.3)";
-
-    requestAnimationFrame(() => {
-      const fontSizePx = (settingsRef.current.fontSize / 100) * BASE_FONT_SIZE_PX;
-      const lineHeight = settingsRef.current.lineHeight;
-      const pageHeight = fontSizePx * lineHeight * LINES_PER_PAGE;
-
-      const totalHeight = content.scrollHeight;
-      const estimatedPages = Math.max(1, Math.floor(totalHeight / pageHeight));
-      
-      if (estimatedPages <= 1) return;
-
-      const allElements = content.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li, blockquote");
-      if (allElements.length === 0) return;
-
-      const elementsArray = Array.from(allElements);
-      const breaksNeeded = estimatedPages - 1;
-      const interval = Math.floor(elementsArray.length / breaksNeeded);
-
-      for (let i = 1; i < breaksNeeded; i++) {
-        const index = i * interval;
-        const el = elementsArray[index] as HTMLElement;
-        if (!el) continue;
-
-        const breakEl = doc.createElement("div");
-        breakEl.className = "lyceum-page-break";
-        breakEl.style.cssText = `
-          height: 2px;
-          margin: 24px 0;
-          border: none;
-          border-top: 2px dashed ${borderColor};
-        `;
-        el.parentNode?.insertBefore(breakEl, el);
-      }
-    });
   };
 
   const syncWordStates = (doc: Document) => {
@@ -896,7 +854,6 @@ const LINES_PER_PAGE = 30;
     attachDocumentListeners(typedDoc);
     wrapTextNodes(typedDoc, sectionKey);
     syncWordStates(typedDoc);
-    injectPageBreaks(typedDoc);
   };
 
   const processAllIframes = () => {
@@ -921,7 +878,10 @@ const LINES_PER_PAGE = 30;
   const registerThemes = (rendition: Rendition) => {
     const themeColors = THEME_COLORS[settingsRef.current.theme];
     const fontFamily = getFontStack(settingsRef.current.fontFamily);
-    const paddingValue = Math.round((100 - settingsRef.current.contentWidth) / 2);
+    const isPaginated = settingsRef.current.epubReadingMode === "paginated";
+    const paddingValue = isPaginated
+      ? 6
+      : Math.round((100 - settingsRef.current.contentWidth) / 2);
 
     rendition.themes.register({
       lyceum: {
@@ -941,6 +901,17 @@ const LINES_PER_PAGE = 30;
     rendition.themes.select("lyceum");
   };
 
+  const resizeRenditionToContainer = useCallback(() => {
+    const container = containerRef.current;
+    const rendition = renditionRef.current;
+    if (!container || !rendition) return;
+
+    const cfi = currentCfiRef.current ?? undefined;
+    (rendition as Rendition & {
+      resize: (width?: number, height?: number, epubcfi?: string) => void;
+    }).resize(container.clientWidth, container.clientHeight, cfi);
+  }, []);
+
   const ensureScrollableContent = () => {
     if (ensureScrollablePromiseRef.current) {
       return ensureScrollablePromiseRef.current;
@@ -949,7 +920,7 @@ const LINES_PER_PAGE = 30;
     const task = (async () => {
       const container = containerRef.current;
       const rendition = renditionRef.current;
-      if (!container || !rendition) {
+      if (!container || !rendition || settingsRef.current.epubReadingMode === "paginated") {
         return;
       }
 
@@ -981,6 +952,11 @@ const LINES_PER_PAGE = 30;
 
   const restorePersistedScroll = useCallback(
     async (location: PersistedEpubLocation | null) => {
+      if (settingsRef.current.epubReadingMode === "paginated") {
+        isRestoringScrollRef.current = false;
+        return;
+      }
+
       if (!location) {
         isRestoringScrollRef.current = false;
         return;
@@ -1152,10 +1128,12 @@ const LINES_PER_PAGE = 30;
 
         const savedCfi = locationToRestore?.cfi;
         const savedHref = locationToRestore?.href;
+        const isPaginated = settingsRef.current.epubReadingMode === "paginated";
 
         const rendition = book.renderTo(containerRef.current, {
-          flow: "scrolled",
-          manager: "continuous",
+          flow: isPaginated ? "paginated" : "scrolled",
+          manager: isPaginated ? "default" : "continuous",
+          spread: "none",
           width: "100%",
           height: "100%",
         });
@@ -1187,20 +1165,22 @@ const LINES_PER_PAGE = 30;
             return;
           }
 
+          const sectionIndex =
+            typeof start.index === "number" && Number.isFinite(start.index)
+              ? start.index
+              : getSectionIndexFromHref(start.href);
+          const sectionProgress =
+            start.displayed && start.displayed.total > 0
+              ? (start.displayed.page - 1) / start.displayed.total
+              : 0;
+
           persistReadingLocation("now", {
             cfi: start.cfi,
             href: start.href,
-            sectionIndex:
-              typeof start.index === "number" && Number.isFinite(start.index)
-                ? start.index
-                : getSectionIndexFromHref(start.href),
+            sectionIndex,
             location: start.location,
             totalSections: totalSpineItemsRef.current || undefined,
-            percentage: getStableSectionProgress(
-              typeof start.index === "number" && Number.isFinite(start.index)
-                ? start.index
-                : getSectionIndexFromHref(start.href),
-            ) ?? start.percentage,
+            percentage: getStableSectionProgress(sectionIndex, sectionProgress) ?? start.percentage,
             scrollTop: containerRef.current?.scrollTop ?? currentScrollTopRef.current,
           });
         };
@@ -1224,7 +1204,9 @@ const LINES_PER_PAGE = 30;
             processDocument(contents.document, section?.href || "rendered-section");
           }
 
-          void ensureScrollableContent();
+          if (settingsRef.current.epubReadingMode !== "paginated") {
+            void ensureScrollableContent();
+          }
         });
         rendition.on("relocated", handleRelocated);
 
@@ -1297,8 +1279,12 @@ const LINES_PER_PAGE = 30;
 
     registerThemes(renditionRef.current);
     processAllIframes();
-    void ensureScrollableContent();
-  }, [settings]);
+    if (settings.epubReadingMode === "paginated") {
+      window.requestAnimationFrame(resizeRenditionToContainer);
+    } else {
+      void ensureScrollableContent();
+    }
+  }, [resizeRenditionToContainer, settings]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1315,7 +1301,7 @@ const LINES_PER_PAGE = 30;
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || settingsRef.current.epubReadingMode === "paginated") return;
 
     const saveScrollPosition = () => {
       currentScrollTopRef.current = container.scrollTop;
@@ -1359,7 +1345,7 @@ const LINES_PER_PAGE = 30;
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
+    if (!container || settingsRef.current.epubReadingMode === "paginated") {
       return;
     }
 
@@ -1420,12 +1406,22 @@ const LINES_PER_PAGE = 30;
   }, [persistReadingLocation]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
+  const isPaginated = settings.epubReadingMode === "paginated";
+
+  const goToPreviousPage = () => {
+    renditionRef.current?.prev().catch(console.error);
+  };
+
+  const goToNextPage = () => {
+    renditionRef.current?.next().catch(console.error);
+  };
+
   return (
-    <div className="w-full h-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       <style>{`
         .epub-container {
           height: 100%;
-          overflow-y: auto;
+          overflow-y: ${isPaginated ? "hidden" : "auto"};
           overflow-x: hidden;
           background-color: var(--ui-zinc-900);
           overscroll-behavior: contain;
@@ -1458,7 +1454,36 @@ const LINES_PER_PAGE = 30;
           border: none !important;
         }
       `}</style>
-      <div ref={containerRef} className="epub-container" />
+      <div
+        ref={containerRef}
+        className="epub-container"
+        style={{
+          margin: "0 auto",
+          width: isPaginated ? `${settings.contentWidth}%` : "100%",
+        }}
+      />
+
+      {isPaginated && (
+        <>
+          <button
+            type="button"
+            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
+            onClick={goToPreviousPage}
+            title="Pagina anterior"
+          >
+            <ChevronLeft size={22} />
+          </button>
+
+          <button
+            type="button"
+            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
+            onClick={goToNextPage}
+            title="Proxima pagina"
+          >
+            <ChevronRight size={22} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

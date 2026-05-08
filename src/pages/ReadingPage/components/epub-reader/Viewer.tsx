@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ViewerCore from "./ViewerCore";
-import InternalViewerCore from "./internal-engine/InternalViewerCore";
 import ReaderToolbar from "./ReaderToolbar";
 import VocabularyPanel from "./VocabularyPanel";
 import TableOfContents from "./TableOfContents";
@@ -108,59 +107,120 @@ function sanitizeExportFileName(fileName?: string) {
   return `${baseName || "book"}-vocabulary.csv`;
 }
 
-function TranslationCard({
-  label,
-  text,
-}: {
-  label: string;
+interface TranslationEntry {
+  key: string;
   text: string;
-}) {
-  return (
-    <div className="rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-3">
-      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-zinc-100">{text}</p>
-    </div>
-  );
+  label?: string;
+  detail?: string;
 }
 
-function DictionaryMeanings({
+function normalizeResultText(value?: string | null) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function getResultKey(value?: string | null) {
+  return normalizeResultText(value).toLocaleLowerCase();
+}
+
+function collectTranslationEntries({
   dictionary,
   translatedDictionary,
+  skipText,
 }: {
   dictionary?: DictionaryLookupResult | null;
   translatedDictionary?: DictionaryLookupResult | null;
+  skipText?: string | null;
 }) {
-  if (!translatedDictionary?.meanings?.length) return null;
+  const skippedKeys = new Set(
+    normalizeResultText(skipText)
+      .split(/[,;]+/)
+      .map((part) => getResultKey(part))
+      .filter(Boolean),
+  );
+  const skippedKey = getResultKey(skipText);
+  if (skippedKey) {
+    skippedKeys.add(skippedKey);
+  }
+  const seen = new Set<string>();
+  const entries: TranslationEntry[] = [];
+
+  translatedDictionary?.meanings?.forEach((meaning, meaningIndex) => {
+    const label = meaning.partOfSpeech !== "dictionary" ? meaning.partOfSpeech : undefined;
+
+    meaning.definitions.forEach((definition, definitionIndex) => {
+      const text = normalizeResultText(definition.definition);
+      const key = getResultKey(text);
+      if (!text || skippedKeys.has(key) || seen.has(key)) {
+        return;
+      }
+
+      const sourceDefinition = dictionary?.meanings?.[meaningIndex]?.definitions?.[definitionIndex];
+      entries.push({
+        key: `${meaningIndex}-${definitionIndex}-${key}`,
+        text,
+        label,
+        detail: normalizeResultText(sourceDefinition?.example),
+      });
+      seen.add(key);
+    });
+  });
+
+  return entries;
+}
+
+function ResultBlock({
+  label,
+  text,
+  icon,
+}: {
+  label: string;
+  text: string;
+  icon: ReactNode;
+}) {
+  return (
+    <section className="rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="text-sm leading-6 text-zinc-100">{text}</p>
+    </section>
+  );
+}
+
+function TranslationEntryList({ entries }: { entries: TranslationEntry[] }) {
+  if (!entries.length) return null;
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">Traducoes</p>
-      {translatedDictionary.meanings.map((meaning, mi) => (
-        <div key={`trans-meaning-${mi}`}>
-          {meaning.partOfSpeech !== "dictionary" && (
-            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400 mb-2">
-              {meaning.partOfSpeech}
-            </p>
-          )}
-          <ul className="space-y-1">
-            {meaning.definitions.map((definition, di) => {
-              const sourceDef = dictionary?.meanings?.[mi]?.definitions?.[di];
-              return (
-                <li key={`def-${mi}-${di}`} className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-600" />
-                  <div className="flex-1">
-                    <span className="text-sm text-zinc-100">{definition.definition}</span>
-                    {sourceDef?.example && (
-                      <p className="mt-1 text-xs italic text-zinc-500">"{sourceDef.example}"</p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </div>
+    <section className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3">
+      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+        <Languages size={14} />
+        <span>Sentidos</span>
+      </div>
+
+      <ul className="space-y-2">
+        {entries.map((entry) => (
+          <li key={entry.key} className="rounded-sm bg-zinc-900/70 px-3 py-2">
+            <div className="flex items-start gap-2">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-500" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <p className="text-sm leading-6 text-zinc-100">{entry.text}</p>
+                  {entry.label && (
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                      {entry.label}
+                    </span>
+                  )}
+                </div>
+                {entry.detail && (
+                  <p className="mt-1 text-xs italic leading-5 text-zinc-500">"{entry.detail}"</p>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -187,24 +247,49 @@ function TranslationDock({
   targetLanguage: string;
   onClose: () => void;
 }) {
+  const normalizedTranslation = normalizeResultText(translation);
+  const normalizedSimplifiedText = normalizeResultText(simplifiedText);
+  const translatedEntries = collectTranslationEntries({
+    dictionary,
+    translatedDictionary,
+    skipText: normalizedTranslation,
+  });
+  const hasVisibleResult =
+    Boolean(normalizedTranslation) ||
+    Boolean(normalizedSimplifiedText) ||
+    translatedEntries.length > 0;
+
   return (
     <LearningDock title={title} subtitle={subtitle} onClose={onClose}>
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
+        <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
           <LoaderCircle size={16} className="animate-spin" />
           Processando...
         </div>
       ) : (
         <div className="space-y-3">
-          {translation && (
-            <TranslationCard label={`Traducao (${targetLanguage.toUpperCase()})`} text={translation} />
+          {normalizedTranslation && (
+            <ResultBlock
+              label={`Traducao (${targetLanguage.toUpperCase()})`}
+              text={normalizedTranslation}
+              icon={<Languages size={14} />}
+            />
           )}
-          {simplifiedText && (
-            <TranslationCard label="Versao simplificada" text={simplifiedText} />
+          {normalizedSimplifiedText && (
+            <ResultBlock
+              label="Versao simplificada"
+              text={normalizedSimplifiedText}
+              icon={<Sparkles size={14} />}
+            />
           )}
-          <DictionaryMeanings dictionary={dictionary} translatedDictionary={translatedDictionary} />
+          <TranslationEntryList entries={translatedEntries} />
+          {!hasVisibleResult && !error && (
+            <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
+              Nenhum resultado encontrado para este trecho.
+            </div>
+          )}
           {error && (
-            <div className="rounded-sm border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
+            <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
               {error}
             </div>
           )}
@@ -226,8 +311,8 @@ function LearningDock({
   onClose: () => void;
 }) {
   return (
-    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[380px]">
-      <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/95 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[390px]">
+      <div className="flex items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950/40 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-zinc-100">{title}</p>
           {subtitle ? (
@@ -278,9 +363,8 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     setSourceLanguage,
     setTargetLanguage,
     setShowHighlights,
-    setShowPages,
     setFocusMode,
-    setEpubRenderEngine,
+    setEpubReadingMode,
     settings,
   } = useReaderSettings(fileHash);
   const {
@@ -657,9 +741,6 @@ if (controller.signal.aborted) return;
       }),
     [trackedEntries, vocabularyFilter],
   );
-  const ActiveEpubCore =
-    settings.epubRenderEngine === "internal" ? InternalViewerCore : ViewerCore;
-
   return (
     <div className="w-full h-full flex flex-col">
       {!settings.focusMode && (
@@ -682,9 +763,8 @@ if (controller.signal.aborted) return;
           onSourceLanguageChange={setSourceLanguage}
           onTargetLanguageChange={setTargetLanguage}
           onShowHighlightsChange={setShowHighlights}
-          onShowPagesChange={setShowPages}
           onFocusModeChange={setFocusMode}
-          onEpubRenderEngineChange={setEpubRenderEngine}
+          onEpubReadingModeChange={setEpubReadingMode}
         />
       )}
 
@@ -703,8 +783,8 @@ if (controller.signal.aborted) return;
       )}
 
       <div ref={overlayHostRef} className="relative flex-1 min-h-0 overflow-hidden">
-        <ActiveEpubCore
-          key={settings.epubRenderEngine}
+        <ViewerCore
+          key={settings.epubReadingMode}
           epubData={epubData}
           fileHash={fileHash}
           settings={settings}

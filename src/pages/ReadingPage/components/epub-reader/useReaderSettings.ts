@@ -6,7 +6,7 @@ import {
   FontFamily,
   TextAlignment,
   LanguageCode,
-  EpubRenderEngine,
+  EpubReadingMode,
 } from "./theme";
 
 const STORAGE_KEY = "lyceum-reader-settings";
@@ -38,9 +38,18 @@ function loadSettings(fileHash?: string): ReaderSettings {
   };
 
   return {
-    ...loadedSettings,
-    epubRenderEngine:
-      loadedSettings.epubRenderEngine === "internal" ? "internal" : "epubjs",
+    fontSize: loadedSettings.fontSize,
+    fontFamily: loadedSettings.fontFamily,
+    theme: loadedSettings.theme,
+    lineHeight: loadedSettings.lineHeight,
+    contentWidth: loadedSettings.contentWidth,
+    textAlign: loadedSettings.textAlign,
+    showHighlights: loadedSettings.showHighlights,
+    sourceLanguage: loadedSettings.sourceLanguage,
+    targetLanguage: loadedSettings.targetLanguage,
+    focusMode: loadedSettings.focusMode,
+    epubReadingMode:
+      loadedSettings.epubReadingMode === "paginated" ? "paginated" : "continuous",
   };
 }
 
@@ -140,11 +149,6 @@ export function useReaderSettings(fileHash?: string) {
     [updateSetting],
   );
 
-  const setShowPages = useCallback(
-    (showPages: boolean) => updateSetting("showPages", showPages),
-    [updateSetting],
-  );
-
   const setFocusMode = useCallback(
     (focusMode: boolean) => {
       updateSetting("focusMode", focusMode);
@@ -168,9 +172,14 @@ export function useReaderSettings(fileHash?: string) {
     }
   }, [settings.focusMode]);
 
-  const setEpubRenderEngine = useCallback(
-    (epubRenderEngine: EpubRenderEngine) => updateSetting("epubRenderEngine", epubRenderEngine),
-    [updateSetting],
+  const setEpubReadingMode = useCallback(
+    (epubReadingMode: EpubReadingMode) => {
+      setSettings((prev) => ({
+        ...prev,
+        epubReadingMode,
+      }));
+    },
+    [],
   );
 
   return {
@@ -184,10 +193,16 @@ export function useReaderSettings(fileHash?: string) {
     setSourceLanguage,
     setTargetLanguage,
     setShowHighlights,
-    setShowPages,
     setFocusMode,
-    setEpubRenderEngine,
+    setEpubReadingMode,
   };
 }
 
-export type { ReaderSettings, ThemeName, FontFamily, TextAlignment, LanguageCode, EpubRenderEngine };
+export type {
+  ReaderSettings,
+  ThemeName,
+  FontFamily,
+  TextAlignment,
+  LanguageCode,
+  EpubReadingMode,
+};
