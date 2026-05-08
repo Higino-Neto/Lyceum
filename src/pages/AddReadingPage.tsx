@@ -408,7 +408,7 @@ export default function AddReadingPage() {
   // };
 
   return (
-    <div className=" bg-zinc-950 text-zinc-100 px-4">
+    <div className="lyceum-page-add-reading bg-zinc-950 text-zinc-100 px-4">
       <main className="min-h-screen flex-1 overflow-y-auto">
         <div className="py-6 space-y-4">
           {/* <header className="flex items-center justify-between">
@@ -418,7 +418,7 @@ export default function AddReadingPage() {
             </div>
           </header> */}
 
-          <section className="bg-zinc-950 p-4 rounded-sm">
+          <section className="lyceum-add-form-card bg-zinc-900 border border-zinc-800 p-4 rounded-sm">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-12 gap-3 my-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 <div className="col-span-4">Obra</div>
@@ -432,7 +432,7 @@ export default function AddReadingPage() {
                 {entries.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-sm p-2 hover:border-zinc-700 transition"
+                    className="lyceum-add-entry-row grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-sm p-2 hover:border-zinc-700 transition"
                   >
                     <div className="col-span-4">
                       <BookSearch
@@ -566,11 +566,11 @@ export default function AddReadingPage() {
             </form>
           </section>
 
-          <section className=" bg-zinc-900">
+          <section className="lyceum-add-table-card rounded-sm border border-zinc-800 bg-zinc-900">
             <ReadingTable />
           </section>
 
-          <section className="border-t border-zinc-800 pt-6">
+          <section className="lyceum-add-books-card rounded-sm border border-zinc-800 bg-zinc-900 p-4">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-zinc-100">
@@ -604,7 +604,7 @@ export default function AddReadingPage() {
               </div>
 
               {selectedSupabaseBook && (
-                <aside className="w-96 flex-shrink-0 border-l border-zinc-800 bg-zinc-900">
+                <aside className="lyceum-add-detail-panel w-96 flex-shrink-0 border-l border-zinc-800 bg-zinc-900">
                   <StatisticsPanel
                     book={selectedSupabaseBook}
                     onClose={() => setSelectedSupabaseBook(null)}

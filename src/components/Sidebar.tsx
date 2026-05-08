@@ -48,7 +48,7 @@ export default function Sidebar({
   const sidebarVisibility = isOverlayMode && isHidden
     ? "pointer-events-none -translate-x-full opacity-0"
     : "translate-x-0 opacity-100";
-  const sidebarClasses = `flex flex-col transition-[width,opacity,transform] duration-200 ease-out ${sidebarWidth} ${sidebarPosition} ${sidebarVisibility}`;
+  const sidebarClasses = `lyceum-sidebar flex flex-col transition-[width,opacity,transform] duration-200 ease-out ${sidebarWidth} ${sidebarPosition} ${sidebarVisibility}`;
 
   return (
     <aside

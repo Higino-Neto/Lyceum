@@ -462,10 +462,10 @@ export default function Library() {
   };
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">
+    <div className="lyceum-page-library flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">
       {showSidebar && (
         <aside
-          className="relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
+          className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
           style={{ width: sidebarWidth }}
         >
           <div className="h-full overflow-y-auto">
@@ -490,7 +490,7 @@ export default function Library() {
 
       <div
         data-library-shell
-        className="ml-2 flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
+        className="lyceum-library-shell ml-2 flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
       >
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <header className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3">
@@ -597,7 +597,7 @@ export default function Library() {
             </div>
 
             {selectedHashes.size > 0 && (
-              <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
+              <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
                 <div className="flex items-center gap-2 text-sm text-zinc-200">
                   <CheckSquare size={16} className="text-green-400" />
                   {selectedHashes.size} selecionado
@@ -679,7 +679,7 @@ export default function Library() {
                             key={book.fileHash}
                             type="button"
                             onClick={() => handleOpen(book.filePath, book.fileHash)}
-                            className="flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+                            className="lyceum-library-recent-book flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
                           >
                             <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-[9px] font-medium text-zinc-600">
                               {getFileTypeLabel(book.fileType, book.filePath)}
@@ -705,7 +705,7 @@ export default function Library() {
 
         {selectedBook && (
           <aside
-            className="relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
+            className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
             style={{
               flexBasis: detailPanelWidth,
               width: detailPanelWidth,

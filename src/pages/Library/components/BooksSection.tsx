@@ -491,7 +491,7 @@ export default function BooksSection({
                 <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
                   isSelectedForMerge 
                     ? 'bg-blue-500 border-blue-500' 
-                    : 'bg-black/50 border-zinc-500 hover:border-zinc-400'
+                    : 'bg-zinc-950/80 border-zinc-500 hover:border-zinc-400'
                 }`}>
                   {isSelectedForMerge && <Check size={14} className="text-white" />}
                 </div>
@@ -539,7 +539,7 @@ export default function BooksSection({
                 <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
                   isSelectedForMerge 
                     ? 'bg-blue-500 border-blue-500' 
-                    : 'bg-black/50 border-zinc-500 hover:border-zinc-400'
+                    : 'bg-zinc-950/80 border-zinc-500 hover:border-zinc-400'
                 }`}>
                   {isSelectedForMerge && <Check size={14} className="text-white" />}
                 </div>

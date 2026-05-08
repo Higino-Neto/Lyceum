@@ -65,12 +65,12 @@
   --bg-zinc-200: #1f2937;
   --bg-zinc-300: #374151;
   --bg-zinc-400: #64748b;
-  --bg-zinc-500: #94a3b8;
-  --bg-zinc-600: #c4ccd8;
-  --bg-zinc-700: #d7dde6;
-  --bg-zinc-800: #e5e9ef;
-  --bg-zinc-900: #edf1f5;
-  --bg-zinc-950: #f3f5f8;
+  --bg-zinc-500: #a8b2c0;
+  --bg-zinc-600: #d8dee6;
+  --bg-zinc-700: #e8ecf1;
+  --bg-zinc-800: #f2f4f7;
+  --bg-zinc-900: #fcfcfd;
+  --bg-zinc-950: #f4f5f7;
   --fg-zinc-50: #0b1220;
   --fg-zinc-100: #111827;
   --fg-zinc-200: #1e293b;
@@ -87,12 +87,12 @@
   --border-zinc-200: #334155;
   --border-zinc-300: #475569;
   --border-zinc-400: #64748b;
-  --border-zinc-500: #9aa4b2;
-  --border-zinc-600: #aeb8c7;
-  --border-zinc-700: #c4ccd8;
-  --border-zinc-800: #d9dee7;
-  --border-zinc-900: #e5e9ef;
-  --border-zinc-950: #edf1f5;
+  --border-zinc-500: #a8b2c0;
+  --border-zinc-600: #cbd3dd;
+  --border-zinc-700: #dce2e9;
+  --border-zinc-800: #e5e9ef;
+  --border-zinc-900: #edf0f4;
+  --border-zinc-950: #f4f5f7;
 }
 
 input[type="date"] {
@@ -193,6 +193,9 @@ input[type="date"] {
 .lyceum-app :where([class~="bg-zinc-950/40"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 40%, transparent) !important; }
 .lyceum-app :where([class~="bg-zinc-950/60"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 60%, transparent) !important; }
 .lyceum-app :where([class~="bg-zinc-950/80"]) { background-color: color-mix(in srgb, var(--bg-zinc-950) 80%, transparent) !important; }
+.lyceum-theme-light .lyceum-app :where([class~="bg-zinc-900/10"], [class~="bg-zinc-900/30"], [class~="bg-zinc-900/50"], [class~="bg-zinc-900/60"], [class~="bg-zinc-900/70"], [class~="bg-zinc-900/90"], [class~="bg-zinc-900/95"]) { background-color: rgb(252 252 253 / 0.94) !important; }
+.lyceum-theme-light .lyceum-app :where([class~="bg-zinc-800/30"], [class~="bg-zinc-800/35"], [class~="bg-zinc-800/40"], [class~="bg-zinc-800/50"], [class~="bg-zinc-800/60"], [class~="bg-zinc-800/80"], [class~="bg-zinc-800/90"], [class~="bg-zinc-800/95"]) { background-color: #f2f4f7 !important; }
+.lyceum-theme-light .lyceum-app :where([class~="bg-zinc-950/20"], [class~="bg-zinc-950/30"], [class~="bg-zinc-950/35"], [class~="bg-zinc-950/40"], [class~="bg-zinc-950/60"], [class~="bg-zinc-950/70"], [class~="bg-zinc-950/80"], [class~="bg-zinc-950/95"]) { background-color: #f8fafc !important; }
 
 .lyceum-app :where(.text-zinc-50, [class~="hover:text-zinc-50"]:hover, .group:hover [class~="group-hover:text-zinc-50"]) { color: var(--fg-zinc-50) !important; }
 .lyceum-app :where(.text-zinc-100, [class~="hover:text-zinc-100"]:hover, .group:hover [class~="group-hover:text-zinc-100"]) { color: var(--fg-zinc-100) !important; }
@@ -208,6 +211,14 @@ input[type="date"] {
 .lyceum-theme-light .lyceum-app :where([class~="bg-zinc-700"][class~="text-white"], [class~="bg-zinc-800"][class~="text-white"], [class~="bg-zinc-900"][class~="text-white"], [class~="bg-zinc-950"][class~="text-white"]) { color: var(--fg-zinc-100) !important; }
 .lyceum-theme-light .lyceum-app :where(.group:hover [class~="group-hover:text-white"]) { color: var(--fg-zinc-100) !important; }
 .lyceum-theme-light .lyceum-app :where([class~="hover:bg-white"]:hover) { background-color: var(--bg-zinc-200) !important; }
+.lyceum-theme-light .lyceum-app :where(.lyceum-sidebar) { background-color: #ffffff !important; }
+.lyceum-theme-light .lyceum-app :where(.lyceum-sidebar[class~="bg-zinc-900/95"]) { background-color: rgb(255 255 255 / 0.96) !important; }
+.lyceum-theme-light .lyceum-app :where(.shadow-black\/40, .shadow-black\/60) { --tw-shadow-color: rgb(15 23 42 / 0.12) !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:bg-zinc-900"]:hover, [class~="hover:bg-zinc-800"]:hover, [class~="hover:bg-zinc-800/40"]:hover, [class~="hover:bg-zinc-800/50"]:hover, [class~="hover:bg-zinc-800/80"]:hover, [class~="hover:bg-zinc-950/30"]:hover) { background-color: #eef2f6 !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:bg-zinc-700"]:hover, [class~="hover:bg-zinc-700/90"]:hover, [class~="hover:bg-zinc-750"]:hover) { background-color: #e6ebf2 !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:bg-zinc-600"]:hover, [class~="hover:bg-zinc-600/30"]:hover) { background-color: #dce4ec !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:border-zinc-700"]:hover) { border-color: #cbd5e1 !important; }
+.lyceum-theme-light .lyceum-app :where([class~="hover:border-zinc-600"]:hover) { border-color: #b7c4d3 !important; }
 
 .lyceum-app :where(.border-zinc-50, [class~="hover:border-zinc-50"]:hover) { border-color: var(--border-zinc-50) !important; }
 .lyceum-app :where(.border-zinc-100, [class~="hover:border-zinc-100"]:hover) { border-color: var(--border-zinc-100) !important; }
@@ -233,6 +244,79 @@ input[type="date"] {
 .lyceum-app :where(.ring-offset-zinc-900) { --tw-ring-offset-color: var(--bg-zinc-900) !important; }
 .lyceum-app :where(.ring-offset-zinc-950) { --tw-ring-offset-color: var(--bg-zinc-950) !important; }
 .lyceum-app :where(.ring-zinc-600, [class~="hover:ring-zinc-600"]:hover) { --tw-ring-color: var(--border-zinc-600) !important; }
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library, .lyceum-page-add-reading) {
+  background-color: #f4f5f7 !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(
+  .lyceum-library-sidebar,
+  .lyceum-library-shell,
+  .lyceum-library-detail,
+  .lyceum-add-form-card,
+  .lyceum-add-table-card,
+  .lyceum-add-books-card,
+  .lyceum-add-detail-panel,
+  .lyceum-selection-toolbar
+) {
+  background-color: #fcfcfd !important;
+  border-color: #e2e8f0 !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-library-sidebar, .lyceum-library-detail, .lyceum-add-detail-panel) {
+  background-color: #ffffff !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-add-entry-row) {
+  background-color: #ffffff !important;
+  border-color: #e5e9ef !important;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-add-entry-row:hover, .lyceum-library-recent-book:hover) {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library input, .lyceum-page-library select, .lyceum-page-library textarea, .lyceum-page-add-reading input, .lyceum-page-add-reading select, .lyceum-page-add-reading textarea) {
+  background-color: #ffffff !important;
+  border-color: #dfe5ec !important;
+  color: #1e293b !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library input:hover, .lyceum-page-library select:hover, .lyceum-page-library textarea:hover, .lyceum-page-add-reading input:hover, .lyceum-page-add-reading select:hover, .lyceum-page-add-reading textarea:hover) {
+  border-color: #cbd5e1 !important;
+}
+
+.lyceum-theme-light .lyceum-app .lyceum-page-library input::placeholder,
+.lyceum-theme-light .lyceum-app .lyceum-page-add-reading input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library option, .lyceum-page-add-reading option) {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library [class~="bg-yellow-900/20"]) {
+  background-color: #fffbeb !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library [class~="bg-yellow-900/50"]) {
+  background-color: #fef3c7 !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library [class~="hover:bg-yellow-800"]:hover) {
+  background-color: #fde68a !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library [class~="border-yellow-800"]) {
+  border-color: #fde68a !important;
+}
+
+.lyceum-theme-light .lyceum-app :where(.lyceum-page-library [class~="text-yellow-200"], .lyceum-page-library [class~="text-yellow-500"]) {
+  color: #92400e !important;
+}
 
 .lyceum-app :where(.bg-green-50, [class~="hover:bg-green-50"]:hover) { background-color: var(--accent-50) !important; }
 .lyceum-app :where(.bg-green-100, [class~="hover:bg-green-100"]:hover) { background-color: var(--accent-100) !important; }
