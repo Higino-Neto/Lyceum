@@ -1,3 +1,18 @@
+export type LibraryBookFileType =
+  | "pdf"
+  | "epub"
+  | "docx"
+  | "html"
+  | "cbz"
+  | "mobi"
+  | "azw"
+  | "azw3"
+  | "azw4"
+  | "kfx"
+  | "prc"
+  | "txt"
+  | "lyceum";
+
 export interface BookWithThumbnail {
   id: number;
   title: string;
@@ -27,14 +42,22 @@ export interface BookWithThumbnail {
   publishDate: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
-  fileType?: "pdf" | "epub";
+  fileType?: LibraryBookFileType;
   importedAt?: string | null;
   updatedAt?: string | null;
 }
 
-export type LibrarySection = "all" | "synced" | "unsynced";
-export type LibrarySortOption = "title" | "recent" | "pages" | "size";
-export type LibraryFileTypeFilter = "all" | "pdf" | "epub";
+export type LibrarySection = "all" | "synced" | "unsynced" | "usb";
+export type LibrarySortOption =
+  | "title_asc"
+  | "title_desc"
+  | "recent_desc"
+  | "recent_asc"
+  | "pages_desc"
+  | "pages_asc"
+  | "size_desc"
+  | "size_asc";
+export type LibraryFileTypeFilter = "all" | LibraryBookFileType;
 
 export interface LibraryListQuery {
   section?: LibrarySection;

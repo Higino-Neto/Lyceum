@@ -1,5 +1,6 @@
 import { Check, Copy, FileText, Move, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -9,6 +10,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import { springFast } from "../../../../utils/motionPresets";
 
 export interface ExplorerColumns {
   name: number;
@@ -54,6 +56,7 @@ export default function BookListItem({
   onContextSelect,
   columns,
 }: BookListItemProps) {
+  const reduceMotion = useReducedMotion();
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
 
   useEffect(() => {
@@ -87,7 +90,7 @@ export default function BookListItem({
   };
 
   return (
-    <div
+    <motion.div
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -101,8 +104,10 @@ export default function BookListItem({
       style={{
         gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
       }}
+      whileHover={reduceMotion ? undefined : { x: 3 }}
+      transition={springFast}
       draggable={!selectionMode || isChecked}
-      onDragStart={(e) => {
+      onDragStartCapture={(e) => {
         if (selectionMode && !isChecked) {
           e.preventDefault();
           return;
@@ -120,7 +125,7 @@ export default function BookListItem({
         }
         onDragStart?.(book.fileHash);
       }}
-      onDragEnd={() => onDragEnd?.()}
+      onDragEndCapture={() => onDragEnd?.()}
     >
       <div className="flex min-w-0 items-center gap-3 px-3 py-2">
         <div
@@ -136,10 +141,13 @@ export default function BookListItem({
         </div>
         <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
           {thumbnail ? (
-            <img
+            <motion.img
               src={thumbnail}
               alt={book.title}
               className="h-full w-full object-cover"
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: reduceMotion ? 0 : 0.16 }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
@@ -171,7 +179,7 @@ export default function BookListItem({
       <div className="flex justify-end gap-1 px-2">
         {showSyncActions && onSync && (
           <>
-            <button
+            <motion.button
               onClick={(e) => {
                 e.stopPropagation();
                 onSync("move");
@@ -180,8 +188,8 @@ export default function BookListItem({
               title="Mover para library"
             >
               <Move size={15} className="text-zinc-400" />
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={(e) => {
                 e.stopPropagation();
                 onSync("copy");
@@ -190,11 +198,11 @@ export default function BookListItem({
               title="Copiar para library"
             >
               <Copy size={15} className="text-zinc-400" />
-            </button>
+            </motion.button>
           </>
         )}
         {onDelete && (
-          <button
+          <motion.button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -203,9 +211,9 @@ export default function BookListItem({
             title="Remover"
           >
             <Trash2 size={15} className="text-red-400" />
-          </button>
+          </motion.button>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

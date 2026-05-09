@@ -11,10 +11,13 @@ import WeekdayChart from "./WeekdayChart";
 import WeeklyPagesChart from "./WeeklyPagesChart";
 import CategoryChart from "./CategoryChart";
 import AreaChartComponent from "./AreaChartComponent";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { softFadeUp, springFast } from "../../../../utils/motionPresets";
 
 export default function ReadingCharts() {
   const [activeChart, setActiveChart] = useLocalStorage<ChartType>("chart_type", "daily");
   const { selectedUsers, currentUserId } = useSelectedUsers();
+  const reduceMotion = useReducedMotion();
 
   const { data: currentUserData, isLoading: isLoadingCurrentUser } = useQuery<
     ReadingData[]
@@ -137,28 +140,49 @@ export default function ReadingCharts() {
     <div className="">
       <div className="flex border-b-2 border-zinc-800">
         {CHART_OPTIONS.map((option) => (
-          <button
+          <motion.button
             key={option.key}
             onClick={() => setActiveChart(option.key)}
-            className={`flex-1 py-3.5 cursor-pointer rounded-t-sm text-sm font-medium transition ${
+            className={`relative flex-1 cursor-pointer rounded-t-sm py-3.5 text-sm font-medium transition ${
               activeChart === option.key
-                ? "bg-zinc-800 text-zinc-100"
+                ? "text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
             }`}
           >
-            {option.label}
-          </button>
+            {activeChart === option.key && (
+              <motion.span
+                layoutId="dashboard-chart-active-tab"
+                className="absolute inset-0 rounded-t-sm bg-zinc-800"
+                transition={springFast}
+              />
+            )}
+            <span className="relative z-10">{option.label}</span>
+          </motion.button>
         ))}
       </div>
-      <div className="p-2 pt-4 min-h-56" key={activeChart}>
-        {renderChart()}
+      <div className="min-h-56 p-2 pt-4">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeChart}
+            variants={reduceMotion ? undefined : softFadeUp}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+            exit={reduceMotion ? undefined : "exit"}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: "easeOut" }}
+          >
+            {renderChart()}
+          </motion.div>
+        </AnimatePresence>
       </div>
       {usersData.length > 1 && (
         <div className="px-2 pb-2 flex gap-3 justify-center">
           {usersData.map((userData, index) => (
-            <div
+            <motion.div
               key={userData.user.userId}
               className="flex items-center gap-1.5 text-xs"
+              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: reduceMotion ? 0 : index * 0.04 }}
             >
               <div
                 className="w-2.5 h-2.5 rounded-full"
@@ -170,12 +194,12 @@ export default function ReadingCharts() {
                 className={
                   userData.user.isCurrentUser
                     ? "text-zinc-200 font-medium"
-                    : "text-zinc-500"
+                  : "text-zinc-500"
                 }
               >
                 {userData.user.username}
               </span>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}

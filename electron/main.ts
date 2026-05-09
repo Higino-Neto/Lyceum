@@ -6,6 +6,9 @@ import electron, {
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { autoUpdater } from "electron-updater";
 import chokidar, { FSWatcher } from "chokidar";
 import { Readable } from "node:stream";
@@ -95,6 +98,7 @@ const {
   session,
 } = electron;
 const require = createRequire(import.meta.url);
+const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const __filename = fileURLToPath(import.meta.url);
 (globalThis as any).__filename = __filename;
@@ -108,6 +112,12 @@ import {
   type ImageCandidate,
 } from "../src/lib/pdf-to-epub";
 import { convertEpubToPdf } from "../src/lib/epub-to-pdf";
+import {
+  convertViaLyceum,
+  inferBookFormatFromPath,
+  listTargetsForSourceFormat,
+  type BookFormat,
+} from "../src/lib/lyceum";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -128,6 +138,28 @@ const USER_DATA_PATH = () => app.getPath("userData");
 const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 const THUMB_WIDTH = 300;
+const USB_SCAN_INTERVAL_MS = 4000;
+const USB_BOOK_EXTENSIONS = [
+  ".pdf",
+  ".epub",
+  ".mobi",
+  ".azw",
+  ".azw3",
+  ".azw4",
+  ".kfx",
+  ".prc",
+  ".txt",
+];
+const EREADER_MARKERS = [
+  "documents",
+  "audible",
+  "system",
+  "kindle",
+  ".kobo",
+  "digital editions",
+  ".adobe-digital-editions",
+  "books",
+];
 
 interface FolderInfo {
   name: string;
@@ -199,6 +231,10 @@ function inferFileTypeFromPath(
   }
 
   return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
+}
+
+function toReadableFileType(fileType?: string | null): "pdf" | "epub" {
+  return fileType === "epub" ? "epub" : "pdf";
 }
 
 function moveFileAcrossDevices(sourcePath: string, targetPath: string): void {
@@ -336,6 +372,624 @@ function getAllBookFiles(dir: string): string[] {
   }
 
   return results;
+}
+
+function safeReadDir(dir: string): fs.Dirent[] {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+function isDirectory(targetPath: string): boolean {
+  try {
+    return fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function getCandidateVolumeRoots(): string[] {
+  if (process.platform === "win32") {
+    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      .split("")
+      .map((letter) => `${letter}:\\`)
+      .filter((root) => isDirectory(root));
+  }
+
+  const roots = new Set<string>();
+  const username = os.userInfo().username;
+  const parentDirs = [
+    "/Volumes",
+    path.join("/media", username),
+    path.join("/run/media", username),
+    "/mnt",
+  ];
+
+  for (const parentDir of parentDirs) {
+    for (const item of safeReadDir(parentDir)) {
+      if (item.isDirectory()) {
+        roots.add(path.join(parentDir, item.name));
+      }
+    }
+  }
+
+  return Array.from(roots).filter((root) => isDirectory(root));
+}
+
+function getReadableRootNames(rootPath: string): Set<string> {
+  return new Set(safeReadDir(rootPath).map((item) => item.name.toLowerCase()));
+}
+
+function recognizeEreaderRoot(rootPath: string): UsbDeviceInfo | null {
+  const names = getReadableRootNames(rootPath);
+  const hasMarker = EREADER_MARKERS.some((marker) => names.has(marker));
+  const hasKindleShape =
+    names.has("documents") &&
+    (names.has("system") || names.has("audible") || names.has("fonts"));
+  const hasKoboShape = names.has(".kobo") || names.has("digital editions");
+
+  if (!hasMarker && !hasKindleShape && !hasKoboShape) {
+    return null;
+  }
+
+  const kind: UsbDeviceInfo["kind"] = hasKoboShape
+    ? "kobo"
+    : hasKindleShape
+      ? "kindle"
+      : "ereader";
+  const rootLabel = rootPath.replace(/[\\/]+$/, "") || rootPath;
+  const fallbackName = process.platform === "win32"
+    ? rootLabel
+    : path.basename(rootLabel);
+
+  return {
+    id: crypto.createHash("sha1").update(path.resolve(rootPath)).digest("hex"),
+    name: kind === "kindle" ? `Kindle (${fallbackName})` : kind === "kobo" ? `Kobo (${fallbackName})` : `E-reader (${fallbackName})`,
+    rootPath,
+    kind,
+  };
+}
+
+function scanUsbDevices(): UsbDeviceInfo[] {
+  return getCandidateVolumeRoots()
+    .map(recognizeEreaderRoot)
+    .filter((device): device is UsbDeviceInfo => Boolean(device));
+}
+
+function getUsbBookSearchRoots(device: UsbDeviceInfo): string[] {
+  const preferred = [
+    "documents",
+    "Books",
+    "books",
+    "Digital Editions",
+  ]
+    .map((folder) => path.join(device.rootPath, folder))
+    .filter((folder) => isDirectory(folder));
+
+  return preferred.length > 0 ? preferred : [device.rootPath];
+}
+
+function getUsbBookFileType(filePath: string): string | null {
+  const lowerPath = filePath.toLowerCase();
+  if (lowerPath.endsWith(".kepub.epub")) return "epub";
+  const extension = path.extname(lowerPath);
+  return USB_BOOK_EXTENSIONS.includes(extension) ? extension.slice(1) : null;
+}
+
+function collectUsbBookFiles(dir: string, maxDepth = 7): string[] {
+  const results: string[] = [];
+  const seen = new Set<string>();
+  const skipDirs = new Set([".trash", ".trashes", ".spotlight-v100", ".fseventsd"]);
+
+  const walk = (currentDir: string, depth: number) => {
+    if (depth > maxDepth || seen.has(currentDir)) return;
+    seen.add(currentDir);
+
+    for (const item of safeReadDir(currentDir)) {
+      const fullPath = path.join(currentDir, item.name);
+      if (item.isDirectory()) {
+        const lowerName = item.name.toLowerCase();
+        if (skipDirs.has(lowerName) || lowerName.endsWith(".sdr")) continue;
+        walk(fullPath, depth + 1);
+      } else if (item.isFile() && getUsbBookFileType(fullPath)) {
+        results.push(fullPath);
+      }
+    }
+  };
+
+  walk(dir, 0);
+  return results;
+}
+
+function parseTitleAndAuthorFromFileName(filePath: string): { title: string; author: string | null } {
+  const fileName = path.basename(filePath)
+    .replace(/\.kepub\.epub$/i, "")
+    .replace(/\.(pdf|epub|mobi|azw|azw3|azw4|kfx|prc|txt)$/i, "");
+  const parts = fileName.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return { title: parts.slice(1).join(" - "), author: parts[0] };
+  }
+
+  return { title: fileName || path.basename(filePath), author: null };
+}
+
+function getUsbBookSidecarMetadata(filePath: string): { title?: string; author?: string } {
+  const dir = path.dirname(filePath);
+  const baseName = path.basename(filePath, path.extname(filePath));
+  const sdrDir = path.join(dir, `${baseName}.sdr`);
+
+  if (!isDirectory(sdrDir)) return {};
+
+  const jsonFile = safeReadDir(sdrDir)
+    .filter((item) => item.isFile() && item.name.toLowerCase().endsWith(".json"))
+    .map((item) => path.join(sdrDir, item.name))[0];
+
+  if (!jsonFile) return {};
+
+  try {
+    const data = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
+    const author = Array.isArray(data.authors) ? data.authors.join(", ") : data.author;
+    return {
+      title: typeof data.title === "string" ? data.title : undefined,
+      author: typeof author === "string" ? author : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function parseJsonArray<T>(raw: string): T[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const parsed = JSON.parse(trimmed);
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+async function runWindowsPowerShellJson<T>(script: string): Promise<T[]> {
+  if (process.platform !== "win32") return [];
+
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+    {
+      windowsHide: true,
+      maxBuffer: 1024 * 1024 * 16,
+      timeout: 45_000,
+    },
+  );
+
+  return parseJsonArray<T>(stdout);
+}
+
+async function getWindowsMtpBooks(): Promise<WindowsMtpBookEntry[]> {
+  const extensions = USB_BOOK_EXTENSIONS.map((extension) => extension.slice(1)).join("|");
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$shell = New-Object -ComObject Shell.Application
+$computer = $shell.Namespace(17)
+$rows = New-Object System.Collections.Generic.List[object]
+$skipFolders = @('.cache', 'dictionaries', '.trash', '.trashes')
+$bookPattern = '\\.(${extensions})$'
+
+function Add-BooksFromFolder($folderItem, [string]$relativePath, [string]$deviceName, [string]$devicePath, [int]$depth) {
+  if ($depth -gt 8 -or $null -eq $folderItem) { return }
+  $folder = $folderItem.GetFolder
+  if ($null -eq $folder) { return }
+
+  foreach ($child in $folder.Items()) {
+    $name = [string]$child.Name
+    if ([string]::IsNullOrWhiteSpace($name)) { continue }
+    $nextPath = if ([string]::IsNullOrWhiteSpace($relativePath)) { $name } else { "$relativePath/$name" }
+
+    if ($child.IsFolder) {
+      $lower = $name.ToLowerInvariant()
+      if ($skipFolders -contains $lower -or $lower.EndsWith('.sdr')) { continue }
+      Add-BooksFromFolder $child $nextPath $deviceName $devicePath ($depth + 1)
+      continue
+    }
+
+    if ($name -match $bookPattern) {
+      $ext = [System.IO.Path]::GetExtension($name).TrimStart('.').ToLowerInvariant()
+      $modified = $null
+      try {
+        if ($child.ModifyDate) {
+          $modified = ([DateTime]$child.ModifyDate).ToUniversalTime().ToString('o')
+        }
+      } catch {}
+
+      $rows.Add([PSCustomObject]@{
+        deviceName = $deviceName
+        devicePath = $devicePath
+        name = $name
+        path = [string]$child.Path
+        relativePath = $nextPath
+        fileType = $ext
+        size = [int64]$child.Size
+        modifiedAt = $modified
+      })
+    }
+  }
+}
+
+foreach ($device in $computer.Items()) {
+  if (-not $device.IsFolder) { continue }
+  $devicePath = [string]$device.Path
+  if ($devicePath -match '^[A-Z]:\\\\?$') { continue }
+
+  $deviceName = [string]$device.Name
+  $storageItems = @($device.GetFolder.Items() | Where-Object { $_.IsFolder })
+  foreach ($storage in $storageItems) {
+    $roots = @($storage.GetFolder.Items() | Where-Object { $_.IsFolder -and ($_.Name -in @('documents','Books','books','Digital Editions')) })
+    if ($roots.Count -eq 0) { $roots = @($storage) }
+    foreach ($root in $roots) {
+      Add-BooksFromFolder $root '' $deviceName $devicePath 0
+    }
+  }
+}
+
+$rows | ConvertTo-Json -Depth 4
+`;
+
+  try {
+    return await runWindowsPowerShellJson<WindowsMtpBookEntry>(script);
+  } catch (error) {
+    console.error("[usb:list-mtp-books] Error:", error);
+    return [];
+  }
+}
+
+async function getWindowsMtpDeviceSignatures(): Promise<string[]> {
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$shell = New-Object -ComObject Shell.Application
+$computer = $shell.Namespace(17)
+$computer.Items() |
+  Where-Object { $_.IsFolder -and ([string]$_.Path -notmatch '^[A-Z]:\\\\?$') } |
+  ForEach-Object { [PSCustomObject]@{ name = [string]$_.Name; path = [string]$_.Path } } |
+  ConvertTo-Json -Depth 3
+`;
+
+  try {
+    return (await runWindowsPowerShellJson<{ name: string; path: string }>(script))
+      .map((device) => `${device.name}:${device.path}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+async function getUsbDeviceSignature(): Promise<string> {
+  const filesystemDevices = scanUsbDevices()
+    .map((device) => `${device.id}:${device.rootPath}`)
+    .sort();
+  const mtpDevices = await getWindowsMtpDeviceSignatures();
+  return [...filesystemDevices, ...mtpDevices].join("|");
+}
+
+function buildWindowsMtpBookRecord(entry: WindowsMtpBookEntry, index: number): DocumentRecord {
+  const inferred = parseTitleAndAuthorFromFileName(entry.name);
+  const timestamp = entry.modifiedAt || new Date().toISOString();
+  const fileHash = `mtp:${crypto
+    .createHash("sha1")
+    .update(`${entry.devicePath}|${entry.path}|${entry.name}`)
+    .digest("hex")}`;
+
+  return {
+    id: -10_000 - index,
+    title: inferred.title,
+    filePath: entry.path,
+    fileHash,
+    fileName: entry.name,
+    folderPath: `${entry.deviceName}/${path.dirname(entry.relativePath).replace(/\\/g, "/")}`,
+    fileMtime: Date.parse(timestamp) || null,
+    currentPage: 1,
+    currentZoom: null,
+    currentScroll: null,
+    annotations: null,
+    thumbnailPath: null,
+    numPages: 0,
+    createdAt: timestamp,
+    lastOpenedAt: timestamp,
+    isSynced: 0,
+    category: entry.deviceName,
+    isFavorite: 0,
+    rating: 0,
+    notes: null,
+    author: inferred.author,
+    description: `Encontrado em ${entry.deviceName}`,
+    isbn: null,
+    publisher: null,
+    publishDate: null,
+    fileSize: entry.size || 0,
+    processingStatus: "completed",
+    bookId: null,
+    fileType: entry.fileType as DocumentRecord["fileType"],
+    importedAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+function escapePowerShellSingleQuoted(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+async function copyWindowsMtpBookToTemp(itemPath: string): Promise<string | null> {
+  if (process.platform !== "win32" || !itemPath.startsWith("::")) {
+    return null;
+  }
+
+  const safeItemPath = escapePowerShellSingleQuoted(itemPath);
+  const tempDir = path.join(app.getPath("temp"), "lyceum-mtp-books");
+  fs.mkdirSync(tempDir, { recursive: true });
+  const safeTempDir = escapePowerShellSingleQuoted(tempDir);
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$targetPath = '${safeItemPath}'
+$destination = '${safeTempDir}'
+$shell = New-Object -ComObject Shell.Application
+$computer = $shell.Namespace(17)
+$found = $null
+
+function Find-ItemByPath($folderItem, [string]$needle, [int]$depth) {
+  if ($depth -gt 10 -or $null -eq $folderItem -or $script:found) { return }
+  if ([string]$folderItem.Path -eq $needle) {
+    $script:found = $folderItem
+    return
+  }
+
+  if (-not $folderItem.IsFolder) { return }
+  $folder = $folderItem.GetFolder
+  if ($null -eq $folder) { return }
+
+  foreach ($child in $folder.Items()) {
+    if ([string]$child.Path -eq $needle) {
+      $script:found = $child
+      return
+    }
+
+    if ($child.IsFolder) {
+      Find-ItemByPath $child $needle ($depth + 1)
+      if ($script:found) { return }
+    }
+  }
+}
+
+foreach ($device in $computer.Items()) {
+  if ($device.IsFolder) {
+    Find-ItemByPath $device $targetPath 0
+    if ($found) { break }
+  }
+}
+
+if ($null -eq $found) {
+  [PSCustomObject]@{ success = $false; error = 'Arquivo não encontrado no dispositivo' } | ConvertTo-Json -Depth 3
+  exit
+}
+
+$destFolder = $shell.Namespace($destination)
+$destFile = Join-Path $destination $found.Name
+if (Test-Path -LiteralPath $destFile) { Remove-Item -LiteralPath $destFile -Force }
+$destFolder.CopyHere($found, 16)
+
+for ($i = 0; $i -lt 120; $i++) {
+  if (Test-Path -LiteralPath $destFile) {
+    [PSCustomObject]@{ success = $true; filePath = $destFile } | ConvertTo-Json -Depth 3
+    exit
+  }
+  Start-Sleep -Milliseconds 250
+}
+
+[PSCustomObject]@{ success = $false; error = 'Tempo esgotado ao copiar do dispositivo' } | ConvertTo-Json -Depth 3
+`;
+
+  try {
+    const result = (await runWindowsPowerShellJson<{ success: boolean; filePath?: string; error?: string }>(script))[0];
+    if (result?.success && result.filePath) {
+      return result.filePath;
+    }
+    console.error("[usb:copy-mtp-book] Error:", result?.error);
+    return null;
+  } catch (error) {
+    console.error("[usb:copy-mtp-book] Error:", error);
+    return null;
+  }
+}
+
+async function buildUsbBookRecord(
+  filePath: string,
+  device: UsbDeviceInfo,
+  index: number,
+): Promise<DocumentRecord> {
+  const stats = fs.statSync(filePath);
+  const fileType = getUsbBookFileType(filePath) || "pdf";
+  const inferred = parseTitleAndAuthorFromFileName(filePath);
+  const sidecar = getUsbBookSidecarMetadata(filePath);
+  const fileHash = `usb:${crypto
+    .createHash("sha1")
+    .update(`${device.id}|${filePath}|${stats.mtimeMs}|${stats.size}`)
+    .digest("hex")}`;
+
+  let title = sidecar.title || inferred.title;
+  let author = sidecar.author || inferred.author;
+  let publisher: string | null = null;
+  let publishDate: string | null = null;
+  let numPages = 0;
+
+  if (fileType === "pdf") {
+    const metadata = await extractMetadata(filePath);
+    title = metadata?.title || title;
+    author = metadata?.author || author;
+    publisher = metadata?.producer || null;
+    publishDate = metadata?.creationDate || null;
+    numPages = await getPdfPageCount(filePath);
+  } else if (fileType === "epub") {
+    const metadata = await extractEpubMetadata(filePath);
+    title = metadata?.title || title;
+    author = metadata?.author || author;
+    publisher = metadata?.producer || null;
+    publishDate = metadata?.creationDate || null;
+    numPages = await getEpubChapterCount(filePath);
+  }
+
+  const timestamp = new Date(stats.mtimeMs).toISOString();
+
+  return {
+    id: -1 - index,
+    title,
+    filePath,
+    fileHash,
+    fileName: path.basename(filePath),
+    folderPath: path.dirname(filePath),
+    fileMtime: Math.round(stats.mtimeMs),
+    currentPage: 1,
+    currentZoom: null,
+    currentScroll: null,
+    annotations: null,
+    thumbnailPath: null,
+    numPages,
+    createdAt: timestamp,
+    lastOpenedAt: timestamp,
+    isSynced: 0,
+    category: device.name,
+    isFavorite: 0,
+    rating: 0,
+    notes: null,
+    author,
+    description: `Encontrado em ${device.name}`,
+    isbn: null,
+    publisher,
+    publishDate,
+    fileSize: stats.size,
+    processingStatus: "completed",
+    bookId: null,
+    fileType: fileType as DocumentRecord["fileType"],
+    importedAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+async function listUsbBooks(query: UsbBookListQuery = {}): Promise<LibraryListResult> {
+  const limit = Math.min(Math.max(query.limit ?? 80, 1), 200);
+  const offset = Math.max(query.offset ?? 0, 0);
+  const devices = scanUsbDevices();
+  const mtpEntries = await getWindowsMtpBooks();
+  const files = devices.flatMap((device) =>
+    getUsbBookSearchRoots(device)
+      .flatMap((root) => collectUsbBookFiles(root))
+      .map((filePath) => ({ filePath, device })),
+  );
+  const uniqueFiles = Array.from(
+    new Map(files.map((entry) => [path.resolve(entry.filePath).toLowerCase(), entry])).values(),
+  );
+  const search = (query.search || "").trim().toLowerCase();
+
+  if (query.countOnly) {
+    const fsTotal = uniqueFiles.filter(({ filePath, device }) => {
+      const fileType = getUsbBookFileType(filePath);
+      if (query.fileType && query.fileType !== "all" && fileType !== query.fileType) {
+        return false;
+      }
+
+      if (!search) return true;
+
+      return [filePath, path.basename(filePath), fileType, device.name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search));
+    }).length;
+    const mtpTotal = mtpEntries.filter((entry) => {
+      if (query.fileType && query.fileType !== "all" && entry.fileType !== query.fileType) {
+        return false;
+      }
+
+      if (!search) return true;
+
+      return [entry.name, entry.relativePath, entry.fileType, entry.deviceName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search));
+    }).length;
+
+    return {
+      items: [],
+      total: fsTotal + mtpTotal,
+      limit,
+      offset,
+      hasMore: false,
+    };
+  }
+
+  const fsRecords = await Promise.all(
+    uniqueFiles.map((entry, index) => buildUsbBookRecord(entry.filePath, entry.device, index)),
+  );
+  const mtpRecords = mtpEntries.map((entry, index) => buildWindowsMtpBookRecord(entry, index));
+  const records = [...fsRecords, ...mtpRecords];
+
+  let filtered = records.filter((book) => {
+    if (query.fileType && query.fileType !== "all" && book.fileType !== query.fileType) {
+      return false;
+    }
+
+    if (!search) return true;
+
+    return [
+      book.title,
+      book.author,
+      book.fileName,
+      book.folderPath,
+      book.fileType,
+      book.category,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(search));
+  });
+
+  const sort = query.sort || "title_asc";
+  filtered = filtered.sort((a, b) => {
+    const titleCompare = a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" });
+    if (sort === "title_desc") return -titleCompare;
+    if (sort === "recent_desc") return (b.fileMtime || 0) - (a.fileMtime || 0);
+    if (sort === "recent_asc") return (a.fileMtime || 0) - (b.fileMtime || 0);
+    if (sort === "pages_desc") return (b.numPages || 0) - (a.numPages || 0) || titleCompare;
+    if (sort === "pages_asc") return (a.numPages || 0) - (b.numPages || 0) || titleCompare;
+    if (sort === "size_desc") return (b.fileSize || 0) - (a.fileSize || 0) || titleCompare;
+    if (sort === "size_asc") return (a.fileSize || 0) - (b.fileSize || 0) || titleCompare;
+    return titleCompare;
+  });
+
+  const items = filtered.slice(offset, offset + limit);
+
+  return {
+    items,
+    total: filtered.length,
+    limit,
+    offset,
+    hasMore: offset + items.length < filtered.length,
+  };
+}
+
+function setupUsbDeviceWatcher() {
+  let checking = false;
+  const emitIfChanged = async () => {
+    if (checking) return;
+    checking = true;
+
+    const signature = await getUsbDeviceSignature();
+
+    if (signature !== lastUsbDeviceSignature) {
+      lastUsbDeviceSignature = signature;
+      win?.webContents.send("usb:devices-updated");
+    }
+
+    checking = false;
+  };
+
+  void emitIfChanged();
+  if (usbDeviceWatcher) {
+    clearInterval(usbDeviceWatcher);
+  }
+  usbDeviceWatcher = setInterval(() => void emitIfChanged(), USB_SCAN_INTERVAL_MS);
 }
 
 function getFolderStructure(libraryPath: string): FolderInfo[] {
@@ -945,6 +1599,54 @@ function createUniqueConvertedEpubPath(pdfPath: string): string {
   return candidate;
 }
 
+function createUniqueConvertedPath(sourcePath: string, targetFormat: BookFormat): string {
+  const directory = path.dirname(sourcePath);
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  let candidate = path.join(directory, `${baseName}-convertido.${targetFormat}`);
+  let index = 2;
+
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(directory, `${baseName}-convertido-${index}.${targetFormat}`);
+    index += 1;
+  }
+
+  return candidate;
+}
+
+function getLyceumPackageRoot(fileHash: string) {
+  return path.join(app.getPath("userData"), "lyceum-packages", `${fileHash}.lyceum`);
+}
+
+interface UsbDeviceInfo {
+  id: string;
+  name: string;
+  rootPath: string;
+  kind: "kindle" | "kobo" | "ereader";
+}
+
+interface UsbBookListQuery {
+  search?: string;
+  fileType?: "all" | "pdf" | "epub";
+  sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+  limit?: number;
+  offset?: number;
+  countOnly?: boolean;
+}
+
+interface WindowsMtpBookEntry {
+  deviceName: string;
+  devicePath: string;
+  name: string;
+  path: string;
+  relativePath: string;
+  fileType: string;
+  size: number;
+  modifiedAt: string | null;
+}
+
+let usbDeviceWatcher: NodeJS.Timeout | null = null;
+let lastUsbDeviceSignature = "";
+
 function createUniqueConvertedPdfPath(epubPath: string): string {
   const directory = path.dirname(epubPath);
   const baseName = path.basename(epubPath, path.extname(epubPath));
@@ -1474,6 +2176,48 @@ ipcMain.handle("library:list-books", (_, query) => {
   return listDocuments(query);
 });
 
+ipcMain.handle("usb:get-devices", () => {
+  return scanUsbDevices();
+});
+
+ipcMain.handle("usb:list-books", (_, query: UsbBookListQuery) => {
+  return listUsbBooks(query);
+});
+
+ipcMain.handle("usb:scan-books", async () => {
+  lastUsbDeviceSignature = await getUsbDeviceSignature();
+  win?.webContents.send("usb:devices-updated");
+  return listUsbBooks();
+});
+
+ipcMain.handle("usb:open-book", async (_, filePath: string) => {
+  try {
+    const localPath = filePath.startsWith("::")
+      ? await copyWindowsMtpBookToTemp(filePath)
+      : filePath;
+
+    if (!localPath) {
+      return { success: false, error: "NÃ£o foi possÃ­vel acessar o arquivo no dispositivo" };
+    }
+
+    const isEpub = localPath.toLowerCase().endsWith(".epub");
+    const isPdf = localPath.toLowerCase().endsWith(".pdf");
+    if (!isEpub && !isPdf) {
+      return { success: false, error: "Formato nÃ£o suportado no leitor" };
+    }
+
+    const document = await openReadableFile(localPath);
+    if (!document) {
+      return { success: false, error: "NÃ£o foi possÃ­vel abrir o livro" };
+    }
+
+    return { success: true, ...document };
+  } catch (error) {
+    console.error("[usb:open-book] Error:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle("reading:save", (_, payload) => {
   const { fileHash, state } = payload ?? {};
   if (!fileHash || !state) return;
@@ -1559,6 +2303,204 @@ ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash:
     console.error("[temp:get-pdf-file] Error:", error);
     return null;
   }
+});
+
+async function runGenericDocumentConversion(fileHash: string, targetFormat: BookFormat) {
+  try {
+    const doc = getDocumentByHash(fileHash);
+
+    if (!doc || !doc.filePath) {
+      return { success: false, error: "Livro nao encontrado na biblioteca" };
+    }
+
+    const sourceFormat = inferBookFormatFromPath(doc.filePath) || doc.fileType;
+    if (sourceFormat === targetFormat) {
+      return { success: false, error: "O formato de origem e destino sao iguais" };
+    }
+
+    if (!fs.existsSync(doc.filePath)) {
+      return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+    }
+
+    const outputPath = createUniqueConvertedPath(doc.filePath, targetFormat);
+    const converted = await convertViaLyceum({
+      sourcePath: doc.filePath,
+      sourceFormat,
+      targetFormat,
+      packageRoot: getLyceumPackageRoot(fileHash),
+      outputPath,
+      metadata: {
+        title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, path.extname(doc.filePath)),
+        author: doc.author || undefined,
+        language: "pt-BR",
+        publisher: doc.publisher || undefined,
+        description: doc.description || undefined,
+        publishDate: doc.publishDate || undefined,
+      },
+      renderImageAsset: sourceFormat === "pdf"
+        ? createPdfImageAssetRenderer(doc.filePath, fileHash)
+        : undefined,
+    });
+
+    const outputHash = generateFileHash(outputPath);
+    const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
+    const outputFileType = targetFormat;
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+      ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
+      : null;
+    const numPages = targetFormat === "pdf"
+      ? await getPdfPageCount(outputPath)
+      : targetFormat === "epub"
+        ? await getEpubChapterCount(outputPath)
+        : Number(converted.exportReport.stats.pageCount || converted.exportReport.stats.chapterCount || 1);
+
+    if (!existing) {
+      addDocument(
+        path.basename(outputPath, path.extname(outputPath)),
+        outputPath,
+        outputHash,
+        thumbnailPath || undefined,
+        numPages || 1,
+        outputFileType,
+        doc.isSynced ? 1 : 0,
+      );
+    }
+
+    win?.webContents.send("library:updated");
+
+    return {
+      success: true,
+      outputPath,
+      fileHash: outputHash,
+      packageRoot: converted.packageRoot,
+      report: {
+        ...converted.importReport.stats,
+        ...converted.exportReport.stats,
+        warnings: [
+          ...converted.importReport.warnings,
+          ...converted.exportReport.warnings,
+        ],
+      },
+    };
+  } catch (error) {
+    console.error("[conversion:run] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao converter livro",
+    };
+  }
+}
+
+async function runGenericFileConversion(sourcePath: string, targetFormat: BookFormat) {
+  try {
+    const localPath = sourcePath.startsWith("::")
+      ? await copyWindowsMtpBookToTemp(sourcePath)
+      : sourcePath;
+
+    if (!localPath) {
+      return { success: false, error: "Nao foi possivel acessar o arquivo de origem" };
+    }
+
+    if (!fs.existsSync(localPath)) {
+      return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+    }
+
+    const sourceFormat = inferBookFormatFromPath(localPath);
+    if (!sourceFormat) {
+      return { success: false, error: "Formato de origem nao suportado" };
+    }
+
+    if (sourceFormat === targetFormat) {
+      return { success: false, error: "O formato de origem e destino sao iguais" };
+    }
+
+    const sourceHash = generateFileHash(localPath);
+    const sourceTitle = path.basename(localPath, path.extname(localPath));
+    const outputPath = createUniqueConvertedPath(localPath, targetFormat);
+    const converted = await convertViaLyceum({
+      sourcePath: localPath,
+      sourceFormat,
+      targetFormat,
+      packageRoot: getLyceumPackageRoot(sourceHash),
+      outputPath,
+      metadata: {
+        title: sourceTitle,
+        language: "pt-BR",
+      },
+      renderImageAsset: sourceFormat === "pdf"
+        ? createPdfImageAssetRenderer(localPath, sourceHash)
+        : undefined,
+    });
+
+    const outputHash = generateFileHash(outputPath);
+    const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+      ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
+      : null;
+    const numPages = targetFormat === "pdf"
+      ? await getPdfPageCount(outputPath)
+      : targetFormat === "epub"
+        ? await getEpubChapterCount(outputPath)
+        : Number(converted.exportReport.stats.pageCount || converted.exportReport.stats.chapterCount || 1);
+
+    if (!existing) {
+      addDocument(
+        path.basename(outputPath, path.extname(outputPath)),
+        outputPath,
+        outputHash,
+        thumbnailPath || undefined,
+        numPages || 1,
+        targetFormat,
+        0,
+      );
+    }
+
+    win?.webContents.send("library:updated");
+
+    return {
+      success: true,
+      outputPath,
+      fileHash: outputHash,
+      packageRoot: converted.packageRoot,
+      report: {
+        ...converted.importReport.stats,
+        ...converted.exportReport.stats,
+        warnings: [
+          ...converted.importReport.warnings,
+          ...converted.exportReport.warnings,
+        ],
+      },
+    };
+  } catch (error) {
+    console.error("[conversion:run-file] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao converter arquivo",
+    };
+  }
+}
+
+ipcMain.handle("conversion:list-targets", async (_, fileHash: string) => {
+  const doc = getDocumentByHash(fileHash);
+
+  if (!doc?.filePath) {
+    return { success: false, targets: [], error: "Livro nao encontrado na biblioteca" };
+  }
+
+  const sourceFormat = inferBookFormatFromPath(doc.filePath) || doc.fileType;
+  return {
+    success: true,
+    sourceFormat,
+    targets: listTargetsForSourceFormat(sourceFormat),
+  };
+});
+
+ipcMain.handle("conversion:run", async (_, fileHash: string, targetFormat: BookFormat) => {
+  return runGenericDocumentConversion(fileHash, targetFormat);
+});
+
+ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: BookFormat) => {
+  return runGenericFileConversion(filePath, targetFormat);
 });
 
 ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
@@ -1826,7 +2768,7 @@ ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => 
       const hash = generateFileHash(knownDocument.filePath);
       const inferredFileType = inferFileTypeFromPath(
         knownDocument.filePath,
-        knownDocument.fileType,
+        toReadableFileType(knownDocument.fileType),
       );
 
       if (inferredFileType !== knownDocument.fileType) {
@@ -1864,7 +2806,7 @@ ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => 
     console.log("[pdf:reopen] Found file at new location:", foundPath);
     updateDocumentPath(fileHash, foundPath);
     updateLastOpened(fileHash);
-    const inferredFileType = inferFileTypeFromPath(foundPath, knownDocument.fileType);
+    const inferredFileType = inferFileTypeFromPath(foundPath, toReadableFileType(knownDocument.fileType));
     if (inferredFileType !== knownDocument.fileType) {
       updateDocumentFileType(fileHash, inferredFileType);
     }
@@ -2129,9 +3071,12 @@ ipcMain.handle("book:process-pending", async () => {
 ipcMain.handle("book:regenerate-thumbnail", async (_, fileHash: string) => {
   const doc = getDocumentByHash(fileHash);
   if (!doc) return { success: false, error: "Document not found" };
+  if (doc.fileType !== "pdf" && doc.fileType !== "epub") {
+    return { success: false, error: "Thumbnail generation is only supported for PDF and EPUB files" };
+  }
   
   try {
-    const fileType = inferFileTypeFromPath(doc.filePath, doc.fileType);
+    const fileType = inferFileTypeFromPath(doc.filePath, toReadableFileType(doc.fileType));
     const thumbnailPath = await generateThumbnail(doc.filePath, fileHash, true, fileType);
     if (thumbnailPath) {
       updateThumbnailPath(fileHash, thumbnailPath);
@@ -3091,6 +4036,7 @@ app.whenReady().then(async () => {
   initDatabase();
   ensureLibraryFolder();
   setupFileWatcher();
+  setupUsbDeviceWatcher();
 
   importCategoriesFromFolders();
   await scanLibrary();

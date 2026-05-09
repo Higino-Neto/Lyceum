@@ -2,7 +2,9 @@ import type { CSSProperties, MouseEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BookOpen, ExternalLink, FileText, X } from "lucide-react";
+import { motion } from "motion/react";
 import { DocumentTab } from "../../types/DocumentTab";
+import { springFast } from "../../utils/motionPresets";
 
 interface BaseTabProps {
   tab: DocumentTab;
@@ -56,14 +58,24 @@ function TabVisual({
       {...dragAttributes}
       {...dragListeners}
       className={[
-        "group flex h-full w-full min-w-0 max-w-[240px] items-center gap-2 border-r border-zinc-700 px-3 text-left transition-colors duration-150",
+        "group relative flex h-full w-full min-w-0 max-w-[240px] items-center gap-2 overflow-hidden border-r border-zinc-700 px-3 text-left transition-colors duration-150",
         isActive
-          ? "bg-zinc-800 text-zinc-100 border-t-2 border-t-green-500"
+          ? "bg-zinc-800 text-zinc-100"
           : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
         isDragging ? "cursor-grabbing opacity-50" : "cursor-grab",
       ].join(" ")}
     >
-      <Icon size={14} className={iconColor} />
+      {isActive && onActivate && (
+        <motion.span
+          layoutId="reading-active-tab-line"
+          className="absolute left-0 right-0 top-0 h-0.5 bg-green-500"
+          transition={springFast}
+        />
+      )}
+
+      <span className="flex flex-shrink-0">
+        <Icon size={14} className={iconColor} />
+      </span>
 
       <span className="flex-1 truncate text-sm" title={tab.fileName}>
         {tab.fileName}

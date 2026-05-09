@@ -1,5 +1,6 @@
 import { Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -7,6 +8,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import { springFast, subtleScale } from "../../../../utils/motionPresets";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -41,6 +43,7 @@ export default function BookCard({
   onToggleSelection,
   onContextSelect,
 }: BookCardProps) {
+  const reduceMotion = useReducedMotion();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
@@ -76,10 +79,12 @@ export default function BookCard({
   };
 
   return (
-    <div
+    <motion.div
       className={`group relative flex flex-col gap-2 rounded-sm p-1 cursor-pointer transition-all ${
         isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
       } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""}`}
+      whileHover={reduceMotion ? undefined : { y: -2 }}
+      transition={springFast}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -88,7 +93,7 @@ export default function BookCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       draggable={!selectionMode || isChecked}
-      onDragStart={(e) => {
+      onDragStartCapture={(e) => {
         if (selectionMode && !isChecked) {
           e.preventDefault();
           return;
@@ -106,26 +111,36 @@ export default function BookCard({
         }
         onDragStart?.(book.fileHash);
       }}
-      onDragEnd={() => onDragEnd?.()}
+      onDragEndCapture={() => onDragEnd?.()}
     >
-      {(selectionMode || isChecked) && (
-        <div
-          className={`absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
-            isChecked
-              ? "border-green-500 bg-green-500 text-zinc-950"
-              : "border-zinc-600 bg-zinc-950/80 text-transparent"
-          }`}
-        >
-          <Check size={15} />
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {(selectionMode || isChecked) && (
+          <motion.div
+            className={`absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
+              isChecked
+                ? "border-green-500 bg-green-500 text-zinc-950"
+                : "border-zinc-600 bg-zinc-950/80 text-transparent"
+            }`}
+            variants={reduceMotion ? undefined : subtleScale}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+            exit={reduceMotion ? undefined : "exit"}
+            transition={springFast}
+          >
+            <Check size={15} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
         {thumbnail ? (
-          <img
+          <motion.img
             src={thumbnail}
             alt={book.title}
             className="w-full h-full object-cover"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18 }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -139,8 +154,16 @@ export default function BookCard({
           </div>
         )}
         
+        <AnimatePresence>
         {showSyncActions && onSync && hovered && (
-          <div className="absolute top-2 right-2 z-20">
+          <motion.div
+            className="absolute top-2 right-2 z-20"
+            variants={reduceMotion ? undefined : subtleScale}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+            exit={reduceMotion ? undefined : "exit"}
+            transition={springFast}
+          >
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -151,10 +174,16 @@ export default function BookCard({
             >
               <MoreVertical size={14} />
             </button>
+            <AnimatePresence>
             {menuOpen && (
-              <div
+              <motion.div
                 className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg z-30"
                 onMouseLeave={() => setMenuOpen(false)}
+                variants={reduceMotion ? undefined : subtleScale}
+                initial={reduceMotion ? false : "hidden"}
+                animate="visible"
+                exit={reduceMotion ? undefined : "exit"}
+                transition={springFast}
               >
                 <button
                   onClick={(e) => {
@@ -191,10 +220,12 @@ export default function BookCard({
                     <Trash2 size={12} /> Remover
                   </button>
                 )}
-              </div>
+              </motion.div>
             )}
-          </div>
+            </AnimatePresence>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       <div className="flex h-[72px] flex-col">
@@ -211,6 +242,6 @@ export default function BookCard({
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

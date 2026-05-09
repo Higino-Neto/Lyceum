@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import getReadings from "../../../utils/getReadings";
 import { Flame, Check, Circle } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
@@ -110,6 +111,7 @@ function DayIcon({
 }
 
 export function WeeklyStreak() {
+  const reduceMotion = useReducedMotion();
   const { data: readings, isLoading } = useQuery({
     queryKey: ["readings"],
     queryFn: getReadings,
@@ -176,16 +178,21 @@ export function WeeklyStreak() {
           const isFuture = day.date > todayStr;
 
           return (
-            <div
+            <motion.div
               key={day.date}
               className="flex flex-col items-center gap-1.5 flex-1"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: reduceMotion ? 0 : index * 0.035, duration: 0.18 }}
             >
               <div className="relative group">
-                <DayIcon
-                  filled={day.hasRead}
-                  isToday={isToday}
-                  isFuture={isFuture}
-                />
+                <motion.div whileHover={reduceMotion ? undefined : { y: -1 }}>
+                  <DayIcon
+                    filled={day.hasRead}
+                    isToday={isToday}
+                    isFuture={isFuture}
+                  />
+                </motion.div>
                 {day.hasRead && (
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-700 text-zinc-100 text-[10px] font-medium px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                     {day.pagesRead} págs
@@ -205,7 +212,7 @@ export function WeeklyStreak() {
               >
                 {day.dayName}
               </span>
-            </div>
+            </motion.div>
           );
         })}
       </div>

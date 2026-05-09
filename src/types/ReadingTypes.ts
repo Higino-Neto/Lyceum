@@ -2,6 +2,21 @@
 
 export type TimerState = "idle" | "running" | "paused" | "finished";
 
+export type ReadingDocumentFileType =
+  | "pdf"
+  | "epub"
+  | "mobi"
+  | "azw"
+  | "azw3"
+  | "azw4"
+  | "kfx"
+  | "prc"
+  | "txt"
+  | "html"
+  | "docx"
+  | "cbz"
+  | "lyceum";
+
 export type ReadingCategory =
   | "fiction"
   | "math"
@@ -66,7 +81,7 @@ export interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
-  fileType?: "pdf" | "epub";
+  fileType?: ReadingDocumentFileType;
   importedAt?: string | null;
   updatedAt?: string | null;
 }

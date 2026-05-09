@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  BookWithThumbnail,
   LibraryFileTypeFilter,
   LibraryListResult,
   LibrarySection,
@@ -26,9 +25,35 @@ interface UseBooksOptions {
 interface SectionCounts {
   synced: number;
   unsynced: number;
+  usb: number;
+}
+
+interface UsbBooksApi {
+  listUsbBooks: (query: {
+    search?: string;
+    sort?: LibrarySortOption;
+    fileType?: LibraryFileTypeFilter;
+    limit?: number;
+    offset?: number;
+    countOnly?: boolean;
+  }) => Promise<LibraryListResult>;
+}
+
+function getUsbApi(): UsbBooksApi {
+  return window.api as unknown as UsbBooksApi;
 }
 
 async function loadPage(options: UseBooksOptions, offset: number): Promise<LibraryListResult> {
+  if (options.section === "usb") {
+    return getUsbApi().listUsbBooks({
+      search: options.search,
+      sort: options.sort,
+      fileType: options.fileType,
+      limit: PAGE_SIZE,
+      offset,
+    });
+  }
+
   return window.api.listBooks({
     section: options.section,
     search: options.search,
@@ -50,14 +75,25 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
     offset: 0,
   };
 
-  const [synced, unsynced] = await Promise.all([
+  const [synced, unsynced, usb] = await Promise.all([
     window.api.listBooks({ ...base, section: "synced" }),
     window.api.listBooks({ ...base, section: "unsynced" }),
+    getUsbApi()
+      .listUsbBooks({
+        search: options.search,
+        sort: options.sort,
+        fileType: options.fileType,
+        limit: 1,
+        offset: 0,
+        countOnly: true,
+      })
+      .catch(() => ({ total: 0 })),
   ]);
 
   return {
     synced: synced.total,
     unsynced: unsynced.total,
+    usb: usb.total,
   };
 }
 
@@ -95,7 +131,7 @@ export default function useBooks(options: UseBooksOptions) {
   const loading = booksQuery.isLoading;
   const loadingMore = booksQuery.isFetchingNextPage;
   const counts = useMemo(
-    () => countsQuery.data ?? { synced: 0, unsynced: 0 },
+    () => countsQuery.data ?? { synced: 0, unsynced: 0, usb: 0 },
     [countsQuery.data],
   );
   const categories = useMemo(

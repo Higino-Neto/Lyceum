@@ -7,6 +7,8 @@ import EpubViewer from "./components/epub-reader/Viewer";
 import { TabProvider, useTabContext } from "../../contexts/TabContext";
 import TabBar from "../../components/tabs/TabBar";
 import { FileType } from "../../types/DocumentTab";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { softFadeUp, springFast, subtleScale } from "../../utils/motionPresets";
 
 interface ReadingRouteState {
   fileBuffer?: ArrayBuffer;
@@ -41,6 +43,7 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
 function ReadingContent() {
   const location = useLocation();
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   const routeState = (location.state as ReadingRouteState | null) ?? null;
   const session = useReadingSession();
   const { activeTab, addTab } = useTabContext();
@@ -161,10 +164,22 @@ function ReadingContent() {
         />
       )}
 
-      <div className="h-full bg-zinc-950 text-zinc-100">
+      <motion.div
+        className="h-full bg-zinc-950 text-zinc-100"
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.16 }}
+      >
         <div className="flex h-full flex-col p-2">
+          <AnimatePresence initial={false}>
           {!isFocusMode && (
-            <header className="flex items-center justify-between">
+            <motion.header
+              className="flex items-center justify-between"
+              initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+              transition={springFast}
+            >
               {/* <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 pl-6">
                   <BookOpenText size={32} className="text-zinc-300" />
@@ -182,27 +197,47 @@ function ReadingContent() {
                   />
                 )}
               </div> */}
-            </header>
+            </motion.header>
           )}
+          </AnimatePresence>
 
           {hasOpenTab ? (
-            <section className="flex-1 min-h-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl">
+            <motion.section
+              className="flex-1 min-h-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl"
+              layout
+              variants={reduceMotion ? undefined : subtleScale}
+              initial={reduceMotion ? false : "hidden"}
+              animate="visible"
+              transition={reduceMotion ? { duration: 0 } : springFast}
+            >
               {renderViewer()}
-            </section>
+            </motion.section>
           ) : (
-            <section className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl">
-              <div className="p-4 text-sm text-zinc-500">
+            <motion.section
+              className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl"
+              variants={reduceMotion ? undefined : softFadeUp}
+              initial={reduceMotion ? false : "hidden"}
+              animate="visible"
+              transition={reduceMotion ? { duration: 0 } : springFast}
+            >
+              <motion.div
+                className="p-4 text-sm text-zinc-500"
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: reduceMotion ? 0 : 0.08 }}
+              >
                 Abra um PDF ou EPUB para comecar a leitura.
-              </div>
-            </section>
+              </motion.div>
+            </motion.section>
           )}
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }
 
 function TabBarWithContent() {
+  const reduceMotion = useReducedMotion();
   const {
     tabs,
     activeTabId,
@@ -328,14 +363,24 @@ function TabBarWithContent() {
   }, [handleReadingShortcut]);
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <div className="px-2 pt-2">
+    <motion.div
+      className="flex h-full flex-col bg-zinc-950"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.16 }}
+    >
+      <motion.div
+        className="px-2 pt-2"
+        initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springFast}
+      >
         <TabBar onOpenFile={handleOpenFile} />
-      </div>
+      </motion.div>
       <div className="flex-1 overflow-hidden">
         <ReadingContent />
       </div>
-    </div>
+    </motion.div>
   );
 }
 

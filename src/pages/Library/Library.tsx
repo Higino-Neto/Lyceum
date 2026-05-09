@@ -17,7 +17,9 @@ import {
   PanelLeft,
   PanelLeftClose,
   RefreshCw,
+  Send,
   Trash2,
+  Usb,
   X,
 } from "lucide-react";
 import {
@@ -32,26 +34,47 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { BookWithThumbnail } from "../../types/LibraryTypes";
+import { BookWithThumbnail, LibrarySection } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
   getBookFolderLabel,
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "./utils";
+import { softFadeUp, springFast, subtleScale } from "../../utils/motionPresets";
+import { useConversionQueue } from "../../contexts/ConversionQueueContext";
+
+interface UsbLibraryApi {
+  onUsbDevicesUpdated?: (callback: () => void) => () => void;
+  openUsbBook: (filePath: string) => Promise<OpenBookResult>;
+  scanUsbBooks?: () => Promise<unknown>;
+}
+
+interface OpenBookResult {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  foundAt?: string;
+  fileBuffer?: ArrayBuffer;
+  fileHash?: string;
+  fileName?: string;
+  filePath?: string;
+  fileType?: string;
+}
 
 export default function Library() {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
+  const { prepareBooks } = useConversionQueue();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [gridDensity, setGridDensity] = useState<GridDensity>("comfortable");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortOption>("title");
+  const [sort, setSort] = useState<SortOption>("title_asc");
   const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>("all");
-  const [activeSection, setActiveSection] = useState<"synced" | "unsynced">(
-    "synced",
-  );
+  const [activeSection, setActiveSection] = useState<LibrarySection>("synced");
 
   const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
     null,
@@ -64,6 +87,9 @@ export default function Library() {
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
+  const [selectedBookMap, setSelectedBookMap] = useState<Map<string, BookWithThumbnail>>(
+    new Map(),
+  );
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [syncDialog, setSyncDialog] = useState<{
@@ -83,14 +109,13 @@ export default function Library() {
       search,
       sort,
       fileType: fileTypeFilter,
-      folderPath: selectedFolder,
+      folderPath: activeSection === "usb" ? null : selectedFolder,
     }),
     [activeSection, fileTypeFilter, search, selectedFolder, sort],
   );
 
   const {
     books,
-    total,
     counts,
     hasMore,
     loading,
@@ -128,12 +153,15 @@ export default function Library() {
   }, [refreshLibraryState]);
 
   useEffect(() => {
-    refreshLibraryState();
+    const onUsbDevicesUpdated = (window.api as unknown as UsbLibraryApi).onUsbDevicesUpdated;
+    if (!onUsbDevicesUpdated) return;
+    const unsubscribe = onUsbDevicesUpdated(refreshLibraryState);
+    return () => unsubscribe();
   }, [refreshLibraryState]);
 
   useEffect(() => {
-    setSelectedHashes(new Set());
-  }, [activeSection, fileTypeFilter, search, selectedFolder]);
+    refreshLibraryState();
+  }, [refreshLibraryState]);
 
   const startPaneResize = (
     pane: "sidebar" | "details",
@@ -183,7 +211,19 @@ export default function Library() {
   };
 
   const handleOpen = async (filePath: string, fileHash?: string) => {
-    const result = await window.api.reopenPdf(filePath, fileHash);
+    const isUsbBook = activeSection === "usb";
+    const result: OpenBookResult | null = isUsbBook
+      ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
+      : await window.api.reopenPdf(filePath, fileHash);
+
+    if (isUsbBook && result && "success" in result && !result.success) {
+      toast.error(
+        result.error === "Invalid file type"
+          ? "Este formato ainda nÃ£o pode ser aberto no leitor"
+          : result.error || "Erro ao abrir o arquivo",
+      );
+      return;
+    }
 
     if (!result) {
       toast.error("Erro ao abrir o arquivo");
@@ -209,7 +249,7 @@ export default function Library() {
         fileType:
           result.fileType ||
           (filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf"),
-        source: "library",
+        source: isUsbBook ? "local" : "library",
         navigationId: crypto.randomUUID(),
       },
     });
@@ -368,13 +408,22 @@ export default function Library() {
     }
   };
 
-  const toggleSelection = (fileHash: string) => {
+  const toggleSelection = (book: BookWithThumbnail) => {
     setSelectedHashes((previous) => {
       const next = new Set(previous);
-      if (next.has(fileHash)) {
-        next.delete(fileHash);
+      if (next.has(book.fileHash)) {
+        next.delete(book.fileHash);
       } else {
-        next.add(fileHash);
+        next.add(book.fileHash);
+      }
+      return next;
+    });
+    setSelectedBookMap((previous) => {
+      const next = new Map(previous);
+      if (next.has(book.fileHash)) {
+        next.delete(book.fileHash);
+      } else {
+        next.set(book.fileHash, book);
       }
       return next;
     });
@@ -383,6 +432,7 @@ export default function Library() {
   const handleContextSelect = (book: BookWithThumbnail) => {
     setSelectedBook(null);
     setSelectedHashes((previous) => new Set(previous).add(book.fileHash));
+    setSelectedBookMap((previous) => new Map(previous).set(book.fileHash, book));
   };
 
   const handleBookDragStart = (fileHash: string) => {
@@ -396,11 +446,15 @@ export default function Library() {
 
   const clearSelection = () => {
     setSelectedHashes(new Set());
+    setSelectedBookMap(new Map());
     setDraggingBookHashes([]);
   };
 
   const recentBooks = useMemo(
     () =>
+      activeSection === "usb"
+        ? []
+        :
       books
         .filter((book) => {
           const openedAt = new Date(book.lastOpenedAt).getTime();
@@ -412,15 +466,22 @@ export default function Library() {
             new Date(a.lastOpenedAt).getTime(),
         )
         .slice(0, 8),
-    [books],
+    [activeSection, books],
   );
   const selectedBooks = useMemo(
-    () => books.filter((book) => selectedHashes.has(book.fileHash)),
-    [books, selectedHashes],
+    () => Array.from(selectedBookMap.values()),
+    [selectedBookMap],
   );
 
   const selectAllFiltered = () => {
     setSelectedHashes(new Set(books.map((book) => book.fileHash)));
+    setSelectedBookMap(new Map(books.map((book) => [book.fileHash, book])));
+  };
+
+  const openConversionWithSelection = () => {
+    if (selectedBooks.length === 0) return;
+    prepareBooks(selectedBooks);
+    navigate("/conversion");
   };
 
   const runBulkRegenerateThumbnails = async () => {
@@ -461,32 +522,41 @@ export default function Library() {
     if (failed > 0) toast.error(`${failed} item${failed !== 1 ? "s" : ""} não removido${failed !== 1 ? "s" : ""}`);
   };
 
+  const microTap = undefined;
+  const panelTransition = reduceMotion ? { duration: 0 } : springFast;
+
   return (
     <div className="lyceum-page-library flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">
-      {showSidebar && (
-        <aside
-          className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
-          style={{ width: sidebarWidth }}
-        >
-          <div className="h-full overflow-y-auto">
-            <FolderTree
-              selectedFolder={selectedFolder}
-              onFolderSelect={setSelectedFolder}
-              localDocuments={localDocuments}
-              onMoveBook={handleMoveBook}
-              onMoveBooks={handleMoveBooks}
-              draggingBookHashes={draggingBookHashes}
-              onImportBook={handleImportBook}
+      <AnimatePresence initial={false}>
+        {showSidebar && (
+          <motion.aside
+            className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
+            style={{ width: sidebarWidth }}
+            initial={reduceMotion ? false : { opacity: 0, x: -18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, x: -18 }}
+            transition={panelTransition}
+          >
+            <div className="h-full overflow-y-auto">
+              <FolderTree
+                selectedFolder={selectedFolder}
+                onFolderSelect={setSelectedFolder}
+                localDocuments={localDocuments}
+                onMoveBook={handleMoveBook}
+                onMoveBooks={handleMoveBooks}
+                draggingBookHashes={draggingBookHashes}
+                onImportBook={handleImportBook}
+              />
+            </div>
+            <button
+              type="button"
+              onPointerDown={(event) => startPaneResize("sidebar", event)}
+              className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
+              title="Redimensionar painel de pastas"
             />
-          </div>
-          <button
-            type="button"
-            onPointerDown={(event) => startPaneResize("sidebar", event)}
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
-            title="Redimensionar painel de pastas"
-          />
-        </aside>
-      )}
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       <div
         data-library-shell
@@ -499,20 +569,22 @@ export default function Library() {
               <h1 className="text-base font-semibold tracking-tight">Biblioteca</h1>
               <span className="text-zinc-700">|</span>
               <span className="text-xs text-zinc-500">
-                {counts.synced + counts.unsynced} volumes
+                {counts.synced + counts.unsynced + counts.usb} volumes
               </span>
               <SectionTabs
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 syncedCount={counts.synced}
                 unsyncedCount={counts.unsynced}
+                usbCount={counts.usb}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <button
+              <motion.button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
+                whileTap={microTap}
                 title={
                   showSidebar
                     ? "Ocultar painel de pastas"
@@ -524,18 +596,31 @@ export default function Library() {
                 ) : (
                   <PanelLeft size={18} />
                 )}
-              </button>
+              </motion.button>
 
-              <button
-                onClick={() => window.api.openLibraryFolder()}
+              <motion.button
+                onClick={() =>
+                  activeSection === "usb"
+                    ? (window.api as unknown as UsbLibraryApi).scanUsbBooks?.()
+                    : window.api.openLibraryFolder()
+                }
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
-                title="Abrir pasta da biblioteca"
+                title={
+                  activeSection === "usb"
+                    ? "Verificar dispositivos USB"
+                    : "Abrir pasta da biblioteca"
+                }
+                whileTap={microTap}
               >
-                <FolderOpen size={18} />
-              </button>
+                {activeSection === "usb" ? (
+                  <Usb size={18} />
+                ) : (
+                  <FolderOpen size={18} />
+                )}
+              </motion.button>
 
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
-                <button
+                <motion.button
                   onClick={() => setViewMode("grid")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "grid"
@@ -543,10 +628,11 @@ export default function Library() {
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
                   title="Grade"
+                  whileTap={microTap}
                 >
                   <LayoutGrid size={14} />
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => setViewMode("list")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "list"
@@ -554,9 +640,10 @@ export default function Library() {
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
                   title="Lista"
+                  whileTap={microTap}
                 >
                   <List size={14} />
-                </button>
+                </motion.button>
               </div>
 
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
@@ -567,7 +654,7 @@ export default function Library() {
                     ["large", "G"],
                   ] as [GridDensity, string][]
                 ).map(([density, label]) => (
-                  <button
+                  <motion.button
                     key={density}
                     onClick={() => setGridDensity(density)}
                     className={`h-7 w-7 cursor-pointer rounded-sm text-xs transition-colors ${
@@ -576,9 +663,10 @@ export default function Library() {
                         : "text-zinc-500 hover:text-zinc-300"
                     }`}
                     title={`Tamanho ${label}`}
+                    whileTap={microTap}
                   >
                     {label}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -596,45 +684,67 @@ export default function Library() {
               />
             </div>
 
+            <AnimatePresence initial={false}>
             {selectedHashes.size > 0 && (
-              <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
+              <motion.div
+                className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl"
+                variants={reduceMotion ? undefined : softFadeUp}
+                initial={reduceMotion ? false : "hidden"}
+                animate="visible"
+                exit={reduceMotion ? undefined : "exit"}
+                transition={panelTransition}
+              >
                 <div className="flex items-center gap-2 text-sm text-zinc-200">
                   <CheckSquare size={16} className="text-green-400" />
                   {selectedHashes.size} selecionado
                   {selectedHashes.size !== 1 ? "s" : ""}
                 </div>
 
-                <button
+                <motion.button
                   onClick={selectAllFiltered}
                   className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800"
+                  whileTap={microTap}
                 >
                   Selecionar todos
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  onClick={openConversionWithSelection}
+                  disabled={selectedBooks.length === 0}
+                  className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  whileTap={microTap}
+                >
+                  <Send size={14} />
+                  Converter
+                </motion.button>
+                <motion.button
                   onClick={runBulkRegenerateThumbnails}
                   disabled={bulkBusy}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  whileTap={microTap}
                 >
                   <RefreshCw size={14} className={bulkBusy ? "animate-spin" : ""} />
                   Thumbnails
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => setConfirmBulkDelete(true)}
                   disabled={bulkBusy}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-red-500/10 px-3 py-2 text-xs text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                  whileTap={microTap}
                 >
                   <Trash2 size={14} />
                   Remover
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={clearSelection}
                   className="ml-auto cursor-pointer rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                   title="Sair da seleção"
+                  whileTap={microTap}
                 >
                   <X size={16} />
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {loading ? (
               <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
@@ -664,7 +774,13 @@ export default function Library() {
                 onLoadMore={fetchNextPage}
                 topContent={
                   recentBooks.length > 0 ? (
-                    <section className="mb-3">
+                    <motion.section
+                      className="mb-3"
+                      variants={reduceMotion ? undefined : softFadeUp}
+                      initial={reduceMotion ? false : "hidden"}
+                      animate="visible"
+                      transition={panelTransition}
+                    >
                       <div className="mb-1.5 flex items-center justify-between">
                         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                           Continuar lendo
@@ -674,12 +790,17 @@ export default function Library() {
                         </span>
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1">
-                        {recentBooks.map((book) => (
-                          <button
+                        {recentBooks.map((book, index) => (
+                          <motion.button
                             key={book.fileHash}
                             type="button"
                             onClick={() => handleOpen(book.filePath, book.fileHash)}
                             className="lyceum-library-recent-book flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+                            initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: reduceMotion ? 0 : index * 0.035 }}
+                            whileHover={reduceMotion ? undefined : { y: -2 }}
+                            whileTap={microTap}
                           >
                             <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-[9px] font-medium text-zinc-600">
                               {getFileTypeLabel(book.fileType, book.filePath)}
@@ -692,10 +813,10 @@ export default function Library() {
                                 {getBookFolderLabel(book.filePath)}
                               </p>
                             </div>
-                          </button>
+                          </motion.button>
                         ))}
                       </div>
-                    </section>
+                    </motion.section>
                   ) : null
                 }
               />
@@ -703,8 +824,10 @@ export default function Library() {
           </main>
         </div>
 
+        <AnimatePresence initial={false}>
         {selectedBook && (
-          <aside
+          <motion.aside
+            key="library-detail-panel"
             className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
             style={{
               flexBasis: detailPanelWidth,
@@ -712,6 +835,10 @@ export default function Library() {
               minWidth: 300,
               maxWidth: 760,
             }}
+            initial={reduceMotion ? false : { opacity: 0, x: 22 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, x: 18 }}
+            transition={panelTransition}
           >
             <button
               type="button"
@@ -732,10 +859,12 @@ export default function Library() {
               }}
               onDelete={handleBookDeleted}
               onRefresh={handleBookRefresh}
+              readOnly={activeSection === "usb"}
             />
             </div>
-          </aside>
+          </motion.aside>
         )}
+        </AnimatePresence>
       </div>
 
       <ImportBookDialog
@@ -761,9 +890,23 @@ export default function Library() {
         onCancel={() => setConfirmBulkDelete(false)}
       />
 
+      <AnimatePresence>
       {syncDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl">
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? undefined : { opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.14 }}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            variants={reduceMotion ? undefined : subtleScale}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+            exit={reduceMotion ? undefined : "exit"}
+            transition={panelTransition}
+          >
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
               {syncDialog.action === "move" ? (
                 <Move size={18} className="text-green-400" />
@@ -794,24 +937,27 @@ export default function Library() {
             </div>
 
             <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setSyncDialog(null)}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                whileTap={microTap}
               >
                 Cancelar
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={confirmSyncToLibrary}
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
+                whileTap={microTap}
               >
                 {syncDialog.action === "move" ? "Mover" : "Copiar"}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

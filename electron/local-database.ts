@@ -5,6 +5,21 @@ import fs from "fs";
 
 const { app } = electron;
 
+export type BookFileType =
+  | "pdf"
+  | "epub"
+  | "docx"
+  | "html"
+  | "cbz"
+  | "mobi"
+  | "azw"
+  | "azw3"
+  | "azw4"
+  | "kfx"
+  | "prc"
+  | "txt"
+  | "lyceum";
+
 export interface DocumentRecord {
   id: number;
   title: string;
@@ -34,7 +49,7 @@ export interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
-  fileType: "pdf" | "epub";
+  fileType: BookFileType;
   importedAt: string | null;
   updatedAt: string | null;
 }
@@ -59,8 +74,20 @@ const DEFAULT_COLORS = [
 let db: Database.Database;
 
 export type LibrarySection = "all" | "synced" | "unsynced";
-export type LibrarySortOption = "title" | "recent" | "pages" | "size";
-export type LibraryFileTypeFilter = "all" | "pdf" | "epub";
+export type LibrarySortOption =
+  | "title"
+  | "recent"
+  | "pages"
+  | "size"
+  | "title_asc"
+  | "title_desc"
+  | "recent_desc"
+  | "recent_asc"
+  | "pages_desc"
+  | "pages_asc"
+  | "size_desc"
+  | "size_asc";
+export type LibraryFileTypeFilter = "all" | BookFileType;
 
 export interface LibraryListQuery {
   section?: LibrarySection;
@@ -676,7 +703,7 @@ export function addDocument(
   fileHash: string,
   thumbnailPath: string | undefined,
   numPages: number = 1,
-  fileType: "pdf" | "epub" = "pdf",
+  fileType: BookFileType = "pdf",
   isSynced: number = 0,
 ) {
   const statement = db.prepare(`
@@ -737,10 +764,18 @@ export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
   }
 
   const orderBy: Record<LibrarySortOption, string> = {
-    title: "LOWER(d.title) ASC, d.id ASC",
-    recent: "datetime(d.lastOpenedAt) DESC, d.id DESC",
-    pages: "d.numPages DESC, LOWER(d.title) ASC",
-    size: "d.fileSize DESC, LOWER(d.title) ASC",
+    title: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
+    recent: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) DESC, d.id DESC",
+    pages: "COALESCE(d.numPages, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+    size: "COALESCE(d.fileSize, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+    title_asc: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
+    title_desc: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) DESC, d.id DESC",
+    recent_desc: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) DESC, d.id DESC",
+    recent_asc: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) ASC, d.id ASC",
+    pages_desc: "COALESCE(d.numPages, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+    pages_asc: "COALESCE(d.numPages, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+    size_desc: "COALESCE(d.fileSize, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+    size_asc: "COALESCE(d.fileSize, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
   };
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -835,7 +870,7 @@ export function updateDocumentPath(fileHash: string, newPath: string) {
 
 export function updateDocumentFileType(
   fileHash: string,
-  fileType: "pdf" | "epub"
+  fileType: BookFileType
 ) {
   db.prepare(
     `

@@ -16,14 +16,17 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useTabContext } from "../../contexts/TabContext";
 import TabItem, { TabDragPreview } from "./TabItem";
+import { springFast } from "../../utils/motionPresets";
 
 interface TabBarProps {
   onOpenFile?: () => void;
 }
 
 export default function TabBar({ onOpenFile }: TabBarProps) {
+  const reduceMotion = useReducedMotion();
   const { tabs, activeTabId, setActiveTab, removeTab, reorderTabs, detachTab } =
     useTabContext();
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
@@ -119,7 +122,11 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
   }, [onOpenFile]);
 
   return (
-    <div className="flex h-10 items-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+    <motion.div
+      className="flex h-10 items-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900"
+      layout
+      transition={reduceMotion ? { duration: 0 } : springFast}
+    >
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -148,14 +155,14 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
           </SortableContext>
 
           <div className="relative flex h-full flex-shrink-0 items-center border-r border-zinc-700 px-1">
-            <button
+            <motion.button
               type="button"
               onClick={handleOpenFileClick}
               className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-zinc-700"
               title="Abrir arquivo"
             >
               <Plus size={18} className="text-zinc-400" />
-            </button>
+            </motion.button>
           </div>
         </div>
 
@@ -168,6 +175,6 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
           ) : null}
         </DragOverlay>
       </DndContext>
-    </div>
+    </motion.div>
   );
 }

@@ -8,6 +8,7 @@ import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
+import ConversionPage from "./pages/Conversion/ConversionPage";
 import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
@@ -18,6 +19,7 @@ import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
 import { supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
+import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 
 const AUTO_HIDE_STORAGE_KEY = "lyceum_auto_hide";
 const AUTO_HIDE_OVERLAY_KEY = "lyceum_auto_hide_overlay";
@@ -465,6 +467,7 @@ function App() {
             onHidePanels={() => hidePanels()}
           />
         )}
+        <ConversionQueueProvider>
         <div className="relative flex flex-1 overflow-hidden">
           <Sidebar
             collapsed={sidebarCollapsed}
@@ -522,6 +525,16 @@ function App() {
               />
 
               <Route
+                path="/conversion"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<ConversionPage />}
+                  />
+                }
+              />
+
+              <Route
                 path="/habit_tracker"
                 element={
                   <ProtectedRoute
@@ -540,6 +553,7 @@ function App() {
             onClose={() => setSettingsOpen(false)}
           />
         </div>
+        </ConversionQueueProvider>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Plus, BookOpen, Copy } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import RankingTable from "./components/RankingTable/RankingTable";
 import ReadingHeatMap from "./components/ReadingHeatmap";
 import WeeklyStreak from "./components/WeeklyStreak";
@@ -11,12 +12,14 @@ import { SelectedUsersProvider } from "../../contexts/SelectedUsersContext";
 import toast from "react-hot-toast";
 import useGetReadings from "../../hooks/useGetReadings";
 import { useMemo } from "react";
+import { panelStagger, softFadeUp, springFast } from "../../utils/motionPresets";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
 
   const { isLoading } = useReadingStats();
 
@@ -51,73 +54,132 @@ export default function Dashboard() {
     }
   };
 
+  const panelTransition = reduceMotion ? { duration: 0 } : springFast;
+  const hoverMotion = reduceMotion ? undefined : { y: -2 };
+
   return (
     <SelectedUsersProvider>
-      <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <main className="flex-1 p-4 overflow-auto">
-          <div className=" mx-auto space-y-4">
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div
+        className="min-h-screen bg-zinc-950 text-zinc-100"
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18 }}
+      >
+        <main className="flex-1 overflow-auto p-4">
+          <motion.div
+            className=" mx-auto space-y-4"
+            variants={reduceMotion ? undefined : panelStagger}
+            initial={reduceMotion ? false : "hidden"}
+            animate="visible"
+          >
+            <motion.section
+              className="grid grid-cols-1 gap-4 md:grid-cols-3"
+              variants={reduceMotion ? undefined : panelStagger}
+            >
               {isLoading ? (
                 <>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
-                    <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin m-8" />
-                  </div>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 overflow-y-auto">
+                  <motion.div
+                    className="rounded-sm border border-zinc-800 bg-zinc-900 md:col-span-2"
+                    variants={reduceMotion ? undefined : softFadeUp}
+                    transition={panelTransition}
+                  >
+                    <div className="m-8 h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                  </motion.div>
+                  <motion.div
+                    className="overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-900"
+                    variants={reduceMotion ? undefined : softFadeUp}
+                    transition={panelTransition}
+                  >
                     <RankingTable />
-                  </div>
+                  </motion.div>
                 </>
               ) : (
                 <>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 md:col-span-2">
+                  <motion.div
+                    className="rounded-sm border border-zinc-800 bg-zinc-900 md:col-span-2"
+                    variants={reduceMotion ? undefined : softFadeUp}
+                    transition={panelTransition}
+                    whileHover={hoverMotion}
+                  >
                     <ReadingCharts />
-                  </div>
-                  <div className="bg-zinc-900 rounded-sm border border-zinc-800 overflow-y-auto">
+                  </motion.div>
+                  <motion.div
+                    className="overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-900"
+                    variants={reduceMotion ? undefined : softFadeUp}
+                    transition={panelTransition}
+                    whileHover={hoverMotion}
+                  >
                     <RankingTable />
-                  </div>
+                  </motion.div>
                 </>
               )}
-              <div className="bg-zinc-900 rounded-sm border border-zinc-800">
+              <motion.div
+                className="rounded-sm border border-zinc-800 bg-zinc-900"
+                variants={reduceMotion ? undefined : softFadeUp}
+                transition={panelTransition}
+                whileHover={hoverMotion}
+              >
                 <ReadingHeatMap />
-              </div>
-              <div className="bg-zinc-900 rounded-sm">
+              </motion.div>
+              <motion.div
+                className="rounded-sm bg-zinc-900"
+                variants={reduceMotion ? undefined : softFadeUp}
+                transition={panelTransition}
+                whileHover={hoverMotion}
+              >
                 <WeeklyStreak />
-              </div>
-              <div className="bg-zinc-900 rounded-sm">
+              </motion.div>
+              <motion.div
+                className="rounded-sm bg-zinc-900"
+                variants={reduceMotion ? undefined : softFadeUp}
+                transition={panelTransition}
+                whileHover={hoverMotion}
+              >
                 <ReadingStatsCard />
-              </div>
-            </section>
+              </motion.div>
+            </motion.section>
 
-            <section>
-              <div className="bg-zinc-900 rounded-sm border border-zinc-800 p-4">
-                <div className="flex items-center justify-between mb-4">
+            <motion.section
+              variants={reduceMotion ? undefined : softFadeUp}
+              transition={panelTransition}
+            >
+              <motion.div
+                className="rounded-sm border border-zinc-800 bg-zinc-900 p-4"
+                whileHover={hoverMotion}
+              >
+                <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <BookOpen size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
+                    <BookOpen
+                      size={ICON_SIZE}
+                      className="text-zinc-500"
+                      strokeWidth={STROKE_WIDTH}
+                    />
                     {/* <h2 className="text-zinc-500">Registros de Leitura</h2> */}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
+                    <motion.button
                       onClick={handleCopyDailyReadings}
-                      className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-md text-zinc-300 bg-zinc-800 hover:bg-zinc-700 hover:text-zinc-100 transition rounded-sm border border-zinc-700"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-md text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
                       title="Copiar leituras do dia"
                     >
                       <Copy size={16} />
                       Leituras diárias
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
                       onClick={() => navigate("/add_reading")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-md font-medium text-black bg-green-600 hover:bg-green-500 transition rounded-sm"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-green-600 px-3 py-1.5 text-md font-medium text-black transition hover:bg-green-500"
                     >
                       <Plus size={16} />
                       Registrar
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
                 <ReadingTable />
-              </div>
-            </section>
-          </div>
+              </motion.div>
+            </motion.section>
+          </motion.div>
         </main>
-      </div>
+      </motion.div>
     </SelectedUsersProvider>
   );
 }

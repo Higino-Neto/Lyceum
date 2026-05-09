@@ -1,7 +1,6 @@
 import { BookOpen, RefreshCw } from "lucide-react";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -29,7 +28,7 @@ interface BookGridProps {
   selectionMode?: boolean;
   selectedHashes?: Set<string>;
   selectedCount?: number;
-  onToggleSelection?: (fileHash: string) => void;
+  onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
   hasMore?: boolean;
   loadingMore?: boolean;
@@ -227,7 +226,7 @@ export default function BookGrid({
                       selectionMode={selectionMode}
                       isChecked={selectedHashes.has(book.fileHash)}
                       selectedCount={selectedCount}
-                      onToggleSelection={() => onToggleSelection?.(book.fileHash)}
+                      onToggleSelection={() => onToggleSelection?.(book)}
                       onContextSelect={() => onContextSelect?.(book)}
                     />
                   ))}
@@ -290,7 +289,7 @@ export default function BookGrid({
                     selectionMode={selectionMode}
                     isChecked={selectedHashes.has(book.fileHash)}
                     selectedCount={selectedCount}
-                    onToggleSelection={() => onToggleSelection?.(book.fileHash)}
+                    onToggleSelection={() => onToggleSelection?.(book)}
                     onContextSelect={() => onContextSelect?.(book)}
                     columns={columns}
                   />

@@ -51,6 +51,21 @@ interface BookCategory {
   createdAt: string;
 }
 
+type BookFormat =
+  | "pdf"
+  | "epub"
+  | "docx"
+  | "html"
+  | "cbz"
+  | "mobi"
+  | "azw"
+  | "azw3"
+  | "azw4"
+  | "kfx"
+  | "prc"
+  | "txt"
+  | "lyceum";
+
 contextBridge.exposeInMainWorld("api", {
   openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
 
@@ -87,14 +102,28 @@ contextBridge.exposeInMainWorld("api", {
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
   listBooks: (query: {
-    section?: "all" | "synced" | "unsynced";
+    section?: "all" | "synced" | "unsynced" | "usb";
     search?: string;
     folderPath?: string | null;
     fileType?: "all" | "pdf" | "epub";
-    sort?: "title" | "recent" | "pages" | "size";
+    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
     limit?: number;
     offset?: number;
   }) => ipcRenderer.invoke("library:list-books", query),
+
+  getUsbDevices: () => ipcRenderer.invoke("usb:get-devices"),
+
+  listUsbBooks: (query: {
+    search?: string;
+    fileType?: "all" | "pdf" | "epub";
+    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+    limit?: number;
+    offset?: number;
+  }) => ipcRenderer.invoke("usb:list-books", query),
+
+  scanUsbBooks: () => ipcRenderer.invoke("usb:scan-books"),
+
+  openUsbBook: (filePath: string) => ipcRenderer.invoke("usb:open-book", filePath),
 
   saveReadingState: (payload: ReadingState) =>
     ipcRenderer.invoke("reading:save", payload),
@@ -124,6 +153,15 @@ contextBridge.exposeInMainWorld("api", {
 
   convertEpubToPdf: (fileHash: string) =>
     ipcRenderer.invoke("epub:convert-to-pdf", fileHash),
+
+  listConversionTargets: (fileHash: string) =>
+    ipcRenderer.invoke("conversion:list-targets", fileHash),
+
+  convertBook: (fileHash: string, targetFormat: BookFormat) =>
+    ipcRenderer.invoke("conversion:run", fileHash, targetFormat),
+
+  convertBookFile: (filePath: string, targetFormat: BookFormat) =>
+    ipcRenderer.invoke("conversion:run-file", filePath, targetFormat),
 
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
@@ -223,6 +261,12 @@ contextBridge.exposeInMainWorld("api", {
   onLibraryUpdated: (callback: () => void) => {
     ipcRenderer.on("library:updated", callback);
     return () => ipcRenderer.removeListener("library:updated", callback);
+  },
+
+  onUsbDevicesUpdated: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("usb:devices-updated", listener);
+    return () => ipcRenderer.removeListener("usb:devices-updated", listener);
   },
 
   categoryCreate: (name: string, color?: string) =>

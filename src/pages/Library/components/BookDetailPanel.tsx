@@ -26,10 +26,10 @@ import {
 } from "../utils";
 
 const getTitleWithoutExtension = (title: string, fileType?: string) => {
-  if (fileType === "epub") {
-    return title.replace(/\.epub$/i, "");
+  if (fileType) {
+    return title.replace(new RegExp(`\\.${fileType}$`, "i"), "");
   }
-  return title.replace(/\.pdf$/i, "");
+  return title.replace(/\.[a-z0-9]+$/i, "");
 };
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
@@ -40,9 +40,17 @@ interface BookDetailPanelProps {
   onOpenEmbed: () => void;
   onDelete?: () => void;
   onRefresh: () => void;
+  readOnly?: boolean;
 }
 
 type EditMode = "title" | "author" | null;
+type ConversionFormat = "pdf" | "epub" | "docx" | "html" | "cbz" | "mobi" | "azw" | "azw3" | "azw4" | "kfx" | "prc" | "txt" | "lyceum";
+
+interface ConversionTarget {
+  format: ConversionFormat;
+  supported: boolean;
+  reason?: string;
+}
 
 export default function BookDetailPanel({
   book,
@@ -50,6 +58,7 @@ export default function BookDetailPanel({
   onOpenEmbed,
   onDelete,
   onRefresh,
+  readOnly = false,
 }: BookDetailPanelProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -69,6 +78,9 @@ export default function BookDetailPanel({
   const [isConvertingToEpub, setIsConvertingToEpub] = useState(false);
   const [isConvertingToPdf, setIsConvertingToPdf] = useState(false);
   const [showConversionDialog, setShowConversionDialog] = useState(false);
+  const [conversionTargets, setConversionTargets] = useState<ConversionTarget[]>([]);
+  const [selectedConversionTarget, setSelectedConversionTarget] = useState<ConversionFormat | null>(null);
+  const isConverting = isConvertingToEpub || isConvertingToPdf;
 
   useEffect(() => {
     if (book.filePath) {
@@ -184,12 +196,72 @@ export default function BookDetailPanel({
     }
   };
 
+  useEffect(() => {
+    if (!showConversionDialog) return;
+
+    let canceled = false;
+    setConversionTargets([]);
+    setSelectedConversionTarget(null);
+
+    window.api.listConversionTargets(book.fileHash).then((result) => {
+      if (canceled) return;
+      if (result.success) {
+        const targets = result.targets.filter((target) => target.supported);
+        setConversionTargets(targets);
+        setSelectedConversionTarget(targets[0]?.format || null);
+      } else {
+        toast.error(result.error || "Erro ao carregar conversoes disponiveis");
+      }
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [book.fileHash, showConversionDialog]);
+
+  const handleConvertSelected = async () => {
+    if (!selectedConversionTarget) {
+      toast.error("Selecione um formato de saida");
+      return;
+    }
+
+    setIsConvertingToEpub(selectedConversionTarget === "epub");
+    setIsConvertingToPdf(selectedConversionTarget !== "epub");
+    const targetLabel = selectedConversionTarget.toUpperCase();
+    const loadingToast = toast.loading(`Convertendo para ${targetLabel}...`);
+
+    try {
+      const result = await window.api.convertBook(book.fileHash, selectedConversionTarget);
+
+      if (result.success) {
+        const warnings = result.report?.warnings?.length || 0;
+        toast.success(
+          warnings
+            ? `${targetLabel} criado com ${warnings} aviso(s).`
+            : `${targetLabel} criado na biblioteca!`,
+          { id: loadingToast },
+        );
+        setShowConversionDialog(false);
+        onRefresh();
+      } else {
+        toast.error(result.error || `Erro ao converter para ${targetLabel}`, { id: loadingToast });
+      }
+    } catch {
+      toast.error(`Erro ao converter para ${targetLabel}`, { id: loadingToast });
+    } finally {
+      setIsConvertingToEpub(false);
+      setIsConvertingToPdf(false);
+    }
+  };
+
   const handleStartEditTitle = () => {
+    if (readOnly) return;
     setEditValue(getTitleWithoutExtension(book.title, book.fileType));
     setEditMode("title");
   };
 
   const handleStartEditAuthor = () => {
+    if (readOnly) return;
     setEditValue(book.author || "");
     setEditMode("author");
   };
@@ -293,6 +365,7 @@ export default function BookDetailPanel({
   };
 
   const handleThumbnailClick = async () => {
+    if (readOnly) return;
     const result = await window.api.openImageDialog();
     if (result) {
       setThumbnailDialog({ open: true, imagePath: result });
@@ -343,6 +416,8 @@ export default function BookDetailPanel({
     return bookPath.split(/[/\\]/).filter(Boolean);
   };
 
+  const canOpenInReader = book.fileType === "pdf" || book.fileType === "epub";
+
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
@@ -367,7 +442,7 @@ export default function BookDetailPanel({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            title="Clique para selecionar ou arraste uma imagem"
+            title={readOnly ? book.title : "Clique para selecionar ou arraste uma imagem"}
           >
             {book.thumbnail ? (
               <img
@@ -394,7 +469,7 @@ export default function BookDetailPanel({
                 </div>
               </div>
             )}
-            {!isDragging && (
+            {!readOnly && !isDragging && (
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-white">
                   <Upload size={24} />
@@ -500,6 +575,7 @@ export default function BookDetailPanel({
                 <h3 className="text-lg font-bold text-zinc-100 leading-tight flex-1 line-clamp-2">
                   {getTitleWithoutExtension(book.title, book.fileType)}
                 </h3>
+                {!readOnly && (
                 <button
                   onClick={handleStartEditTitle}
                   className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
@@ -507,6 +583,7 @@ export default function BookDetailPanel({
                 >
                   <Pencil size={14} className="text-zinc-500" />
                 </button>
+                )}
               </div>
             )}
           </div>
@@ -542,6 +619,7 @@ export default function BookDetailPanel({
                 <p className="text-sm text-zinc-300 flex-1 truncate">
                   {book.author || "Desconhecido"}
                 </p>
+                {!readOnly && (
                 <button
                   onClick={handleStartEditAuthor}
                   className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
@@ -549,6 +627,7 @@ export default function BookDetailPanel({
                 >
                   <Pencil size={14} className="text-zinc-500" />
                 </button>
+                )}
               </div>
             )}
           </div>
@@ -566,23 +645,29 @@ export default function BookDetailPanel({
 
         <button
           onClick={onOpenEmbed}
-          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer"
+          disabled={!canOpenInReader}
+          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
         >
           <BookOpen size={16} />
           {/* <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[11px] uppercase tracking-wide">
             EmbedPDF
           </span> */}
-          {book.currentPage > 1 ? "Continuar Leitura" : "Começar a Ler"}
+          {canOpenInReader
+            ? book.currentPage > 1
+              ? "Continuar Leitura"
+              : "Começar a Ler"
+            : "Formato não suportado no leitor"}
         </button>
+        {!readOnly && (
         <div className="space-y-2">
           <div className={`grid gap-2 ${book.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>
             <button
               onClick={() => setShowConversionDialog(true)}
-              disabled={isConvertingToEpub || isConvertingToPdf}
+              disabled={isConverting}
               className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
               title="Converter"
             >
-              {isConvertingToEpub || isConvertingToPdf ? (
+              {isConverting ? (
                 <RefreshCw size={13} className="animate-spin" />
               ) : (
                 <FileType size={13} />
@@ -633,7 +718,10 @@ export default function BookDetailPanel({
             </div>
           )}
         </div>
+        )}
 
+        {!readOnly && (
+        <>
         <div className="pt-1">
         <button
           onClick={handleDelete}
@@ -685,6 +773,8 @@ export default function BookDetailPanel({
           onSetThumbnail={handleSetThumbnail}
           onClose={() => setThumbnailDialog({ open: false, imagePath: "" })}
         />
+        </>
+        )}
       </div>
 
       {showConversionDialog && (
@@ -698,7 +788,7 @@ export default function BookDetailPanel({
               <button
                 type="button"
                 onClick={() => setShowConversionDialog(false)}
-                disabled={isConvertingToEpub || isConvertingToPdf}
+                disabled={isConverting}
                 className="cursor-pointer rounded-sm p-2 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 title="Fechar"
               >
@@ -710,20 +800,37 @@ export default function BookDetailPanel({
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                 Formato de saída
               </p>
-              <div className="rounded-sm border border-zinc-800 bg-zinc-950 p-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-800 text-green-400">
-                    <FileType size={16} />
+              <div className="space-y-2">
+                {conversionTargets.length === 0 ? (
+                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-500">
+                    Nenhuma conversao disponivel para este formato.
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-zinc-100">
-                      {book.fileType === "epub" ? "PDF" : "EPUB"}
-                    </p>
-                    <p className="truncate text-xs text-zinc-500">
-                      {book.fileType === "epub" ? "EPUB para PDF" : "PDF para EPUB"} - {getTitleWithoutExtension(book.title, book.fileType)}
-                    </p>
-                  </div>
-                </div>
+                ) : (
+                  conversionTargets.map((target) => (
+                    <button
+                      key={target.format}
+                      type="button"
+                      onClick={() => setSelectedConversionTarget(target.format)}
+                      className={`flex w-full items-start gap-3 rounded-sm border p-3 text-left transition-colors ${
+                        selectedConversionTarget === target.format
+                          ? "border-green-500/70 bg-green-500/10"
+                          : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
+                      }`}
+                    >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-800 text-green-400">
+                        <FileType size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-zinc-100">
+                          {target.format.toUpperCase()}
+                        </p>
+                        <p className="truncate text-xs text-zinc-500">
+                          {book.fileType?.toUpperCase() || "LIVRO"} para {target.format.toUpperCase()} - {getTitleWithoutExtension(book.title, book.fileType)}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -731,18 +838,18 @@ export default function BookDetailPanel({
               <button
                 type="button"
                 onClick={() => setShowConversionDialog(false)}
-                disabled={isConvertingToEpub || isConvertingToPdf}
+                disabled={isConverting}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={book.fileType === "epub" ? handleConvertToPdf : handleConvertToEpub}
-                disabled={isConvertingToEpub || isConvertingToPdf}
+                onClick={handleConvertSelected}
+                disabled={isConverting || !selectedConversionTarget}
                 className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {(isConvertingToEpub || isConvertingToPdf) && <RefreshCw size={14} className="animate-spin" />}
+                {isConverting && <RefreshCw size={14} className="animate-spin" />}
                 Converter
               </button>
             </div>

@@ -29,7 +29,7 @@ interface DocumentRecord {
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
-  fileType: "pdf" | "epub";
+  fileType: BookFormat;
   importedAt: string | null;
   updatedAt: string | null;
 }
@@ -38,8 +38,8 @@ interface LibraryListQuery {
   section?: "all" | "synced" | "unsynced";
   search?: string;
   folderPath?: string | null;
-  fileType?: "all" | "pdf" | "epub";
-  sort?: "title" | "recent" | "pages" | "size";
+  fileType?: "all" | BookFormat;
+  sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
   limit?: number;
   offset?: number;
 }
@@ -70,6 +70,36 @@ interface NativePdfViewerState {
   scrollTop: number;
   totalPages: number;
   canAccess: boolean;
+}
+
+type BookFormat =
+  | "pdf"
+  | "epub"
+  | "docx"
+  | "html"
+  | "cbz"
+  | "mobi"
+  | "azw"
+  | "azw3"
+  | "azw4"
+  | "kfx"
+  | "prc"
+  | "txt"
+  | "lyceum";
+
+interface ConversionTarget {
+  format: BookFormat;
+  supported: boolean;
+  reason?: string;
+}
+
+interface GenericConversionResult {
+  success: boolean;
+  outputPath?: string;
+  fileHash?: string;
+  packageRoot?: string;
+  report?: Record<string, unknown> & { warnings?: string[] };
+  error?: string;
 }
 
 declare namespace NodeJS {
@@ -127,6 +157,13 @@ interface Window {
       };
       error?: string;
     }>;
+    listConversionTargets: (fileHash: string) => Promise<{
+      success: boolean;
+      sourceFormat?: BookFormat;
+      targets: ConversionTarget[];
+      error?: string;
+    }>;
+    convertBook: (fileHash: string, targetFormat: BookFormat) => Promise<GenericConversionResult>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     getLastDocument: () => Promise<DocumentRecord | null>;
@@ -313,6 +350,13 @@ interface Window {
       };
       error?: string;
     }>;
+    listConversionTargets: (fileHash: string) => Promise<{
+      success: boolean;
+      sourceFormat?: BookFormat;
+      targets: ConversionTarget[];
+      error?: string;
+    }>;
+    convertBook: (fileHash: string, targetFormat: BookFormat) => Promise<GenericConversionResult>;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;

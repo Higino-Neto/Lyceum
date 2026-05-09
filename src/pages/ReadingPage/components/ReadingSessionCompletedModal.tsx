@@ -8,6 +8,8 @@ import {
   Flame,
   ChevronDown,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { springFast, subtleScale } from "../../../utils/motionPresets";
 
 interface SessionData {
   id: string;
@@ -133,6 +135,7 @@ export default function ReadingSessionCompletedModal({
   onClose,
   onSubmit,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   const pagesRead = session.finalPage - session.initialPage;
   const totalWords = session.totalWords;
   const wpm =
@@ -171,12 +174,19 @@ export default function ReadingSessionCompletedModal({
   const categoryLabel = CATEGORY_LABELS[session.category] ?? session.category;
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.80)", backdropFilter: "blur(6px)" }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.16 }}
     >
-      <div
+      <motion.div
         className="relative bg-zinc-900 border border-zinc-800 rounded-sm w-full shadow-2xl flex flex-col"
+        variants={reduceMotion ? undefined : subtleScale}
+        initial={reduceMotion ? false : "hidden"}
+        animate="visible"
+        transition={springFast}
         style={{
           maxWidth: 560,
           maxHeight: "92vh",
@@ -402,7 +412,7 @@ export default function ReadingSessionCompletedModal({
             <ChevronRight size={16} />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
