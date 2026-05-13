@@ -2634,6 +2634,16 @@ ipcMain.handle("dialog:open-image", async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle("dialog:select-folder", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openDirectory"],
+  });
+  return {
+    canceled: result.canceled,
+    filePaths: result.filePaths,
+  };
+});
+
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile", "multiSelections"],

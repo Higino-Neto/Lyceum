@@ -60,9 +60,25 @@ export default function BookDetailPanel({
   onRefresh,
   readOnly = false,
 }: BookDetailPanelProps) {
+  const [thumbnail, setThumbnail] = useState(book.thumbnail);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFileAlso, setDeleteFileAlso] = useState(false);
+
+  useEffect(() => {
+    let canceled = false;
+    setThumbnail(book.thumbnail);
+
+    if (!book.thumbnail && book.thumbnailPath) {
+      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
+        if (!canceled) {
+          setThumbnail(value || undefined);
+        }
+      });
+    }
+
+    return () => { canceled = true; };
+  }, [book.thumbnail, book.thumbnailPath]);
   const [bookPath, setBookPath] = useState<string>("");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
@@ -444,10 +460,10 @@ export default function BookDetailPanel({
             onDrop={handleDrop}
             title={readOnly ? book.title : "Clique para selecionar ou arraste uma imagem"}
           >
-            {book.thumbnail ? (
+            {thumbnail ? (
               <img
                 key={thumbnailKey}
-                src={book.thumbnail}
+                src={thumbnail}
                 alt={book.title}
                 className="w-full h-full object-cover"
               />

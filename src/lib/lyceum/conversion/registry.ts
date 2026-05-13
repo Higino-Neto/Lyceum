@@ -13,6 +13,7 @@ import { EpubExporter } from "../exporters/epubExporter";
 import { PdfExporter } from "../exporters/pdfExporter";
 import { TxtExporter } from "../exporters/txtExporter";
 import { HtmlExporter } from "../exporters/htmlExporter";
+import { Azw3Exporter } from "../exporters/azw3Exporter";
 
 export class ConversionRegistry {
   private importers = new Map<BookFormat, LyceumImporter>();
@@ -69,6 +70,7 @@ export function createDefaultConversionRegistry() {
   registry.registerExporter(new PdfExporter());
   registry.registerExporter(new TxtExporter());
   registry.registerExporter(new HtmlExporter());
+  registry.registerExporter(new Azw3Exporter());
 
   return registry;
 }

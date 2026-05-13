@@ -33,17 +33,14 @@ import {
 import BookGrid, { type GridDensity } from "./components/BookGrid";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import ConfirmDialog from "../../components/ConfirmDialog";
 import { BookWithThumbnail, LibrarySection } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
   getBookFolderLabel,
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "./utils";
-import { softFadeUp, springFast, subtleScale } from "../../utils/motionPresets";
 import { useConversionQueue } from "../../contexts/ConversionQueueContext";
 
 interface UsbLibraryApi {
@@ -66,7 +63,6 @@ interface OpenBookResult {
 
 export default function Library() {
   const navigate = useNavigate();
-  const reduceMotion = useReducedMotion();
   const { prepareBooks } = useConversionQueue();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -91,6 +87,7 @@ export default function Library() {
     new Map(),
   );
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [syncDialog, setSyncDialog] = useState<{
     fileHash: string;
@@ -458,13 +455,18 @@ export default function Library() {
       books
         .filter((book) => {
           const openedAt = new Date(book.lastOpenedAt).getTime();
-          return book.lastOpenedAt && !Number.isNaN(openedAt);
+          return (book.lastOpenedAt && !Number.isNaN(openedAt)) || book.currentPage > 0;
         })
-        .sort(
-          (a, b) =>
-            new Date(b.lastOpenedAt).getTime() -
-            new Date(a.lastOpenedAt).getTime(),
-        )
+        .sort((a, b) => {
+          const aTime = new Date(a.lastOpenedAt).getTime();
+          const bTime = new Date(b.lastOpenedAt).getTime();
+          const aValid = a.lastOpenedAt && !Number.isNaN(aTime);
+          const bValid = b.lastOpenedAt && !Number.isNaN(bTime);
+          if (aValid && bValid) return bTime - aTime;
+          if (aValid) return -1;
+          if (bValid) return 1;
+          return 0;
+        })
         .slice(0, 8),
     [activeSection, books],
   );
@@ -508,55 +510,50 @@ export default function Library() {
     let failed = 0;
 
     for (const fileHash of selectedHashes) {
-      const result = await window.api.deleteBook(fileHash, false);
+      const result = await window.api.deleteBook(fileHash, bulkDeleteFileAlso);
       if (result.success) removed++;
       else failed++;
     }
 
     setBulkBusy(false);
     setConfirmBulkDelete(false);
+    setBulkDeleteFileAlso(false);
     clearSelection();
     setSelectedBook(null);
     await refreshLibraryState();
-    toast.success(`${removed} livro${removed !== 1 ? "s" : ""} removido${removed !== 1 ? "s" : ""}`);
+    if (bulkDeleteFileAlso) {
+      toast.success(`${removed} livro${removed !== 1 ? "s" : ""} excluído${removed !== 1 ? "s" : ""} do disco`);
+    } else {
+      toast.success(`${removed} livro${removed !== 1 ? "s" : ""} removido${removed !== 1 ? "s" : ""} da biblioteca`);
+    }
     if (failed > 0) toast.error(`${failed} item${failed !== 1 ? "s" : ""} não removido${failed !== 1 ? "s" : ""}`);
   };
 
-  const microTap = undefined;
-  const panelTransition = reduceMotion ? { duration: 0 } : springFast;
-
   return (
     <div className="lyceum-page-library flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">
-      <AnimatePresence initial={false}>
-        {showSidebar && (
-          <motion.aside
-            className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
-            style={{ width: sidebarWidth }}
-            initial={reduceMotion ? false : { opacity: 0, x: -18 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={reduceMotion ? undefined : { opacity: 0, x: -18 }}
-            transition={panelTransition}
-          >
-            <div className="h-full overflow-y-auto">
-              <FolderTree
-                selectedFolder={selectedFolder}
-                onFolderSelect={setSelectedFolder}
-                localDocuments={localDocuments}
-                onMoveBook={handleMoveBook}
-                onMoveBooks={handleMoveBooks}
-                draggingBookHashes={draggingBookHashes}
-                onImportBook={handleImportBook}
-              />
-            </div>
-            <button
-              type="button"
-              onPointerDown={(event) => startPaneResize("sidebar", event)}
-              className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
-              title="Redimensionar painel de pastas"
+      {showSidebar && (
+        <aside className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
+          style={{ width: sidebarWidth }}
+        >
+          <div className="h-full overflow-y-auto">
+            <FolderTree
+              selectedFolder={selectedFolder}
+              onFolderSelect={setSelectedFolder}
+              localDocuments={localDocuments}
+              onMoveBook={handleMoveBook}
+              onMoveBooks={handleMoveBooks}
+              draggingBookHashes={draggingBookHashes}
+              onImportBook={handleImportBook}
             />
-          </motion.aside>
-        )}
-      </AnimatePresence>
+          </div>
+          <button
+            type="button"
+            onPointerDown={(event) => startPaneResize("sidebar", event)}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
+            title="Redimensionar painel de pastas"
+          />
+        </aside>
+      )}
 
       <div
         data-library-shell
@@ -581,10 +578,9 @@ export default function Library() {
             </div>
 
             <div className="flex items-center gap-2">
-              <motion.button
+              <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
-                whileTap={microTap}
                 title={
                   showSidebar
                     ? "Ocultar painel de pastas"
@@ -596,9 +592,9 @@ export default function Library() {
                 ) : (
                   <PanelLeft size={18} />
                 )}
-              </motion.button>
+              </button>
 
-              <motion.button
+              <button
                 onClick={() =>
                   activeSection === "usb"
                     ? (window.api as unknown as UsbLibraryApi).scanUsbBooks?.()
@@ -610,17 +606,16 @@ export default function Library() {
                     ? "Verificar dispositivos USB"
                     : "Abrir pasta da biblioteca"
                 }
-                whileTap={microTap}
               >
                 {activeSection === "usb" ? (
                   <Usb size={18} />
                 ) : (
                   <FolderOpen size={18} />
                 )}
-              </motion.button>
+              </button>
 
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
-                <motion.button
+                <button
                   onClick={() => setViewMode("grid")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "grid"
@@ -628,11 +623,10 @@ export default function Library() {
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
                   title="Grade"
-                  whileTap={microTap}
                 >
                   <LayoutGrid size={14} />
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={() => setViewMode("list")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "list"
@@ -640,10 +634,9 @@ export default function Library() {
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
                   title="Lista"
-                  whileTap={microTap}
                 >
                   <List size={14} />
-                </motion.button>
+                </button>
               </div>
 
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
@@ -654,7 +647,7 @@ export default function Library() {
                     ["large", "G"],
                   ] as [GridDensity, string][]
                 ).map(([density, label]) => (
-                  <motion.button
+                  <button
                     key={density}
                     onClick={() => setGridDensity(density)}
                     className={`h-7 w-7 cursor-pointer rounded-sm text-xs transition-colors ${
@@ -663,10 +656,9 @@ export default function Library() {
                         : "text-zinc-500 hover:text-zinc-300"
                     }`}
                     title={`Tamanho ${label}`}
-                    whileTap={microTap}
                   >
                     {label}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </div>
@@ -684,67 +676,53 @@ export default function Library() {
               />
             </div>
 
-            <AnimatePresence initial={false}>
             {selectedHashes.size > 0 && (
-              <motion.div
-                className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl"
-                variants={reduceMotion ? undefined : softFadeUp}
-                initial={reduceMotion ? false : "hidden"}
-                animate="visible"
-                exit={reduceMotion ? undefined : "exit"}
-                transition={panelTransition}
-              >
+              <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
                 <div className="flex items-center gap-2 text-sm text-zinc-200">
                   <CheckSquare size={16} className="text-green-400" />
                   {selectedHashes.size} selecionado
                   {selectedHashes.size !== 1 ? "s" : ""}
                 </div>
 
-                <motion.button
+                <button
                   onClick={selectAllFiltered}
                   className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800"
-                  whileTap={microTap}
                 >
                   Selecionar todos
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={openConversionWithSelection}
                   disabled={selectedBooks.length === 0}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  whileTap={microTap}
                 >
                   <Send size={14} />
                   Converter
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={runBulkRegenerateThumbnails}
                   disabled={bulkBusy}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-                  whileTap={microTap}
                 >
                   <RefreshCw size={14} className={bulkBusy ? "animate-spin" : ""} />
                   Thumbnails
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={() => setConfirmBulkDelete(true)}
                   disabled={bulkBusy}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-red-500/10 px-3 py-2 text-xs text-red-300 hover:bg-red-500/20 disabled:opacity-50"
-                  whileTap={microTap}
                 >
                   <Trash2 size={14} />
                   Remover
-                </motion.button>
-                <motion.button
+                </button>
+                <button
                   onClick={clearSelection}
                   className="ml-auto cursor-pointer rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                   title="Sair da seleção"
-                  whileTap={microTap}
                 >
                   <X size={16} />
-                </motion.button>
-              </motion.div>
+                </button>
+              </div>
             )}
-            </AnimatePresence>
 
             {loading ? (
               <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
@@ -774,13 +752,7 @@ export default function Library() {
                 onLoadMore={fetchNextPage}
                 topContent={
                   recentBooks.length > 0 ? (
-                    <motion.section
-                      className="mb-3"
-                      variants={reduceMotion ? undefined : softFadeUp}
-                      initial={reduceMotion ? false : "hidden"}
-                      animate="visible"
-                      transition={panelTransition}
-                    >
+                    <section className="mb-3">
                       <div className="mb-1.5 flex items-center justify-between">
                         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                           Continuar lendo
@@ -790,17 +762,12 @@ export default function Library() {
                         </span>
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1">
-                        {recentBooks.map((book, index) => (
-                          <motion.button
+                        {recentBooks.map((book) => (
+                          <button
                             key={book.fileHash}
                             type="button"
                             onClick={() => handleOpen(book.filePath, book.fileHash)}
                             className="lyceum-library-recent-book flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
-                            initial={reduceMotion ? false : { opacity: 0, x: -8 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: reduceMotion ? 0 : index * 0.035 }}
-                            whileHover={reduceMotion ? undefined : { y: -2 }}
-                            whileTap={microTap}
                           >
                             <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-[9px] font-medium text-zinc-600">
                               {getFileTypeLabel(book.fileType, book.filePath)}
@@ -813,10 +780,10 @@ export default function Library() {
                                 {getBookFolderLabel(book.filePath)}
                               </p>
                             </div>
-                          </motion.button>
+                          </button>
                         ))}
                       </div>
-                    </motion.section>
+                    </section>
                   ) : null
                 }
               />
@@ -824,21 +791,14 @@ export default function Library() {
           </main>
         </div>
 
-        <AnimatePresence initial={false}>
         {selectedBook && (
-          <motion.aside
-            key="library-detail-panel"
-            className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
+          <aside className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
             style={{
               flexBasis: detailPanelWidth,
               width: detailPanelWidth,
               minWidth: 300,
               maxWidth: 760,
             }}
-            initial={reduceMotion ? false : { opacity: 0, x: 22 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={reduceMotion ? undefined : { opacity: 0, x: 18 }}
-            transition={panelTransition}
           >
             <button
               type="button"
@@ -862,9 +822,8 @@ export default function Library() {
               readOnly={activeSection === "usb"}
             />
             </div>
-          </motion.aside>
+          </aside>
         )}
-        </AnimatePresence>
       </div>
 
       <ImportBookDialog
@@ -880,33 +839,44 @@ export default function Library() {
         }
       />
 
-      <ConfirmDialog
-        isOpen={confirmBulkDelete}
-        title="Remover livros selecionados"
-        message={`Remover ${selectedBooks.length} livro${selectedBooks.length !== 1 ? "s" : ""} da biblioteca? Os arquivos no disco serão mantidos.`}
-        confirmLabel="Remover"
-        isDanger
-        onConfirm={runBulkDelete}
-        onCancel={() => setConfirmBulkDelete(false)}
-      />
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+            <h3 className="text-base font-medium mb-2">Confirmar exclusão</h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Tem certeza que deseja remover {selectedBooks.length} livro{selectedBooks.length !== 1 ? "s" : ""} da biblioteca?
+            </p>
+            <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={bulkDeleteFileAlso}
+                onChange={(e) => setBulkDeleteFileAlso(e.target.checked)}
+                className="w-4 h-4 accent-green-500 cursor-pointer"
+              />
+              Também excluir arquivo{selectedBooks.length !== 1 ? "s" : ""} do disco
+            </label>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setConfirmBulkDelete(false); setBulkDeleteFileAlso(false); }}
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={runBulkDelete}
+                disabled={bulkBusy}
+                className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {bulkBusy ? "Removendo..." : "Remover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <AnimatePresence>
       {syncDialog && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduceMotion ? undefined : { opacity: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.14 }}
-        >
-          <motion.div
-            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
-            variants={reduceMotion ? undefined : subtleScale}
-            initial={reduceMotion ? false : "hidden"}
-            animate="visible"
-            exit={reduceMotion ? undefined : "exit"}
-            transition={panelTransition}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl">
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
               {syncDialog.action === "move" ? (
                 <Move size={18} className="text-green-400" />
@@ -937,27 +907,24 @@ export default function Library() {
             </div>
 
             <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
-              <motion.button
+              <button
                 type="button"
                 onClick={() => setSyncDialog(null)}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-                whileTap={microTap}
               >
                 Cancelar
-              </motion.button>
-              <motion.button
+              </button>
+              <button
                 type="button"
                 onClick={confirmSyncToLibrary}
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
-                whileTap={microTap}
               >
                 {syncDialog.action === "move" ? "Mover" : "Copiar"}
-              </motion.button>
+              </button>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-      </AnimatePresence>
     </div>
   );
 }

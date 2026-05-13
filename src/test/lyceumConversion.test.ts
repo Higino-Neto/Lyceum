@@ -52,6 +52,7 @@ describe("lyceum conversion core", () => {
       "pdf",
       "txt",
       "html",
+      "azw3",
     ]);
   });
 
@@ -99,5 +100,40 @@ describe("lyceum conversion core", () => {
 
     expect(zip.file("OEBPS/content.opf")).toBeTruthy();
     expect(await zip.file("OEBPS/text/chapter-001.xhtml")?.async("text")).toContain("Primeiro paragrafo");
+  });
+
+  it("exports textual packages as a real KF8/AZW3 Palm database", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-test-"));
+    const sourcePath = path.join(tempDir, "source.epub");
+    const packageRoot = path.join(tempDir, "book.lyceum");
+    const outputPath = path.join(tempDir, "book.azw3");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildEpub()));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot,
+      outputPath,
+    });
+    const azw3 = fs.readFileSync(outputPath);
+    const view = new DataView(azw3.buffer, azw3.byteOffset, azw3.byteLength);
+    const text = new TextDecoder().decode(azw3);
+    const firstRecordOffset = view.getUint32(78, false);
+    const mobiOffset = firstRecordOffset + 16;
+    const textRecordOffset = view.getUint32(86, false);
+    const textRecordEnd = view.getUint32(94, false);
+    const textRecord = azw3.subarray(textRecordOffset, textRecordEnd).toString("utf8");
+
+    expect(azw3.subarray(60, 68).toString("ascii")).toBe("BOOKMOBI");
+    expect(view.getUint16(76, false)).toBeGreaterThanOrEqual(4);
+    expect(azw3.subarray(mobiOffset, mobiOffset + 4).toString("ascii")).toBe("MOBI");
+    expect(view.getUint32(mobiOffset + 20, false)).toBe(8);
+    expect(view.getUint32(mobiOffset + 128, false) & 0x40).toBe(0x40);
+    expect(result.exportReport.stats.chapterCount).toBe(2);
+    expect(text).toContain("EXTH");
+    expect(textRecord).toContain("<html");
+    expect(textRecord).toContain("Primeiro texto canonico");
+    expect(textRecord).toContain("Segundo texto canonico");
   });
 });

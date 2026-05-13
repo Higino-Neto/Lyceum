@@ -167,6 +167,7 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
 
   openImageDialog: () => ipcRenderer.invoke("dialog:open-image"),
+  selectFolder: () => ipcRenderer.invoke("dialog:select-folder"),
 
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 

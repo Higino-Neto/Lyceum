@@ -21,8 +21,6 @@ import { supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 
-const AUTO_HIDE_STORAGE_KEY = "lyceum_auto_hide";
-const AUTO_HIDE_OVERLAY_KEY = "lyceum_auto_hide_overlay";
 const AUTO_HIDE_REVEAL_DELAY_MS = 120;
 const AUTO_HIDE_DISMISS_DELAY_MS = 420;
 const APP_FRAME_SIZE = 7;
@@ -31,47 +29,11 @@ const TITLE_BAR_HEIGHT = 40;
 const SIDEBAR_COLLAPSED_WIDTH = 52;
 const SIDEBAR_EXPANDED_WIDTH = 168;
 
-function loadAutoHideSetting(): boolean {
-  try {
-    const stored = localStorage.getItem(AUTO_HIDE_STORAGE_KEY);
-    return stored === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveAutoHideSetting(enabled: boolean): void {
-  try {
-    localStorage.setItem(AUTO_HIDE_STORAGE_KEY, String(enabled));
-  } catch (e) {
-    console.warn("Failed to save auto-hide setting:", e);
-  }
-}
-
-function loadAutoHideOverlaySetting(): boolean {
-  try {
-    const stored = localStorage.getItem(AUTO_HIDE_OVERLAY_KEY);
-    return stored === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveAutoHideOverlaySetting(enabled: boolean): void {
-  try {
-    localStorage.setItem(AUTO_HIDE_OVERLAY_KEY, String(enabled));
-  } catch (e) {
-    console.warn("Failed to save auto-hide overlay setting:", e);
-  }
-}
-
 function App() {
   const navigate = useNavigate();
-  const { effectiveTheme } = useAppSettings();
+  const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } = useAppSettings();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [autoHideEnabled, setAutoHideEnabled] = useState(loadAutoHideSetting);
-  const [autoHideOverlay, setAutoHideOverlay] = useState(loadAutoHideOverlaySetting);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
@@ -94,22 +56,22 @@ function App() {
     setPanelsVisible(true);
   }, [clearHideTimer]);
 
-  const hidePanels = useCallback((delay = AUTO_HIDE_DISMISS_DELAY_MS, resetTimer = true) => {
-    if (!resetTimer && hideTimerRef.current) {
-      return;
-    }
+   const hidePanels = useCallback((delay = AUTO_HIDE_DISMISS_DELAY_MS, resetTimer = true) => {
+     if (!resetTimer && hideTimerRef.current) {
+       return;
+     }
 
-    if (resetTimer) {
-      clearHideTimer();
-    }
+     if (resetTimer) {
+       clearHideTimer();
+     }
 
-    if (autoHideEnabled) {
-      hideTimerRef.current = window.setTimeout(() => {
-        setPanelsVisible(false);
-        hideTimerRef.current = null;
-      }, delay);
-    }
-  }, [autoHideEnabled, clearHideTimer]);
+     if (settings.autoHideEnabled) {
+       hideTimerRef.current = window.setTimeout(() => {
+         setPanelsVisible(false);
+         hideTimerRef.current = null;
+       }, delay);
+     }
+   }, [settings.autoHideEnabled, clearHideTimer]);
 
   const showPanelsAfterEdgeIntent = useCallback(() => {
     if (showDelayTimerRef.current || panelsVisible) {
@@ -281,24 +243,24 @@ function App() {
   const isElectron =
     typeof window !== "undefined" && window.api?.windowMinimize;
 
-  useEffect(() => {
-    if (!isElectron) {
-      return;
-    }
+   useEffect(() => {
+     if (!isElectron) {
+       return;
+     }
 
-    if (autoHideEnabled) {
-      showPanels();
-      hidePanels(1200);
-      return;
-    }
+     if (settings.autoHideEnabled) {
+       showPanels();
+       hidePanels(1200);
+       return;
+     }
 
-    showPanels();
-  }, [autoHideEnabled, hidePanels, isElectron, showPanels]);
+     showPanels();
+   }, [settings.autoHideEnabled, hidePanels, isElectron, showPanels]);
 
-  useEffect(() => {
-    if (!autoHideEnabled || !isElectron) {
-      return;
-    }
+   useEffect(() => {
+     if (!settings.autoHideEnabled || !isElectron) {
+       return;
+     }
 
     const handlePointerMove = (event: PointerEvent) => {
       const revealEdge = AUTO_HIDE_TRIGGER_SIZE;
@@ -334,16 +296,16 @@ function App() {
 
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [
-    autoHideEnabled,
-    cancelEdgeIntent,
-    hidePanels,
-    isElectron,
-    panelsVisible,
-    showPanels,
-    showPanelsAfterEdgeIntent,
-    sidebarCollapsed,
-  ]);
+   }, [
+     settings.autoHideEnabled,
+     cancelEdgeIntent,
+     hidePanels,
+     isElectron,
+     panelsVisible,
+     showPanels,
+     showPanelsAfterEdgeIntent,
+     sidebarCollapsed,
+   ]);
 
   useEffect(() => {
     return () => {
@@ -376,16 +338,14 @@ function App() {
     return unsubscribe;
   }, [isElectron, navigate]);
 
-  const handleAutoHideToggle = (enabled: boolean) => {
-    setAutoHideEnabled(enabled);
-    setPanelsVisible(true);
-    saveAutoHideSetting(enabled);
-  };
+   const handleAutoHideToggle = (enabled: boolean) => {
+     setAutoHideEnabled(enabled);
+     setPanelsVisible(true);
+   };
 
-  const handleAutoHideOverlayToggle = (enabled: boolean) => {
-    setAutoHideOverlay(enabled);
-    saveAutoHideOverlaySetting(enabled);
-  };
+   const handleAutoHideOverlayToggle = (enabled: boolean) => {
+     setAutoHideOverlay(enabled);
+   };
 
   const toasterStyle = effectiveTheme === "light"
     ? {
@@ -410,22 +370,22 @@ function App() {
       className="lyceum-app relative h-screen w-screen overflow-hidden bg-zinc-800"
       style={{ padding: APP_FRAME_SIZE }}
     >
-      {autoHideEnabled && isElectron && (
-        <div
-          className="absolute left-0 right-0 top-0 z-[100]"
-          style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
-          onMouseEnter={showPanelsAfterEdgeIntent}
-          onMouseLeave={cancelEdgeIntent}
-        />
-      )}
-      {autoHideEnabled && isElectron && (
-        <div
-          className="absolute bottom-0 left-0 top-0 z-[100]"
-          style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
-          onMouseEnter={showPanelsAfterEdgeIntent}
-          onMouseLeave={cancelEdgeIntent}
-        />
-      )}
+       {settings.autoHideEnabled && isElectron && (
+         <div
+           className="absolute left-0 right-0 top-0 z-[100]"
+           style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
+           onMouseEnter={showPanelsAfterEdgeIntent}
+           onMouseLeave={cancelEdgeIntent}
+         />
+       )}
+       {settings.autoHideEnabled && isElectron && (
+         <div
+           className="absolute bottom-0 left-0 top-0 z-[100]"
+           style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
+           onMouseEnter={showPanelsAfterEdgeIntent}
+           onMouseLeave={cancelEdgeIntent}
+         />
+       )}
       <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-zinc-950 text-zinc-100">
         <Toaster
           position="top-center"
@@ -454,35 +414,35 @@ function App() {
             },
           }}
         />
-        {isElectron && (
-          <TitleBar
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-            autoHideEnabled={autoHideEnabled}
-            autoHideOverlay={autoHideOverlay}
-            onAutoHideToggle={handleAutoHideToggle}
-            onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
-            panelsVisible={panelsVisible}
-            onShowPanels={showPanels}
-            onHidePanels={() => hidePanels()}
-          />
-        )}
-        <ConversionQueueProvider>
-        <div className="relative flex flex-1 overflow-hidden">
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            autoHideEnabled={autoHideEnabled}
-            autoHideOverlay={autoHideOverlay}
-            panelsVisible={panelsVisible}
-            onShowPanels={showPanels}
-            onHidePanels={() => hidePanels()}
-            settingsOpen={settingsOpen}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-          <main
-            className="flex-1 overflow-y-auto"
-            onMouseEnter={() => autoHideEnabled && hidePanels(250)}
-          >
+         {isElectron && (
+           <TitleBar
+             collapsed={sidebarCollapsed}
+             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+             autoHideEnabled={settings.autoHideEnabled}
+             autoHideOverlay={settings.autoHideOverlay}
+             onAutoHideToggle={handleAutoHideToggle}
+             onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
+             panelsVisible={panelsVisible}
+             onShowPanels={showPanels}
+             onHidePanels={() => hidePanels()}
+           />
+         )}
+         <ConversionQueueProvider>
+         <div className="relative flex flex-1 overflow-hidden">
+           <Sidebar
+             collapsed={sidebarCollapsed}
+             autoHideEnabled={settings.autoHideEnabled}
+             autoHideOverlay={settings.autoHideOverlay}
+             panelsVisible={panelsVisible}
+             onShowPanels={showPanels}
+             onHidePanels={() => hidePanels()}
+             settingsOpen={settingsOpen}
+             onOpenSettings={() => setSettingsOpen(true)}
+           />
+           <main
+             className="flex-1 overflow-y-auto"
+             onMouseEnter={() => settings.autoHideEnabled && hidePanels(250)}
+           >
             <Routes>
               <Route
                 path="/"
