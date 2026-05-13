@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Palette, SlidersHorizontal, User, X, ZoomIn } from "lucide-react";
+import { BookOpen, Palette, SlidersHorizontal, User, UserCircle, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
+  AccountSettingsPanel,
   AppearanceSettingsPanel,
   DictionarySettingsPanel,
   GeneralSettingsPanel,
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-type SettingsTabId = "general" | "appearance" | "zoom" | "dictionaries";
+type SettingsTabId = "general" | "account" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -45,9 +46,16 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       {
         id: "general",
         label: "Geral",
-        description: "Conta, dados pessoais, segurança e sessão.",
-        icon: User,
-        panel: <GeneralSettingsPanel onRequestClose={onClose} />,
+        description: "Configurações gerais do aplicativo.",
+        icon: SlidersHorizontal,
+        panel: <GeneralSettingsPanel />,
+      },
+      {
+        id: "account",
+        label: "Conta",
+        description: "Dados pessoais, segurança e sessão.",
+        icon: UserCircle,
+        panel: <AccountSettingsPanel onRequestClose={onClose} />,
       },
       {
         id: "appearance",

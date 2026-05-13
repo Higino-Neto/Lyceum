@@ -137,7 +137,25 @@ function PrimaryButton({
     <button
       type={type}
       disabled={disabled}
-      className="inline-flex h-9 items-center gap-2 rounded bg-zinc-100 px-4 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-4 text-sm font-medium text-black transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
+}
+
+function DangerButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-9 items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-4 text-sm font-medium text-red-300 transition hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-200"
     >
       {children}
     </button>
@@ -275,7 +293,7 @@ export function AppearanceSettingsPanel() {
   );
 }
 
-export function GeneralSettingsPanel({
+export function AccountSettingsPanel({
   onRequestClose,
 }: {
   onRequestClose?: () => void;
@@ -511,12 +529,108 @@ export function GeneralSettingsPanel({
         title="Sessão"
         description="Encerre o acesso deste usuario ao aplicativo."
       >
-        <button
-          onClick={handleSignOut}
-          className="inline-flex h-9 items-center rounded border border-red-500/30 bg-red-500/10 px-4 text-sm font-medium text-red-300 transition hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-200"
-        >
+        <DangerButton onClick={handleSignOut}>
           Sair da conta
-        </button>
+        </DangerButton>
+      </SettingsSection>
+    </div>
+  );
+}
+
+export function GeneralSettingsPanel() {
+  const {
+    settings,
+    setCopyYesterdayReadings,
+    setAutoHideEnabled,
+    setAutoHideOverlay,
+  } = useAppSettings();
+
+  return (
+    <div>
+      <SettingsSection
+        title="Interface"
+        description="Configurações da barra de título e sidebar."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-100">
+                Auto-ocultar
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Oculta automaticamente a barra de título e sidebar.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutoHideEnabled(!settings.autoHideEnabled)}
+              className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+                settings.autoHideEnabled ? "bg-green-500" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                  settings.autoHideEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {settings.autoHideEnabled && (
+            <div className="flex items-center justify-between pl-4 border-l-2 border-zinc-800">
+              <div>
+                <p className="text-sm font-medium text-zinc-100">
+                  Modo sobrepor
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  A barra de título aparece sobre o conteúdo ao invés de empurrá-lo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoHideOverlay(!settings.autoHideOverlay)}
+                className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+                  settings.autoHideOverlay ? "bg-green-500" : "bg-zinc-700"
+                }`}
+              >
+                <span
+                  className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                    settings.autoHideOverlay ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Dashboard"
+        description="Configurações do painel principal."
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-zinc-100">
+              Copiar leituras de ontem
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              O botão "Leituras diárias" copiará as leituras do dia anterior ao invés de hoje.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCopyYesterdayReadings(!settings.copyYesterdayReadings)}
+            className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+              settings.copyYesterdayReadings ? "bg-green-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                settings.copyYesterdayReadings ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
       </SettingsSection>
     </div>
   );
