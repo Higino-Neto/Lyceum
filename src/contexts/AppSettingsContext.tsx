@@ -145,6 +145,9 @@ export const ACCENT_COLORS: AccentColor[] = [
 interface AppSettings {
   theme: AppTheme;
   accentColor: AccentColorId;
+  copyYesterdayReadings: boolean;
+  autoHideEnabled: boolean;
+  autoHideOverlay: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -152,12 +155,18 @@ interface AppSettingsContextValue {
   effectiveTheme: EffectiveTheme;
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (accentColor: AccentColorId) => void;
+  setCopyYesterdayReadings: (value: boolean) => void;
+  setAutoHideEnabled: (value: boolean) => void;
+  setAutoHideOverlay: (value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
   accentColor: "green",
+  copyYesterdayReadings: false,
+  autoHideEnabled: false,
+  autoHideOverlay: false,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -173,15 +182,45 @@ function getSystemTheme(): EffectiveTheme {
   return "dark";
 }
 
+const LEGACY_AUTO_HIDE_KEY = "lyceum_auto_hide";
+const LEGACY_AUTO_HIDE_OVERLAY_KEY = "lyceum_auto_hide_overlay";
+
+function loadLegacyAutoHideSettings(): { autoHideEnabled: boolean; autoHideOverlay: boolean } {
+  try {
+    const autoHide = localStorage.getItem(LEGACY_AUTO_HIDE_KEY);
+    const autoHideOverlay = localStorage.getItem(LEGACY_AUTO_HIDE_OVERLAY_KEY);
+    return {
+      autoHideEnabled: autoHide === "true",
+      autoHideOverlay: autoHideOverlay === "true",
+    };
+  } catch {
+    return {
+      autoHideEnabled: false,
+      autoHideOverlay: false,
+    };
+  }
+}
+
 function loadSettings(): AppSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!stored) return DEFAULT_SETTINGS;
+    const legacy = loadLegacyAutoHideSettings();
+
+    if (!stored) {
+      return {
+        ...DEFAULT_SETTINGS,
+        autoHideEnabled: legacy.autoHideEnabled,
+        autoHideOverlay: legacy.autoHideOverlay,
+      };
+    }
 
     const parsed = JSON.parse(stored) as Partial<AppSettings>;
     return {
       theme: parsed.theme || DEFAULT_SETTINGS.theme,
       accentColor: parsed.accentColor || DEFAULT_SETTINGS.accentColor,
+      copyYesterdayReadings: parsed.copyYesterdayReadings ?? DEFAULT_SETTINGS.copyYesterdayReadings,
+      autoHideEnabled: parsed.autoHideEnabled ?? legacy.autoHideEnabled,
+      autoHideOverlay: parsed.autoHideOverlay ?? legacy.autoHideOverlay,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -263,6 +302,21 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           accentColor,
+        })),
+      setCopyYesterdayReadings: (value) =>
+        setSettings((current) => ({
+          ...current,
+          copyYesterdayReadings: value,
+        })),
+      setAutoHideEnabled: (value) =>
+        setSettings((current) => ({
+          ...current,
+          autoHideEnabled: value,
+        })),
+      setAutoHideOverlay: (value) =>
+        setSettings((current) => ({
+          ...current,
+          autoHideOverlay: value,
         })),
     }),
     [effectiveTheme, settings],

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ReadingTable from "./components/ReadingTable/ReadingTable";
 import useReadingStats from "../../hooks/useReadingStats";
 import { SelectedUsersProvider } from "../../contexts/SelectedUsersContext";
+import { useAppSettings } from "../../contexts/AppSettingsContext";
 import toast from "react-hot-toast";
 import useGetReadings from "../../hooks/useGetReadings";
 import { useMemo } from "react";
@@ -20,34 +21,44 @@ const STROKE_WIDTH = 1.5;
 export default function Dashboard() {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
+  const { settings } = useAppSettings();
 
   const { isLoading } = useReadingStats();
 
   const { data: readings } = useGetReadings();
 
-  const todayReadingsString = useMemo(() => {
+  const targetDate = useMemo(() => {
+    const date = new Date();
+    if (settings.copyYesterdayReadings) {
+      date.setDate(date.getDate() - 1);
+    }
+    return date.toISOString().split("T")[0];
+  }, [settings.copyYesterdayReadings]);
+
+  const readingsString = useMemo(() => {
     if (!readings) return "";
 
-    const today = new Date().toISOString().split("T")[0];
+    const targetReadings = readings.filter((r) => r.reading_date === targetDate);
 
-    const todayReadings = readings.filter((r) => r.reading_date === today);
+    if (targetReadings.length === 0) return "";
 
-    if (todayReadings.length === 0) return "";
-
-    const lines = todayReadings.map((r) => `${r.source_name}: ${r.pages}`);
-    const total = todayReadings.reduce((acc, r) => acc + r.pages, 0);
+    const lines = targetReadings.map((r) => `${r.source_name}: ${r.pages}`);
+    const total = targetReadings.reduce((acc, r) => acc + r.pages, 0);
 
     return `${lines.join("\n")}\n\nTotal: ${total}`;
-  }, [readings]);
+  }, [readings, targetDate]);
 
   const handleCopyDailyReadings = async () => {
-    if (!todayReadingsString) {
-      toast.error("Nenhuma leitura registrada hoje");
+    if (!readingsString) {
+      const message = settings.copyYesterdayReadings
+        ? "Nenhuma leitura registrada ontem"
+        : "Nenhuma leitura registrada hoje";
+      toast.error(message);
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(todayReadingsString);
+      await navigator.clipboard.writeText(readingsString);
       toast.success("Leituras copiadas!");
     } catch {
       toast.error("Falha ao copiar");
@@ -157,14 +168,14 @@ export default function Dashboard() {
                     {/* <h2 className="text-zinc-500">Registros de Leitura</h2> */}
                   </div>
                   <div className="flex items-center gap-2">
-                    <motion.button
-                      onClick={handleCopyDailyReadings}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-md text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
-                      title="Copiar leituras do dia"
-                    >
-                      <Copy size={16} />
-                      Leituras diárias
-                    </motion.button>
+                     <motion.button
+                       onClick={handleCopyDailyReadings}
+                       className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-md text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
+                       title={settings.copyYesterdayReadings ? "Copiar leituras de ontem" : "Copiar leituras de hoje"}
+                     >
+                       <Copy size={16} />
+                       Leituras diárias
+                     </motion.button>
                     <motion.button
                       onClick={() => navigate("/add_reading")}
                       className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-green-600 px-3 py-1.5 text-md font-medium text-black transition hover:bg-green-500"
