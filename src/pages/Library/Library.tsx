@@ -31,6 +31,7 @@ import {
   SortOption,
 } from "./components";
 import BookGrid, { type GridDensity } from "./components/BookGrid";
+import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
 import { BookWithThumbnail, LibrarySection } from "../../types/LibraryTypes";
@@ -89,6 +90,7 @@ export default function Library() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [kindlePanelOpen, setKindlePanelOpen] = useState(false);
   const [syncDialog, setSyncDialog] = useState<{
     fileHash: string;
     action: "move" | "copy";
@@ -475,6 +477,12 @@ export default function Library() {
     [selectedBookMap],
   );
 
+  useEffect(() => {
+    if (kindlePanelOpen && selectedBooks.length === 0) {
+      setKindlePanelOpen(false);
+    }
+  }, [kindlePanelOpen, selectedBooks.length]);
+
   const selectAllFiltered = () => {
     setSelectedHashes(new Set(books.map((book) => book.fileHash)));
     setSelectedBookMap(new Map(books.map((book) => [book.fileHash, book])));
@@ -484,6 +492,12 @@ export default function Library() {
     if (selectedBooks.length === 0) return;
     prepareBooks(selectedBooks);
     navigate("/conversion");
+  };
+
+  const openKindlePanel = () => {
+    if (selectedBooks.length === 0) return;
+    setSelectedBook(null);
+    setKindlePanelOpen(true);
   };
 
   const runBulkRegenerateThumbnails = async () => {
@@ -698,6 +712,16 @@ export default function Library() {
                   <Send size={14} />
                   Converter
                 </button>
+                {activeSection !== "usb" && (
+                  <button
+                    onClick={openKindlePanel}
+                    disabled={selectedBooks.length === 0}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-green-500/50 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-200 hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Usb size={14} />
+                    Enviar para Kindle
+                  </button>
+                )}
                 <button
                   onClick={runBulkRegenerateThumbnails}
                   disabled={bulkBusy}
@@ -791,7 +815,7 @@ export default function Library() {
           </main>
         </div>
 
-        {selectedBook && (
+        {selectedBook && !kindlePanelOpen && (
           <aside className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
             style={{
               flexBasis: detailPanelWidth,
@@ -823,6 +847,14 @@ export default function Library() {
             />
             </div>
           </aside>
+        )}
+
+        {kindlePanelOpen && (
+          <KindleSendPanel
+            books={selectedBooks}
+            onClose={() => setKindlePanelOpen(false)}
+            onSent={refreshLibraryState}
+          />
         )}
       </div>
 

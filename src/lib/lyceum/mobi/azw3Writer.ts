@@ -1,6 +1,7 @@
+import JSZip from "jszip";
 import { renderDefaultCss } from "../../pdf-to-epub/html";
 import type { LyceumBookMetadata, LyceumTextualContent } from "../schema/types";
-import { escapeXml, extractBodyHtml } from "../textual";
+import { escapeXml, extractBodyHtml, isPlaceholderTitle, normalizeHtmlEntitiesForXhtml, stripHtml } from "../textual";
 
 interface PdbRecord {
   data: Uint8Array;
@@ -49,7 +50,7 @@ export interface Azw3BuildOptions {
   metadata: LyceumBookMetadata;
   textual: LyceumTextualContent;
   /**
-   * Keep true if you want Kindle Previewer/Calibre-style roundtrip support.
+   * Enable only if you want source EPUB roundtrip support.
    * For very large books with many images this can make the AZW3 much bigger.
    */
   embedSource?: boolean;
@@ -84,8 +85,9 @@ const MOBI_HEADER_OFFSET = PALMDOC_HEADER_LENGTH;
 const INDX_HEADER_LENGTH = 192;
 const PDB_EPOCH = Date.UTC(1904, 0, 1);
 const NULL_INDEX = 0xffffffff;
-const MOBI_FLAGS_KF8_BOOK = 0x00004850;
+const MOBI_EXTH_FLAGS = 0x00000040;
 const END_TAG = 1;
+const PALMDOC_COMPRESSION = 2;
 
 function encodeUtf8(value: string): Uint8Array {
   return new TextEncoder().encode(value);
@@ -128,14 +130,6 @@ function writeUInt32BE(value: number): Uint8Array {
 
 function put32(buffer: Uint8Array, offset: number, value: number): void {
   new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).setUint32(offset, value >>> 0, false);
-}
-
-function writeUInt16LE(view: DataView, offset: number, value: number): void {
-  view.setUint16(offset, value, true);
-}
-
-function writeUInt32LE(view: DataView, offset: number, value: number): void {
-  view.setUint32(offset, value >>> 0, true);
 }
 
 function clampPdbName(value: string): string {
@@ -197,6 +191,18 @@ function buildChapterId(index: number): string {
   return `chapter-${String(index + 1).padStart(4, "0")}`;
 }
 
+function firstHeadingText(value: string): string | undefined {
+  const heading = value.match(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i)?.[1];
+  const text = heading ? stripHtml(heading) : "";
+  return text || undefined;
+}
+
+function chapterTitle(chapter: LyceumTextualContent["chapters"][number], index: number) {
+  if (!isPlaceholderTitle(chapter.title)) return chapter.title;
+  const heading = firstHeadingText(extractBodyHtml(chapter.xhtml));
+  return isPlaceholderTitle(heading) ? `Capitulo ${index + 1}` : heading!;
+}
+
 function buildChapterDocument(
   metadata: LyceumBookMetadata,
   chapter: LyceumTextualContent["chapters"][number],
@@ -205,17 +211,19 @@ function buildChapterDocument(
   const language = normalizeLanguage(metadata.language);
   const id = buildChapterId(index);
   const sourceId = sanitizeXmlId(chapter.id || "", id);
+  const title = chapterTitle(chapter, index);
+  const bodyHtml = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
 <head>
 <meta charset="utf-8" />
-<title>${escapeXml(chapter.title || `Capítulo ${index + 1}`)}</title>
+<title>${escapeXml(title)}</title>
 </head>
 <body>
 <section id="${id}" data-lyceum-id="${escapeXml(sourceId)}" class="chapter">
-<h1>${escapeXml(chapter.title || `Capítulo ${index + 1}`)}</h1>
-${extractBodyHtml(chapter.xhtml)}
+<h1>${escapeXml(title)}</h1>
+${bodyHtml}
 </section>
 </body>
 </html>`;
@@ -272,10 +280,9 @@ function splitSkeletonAndBody(html: string): BodySplit {
   const head = html.slice(0, bodyOpen.end);
   const inner = html.slice(bodyOpen.end, bodyClose);
   const tail = html.slice(bodyClose);
-  const skeleton = head + tail;
 
   return {
-    skeleton,
+    skeleton: head + tail,
     bodyInner: inner,
     bodyInnerOffset: encodeUtf8(head).length,
     bodyAid: bodyOpen.aid,
@@ -295,10 +302,8 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   const aidCounter = { value: 0 };
 
   textual.chapters.forEach((chapter, index) => {
-    const raw = buildChapterDocument(metadata, chapter, index);
-    const aided = addAidAttributes(raw, aidCounter);
+    const aided = addAidAttributes(buildChapterDocument(metadata, chapter, index), aidCounter);
     const split = splitSkeletonAndBody(aided);
-
     const skelBytes = encodeUtf8(split.skeleton);
     const fragBytes = encodeUtf8(split.bodyInner);
     const skelStart = absoluteOffset;
@@ -367,32 +372,61 @@ function encodeVwiInv(value: number): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-function appendKf8TrailingBytes(record: number[], recordIndex: number, skeletonCount: number): void {
-  // multibyte tail: no UTF-8 overhang
-  record.push(0x00);
-
-  if (recordIndex === 0) {
-    const value = skeletonCount > 0 ? 2 * skeletonCount - 1 : 0;
-    const valueBytes = Array.from(encodeVwiInv(value));
-    const tbsSize = 1 + valueBytes.length + 1;
-    record.push(0x82);
-    record.push(...valueBytes);
-    record.push(tbsSize | 0x80);
-  } else {
-    record.push(0x81);
-  }
+function isPalmDocDirectByte(byte: number): boolean {
+  return byte === 0 || (byte >= 0x09 && byte <= 0x7f);
 }
 
-function splitTextRecordsKf8(rawText: Uint8Array, skeletonCount: number): PdbRecord[] {
-  const records: PdbRecord[] = [];
+function compressPalmDocRecord(input: Uint8Array): Uint8Array {
+  const output: number[] = [];
 
-  for (let offset = 0, index = 0; offset < rawText.length; offset += TEXT_RECORD_SIZE, index += 1) {
-    const chunk = Array.from(rawText.slice(offset, offset + TEXT_RECORD_SIZE));
-    appendKf8TrailingBytes(chunk, index, skeletonCount);
-    records.push({ data: new Uint8Array(chunk) });
+  for (let index = 0; index < input.length; index += 1) {
+    const byte = input[index];
+    const next = input[index + 1];
+
+    if (byte === 0x20 && next >= 0x40 && next <= 0x7f) {
+      output.push(next ^ 0x80);
+      index += 1;
+      continue;
+    }
+
+    if (isPalmDocDirectByte(byte)) {
+      output.push(byte);
+      continue;
+    }
+
+    const literalStart = index;
+    let literalLength = 0;
+    while (literalStart + literalLength < input.length && literalLength < 8) {
+      const current = input[literalStart + literalLength];
+      const following = input[literalStart + literalLength + 1];
+      if (current === 0x20 && following >= 0x40 && following <= 0x7f) break;
+      if (isPalmDocDirectByte(current)) break;
+      literalLength += 1;
+    }
+
+    if (literalLength === 0) {
+      output.push(byte);
+      continue;
+    }
+
+    output.push(literalLength);
+    for (let offset = 0; offset < literalLength; offset += 1) {
+      output.push(input[literalStart + offset]);
+    }
+    index += literalLength - 1;
   }
 
-  return records.length > 0 ? records : [{ data: new Uint8Array([0x00, 0x82, 0x80, 0x83]) }];
+  return new Uint8Array(output);
+}
+
+function splitTextRecordsKf8(rawText: Uint8Array): PdbRecord[] {
+  const records: PdbRecord[] = [];
+
+  for (let offset = 0; offset < rawText.length; offset += TEXT_RECORD_SIZE) {
+    records.push({ data: compressPalmDocRecord(rawText.slice(offset, offset + TEXT_RECORD_SIZE)) });
+  }
+
+  return records.length > 0 ? records : [{ data: new Uint8Array([0x00]) }];
 }
 
 function buildFdstRecord(htmlLength: number, totalLength: number): Uint8Array {
@@ -687,8 +721,16 @@ function buildNcxIndx(
   const cncx = new CncxBuilder();
 
   const tocEntries = textual.toc.length > 0
-    ? textual.toc.map((item, index) => ({ title: item.title, chapterIndex: Math.min(index, skeletons.length - 1), depth: 0 }))
-    : textual.chapters.map((chapter, index) => ({ title: chapter.title || `Capítulo ${index + 1}`, chapterIndex: index, depth: 0 }));
+    ? textual.toc.map((item, index) => {
+      const chapterIndex = Math.min(index, skeletons.length - 1);
+      const chapter = textual.chapters[chapterIndex];
+      return {
+        title: isPlaceholderTitle(item.title) && chapter ? chapterTitle(chapter, chapterIndex) : item.title,
+        chapterIndex,
+        depth: 0,
+      };
+    })
+    : textual.chapters.map((chapter, index) => ({ title: chapterTitle(chapter, index), chapterIndex: index, depth: 0 }));
 
   const safeEntries = tocEntries.length > 0 ? tocEntries : [{ title: metadata.title || "Untitled", chapterIndex: 0, depth: 0 }];
 
@@ -800,7 +842,6 @@ function buildExth(metadata: LyceumBookMetadata): Uint8Array {
   pushString(104, metadata.identifier);
   pushString(106, metadata.publishDate);
   pushString(113, metadata.identifier || `LYCEUM-${deterministicId(metadata.title || "untitled").toString(16)}`);
-  pushUInt32(116, 0);
   pushString(501, "EBOK");
   pushString(503, metadata.title || "Untitled");
   pushString(524, normalizeLanguage(metadata.language));
@@ -824,6 +865,7 @@ function buildRecordZero(args: {
   rawTextLength: number;
   textRecordCount: number;
   firstNonTextRecord: number;
+  firstResourceRecord: number;
   fcisRecord: number;
   flisRecord: number;
   srcsRecord: number | null;
@@ -841,7 +883,7 @@ function buildRecordZero(args: {
   const view = new DataView(record.buffer, record.byteOffset, record.byteLength);
 
   // PalmDOC header.
-  view.setUint16(0, 1, false);                          // compression: none
+  view.setUint16(0, PALMDOC_COMPRESSION, false);
   view.setUint16(2, 0, false);
   view.setUint32(4, args.rawTextLength, false);          // length without KF8 trailing bytes
   view.setUint16(8, args.textRecordCount, false);
@@ -856,9 +898,10 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 16, deterministicId(`${title}:${args.metadata.author || ""}:kf8`), false);
   view.setUint32(MOBI_HEADER_OFFSET + 20, 8, false);     // version 8 = KF8/AZW3
 
-  for (const offset of [24, 28, 32, 36, 40, 44, 48, 52, 56, 60]) {
+  for (const offset of [28, 32, 36, 40, 44, 48, 52, 56, 60]) {
     view.setUint32(MOBI_HEADER_OFFSET + offset, NULL_INDEX, false);
   }
+  view.setUint32(MOBI_HEADER_OFFSET + 24, 0, false); // orthographic_index = 0 (none)
 
   view.setUint32(MOBI_HEADER_OFFSET + 64, args.firstNonTextRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 68, fullNameOffset, false);
@@ -867,17 +910,18 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 80, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 84, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 88, 8, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 92, NULL_INDEX, false); // no images yet
+  view.setUint32(MOBI_HEADER_OFFSET + 92, args.firstResourceRecord, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 96, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 100, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 104, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 108, 0, false);
 
-  view.setUint32(MOBI_HEADER_OFFSET + 112, MOBI_FLAGS_KF8_BOOK, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 112, MOBI_EXTH_FLAGS, false); // EXTH header follows the MOBI header.
 
+  view.setUint32(MOBI_HEADER_OFFSET + 148, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 152, NULL_INDEX, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 156, 0, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 156, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 160, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 164, 0, false);
 
@@ -889,14 +933,17 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 188, 1, false);
   view.setUint32(MOBI_HEADER_OFFSET + 192, args.flisRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 196, 1, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 200, NULL_INDEX, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 204, NULL_INDEX, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 208, args.srcsRecord ?? NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 212, args.srcsRecord === null ? 0 : 1, false);
   view.setUint32(MOBI_HEADER_OFFSET + 216, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 220, NULL_INDEX, false);
 
-  // bit 0 = multibyte, bit 1 = TBS. We append both to every KF8 text record.
-  view.setUint32(MOBI_HEADER_OFFSET + 224, 3, false);
+  // Text records use PalmDOC compression only. No extra trailing byte
+  // sequences are appended, so readers can trim/decompress the flow directly.
+  view.setUint32(MOBI_HEADER_OFFSET + 224, 0, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 228, args.ncxIndexRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 232, args.fragmentIndexRecord, false);
@@ -910,105 +957,26 @@ function buildRecordZero(args: {
   return record;
 }
 
-function crc32(data: Uint8Array): number {
-  let crc = 0xffffffff;
-
-  for (const byte of data) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
-    }
-  }
-
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function buildStoreZip(files: { path: string; data: Uint8Array }[]): Uint8Array {
-  const localParts: Uint8Array[] = [];
-  const centralParts: Uint8Array[] = [];
-  let offset = 0;
-
-  for (const file of files) {
-    const pathBytes = encodeUtf8(file.path);
-    const checksum = crc32(file.data);
-
-    const local = new Uint8Array(30 + pathBytes.length);
-    const localView = new DataView(local.buffer);
-    writeUInt32LE(localView, 0, 0x04034b50);
-    writeUInt16LE(localView, 4, 20);
-    writeUInt16LE(localView, 6, 0);
-    writeUInt16LE(localView, 8, 0);
-    writeUInt16LE(localView, 10, 0);
-    writeUInt16LE(localView, 12, 0);
-    writeUInt32LE(localView, 14, checksum);
-    writeUInt32LE(localView, 18, file.data.length);
-    writeUInt32LE(localView, 22, file.data.length);
-    writeUInt16LE(localView, 26, pathBytes.length);
-    writeUInt16LE(localView, 28, 0);
-    local.set(pathBytes, 30);
-
-    localParts.push(local, file.data);
-
-    const central = new Uint8Array(46 + pathBytes.length);
-    const centralView = new DataView(central.buffer);
-    writeUInt32LE(centralView, 0, 0x02014b50);
-    writeUInt16LE(centralView, 4, 20);
-    writeUInt16LE(centralView, 6, 20);
-    writeUInt16LE(centralView, 8, 0);
-    writeUInt16LE(centralView, 10, 0);
-    writeUInt16LE(centralView, 12, 0);
-    writeUInt16LE(centralView, 14, 0);
-    writeUInt32LE(centralView, 16, checksum);
-    writeUInt32LE(centralView, 20, file.data.length);
-    writeUInt32LE(centralView, 24, file.data.length);
-    writeUInt16LE(centralView, 28, pathBytes.length);
-    writeUInt16LE(centralView, 30, 0);
-    writeUInt16LE(centralView, 32, 0);
-    writeUInt16LE(centralView, 34, 0);
-    writeUInt16LE(centralView, 36, 0);
-    writeUInt32LE(centralView, 38, 0);
-    writeUInt32LE(centralView, 42, offset);
-    central.set(pathBytes, 46);
-
-    centralParts.push(central);
-    offset += local.length + file.data.length;
-  }
-
-  const centralStart = offset;
-  const centralDirectory = concatBytes(centralParts);
-
-  const eocd = new Uint8Array(22);
-  const eocdView = new DataView(eocd.buffer);
-  writeUInt32LE(eocdView, 0, 0x06054b50);
-  writeUInt16LE(eocdView, 4, 0);
-  writeUInt16LE(eocdView, 6, 0);
-  writeUInt16LE(eocdView, 8, files.length);
-  writeUInt16LE(eocdView, 10, files.length);
-  writeUInt32LE(eocdView, 12, centralDirectory.length);
-  writeUInt32LE(eocdView, 16, centralStart);
-  writeUInt16LE(eocdView, 20, 0);
-
-  return concatBytes([...localParts, centralDirectory, eocd]);
-}
-
-function buildEmbeddedSourceEpub(metadata: LyceumBookMetadata, textual: LyceumTextualContent): Uint8Array {
+async function buildEmbeddedSourceEpub(metadata: LyceumBookMetadata, textual: LyceumTextualContent): Promise<Uint8Array> {
   const identifier = metadata.identifier || `urn:lyceum:${deterministicId(metadata.title || "untitled").toString(16)}`;
   const language = normalizeLanguage(metadata.language);
   const modified = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
   const chapterFiles = textual.chapters.map((chapter, index) => {
     const id = buildChapterId(index);
+    const title = chapterTitle(chapter, index);
+    const bodyHtml = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
     const content = `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
 <head>
 <meta charset="utf-8" />
-<title>${escapeXml(chapter.title || `Capítulo ${index + 1}`)}</title>
+<title>${escapeXml(title)}</title>
 <link rel="stylesheet" type="text/css" href="../styles/book.css" />
 </head>
 <body>
 <section id="${id}" class="chapter">
-<h1>${escapeXml(chapter.title || `Capítulo ${index + 1}`)}</h1>
-${extractBodyHtml(chapter.xhtml)}
+<h1>${escapeXml(title)}</h1>
+${bodyHtml}
 </section>
 </body>
 </html>`;
@@ -1018,7 +986,9 @@ ${extractBodyHtml(chapter.xhtml)}
 
   const navItems = (textual.toc.length > 0 ? textual.toc : textual.chapters).map((item: any, index: number) => {
     const id = buildChapterId(index);
-    return `<li><a href="text/${id}.xhtml">${escapeXml(item.title || `Capítulo ${index + 1}`)}</a></li>`;
+    const chapter = textual.chapters[index];
+    const title = isPlaceholderTitle(item.title) && chapter ? chapterTitle(chapter, index) : item.title || `Capitulo ${index + 1}`;
+    return `<li><a href="text/${id}.xhtml">${escapeXml(title)}</a></li>`;
   }).join("\n");
 
   const manifestItems = chapterFiles.map((_, index) => {
@@ -1031,15 +1001,15 @@ ${extractBodyHtml(chapter.xhtml)}
     return `<itemref idref="${id}" />`;
   }).join("\n");
 
-  const files = [
-    { path: "mimetype", data: encodeUtf8("application/epub+zip") },
-    { path: "META-INF/container.xml", data: encodeUtf8(`<?xml version="1.0" encoding="utf-8"?>
+  const files: Array<{ path: string; data: string | Uint8Array; store?: boolean }> = [
+    { path: "mimetype", data: "application/epub+zip", store: true },
+    { path: "META-INF/container.xml", data: `<?xml version="1.0" encoding="utf-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
 <rootfiles>
 <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
 </rootfiles>
-</container>`) },
-    { path: "OEBPS/content.opf", data: encodeUtf8(`<?xml version="1.0" encoding="utf-8"?>
+</container>` },
+    { path: "OEBPS/content.opf", data: `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
 <dc:identifier id="bookid">${escapeXml(identifier)}</dc:identifier>
@@ -1059,19 +1029,29 @@ ${manifestItems}
 <spine>
 ${spineItems}
 </spine>
-</package>`) },
-    { path: "OEBPS/nav.xhtml", data: encodeUtf8(`<?xml version="1.0" encoding="utf-8"?>
+</package>` },
+    { path: "OEBPS/nav.xhtml", data: `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
 <head><meta charset="utf-8" /><title>Sumário</title></head>
 <body>
 <nav epub:type="toc" id="toc"><h1>Sumário</h1><ol>${navItems}</ol></nav>
 </body>
-</html>`) },
-    { path: "OEBPS/styles/book.css", data: encodeUtf8(renderDefaultCss()) },
+</html>` },
+    { path: "OEBPS/styles/book.css", data: renderDefaultCss() },
     ...chapterFiles,
   ];
 
-  return buildStoreZip(files);
+  const zip = new JSZip();
+  for (const file of files) {
+    zip.file(file.path, file.data, file.store ? { compression: "STORE" } : undefined);
+  }
+
+  const generated = await zip.generateAsync({
+    type: "uint8array",
+    mimeType: "application/epub+zip",
+    compression: "DEFLATE",
+  });
+  return Uint8Array.from(generated);
 }
 
 function buildSrcsRecord(sourceEpub: Uint8Array): Uint8Array {
@@ -1086,19 +1066,21 @@ function buildSrcsRecord(sourceEpub: Uint8Array): Uint8Array {
   return padToFour(concatBytes([header, sourceEpub]));
 }
 
-function buildKf8Section(metadata: LyceumBookMetadata, textual: LyceumTextualContent, embedSource: boolean): Kf8BuildResult {
+function buildKf8Section(
+  metadata: LyceumBookMetadata,
+  textual: LyceumTextualContent,
+  sourceEpub: Uint8Array = new Uint8Array(),
+): Kf8BuildResult {
   const { combinedHtml, skeletons, fragments } = buildKf8HtmlParts(metadata, textual);
   const cssBytes = encodeUtf8(renderDefaultCss());
   const htmlLength = combinedHtml.length;
   const combinedText = concatBytes([combinedHtml, cssBytes]);
-  const textRecords = splitTextRecordsKf8(combinedText, skeletons.length);
+  const textRecords = splitTextRecordsKf8(combinedText);
   const fdst = buildFdstRecord(htmlLength, combinedText.length);
   const { indx: fragmentIndx, cncx: fragmentCncx } = buildFragmentIndxWithCncx(fragments);
   const skeletonIndx = buildSkeletonIndx(skeletons);
   const { indx: ncxIndx, cncx: ncxCncx } = buildNcxIndx(metadata, textual, skeletons, htmlLength);
   const datp = buildDatpRecord();
-  const sourceEpub = embedSource ? buildEmbeddedSourceEpub(metadata, textual) : new Uint8Array();
-
   return {
     textRecords,
     textLength: combinedText.length,
@@ -1172,32 +1154,30 @@ function assertRecordMagic(records: PdbRecord[], index: number, magic: string): 
   }
 }
 
-export function buildAzw3(options: Azw3BuildOptions): Azw3BuildResult {
-  const embedSource = options.embedSource ?? true;
-  const kf8 = buildKf8Section(options.metadata, options.textual, embedSource);
-
+function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedSource: boolean): Azw3BuildResult {
   const textRecordCount = kf8.textRecords.length;
 
-  const fdstRecord = textRecordCount + 1;
-  const fragmentIndexRecord = fdstRecord + 1;
+  const fragmentIndexRecord = textRecordCount + 1;
   const fragmentCncxRecord = fragmentIndexRecord + kf8.fragmentIndx.length;
   const skeletonIndexRecord = fragmentCncxRecord + kf8.fragmentCncx.length;
   const ncxIndexRecord = skeletonIndexRecord + kf8.skeletonIndx.length;
   const ncxCncxRecord = ncxIndexRecord + kf8.ncxIndx.length;
-  const datpRecord = ncxCncxRecord + kf8.ncxCncx.length;
+  const fdstRecord = ncxCncxRecord + kf8.ncxCncx.length;
+  const datpRecord = fdstRecord + 1;
   const flisRecord = datpRecord + 1;
   const fcisRecord = flisRecord + 1;
   const srcsRecord = embedSource ? fcisRecord + 1 : null;
   const eofRecord = embedSource ? fcisRecord + 2 : fcisRecord + 1;
-  const firstNonTextRecord = fdstRecord;
+  const firstNonTextRecord = fragmentIndexRecord;
+  const firstResourceRecord = NULL_INDEX;
 
   const nonBookRecords: PdbRecord[] = [
-    { data: kf8.fdst },
     ...kf8.fragmentIndx.map((data) => ({ data })),
     ...kf8.fragmentCncx.map((data) => ({ data })),
     ...kf8.skeletonIndx.map((data) => ({ data })),
     ...kf8.ncxIndx.map((data) => ({ data })),
     ...kf8.ncxCncx.map((data) => ({ data })),
+    { data: kf8.fdst },
     { data: kf8.datp },
     { data: buildFlisRecord() },
     { data: buildFcisRecord(kf8.textLength) },
@@ -1214,6 +1194,7 @@ export function buildAzw3(options: Azw3BuildOptions): Azw3BuildResult {
     rawTextLength: kf8.textLength,
     textRecordCount,
     firstNonTextRecord,
+    firstResourceRecord,
     fcisRecord,
     flisRecord,
     srcsRecord,
@@ -1264,4 +1245,29 @@ export function buildAzw3(options: Azw3BuildOptions): Azw3BuildResult {
       srcsRecord,
     },
   };
+}
+
+export function buildAzw3(options: Azw3BuildOptions): Azw3BuildResult {
+  if (options.embedSource) {
+    throw new Error("buildAzw3 com embedSource requer buildAzw3Async para empacotar o EPUB com JSZip.");
+  }
+
+  return buildAzw3FromKf8(
+    options,
+    buildKf8Section(options.metadata, options.textual),
+    false,
+  );
+}
+
+export async function buildAzw3Async(options: Azw3BuildOptions): Promise<Azw3BuildResult> {
+  const embedSource = options.embedSource ?? false;
+  const sourceEpub = embedSource
+    ? await buildEmbeddedSourceEpub(options.metadata, options.textual)
+    : new Uint8Array();
+
+  return buildAzw3FromKf8(
+    options,
+    buildKf8Section(options.metadata, options.textual, sourceEpub),
+    embedSource,
+  );
 }

@@ -16,8 +16,8 @@ export class TxtExporter implements LyceumExporter {
       throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para TXT.");
     }
 
-    fs.mkdirSync(path.dirname(input.outputPath), { recursive: true });
-    fs.writeFileSync(input.outputPath, input.package.textual.fulltext, "utf8");
+    await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
+    await fs.promises.writeFile(input.outputPath, input.package.textual.fulltext, "utf8");
 
     return {
       outputPath: input.outputPath,
@@ -32,4 +32,3 @@ export class TxtExporter implements LyceumExporter {
     };
   }
 }
-

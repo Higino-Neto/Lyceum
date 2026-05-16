@@ -125,6 +125,27 @@ contextBridge.exposeInMainWorld("api", {
 
   openUsbBook: (filePath: string) => ipcRenderer.invoke("usb:open-book", filePath),
 
+  listKindleDevices: () => ipcRenderer.invoke("kindle:list-devices"),
+
+  sendBooksToKindle: (options: {
+    deviceId?: string;
+    books: Array<{
+      fileHash: string;
+      filePath: string;
+      title: string;
+      author?: string | null;
+      fileType?: BookFormat | null;
+      fileName?: string | null;
+      publisher?: string | null;
+      description?: string | null;
+      publishDate?: string | null;
+    }>;
+    convertToAzw3?: boolean;
+    preserveMetadata?: boolean;
+    organizeByAuthor?: boolean;
+    destination?: string;
+  }) => ipcRenderer.invoke("kindle:send-books", options),
+
   saveReadingState: (payload: ReadingState) =>
     ipcRenderer.invoke("reading:save", payload),
 

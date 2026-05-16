@@ -1,22 +1,137 @@
 import fs from "node:fs";
-import path from "node:path";
 import type {
   LyceumBookMetadata,
   LyceumManifest,
   LyceumPackage,
   LyceumTextualChapter,
   LyceumTextualContent,
+  LyceumTextualResource,
 } from "../schema/types";
 import {
   manifestPath,
   metadataPath,
+  textualChapterPath,
   textualFulltextPath,
+  textualResourcesPath,
   textualSpinePath,
   textualTocPath,
 } from "./paths";
 
 function readJson<T>(filePath: string): T {
-  return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`JSON invalido em ${filePath}: ${detail}`);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`${label} invalido: objeto JSON esperado.`);
+  }
+
+  return value;
+}
+
+function requireString(value: Record<string, unknown>, key: string, label: string) {
+  if (typeof value[key] !== "string" || !String(value[key]).trim()) {
+    throw new Error(`${label} invalido: campo "${key}" ausente ou invalido.`);
+  }
+
+  return String(value[key]);
+}
+
+function optionalString(value: Record<string, unknown>, key: string) {
+  return typeof value[key] === "string" ? String(value[key]) : undefined;
+}
+
+function validateManifest(value: unknown): LyceumManifest {
+  const manifest = assertRecord(value, "manifest.json");
+  if (manifest.schemaVersion !== 1) {
+    throw new Error("manifest.json invalido: schemaVersion precisa ser 1.");
+  }
+
+  return {
+    schemaVersion: 1,
+    packageId: requireString(manifest, "packageId", "manifest.json"),
+    title: requireString(manifest, "title", "manifest.json"),
+    sourceFormat: requireString(manifest, "sourceFormat", "manifest.json") as LyceumManifest["sourceFormat"],
+    originalFileName: requireString(manifest, "originalFileName", "manifest.json"),
+    primaryContentKind: requireString(manifest, "primaryContentKind", "manifest.json") as LyceumManifest["primaryContentKind"],
+    contentKinds: Array.isArray(manifest.contentKinds)
+      ? manifest.contentKinds.filter((item): item is LyceumManifest["contentKinds"][number] => typeof item === "string")
+      : [],
+    createdAt: requireString(manifest, "createdAt", "manifest.json"),
+    updatedAt: requireString(manifest, "updatedAt", "manifest.json"),
+  };
+}
+
+function validateMetadata(value: unknown): LyceumBookMetadata {
+  const metadata = assertRecord(value, "metadata/book.json");
+
+  return {
+    title: requireString(metadata, "title", "metadata/book.json"),
+    author: optionalString(metadata, "author"),
+    language: optionalString(metadata, "language"),
+    identifier: optionalString(metadata, "identifier"),
+    publisher: optionalString(metadata, "publisher"),
+    description: optionalString(metadata, "description"),
+    publishDate: optionalString(metadata, "publishDate"),
+  };
+}
+
+function validateSpine(value: unknown): LyceumTextualContent["spine"] {
+  if (!Array.isArray(value)) {
+    throw new Error("content/textual/spine.json invalido: array esperado.");
+  }
+
+  return value.map((item, index) => {
+    const spineItem = assertRecord(item, `spine item ${index + 1}`);
+    return {
+      id: requireString(spineItem, "id", `spine item ${index + 1}`),
+      href: requireString(spineItem, "href", `spine item ${index + 1}`),
+      title: requireString(spineItem, "title", `spine item ${index + 1}`),
+    };
+  });
+}
+
+function validateToc(value: unknown): LyceumTextualContent["toc"] {
+  if (!Array.isArray(value)) {
+    throw new Error("content/textual/toc.json invalido: array esperado.");
+  }
+
+  return value.map((item, index) => {
+    const tocItem = assertRecord(item, `toc item ${index + 1}`);
+    return {
+      id: requireString(tocItem, "id", `toc item ${index + 1}`),
+      href: requireString(tocItem, "href", `toc item ${index + 1}`),
+      title: requireString(tocItem, "title", `toc item ${index + 1}`),
+      level: typeof tocItem.level === "number" && Number.isFinite(tocItem.level)
+        ? tocItem.level
+        : 1,
+    };
+  });
+}
+
+function validateResources(value: unknown): LyceumTextualResource[] {
+  if (!Array.isArray(value)) {
+    throw new Error("content/textual/resources.json invalido: array esperado.");
+  }
+
+  return value.map((item, index) => {
+    const resource = assertRecord(item, `resource item ${index + 1}`);
+    return {
+      id: requireString(resource, "id", `resource item ${index + 1}`),
+      href: requireString(resource, "href", `resource item ${index + 1}`),
+      mediaType: requireString(resource, "mediaType", `resource item ${index + 1}`),
+      properties: optionalString(resource, "properties"),
+    };
+  });
 }
 
 function readTextualContent(rootPath: string): LyceumTextualContent | undefined {
@@ -25,9 +140,12 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     return undefined;
   }
 
-  const spine = readJson<LyceumTextualContent["spine"]>(spinePath);
+  const spine = validateSpine(readJson<unknown>(spinePath));
   const toc = fs.existsSync(textualTocPath(rootPath))
-    ? readJson<LyceumTextualContent["toc"]>(textualTocPath(rootPath))
+    ? validateToc(readJson<unknown>(textualTocPath(rootPath)))
+    : [];
+  const resources = fs.existsSync(textualResourcesPath(rootPath))
+    ? validateResources(readJson<unknown>(textualResourcesPath(rootPath)))
     : [];
   const fulltext = fs.existsSync(textualFulltextPath(rootPath))
     ? fs.readFileSync(textualFulltextPath(rootPath), "utf8")
@@ -37,10 +155,7 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     id: item.id,
     href: item.href,
     title: item.title,
-    xhtml: fs.readFileSync(
-      path.join(rootPath, "content", "textual", "chapters", path.basename(item.href)),
-      "utf8",
-    ),
+    xhtml: fs.readFileSync(textualChapterPath(rootPath, item.href), "utf8"),
   }));
 
   return {
@@ -48,12 +163,13 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     spine,
     toc,
     fulltext,
+    resources,
   };
 }
 
 export function readLyceumPackage(rootPath: string): LyceumPackage {
-  const manifest = readJson<LyceumManifest>(manifestPath(rootPath));
-  const metadata = readJson<LyceumBookMetadata>(metadataPath(rootPath));
+  const manifest = validateManifest(readJson<unknown>(manifestPath(rootPath)));
+  const metadata = validateMetadata(readJson<unknown>(metadataPath(rootPath)));
 
   return {
     rootPath,

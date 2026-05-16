@@ -7,8 +7,8 @@ import type {
   LyceumImporter,
   LyceumTextualChapter,
 } from "../schema/types";
-import { buildTextualContent, extractBodyHtml, stripHtml, wrapTextAsXhtml } from "../textual";
-import { writeLyceumPackage } from "../package/write";
+import { buildTextualContent, extractBodyHtml, normalizeHtmlEntitiesForXhtml, stripHtml } from "../textual";
+import { writeLyceumPackageAsync } from "../package/write";
 
 function getTitle(html: string) {
   return stripHtml(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "");
@@ -24,9 +24,9 @@ export class HtmlImporter implements LyceumImporter {
     const text = stripHtml(extractBodyHtml(html));
     const chapters: LyceumTextualChapter[] = [{
       id: "chapter-001",
-      href: "chapter-001.xhtml",
+      href: "text/chapter-001.xhtml",
       title: metadata.title,
-      xhtml: wrapTextAsXhtml(metadata.title, [text]),
+      xhtml: normalizeHtmlEntitiesForXhtml(html),
     }];
     const textual = buildTextualContent(chapters);
     const manifest = createManifest({
@@ -36,7 +36,7 @@ export class HtmlImporter implements LyceumImporter {
       primaryContentKind: "textual",
       contentKinds: ["textual"],
     });
-    const pkg = writeLyceumPackage({
+    const pkg = await writeLyceumPackageAsync({
       rootPath: input.packageRoot,
       manifest,
       metadata,
@@ -53,9 +53,9 @@ export class HtmlImporter implements LyceumImporter {
         stats: {
           chapterCount: 1,
           wordCount: textual.fulltext.split(/\s+/).filter(Boolean).length,
+          preservedMarkup: Boolean(text),
         },
       },
     };
   }
 }
-

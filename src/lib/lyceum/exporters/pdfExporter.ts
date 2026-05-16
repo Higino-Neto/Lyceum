@@ -1,8 +1,7 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { convertEpubToPdf } from "../../epub-to-pdf";
-import { EpubExporter } from "./epubExporter";
+import { buildEpubFromLyceumPackage } from "./epubExporter";
 import type { ExportInput, ExportResult, LyceumExporter } from "../schema/types";
 
 export class PdfExporter implements LyceumExporter {
@@ -19,21 +18,13 @@ export class PdfExporter implements LyceumExporter {
       throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para PDF.");
     }
 
-    fs.mkdirSync(path.dirname(input.outputPath), { recursive: true });
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-export-"));
-    const tempEpubPath = path.join(tempDir, "source.epub");
-    const epubExporter = new EpubExporter();
-    await epubExporter.export({
-      package: input.package,
-      outputPath: tempEpubPath,
-      metadata: input.metadata,
-    });
-
-    const converted = await convertEpubToPdf(fs.readFileSync(tempEpubPath), {
+    await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
+    const epub = await buildEpubFromLyceumPackage(input.package, input.metadata);
+    const converted = await convertEpubToPdf(epub, {
       title: input.metadata?.title || input.package.metadata.title,
       author: input.metadata?.author || input.package.metadata.author,
     });
-    fs.writeFileSync(input.outputPath, Buffer.from(converted.pdf));
+    await fs.promises.writeFile(input.outputPath, Buffer.from(converted.pdf));
 
     return {
       outputPath: input.outputPath,
@@ -53,4 +44,3 @@ export class PdfExporter implements LyceumExporter {
     };
   }
 }
-

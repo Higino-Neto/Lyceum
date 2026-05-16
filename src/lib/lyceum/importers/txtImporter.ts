@@ -8,7 +8,7 @@ import type {
   LyceumTextualChapter,
 } from "../schema/types";
 import { buildTextualContent, wrapTextAsXhtml } from "../textual";
-import { writeLyceumPackage } from "../package/write";
+import { writeLyceumPackageAsync } from "../package/write";
 
 export class TxtImporter implements LyceumImporter {
   inputFormat = "txt" as const;
@@ -20,7 +20,7 @@ export class TxtImporter implements LyceumImporter {
     const paragraphs = text.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
     const chapters: LyceumTextualChapter[] = [{
       id: "chapter-001",
-      href: "chapter-001.xhtml",
+      href: "text/chapter-001.xhtml",
       title: metadata.title,
       xhtml: wrapTextAsXhtml(metadata.title, paragraphs.length ? paragraphs : [text.trim()]),
     }];
@@ -32,7 +32,7 @@ export class TxtImporter implements LyceumImporter {
       primaryContentKind: "textual",
       contentKinds: ["textual"],
     });
-    const pkg = writeLyceumPackage({
+    const pkg = await writeLyceumPackageAsync({
       rootPath: input.packageRoot,
       manifest,
       metadata,
@@ -54,4 +54,3 @@ export class TxtImporter implements LyceumImporter {
     };
   }
 }
-

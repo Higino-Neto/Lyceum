@@ -1,23 +1,18 @@
+import fs from "node:fs";
 import path from "node:path";
-import { buildChapterFiles } from "../../pdf-to-epub/epub";
-import {
-  parsePdfToPages,
-  reconstructStructureFromPages,
-} from "../../pdf-to-epub/pipeline";
-import { renderSectionToXhtml } from "../../pdf-to-epub/html";
-import { createManifest, mergeBookMetadata } from "../schema/manifest";
+import { convertPdfToEpub } from "../../pdf-to-epub";
 import type {
   EpubAsset,
   ImageCandidate,
 } from "../../pdf-to-epub/types";
+import { createManifest, mergeBookMetadata } from "../schema/manifest";
 import type {
   ImportInput,
   ImportResult,
   LyceumImporter,
-  LyceumTextualChapter,
 } from "../schema/types";
-import { buildTextualContent } from "../textual";
-import { writeLyceumPackage } from "../package/write";
+import { writeLyceumPackageAsync } from "../package/write";
+import { parseEpubBufferToTextual } from "./epubImporter";
 
 type RenderImageAsset = (candidate: ImageCandidate) => Promise<EpubAsset | null>;
 
@@ -25,24 +20,25 @@ export class PdfImporter implements LyceumImporter {
   inputFormat = "pdf" as const;
 
   async import(input: ImportInput): Promise<ImportResult> {
-    const pdfBuffer = await import("node:fs").then((fs) => fs.readFileSync(input.sourcePath));
-    const pages = await parsePdfToPages(
-      Uint8Array.from(pdfBuffer).buffer,
-      {},
-    );
-    const warnings = pages
-      .filter((page) => page.requiresOcr)
-      .map((page) => `Pagina ${page.pageNumber} tem pouco texto extraido e pode precisar de OCR.`);
-    const structure = reconstructStructureFromPages(pages);
-    const chapterFiles = buildChapterFiles(structure.sections, renderSectionToXhtml);
-    const chapters: LyceumTextualChapter[] = chapterFiles.map((chapter) => ({
-      id: chapter.id,
-      href: path.basename(chapter.href),
-      title: chapter.title,
-      xhtml: chapter.xhtml,
-    }));
+    const pdfBuffer = await fs.promises.readFile(input.sourcePath);
     const fallbackTitle = path.basename(input.sourcePath, path.extname(input.sourcePath));
-    const metadata = mergeBookMetadata(fallbackTitle, input.metadata);
+    const converted = await convertPdfToEpub(
+      Uint8Array.from(pdfBuffer).buffer,
+      {
+        title: input.metadata?.title || fallbackTitle,
+        author: input.metadata?.author,
+        language: input.metadata?.language || "pt-BR",
+        identifier: input.metadata?.identifier,
+        publisher: input.metadata?.publisher,
+        description: input.metadata?.description,
+        renderImageAsset: input.renderImageAsset as RenderImageAsset | undefined,
+      },
+    );
+    const parsed = await parseEpubBufferToTextual(converted.epub);
+    const metadata = mergeBookMetadata(fallbackTitle, {
+      ...parsed.metadata,
+      ...input.metadata,
+    });
     const manifest = createManifest({
       sourcePath: input.sourcePath,
       sourceFormat: "pdf",
@@ -50,30 +46,30 @@ export class PdfImporter implements LyceumImporter {
       primaryContentKind: "textual",
       contentKinds: ["textual", "pdf"],
     });
-    const textual = buildTextualContent(chapters);
-    const pkg = writeLyceumPackage({
+    const pkg = await writeLyceumPackageAsync({
       rootPath: input.packageRoot,
       manifest,
       metadata,
-      textual,
+      textual: parsed.textual,
       sourcePath: input.sourcePath,
     });
-
-    void (input.renderImageAsset as RenderImageAsset | undefined);
 
     return {
       package: pkg,
       report: {
         sourceFormat: "pdf",
         contentKinds: ["textual", "pdf"],
-        warnings,
+        warnings: [...converted.report.warnings, ...parsed.warnings],
         stats: {
-          pageCount: pages.length,
-          sectionCount: structure.sections.length,
-          blockCount: structure.blocks.length,
+          pageCount: converted.report.pageCount,
+          sectionCount: converted.report.sectionCount,
+          blockCount: converted.report.blockCount,
+          chapterCount: parsed.textual.chapters.length,
+          resourceCount: parsed.textual.resources?.length || 0,
+          imageCount: parsed.textual.resources?.filter((resource) => resource.mediaType.startsWith("image/")).length || 0,
+          wordCount: parsed.textual.fulltext.split(/\s+/).filter(Boolean).length,
         },
       },
     };
   }
 }
-

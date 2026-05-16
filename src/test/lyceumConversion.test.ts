@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   convertViaLyceum,
   listTargetsForSourceFormat,
+  normalizeHtmlEntitiesForXhtml,
   readLyceumPackage,
+  validateAzw3File,
 } from "../lib/lyceum";
 
 async function buildEpub() {
@@ -46,7 +48,104 @@ async function buildEpub() {
   return zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" });
 }
 
+async function buildPlaceholderTitleEpub() {
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip");
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles>
+        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+      </rootfiles>
+    </container>`,
+  );
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
+      <package version="3.0" xmlns="http://www.idpf.org/2007/opf">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>Livro com Sumario</dc:title>
+          <dc:language>pt-BR</dc:language>
+        </metadata>
+        <manifest>
+          <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+          <item id="chap1" href="text/ch1.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="chap1"/>
+        </spine>
+      </package>`,
+  );
+  zip.file("OEBPS/nav.xhtml", "<html><body><nav epub:type=\"toc\"><ol><li><a href=\"text/ch1.xhtml\">Nome Real do Capitulo</a></li></ol></nav></body></html>");
+  zip.file("OEBPS/text/ch1.xhtml", "<html><head><title>Desconhecido</title></head><body><h1>Desconhecido</h1><p>Texto&nbsp;com entidade.</p></body></html>");
+
+  return zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" });
+}
+
+async function buildRichEpub() {
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip");
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles>
+        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+      </rootfiles>
+    </container>`,
+  );
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
+      <package version="3.0" xmlns="http://www.idpf.org/2007/opf">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>Livro Rico</dc:title>
+          <dc:creator>Autora Visual</dc:creator>
+          <dc:language>pt-BR</dc:language>
+        </metadata>
+        <manifest>
+          <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+          <item id="css" href="styles/book.css" media-type="text/css"/>
+          <item id="img" href="images/pixel.png" media-type="image/png"/>
+          <item id="chap1" href="text/ch1.xhtml" media-type="application/xhtml+xml"/>
+          <item id="chap2" href="text/ch2.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="chap1"/>
+          <itemref idref="chap2"/>
+        </spine>
+      </package>`,
+  );
+  zip.file(
+    "OEBPS/nav.xhtml",
+    `<html><body><nav epub:type="toc"><ol>
+      <li><a href="text/ch1.xhtml">Parte Um</a>
+        <ol><li><a href="text/ch2.xhtml">Subcapitulo Visual</a></li></ol>
+      </li>
+    </ol></nav></body></html>`,
+  );
+  zip.file("OEBPS/styles/book.css", "body { color: #222; } img { max-width: 100%; }");
+  zip.file("OEBPS/images/pixel.png", Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  zip.file(
+    "OEBPS/text/ch1.xhtml",
+    `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Parte Um</title><link rel="stylesheet" href="../styles/book.css" /></head>
+    <body><h1>Parte Um</h1><p>Texto com <strong>formato</strong>.</p><img src="../images/pixel.png" alt="Pixel" /></body></html>`,
+  );
+  zip.file(
+    "OEBPS/text/ch2.xhtml",
+    `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Subcapitulo Visual</title></head>
+    <body><ul><li>Item preservado</li></ul><table><tr><td>Celula preservada</td></tr></table></body></html>`,
+  );
+
+  return zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" });
+}
+
 describe("lyceum conversion core", () => {
+  it("normalizes non-XML HTML entities for XHTML output", () => {
+    expect(normalizeHtmlEntitiesForXhtml("<p>A&nbsp;B &amp; C&ndash;D</p>")).toBe("<p>A&#160;B &amp; C&#8211;D</p>");
+  });
+
   it("lists reusable targets for an EPUB importer", () => {
     expect(listTargetsForSourceFormat("epub").map((target) => target.format)).toEqual([
       "pdf",
@@ -102,7 +201,41 @@ describe("lyceum conversion core", () => {
     expect(await zip.file("OEBPS/text/chapter-001.xhtml")?.async("text")).toContain("Primeiro paragrafo");
   });
 
-  it("exports textual packages as a real KF8/AZW3 Palm database", async () => {
+  it("preserves EPUB markup, resources and nested TOC levels on round-trip", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-test-"));
+    const sourcePath = path.join(tempDir, "rich.epub");
+    const packageRoot = path.join(tempDir, "rich.lyceum");
+    const outputPath = path.join(tempDir, "rich-roundtrip.epub");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildRichEpub()));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "epub",
+      packageRoot,
+      outputPath,
+    });
+    const pkg = readLyceumPackage(result.packageRoot);
+    const zip = await JSZip.loadAsync(fs.readFileSync(outputPath));
+    const chapterOne = await zip.file("OEBPS/text/ch1.xhtml")?.async("text");
+    const chapterTwo = await zip.file("OEBPS/text/ch2.xhtml")?.async("text");
+
+    expect(pkg.textual?.resources?.map((resource) => resource.href).sort()).toEqual([
+      "images/pixel.png",
+      "styles/book.css",
+    ]);
+    expect(pkg.textual?.toc.map((item) => item.level)).toEqual([1, 2]);
+    expect(chapterOne).toContain("<strong>formato</strong>");
+    expect(chapterOne).toContain("../images/pixel.png");
+    expect(chapterTwo).toContain("<ul>");
+    expect(chapterTwo).toContain("<table>");
+    expect(zip.file("OEBPS/styles/book.css")).toBeTruthy();
+    expect(zip.file("OEBPS/images/pixel.png")).toBeTruthy();
+    expect(result.importReport.stats.resourceCount).toBe(2);
+    expect(result.exportReport.stats.resourceCount).toBe(2);
+  });
+
+  it("exports textual packages only through a validated real AZW3 backend", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-test-"));
     const sourcePath = path.join(tempDir, "source.epub");
     const packageRoot = path.join(tempDir, "book.lyceum");
@@ -116,24 +249,52 @@ describe("lyceum conversion core", () => {
       packageRoot,
       outputPath,
     });
-    const azw3 = fs.readFileSync(outputPath);
-    const view = new DataView(azw3.buffer, azw3.byteOffset, azw3.byteLength);
-    const text = new TextDecoder().decode(azw3);
-    const firstRecordOffset = view.getUint32(78, false);
-    const mobiOffset = firstRecordOffset + 16;
-    const textRecordOffset = view.getUint32(86, false);
-    const textRecordEnd = view.getUint32(94, false);
-    const textRecord = azw3.subarray(textRecordOffset, textRecordEnd).toString("utf8");
+    const validation = validateAzw3File(outputPath);
+    const azw3Buffer = fs.readFileSync(outputPath);
+    const view = new DataView(azw3Buffer.buffer, azw3Buffer.byteOffset, azw3Buffer.byteLength);
+    const recordZeroOffset = view.getUint32(78, false);
+    const mobiOffset = recordZeroOffset + 16;
 
-    expect(azw3.subarray(60, 68).toString("ascii")).toBe("BOOKMOBI");
-    expect(view.getUint16(76, false)).toBeGreaterThanOrEqual(4);
-    expect(azw3.subarray(mobiOffset, mobiOffset + 4).toString("ascii")).toBe("MOBI");
-    expect(view.getUint32(mobiOffset + 20, false)).toBe(8);
-    expect(view.getUint32(mobiOffset + 128, false) & 0x40).toBe(0x40);
+    expect(validation.valid).toBe(true);
+    expect(validation.metadata.compression).toBe(2);
+    expect(validation.metadata.mobiVersion).toBe(8);
+    expect(validation.metadata.firstNonTextRecord).toBe(result.exportReport.stats.fragmentIndexRecord);
+    expect(validation.metadata.firstResourceRecord).toBe(result.exportReport.stats.fdstRecord);
+    expect(validation.metadata.hasExth).toBe(true);
+    expect(validation.metadata.hasFdst).toBe(true);
+    expect(validation.metadata.hasFlis).toBe(true);
+    expect(validation.metadata.hasFcis).toBe(true);
+    expect(validation.metadata.hasDatp).toBe(true);
+    expect(validation.metadata.hasIndx).toBe(true);
+    expect(validation.metadata.hasEof).toBe(true);
+    expect(view.getUint32(recordZeroOffset + 128, false) & 0x40).toBe(0x40);
+    expect(view.getUint32(mobiOffset + 224, false)).toBe(0);
     expect(result.exportReport.stats.chapterCount).toBe(2);
-    expect(text).toContain("EXTH");
-    expect(textRecord).toContain("<html");
-    expect(textRecord).toContain("Primeiro texto canonico");
-    expect(textRecord).toContain("Segundo texto canonico");
+    expect(result.exportReport.stats.fragmentCount).toBe(2);
+    expect(result.exportReport.stats.backend).toBe("lyceum-manual");
+  });
+
+  it("uses navigation titles instead of placeholder EPUB titles before AZW3 export", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-test-"));
+    const sourcePath = path.join(tempDir, "placeholder.epub");
+    const packageRoot = path.join(tempDir, "placeholder.lyceum");
+    const outputPath = path.join(tempDir, "placeholder.azw3");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildPlaceholderTitleEpub()));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot,
+      outputPath,
+    });
+    const pkg = readLyceumPackage(result.packageRoot);
+    const validation = validateAzw3File(outputPath);
+
+    expect(pkg.textual?.chapters[0].title).toBe("Nome Real do Capitulo");
+    expect(pkg.textual?.chapters[0].xhtml).not.toContain("&nbsp;");
+    expect(validation.valid).toBe(true);
+    expect(validation.metadata.compression).toBe(2);
+    expect(result.exportReport.stats.backend).toBe("lyceum-manual");
   });
 });

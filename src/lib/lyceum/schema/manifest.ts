@@ -8,7 +8,9 @@ import type {
 
 export function createPackageId(sourcePath: string, createdAt: string) {
   const baseName = path.basename(sourcePath).replace(/\W+/g, "-").replace(/^-|-$/g, "");
-  return `lyceum-${baseName || "book"}-${Date.parse(createdAt).toString(36)}`;
+  const parsedDate = Date.parse(createdAt);
+  const suffix = Number.isFinite(parsedDate) ? parsedDate.toString(36) : "undated";
+  return `lyceum-${baseName || "book"}-${suffix}`;
 }
 
 export function createManifest(args: {
@@ -49,3 +51,21 @@ export function mergeBookMetadata(
   };
 }
 
+export function mergeDefinedBookMetadata(
+  base: LyceumBookMetadata,
+  overrides: Partial<LyceumBookMetadata> | undefined,
+): LyceumBookMetadata {
+  const metadata = { ...base };
+
+  for (const [key, value] of Object.entries(overrides || {}) as Array<
+    [keyof LyceumBookMetadata, string | undefined]
+  >) {
+    if (value !== undefined && value !== null) {
+      metadata[key] = value;
+    }
+  }
+
+  metadata.title = metadata.title?.trim() || base.title;
+  metadata.language = metadata.language || base.language || "pt-BR";
+  return metadata;
+}

@@ -7,3 +7,4 @@ export * from "./conversion/convert";
 export * from "./conversion/registry";
 export * from "./conversion/reports";
 export * from "./textual";
+export * from "./mobi/azw3Pipeline";

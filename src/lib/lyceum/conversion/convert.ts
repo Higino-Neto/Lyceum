@@ -5,8 +5,8 @@ import type {
   ExportReport,
   ImportReport,
   LyceumBookMetadata,
+  LyceumPackage,
 } from "../schema/types";
-import { readLyceumPackage } from "../package/read";
 import { createDefaultConversionRegistry } from "./registry";
 
 export interface ConvertViaLyceumOptions {
@@ -57,13 +57,46 @@ export function listTargetsForSourceFormat(sourceFormat: BookFormat) {
     return [];
   }
 
+  const probePackage: LyceumPackage = {
+    rootPath: "",
+    manifest: {
+      schemaVersion: 1,
+      packageId: "lyceum-probe",
+      title: "Probe",
+      sourceFormat,
+      originalFileName: `probe.${sourceFormat}`,
+      primaryContentKind: "textual",
+      contentKinds: ["textual"],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    },
+    metadata: {
+      title: "Probe",
+      language: "pt-BR",
+    },
+    textual: {
+      chapters: [],
+      spine: [],
+      toc: [],
+      fulltext: "",
+      resources: [],
+    },
+  };
+
   return registry
     .listOutputFormats()
     .filter((format) => format !== sourceFormat)
-    .map((format) => ({
-      format,
-      supported: true,
-    }));
+    .map((format) => {
+      const exporter = registry.getExporter(format);
+      const capability = exporter
+        ? exporter.canExport(probePackage)
+        : { supported: false, reason: "Exporter nao registrado." };
+
+      return {
+        format,
+        ...capability,
+      };
+    });
 }
 
 export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promise<ConvertViaLyceumResult> {
@@ -86,7 +119,7 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
     metadata: options.metadata,
     renderImageAsset: options.renderImageAsset,
   });
-  const pkg = readLyceumPackage(imported.package.rootPath);
+  const pkg = imported.package;
   const capability = exporter.canExport(pkg);
 
   if (!capability.supported) {

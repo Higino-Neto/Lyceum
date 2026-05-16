@@ -42,6 +42,8 @@ export interface LyceumTextualChapter {
   href: string;
   title: string;
   xhtml: string;
+  mediaType?: string;
+  properties?: string;
 }
 
 export interface LyceumSpineItem {
@@ -57,11 +59,20 @@ export interface LyceumTocItem {
   level: number;
 }
 
+export interface LyceumTextualResource {
+  id: string;
+  href: string;
+  mediaType: string;
+  properties?: string;
+  data?: Uint8Array | ArrayBuffer;
+}
+
 export interface LyceumTextualContent {
   chapters: LyceumTextualChapter[];
   spine: LyceumSpineItem[];
   toc: LyceumTocItem[];
   fulltext: string;
+  resources?: LyceumTextualResource[];
 }
 
 export interface LyceumPackage {
