@@ -1,15 +1,32 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.higino.lyceum",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "Lyceum",
+  "compression": "maximum",
+  "electronLanguages": ["pt-BR", "en-US"],
+  "afterPack": "scripts/electron-after-pack.cjs",
+  "asarUnpack": [
+    "node_modules/better-sqlite3/build/Release/*.node",
+    "node_modules/sharp/**/*.{node,dll}",
+    "node_modules/pdf-poppler/lib/win/**"
+  ],
   "directories": {
     "output": "release/${version}"
   },
   "files": [
-    "dist",
-    "dist-electron"
+    "dist/**",
+    "dist-electron/**",
+    "package.json",
+    "!**/*.map",
+    "!**/*.tsbuildinfo",
+    "!**/node_modules/**/*.map",
+    "!**/node_modules/**/*.md",
+    "!**/node_modules/**/{test,tests,__tests__,example,examples,docs,doc}/**",
+    "!**/node_modules/pdf-poppler/lib/osx/**",
+    "!**/node_modules/better-sqlite3/{deps,src}/**",
+    "!**/node_modules/sharp/{src,install}/**"
   ],
   "mac": {
     "target": [

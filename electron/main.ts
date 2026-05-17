@@ -92,19 +92,8 @@ const __filename = fileURLToPath(import.meta.url);
 import crypto from "crypto";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
-import {
-  convertPdfToEpub,
-  type EpubAsset,
-  type ImageCandidate,
-} from "../src/lib/pdf-to-epub";
-import { convertEpubToPdf } from "../src/lib/epub-to-pdf";
-import {
-  convertViaLyceum,
-  inferBookFormatFromPath,
-  listTargetsForSourceFormat,
-  validateAzw3File,
-  type BookFormat,
-} from "../src/lib/lyceum";
+import type { EpubAsset, ImageCandidate } from "../src/lib/pdf-to-epub";
+import type { BookFormat } from "../src/lib/lyceum";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
@@ -118,6 +107,29 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
+
+type LyceumConversionModule = typeof import("../src/lib/lyceum");
+type PdfToEpubModule = typeof import("../src/lib/pdf-to-epub");
+type EpubToPdfModule = typeof import("../src/lib/epub-to-pdf");
+
+let lyceumConversionModulePromise: Promise<LyceumConversionModule> | null = null;
+let pdfToEpubModulePromise: Promise<PdfToEpubModule> | null = null;
+let epubToPdfModulePromise: Promise<EpubToPdfModule> | null = null;
+
+function loadLyceumConversionModule(): Promise<LyceumConversionModule> {
+  lyceumConversionModulePromise ||= import("../src/lib/lyceum");
+  return lyceumConversionModulePromise;
+}
+
+function loadPdfToEpubModule(): Promise<PdfToEpubModule> {
+  pdfToEpubModulePromise ||= import("../src/lib/pdf-to-epub");
+  return pdfToEpubModulePromise;
+}
+
+function loadEpubToPdfModule(): Promise<EpubToPdfModule> {
+  epubToPdfModulePromise ||= import("../src/lib/epub-to-pdf");
+  return epubToPdfModulePromise;
+}
 
 const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnails");
 const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
@@ -1087,6 +1099,11 @@ async function prepareKindleTransferFile(
   sourceFormat?: BookFormat;
   error?: string;
 }> {
+  const {
+    convertViaLyceum,
+    inferBookFormatFromPath,
+    validateAzw3File,
+  } = await loadLyceumConversionModule();
   const localPath = book.filePath.startsWith("::")
     ? await copyWindowsMtpBookToTemp(book.filePath)
     : book.filePath;
@@ -2514,6 +2531,7 @@ ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash:
 
 async function runGenericDocumentConversion(fileHash: string, targetFormat: BookFormat) {
   try {
+    const { convertViaLyceum, inferBookFormatFromPath } = await loadLyceumConversionModule();
     const doc = getDocumentByHash(fileHash);
 
     if (!doc || !doc.filePath) {
@@ -2600,6 +2618,7 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
 
 async function runGenericFileConversion(sourcePath: string, targetFormat: BookFormat) {
   try {
+    const { convertViaLyceum, inferBookFormatFromPath } = await loadLyceumConversionModule();
     const localPath = sourcePath.startsWith("::")
       ? await copyWindowsMtpBookToTemp(sourcePath)
       : sourcePath;
@@ -2688,6 +2707,10 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
 }
 
 ipcMain.handle("conversion:list-targets", async (_, fileHash: string) => {
+  const {
+    inferBookFormatFromPath,
+    listTargetsForSourceFormat,
+  } = await loadLyceumConversionModule();
   const doc = getDocumentByHash(fileHash);
 
   if (!doc?.filePath) {
@@ -2712,6 +2735,7 @@ ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: 
 
 ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
   try {
+    const { convertPdfToEpub } = await loadPdfToEpubModule();
     const doc = getDocumentByHash(fileHash);
 
     if (!doc || !doc.filePath) {
@@ -2776,6 +2800,7 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
 
 ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
   try {
+    const { convertEpubToPdf } = await loadEpubToPdfModule();
     const doc = getDocumentByHash(fileHash);
 
     if (!doc || !doc.filePath) {

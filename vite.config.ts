@@ -14,6 +14,8 @@ export default defineConfig({
         entry: "electron/main.ts",
         vite: {
           build: {
+            emptyOutDir: true,
+            sourcemap: false,
             rollupOptions: {
               external: ["better-sqlite3", "bindings", "adm-zip"],
             },
@@ -38,6 +40,45 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ["crypto"],
+  },
+  build: {
+    sourcemap: false,
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+
+          if (id.includes("@embedpdf") || id.includes("pdfjs-dist")) {
+            return "reader-pdf";
+          }
+
+          if (id.includes("epubjs")) {
+            return "reader-epub";
+          }
+
+          if (id.includes("recharts") || id.includes("d3-")) {
+            return "charts";
+          }
+
+          if (id.includes("@supabase")) {
+            return "supabase";
+          }
+
+          if (id.includes("react")) {
+            return "react-vendor";
+          }
+
+          if (id.includes("lucide-react") || id.includes("motion")) {
+            return "ui-motion";
+          }
+
+          return undefined;
+        },
+      },
+    },
   },
   resolve: {
     alias: {
