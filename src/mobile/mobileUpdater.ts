@@ -29,7 +29,7 @@ function compareSemver(left: string, right: string) {
 
 async function getInstalledBundleVersion() {
   try {
-    const current = await CapacitorUpdater.getCurrentBundle();
+    const current = await CapacitorUpdater.current();
     if (current.bundle?.version && current.bundle.version !== "builtin") {
       return current.bundle.version;
     }

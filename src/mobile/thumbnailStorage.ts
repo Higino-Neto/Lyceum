@@ -412,7 +412,7 @@ export async function persistExtractedBookThumbnail(book: MobileBook, dataUrl: s
   };
 }
 
-export async function hydrateMobileBookThumbnails(books: MobileBook[]) {
+export async function hydrateMobileBookThumbnails(books: MobileBook[]): Promise<{ books: MobileBook[]; changed: boolean }> {
   const native = Capacitor.isNativePlatform();
   let changed = false;
 
@@ -438,7 +438,7 @@ export async function hydrateMobileBookThumbnails(books: MobileBook[]) {
       ...book,
       thumbnailPath: path,
       thumbnailUrl,
-      thumbnailSource: "generated",
+      thumbnailSource: "generated" as const,
     };
   }));
 

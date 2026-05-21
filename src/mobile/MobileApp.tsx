@@ -467,7 +467,7 @@ function MobileApp() {
       cancelled = true;
     };
 
-    Promise.all(candidates.map(async (book) => {
+    Promise.all(candidates.map(async (book): Promise<{ id: string; patch: Partial<MobileBook> }> => {
       try {
         const dataUrl = await resolveMobileBookDataUrl(book);
         if (!dataUrl) return { id: book.id, patch: { thumbnailExtractAttempted: true } };
