@@ -1,20 +1,14 @@
 import {
-  BarChart3,
   BookOpen,
   CheckSquare,
   ChevronDown,
   ChevronRight,
   Clock3,
-  Cloud,
-  CloudOff,
   FilePlus2,
   Folder,
   Heart,
-  LayoutGrid,
   Library,
-  List,
   Menu,
-  MoreVertical,
   Pause,
   Play,
   Plus,
@@ -23,7 +17,6 @@ import {
   SlidersHorizontal,
   Star,
   Square,
-  Usb,
   UserCircle,
   X,
 } from "lucide-react";
@@ -45,15 +38,16 @@ import {
   saveMobileState,
 } from "./storage";
 import { getMobileSession, getMobileSupabase, hasSupabaseConfig } from "./supabaseMobile";
-import { hydrateMobileBookThumbnails } from "./thumbnailStorage";
+import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
+import { hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import type { MobileBook, MobileHabit, MobileLibraryState, MobileTab } from "./types";
 
 const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
   { id: "library", label: "Biblioteca", icon: Library },
-  { id: "reader", label: "Pastas", icon: Folder },
+  { id: "reader", label: "Colecoes", icon: Folder },
   { id: "dashboard", label: "Recentes", icon: Clock3 },
   { id: "habits", label: "Favoritos", icon: Star },
-  { id: "profile", label: "Configuracoes", icon: Settings },
+  { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 
 const categories = ["Geral", "Ficcao", "Tecnologia", "Filosofia", "Idiomas", "Academico"];
@@ -103,6 +97,28 @@ function getBookMeasure(book: MobileBook) {
   return `${book.totalPages} pags.`;
 }
 
+function canExtractThumbnail(book: MobileBook) {
+  return book.fileType === "pdf" || book.fileType === "epub";
+}
+
+function shouldExtractThumbnail(book: MobileBook) {
+  if (!canExtractThumbnail(book)) return false;
+  if (book.thumbnailSource === "extracted" && book.thumbnailUrl) return false;
+  return !book.thumbnailExtractAttempted;
+}
+
+async function extractThumbnailPatch(book: MobileBook, file: File): Promise<Partial<MobileBook>> {
+  if (!canExtractThumbnail(book)) return {};
+
+  try {
+    const thumbnailDataUrl = await extractThumbnailFromFile(file, book.fileType);
+    if (!thumbnailDataUrl) return { thumbnailExtractAttempted: true };
+    return persistExtractedBookThumbnail(book, thumbnailDataUrl);
+  } catch {
+    return { thumbnailExtractAttempted: true };
+  }
+}
+
 function IconButton({
   label,
   children,
@@ -116,42 +132,13 @@ function IconButton({
 }) {
   return (
     <button
-      className={`grid h-11 w-11 place-items-center rounded border border-zinc-800 bg-zinc-950/60 text-zinc-300 ${className}`}
+      className={`grid h-10 w-10 place-items-center rounded text-zinc-300 transition active:scale-95 ${className}`}
       onClick={onClick}
       type="button"
       aria-label={label}
       title={label}
     >
       {children}
-    </button>
-  );
-}
-
-function StatusPill({
-  active,
-  icon: Icon,
-  label,
-  count,
-}: {
-  active?: boolean;
-  icon: typeof Library;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      className={`flex h-16 min-w-fit items-center gap-3 rounded border px-4 text-left ${
-        active
-          ? "border-green-500/40 bg-green-500 text-white shadow-lg shadow-green-900/30"
-          : "border-zinc-800 bg-zinc-900/80 text-zinc-400"
-      }`}
-      type="button"
-    >
-      <Icon size={24} />
-      <span className="text-base font-semibold">{label}</span>
-      <span className={`ml-1 rounded px-2 py-1 text-sm font-bold ${active ? "bg-green-700/35" : "bg-zinc-950 text-zinc-300"}`}>
-        {count}
-      </span>
     </button>
   );
 }
@@ -167,10 +154,10 @@ function FilterPill({
 }) {
   return (
     <button
-      className={`h-14 rounded border px-7 text-base ${
+      className={`h-8 min-w-[70px] rounded-full px-4 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition active:scale-95 ${
         active
-          ? "border-green-500 bg-green-500/10 font-semibold text-zinc-50"
-          : "border-zinc-800 bg-zinc-950/40 text-zinc-400"
+          ? "bg-emerald-500 text-white shadow-emerald-950/30"
+          : "border border-white/5 bg-zinc-800/80 text-zinc-300"
       }`}
       onClick={onClick}
       type="button"
@@ -211,35 +198,41 @@ function BookCover({ book, compact = false }: { book: MobileBook; compact?: bool
     <img
       src={book.thumbnailUrl}
       alt=""
-      className={`w-full rounded-t object-cover ${compact ? "h-24" : "aspect-[2/3]"}`}
+      className={`w-full object-cover ${compact ? "h-24 rounded" : "h-full"}`}
       loading="lazy"
     />
   ) : (
-    <div className={`grid w-full place-items-center rounded-t bg-zinc-800 text-xs uppercase text-zinc-500 ${compact ? "h-24" : "aspect-[2/3]"}`}>
+    <div className={`grid w-full place-items-center bg-zinc-800 text-xs uppercase text-zinc-500 ${compact ? "h-24 rounded" : "h-full"}`}>
       {book.fileType}
     </div>
   );
 }
 
 function BookGridCard({ book, onSelect }: { book: MobileBook; onSelect: (bookId: string) => void }) {
+  const progress = getProgress(book);
+
   return (
     <button
-      className="min-w-0 overflow-hidden rounded border border-zinc-800 bg-zinc-900/80 text-left shadow-lg shadow-black/20"
+      className="group relative min-w-0 overflow-hidden rounded-[10px] border border-white/[0.06] bg-zinc-900 text-left shadow-[0_14px_35px_rgba(0,0,0,0.38)] transition active:scale-[0.99]"
       onClick={() => onSelect(book.id)}
       type="button"
     >
-      <BookCover book={book} />
-      <div className="space-y-3 p-3">
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-zinc-100">{book.title}</p>
-            <p className="mt-1 truncate text-sm text-zinc-500">{book.category}</p>
-          </div>
-          <MoreVertical className="mt-1 text-zinc-400" size={18} />
+      <div className="aspect-[0.78/1] w-full overflow-hidden">
+        <BookCover book={book} />
+      </div>
+      <span className="absolute left-2 top-2 rounded-[4px] bg-zinc-800/95 px-2 py-1 text-[9px] font-semibold uppercase leading-none text-zinc-200 shadow">
+        {book.fileType}
+      </span>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#101114] via-[#101114]/95 to-transparent px-3 pb-3 pt-14">
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-bold leading-4 text-zinc-50">{book.title}</p>
+          <p className="mt-1 truncate text-xs text-zinc-400">{book.author || book.category}</p>
         </div>
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="truncate text-zinc-500">{getBookMeasure(book)}</span>
-          <span className="rounded bg-zinc-800 px-2 py-1 font-medium uppercase text-zinc-100">{book.fileType}</span>
+        <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-2">
+          <div className="h-1 overflow-hidden rounded-full bg-zinc-700/70">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-[10px] tabular-nums text-zinc-400">{progress}%</span>
         </div>
       </div>
     </button>
@@ -294,131 +287,65 @@ function MobileLibraryScreen({
 
     return matchesFilter && matchesQuery;
   });
-  const continueBooks = books
-    .slice()
-    .sort((left, right) => getProgress(right) - getProgress(left))
-    .slice(0, 5);
   const totalVolumes = Math.max(books.length, 152);
-  const synced = Math.max(books.filter((book) => book.dataUrl || book.thumbnailUrl).length, 109);
-  const unsynced = Math.max(totalVolumes - synced, 43);
 
   return (
-    <section className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(39,201,111,0.10),transparent_35%),#050607] px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))] text-zinc-100">
-      <div className="mx-auto w-full max-w-[860px]">
-        <div className="flex h-12 items-center justify-between text-zinc-50">
-          <span className="text-2xl font-bold tracking-normal">9:41</span>
-          <div className="flex items-center gap-2 text-zinc-100">
-            <span className="h-4 w-7 rounded-sm border-2 border-current after:ml-[23px] after:mt-1 after:block after:h-2 after:w-1 after:rounded-r after:bg-current" />
-          </div>
-        </div>
-
-        <header className="mt-10 flex items-center justify-between">
-          <div className="flex items-center gap-7">
-            <IconButton label="Menu" onClick={onImportClick}>
-              <Menu size={30} />
+    <section className="min-h-screen bg-[#050607] px-6 pb-[calc(76px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-zinc-100">
+      <div className="mx-auto w-full max-w-[480px]">
+        <header className="flex h-11 items-center justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <IconButton label="Menu" className="-ml-1" onClick={onImportClick}>
+              <Menu size={23} />
             </IconButton>
-            <h1 className="text-4xl font-bold tracking-normal text-zinc-100">Lyceum</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-[22px] font-extrabold leading-6 tracking-normal text-zinc-50">Biblioteca</h1>
+              <p className="mt-0.5 text-sm leading-4 text-zinc-500">{totalVolumes} volumes</p>
+            </div>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2">
             <IconButton label="Buscar">
-              <Search size={30} />
+              <Search size={21} />
             </IconButton>
             <IconButton label="Ordenar">
-              <SlidersHorizontal size={28} />
-            </IconButton>
-            <IconButton label="Mais opcoes">
-              <MoreVertical size={28} />
+              <SlidersHorizontal size={21} />
             </IconButton>
           </div>
         </header>
 
-        <div className="mt-12 flex gap-3 overflow-x-auto pb-1">
-          <StatusPill active icon={Cloud} label="Sincronizados" count={synced} />
-          <StatusPill icon={CloudOff} label="Nao sincronizados" count={unsynced} />
-          <StatusPill icon={Usb} label="Dispositivos USB" count={0} />
-        </div>
-
-        <div className="mt-11 flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-5">
-            <BookOpen className="shrink-0 text-green-400" size={34} />
-            <h2 className="text-3xl font-bold text-zinc-100">Biblioteca</h2>
-            <span className="h-8 w-px bg-zinc-700" />
-            <span className="shrink-0 text-xl text-zinc-500">{totalVolumes} volumes</span>
-          </div>
-          <div className="flex rounded border border-zinc-800 bg-zinc-950/60 p-1">
-            <button
-              className={`grid h-12 w-16 place-items-center rounded ${view === "grid" ? "bg-green-500/40 text-green-400" : "text-zinc-400"}`}
-              onClick={() => onViewChange("grid")}
-              type="button"
-              aria-label="Visualizacao em grade"
-              title="Visualizacao em grade"
-            >
-              <LayoutGrid size={28} />
-            </button>
-            <button
-              className={`grid h-12 w-16 place-items-center rounded ${view === "list" ? "bg-green-500/40 text-green-400" : "text-zinc-400"}`}
-              onClick={() => onViewChange("list")}
-              type="button"
-              aria-label="Visualizacao em lista"
-              title="Visualizacao em lista"
-            >
-              <List size={28} />
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-8 grid grid-cols-[1fr_auto] gap-4">
+        <div className="mt-3">
           <label className="relative block">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-500" size={28} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={19} />
             <input
-              className="h-16 w-full rounded border border-zinc-800 bg-zinc-950/50 pl-16 pr-4 text-lg text-zinc-100 placeholder:text-zinc-500"
-              placeholder="Buscar por titulo, pasta, tipo ou paginas..."
+              className="h-11 w-full rounded-2xl border border-white/[0.03] bg-[#17181c] pl-12 pr-4 text-sm font-medium text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-emerald-500/40"
+              placeholder="Buscar livros, autores ou pastas"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
             />
           </label>
-          <IconButton label="Filtros" className="h-16 w-16">
-            <SlidersHorizontal size={27} />
-          </IconButton>
         </div>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-5">
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 gap-2">
             <FilterPill active={filter === "all"} label="Todos" onClick={() => onFilterChange("all")} />
             <FilterPill active={filter === "pdf"} label="PDF" onClick={() => onFilterChange("pdf")} />
             <FilterPill active={filter === "epub"} label="EPUB" onClick={() => onFilterChange("epub")} />
           </div>
           <button
-            className="flex h-14 items-center gap-3 rounded border border-zinc-800 bg-zinc-950/50 px-5 text-lg text-zinc-200"
+            className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-white/5 bg-zinc-800/80 px-4 text-xs font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
             type="button"
           >
-            <SlidersHorizontal size={22} />
-            Nome A-Z
-            <ChevronDown size={18} />
+            A-Z
+            <ChevronDown size={14} />
           </button>
         </div>
 
-        <div className="mt-9 flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-zinc-100">Continuar lendo</h3>
-          <button className="flex items-center gap-2 text-lg font-semibold text-green-400" type="button">
-            Ver todos
-            <ChevronRight size={22} />
-          </button>
-        </div>
-        <div className="mt-6 flex gap-5 overflow-x-auto pb-2">
-          {continueBooks.map((book) => (
-            <ContinueCard key={book.id} book={book} onSelect={onSelectBook} />
-          ))}
-        </div>
-
-        <h3 className="mt-10 text-2xl font-bold text-zinc-100">Todos os livros</h3>
         {filteredBooks.length === 0 ? (
           <EmptyState
             title="Nenhum livro encontrado"
             body="Ajuste a busca ou o filtro para ver outros itens da biblioteca."
           />
         ) : view === "grid" ? (
-          <div className="mt-6 grid grid-cols-2 gap-5 min-[620px]:grid-cols-3 min-[780px]:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             {filteredBooks.map((book) => (
               <BookGridCard key={book.id} book={book} onSelect={onSelectBook} />
             ))}
@@ -534,6 +461,41 @@ function MobileApp() {
   }, [state.books]);
 
   useEffect(() => {
+    let cancelled = false;
+    const candidates = state.books.filter((book) => shouldExtractThumbnail(book) && (book.dataUrl || book.storagePath));
+    if (candidates.length === 0) return () => {
+      cancelled = true;
+    };
+
+    Promise.all(candidates.map(async (book) => {
+      try {
+        const dataUrl = await resolveMobileBookDataUrl(book);
+        if (!dataUrl) return { id: book.id, patch: { thumbnailExtractAttempted: true } };
+
+        const thumbnailDataUrl = await extractThumbnailFromDataUrl(dataUrl, book.fileType);
+        if (!thumbnailDataUrl) return { id: book.id, patch: { thumbnailExtractAttempted: true } };
+
+        return { id: book.id, patch: await persistExtractedBookThumbnail(book, thumbnailDataUrl) };
+      } catch {
+        return { id: book.id, patch: { thumbnailExtractAttempted: true } };
+      }
+    })).then((results) => {
+      if (cancelled) return;
+      setState((current) => ({
+        ...current,
+        books: current.books.map((book) => {
+          const result = results.find((item) => item.id === book.id);
+          return result ? { ...book, ...result.patch } : book;
+        }),
+      }));
+    }).catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.books]);
+
+  useEffect(() => {
     getMobileSession().then((session) => setSessionEmail(session?.user?.email ?? null));
   }, []);
 
@@ -604,6 +566,7 @@ function MobileApp() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         const book = createBookFromFile(file, dataUrl);
+        const thumbnailPatch = await extractThumbnailPatch(book, file);
         let storagePath: string | undefined;
         try {
           storagePath = await writeMobileBookFile(book, dataUrl);
@@ -613,6 +576,7 @@ function MobileApp() {
         imported.push({
           ...book,
           ...getStoredBookPatch(book, file, dataUrl, storagePath),
+          ...thumbnailPatch,
         });
         if (storagePath) {
           setReaderDataUrls((current) => ({ ...current, [book.id]: dataUrl }));
@@ -638,6 +602,7 @@ function MobileApp() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file);
+      const thumbnailPatch = await extractThumbnailPatch(selectedBook, file);
       let storagePath: string | undefined;
       try {
         storagePath = await writeMobileBookFile(selectedBook, dataUrl);
@@ -650,6 +615,7 @@ function MobileApp() {
         ...getStoredBookPatch(selectedBook, file, dataUrl, storagePath),
         fileType: selectedBook.fileType,
         lastOpenedAt: new Date().toISOString(),
+        ...thumbnailPatch,
       }));
       toast.success("Arquivo religado ao livro");
     } catch (error) {
@@ -809,7 +775,7 @@ function MobileApp() {
         onChange={(event) => attachFileToSelectedBook(event.target.files)}
       />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[860px] flex-col bg-zinc-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-zinc-950">
         {activeTab === "library" ? null : activeTab === "reader" && selectedBook?.fileType === "epub" ? (
           <header className="sticky top-0 z-20 bg-zinc-950/95 pb-2 pt-[max(10px,env(safe-area-inset-top))] backdrop-blur">
             <div className="flex items-center justify-between px-3">
@@ -1309,7 +1275,7 @@ function MobileApp() {
         </main>
 
         {activeTab === "reader" && selectedBook?.fileType === "epub" ? null : (
-          <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[860px] border-t border-zinc-800 bg-zinc-950/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+          <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
             <div className="grid grid-cols-5 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -1317,8 +1283,8 @@ function MobileApp() {
                 return (
                   <button
                     key={tab.id}
-                    className={`flex h-14 flex-col items-center justify-center gap-1 rounded text-[11px] font-medium ${
-                      active ? "bg-green-500/10 text-green-400" : "text-zinc-500"
+                    className={`flex h-12 flex-col items-center justify-center gap-1 rounded text-[10px] font-semibold transition active:scale-95 ${
+                      active ? "text-emerald-500" : "text-zinc-500"
                     }`}
                     onClick={() => setActiveTab(tab.id)}
                     type="button"

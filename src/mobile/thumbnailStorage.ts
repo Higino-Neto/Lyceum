@@ -10,10 +10,58 @@ type CoverSpec = {
   foreground: string;
   title: string[];
   author?: string;
-  motif: "castle" | "mountains" | "moon" | "cloak" | "columns" | "paper" | "cartoon" | "bulb" | "plain";
+  motif: "street" | "enso" | "dots" | "fingerprint" | "wealth" | "mind" | "castle" | "mountains" | "moon" | "cloak" | "columns" | "paper" | "cartoon" | "bulb" | "plain";
 };
 
 const coverSpecs: Record<string, CoverSpec> = {
+  "crime-castigo": {
+    background: "#17231f",
+    accent: "#d7c08c",
+    foreground: "#eee1bd",
+    title: ["CRIME", "E", "CASTIGO"],
+    author: "FYODOR DOSTOEVSKY",
+    motif: "street",
+  },
+  essencialismo: {
+    background: "#151719",
+    accent: "#c68a31",
+    foreground: "#f5f1e7",
+    title: ["ESSENCIALISMO"],
+    author: "GREG McKEOWN",
+    motif: "enso",
+  },
+  "habitos-atomicos": {
+    background: "#f3eddd",
+    accent: "#a97a2f",
+    foreground: "#8a6325",
+    title: ["Habitos", "Atomicos"],
+    author: "James Clear",
+    motif: "dots",
+  },
+  sapiens: {
+    background: "#eee8dc",
+    accent: "#b71c1c",
+    foreground: "#9f1515",
+    title: ["Sapiens"],
+    author: "Yuval Noah Harari",
+    motif: "fingerprint",
+  },
+  "pai-rico": {
+    background: "#151518",
+    accent: "#d7d7dc",
+    foreground: "#f3f0e8",
+    title: ["PAI", "RICO"],
+    author: "Robert Kiyosaki",
+    motif: "wealth",
+  },
+  mindset: {
+    background: "#1b2d4f",
+    accent: "#ffffff",
+    foreground: "#f5f8ff",
+    title: ["Mindset"],
+    author: "Carol S. Dweck",
+    motif: "mind",
+  },
   "cry-of-honor": {
     background: "#0b6ea7",
     accent: "#bfe9ff",
@@ -113,6 +161,72 @@ function splitTitle(value: string) {
 
 function motifMarkup(spec: CoverSpec) {
   switch (spec.motif) {
+    case "street":
+      return `
+        <rect width="300" height="450" fill="#0d1413"/>
+        <path d="M0 0 L300 0 L300 450 L0 450 Z" fill="${spec.background}"/>
+        <circle cx="70" cy="76" r="18" fill="${spec.accent}" opacity=".88"/>
+        <path d="M0 342 C44 315 72 330 109 300 C150 267 193 292 300 242 L300 450 L0 450 Z" fill="#0b1110" opacity=".72"/>
+        <g stroke="${spec.accent}" stroke-width="3" opacity=".38">
+          <path d="M65 90 L65 360"/>
+          <path d="M38 114 L92 114"/>
+          <path d="M47 142 L83 142"/>
+        </g>
+        <path d="M145 250 C158 218 188 222 199 252 L190 383 L151 383 Z" fill="#050607" opacity=".95"/>
+        <path d="M168 219 C181 205 197 216 199 235 C190 245 176 247 164 240 Z" fill="#111827"/>
+        <g opacity=".16" fill="#d8eadf">
+          <rect x="18" y="126" width="31" height="78" rx="3"/>
+          <rect x="248" y="104" width="27" height="96" rx="3"/>
+          <rect x="29" y="229" width="39" height="98" rx="3"/>
+        </g>`;
+    case "enso":
+      return `
+        <rect width="300" height="450" fill="#151515"/>
+        <path d="M33 306 C88 251 175 229 251 161" stroke="${spec.accent}" stroke-width="3" opacity=".95"/>
+        <g fill="none" stroke="${spec.accent}" stroke-linecap="round" opacity=".88">
+          <path d="M80 278 C99 214 191 207 213 265 C230 309 170 341 121 318 C93 305 76 292 80 278 Z" stroke-width="7"/>
+          <path d="M91 274 C120 235 184 229 204 266 C219 294 186 326 139 318" stroke-width="3"/>
+          <path d="M101 288 C130 252 182 252 195 278" stroke-width="2"/>
+        </g>`;
+    case "dots":
+      return `
+        <rect width="300" height="450" fill="${spec.background}"/>
+        <g fill="${spec.accent}" opacity=".58">
+          ${Array.from({ length: 120 }, (_, index) => {
+            const x = 20 + ((index * 37) % 260);
+            const y = 20 + ((index * 53) % 170);
+            const r = 1 + (index % 3) * 0.45;
+            return `<circle cx="${x}" cy="${y}" r="${r}"/>`;
+          }).join("")}
+        </g>
+        <text x="150" y="320" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#5a4634">Pequenas mudancas,</text>
+        <text x="150" y="338" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#5a4634">resultados extraordinarios</text>`;
+    case "fingerprint":
+      return `
+        <rect width="300" height="450" fill="${spec.background}"/>
+        <g fill="none" stroke="#4f4a43" stroke-width="2" opacity=".62">
+          ${Array.from({ length: 9 }, (_, index) => `<ellipse cx="150" cy="242" rx="${20 + index * 6}" ry="${29 + index * 8}"/>`).join("")}
+          <path d="M150 184 C121 195 115 225 122 250"/>
+          <path d="M151 207 C166 224 163 252 148 267"/>
+        </g>`;
+    case "wealth":
+      return `
+        <rect width="300" height="450" fill="#101012"/>
+        <text x="150" y="150" text-anchor="middle" font-family="Georgia, serif" font-size="65" font-weight="700" fill="${spec.accent}" letter-spacing="12">PAI</text>
+        <text x="150" y="218" text-anchor="middle" font-family="Georgia, serif" font-size="35" font-weight="700" fill="${spec.accent}" letter-spacing="5">RICO</text>
+        <path d="M66 325 C96 288 121 300 150 267 C182 232 217 271 239 236 L260 450 L40 450 Z" fill="#2a2a32" opacity=".78"/>`;
+    case "mind":
+      return `
+        <rect width="300" height="450" fill="#12244a"/>
+        <path d="M0 360 C58 314 95 329 139 292 C190 248 238 265 300 219 L300 450 L0 450 Z" fill="#07152e" opacity=".74"/>
+        <g fill="#ffffff" opacity=".95">
+          <circle cx="90" cy="126" r="18"/>
+          <circle cx="127" cy="96" r="22"/>
+          <circle cx="170" cy="101" r="24"/>
+          <circle cx="204" cy="134" r="18"/>
+          <circle cx="150" cy="140" r="42"/>
+        </g>
+        <path d="M111 155 C126 180 174 181 191 154" stroke="#12244a" stroke-width="9" fill="none" stroke-linecap="round"/>`;
     case "castle":
       return `
         <path d="M48 355 C70 285 104 250 112 180 L136 180 L144 152 L162 180 L182 180 C190 254 226 288 246 355 Z" fill="#16334f" opacity=".92"/>
@@ -214,6 +328,26 @@ function getThumbnailPath(book: MobileBook) {
   return `${THUMBNAIL_DIR}/${key.replace(/[^a-zA-Z0-9_-]+/g, "-")}.svg`;
 }
 
+function safePathPart(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "thumbnail";
+}
+
+function splitDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,(.*)$/);
+  return {
+    mimeType: match?.[1] || "image/jpeg",
+    data: match?.[2] || "",
+  };
+}
+
+function extensionForMime(mimeType: string) {
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("webp")) return "webp";
+  if (mimeType.includes("gif")) return "gif";
+  if (mimeType.includes("svg")) return "svg";
+  return "jpg";
+}
+
 function svgDataUrl(svg: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -240,11 +374,57 @@ async function writeNativeThumbnail(path: string, svg: string) {
   return Capacitor.convertFileSrc(uri.uri);
 }
 
+export async function persistExtractedBookThumbnail(book: MobileBook, dataUrl: string): Promise<Partial<MobileBook>> {
+  const { mimeType, data } = splitDataUrl(dataUrl);
+
+  if (!Capacitor.isNativePlatform()) {
+    return {
+      thumbnailPath: undefined,
+      thumbnailUrl: dataUrl,
+      thumbnailSource: "extracted",
+      thumbnailExtractAttempted: true,
+    };
+  }
+
+  const path = `${THUMBNAIL_DIR}/${safePathPart(book.id)}-cover.${extensionForMime(mimeType)}`;
+  await Filesystem.mkdir({
+    path: THUMBNAIL_DIR,
+    directory: Directory.Data,
+    recursive: true,
+  }).catch(() => undefined);
+
+  await Filesystem.writeFile({
+    path,
+    directory: Directory.Data,
+    data,
+  });
+
+  const uri = await Filesystem.getUri({
+    path,
+    directory: Directory.Data,
+  });
+
+  return {
+    thumbnailPath: path,
+    thumbnailUrl: Capacitor.convertFileSrc(uri.uri),
+    thumbnailSource: "extracted",
+    thumbnailExtractAttempted: true,
+  };
+}
+
 export async function hydrateMobileBookThumbnails(books: MobileBook[]) {
   const native = Capacitor.isNativePlatform();
   let changed = false;
 
   const hydrated = await Promise.all(books.map(async (book) => {
+    if (book.thumbnailSource === "extracted" && book.thumbnailUrl) {
+      return book;
+    }
+
+    if (book.thumbnailUrl && !book.thumbnailUrl.startsWith("data:image/svg+xml")) {
+      return book;
+    }
+
     const path = getThumbnailPath(book);
     const svg = getCoverSvg(book);
     const thumbnailUrl = native ? await writeNativeThumbnail(path, svg) : svgDataUrl(svg);
@@ -258,6 +438,7 @@ export async function hydrateMobileBookThumbnails(books: MobileBook[]) {
       ...book,
       thumbnailPath: path,
       thumbnailUrl,
+      thumbnailSource: "generated",
     };
   }));
 

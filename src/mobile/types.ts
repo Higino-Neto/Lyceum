@@ -14,6 +14,8 @@ export interface MobileBook {
   thumbnailKey?: string;
   thumbnailPath?: string;
   thumbnailUrl?: string;
+  thumbnailSource?: "extracted" | "generated";
+  thumbnailExtractAttempted?: boolean;
   importedAt: string;
   lastOpenedAt?: string;
   currentPage: number;
