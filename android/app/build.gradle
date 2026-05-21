@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.7.4"
-def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10704").toInteger()
+def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.7.5"
+def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10705").toInteger()
 
 android {
     namespace = "com.higino.lyceum.mobile"

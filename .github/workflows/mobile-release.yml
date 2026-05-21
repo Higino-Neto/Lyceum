@@ -9,7 +9,7 @@ on:
       version:
         description: "Mobile version to publish"
         required: true
-        default: "1.7.4"
+        default: "1.7.5"
 
 permissions:
   contents: write
