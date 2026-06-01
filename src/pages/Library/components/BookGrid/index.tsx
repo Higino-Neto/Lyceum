@@ -1,6 +1,7 @@
 import { BookOpen, RefreshCw } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -10,6 +11,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import BookCard from "./BookCard";
 import BookListItem, { ExplorerColumns } from "./BookListItem";
+import { thumbnailCache } from "./thumbnailCache";
 
 export type GridDensity = "compact" | "comfortable" | "large";
 
@@ -115,7 +117,7 @@ export default function BookGrid({
     : density.minWidth;
   const gridRowHeight = Math.ceil(Math.max(
     density.rowHeight,
-    (gridColumnWidth - 8) * 1.25 + 88 + density.gap,
+    (gridColumnWidth - 8) * 1.5 + 88 + density.gap,
   ));
   const rowCount = viewMode === "grid"
     ? Math.ceil(books.length / gridColumns)
@@ -125,11 +127,32 @@ export default function BookGrid({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => viewMode === "grid" ? gridRowHeight : 56,
-    overscan: 8,
+    overscan: 3,
   });
 
   const virtualRows = virtualizer.getVirtualItems();
   const lastVirtualRow = virtualRows[virtualRows.length - 1];
+  const virtualThumbnailPaths = useMemo(() => {
+    const paths: string[] = [];
+
+    for (const virtualRow of virtualRows) {
+      if (viewMode === "grid") {
+        const start = virtualRow.index * gridColumns;
+        const end = Math.min(start + gridColumns, books.length);
+
+        for (let index = start; index < end; index++) {
+          const thumbnailPath = books[index]?.thumbnailPath;
+          if (thumbnailPath) paths.push(thumbnailPath);
+        }
+        continue;
+      }
+
+      const thumbnailPath = books[virtualRow.index]?.thumbnailPath;
+      if (thumbnailPath) paths.push(thumbnailPath);
+    }
+
+    return paths;
+  }, [books, gridColumns, viewMode, virtualRows]);
 
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
@@ -149,6 +172,10 @@ export default function BookGrid({
   useEffect(() => {
     virtualizer.measure();
   }, [gridColumns, gridDensity, gridRowHeight, viewMode, virtualizer]);
+
+  useEffect(() => {
+    thumbnailCache.prefetch(virtualThumbnailPaths);
+  }, [virtualThumbnailPaths]);
 
   const startResize = (
     key: keyof ExplorerColumns,

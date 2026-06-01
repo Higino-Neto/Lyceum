@@ -1,15 +1,17 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import AdmZip from "adm-zip";
 import { PDFDocument } from "pdf-lib";
+import { extractFirstCbzImage, inspectCbzPageCount, parseCbzBuffer } from "../../src/lib/lyceum/importers/cbzImporter";
 
 const require = createRequire(import.meta.url);
 
 export const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 export const THUMB_WIDTH = 300;
 
-export type BookFileType = "pdf" | "epub";
+export type BookFileType = "pdf" | "epub" | "cbz" | "azw3" | "kfx";
 
 export interface PdfMetadata {
   title?: string;
@@ -136,6 +138,34 @@ export async function getEpubChapterCount(
   }
 }
 
+export async function getCbzPageCount(
+  filePath: string,
+  logPrefix = "[DocumentProcessing]",
+): Promise<number> {
+  try {
+    return Math.max(await inspectCbzPageCount(filePath), 1);
+  } catch (error) {
+    console.error(`${logPrefix} Error getting CBZ page count:`, error);
+    return 1;
+  }
+}
+
+export async function validateCbzFile(
+  filePath: string,
+): Promise<{ pageCount: number }> {
+  try {
+    const parsed = await parseCbzBuffer(await fs.promises.readFile(filePath));
+    const pageCount = parsed.comic.pageCount;
+    if (pageCount <= 0) {
+      throw new Error("nenhuma imagem suportada foi encontrada");
+    }
+    return { pageCount };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "nao foi possivel abrir o ZIP";
+    throw new Error(`CBZ invalido: ${detail}`);
+  }
+}
+
 export async function extractEpubMetadata(
   filePath: string,
   logPrefix = "[DocumentProcessing]",
@@ -224,6 +254,18 @@ export async function generateThumbnail(
       return await generateEpubThumbnail(filePath, fileHash, thumbnailsDir, logPrefix);
     }
 
+    if (fileType === "cbz") {
+      return await generateCbzThumbnail(filePath, fileHash, thumbnailsDir, logPrefix);
+    }
+
+    if (fileType === "azw3") {
+      return await generateAzw3Thumbnail(filePath, fileHash, thumbnailsDir, logPrefix);
+    }
+
+    if (fileType === "kfx") {
+      return await generateKfxThumbnail(filePath, fileHash, thumbnailsDir, logPrefix);
+    }
+
     const pdfRequire = require("pdf-poppler");
     await pdfRequire.convert(filePath, {
       format: "jpeg",
@@ -250,6 +292,138 @@ export async function generateThumbnail(
     return outputPath;
   } catch (error) {
     console.error(`${logPrefix} Error generating thumbnail:`, error);
+    return null;
+  }
+}
+
+function readAzw3Records(buffer: Buffer): Buffer[] {
+  const recordCount = buffer.readUInt16BE(76);
+  const offsets = Array.from({ length: recordCount }, (_, index) => buffer.readUInt32BE(78 + index * 8));
+  return offsets.map((offset, index) => {
+    const nextOffset = index + 1 < offsets.length ? offsets[index + 1] : buffer.length;
+    return buffer.subarray(offset, nextOffset);
+  });
+}
+
+function readExthUInt(recordZero: Buffer, type: number): number | null {
+  const mobiOffset = 16;
+  const mobiHeaderLength = recordZero.readUInt32BE(mobiOffset + 4);
+  const exthOffset = mobiOffset + mobiHeaderLength;
+  if (recordZero.subarray(exthOffset, exthOffset + 4).toString("ascii") !== "EXTH") return null;
+  const exthLength = recordZero.readUInt32BE(exthOffset + 4);
+  let cursor = exthOffset + 12;
+  const end = exthOffset + exthLength;
+  while (cursor + 8 <= end) {
+    const recordType = recordZero.readUInt32BE(cursor);
+    const length = recordZero.readUInt32BE(cursor + 4);
+    if (length < 8 || cursor + length > end) break;
+    if (recordType === type && length >= 12) return recordZero.readUInt32BE(cursor + 8);
+    cursor += length;
+  }
+  return null;
+}
+
+function isImageBuffer(buffer: Buffer) {
+  return (
+    (buffer[0] === 0xff && buffer[1] === 0xd8) ||
+    (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) ||
+    buffer.subarray(0, 6).toString("ascii") === "GIF87a" ||
+    buffer.subarray(0, 6).toString("ascii") === "GIF89a"
+  );
+}
+
+async function writeImageThumbnail(imageBuffer: Buffer, outputPath: string) {
+  const sharp = require("sharp");
+  await sharp(imageBuffer)
+    .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 85 })
+    .toFile(outputPath);
+  return outputPath;
+}
+
+async function generateAzw3Thumbnail(
+  filePath: string,
+  fileHash: string,
+  thumbnailsDir: string,
+  logPrefix: string,
+): Promise<string | null> {
+  try {
+    const buffer = fs.readFileSync(filePath);
+    const records = readAzw3Records(buffer);
+    const recordZero = records[0];
+    const firstResourceRecord = recordZero.readUInt32BE(16 + 92);
+    const coverOffset = readExthUInt(recordZero, 201);
+    const candidates = typeof coverOffset === "number" && firstResourceRecord + coverOffset < records.length
+      ? [records[firstResourceRecord + coverOffset]]
+      : records.slice(Math.max(1, firstResourceRecord)).filter(isImageBuffer);
+    const cover = candidates.find(isImageBuffer);
+    if (!cover) return null;
+    const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
+    return await writeImageThumbnail(cover, outputPath);
+  } catch (error) {
+    console.error(`${logPrefix} Error generating AZW3 thumbnail:`, error);
+    return null;
+  }
+}
+
+function findKfxlibRoot() {
+  const candidates = [
+    process.env.LYCEUM_KFXLIB_PATH,
+    process.env.LYCEUM_KFX_OUTPUT_PLUGIN,
+    path.join(process.cwd(), ".tmp", "calibre-kfx-output"),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+  return candidates.map((candidate) => path.resolve(candidate)).find((candidate) =>
+    fs.existsSync(path.join(candidate, "kfxlib", "yj_book.py")),
+  );
+}
+
+async function generateKfxThumbnail(
+  filePath: string,
+  fileHash: string,
+  thumbnailsDir: string,
+  logPrefix: string,
+): Promise<string | null> {
+  const kfxlibRoot = findKfxlibRoot();
+  if (!kfxlibRoot) {
+    console.error(`${logPrefix} kfxlib not found for KFX thumbnail extraction`);
+    return null;
+  }
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+    const workspace = await fs.promises.mkdtemp(path.join(os.tmpdir(), "lyceum-kfx-thumb-"));
+    const outputImage = path.join(workspace, "cover.bin");
+    const scriptPath = path.join(workspace, "extract-cover.py");
+    await fs.promises.writeFile(scriptPath, String.raw`
+import json, sys, types
+payload=json.loads(sys.argv[1])
+calibre=types.ModuleType("calibre")
+constants=types.ModuleType("calibre.constants")
+constants.config_dir=payload["configDir"]
+sys.modules.setdefault("calibre", calibre)
+sys.modules["calibre.constants"]=constants
+sys.path.insert(0, payload["kfxlibRoot"])
+from kfxlib import YJ_Book
+book=YJ_Book(payload["inputPath"])
+book.decode_book()
+md=book.get_yj_metadata_from_book()
+if md.cover_image_data:
+    with open(payload["outputImage"], "wb") as out:
+        out.write(md.cover_image_data[1])
+`);
+    await fs.promises.mkdir(path.join(workspace, "config"), { recursive: true });
+    await execFileAsync(process.env.LYCEUM_PYTHON || "python", [scriptPath, JSON.stringify({
+      inputPath: filePath,
+      outputImage,
+      configDir: path.join(workspace, "config"),
+      kfxlibRoot,
+    })], { timeout: 10 * 60 * 1000, windowsHide: true });
+    if (!fs.existsSync(outputImage)) return null;
+    const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
+    return await writeImageThumbnail(fs.readFileSync(outputImage), outputPath);
+  } catch (error) {
+    console.error(`${logPrefix} Error generating KFX thumbnail:`, error);
     return null;
   }
 }
@@ -355,6 +529,27 @@ async function generateEpubThumbnail(
     return outputPath;
   } catch (error) {
     console.error(`${logPrefix} Error generating EPUB thumbnail:`, error);
+    return null;
+  }
+}
+
+async function generateCbzThumbnail(
+  filePath: string,
+  fileHash: string,
+  thumbnailsDir: string,
+  logPrefix: string,
+): Promise<string | null> {
+  try {
+    const firstImage = await extractFirstCbzImage(filePath);
+    if (!firstImage) {
+      console.log(`${logPrefix} No image found in CBZ`);
+      return null;
+    }
+
+    const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
+    return await writeImageThumbnail(Buffer.from(firstImage.data), outputPath);
+  } catch (error) {
+    console.error(`${logPrefix} Error generating CBZ thumbnail:`, error);
     return null;
   }
 }

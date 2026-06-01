@@ -35,6 +35,22 @@ export interface LyceumBookMetadata {
   publisher?: string;
   description?: string;
   publishDate?: string;
+  subject?: string | string[];
+  rights?: string;
+  contributor?: string;
+  authorSort?: string;
+  titleSort?: string;
+  series?: string;
+  seriesIndex?: string;
+  groupPosition?: string;
+  displaySeq?: string;
+  isbn?: string;
+  asin?: string;
+  rating?: number;
+  timestamp?: string;
+  coverResourceId?: string;
+  coverHref?: string;
+  coverPageHref?: string;
 }
 
 export interface LyceumTextualChapter {
@@ -75,11 +91,30 @@ export interface LyceumTextualContent {
   resources?: LyceumTextualResource[];
 }
 
+export interface LyceumComicPage {
+  id: string;
+  href: string;
+  title: string;
+  mediaType: string;
+  byteLength: number;
+  width?: number;
+  height?: number;
+  resourceHref?: string;
+  originalPath?: string;
+}
+
+export interface LyceumComicContent {
+  pages: LyceumComicPage[];
+  pageCount: number;
+  totalBytes: number;
+}
+
 export interface LyceumPackage {
   rootPath: string;
   manifest: LyceumManifest;
   metadata: LyceumBookMetadata;
   textual?: LyceumTextualContent;
+  comic?: LyceumComicContent;
 }
 
 export interface ImportInput {

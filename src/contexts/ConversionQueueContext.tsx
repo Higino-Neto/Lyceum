@@ -10,7 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { BookWithThumbnail } from "../types/LibraryTypes";
 
-export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3";
+export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx";
 export type ConversionProfile = "ereader" | "light" | "compatible";
 export type ConversionQueueStatus = "pending" | "running" | "done" | "error";
 
@@ -90,7 +90,7 @@ interface ConversionApi {
   ) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
 }
 
-const supportedInputs = new Set(["epub", "pdf", "txt", "html"]);
+const supportedInputs = new Set(["epub", "pdf", "txt", "html", "cbz"]);
 const ConversionQueueContext = createContext<ConversionQueueContextValue | null>(null);
 
 function inferFormat(book: BookWithThumbnail): string {

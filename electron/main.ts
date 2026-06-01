@@ -70,8 +70,10 @@ import {
   extractEpubMetadata,
   extractPdfMetadata as extractMetadata,
   generateThumbnail as generateBookThumbnail,
+  getCbzPageCount,
   getEpubChapterCount,
   getPdfPageCount,
+  validateCbzFile,
 } from "./services/document-processing";
 import { registerBookHandlers, setWindow as setBooksWindow } from "./handlers/books.handler";
 import { registerLibraryHandlers, setWindow as setLibraryWindow } from "./handlers/library.handler";
@@ -97,9 +99,9 @@ import type { BookFormat } from "../src/lib/lyceum";
 
 process.env.APP_ROOT = path.join(__dirname, "..");
 
-export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -340,7 +342,7 @@ function getAllPdfFiles(dir: string): string[] {
       results = results.concat(getAllBookFiles(fullPath));
     } else if (file.isFile()) {
       const fileName = file.name.toLowerCase();
-      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub") || fileName.endsWith(".cbz")) && !fileName.includes(".tmp")) {
         results.push(fullPath);
       }
     }
@@ -362,7 +364,7 @@ function getAllBookFiles(dir: string): string[] {
       results.push(...getAllBookFiles(fullPath));
     } else if (file.isFile()) {
       const fileName = file.name.toLowerCase();
-      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub") || fileName.endsWith(".cbz")) && !fileName.includes(".tmp")) {
         results.push(fullPath);
       }
     }
@@ -744,6 +746,14 @@ function buildWindowsMtpBookRecord(entry: WindowsMtpBookEntry, index: number): D
     isbn: null,
     publisher: null,
     publishDate: null,
+    language: null,
+    identifier: null,
+    asin: null,
+    subject: null,
+    series: null,
+    seriesIndex: null,
+    authorSort: null,
+    titleSort: null,
     fileSize: entry.size || 0,
     processingStatus: "completed",
     bookId: null,
@@ -903,6 +913,14 @@ async function buildUsbBookRecord(
     isbn: null,
     publisher,
     publishDate,
+    language: null,
+    identifier: null,
+    asin: null,
+    subject: null,
+    series: null,
+    seriesIndex: null,
+    authorSort: null,
+    titleSort: null,
     fileSize: stats.size,
     processingStatus: "completed",
     bookId: null,
@@ -1181,11 +1199,17 @@ async function prepareKindleTransferFile(
       : {
           title,
           author: book.author || undefined,
-          language: "pt-BR",
+          language: book.language || "pt-BR",
           publisher: book.publisher || undefined,
           description: book.description || undefined,
           publishDate: book.publishDate || undefined,
-          identifier: `LYCEUM-${sourceHash.slice(0, 8)}`,
+          identifier: book.identifier || `LYCEUM-${sourceHash.slice(0, 8)}`,
+          asin: book.asin || undefined,
+          subject: book.subject || undefined,
+          series: book.series || undefined,
+          seriesIndex: book.seriesIndex || undefined,
+          authorSort: book.authorSort || undefined,
+          titleSort: book.titleSort || undefined,
         },
     renderImageAsset: sourceFormat === "pdf"
       ? createPdfImageAssetRenderer(localPath, `kindle-${sourceHash}`)
@@ -1567,9 +1591,14 @@ async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
 
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+    const lowerPath = filePath.toLowerCase();
+    const isEpub = lowerPath.endsWith(".epub");
+    const isCbz = lowerPath.endsWith(".cbz");
+    const isPdf = lowerPath.endsWith(".pdf");
+    const fileType: "pdf" | "epub" | "cbz" = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
+    if (isCbz) {
+      await validateCbzFile(filePath);
+    }
 
     // First check if document exists by path (handles file modifications that change hash)
     const existingByPath = getDocumentByPath(filePath);
@@ -1589,7 +1618,7 @@ async function processFile(filePath: string): Promise<void> {
       if (thumbnailPath) {
         updateThumbnailPath(fileHash, thumbnailPath);
       }
-      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+      const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
       return;
     }
@@ -1603,8 +1632,8 @@ async function processFile(filePath: string): Promise<void> {
     const category = pathParts.length > 1 ? pathParts[0] : null;
 
     const stats = fs.statSync(filePath);
-    const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
-    const metadata = isPdf ? await extractMetadata(filePath) : await extractEpubMetadata(filePath);
+    const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
+    const metadata = isPdf ? await extractMetadata(filePath) : isCbz ? null : await extractEpubMetadata(filePath);
     const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
 
     if (existing) {
@@ -1622,7 +1651,7 @@ async function processFile(filePath: string): Promise<void> {
       }
       updateProcessingStatus(fileHash, "completed");
     } else {
-      const ext = isEpub ? ".epub" : ".pdf";
+      const ext = isCbz ? ".cbz" : isEpub ? ".epub" : ".pdf";
       const title = path.basename(filePath, ext);
       addDocument(
         title,
@@ -1884,6 +1913,14 @@ interface KindleSendBookInput {
   publisher?: string | null;
   description?: string | null;
   publishDate?: string | null;
+  language?: string | null;
+  identifier?: string | null;
+  asin?: string | null;
+  subject?: string | null;
+  series?: string | null;
+  seriesIndex?: string | null;
+  authorSort?: string | null;
+  titleSort?: string | null;
 }
 
 interface KindleSendOptions {
@@ -2195,7 +2232,7 @@ async function generateThumbnail(
   filePath: string,
   fileHash: string,
   force = false,
-  fileType: "pdf" | "epub" = "pdf",
+  fileType: "pdf" | "epub" | "cbz" | "azw3" | "kfx" = "pdf",
 ): Promise<string | null> {
   return generateBookThumbnail(filePath, fileHash, {
     thumbnailsDir: THUMBNAILS_DIR(),
@@ -2225,6 +2262,37 @@ function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | 
   return match ? path.join(thumbnailsDir, match) : null;
 }
 
+function thumbnailToDataUrl(imagePath: string) {
+  const ext = path.extname(imagePath).toLowerCase();
+  const mime =
+    ext === ".png"
+      ? "image/png"
+      : ext === ".webp"
+        ? "image/webp"
+        : "image/jpeg";
+  const buffer = fs.readFileSync(imagePath);
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+function readThumbnailDataUrl(thumbnailPath: string) {
+  if (!thumbnailPath) return null;
+
+  const thumbnailsDir = THUMBNAILS_DIR();
+  const normalizedThumbnailPath = path.resolve(thumbnailPath);
+
+  if (!isPathWithin(thumbnailsDir, normalizedThumbnailPath)) {
+    return null;
+  }
+
+  if (fs.existsSync(normalizedThumbnailPath)) {
+    return thumbnailToDataUrl(normalizedThumbnailPath);
+  }
+
+  const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
+  const matchingThumbnail = hash ? findThumbnailByHash(thumbnailsDir, hash) : null;
+  return matchingThumbnail ? thumbnailToDataUrl(matchingThumbnail) : null;
+}
+
 function createAppWindow(
   options: BrowserWindowConstructorOptions = {}
 ) {
@@ -2236,7 +2304,7 @@ function createAppWindow(
     frame: false,
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -2557,10 +2625,17 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
       metadata: {
         title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, path.extname(doc.filePath)),
         author: doc.author || undefined,
-        language: "pt-BR",
+        language: doc.language || "pt-BR",
         publisher: doc.publisher || undefined,
         description: doc.description || undefined,
         publishDate: doc.publishDate || undefined,
+        identifier: doc.identifier || undefined,
+        asin: doc.asin || undefined,
+        subject: doc.subject || undefined,
+        series: doc.series || undefined,
+        seriesIndex: doc.seriesIndex || undefined,
+        authorSort: doc.authorSort || undefined,
+        titleSort: doc.titleSort || undefined,
       },
       renderImageAsset: sourceFormat === "pdf"
         ? createPdfImageAssetRenderer(doc.filePath, fileHash)
@@ -2570,7 +2645,7 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
     const outputHash = generateFileHash(outputPath);
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
     const outputFileType = targetFormat;
-    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf" || targetFormat === "azw3" || targetFormat === "kfx"
       ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
       : null;
     const numPages = targetFormat === "pdf"
@@ -2660,7 +2735,7 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
 
     const outputHash = generateFileHash(outputPath);
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
-    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf" || targetFormat === "azw3" || targetFormat === "kfx"
       ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
       : null;
     const numPages = targetFormat === "pdf"
@@ -2756,7 +2831,7 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
     const converted = await convertPdfToEpub(toArrayBuffer(pdfBuffer), {
       title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, ".pdf"),
       author: doc.author || undefined,
-      language: "pt-BR",
+      language: doc.language || "pt-BR",
       publisher: doc.publisher || undefined,
       description: doc.description || undefined,
       renderImageAsset,
@@ -2879,7 +2954,7 @@ ipcMain.handle("dialog:select-folder", async () => {
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile", "multiSelections"],
-    filters: [{ name: "Livros", extensions: ["pdf", "epub"] }],
+    filters: [{ name: "Livros", extensions: ["pdf", "epub", "cbz"] }],
   });
   
   if (result.canceled || result.filePaths.length === 0) {
@@ -2900,6 +2975,9 @@ ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, actio
       try {
         const fileName = path.basename(filePath);
         const destPath = getUniqueFilePath(targetDir, fileName);
+        if (filePath.toLowerCase().endsWith(".cbz")) {
+          await validateCbzFile(filePath);
+        }
 
         if (action === "move") {
           moveFileAcrossDevices(filePath, destPath);
@@ -2933,44 +3011,27 @@ ipcMain.handle("app:get-last-document", () => {
 
 ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
   try {
-    if (!thumbnailPath) {
-      return null;
-    }
-
-    const thumbnailsDir = THUMBNAILS_DIR();
-    const normalizedThumbnailPath = path.resolve(thumbnailPath);
-
-    if (!isPathWithin(thumbnailsDir, normalizedThumbnailPath)) {
-      return null;
-    }
-
-    const toDataUrl = (imagePath: string) => {
-      const ext = path.extname(imagePath).toLowerCase();
-      const mime =
-        ext === ".png"
-          ? "image/png"
-          : ext === ".webp"
-            ? "image/webp"
-            : "image/jpeg";
-      const buffer = fs.readFileSync(imagePath);
-      return `data:${mime};base64,${buffer.toString("base64")}`;
-    };
-
-    if (fs.existsSync(normalizedThumbnailPath)) {
-      return toDataUrl(normalizedThumbnailPath);
-    }
-
-    const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
-    const matchingThumbnail = hash ? findThumbnailByHash(thumbnailsDir, hash) : null;
-    if (matchingThumbnail) {
-      return toDataUrl(matchingThumbnail);
-    }
-
-    return null;
+    return readThumbnailDataUrl(thumbnailPath);
   } catch (error) {
     console.error("[thumbnail:get] Error:", error);
     return null;
   }
+});
+
+ipcMain.handle("thumbnail:get-many", async (_, thumbnailPaths: string[]) => {
+  const result: Record<string, string | null> = {};
+
+  try {
+    const uniquePaths = Array.from(new Set(thumbnailPaths)).slice(0, 96);
+
+    for (const thumbnailPath of uniquePaths) {
+      result[thumbnailPath] = readThumbnailDataUrl(thumbnailPath);
+    }
+  } catch (error) {
+    console.error("[thumbnail:get-many] Error:", error);
+  }
+
+  return result;
 });
 
 function findFileByHash(fileHash: string, searchPaths: string[]): string | null {
@@ -3388,8 +3449,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org; object-src 'none'; base-uri 'self';";
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;

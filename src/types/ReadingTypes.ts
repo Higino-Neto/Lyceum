@@ -78,6 +78,14 @@ export interface DocumentRecord {
   isbn: string | null;
   publisher: string | null;
   publishDate: string | null;
+  language?: string | null;
+  identifier?: string | null;
+  asin?: string | null;
+  subject?: string | null;
+  series?: string | null;
+  seriesIndex?: string | null;
+  authorSort?: string | null;
+  titleSort?: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;

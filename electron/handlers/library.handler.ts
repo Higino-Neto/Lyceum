@@ -36,10 +36,11 @@ import {
   moveFileAcrossDevices,
   isPathWithin,
   getAllBookFiles,
+  inferBookFileTypeFromPath,
   inferFileTypeFromPath,
   toReadableFileType,
 } from "../services/file-service";
-import { generateThumbnail } from "../services/document-processing";
+import { generateThumbnail, type BookFileType } from "../services/document-processing";
 import { openReadableFile } from "../services/document-service";
 import fs from "node:fs";
 import path from "node:path";
@@ -121,7 +122,7 @@ export function registerLibraryHandlers() {
         updateDocumentSyncStatus(fileHash, true, category);
         const newThumbnail = await generateThumbnail(targetPath, fileHash, {
           thumbnailsDir: THUMBNAILS_DIR(), force: false,
-          fileType: inferFileTypeFromPath(targetPath),
+          fileType: inferBookFileTypeFromPath(targetPath) as BookFileType,
           logPrefix: "[LibraryHandler]",
         });
         if (newThumbnail) updateThumbnailPath(fileHash, newThumbnail);

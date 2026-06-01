@@ -9,7 +9,45 @@ import {
   normalizeHtmlEntitiesForXhtml,
   readLyceumPackage,
   validateAzw3File,
+  KfxExporter,
+  validateKfxFile,
+  inspectKpfArchive,
+  type LyceumPackage,
 } from "../lib/lyceum";
+
+function buildMinimalLyceumPackage(tempDir: string): LyceumPackage {
+  return {
+    rootPath: tempDir,
+    manifest: {
+      schemaVersion: 1,
+      packageId: "test-package",
+      title: "KFX Test",
+      sourceFormat: "epub",
+      originalFileName: "test.epub",
+      primaryContentKind: "textual",
+      contentKinds: ["textual"],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    metadata: {
+      title: "KFX Test",
+      language: "pt-BR",
+    },
+    textual: {
+      chapters: [
+        {
+          id: "chap1",
+          href: "chap1.xhtml",
+          title: "Capitulo",
+          xhtml: "<html><body><p>Teste KFX.</p></body></html>",
+        },
+      ],
+      spine: [{ id: "chap1", href: "chap1.xhtml", title: "Capitulo" }],
+      toc: [{ id: "chap1", href: "chap1.xhtml", title: "Capitulo", level: 1 }],
+      fulltext: "Teste KFX.",
+    },
+  };
+}
 
 async function buildEpub() {
   const zip = new JSZip();
@@ -152,7 +190,125 @@ describe("lyceum conversion core", () => {
       "txt",
       "html",
       "azw3",
+      "kfx",
     ]);
+  });
+
+  it("materializes KFX only when Kindle Previewer returns a KFX file", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-kfx-"));
+    const outputPath = path.join(tempDir, "book.kfx");
+    const fakeKfx = Buffer.concat([Buffer.from("CONT"), Buffer.from([2, 0, 0, 0, 0, 0, 0, 0])]);
+    const exporter = new KfxExporter(async ({ inputPath, outputDir }) => {
+      expect(fs.existsSync(inputPath)).toBe(true);
+      fs.mkdirSync(outputDir, { recursive: true });
+      const generatedPath = path.join(outputDir, "book.kfx");
+      fs.writeFileSync(generatedPath, fakeKfx);
+      return {
+        executablePath: "fake-kindle-previewer",
+        generatedFiles: [
+          {
+            path: generatedPath,
+            format: "kfx",
+            size: fs.statSync(generatedPath).size,
+          },
+        ],
+        primaryOutputPath: generatedPath,
+        primaryOutputFormat: "kfx",
+        stdout: "",
+        stderr: "",
+        logs: [],
+      };
+    });
+
+    const result = await exporter.export({
+      package: buildMinimalLyceumPackage(tempDir),
+      outputPath,
+    });
+    const validation = await validateKfxFile(outputPath);
+
+    expect(result.outputFormat).toBe("kfx");
+    expect(validation.valid).toBe(true);
+    expect(fs.readFileSync(outputPath).subarray(0, 4).toString("ascii")).toBe("CONT");
+    expect(result.report.stats.backend).toBe("kindle-previewer");
+  });
+
+  it("assembles KFX when Kindle Previewer returns a real KPF", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-kpf-"));
+    const outputPath = path.join(tempDir, "book.kfx");
+    let receivedMetadataTitle = "";
+    const exporter = new KfxExporter(
+      async ({ outputDir }) => {
+        fs.mkdirSync(outputDir, { recursive: true });
+        const kpfPath = path.join(outputDir, "book.kpf");
+        const zip = new JSZip();
+        zip.file("resources/book.kdf", "previewer data");
+        zip.file("metadata.json", JSON.stringify({ title: "KPF Test" }));
+        fs.writeFileSync(kpfPath, await zip.generateAsync({ type: "nodebuffer" }));
+        return {
+          executablePath: "fake-kindle-previewer",
+          generatedFiles: [
+            {
+              path: kpfPath,
+              format: "kpf",
+              size: fs.statSync(kpfPath).size,
+            },
+          ],
+          primaryOutputPath: kpfPath,
+          primaryOutputFormat: "kpf",
+          stdout: "",
+          stderr: "",
+          logs: [],
+        };
+      },
+      async (_inputKpfPath, outputKfxPath, options) => {
+        receivedMetadataTitle = options?.metadata?.title || "";
+        fs.writeFileSync(outputKfxPath, Buffer.concat([Buffer.from("CONT"), Buffer.from([2, 0, 0, 0, 0, 0, 0, 0])]));
+        return {
+          outputPath: outputKfxPath,
+          bytes: fs.statSync(outputKfxPath).size,
+          assembler: "test-kpf-assembler",
+          kfxlibRoot: "test",
+          pythonCommand: "test",
+          stdout: "",
+          stderr: "",
+          warnings: ["assembled from test KPF"],
+        };
+      },
+    );
+
+    const result = await exporter.export({
+      package: buildMinimalLyceumPackage(tempDir),
+      outputPath,
+    });
+
+    expect(result.outputFormat).toBe("kfx");
+    expect(result.report.stats.backend).toBe("kindle-previewer+kpf-assembler");
+    expect(result.report.stats.assembler).toBe("test-kpf-assembler");
+    expect(receivedMetadataTitle).toBe("KFX Test");
+    expect(fs.readFileSync(outputPath).subarray(0, 4).toString("ascii")).toBe("CONT");
+  });
+
+  it("inspects KPF archives and flags renamed EPUB containers", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-kpf-inspect-"));
+    const kpfPath = path.join(tempDir, "book.kpf");
+    const epubRenamedPath = path.join(tempDir, "renamed.kpf");
+    const kpfZip = new JSZip();
+    kpfZip.file("book.kdf", "previewer data");
+    fs.writeFileSync(kpfPath, await kpfZip.generateAsync({ type: "nodebuffer" }));
+
+    const epubZip = new JSZip();
+    epubZip.file("mimetype", "application/epub+zip");
+    epubZip.file("META-INF/container.xml", "<container />");
+    fs.writeFileSync(epubRenamedPath, await epubZip.generateAsync({ type: "nodebuffer" }));
+
+    const kpfInspection = await inspectKpfArchive(kpfPath);
+    const epubInspection = await inspectKpfArchive(epubRenamedPath);
+
+    expect(kpfInspection.isZip).toBe(true);
+    expect(kpfInspection.likelyKpf).toBe(true);
+    expect(kpfInspection.metadataEntries).toContain("book.kdf");
+    expect(epubInspection.isEpubZip).toBe(true);
+    expect(epubInspection.likelyKpf).toBe(false);
   });
 
   it("imports EPUB into .lyceum and exports TXT through the canonical package", async () => {

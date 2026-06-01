@@ -26,6 +26,14 @@ interface DocumentRecord {
   isbn: string | null;
   publisher: string | null;
   publishDate: string | null;
+  language: string | null;
+  identifier: string | null;
+  asin: string | null;
+  subject: string | null;
+  series: string | null;
+  seriesIndex: string | null;
+  authorSort: string | null;
+  titleSort: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
@@ -86,6 +94,28 @@ type BookFormat =
   | "prc"
   | "txt"
   | "lyceum";
+
+type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
+type MetadataSearchField = "title" | "author" | "isbn";
+
+interface BookMetadataCandidate {
+  id: string;
+  source: "openlibrary" | "google" | "loc";
+  sourceLabel: string;
+  title: string;
+  subtitle?: string;
+  authors: string[];
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  isbn10?: string;
+  isbn13?: string;
+  pageCount?: number;
+  categories: string[];
+  description?: string;
+  thumbnailUrl?: string;
+  externalUrl?: string;
+}
 
 interface ConversionTarget {
   format: BookFormat;
@@ -185,6 +215,7 @@ interface Window {
     } | { error: string; message: string } | null>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
+    getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;
@@ -210,13 +241,29 @@ interface Window {
     toggleFavorite: (fileHash: string) => Promise<boolean>;
     updateRating: (fileHash: string, rating: number) => Promise<boolean>;
     updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
+    searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) => Promise<{
+      success: boolean;
+      results: BookMetadataCandidate[];
+      warnings: string[];
+      error?: string;
+    }>;
     updateMetadata: (fileHash: string, metadata: {
+      title?: string;
       author?: string;
       description?: string;
       isbn?: string;
       publisher?: string;
       publishDate?: string;
-    }) => Promise<boolean>;
+      language?: string;
+      identifier?: string;
+      asin?: string;
+      subject?: string;
+      series?: string;
+      seriesIndex?: string;
+      authorSort?: string;
+      titleSort?: string;
+      pageCount?: number;
+    }) => Promise<{ success: boolean; fileHash?: string; warnings?: string[]; error?: string }>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
     renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
     deleteBook: (fileHash: string, deleteFile?: boolean) => Promise<{ success: boolean; error?: string }>;
@@ -224,9 +271,11 @@ interface Window {
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
     regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
-    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; error?: string }>;
+    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
+    setThumbnailFromUrl: (fileHash: string, imageUrl: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
+    mergeBooks: (fileHashes: string[]) => Promise<{ success: boolean; bookId: string; mergedCount: number; documents: DocumentRecord[]; error?: string }>;
     getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
@@ -362,6 +411,7 @@ interface Window {
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
+    getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
 
     getLibraryPath: () => Promise<string>;
     scanLibrary: () => Promise<void>;

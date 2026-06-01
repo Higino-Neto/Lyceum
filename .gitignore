@@ -19,6 +19,7 @@ dist-electron
 supabase
 coverage
 AGENTS.md
+.tmp/
 
 
 # Editor directories and files

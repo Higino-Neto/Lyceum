@@ -2,11 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import type {
   LyceumBookMetadata,
+  LyceumComicContent,
   LyceumManifest,
   LyceumPackage,
   LyceumTextualContent,
 } from "../schema/types";
 import {
+  comicPagesPath,
   manifestPath,
   metadataPath,
   originalSourcePath,
@@ -187,11 +189,20 @@ export async function writeTextualContentAsync(rootPath: string, textual: Lyceum
   await fs.promises.writeFile(textualFulltextPath(rootPath), textual.fulltext, "utf8");
 }
 
+export function writeComicContent(rootPath: string, comic: LyceumComicContent) {
+  writeJson(comicPagesPath(rootPath), comic);
+}
+
+export async function writeComicContentAsync(rootPath: string, comic: LyceumComicContent) {
+  await writeJsonAsync(comicPagesPath(rootPath), comic);
+}
+
 export function writeLyceumPackage(args: {
   rootPath: string;
   manifest: LyceumManifest;
   metadata: LyceumBookMetadata;
   textual?: LyceumTextualContent;
+  comic?: LyceumComicContent;
   sourcePath?: string;
 }): LyceumPackage {
   ensureLyceumPackageDirs(args.rootPath);
@@ -211,6 +222,10 @@ export function writeLyceumPackage(args: {
     writeTextualContent(args.rootPath, args.textual);
   }
 
+  if (args.comic) {
+    writeComicContent(args.rootPath, args.comic);
+  }
+
   initializeUserData(args.rootPath);
 
   return {
@@ -218,6 +233,7 @@ export function writeLyceumPackage(args: {
     manifest: args.manifest,
     metadata: args.metadata,
     textual: args.textual,
+    comic: args.comic,
   };
 }
 
@@ -226,6 +242,7 @@ export async function writeLyceumPackageAsync(args: {
   manifest: LyceumManifest;
   metadata: LyceumBookMetadata;
   textual?: LyceumTextualContent;
+  comic?: LyceumComicContent;
   sourcePath?: string;
 }): Promise<LyceumPackage> {
   await ensureLyceumPackageDirsAsync(args.rootPath);
@@ -245,6 +262,10 @@ export async function writeLyceumPackageAsync(args: {
     await writeTextualContentAsync(args.rootPath, args.textual);
   }
 
+  if (args.comic) {
+    await writeComicContentAsync(args.rootPath, args.comic);
+  }
+
   await initializeUserDataAsync(args.rootPath);
 
   return {
@@ -252,6 +273,6 @@ export async function writeLyceumPackageAsync(args: {
     manifest: args.manifest,
     metadata: args.metadata,
     textual: args.textual,
+    comic: args.comic,
   };
 }
-

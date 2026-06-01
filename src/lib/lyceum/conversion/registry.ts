@@ -9,11 +9,13 @@ import { EpubImporter } from "../importers/epubImporter";
 import { PdfImporter } from "../importers/pdfImporter";
 import { TxtImporter } from "../importers/txtImporter";
 import { HtmlImporter } from "../importers/htmlImporter";
+import { CbzImporter } from "../importers/cbzImporter";
 import { EpubExporter } from "../exporters/epubExporter";
 import { PdfExporter } from "../exporters/pdfExporter";
 import { TxtExporter } from "../exporters/txtExporter";
 import { HtmlExporter } from "../exporters/htmlExporter";
 import { Azw3Exporter } from "../exporters/azw3Exporter";
+import { KfxExporter } from "../exporters/kfxExporter";
 
 export class ConversionRegistry {
   private importers = new Map<BookFormat, LyceumImporter>();
@@ -66,11 +68,13 @@ export function createDefaultConversionRegistry() {
   registry.registerImporter(new PdfImporter());
   registry.registerImporter(new TxtImporter());
   registry.registerImporter(new HtmlImporter());
+  registry.registerImporter(new CbzImporter());
   registry.registerExporter(new EpubExporter());
   registry.registerExporter(new PdfExporter());
   registry.registerExporter(new TxtExporter());
   registry.registerExporter(new HtmlExporter());
   registry.registerExporter(new Azw3Exporter());
+  registry.registerExporter(new KfxExporter());
 
   return registry;
 }

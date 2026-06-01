@@ -370,16 +370,18 @@ function App() {
       className="lyceum-app relative h-screen w-screen overflow-hidden bg-zinc-800"
       style={{ padding: APP_FRAME_SIZE }}
     >
-       {settings.autoHideEnabled && isElectron && (
+       {settings.autoHideEnabled && isElectron && !panelsVisible && (
          <div
+           data-testid="auto-hide-top-hitbox"
            className="absolute left-0 right-0 top-0 z-[100]"
            style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
            onMouseEnter={showPanelsAfterEdgeIntent}
            onMouseLeave={cancelEdgeIntent}
          />
        )}
-       {settings.autoHideEnabled && isElectron && (
+       {settings.autoHideEnabled && isElectron && !panelsVisible && (
          <div
+           data-testid="auto-hide-left-hitbox"
            className="absolute bottom-0 left-0 top-0 z-[100]"
            style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
            onMouseEnter={showPanelsAfterEdgeIntent}

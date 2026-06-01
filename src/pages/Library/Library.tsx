@@ -3,6 +3,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useDeferredValue,
   useMemo,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -11,6 +12,7 @@ import {
   CheckSquare,
   Copy,
   FolderOpen,
+  GitMerge,
   LayoutGrid,
   List,
   Move,
@@ -88,6 +90,7 @@ export default function Library() {
     new Map(),
   );
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [confirmMergeBooks, setConfirmMergeBooks] = useState(false);
   const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [kindlePanelOpen, setKindlePanelOpen] = useState(false);
@@ -101,16 +104,17 @@ export default function Library() {
     targetFolder: string | null;
     targetFolderName: string;
   }>({ open: false, targetFolder: null, targetFolderName: "" });
+  const deferredSearch = useDeferredValue(search);
 
   const bookQuery = useMemo(
     () => ({
       section: activeSection,
-      search,
+      search: deferredSearch,
       sort,
       fileType: fileTypeFilter,
       folderPath: activeSection === "usb" ? null : selectedFolder,
     }),
-    [activeSection, fileTypeFilter, search, selectedFolder, sort],
+    [activeSection, deferredSearch, fileTypeFilter, selectedFolder, sort],
   );
 
   const {
@@ -477,6 +481,35 @@ export default function Library() {
     [selectedBookMap],
   );
 
+  const displayBooks = useMemo(() => {
+    if (activeSection === "usb") return books;
+
+    const grouped = new Map<string, BookWithThumbnail[]>();
+    const orderedKeys: string[] = [];
+
+    for (const book of books) {
+      const groupKey = book.bookId || book.fileHash;
+      if (!grouped.has(groupKey)) {
+        grouped.set(groupKey, []);
+        orderedKeys.push(groupKey);
+      }
+      grouped.get(groupKey)?.push(book);
+    }
+
+    return orderedKeys.map((groupKey) => {
+      const group = grouped.get(groupKey) || [];
+      const representative =
+        group.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf")) ||
+        group.find((book) => book.fileType === "epub" || book.fileType === "pdf") ||
+        group.find((book) => book.thumbnailPath) ||
+        group.find((book) => book.fileType === "epub") ||
+        group[0];
+      return group.length > 1
+        ? { ...representative, mergedBooks: group }
+        : representative;
+    });
+  }, [activeSection, books]);
+
   useEffect(() => {
     if (kindlePanelOpen && selectedBooks.length === 0) {
       setKindlePanelOpen(false);
@@ -484,8 +517,8 @@ export default function Library() {
   }, [kindlePanelOpen, selectedBooks.length]);
 
   const selectAllFiltered = () => {
-    setSelectedHashes(new Set(books.map((book) => book.fileHash)));
-    setSelectedBookMap(new Map(books.map((book) => [book.fileHash, book])));
+    setSelectedHashes(new Set(displayBooks.map((book) => book.fileHash)));
+    setSelectedBookMap(new Map(displayBooks.map((book) => [book.fileHash, book])));
   };
 
   const openConversionWithSelection = () => {
@@ -516,6 +549,38 @@ export default function Library() {
     await refreshLibraryState();
     toast.success(`${generated} thumbnail${generated !== 1 ? "s" : ""} regenerada${generated !== 1 ? "s" : ""}`);
     if (failed > 0) toast.error(`${failed} thumbnail${failed !== 1 ? "s" : ""} com erro`);
+  };
+
+  const runMergeBooks = async () => {
+    if (selectedBooks.length < 2) return;
+    setBulkBusy(true);
+    try {
+      const fileHashes = Array.from(
+        new Set(
+          selectedBooks.flatMap((book) =>
+            book.mergedBooks?.length
+              ? book.mergedBooks.map((variant) => variant.fileHash)
+              : [book.fileHash],
+          ),
+        ),
+      );
+      const result = await window.api.mergeBooks(fileHashes);
+      if (result.success) {
+        toast.success(
+          `${result.mergedCount} arquivo${result.mergedCount !== 1 ? "s" : ""} mesclado${result.mergedCount !== 1 ? "s" : ""} como um livro`,
+        );
+        clearSelection();
+        setSelectedBook(null);
+        setConfirmMergeBooks(false);
+        await refreshLibraryState();
+      } else {
+        toast.error(result.error || "Erro ao mesclar livros");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao mesclar livros");
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const runBulkDelete = async () => {
@@ -722,6 +787,16 @@ export default function Library() {
                     Enviar para Kindle
                   </button>
                 )}
+                {activeSection !== "usb" && (
+                  <button
+                    onClick={() => setConfirmMergeBooks(true)}
+                    disabled={bulkBusy || selectedBooks.length < 2}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <GitMerge size={14} />
+                    Mesclar livros
+                  </button>
+                )}
                 <button
                   onClick={runBulkRegenerateThumbnails}
                   disabled={bulkBusy}
@@ -755,7 +830,7 @@ export default function Library() {
               </div>
             ) : (
               <BookGrid
-                books={books}
+                books={displayBooks}
                 viewMode={viewMode}
                 gridDensity={gridDensity}
                 onOpen={handleOpen}
@@ -900,6 +975,41 @@ export default function Library() {
                 className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy ? "Removendo..." : "Remover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmMergeBooks && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+            <div className="mb-3 flex items-center gap-2">
+              <GitMerge size={18} className="text-green-400" />
+              <h3 className="text-base font-medium">Mesclar livros</h3>
+            </div>
+            <p className="text-sm text-zinc-400 mb-4">
+              Os arquivos continuarÃ£o separados, mas passarÃ£o a usar os mesmos
+              metadados e a mesma capa na biblioteca. Ao abrir, vocÃª poderÃ¡
+              escolher o formato.
+            </p>
+            <div className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-500">
+              {selectedBooks.length} itens selecionados
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmMergeBooks(false)}
+                disabled={bulkBusy}
+                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={runMergeBooks}
+                disabled={bulkBusy || selectedBooks.length < 2}
+                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 hover:bg-green-400 text-zinc-950 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {bulkBusy ? "Mesclando..." : "Mesclar"}
               </button>
             </div>
           </div>

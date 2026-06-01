@@ -36,11 +36,43 @@ interface NativePdfViewerState {
 }
 
 interface MetadataUpdate {
+  title?: string;
   author?: string;
   description?: string;
   isbn?: string;
   publisher?: string;
   publishDate?: string;
+  language?: string;
+  identifier?: string;
+  asin?: string;
+  subject?: string;
+  series?: string;
+  seriesIndex?: string;
+  authorSort?: string;
+  titleSort?: string;
+  pageCount?: number;
+}
+
+type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
+type MetadataSearchField = "title" | "author" | "isbn";
+
+interface BookMetadataCandidate {
+  id: string;
+  source: "openlibrary" | "google" | "loc";
+  sourceLabel: string;
+  title: string;
+  subtitle?: string;
+  authors: string[];
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  isbn10?: string;
+  isbn13?: string;
+  pageCount?: number;
+  categories: string[];
+  description?: string;
+  thumbnailUrl?: string;
+  externalUrl?: string;
 }
 
 interface BookCategory {
@@ -139,6 +171,14 @@ contextBridge.exposeInMainWorld("api", {
       publisher?: string | null;
       description?: string | null;
       publishDate?: string | null;
+      language?: string | null;
+      identifier?: string | null;
+      asin?: string | null;
+      subject?: string | null;
+      series?: string | null;
+      seriesIndex?: string | null;
+      authorSort?: string | null;
+      titleSort?: string | null;
     }>;
     convertToAzw3?: boolean;
     preserveMetadata?: boolean;
@@ -199,6 +239,8 @@ contextBridge.exposeInMainWorld("api", {
 
   getThumbnail: (thumbnailPath: string) =>
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),
+  getThumbnails: (thumbnailPaths: string[]) =>
+    ipcRenderer.invoke("thumbnail:get-many", thumbnailPaths),
 
   getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
 
@@ -238,6 +280,9 @@ contextBridge.exposeInMainWorld("api", {
   updateNotes: (fileHash: string, notes: string) =>
     ipcRenderer.invoke("book:update-notes", fileHash, notes),
 
+  searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) =>
+    ipcRenderer.invoke("book:search-metadata", source, query, field, limit),
+
   updateMetadata: (fileHash: string, metadata: MetadataUpdate) => 
     ipcRenderer.invoke("book:update-metadata", fileHash, metadata),
 
@@ -265,11 +310,17 @@ contextBridge.exposeInMainWorld("api", {
   setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") =>
     ipcRenderer.invoke("pdf:set-thumbnail", fileHash, imagePath, mode),
 
+  setThumbnailFromUrl: (fileHash: string, imageUrl: string, mode: "replace" | "prepend") =>
+    ipcRenderer.invoke("book:set-thumbnail-from-url", fileHash, imageUrl, mode),
+
   updateBookId: (fileHash: string, bookId: string) =>
     ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
 
   getDocumentsByBookId: (bookId: string) =>
     ipcRenderer.invoke("book:get-by-book-id", bookId),
+
+  mergeBooks: (fileHashes: string[]) =>
+    ipcRenderer.invoke("book:merge", fileHashes),
 
   getDocumentByTitle: (title: string) =>
     ipcRenderer.invoke("book:get-by-title", title),

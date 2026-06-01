@@ -46,6 +46,14 @@ export interface DocumentRecord {
   isbn: string | null;
   publisher: string | null;
   publishDate: string | null;
+  language: string | null;
+  identifier: string | null;
+  asin: string | null;
+  subject: string | null;
+  series: string | null;
+  seriesIndex: string | null;
+  authorSort: string | null;
+  titleSort: string | null;
   fileSize: number;
   processingStatus: "pending" | "processing" | "completed" | "failed";
   bookId: string | null;
@@ -277,6 +285,14 @@ export function initDatabase() {
     isbn TEXT,
     publisher TEXT,
     publishDate TEXT,
+    language TEXT,
+    identifier TEXT,
+    asin TEXT,
+    subject TEXT,
+    series TEXT,
+    seriesIndex TEXT,
+    authorSort TEXT,
+    titleSort TEXT,
     fileSize INTEGER DEFAULT 0,
     processingStatus TEXT DEFAULT 'pending',
     bookId TEXT,
@@ -290,7 +306,8 @@ export function initDatabase() {
 
   const migrationColumns = [
     "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId", "fileType",
+    "description", "isbn", "publisher", "publishDate", "language", "identifier", "asin", "subject",
+    "series", "seriesIndex", "authorSort", "titleSort", "fileSize", "processingStatus", "bookId", "fileType",
     "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt"
   ];
 
@@ -841,6 +858,147 @@ export function getDocumentsByBookId(bookId: string): DocumentRecord[] {
   ).all(bookId);
 }
 
+type SharedMetadata = Pick<
+  DocumentRecord,
+  | "title"
+  | "author"
+  | "description"
+  | "isbn"
+  | "publisher"
+  | "publishDate"
+  | "language"
+  | "identifier"
+  | "asin"
+  | "subject"
+  | "series"
+  | "seriesIndex"
+  | "authorSort"
+  | "titleSort"
+>;
+
+const SHARED_METADATA_FIELDS: (keyof SharedMetadata)[] = [
+  "title",
+  "author",
+  "description",
+  "isbn",
+  "publisher",
+  "publishDate",
+  "language",
+  "identifier",
+  "asin",
+  "subject",
+  "series",
+  "seriesIndex",
+  "authorSort",
+  "titleSort",
+];
+
+function hasMeaningfulValue(value: unknown): boolean {
+  return typeof value === "string" ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+export function mergeDocuments(fileHashes: string[], bookId: string): {
+  success: boolean;
+  bookId: string;
+  mergedCount: number;
+  documents: DocumentRecord[];
+  error?: string;
+} {
+  const uniqueHashes = Array.from(new Set(fileHashes.filter(Boolean)));
+  if (uniqueHashes.length < 2) {
+    return { success: false, bookId, mergedCount: 0, documents: [], error: "Selecione pelo menos dois livros" };
+  }
+
+  const selectedDocs = uniqueHashes
+    .map((fileHash) => getDocumentByHash(fileHash))
+    .filter((doc): doc is DocumentRecord => Boolean(doc));
+
+  if (selectedDocs.length < 2) {
+    return { success: false, bookId, mergedCount: 0, documents: [], error: "Livros nao encontrados" };
+  }
+
+  const existingBookIds = Array.from(
+    new Set(selectedDocs.map((doc) => doc.bookId).filter((value): value is string => Boolean(value))),
+  );
+  const groupedDocs = existingBookIds.flatMap((existingBookId) => getDocumentsByBookId(existingBookId));
+  const allDocsByHash = new Map<string, DocumentRecord>();
+  for (const doc of [...selectedDocs, ...groupedDocs]) {
+    allDocsByHash.set(doc.fileHash, doc);
+  }
+
+  const allDocs = Array.from(allDocsByHash.values());
+  const canonical = selectedDocs[0];
+  const sharedMetadata = SHARED_METADATA_FIELDS.reduce((metadata, field) => {
+    const canonicalValue = canonical[field];
+    const fallbackValue = allDocs.find((doc) => hasMeaningfulValue(doc[field]))?.[field] ?? null;
+    return {
+      ...metadata,
+      [field]: hasMeaningfulValue(canonicalValue) ? canonicalValue : fallbackValue,
+    };
+  }, {} as SharedMetadata);
+  const sharedThumbnailPath =
+    canonical.thumbnailPath ||
+    allDocs.find((doc) => hasMeaningfulValue(doc.thumbnailPath))?.thumbnailPath ||
+    null;
+
+  const updateSql = `
+    UPDATE documents
+    SET bookId = ?,
+        title = ?,
+        author = ?,
+        description = ?,
+        isbn = ?,
+        publisher = ?,
+        publishDate = ?,
+        language = ?,
+        identifier = ?,
+        asin = ?,
+        subject = ?,
+        series = ?,
+        seriesIndex = ?,
+        authorSort = ?,
+        titleSort = ?,
+        thumbnailPath = COALESCE(?, thumbnailPath),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE fileHash = ?
+  `;
+  const update = db.prepare(updateSql);
+
+  const updateMany = db.transaction((docs: DocumentRecord[]) => {
+    for (const doc of docs) {
+      update.run(
+        bookId,
+        sharedMetadata.title,
+        sharedMetadata.author,
+        sharedMetadata.description,
+        sharedMetadata.isbn,
+        sharedMetadata.publisher,
+        sharedMetadata.publishDate,
+        sharedMetadata.language,
+        sharedMetadata.identifier,
+        sharedMetadata.asin,
+        sharedMetadata.subject,
+        sharedMetadata.series,
+        sharedMetadata.seriesIndex,
+        sharedMetadata.authorSort,
+        sharedMetadata.titleSort,
+        sharedThumbnailPath,
+        doc.fileHash,
+      );
+      refreshDocumentSearchIndex(doc.fileHash);
+    }
+  });
+
+  updateMany(allDocs);
+
+  return {
+    success: true,
+    bookId,
+    mergedCount: allDocs.length,
+    documents: allDocs.map((doc) => getDocumentByHash(doc.fileHash)).filter((doc): doc is DocumentRecord => Boolean(doc)),
+  };
+}
+
 export function getDocumentByTitle(title: string): DocumentRecord | undefined {
   return db.prepare<[string], DocumentRecord>(
     `SELECT * FROM documents WHERE title = ? LIMIT 1`
@@ -958,6 +1116,14 @@ export function updateMetadata(
     isbn?: string;
     publisher?: string;
     publishDate?: string;
+    language?: string;
+    identifier?: string;
+    asin?: string;
+    subject?: string;
+    series?: string;
+    seriesIndex?: string;
+    authorSort?: string;
+    titleSort?: string;
   }
 ): void {
   const sets: string[] = [];
@@ -988,6 +1154,38 @@ export function updateMetadata(
     sets.push("publishDate = ?");
     values.push(metadata.publishDate);
   }
+  if (metadata.language !== undefined) {
+    sets.push("language = ?");
+    values.push(metadata.language);
+  }
+  if (metadata.identifier !== undefined) {
+    sets.push("identifier = ?");
+    values.push(metadata.identifier);
+  }
+  if (metadata.asin !== undefined) {
+    sets.push("asin = ?");
+    values.push(metadata.asin);
+  }
+  if (metadata.subject !== undefined) {
+    sets.push("subject = ?");
+    values.push(metadata.subject);
+  }
+  if (metadata.series !== undefined) {
+    sets.push("series = ?");
+    values.push(metadata.series);
+  }
+  if (metadata.seriesIndex !== undefined) {
+    sets.push("seriesIndex = ?");
+    values.push(metadata.seriesIndex);
+  }
+  if (metadata.authorSort !== undefined) {
+    sets.push("authorSort = ?");
+    values.push(metadata.authorSort);
+  }
+  if (metadata.titleSort !== undefined) {
+    sets.push("titleSort = ?");
+    values.push(metadata.titleSort);
+  }
   
   if (sets.length > 0) {
     sets.push("updatedAt = CURRENT_TIMESTAMP");
@@ -1012,6 +1210,28 @@ export function getDocumentsPendingProcessing(): DocumentRecord[] {
 
 export function updateFileSize(fileHash: string, fileSize: number): void {
   db.prepare(`UPDATE documents SET fileSize = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(fileSize, fileHash);
+}
+
+export function updateDocumentFileIdentity(
+  oldFileHash: string,
+  newFileHash: string,
+  filePath: string,
+  fileSize: number,
+): void {
+  db.prepare(
+    `
+    UPDATE documents
+    SET fileHash = ?,
+        filePath = ?,
+        fileName = ?,
+        folderPath = ?,
+        fileMtime = ?,
+        fileSize = ?,
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE fileHash = ?
+  `,
+  ).run(newFileHash, filePath, getFileName(filePath), getFolderPath(filePath), getFileMtime(filePath), fileSize, oldFileHash);
+  refreshDocumentSearchIndex(newFileHash);
 }
 
 export function updateTitle(fileHash: string, newTitle: string): void {
@@ -1080,6 +1300,14 @@ export function getDocumentsForBackup(): {
   isbn: string | null;
   publisher: string | null;
   publishDate: string | null;
+  language: string | null;
+  identifier: string | null;
+  asin: string | null;
+  subject: string | null;
+  series: string | null;
+  seriesIndex: string | null;
+  authorSort: string | null;
+  titleSort: string | null;
   category: string | null;
   processingStatus: string;
   bookId: string | null;

@@ -29,6 +29,9 @@ import {
   extractEpubMetadata,
   getPdfPageCount,
   getEpubChapterCount,
+  getCbzPageCount,
+  validateCbzFile,
+  type BookFileType,
 } from "./document-processing";
 
 const { app } = electron;
@@ -45,10 +48,15 @@ export async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
 
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+    const lowerPath = filePath.toLowerCase();
+    const isEpub = lowerPath.endsWith(".epub");
+    const isCbz = lowerPath.endsWith(".cbz");
+    const isPdf = lowerPath.endsWith(".pdf");
+    const fileType: BookFileType = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
     const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+    if (isCbz) {
+      await validateCbzFile(filePath);
+    }
 
     const existingByPath = getDocumentByPath(filePath);
     const fileHash = generateFileHash(filePath);
@@ -63,7 +71,7 @@ export async function processFile(filePath: string): Promise<void> {
         thumbnailsDir, force: true, fileType, logPrefix: "[LibraryService]",
       });
       if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
-      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+      const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
       return;
     }
@@ -77,8 +85,8 @@ export async function processFile(filePath: string): Promise<void> {
     const category = pathParts.length > 1 ? pathParts[0] : null;
 
     const stats = fs.statSync(filePath);
-    const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
-    const metadata = isPdf ? await extractPdfMetadata(filePath) : await extractEpubMetadata(filePath);
+    const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
+    const metadata = isPdf ? await extractPdfMetadata(filePath) : isCbz ? null : await extractEpubMetadata(filePath);
     const thumbnailPath = await generateThumbnail(filePath, fileHash, {
       thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
     });
@@ -96,7 +104,7 @@ export async function processFile(filePath: string): Promise<void> {
       }
       updateProcessingStatus(fileHash, "completed");
     } else {
-      const ext = isEpub ? ".epub" : ".pdf";
+      const ext = isCbz ? ".cbz" : isEpub ? ".epub" : ".pdf";
       const title = path.basename(filePath, ext);
       addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages || 1, fileType);
       const newDoc = getDocumentByHash(fileHash);

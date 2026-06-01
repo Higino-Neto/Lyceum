@@ -44,6 +44,11 @@ export default function BookCard({
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
+  const formatCount = book.mergedBooks?.length || 1;
+  const formatLabel =
+    formatCount > 1
+      ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
+      : getFileTypeLabel(book.fileType, book.filePath);
 
   useEffect(() => {
     let canceled = false;
@@ -120,12 +125,12 @@ export default function BookCard({
         </div>
       )}
 
-      <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+      <div className="relative aspect-[2/3] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={book.title}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-contain"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -207,7 +212,7 @@ export default function BookCard({
         <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-zinc-500">
           <span>{formatPageCount(book.numPages, book.fileType)}</span>
           <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
-            {getFileTypeLabel(book.fileType, book.filePath)}
+            {formatLabel}
           </span>
         </div>
       </div>

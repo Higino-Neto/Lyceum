@@ -42,6 +42,7 @@ const outputFormats: {
   { value: "epub", label: "EPUB", description: "Leitura fluida" },
   { value: "pdf", label: "PDF", description: "Layout fixo" },
   { value: "azw3", label: "AZW3", description: "Kindle KF8" },
+  { value: "kfx", label: "KFX", description: "Kindle Previewer" },
   { value: "txt", label: "TXT", description: "Texto leve" },
   { value: "html", label: "HTML", description: "Arquivo web" },
 ];
@@ -258,7 +259,7 @@ export default function ConversionPage() {
   const estimatedSize = useMemo(() => {
     const totalEstimated = draftBooks.reduce((sum, book) => {
       const cfg = getBookConfig(book);
-      const multiplier = cfg.targetFormat === "txt" ? 0.22 : cfg.targetFormat === "html" ? 0.7 : 1.05;
+      const multiplier = cfg.targetFormat === "txt" ? 0.22 : cfg.targetFormat === "html" ? 0.7 : cfg.targetFormat === "kfx" ? 1.18 : 1.05;
       return sum + (book.fileSize || 0) * multiplier;
     }, 0);
     if (!totalEstimated) return "-";
@@ -364,7 +365,7 @@ export default function ConversionPage() {
                     ) : (
                       visibleQueue.map((item) => {
                         const estimatedOutputSize = item.outputSize || (() => {
-                          const multiplier = item.targetFormat === "txt" ? 0.22 : item.targetFormat === "html" ? 0.7 : 1.05;
+                          const multiplier = item.targetFormat === "txt" ? 0.22 : item.targetFormat === "html" ? 0.7 : item.targetFormat === "kfx" ? 1.18 : 1.05;
                           return Math.round((item.book.fileSize || 0) * multiplier);
                         })();
 

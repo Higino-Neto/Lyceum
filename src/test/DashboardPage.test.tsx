@@ -4,6 +4,7 @@ import Dashboard from "../pages/DashboardPage/DashboardPage";
 import { createTestQueryClient } from "./helpers/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
+import { AppSettingsProvider } from "../contexts/AppSettingsContext";
 
 vi.mock("../lib/supabase", () => ({
   supabase: {
@@ -106,7 +107,9 @@ const createWrapper = () => {
   });
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <AppSettingsProvider>
+        <BrowserRouter>{children}</BrowserRouter>
+      </AppSettingsProvider>
     </QueryClientProvider>
   );
 };
@@ -200,9 +203,11 @@ describe("DashboardPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
+        <AppSettingsProvider>
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        </AppSettingsProvider>
       </QueryClientProvider>
     );
 
@@ -228,9 +233,11 @@ describe("DashboardPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
+        <AppSettingsProvider>
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        </AppSettingsProvider>
       </QueryClientProvider>
     );
 

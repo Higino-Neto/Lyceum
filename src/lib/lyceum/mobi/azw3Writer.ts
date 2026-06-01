@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { renderDefaultCss } from "../../pdf-to-epub/html";
-import type { LyceumBookMetadata, LyceumTextualContent } from "../schema/types";
+import type { LyceumBookMetadata, LyceumTextualContent, LyceumTextualResource } from "../schema/types";
+import { renderKindleDefaultCss, sanitizeCss } from "../epub/cssSanitizer";
 import { escapeXml, extractBodyHtml, isPlaceholderTitle, normalizeHtmlEntitiesForXhtml, stripHtml } from "../textual";
 
 interface PdbRecord {
@@ -44,6 +45,14 @@ interface Kf8BuildResult {
   sourceEpub: Uint8Array;
   skeletonCount: number;
   fragmentCount: number;
+  unsupportedResourceCount: number;
+  unresolvedInternalLinkCount: number;
+}
+
+interface ImageResourceRecord {
+  resource: LyceumTextualResource;
+  data: Uint8Array;
+  embedIndex: number;
 }
 
 export interface Azw3BuildOptions {
@@ -75,7 +84,13 @@ export interface Azw3BuildResult {
     flisRecord: number;
     fcisRecord: number;
     srcsRecord: number | null;
-  };
+    compressedTextBytes?: number;
+    compressionRatio?: number;
+    anchorOffsetCount?: number;
+    imageResourceCount?: number;
+    coverImageOffset?: number | null;
+    thumbnailImageOffset?: number | null;
+  } & Record<string, number | string | boolean | null | undefined>;
 }
 
 const TEXT_RECORD_SIZE = 4096;
@@ -162,8 +177,36 @@ function deterministicId(value: string): number {
   return hash >>> 0;
 }
 
+function bookIdentifierSeed(metadata: LyceumBookMetadata): string {
+  return [
+    metadata.identifier,
+    metadata.isbn,
+    metadata.title,
+    metadata.author,
+    metadata.publisher,
+    metadata.publishDate,
+  ].filter(Boolean).join(":");
+}
+
+function generateStableIdentifier(seed: string): string {
+  const value = deterministicId(seed || "lyceum");
+  return `urn:uuid:00000000-0000-4000-8000-${value.toString(16).padStart(12, "0")}`;
+}
+
 function normalizeLanguage(language?: string): string {
   return language || "pt-BR";
+}
+
+function metadataString(value: string | string[] | number | undefined): string | undefined {
+  if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean).join("; ") || undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : undefined;
+  return value?.trim() || undefined;
+}
+
+function metadataSubjects(value: LyceumBookMetadata["subject"]): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean);
+  return value.split(";").map((item) => item.trim()).filter(Boolean);
 }
 
 function localeCode(language?: string): number {
@@ -203,16 +246,182 @@ function chapterTitle(chapter: LyceumTextualContent["chapters"][number], index: 
   return isPlaceholderTitle(heading) ? `Capitulo ${index + 1}` : heading!;
 }
 
+function removeDuplicateLeadingHeading(bodyHtml: string, title: string): string {
+  const match = bodyHtml.match(/^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  if (!match) return bodyHtml;
+  return stripHtml(match[1]).trim() === title.trim()
+    ? bodyHtml.slice(match[0].length)
+    : bodyHtml;
+}
+
+function hrefPath(value: string): string {
+  const raw = value.split("#")[0].split("?")[0].replace(/\\/g, "/");
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function dirname(value: string): string {
+  const normalized = hrefPath(value);
+  const slash = normalized.lastIndexOf("/");
+  return slash >= 0 ? normalized.slice(0, slash) : "";
+}
+
+function normalizeContentPath(value: string): string {
+  const parts = hrefPath(value).split("/");
+  const output: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") output.pop();
+    else output.push(part);
+  }
+  return output.join("/");
+}
+
+function resolveContentHref(baseHref: string, href: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#")) return href;
+  const base = dirname(baseHref);
+  return normalizeContentPath(base ? `${base}/${href}` : href);
+}
+
+function resourceBytes(resource: LyceumTextualResource): Uint8Array | null {
+  if (resource.data instanceof ArrayBuffer) return new Uint8Array(resource.data);
+  if (resource.data) return new Uint8Array(resource.data.buffer, resource.data.byteOffset, resource.data.byteLength);
+  return null;
+}
+
+function isKindleImageResource(resource: LyceumTextualResource): boolean {
+  return ["image/jpeg", "image/png", "image/gif"].includes(resource.mediaType.toLowerCase());
+}
+
+function hasResourceProperty(resource: LyceumTextualResource, property: string): boolean {
+  return Boolean(resource.properties?.split(/\s+/).includes(property));
+}
+
+function buildImageResources(textual: LyceumTextualContent): ImageResourceRecord[] {
+  const resources = textual.resources || [];
+  const images: ImageResourceRecord[] = [];
+
+  for (const resource of resources) {
+    const data = resourceBytes(resource);
+    if (!data || data.length === 0 || !isKindleImageResource(resource)) continue;
+    images.push({
+      resource,
+      data,
+      embedIndex: images.length + 1,
+    });
+  }
+
+  return images;
+}
+
+function imageEmbedMap(images: ImageResourceRecord[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const image of images) {
+    map.set(normalizeContentPath(image.resource.href).toLowerCase(), image.embedIndex);
+  }
+  return map;
+}
+
+function buildKf8Css(textual: LyceumTextualContent): string {
+  const resources = textual.resources || [];
+  const cssResources = new Map<string, string>();
+  const embeds = imageEmbedMap(buildImageResources(textual));
+
+  for (const resource of resources) {
+    if (resource.mediaType.toLowerCase() !== "text/css") continue;
+    const data = resourceBytes(resource);
+    if (!data) continue;
+    cssResources.set(normalizeContentPath(resource.href).toLowerCase(), decodeUtf8(data));
+  }
+
+  const parts = [renderKindleDefaultCss()];
+  for (const resource of resources) {
+    if (resource.mediaType.toLowerCase() !== "text/css") continue;
+    const css = cssResources.get(normalizeContentPath(resource.href).toLowerCase());
+    if (!css) continue;
+    const sanitized = sanitizeCss(css, {
+      resolveImport: (href) => cssResources.get(resolveContentHref(resource.href, href).toLowerCase()),
+      rewriteUrl: (href) => {
+        const embed = embeds.get(resolveContentHref(resource.href, href).toLowerCase());
+        return embed ? `kindle:embed:${String(embed).padStart(4, "0")}?mime=image` : undefined;
+      },
+    });
+    if (sanitized.css) parts.push(sanitized.css);
+  }
+
+  return parts.join("\n");
+}
+
+function rewriteResourceReferences(
+  html: string,
+  chapterHref: string,
+  embeds: Map<string, number>,
+  chapterPaths: Set<string>,
+): { html: string; unresolved: number } {
+  let unresolved = 0;
+  const rewrite = (value: string) => {
+    if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("#")) return value;
+    const resolved = resolveContentHref(chapterHref, value).toLowerCase();
+    const embed = embeds.get(resolved);
+    if (!embed) {
+      unresolved += 1;
+      return value;
+    }
+    return `kindle:embed:${String(embed).padStart(4, "0")}?mime=image`;
+  };
+
+  const withAnchors = html.replace(
+    /<a\b([^>]*?)\bhref\s*=\s*(["'])([^"']*)\2([^>]*)>/gi,
+    (_match, before: string, quote: string, value: string, after: string) => {
+      if (!value || value.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(value)) {
+        return `<a${before}href=${quote}${value}${quote}${after}>`;
+      }
+      const [targetPath, fragment = ""] = value.split("#");
+      const resolved = resolveContentHref(chapterHref, targetPath).toLowerCase();
+      if (chapterPaths.has(resolved)) {
+        return fragment
+          ? `<a${before}href=${quote}#${fragment}${quote}${after}>`
+          : `<a${before}${after}>`;
+      }
+      unresolved += 1;
+      return `<a${before}${after}>`;
+    },
+  );
+
+  const withSimpleAttrs = withAnchors.replace(
+    /\b(src|href|xlink:href|poster)\s*=\s*(["'])([^"']*)\2/gi,
+    (_match, name: string, quote: string, value: string) => `${name}=${quote}${rewrite(value)}${quote}`,
+  );
+
+  return {
+    html: withSimpleAttrs.replace(
+      /\bsrcset\s*=\s*(["'])([^"']*)\1/gi,
+      (_match, quote: string, value: string) => {
+        const first = value.split(",")[0]?.trim().split(/\s+/)[0] || "";
+        return `srcset=${quote}${rewrite(first)}${quote}`;
+      },
+    ),
+    unresolved,
+  };
+}
+
 function buildChapterDocument(
   metadata: LyceumBookMetadata,
   chapter: LyceumTextualContent["chapters"][number],
   index: number,
+  bodyHtmlOverride?: string,
 ): string {
   const language = normalizeLanguage(metadata.language);
   const id = buildChapterId(index);
   const sourceId = sanitizeXmlId(chapter.id || "", id);
   const title = chapterTitle(chapter, index);
-  const bodyHtml = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
+  const bodyHtml = removeDuplicateLeadingHeading(
+    bodyHtmlOverride ?? normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml)),
+    title,
+  );
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
@@ -293,6 +502,7 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   combinedHtml: Uint8Array;
   skeletons: SkeletonEntry[];
   fragments: FragmentEntry[];
+  unresolvedInternalLinkCount: number;
 } {
   const skeletons: SkeletonEntry[] = [];
   const fragments: FragmentEntry[] = [];
@@ -300,9 +510,15 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   let absoluteOffset = 0;
   let sequence = 0;
   const aidCounter = { value: 0 };
+  const embeds = imageEmbedMap(buildImageResources(textual));
+  const chapterPaths = new Set(textual.chapters.map((chapter) => normalizeContentPath(chapter.href).toLowerCase()));
+  let unresolvedInternalLinkCount = 0;
 
   textual.chapters.forEach((chapter, index) => {
-    const aided = addAidAttributes(buildChapterDocument(metadata, chapter, index), aidCounter);
+    const body = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
+    const rewritten = rewriteResourceReferences(body, chapter.href, embeds, chapterPaths);
+    unresolvedInternalLinkCount += rewritten.unresolved;
+    const aided = addAidAttributes(buildChapterDocument(metadata, chapter, index, rewritten.html), aidCounter);
     const split = splitSkeletonAndBody(aided);
     const skelBytes = encodeUtf8(split.skeleton);
     const fragBytes = encodeUtf8(split.bodyInner);
@@ -338,6 +554,7 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
     combinedHtml: concatBytes(parts),
     skeletons,
     fragments,
+    unresolvedInternalLinkCount,
   };
 }
 
@@ -378,19 +595,82 @@ function isPalmDocDirectByte(byte: number): boolean {
 
 function compressPalmDocRecord(input: Uint8Array): Uint8Array {
   const output: number[] = [];
+  const recent = new Map<string, number[]>();
+  const maxDistance = 2047;
+  const maxLength = 10;
+  const maxCandidates = 32;
+
+  const keyAt = (offset: number) => (
+    offset + 2 < input.length
+      ? `${input[offset]},${input[offset + 1]},${input[offset + 2]}`
+      : ""
+  );
+
+  const remember = (offset: number) => {
+    const key = keyAt(offset);
+    if (!key) return;
+    const positions = recent.get(key) || [];
+    positions.push(offset);
+    while (positions.length > 0 && offset - positions[0] > maxDistance) positions.shift();
+    while (positions.length > maxCandidates) positions.shift();
+    recent.set(key, positions);
+  };
+
+  const bestMatchAt = (offset: number) => {
+    const key = keyAt(offset);
+    const positions = key ? recent.get(key) : undefined;
+    if (!positions?.length) return { distance: 0, length: 0 };
+
+    let bestDistance = 0;
+    let bestLength = 0;
+    for (let index = positions.length - 1; index >= 0; index -= 1) {
+      const position = positions[index];
+      const distance = offset - position;
+      if (distance <= 0 || distance > maxDistance) continue;
+
+      let length = 0;
+      while (
+        length < maxLength
+        && offset + length < input.length
+        && input[position + length] === input[offset + length]
+      ) {
+        length += 1;
+      }
+
+      if (length > bestLength) {
+        bestLength = length;
+        bestDistance = distance;
+        if (bestLength === maxLength) break;
+      }
+    }
+
+    return bestLength >= 3 ? { distance: bestDistance, length: bestLength } : { distance: 0, length: 0 };
+  };
 
   for (let index = 0; index < input.length; index += 1) {
+    const match = bestMatchAt(index);
+    if (match.length >= 3) {
+      const pair = (match.distance << 3) | (match.length - 3);
+      output.push(0x80 | ((pair >> 8) & 0x3f), pair & 0xff);
+      for (let offset = 0; offset < match.length; offset += 1) remember(index + offset);
+      index += match.length - 1;
+      continue;
+    }
+
     const byte = input[index];
     const next = input[index + 1];
 
     if (byte === 0x20 && next >= 0x40 && next <= 0x7f) {
       output.push(next ^ 0x80);
+      remember(index);
+      remember(index + 1);
       index += 1;
       continue;
     }
 
     if (isPalmDocDirectByte(byte)) {
       output.push(byte);
+      remember(index);
       continue;
     }
 
@@ -412,6 +692,7 @@ function compressPalmDocRecord(input: Uint8Array): Uint8Array {
     output.push(literalLength);
     for (let offset = 0; offset < literalLength; offset += 1) {
       output.push(input[literalStart + offset]);
+      remember(literalStart + offset);
     }
     index += literalLength - 1;
   }
@@ -423,10 +704,10 @@ function splitTextRecordsKf8(rawText: Uint8Array): PdbRecord[] {
   const records: PdbRecord[] = [];
 
   for (let offset = 0; offset < rawText.length; offset += TEXT_RECORD_SIZE) {
-    records.push({ data: compressPalmDocRecord(rawText.slice(offset, offset + TEXT_RECORD_SIZE)) });
+    records.push({ data: concatBytes([compressPalmDocRecord(rawText.slice(offset, offset + TEXT_RECORD_SIZE)), new Uint8Array([0x01])]) });
   }
 
-  return records.length > 0 ? records : [{ data: new Uint8Array([0x00]) }];
+  return records.length > 0 ? records : [{ data: new Uint8Array([0x00, 0x01]) }];
 }
 
 function buildFdstRecord(htmlLength: number, totalLength: number): Uint8Array {
@@ -778,7 +1059,7 @@ function buildFlisRecord(): Uint8Array {
   const view = new DataView(record.buffer);
 
   writeAscii(record, 0, "FLIS");
-  view.setUint32(4, 8, false);
+  view.setUint32(4, record.length, false);
   view.setUint32(8, 0x41, false);
   view.setUint32(12, 0, false);
   view.setUint32(16, 0, false);
@@ -824,27 +1105,56 @@ function buildExthRecord(type: number, payload: Uint8Array): Uint8Array {
   return record;
 }
 
-function buildExth(metadata: LyceumBookMetadata): Uint8Array {
+function buildExth(
+  metadata: LyceumBookMetadata,
+  options: {
+    coverImageOffset?: number | null;
+    thumbnailImageOffset?: number | null;
+  } = {},
+): Uint8Array {
   const records: Uint8Array[] = [];
 
-  const pushString = (type: number, value?: string) => {
-    if (!value) return;
-    records.push(buildExthRecord(type, encodeUtf8(value)));
+  const pushString = (type: number, value?: string | string[] | number) => {
+    const normalized = metadataString(value);
+    if (!normalized) return;
+    records.push(buildExthRecord(type, encodeUtf8(normalized)));
   };
 
   const pushUInt32 = (type: number, value: number) => {
     records.push(buildExthRecord(type, writeUInt32BE(value)));
   };
 
+  const stableIdentifier = generateStableIdentifier(bookIdentifierSeed(metadata));
+  const identifier = metadata.identifier || metadata.isbn || stableIdentifier;
+  const asin = metadata.asin || stableIdentifier;
+
   pushString(100, metadata.author);
   pushString(101, metadata.publisher);
+  pushString(102, metadata.description);
   pushString(103, metadata.description);
-  pushString(104, metadata.identifier);
+  pushString(104, metadata.isbn || metadata.identifier || stableIdentifier);
+  for (const subject of metadataSubjects(metadata.subject)) pushString(105, subject);
   pushString(106, metadata.publishDate);
-  pushString(113, metadata.identifier || `LYCEUM-${deterministicId(metadata.title || "untitled").toString(16)}`);
+  pushString(107, metadata.description);
+  pushString(108, metadata.contributor);
+  pushString(109, metadata.rights);
+  pushString(110, metadata.title || "Untitled");
+  pushString(111, "EBOK");
+  pushString(112, "lyceum");
+  pushString(113, asin || identifier);
+  pushString(114, normalizeLanguage(metadata.language));
+  pushString(115, metadata.authorSort);
+  pushString(118, metadata.titleSort);
+  pushString(119, metadata.series);
   pushString(501, "EBOK");
-  pushString(503, metadata.title || "Untitled");
-  pushString(524, normalizeLanguage(metadata.language));
+  pushUInt32(503, 0);
+  pushUInt32(524, 1);
+  if (typeof options.coverImageOffset === "number" && options.coverImageOffset >= 0) {
+    pushUInt32(201, options.coverImageOffset);
+  }
+  if (typeof options.thumbnailImageOffset === "number" && options.thumbnailImageOffset >= 0) {
+    pushUInt32(202, options.thumbnailImageOffset);
+  }
 
   // Important: no EXTH 121 in KF8-only output. In hybrid MOBI7+KF8 it points
   // to the KF8 record-0 boundary. Pointing it to SRCS breaks strict readers.
@@ -866,6 +1176,8 @@ function buildRecordZero(args: {
   textRecordCount: number;
   firstNonTextRecord: number;
   firstResourceRecord: number;
+  coverImageOffset: number | null;
+  thumbnailImageOffset: number | null;
   fcisRecord: number;
   flisRecord: number;
   srcsRecord: number | null;
@@ -876,7 +1188,10 @@ function buildRecordZero(args: {
 }): Uint8Array {
   const title = args.metadata.title || "Untitled";
   const fullName = encodeUtf8(title);
-  const exth = buildExth(args.metadata);
+  const exth = buildExth(args.metadata, {
+    coverImageOffset: args.coverImageOffset,
+    thumbnailImageOffset: args.thumbnailImageOffset,
+  });
   const fullNameOffset = PALMDOC_HEADER_LENGTH + MOBI_HEADER_LENGTH + exth.length;
   const recordLength = fullNameOffset + fullName.length + 2;
   const record = padToFour(new Uint8Array(recordLength));
@@ -941,9 +1256,8 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 216, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 220, NULL_INDEX, false);
 
-  // Text records use PalmDOC compression only. No extra trailing byte
-  // sequences are appended, so readers can trim/decompress the flow directly.
-  view.setUint32(MOBI_HEADER_OFFSET + 224, 0, false);
+  // KF8 trailing-data size marker appended to each text record.
+  view.setUint32(MOBI_HEADER_OFFSET + 224, 2, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 228, args.ncxIndexRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 232, args.fragmentIndexRecord, false);
@@ -1071,8 +1385,8 @@ function buildKf8Section(
   textual: LyceumTextualContent,
   sourceEpub: Uint8Array = new Uint8Array(),
 ): Kf8BuildResult {
-  const { combinedHtml, skeletons, fragments } = buildKf8HtmlParts(metadata, textual);
-  const cssBytes = encodeUtf8(renderDefaultCss());
+  const { combinedHtml, skeletons, fragments, unresolvedInternalLinkCount } = buildKf8HtmlParts(metadata, textual);
+  const cssBytes = encodeUtf8(buildKf8Css(textual));
   const htmlLength = combinedHtml.length;
   const combinedText = concatBytes([combinedHtml, cssBytes]);
   const textRecords = splitTextRecordsKf8(combinedText);
@@ -1096,6 +1410,8 @@ function buildKf8Section(
     sourceEpub,
     skeletonCount: skeletons.length,
     fragmentCount: fragments.length,
+    unsupportedResourceCount: 0,
+    unresolvedInternalLinkCount,
   };
 }
 
@@ -1130,7 +1446,7 @@ function buildPdb(name: string, records: PdbRecord[]): ArrayBuffer {
   writeAscii(output, 60, "BOOK");
   writeAscii(output, 64, "MOBI");
 
-  view.setUint32(68, 0, false);
+  view.setUint32(68, deterministicId(name), false);
   view.setUint32(72, 0, false);
   view.setUint16(76, records.length, false);
 
@@ -1156,8 +1472,14 @@ function assertRecordMagic(records: PdbRecord[], index: number, magic: string): 
 
 function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedSource: boolean): Azw3BuildResult {
   const textRecordCount = kf8.textRecords.length;
+  const imageResources = buildImageResources(options.textual);
+  const imageRecords: PdbRecord[] = imageResources.map((image) => ({ data: image.data }));
+  const imageResourceCount = imageRecords.length;
+  const firstImageRecord = imageResourceCount > 0 ? textRecordCount + 1 : null;
+  const coverImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "cover-image"));
+  const thumbnailImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "kindle-thumbnail"));
 
-  const fragmentIndexRecord = textRecordCount + 1;
+  const fragmentIndexRecord = textRecordCount + 1 + imageResourceCount;
   const fragmentCncxRecord = fragmentIndexRecord + kf8.fragmentIndx.length;
   const skeletonIndexRecord = fragmentCncxRecord + kf8.fragmentCncx.length;
   const ncxIndexRecord = skeletonIndexRecord + kf8.skeletonIndx.length;
@@ -1168,10 +1490,11 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
   const fcisRecord = flisRecord + 1;
   const srcsRecord = embedSource ? fcisRecord + 1 : null;
   const eofRecord = embedSource ? fcisRecord + 2 : fcisRecord + 1;
-  const firstNonTextRecord = fragmentIndexRecord;
-  const firstResourceRecord = NULL_INDEX;
+  const firstNonTextRecord = firstImageRecord ?? fragmentIndexRecord;
+  const firstResourceRecord = firstImageRecord ?? NULL_INDEX;
 
   const nonBookRecords: PdbRecord[] = [
+    ...imageRecords,
     ...kf8.fragmentIndx.map((data) => ({ data })),
     ...kf8.fragmentCncx.map((data) => ({ data })),
     ...kf8.skeletonIndx.map((data) => ({ data })),
@@ -1195,6 +1518,8 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     textRecordCount,
     firstNonTextRecord,
     firstResourceRecord,
+    coverImageOffset: coverImageOffset >= 0 ? coverImageOffset : null,
+    thumbnailImageOffset: thumbnailImageOffset >= 0 ? thumbnailImageOffset : null,
     fcisRecord,
     flisRecord,
     srcsRecord,
@@ -1231,10 +1556,23 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
       textRecordCount,
       recordCount: records.length,
       rawTextBytes: kf8.textLength,
+      compressedTextBytes: kf8.textRecords.reduce((sum, record) => sum + record.data.length, 0),
+      compressionRatio: kf8.textLength > 0
+        ? Number((kf8.textRecords.reduce((sum, record) => sum + record.data.length, 0) / kf8.textLength).toFixed(4))
+        : 1,
       htmlLength: kf8.htmlLength,
       totalTextLength: kf8.totalTextLength,
       skeletonCount: kf8.skeletonCount,
       fragmentCount: kf8.fragmentCount,
+      anchorOffsetCount: 0,
+      tocItemCount: options.textual.toc.length,
+      maxTocDepth: options.textual.toc.reduce((max, item) => Math.max(max, item.level || 1), 0),
+      imageResourceCount,
+      firstImageRecord,
+      coverImageOffset: coverImageOffset >= 0 ? coverImageOffset : null,
+      thumbnailImageOffset: thumbnailImageOffset >= 0 ? thumbnailImageOffset : null,
+      unsupportedResourceCount: kf8.unsupportedResourceCount,
+      unresolvedInternalLinkCount: kf8.unresolvedInternalLinkCount,
       fdstRecord,
       fragmentIndexRecord,
       skeletonIndexRecord,

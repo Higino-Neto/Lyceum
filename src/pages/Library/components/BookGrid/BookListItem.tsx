@@ -1,5 +1,5 @@
 import { Check, Copy, FileText, Move, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -9,6 +9,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import { useLazyThumbnail } from "./useLazyThumbnail";
 
 export interface ExplorerColumns {
   name: number;
@@ -37,7 +38,7 @@ interface BookListItemProps {
   columns: ExplorerColumns;
 }
 
-export default function BookListItem({
+function BookListItem({
   book,
   onOpen,
   onSync,
@@ -54,24 +55,12 @@ export default function BookListItem({
   onContextSelect,
   columns,
 }: BookListItemProps) {
-  const [thumbnail, setThumbnail] = useState(book.thumbnail);
-
-  useEffect(() => {
-    let canceled = false;
-    setThumbnail(book.thumbnail);
-
-    if (!book.thumbnail && book.thumbnailPath) {
-      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
-        if (!canceled) {
-          setThumbnail(value || undefined);
-        }
-      });
-    }
-
-    return () => {
-      canceled = true;
-    };
-  }, [book.thumbnail, book.thumbnailPath]);
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+  const formatCount = book.mergedBooks?.length || 1;
+  const formatLabel =
+    formatCount > 1
+      ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
+      : getFileTypeLabel(book.fileType, book.filePath);
 
   const handleClick = () => {
     if (selectionMode) {
@@ -134,12 +123,12 @@ export default function BookListItem({
         >
           <Check size={13} />
         </div>
-        <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
+        <div ref={thumbnailRef} className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
           {thumbnail ? (
             <img
               src={thumbnail}
               alt={book.title}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
@@ -156,7 +145,7 @@ export default function BookListItem({
         {getBookFolderLabel(book.filePath)}
       </div>
       <div className="px-3 py-2 text-xs text-zinc-400">
-        {getFileTypeLabel(book.fileType, book.filePath)}
+        {formatLabel}
       </div>
       <div className="px-3 py-2 text-xs text-zinc-400">
         {formatPageCount(book.numPages, book.fileType)}
@@ -209,3 +198,42 @@ export default function BookListItem({
     </div>
   );
 }
+
+function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbnail) {
+  return (
+    previous.id === next.id &&
+    previous.fileHash === next.fileHash &&
+    previous.title === next.title &&
+    previous.filePath === next.filePath &&
+    previous.thumbnail === next.thumbnail &&
+    previous.thumbnailPath === next.thumbnailPath &&
+    previous.numPages === next.numPages &&
+    previous.fileType === next.fileType &&
+    previous.fileSize === next.fileSize &&
+    previous.lastOpenedAt === next.lastOpenedAt &&
+    previous.createdAt === next.createdAt &&
+    previous.processingStatus === next.processingStatus &&
+    previous.mergedBooks?.length === next.mergedBooks?.length
+  );
+}
+
+function areColumnsEqual(previous: ExplorerColumns, next: ExplorerColumns) {
+  return (
+    previous.name === next.name &&
+    previous.folder === next.folder &&
+    previous.type === next.type &&
+    previous.pages === next.pages &&
+    previous.modified === next.modified &&
+    previous.size === next.size
+  );
+}
+
+export default memo(BookListItem, (previous, next) => (
+  areBooksEqual(previous.book, next.book) &&
+  previous.showSyncActions === next.showSyncActions &&
+  previous.isSelected === next.isSelected &&
+  previous.selectionMode === next.selectionMode &&
+  previous.isChecked === next.isChecked &&
+  previous.selectedCount === next.selectedCount &&
+  areColumnsEqual(previous.columns, next.columns)
+));

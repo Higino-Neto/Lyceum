@@ -1,8 +1,8 @@
 export const LOCAL_BOOK_PREFIX = "local-";
 
 export const getTitleWithoutExtension = (title: string, fileType?: string) => {
-  if (fileType === "epub") {
-    return title.replace(/\.epub$/i, "");
+  if (fileType) {
+    return title.replace(new RegExp(`\\.${fileType}$`, "i"), "");
   }
   return title.replace(/\.pdf$/i, "");
 };
