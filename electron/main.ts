@@ -97,11 +97,13 @@ import { PDFDocument } from "pdf-lib";
 import type { EpubAsset, ImageCandidate } from "../src/lib/pdf-to-epub";
 import type { BookFormat } from "../src/lib/lyceum";
 
-process.env.APP_ROOT = path.join(__dirname, "..");
+const bundledFromChunksDir = path.basename(__dirname) === "chunks";
+process.env.APP_ROOT = path.resolve(__dirname, bundledFromChunksDir ? "../.." : "..");
 
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+const PRELOAD_ENTRY = path.join(MAIN_DIST, "preload.cjs");
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -2327,7 +2329,7 @@ function createAppWindow(
     frame: false,
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: PRELOAD_ENTRY,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
