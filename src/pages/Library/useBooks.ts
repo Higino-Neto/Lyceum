@@ -43,6 +43,10 @@ function getUsbApi(): UsbBooksApi {
   return window.api as unknown as UsbBooksApi;
 }
 
+function hasLibraryApi(): boolean {
+  return !!window.api?.listBooks;
+}
+
 async function loadPage(options: UseBooksOptions, offset: number): Promise<LibraryListResult> {
   if (options.section === "usb") {
     return getUsbApi().listUsbBooks({
@@ -100,6 +104,7 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
 export default function useBooks(options: UseBooksOptions) {
   const queryClient = useQueryClient();
   const booksQueryKey = useMemo(() => ["books", options] as const, [options]);
+  const apiAvailable = hasLibraryApi();
 
   const booksQuery = useInfiniteQuery({
     queryKey: booksQueryKey,
@@ -107,18 +112,21 @@ export default function useBooks(options: UseBooksOptions) {
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.offset + lastPage.limit : undefined,
+    enabled: apiAvailable,
   });
 
   const countsQuery = useQuery({
     queryKey: ["book-counts", options],
     queryFn: () => loadCounts(options),
     staleTime: 30_000,
+    enabled: apiAvailable,
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
     queryFn: () => window.api.getCategories(),
     staleTime: 60_000,
+    enabled: apiAvailable,
   });
 
   const books = useMemo(
@@ -141,14 +149,16 @@ export default function useBooks(options: UseBooksOptions) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const fetchNextPage = useCallback(() => {
+    if (!apiAvailable) return;
     booksQuery.fetchNextPage();
-  }, [booksQuery]);
+  }, [apiAvailable, booksQuery]);
 
   const refreshBooks = useCallback(() => {
+    if (!apiAvailable) return;
     queryClient.resetQueries({ queryKey: booksQueryKey, exact: true });
     queryClient.refetchQueries({ queryKey: ["book-counts"] });
     queryClient.refetchQueries({ queryKey: ["categories"] });
-  }, [queryClient, booksQueryKey]);
+  }, [apiAvailable, queryClient, booksQueryKey]);
 
   const handleSync = async (
     fileHash: string,

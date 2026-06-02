@@ -67,6 +67,7 @@ interface OpenBookResult {
 export default function Library() {
   const navigate = useNavigate();
   const { prepareBooks } = useConversionQueue();
+  const electronApiAvailable = !!window.api?.listBooks;
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [gridDensity, setGridDensity] = useState<GridDensity>("comfortable");
@@ -129,38 +130,42 @@ export default function Library() {
   } = useBooks(bookQuery);
 
   const loadLocalDocs = useCallback(async () => {
+    if (!electronApiAvailable) return;
     try {
       const docs = await window.api.getDocuments();
       setLocalDocuments(docs);
     } catch (error) {
       console.error("Error loading local documents:", error);
     }
-  }, []);
+  }, [electronApiAvailable]);
 
   const loadLibraryFolders = useCallback(async () => {
+    if (!electronApiAvailable) return;
     try {
       const folders = await window.api.getAllFolders();
       setLibraryFolders(folders);
     } catch (error) {
       console.error("Error loading library folders:", error);
     }
-  }, []);
+  }, [electronApiAvailable]);
 
   const refreshLibraryState = useCallback(async () => {
     await Promise.all([refreshBooks(), loadLocalDocs(), loadLibraryFolders()]);
   }, [loadLibraryFolders, loadLocalDocs, refreshBooks]);
 
   useEffect(() => {
+    if (!electronApiAvailable || !window.api.onLibraryUpdated) return;
     const unsubscribe = window.api.onLibraryUpdated(refreshLibraryState);
     return () => unsubscribe();
-  }, [refreshLibraryState]);
+  }, [electronApiAvailable, refreshLibraryState]);
 
   useEffect(() => {
+    if (!electronApiAvailable) return;
     const onUsbDevicesUpdated = (window.api as unknown as UsbLibraryApi).onUsbDevicesUpdated;
     if (!onUsbDevicesUpdated) return;
     const unsubscribe = onUsbDevicesUpdated(refreshLibraryState);
     return () => unsubscribe();
-  }, [refreshLibraryState]);
+  }, [electronApiAvailable, refreshLibraryState]);
 
   useEffect(() => {
     refreshLibraryState();
@@ -607,6 +612,19 @@ export default function Library() {
     }
     if (failed > 0) toast.error(`${failed} item${failed !== 1 ? "s" : ""} não removido${failed !== 1 ? "s" : ""}`);
   };
+
+  if (!electronApiAvailable) {
+    return (
+      <div className="lyceum-page-library flex h-full min-h-0 items-center justify-center bg-zinc-950 p-6 text-zinc-100">
+        <div className="max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-5 text-sm text-zinc-300">
+          <h1 className="mb-2 text-base font-semibold text-zinc-100">Backend do Electron indisponivel</h1>
+          <p className="text-zinc-400">
+            A biblioteca e as conversoes dependem do preload do Electron. Abra o app pelo processo Electron em vez do navegador em localhost.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lyceum-page-library flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">

@@ -96,6 +96,7 @@ export default function FolderTree({
   draggingBookHashes = [],
   onImportBook,
 }: FolderTreeProps) {
+  const electronApiAvailable = !!window.api?.getFolderStructure;
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -133,6 +134,7 @@ export default function FolderTree({
   const isDropTarget = dragOver === "root";
 
   const loadFolders = async () => {
+    if (!electronApiAvailable) return;
     setLoading(true);
     try {
       const structure = await window.api.getFolderStructure();
@@ -159,8 +161,9 @@ export default function FolderTree({
   };
 
   useEffect(() => {
+    if (!electronApiAvailable) return;
     loadFolders();
-  }, []);
+  }, [electronApiAvailable]);
 
   const filteredFolders = useMemo(() => {
     return filterFolders(folders, searchTerm);
@@ -421,8 +424,9 @@ export default function FolderTree({
   const [libraryPath, setLibraryPath] = useState<string>("");
 
   useEffect(() => {
+    if (!electronApiAvailable || !window.api.getLibraryPath) return;
     window.api.getLibraryPath().then(setLibraryPath);
-  }, []);
+  }, [electronApiAvailable]);
 
   const countDocsInFolder = (folderPath: string | null): number => {
     if (!libraryPath || !localDocuments.length) return 0;
