@@ -219,7 +219,7 @@ export default function BookGrid({
   if (viewMode === "grid") {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-y-auto pr-1">
           {topContent}
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
             {virtualRows.map((virtualRow) => {
@@ -269,7 +269,7 @@ export default function BookGrid({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto pr-1">
+      <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto pr-1">
         {topContent}
         <div className="min-w-max space-y-1">
           <div

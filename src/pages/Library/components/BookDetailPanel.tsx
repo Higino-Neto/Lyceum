@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   Trash2,
@@ -54,6 +54,36 @@ interface ConversionTarget {
   reason?: string;
 }
 
+function DetailSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4 p-4">
+      <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
+        <div className="aspect-[3/4] rounded-md bg-zinc-800" />
+        <div className="space-y-3">
+          <div className="h-4 w-20 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-28 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-24 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-32 rounded-sm bg-zinc-800" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
+        <div className="h-6 w-48 rounded-sm bg-zinc-800" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
+        <div className="h-5 w-36 rounded-sm bg-zinc-800" />
+      </div>
+      <div className="h-10 w-full rounded-sm bg-zinc-800" />
+      <div className="grid grid-cols-3 gap-2">
+        <div className="h-10 rounded-sm bg-zinc-800" />
+        <div className="h-10 rounded-sm bg-zinc-800" />
+        <div className="h-10 rounded-sm bg-zinc-800" />
+      </div>
+    </div>
+  );
+}
+
 export default function BookDetailPanel({
   book,
   onClose,
@@ -101,6 +131,31 @@ export default function BookDetailPanel({
   const [conversionTargets, setConversionTargets] = useState<ConversionTarget[]>([]);
   const [selectedConversionTarget, setSelectedConversionTarget] = useState<ConversionFormat | null>(null);
   const isConverting = isConvertingToEpub || isConvertingToPdf;
+
+  const prevHashRef = useRef<string | undefined>(undefined);
+  const wasPanelOpenRef = useRef(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (!book) {
+      wasPanelOpenRef.current = false;
+      return;
+    }
+
+    if (!wasPanelOpenRef.current) {
+      wasPanelOpenRef.current = true;
+      prevHashRef.current = book.fileHash;
+      return;
+    }
+
+    if (book.fileHash === prevHashRef.current) return;
+
+    prevHashRef.current = book.fileHash;
+    setIsTransitioning(true);
+    requestAnimationFrame(() => {
+      setIsTransitioning(false);
+    });
+  }, [book]);
 
   useEffect(() => {
     if (book.filePath) {

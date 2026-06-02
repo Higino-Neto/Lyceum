@@ -5,6 +5,8 @@ import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const optionalCanvasStub = path.resolve(__dirname, "scripts/shims/canvas-optional.cjs");
+
 export default defineConfig({
   plugins: [
     react(),
@@ -17,7 +19,7 @@ export default defineConfig({
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
-              external: ["better-sqlite3", "bindings", "adm-zip"],
+              external: ["better-sqlite3", "bindings", "adm-zip", "canvas"],
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
@@ -94,6 +96,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      canvas: optionalCanvasStub,
       crypto: "node:crypto",
     },
   },
