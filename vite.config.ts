@@ -20,6 +20,11 @@ export default defineConfig({
             sourcemap: false,
             rollupOptions: {
               external: ["better-sqlite3", "bindings", "adm-zip"],
+              output: {
+                entryFileNames: "[name].js",
+                chunkFileNames: "chunks/[name].js",
+                assetFileNames: "assets/[name][extname]",
+              },
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,

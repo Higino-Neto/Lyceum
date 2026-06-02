@@ -509,8 +509,6 @@ export default function BookDetailPanel({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
-      {!book ? null : (
-        <>
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
         <h2 className="text-base font-semibold text-zinc-100">Detalhes do Livro</h2>
         <button
@@ -917,6 +915,7 @@ export default function BookDetailPanel({
         </>
         )}
       </div>
+      </div>
 
       {showConversionDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -997,9 +996,6 @@ export default function BookDetailPanel({
           </div>
         </div>
       )}
-        </>
-      )}
-    </div>
     </div>
   );
 }
