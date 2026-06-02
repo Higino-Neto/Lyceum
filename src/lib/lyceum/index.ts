@@ -13,3 +13,4 @@ export * from "./kfx/kindlePreviewer";
 export * from "./kfx/kfxPipeline";
 export * from "./kfx/kpfToKfxAssembler";
 export * from "./exporters/kfxExporter";
+export * from "./exporters/lyceumExporter";

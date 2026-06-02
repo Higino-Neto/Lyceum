@@ -85,6 +85,24 @@ function validateMetadata(value: unknown): LyceumBookMetadata {
     publisher: optionalString(metadata, "publisher"),
     description: optionalString(metadata, "description"),
     publishDate: optionalString(metadata, "publishDate"),
+    subject: Array.isArray(metadata.subject)
+      ? metadata.subject.filter((item): item is string => typeof item === "string")
+      : optionalString(metadata, "subject"),
+    rights: optionalString(metadata, "rights"),
+    contributor: optionalString(metadata, "contributor"),
+    authorSort: optionalString(metadata, "authorSort"),
+    titleSort: optionalString(metadata, "titleSort"),
+    series: optionalString(metadata, "series"),
+    seriesIndex: optionalString(metadata, "seriesIndex"),
+    groupPosition: optionalString(metadata, "groupPosition"),
+    displaySeq: optionalString(metadata, "displaySeq"),
+    isbn: optionalString(metadata, "isbn"),
+    asin: optionalString(metadata, "asin"),
+    rating: typeof metadata.rating === "number" && Number.isFinite(metadata.rating) ? metadata.rating : undefined,
+    timestamp: optionalString(metadata, "timestamp"),
+    coverResourceId: optionalString(metadata, "coverResourceId"),
+    coverHref: optionalString(metadata, "coverHref"),
+    coverPageHref: optionalString(metadata, "coverPageHref"),
   };
 }
 
@@ -191,6 +209,7 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     href: item.href,
     title: item.title,
     xhtml: fs.readFileSync(textualChapterPath(rootPath, item.href), "utf8"),
+    mediaType: "application/xhtml+xml",
   }));
 
   return {

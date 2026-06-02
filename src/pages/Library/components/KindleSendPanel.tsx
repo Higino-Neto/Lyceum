@@ -83,7 +83,7 @@ interface KindleSendPanelProps {
   onSent?: () => void;
 }
 
-const CONVERTIBLE_TO_AZW3 = new Set(["pdf", "epub", "txt", "html"]);
+const CONVERTIBLE_TO_AZW3 = new Set(["pdf", "epub", "txt", "html", "cbz"]);
 const DIRECT_KINDLE_FORMATS = new Set(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
 const DEFAULT_DESTINATION = "documents/Downloads";
 

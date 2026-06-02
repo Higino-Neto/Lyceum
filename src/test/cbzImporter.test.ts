@@ -11,6 +11,7 @@ import {
   listTargetsForSourceFormat,
   parseCbzBuffer,
   readLyceumPackage,
+  validateAzw3File,
 } from "../lib/lyceum";
 
 async function imageBuffer(format: "jpeg" | "png" | "webp" = "jpeg") {
@@ -65,7 +66,78 @@ describe("CBZ importer", () => {
     expect(pkg.comic?.pageCount).toBe(2);
     expect(pkg.textual?.chapters).toHaveLength(2);
     expect(pkg.textual?.resources?.[0].properties).toContain("cover-image");
+    expect(pkg.metadata.coverHref).toBe("images/page-0001.jpg");
+    expect(pkg.metadata.coverPageHref).toBe("pages/page-0001.xhtml");
     expect(fs.existsSync(outputPath)).toBe(true);
+  });
+
+  it("converts CBZ through .lyceum into the reusable output formats", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-cbz-targets-"));
+    const sourcePath = path.join(tempDir, "Comic.cbz");
+    const jpg = await imageBuffer("jpeg");
+    fs.writeFileSync(sourcePath, await buildCbz([
+      { name: "page 1.jpg", data: jpg },
+      { name: "page 2.jpg", data: jpg },
+    ]));
+
+    const targets = ["lyceum", "epub", "html", "txt", "pdf", "azw3"] as const;
+    for (const targetFormat of targets) {
+      const outputPath = path.join(tempDir, `comic.${targetFormat}`);
+      const result = await convertViaLyceum({
+        sourcePath,
+        sourceFormat: "cbz",
+        targetFormat,
+        packageRoot: path.join(tempDir, `${targetFormat}.lyceum`),
+        outputPath,
+      });
+
+      expect(result.importReport.stats.pageCount).toBe(2);
+      expect(fs.existsSync(outputPath)).toBe(true);
+
+      if (targetFormat === "lyceum") {
+        expect(fs.statSync(outputPath).isDirectory()).toBe(true);
+        expect(readLyceumPackage(outputPath).comic?.pageCount).toBe(2);
+      } else if (targetFormat === "html") {
+        const html = fs.readFileSync(outputPath, "utf8");
+        expect(html).toContain("comic_files/images/page-0001.jpg");
+        expect(fs.existsSync(path.join(tempDir, "comic_files", "images", "page-0001.jpg"))).toBe(true);
+      } else if (targetFormat === "txt") {
+        expect(fs.readFileSync(outputPath, "utf8")).toContain("Pagina 1");
+      } else if (targetFormat === "pdf") {
+        expect(fs.readFileSync(outputPath).subarray(0, 4).toString("ascii")).toBe("%PDF");
+      } else if (targetFormat === "azw3") {
+        const validation = validateAzw3File(outputPath);
+        expect(validation.valid).toBe(true);
+        expect(result.exportReport.stats.imageResourceCount).toBe(3);
+        expect(result.exportReport.stats.thumbnailGenerated).toBe(true);
+      } else {
+        const zip = await JSZip.loadAsync(fs.readFileSync(outputPath));
+        expect(zip.file("OEBPS/images/page-0001.jpg")).toBeTruthy();
+        expect(await zip.file("OEBPS/content.opf")?.async("text")).toContain('name="cover"');
+      }
+    }
+  });
+
+  it("prepares non-Kindle CBZ images before AZW3 export", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-cbz-webp-"));
+    const sourcePath = path.join(tempDir, "Web Comic.cbz");
+    const outputPath = path.join(tempDir, "web-comic.azw3");
+    fs.writeFileSync(sourcePath, await buildCbz([
+      { name: "1.webp", data: await imageBuffer("webp") },
+    ]));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "cbz",
+      targetFormat: "azw3",
+      packageRoot: path.join(tempDir, "web-comic.lyceum"),
+      outputPath,
+    });
+    const validation = validateAzw3File(outputPath);
+
+    expect(validation.valid).toBe(true);
+    expect(result.exportReport.stats.convertedImageCount).toBe(1);
+    expect(result.exportReport.stats.thumbnailGenerated).toBe(true);
   });
 
   it("sorts pages with natural ordering", async () => {
@@ -144,7 +216,9 @@ describe("CBZ importer", () => {
       "html",
       "azw3",
       "kfx",
+      "lyceum",
     ]);
     expect(listTargetsForSourceFormat("cbz").map((target) => target.format)).toContain("epub");
+    expect(listTargetsForSourceFormat("cbz").map((target) => target.format)).toContain("lyceum");
   });
 });

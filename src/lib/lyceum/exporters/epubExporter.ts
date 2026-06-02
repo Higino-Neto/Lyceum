@@ -188,6 +188,10 @@ function renderOpf(args: {
       return `    <item id="${escapeXml(resource.id)}" href="${escapeXml(resource.href)}" media-type="${escapeXml(resource.mediaType)}"${properties} />`;
     })
     .join("\n");
+  const coverResource = args.resources.find((resource) => resource.properties?.split(/\s+/).includes("cover-image"));
+  const coverMeta = coverResource
+    ? `    <meta name="cover" content="${escapeXml(coverResource.id)}" />`
+    : "";
   const defaultCss = args.defaultCss
     ? `    <item id="lyceum-css" href="styles/book.css" media-type="text/css" />`
     : "";
@@ -204,6 +208,7 @@ function renderOpf(args: {
     ${args.metadata.description ? `<dc:description>${escapeXml(args.metadata.description)}</dc:description>` : ""}
     <meta property="dcterms:modified">${escapeXml(modified)}</meta>
     <meta name="generator" content="Lyceum" />
+${coverMeta}
   </metadata>
   <manifest>
     <item id="nav" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav" />

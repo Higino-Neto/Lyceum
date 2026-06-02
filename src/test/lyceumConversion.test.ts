@@ -191,6 +191,7 @@ describe("lyceum conversion core", () => {
       "html",
       "azw3",
       "kfx",
+      "lyceum",
     ]);
   });
 
@@ -424,7 +425,7 @@ describe("lyceum conversion core", () => {
     expect(validation.metadata.hasIndx).toBe(true);
     expect(validation.metadata.hasEof).toBe(true);
     expect(view.getUint32(recordZeroOffset + 128, false) & 0x40).toBe(0x40);
-    expect(view.getUint32(mobiOffset + 224, false)).toBe(0);
+    expect(view.getUint32(mobiOffset + 224, false)).toBe(2);
     expect(result.exportReport.stats.chapterCount).toBe(2);
     expect(result.exportReport.stats.fragmentCount).toBe(2);
     expect(result.exportReport.stats.backend).toBe("lyceum-manual");

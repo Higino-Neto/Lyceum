@@ -10,7 +10,7 @@ import {
 import toast from "react-hot-toast";
 import { BookWithThumbnail } from "../types/LibraryTypes";
 
-export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx";
+export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
 export type ConversionQueueStatus = "pending" | "running" | "done" | "error";
 

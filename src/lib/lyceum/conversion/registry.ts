@@ -16,6 +16,7 @@ import { TxtExporter } from "../exporters/txtExporter";
 import { HtmlExporter } from "../exporters/htmlExporter";
 import { Azw3Exporter } from "../exporters/azw3Exporter";
 import { KfxExporter } from "../exporters/kfxExporter";
+import { LyceumPackageExporter } from "../exporters/lyceumExporter";
 
 export class ConversionRegistry {
   private importers = new Map<BookFormat, LyceumImporter>();
@@ -75,6 +76,7 @@ export function createDefaultConversionRegistry() {
   registry.registerExporter(new HtmlExporter());
   registry.registerExporter(new Azw3Exporter());
   registry.registerExporter(new KfxExporter());
+  registry.registerExporter(new LyceumPackageExporter());
 
   return registry;
 }

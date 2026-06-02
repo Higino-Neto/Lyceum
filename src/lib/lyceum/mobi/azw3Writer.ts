@@ -1475,11 +1475,10 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
   const imageResources = buildImageResources(options.textual);
   const imageRecords: PdbRecord[] = imageResources.map((image) => ({ data: image.data }));
   const imageResourceCount = imageRecords.length;
-  const firstImageRecord = imageResourceCount > 0 ? textRecordCount + 1 : null;
   const coverImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "cover-image"));
   const thumbnailImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "kindle-thumbnail"));
 
-  const fragmentIndexRecord = textRecordCount + 1 + imageResourceCount;
+  const fragmentIndexRecord = textRecordCount + 1;
   const fragmentCncxRecord = fragmentIndexRecord + kf8.fragmentIndx.length;
   const skeletonIndexRecord = fragmentCncxRecord + kf8.fragmentCncx.length;
   const ncxIndexRecord = skeletonIndexRecord + kf8.skeletonIndx.length;
@@ -1489,12 +1488,14 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
   const flisRecord = datpRecord + 1;
   const fcisRecord = flisRecord + 1;
   const srcsRecord = embedSource ? fcisRecord + 1 : null;
-  const eofRecord = embedSource ? fcisRecord + 2 : fcisRecord + 1;
-  const firstNonTextRecord = firstImageRecord ?? fragmentIndexRecord;
-  const firstResourceRecord = firstImageRecord ?? NULL_INDEX;
+  const firstImageRecord = imageResourceCount > 0
+    ? (srcsRecord !== null ? srcsRecord + 1 : fcisRecord + 1)
+    : null;
+  const eofRecord = (firstImageRecord ?? (srcsRecord !== null ? srcsRecord + 1 : fcisRecord + 1)) + imageResourceCount;
+  const firstNonTextRecord = fragmentIndexRecord;
+  const firstResourceRecord = firstImageRecord ?? fdstRecord;
 
   const nonBookRecords: PdbRecord[] = [
-    ...imageRecords,
     ...kf8.fragmentIndx.map((data) => ({ data })),
     ...kf8.fragmentCncx.map((data) => ({ data })),
     ...kf8.skeletonIndx.map((data) => ({ data })),
@@ -1510,6 +1511,7 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     nonBookRecords.push({ data: buildSrcsRecord(kf8.sourceEpub) });
   }
 
+  nonBookRecords.push(...imageRecords);
   nonBookRecords.push({ data: buildEofRecord() });
 
   const recordZero = buildRecordZero({

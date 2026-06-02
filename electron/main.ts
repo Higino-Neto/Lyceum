@@ -1139,7 +1139,7 @@ async function prepareKindleTransferFile(
     return { success: false, error: "Formato de origem nao suportado" };
   }
 
-  const convertibleToAzw3 = new Set<BookFormat>(["pdf", "epub", "txt", "html"]);
+  const convertibleToAzw3 = new Set<BookFormat>(["pdf", "epub", "txt", "html", "cbz"]);
   const kindleDirectFormats = new Set<BookFormat>(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
   const shouldConvert = Boolean(
     options.convertToAzw3 &&
@@ -1843,9 +1843,32 @@ function ensureLibraryFolder() {
 }
 
 function generateFileHash(filePath: string) {
-  const fileBuffer = fs.readFileSync(filePath);
   const hash = crypto.createHash("sha256");
-  hash.update(fileBuffer);
+  const stats = fs.statSync(filePath);
+
+  if (stats.isDirectory()) {
+    const hashDirectory = (dirPath: string, relativeRoot = "") => {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      for (const entry of entries) {
+        const entryPath = path.join(dirPath, entry.name);
+        const relativePath = path.join(relativeRoot, entry.name).replace(/\\/g, "/");
+        hash.update(relativePath);
+        if (entry.isDirectory()) {
+          hashDirectory(entryPath, relativePath);
+        } else if (entry.isFile()) {
+          hash.update(fs.readFileSync(entryPath));
+        }
+      }
+    };
+
+    hash.update("lyceum-directory:");
+    hashDirectory(filePath);
+  } else {
+    hash.update(fs.readFileSync(filePath));
+  }
+
   return hash.digest("hex");
 }
 

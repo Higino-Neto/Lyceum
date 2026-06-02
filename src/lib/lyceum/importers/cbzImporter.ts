@@ -24,6 +24,7 @@ export const CBZ_IMAGE_MEDIA_TYPES = new Map([
   [".jpg", "image/jpeg"],
   [".jpeg", "image/jpeg"],
   [".png", "image/png"],
+  [".gif", "image/gif"],
   [".webp", "image/webp"],
   [".avif", "image/avif"],
 ]);
@@ -132,6 +133,10 @@ function hasImageSignature(data: Uint8Array, mediaType: string) {
   if (mediaType === "image/png") {
     return data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47
       && data[4] === 0x0d && data[5] === 0x0a && data[6] === 0x1a && data[7] === 0x0a;
+  }
+  if (mediaType === "image/gif") {
+    const signature = buffer.subarray(0, 6).toString("ascii");
+    return signature === "GIF87a" || signature === "GIF89a";
   }
   if (mediaType === "image/webp") {
     return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
@@ -257,7 +262,7 @@ export async function parseCbzBuffer(
 
     let metadata: sharpType.Metadata;
     try {
-      metadata = await sharp(Buffer.from(bytes), { animated: page.mediaType === "image/webp" }).metadata();
+      metadata = await sharp(Buffer.from(bytes), { animated: page.mediaType === "image/webp" || page.mediaType === "image/gif" }).metadata();
     } catch (error) {
       throw new Error(`CBZ invalido: a imagem ${page.zipPath} nao pode ser lida (${error instanceof Error ? error.message : "erro desconhecido"}).`);
     }
@@ -328,7 +333,12 @@ export class CbzImporter implements LyceumImporter {
     const stats = await fs.promises.stat(input.sourcePath);
     const parsed = await parseCbzBuffer(await fs.promises.readFile(input.sourcePath));
     const fallbackTitle = path.basename(input.sourcePath, path.extname(input.sourcePath));
-    const metadata = mergeBookMetadata(fallbackTitle, input.metadata);
+    const metadata = mergeBookMetadata(fallbackTitle, {
+      ...input.metadata,
+      coverResourceId: input.metadata?.coverResourceId || parsed.textual.resources?.[0]?.id,
+      coverHref: input.metadata?.coverHref || parsed.comic.pages[0]?.resourceHref,
+      coverPageHref: input.metadata?.coverPageHref || parsed.comic.pages[0]?.href,
+    });
     const manifest = createManifest({
       sourcePath: input.sourcePath,
       sourceFormat: "cbz",
