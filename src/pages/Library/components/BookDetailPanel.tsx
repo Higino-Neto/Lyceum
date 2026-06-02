@@ -509,6 +509,8 @@ export default function BookDetailPanel({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
+      {!book ? null : (
+        <>
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
         <h2 className="text-base font-semibold text-zinc-100">Detalhes do Livro</h2>
         <button
@@ -520,7 +522,10 @@ export default function BookDetailPanel({
 
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="relative flex-1 overflow-y-auto p-4">
+        <div className={`absolute inset-0 z-10 transition-opacity duration-100 ${isTransitioning ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <DetailSkeleton />
+        </div>
         <div className="space-y-4">
           <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
           <div 
@@ -991,6 +996,8 @@ export default function BookDetailPanel({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
     </div>

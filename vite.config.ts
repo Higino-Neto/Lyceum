@@ -19,7 +19,7 @@ export default defineConfig({
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
-              external: ["better-sqlite3", "bindings", "adm-zip", "canvas"],
+              external: ["better-sqlite3", "bindings", "adm-zip"],
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
