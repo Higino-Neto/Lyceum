@@ -318,7 +318,7 @@ describe("lyceum conversion core", () => {
     const packageRoot = path.join(tempDir, "book.lyceum");
     const outputPath = path.join(tempDir, "book.txt");
     fs.writeFileSync(sourcePath, Buffer.from(await buildEpub()));
-
+ 
     const result = await convertViaLyceum({
       sourcePath,
       sourceFormat: "epub",
