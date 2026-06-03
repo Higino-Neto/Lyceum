@@ -5,6 +5,7 @@ import {
   useCallback,
   useDeferredValue,
   useMemo,
+  useRef,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -62,6 +63,49 @@ interface OpenBookResult {
   fileName?: string;
   filePath?: string;
   fileType?: string;
+}
+
+function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: () => void }) {
+  const [thumbnail, setThumbnail] = useState(book.thumbnail);
+
+  useEffect(() => {
+    let canceled = false;
+    setThumbnail(book.thumbnail);
+
+    if (!book.thumbnail && book.thumbnailPath) {
+      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
+        if (!canceled) setThumbnail(value || undefined);
+      });
+    }
+
+    return () => { canceled = true; };
+  }, [book.thumbnail, book.thumbnailPath]);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="lyceum-library-recent-book flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+    >
+      <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
+        {thumbnail ? (
+          <img src={thumbnail} alt={book.title} className="h-full w-full object-contain" />
+        ) : (
+          <span className="text-[9px] font-medium text-zinc-600">
+            {getFileTypeLabel(book.fileType, book.filePath)}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-zinc-200">
+          {getTitleWithoutExtension(book.title, book.fileType)}
+        </p>
+        <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+          {getBookFolderLabel(book.filePath)}
+        </p>
+      </div>
+    </button>
+  );
 }
 
 export default function Library() {
@@ -880,24 +924,11 @@ export default function Library() {
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {recentBooks.map((book) => (
-                          <button
+                          <RecentBookCard
                             key={book.fileHash}
-                            type="button"
+                            book={book}
                             onClick={() => handleOpen(book.filePath, book.fileHash)}
-                            className="lyceum-library-recent-book flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
-                          >
-                            <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-[9px] font-medium text-zinc-600">
-                              {getFileTypeLabel(book.fileType, book.filePath)}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-medium text-zinc-200">
-                                {getTitleWithoutExtension(book.title, book.fileType)}
-                              </p>
-                              <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-                                {getBookFolderLabel(book.filePath)}
-                              </p>
-                            </div>
-                          </button>
+                          />
                         ))}
                       </div>
                     </section>
