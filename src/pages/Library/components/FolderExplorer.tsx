@@ -52,7 +52,8 @@ function bookBelongsToFolder(book: BookWithThumbnail, folderPath: string) {
   const normalizedFolder = normalizeFolderPath(folderPath);
   if (!normalizedBookFolder || !normalizedFolder) return false;
 
-  return folderPathsEqual(normalizedBookFolder, normalizedFolder);
+  return folderPathsEqual(normalizedBookFolder, normalizedFolder)
+    || normalizedBookFolder.startsWith(`${normalizedFolder}/`);
 }
 
 function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
