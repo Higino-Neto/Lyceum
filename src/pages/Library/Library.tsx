@@ -699,7 +699,7 @@ export default function Library() {
       grouped.get(groupKey)?.push(book);
     }
 
-    const groupedBooks = orderedKeys.map((groupKey) => {
+    return orderedKeys.map((groupKey) => {
       const group = grouped.get(groupKey) || [];
       const representative =
         group.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf")) ||
@@ -711,16 +711,7 @@ export default function Library() {
         ? { ...representative, mergedBooks: group }
         : representative;
     });
-
-    if (!selectedFolder) return groupedBooks;
-
-    const normalizedSelected = normalizeFolderPath(selectedFolder);
-    return groupedBooks.filter((book) => {
-      const bookFolder = normalizeFolderPath(book.folderPath);
-      if (!bookFolder) return false;
-      return bookFolder === normalizedSelected || bookFolder.startsWith(`${normalizedSelected}/`);
-    });
-  }, [activeSection, books, selectedFolder]);
+  }, [activeSection, books]);
 
   const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
     <section className="mb-4">
