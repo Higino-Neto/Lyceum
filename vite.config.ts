@@ -15,11 +15,16 @@ export default defineConfig({
       main: {
         entry: "electron/main.ts",
         vite: {
+          resolve: {
+            alias: {
+              canvas: optionalCanvasStub,
+            },
+          },
           build: {
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
-              external: ["better-sqlite3", "bindings", "adm-zip"],
+              external: ["better-sqlite3", "bindings", "adm-zip", "jsdom"],
               output: {
                 entryFileNames: "[name].js",
                 chunkFileNames: "chunks/[name].js",

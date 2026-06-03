@@ -231,7 +231,7 @@ export default function BookGrid({
               return (
                 <div
                   key={virtualRow.key}
-                  className="absolute left-0 top-0 grid w-full items-start"
+                  className="absolute left-0 top-0 grid w-full items-start px-1"
                   style={{
                     columnGap: density.gap,
                     gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
