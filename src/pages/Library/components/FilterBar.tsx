@@ -44,7 +44,7 @@ export default function FilterBar({
   onFileTypeChange,
 }: FilterBarProps) {
   return (
-    <section className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950/70 p-2 shadow-sm">
+    <section className="rounded-sm shadow-sm mb-4">
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput value={search} onChange={onSearchChange} />
         <FileTypeButtons value={fileType} onChange={onFileTypeChange} />

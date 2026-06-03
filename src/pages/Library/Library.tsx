@@ -806,7 +806,7 @@ export default function Library() {
           </header>
 
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-            <div className="flex-shrink-0 border-b border-zinc-900 pb-3">
+            <div className="flex-shrink-0 border-zinc-900">
               <FilterBar
                 search={search}
                 onSearchChange={setSearch}
@@ -913,14 +913,14 @@ export default function Library() {
                 onLoadMore={fetchNextPage}
                 topContent={
                   recentBooks.length > 0 ? (
-                    <section className="mb-3">
+                    <section className="my-3">
                       <div className="mb-1.5 flex items-center justify-between">
                         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                           Continuar lendo
                         </h2>
-                        <span className="text-[11px] text-zinc-700">
+                        {/* <span className="text-[11px] text-zinc-700">
                           Ultimos abertos
-                        </span>
+                        </span> */}
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {recentBooks.map((book) => (

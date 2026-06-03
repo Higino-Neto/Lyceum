@@ -179,13 +179,9 @@ export default function BookGrid({
     }
   }, [lastVirtualRow?.index, rowCount, hasMore, loadingMore]);
 
-  const prevGridColumns = useRef(gridColumns);
   useEffect(() => {
-    if (prevGridColumns.current !== gridColumns) {
-      prevGridColumns.current = gridColumns;
-      virtualizer.measure();
-    }
-  }, [gridColumns, virtualizer]);
+    virtualizer.measure();
+  }, [gridColumns, gridDensity, gridRowHeight, viewMode, virtualizer]);
 
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
