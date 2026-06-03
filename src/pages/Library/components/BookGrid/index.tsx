@@ -58,7 +58,7 @@ const LIST_HEADERS: { key: keyof ExplorerColumns; label: string; min: number }[]
 
 const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; gap: number }> = {
   compact: { minWidth: 124, rowHeight: 238, gap: 16 },
-  comfortable: { minWidth: 158, rowHeight: 292, gap: 20 },
+  comfortable: { minWidth: 158, rowHeight: 292, gap: 16 },
   large: { minWidth: 220, rowHeight: 374, gap: 24 },
 };
 

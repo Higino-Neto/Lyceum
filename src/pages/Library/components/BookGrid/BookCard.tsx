@@ -82,7 +82,7 @@ export default function BookCard({
 
   return (
     <div
-      className={`group relative flex flex-col gap-2 rounded-sm p-1 cursor-pointer transition-all ${
+      className={`bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-all ${
         isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
       } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""}`}
       onClick={handleClick}
