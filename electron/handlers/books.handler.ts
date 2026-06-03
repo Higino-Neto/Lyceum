@@ -379,7 +379,9 @@ export function registerBookHandlers() {
   });
 
   ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => {
-    return reopenDocument(filePath, fileHash);
+    const result = await reopenDocument(filePath, fileHash);
+    win?.webContents.send("library:updated");
+    return result;
   });
 
   ipcMain.handle("pdf:set-thumbnail", async (_, fileHash: string, imagePath: string, mode: "replace" | "prepend") => {

@@ -2547,6 +2547,8 @@ ipcMain.handle("reading:save", (_, payload) => {
   };
 
   updateReadingState(fileHash, safeState);
+  updateLastOpened(fileHash);
+  win?.webContents.send("library:updated");
 });
 
 ipcMain.handle("reading:get", (_, fileHash) => {
