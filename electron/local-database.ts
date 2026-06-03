@@ -101,6 +101,7 @@ export interface LibraryListQuery {
   section?: LibrarySection;
   search?: string;
   folderPath?: string | null;
+  includeSubfolders?: boolean;
   fileType?: LibraryFileTypeFilter;
   sort?: LibrarySortOption;
   limit?: number;
@@ -764,13 +765,26 @@ export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
     values.push(query.fileType);
   }
 
-  if (query.folderPath) {
+  if (query.folderPath !== undefined && query.folderPath !== null) {
     const absoluteFolder = path.isAbsolute(query.folderPath)
       ? query.folderPath
       : path.join(app.getPath("userData"), "library", query.folderPath);
     const normalizedFolder = normalizeStoredPath(absoluteFolder);
-    where.push("(d.folderPath = ? OR d.folderPath LIKE ? OR REPLACE(d.filePath, '\\', '/') LIKE ?)");
-    values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
+    const normalizedFilePath = "REPLACE(d.filePath, '\\', '/')";
+
+    if (query.includeSubfolders === false) {
+      where.push(
+        `(d.folderPath = ? OR (${normalizedFilePath} LIKE ? AND ${normalizedFilePath} NOT LIKE ?))`,
+      );
+      values.push(
+        normalizedFolder,
+        `${normalizedFolder}/%`,
+        `${normalizedFolder}/%/%`,
+      );
+    } else {
+      where.push(`(d.folderPath = ? OR d.folderPath LIKE ? OR ${normalizedFilePath} LIKE ?)`);
+      values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
+    }
   }
 
   const ftsQuery = query.search ? tokenizeSearch(query.search) : "";

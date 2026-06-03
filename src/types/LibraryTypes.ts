@@ -73,6 +73,7 @@ export interface LibraryListQuery {
   section?: LibrarySection;
   search?: string;
   folderPath?: string | null;
+  includeSubfolders?: boolean;
   fileType?: LibraryFileTypeFilter;
   sort?: LibrarySortOption;
   limit?: number;

@@ -1,3 +1,5 @@
+import { FolderInfo } from "../../types/LibraryTypes";
+
 export const LOCAL_BOOK_PREFIX = "local-";
 
 export const getTitleWithoutExtension = (title: string, fileType?: string) => {
@@ -54,6 +56,103 @@ export function formatShortDate(dateStr?: string | null): string {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString("pt-BR");
+}
+
+export function normalizeFolderPath(folderPath?: string | null): string {
+  return (folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+}
+
+export function folderPathsEqual(
+  first?: string | null,
+  second?: string | null,
+): boolean {
+  return normalizeFolderPath(first) === normalizeFolderPath(second);
+}
+
+export function findFolderTrail(
+  folders: FolderInfo[],
+  folderPath?: string | null,
+): FolderInfo[] {
+  const targetPath = normalizeFolderPath(folderPath);
+  if (!targetPath) return [];
+
+  const visit = (items: FolderInfo[]): FolderInfo[] | null => {
+    for (const item of items) {
+      if (folderPathsEqual(item.path, targetPath)) {
+        return [item];
+      }
+
+      const childTrail = visit(item.subfolders);
+      if (childTrail) {
+        return [item, ...childTrail];
+      }
+    }
+
+    return null;
+  };
+
+  return visit(folders) || [];
+}
+
+export function getFolderChildren(
+  folders: FolderInfo[],
+  folderPath?: string | null,
+): FolderInfo[] {
+  const normalizedPath = normalizeFolderPath(folderPath);
+  if (!normalizedPath) return folders;
+
+  return findFolderTrail(folders, normalizedPath).at(-1)?.subfolders || [];
+}
+
+export interface FolderBreadcrumb {
+  label: string;
+  path: string | null;
+}
+
+export function getFolderBreadcrumbs(
+  folders: FolderInfo[],
+  folderPath?: string | null,
+): FolderBreadcrumb[] {
+  const breadcrumbs: FolderBreadcrumb[] = [{ label: "Raiz", path: null }];
+  const trail = findFolderTrail(folders, folderPath);
+
+  if (trail.length > 0) {
+    return [
+      ...breadcrumbs,
+      ...trail.map((folder) => ({
+        label: folder.name,
+        path: folder.path,
+      })),
+    ];
+  }
+
+  const segments = normalizeFolderPath(folderPath).split("/").filter(Boolean);
+  return [
+    ...breadcrumbs,
+    ...segments.map((segment, index) => ({
+      label: segment,
+      path: segments.slice(0, index + 1).join("/"),
+    })),
+  ];
+}
+
+export function getParentFolderPath(
+  folders: FolderInfo[],
+  folderPath?: string | null,
+): string | null {
+  const trail = findFolderTrail(folders, folderPath);
+  if (trail.length > 1) return trail.at(-2)?.path || null;
+  if (trail.length === 1) return null;
+
+  const segments = normalizeFolderPath(folderPath).split("/").filter(Boolean);
+  if (segments.length <= 1) return null;
+  return segments.slice(0, -1).join("/");
+}
+
+export function getFolderBookCount(folder: FolderInfo): number {
+  return Math.max(0, folder.bookCount || 0);
 }
 
 export function normalizeText(text: string): string {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -9,22 +9,23 @@ import {
   ChevronsRight,
   Search,
   FolderPlus,
-  Pencil,
   Trash2,
   MoreVertical,
-  Check,
   X,
-  FolderInput,
   FilePlus,
 } from "lucide-react";
 import { FolderInfo } from "../../../types/LibraryTypes";
 import { DocumentRecord } from "../../../types/ReadingTypes";
 import toast from "react-hot-toast";
+import FolderContextMenu from "./FolderContextMenu";
 
 interface FolderTreeProps {
   selectedFolder: string | null;
   onFolderSelect: (folderPath: string | null) => void;
   localDocuments: DocumentRecord[];
+  folderStructure?: FolderInfo[];
+  includeSubfolders?: boolean;
+  onFoldersChanged?: () => Promise<void> | void;
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
   onMoveBooks?: (fileHashes: string[], targetFolder: string | null) => Promise<boolean>;
   draggingBookHash?: string | null;
@@ -90,6 +91,9 @@ export default function FolderTree({
   selectedFolder,
   onFolderSelect,
   localDocuments,
+  folderStructure,
+  includeSubfolders = false,
+  onFoldersChanged,
   onMoveBook,
   onMoveBooks,
   draggingBookHash,
@@ -133,37 +137,55 @@ export default function FolderTree({
 
   const isDropTarget = dragOver === "root";
 
-  const loadFolders = async () => {
+  const applyFolderStructure = useCallback((structure: FolderInfo[]) => {
+    const filtered = structure.filter((f) => !f.name.startsWith("."));
+
+    const initialExpanded = new Set<string>();
+    const collectPaths = (items: FolderInfo[]) => {
+      items.forEach((f) => {
+        if (f.subfolders.length > 0) {
+          initialExpanded.add(f.path);
+          collectPaths(f.subfolders);
+        }
+      });
+    };
+    collectPaths(filtered);
+
+    setExpandedPaths(initialExpanded);
+    setFolders(filtered);
+  }, []);
+
+  const loadFolders = useCallback(async () => {
     if (!electronApiAvailable) return;
     setLoading(true);
     try {
       const structure = await window.api.getFolderStructure();
-      const filtered = structure.filter((f) => !f.name.startsWith("."));
-
-      const initialExpanded = new Set<string>();
-      const collectPaths = (items: FolderInfo[]) => {
-        items.forEach((f) => {
-          if (f.subfolders.length > 0) {
-            initialExpanded.add(f.path);
-            collectPaths(f.subfolders);
-          }
-        });
-      };
-      collectPaths(filtered);
-
-      setExpandedPaths(initialExpanded);
-      setFolders(filtered);
+      applyFolderStructure(structure);
     } catch (error) {
       console.error("Error loading folders:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [applyFolderStructure, electronApiAvailable]);
+
+  const refreshFolders = useCallback(async () => {
+    if (onFoldersChanged) {
+      await onFoldersChanged();
+      return;
+    }
+
+    await loadFolders();
+  }, [loadFolders, onFoldersChanged]);
 
   useEffect(() => {
+    if (folderStructure) {
+      applyFolderStructure(folderStructure);
+      return;
+    }
+
     if (!electronApiAvailable) return;
     loadFolders();
-  }, [electronApiAvailable]);
+  }, [applyFolderStructure, electronApiAvailable, folderStructure, loadFolders]);
 
   const filteredFolders = useMemo(() => {
     return filterFolders(folders, searchTerm);
@@ -247,6 +269,17 @@ export default function FolderTree({
     closeContextMenu();
   };
 
+  const handleCreateFromContext = (folder: FolderInfo) => {
+    closeContextMenu();
+    setNewFolderName("");
+    setCreatingFolderAt(folder.path || "");
+  };
+
+  const handleImportFromContext = (folder: FolderInfo) => {
+    closeContextMenu();
+    onImportBook?.(folder.path || "");
+  };
+
   const handleDeleteClick = () => {
     if (contextMenu.folder) {
       setDeleteDialog({ open: true, folder: contextMenu.folder });
@@ -262,7 +295,7 @@ export default function FolderTree({
       const result = await window.api.deleteFolder(folderPath, true);
       if (result.success) {
         toast.success("Pasta excluída");
-        loadFolders();
+        await refreshFolders();
         if (selectedFolder === deleteDialog.folder.path) {
           onFolderSelect(null);
         }
@@ -291,7 +324,7 @@ export default function FolderTree({
       const result = await window.api.createFolder(newFolderName.trim(), apiParentPath);
       if (result.success) {
         toast.success("Pasta criada");
-        loadFolders();
+        await refreshFolders();
         setNewFolderName("");
         setCreatingFolderAt(null);
       } else {
@@ -335,7 +368,7 @@ export default function FolderTree({
         const result = await window.api.moveFolder(draggingFolder, targetPath);
         if (result.success) {
           toast.success("Pasta movida");
-          loadFolders();
+          await refreshFolders();
         } else {
           toast.error(result.error || "Erro ao mover pasta");
         }
@@ -384,7 +417,7 @@ export default function FolderTree({
       console.log("[FolderTree] Rename result:", result);
       if (result.success) {
         toast.success("Pasta renomeada");
-        loadFolders();
+        await refreshFolders();
       } else {
         toast.error(result.error || "Erro ao renomear pasta");
       }
@@ -404,7 +437,7 @@ export default function FolderTree({
       toast.success(
         `Sincronizado: +${result.added} | -${result.removed} | ${result.updated} atualizados`,
       );
-      loadFolders();
+      await refreshFolders();
     } catch (error) {
       console.error("[FolderTree] Resync error:", error);
       toast.error("Erro ao sincronizar");
@@ -428,7 +461,7 @@ export default function FolderTree({
     window.api.getLibraryPath().then(setLibraryPath);
   }, [electronApiAvailable]);
 
-  const countDocsInFolder = (folderPath: string | null): number => {
+  const countDocsInFolder = (folderPath: string | null, includeNested = true): number => {
     if (!libraryPath || !localDocuments.length) return 0;
 
     const targetPath = folderPath
@@ -438,13 +471,15 @@ export default function FolderTree({
     return localDocuments.filter((doc) => {
       if (!doc.filePath) return false;
       const docDir = doc.filePath.substring(0, doc.filePath.lastIndexOf("\\"));
-      return docDir === targetPath || docDir.startsWith(targetPath + "\\");
+      return includeNested
+        ? docDir === targetPath || docDir.startsWith(targetPath + "\\")
+        : docDir === targetPath;
     }).length;
   };
 
   const totalBooks = useMemo(() => {
-    return countDocsInFolder(null);
-  }, [libraryPath, localDocuments]);
+    return countDocsInFolder(null, includeSubfolders);
+  }, [includeSubfolders, libraryPath, localDocuments]);
 
   if (loading) {
     return (
@@ -551,7 +586,7 @@ export default function FolderTree({
               }}
             >
               <Folder size={16} className="text-zinc-500" />
-              <span className="flex-1 text-left">Todas as pastas</span>
+              <span className="flex-1 text-left">Raiz</span>
               <span
                 className={`text-xs px-1.5 py-0.5 mr-5 rounded-sm ${
                   selectedFolder === null
@@ -584,6 +619,7 @@ export default function FolderTree({
                 searchTerm={searchTerm}
                 localDocuments={localDocuments}
                 libraryPath={libraryPath}
+                includeSubfolders={includeSubfolders}
                 creatingFolderAt={creatingFolderAt}
                 onCreateFolder={handleCreateFolderAt}
                 onCancelCreate={cancelCreateFolder}
@@ -633,51 +669,16 @@ export default function FolderTree({
         </>
       )}
 
-      {contextMenu.visible && (
-        <div
-          className="fixed bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg py-1 z-50 min-w-[140px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-           onClick={(e) => e.stopPropagation()}
-        >
-           <button
-             onClick={() => {
-               closeContextMenu();
-               setNewFolderName("");
-               setCreatingFolderAt(contextMenu.folder?.path || "");
-             }}
-             className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
-           >
-             <FolderPlus size={14} />
-             Nova pasta
-           </button>
-           {onImportBook && (
-             <button
-               onClick={() => {
-                 closeContextMenu();
-                 onImportBook(contextMenu.folder?.path || "");
-               }}
-               className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
-             >
-               <FilePlus size={14} />
-               Adicionar livro
-             </button>
-           )}
-           <button
-             onClick={handleRename}
-             className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
-           >
-             <Pencil size={14} />
-             Renomear
-           </button>
-           <div className="border-t border-zinc-700 my-1" />
-           <button
-            onClick={handleDeleteClick}
-            className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700 flex items-center gap-2"
-          >
-            <Trash2 size={14} />
-            Excluir
-          </button>
-        </div>
+      {contextMenu.visible && contextMenu.folder && (
+        <FolderContextMenu
+          folder={contextMenu.folder}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onCreateFolder={handleCreateFromContext}
+          onImportBook={onImportBook ? handleImportFromContext : undefined}
+          onRenameFolder={handleRename}
+          onDeleteFolder={handleDeleteClick}
+        />
       )}
 
       {deleteDialog.open && (
@@ -742,6 +743,7 @@ function FolderNode({
   searchTerm,
   localDocuments,
   libraryPath,
+  includeSubfolders,
   creatingFolderAt,
   onCreateFolder,
   onCancelCreate,
@@ -771,6 +773,7 @@ function FolderNode({
   searchTerm: string;
   localDocuments: DocumentRecord[];
   libraryPath: string;
+  includeSubfolders: boolean;
   creatingFolderAt: string | null;
   onCreateFolder: (parentPath: string | null) => void;
   onCancelCreate: () => void;
@@ -785,7 +788,7 @@ function FolderNode({
   onDrop: (targetPath: string) => void;
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
 }) {
-  const countDocsInFolder = (folderPath: string | null): number => {
+  const countDocsInFolder = (folderPath: string | null, includeNested = true): number => {
     if (!libraryPath || !localDocuments.length) return 0;
 
     const targetPath = folderPath
@@ -795,16 +798,15 @@ function FolderNode({
     return localDocuments.filter((doc) => {
       if (!doc.filePath) return false;
       const docDir = doc.filePath.substring(0, doc.filePath.lastIndexOf("\\"));
-      return docDir === targetPath || docDir.startsWith(targetPath + "\\");
+      return includeNested
+        ? docDir === targetPath || docDir.startsWith(targetPath + "\\")
+        : docDir === targetPath;
     }).length;
   };
 
-  const folderBookCount = countDocsInFolder(folder.path);
-  const subfoldersBooks = folder.subfolders.reduce(
-    (acc, f) => acc + countDocsInFolder(f.path),
-    0,
-  );
-  const totalBooks = folderBookCount + subfoldersBooks;
+  const folderBookCount = countDocsInFolder(folder.path, false);
+  const totalBooks = countDocsInFolder(folder.path, includeSubfolders);
+  const subfoldersBooks = Math.max(0, totalBooks - folderBookCount);
 
   const hasChildren = folder.subfolders.length > 0;
   const isExpanded = expandedPaths.has(folder.path);
@@ -983,6 +985,7 @@ function FolderNode({
                 searchTerm={searchTerm}
                 localDocuments={localDocuments}
                 libraryPath={libraryPath}
+                includeSubfolders={includeSubfolders}
                 creatingFolderAt={creatingFolderAt}
                 onCreateFolder={onCreateFolder}
                 onCancelCreate={onCancelCreate}

@@ -20,6 +20,7 @@ interface UseBooksOptions {
   sort: LibrarySortOption;
   fileType: LibraryFileTypeFilter;
   folderPath: string | null;
+  includeSubfolders: boolean;
 }
 
 interface SectionCounts {
@@ -64,6 +65,7 @@ async function loadPage(options: UseBooksOptions, offset: number): Promise<Libra
     sort: options.sort,
     fileType: options.fileType,
     folderPath: options.folderPath,
+    includeSubfolders: options.includeSubfolders,
     limit: PAGE_SIZE,
     offset,
   });
@@ -75,6 +77,7 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
     sort: options.sort,
     fileType: options.fileType,
     folderPath: options.folderPath,
+    includeSubfolders: options.includeSubfolders,
     limit: 1,
     offset: 0,
   };

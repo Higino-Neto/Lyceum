@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { normalizeText, tokenize, calculateSimilarity, LOCAL_BOOK_PREFIX } from "../pages/Library/utils";
+import { FolderInfo } from "../types/LibraryTypes";
+import {
+  normalizeText,
+  tokenize,
+  calculateSimilarity,
+  LOCAL_BOOK_PREFIX,
+  findFolderTrail,
+  folderPathsEqual,
+  getFolderBookCount,
+  getFolderBreadcrumbs,
+  getFolderChildren,
+  getParentFolderPath,
+  normalizeFolderPath,
+} from "../pages/Library/utils";
 
 describe("Library Utils", () => {
   describe("normalizeText", () => {
@@ -88,6 +101,112 @@ describe("Library Utils", () => {
   describe("LOCAL_BOOK_PREFIX", () => {
     it("should be 'local-'", () => {
       expect(LOCAL_BOOK_PREFIX).toBe("local-");
+    });
+  });
+
+  describe("folder tree helpers", () => {
+    const folders: FolderInfo[] = [
+      {
+        name: "Computer Science",
+        path: "Computer Science",
+        fullPath: "C:\\library\\Computer Science",
+        bookCount: 6,
+        subfolders: [
+          {
+            name: "Data Structures",
+            path: "Computer Science\\Data Structures",
+            fullPath: "C:\\library\\Computer Science\\Data Structures",
+            bookCount: 3,
+            subfolders: [],
+          },
+          {
+            name: "Machine Learning",
+            path: "Computer Science\\Machine Learning",
+            fullPath: "C:\\library\\Computer Science\\Machine Learning",
+            bookCount: 2,
+            subfolders: [
+              {
+                name: "Deep Learning",
+                path: "Computer Science\\Machine Learning\\Deep Learning",
+                fullPath:
+                  "C:\\library\\Computer Science\\Machine Learning\\Deep Learning",
+                bookCount: 1,
+                subfolders: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Math",
+        path: "Math",
+        fullPath: "C:\\library\\Math",
+        bookCount: 0,
+        subfolders: [],
+      },
+    ];
+
+    it("normalizes Windows and URL-like separators", () => {
+      expect(normalizeFolderPath("\\Computer Science\\Machine Learning\\")).toBe(
+        "Computer Science/Machine Learning",
+      );
+      expect(
+        folderPathsEqual(
+          "Computer Science\\Machine Learning",
+          "Computer Science/Machine Learning",
+        ),
+      ).toBe(true);
+    });
+
+    it("finds the folder trail for nested folders", () => {
+      expect(
+        findFolderTrail(
+          folders,
+          "Computer Science/Machine Learning/Deep Learning",
+        ).map((folder) => folder.name),
+      ).toEqual(["Computer Science", "Machine Learning", "Deep Learning"]);
+    });
+
+    it("returns the visible children for the current folder", () => {
+      expect(getFolderChildren(folders, null).map((folder) => folder.name)).toEqual([
+        "Computer Science",
+        "Math",
+      ]);
+      expect(
+        getFolderChildren(folders, "Computer Science").map((folder) => folder.name),
+      ).toEqual(["Data Structures", "Machine Learning"]);
+    });
+
+    it("builds breadcrumbs using real folder paths when available", () => {
+      expect(
+        getFolderBreadcrumbs(
+          folders,
+          "Computer Science/Machine Learning",
+        ),
+      ).toEqual([
+        { label: "Raiz", path: null },
+        { label: "Computer Science", path: "Computer Science" },
+        {
+          label: "Machine Learning",
+          path: "Computer Science\\Machine Learning",
+        },
+      ]);
+    });
+
+    it("returns parent paths for known and fallback folders", () => {
+      expect(
+        getParentFolderPath(
+          folders,
+          "Computer Science/Machine Learning/Deep Learning",
+        ),
+      ).toBe("Computer Science\\Machine Learning");
+      expect(getParentFolderPath(folders, "Imported/Unknown")).toBe("Imported");
+      expect(getParentFolderPath(folders, "Math")).toBeNull();
+    });
+
+    it("formats folder book counts defensively", () => {
+      expect(getFolderBookCount(folders[0])).toBe(6);
+      expect(getFolderBookCount({ ...folders[0], bookCount: -2 })).toBe(0);
     });
   });
 });

@@ -636,6 +636,44 @@ export function GeneralSettingsPanel() {
   );
 }
 
+export function LibrarySettingsPanel() {
+  const { settings, setShowSubfolderBooks } = useAppSettings();
+
+  return (
+    <div>
+      <SettingsSection
+        title="Pastas"
+        description="Controle como os livros aparecem quando você navega pela árvore da biblioteca."
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-zinc-100">
+              Mostrar livros de subpastas
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              Quando ativado, uma pasta também lista os livros que estão dentro das subpastas dela.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSubfolderBooks(!settings.showSubfolderBooks)}
+            className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+              settings.showSubfolderBooks ? "bg-green-500" : "bg-zinc-700"
+            }`}
+            aria-pressed={settings.showSubfolderBooks}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                settings.showSubfolderBooks ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
 export function DictionarySettingsPanel() {
   const {
     dictionaries,

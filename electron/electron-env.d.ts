@@ -46,6 +46,7 @@ interface LibraryListQuery {
   section?: "all" | "synced" | "unsynced";
   search?: string;
   folderPath?: string | null;
+  includeSubfolders?: boolean;
   fileType?: "all" | BookFormat;
   sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
   limit?: number;

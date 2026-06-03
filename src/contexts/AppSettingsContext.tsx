@@ -148,6 +148,7 @@ interface AppSettings {
   copyYesterdayReadings: boolean;
   autoHideEnabled: boolean;
   autoHideOverlay: boolean;
+  showSubfolderBooks: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -158,6 +159,7 @@ interface AppSettingsContextValue {
   setCopyYesterdayReadings: (value: boolean) => void;
   setAutoHideEnabled: (value: boolean) => void;
   setAutoHideOverlay: (value: boolean) => void;
+  setShowSubfolderBooks: (value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
@@ -167,6 +169,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   copyYesterdayReadings: false,
   autoHideEnabled: false,
   autoHideOverlay: false,
+  showSubfolderBooks: false,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -221,6 +224,7 @@ function loadSettings(): AppSettings {
       copyYesterdayReadings: parsed.copyYesterdayReadings ?? DEFAULT_SETTINGS.copyYesterdayReadings,
       autoHideEnabled: parsed.autoHideEnabled ?? legacy.autoHideEnabled,
       autoHideOverlay: parsed.autoHideOverlay ?? legacy.autoHideOverlay,
+      showSubfolderBooks: parsed.showSubfolderBooks ?? DEFAULT_SETTINGS.showSubfolderBooks,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -317,6 +321,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           autoHideOverlay: value,
+        })),
+      setShowSubfolderBooks: (value) =>
+        setSettings((current) => ({
+          ...current,
+          showSubfolderBooks: value,
         })),
     }),
     [effectiveTheme, settings],

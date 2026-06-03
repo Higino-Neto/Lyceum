@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Palette, SlidersHorizontal, User, UserCircle, X, ZoomIn } from "lucide-react";
+import { BookOpen, Library, Palette, SlidersHorizontal, UserCircle, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   AccountSettingsPanel,
   AppearanceSettingsPanel,
   DictionarySettingsPanel,
   GeneralSettingsPanel,
+  LibrarySettingsPanel,
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-type SettingsTabId = "general" | "account" | "appearance" | "zoom" | "dictionaries";
+type SettingsTabId = "general" | "library" | "account" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -49,6 +50,13 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         description: "Configurações gerais do aplicativo.",
         icon: SlidersHorizontal,
         panel: <GeneralSettingsPanel />,
+      },
+      {
+        id: "library",
+        label: "Biblioteca",
+        description: "Comportamento de pastas e livros na biblioteca.",
+        icon: Library,
+        panel: <LibrarySettingsPanel />,
       },
       {
         id: "account",

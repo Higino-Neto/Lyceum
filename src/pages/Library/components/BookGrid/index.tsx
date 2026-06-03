@@ -219,9 +219,19 @@ export default function BookGrid({
 
   if (books.length === 0) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-20">
-        <BookOpen size={22} className="text-zinc-600" />
-        <p className="text-sm text-zinc-500">Nenhum livro nesta secao.</p>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          data-grid-scroll
+          className="min-h-0 flex-1 overflow-y-auto"
+          style={{ scrollbarGutter: "stable" }}
+        >
+          {topContent}
+          <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-20">
+            <BookOpen size={22} className="text-zinc-600" />
+            <p className="text-sm text-zinc-500">Nenhum livro nesta secao.</p>
+          </div>
+        </div>
       </div>
     );
   }

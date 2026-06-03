@@ -29,6 +29,8 @@ import {
   BookDetailPanel,
   FileTypeFilter,
   FilterBar,
+  FolderGrid,
+  FolderPathBar,
   FolderTree,
   SectionTabs,
   SortOption,
@@ -37,15 +39,18 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import { BookWithThumbnail, LibrarySection } from "../../types/LibraryTypes";
+import { BookWithThumbnail, FolderInfo, LibrarySection } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
   getBookFolderLabel,
   getFileTypeLabel,
+  getFolderChildren,
+  normalizeFolderPath,
   getTitleWithoutExtension,
 } from "./utils";
 import { useConversionQueue } from "../../contexts/ConversionQueueContext";
+import { useAppSettings } from "../../contexts/AppSettingsContext";
 
 interface UsbLibraryApi {
   onUsbDevicesUpdated?: (callback: () => void) => () => void;
@@ -111,6 +116,7 @@ function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: (
 export default function Library() {
   const navigate = useNavigate();
   const { prepareBooks } = useConversionQueue();
+  const { settings } = useAppSettings();
   const electronApiAvailable = !!window.api?.listBooks;
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -129,6 +135,8 @@ export default function Library() {
   const [detailPanelWidth, setDetailPanelWidth] = useState(320);
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
+  const [folderStructure, setFolderStructure] = useState<FolderInfo[]>([]);
+  const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
   const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [selectedBookMap, setSelectedBookMap] = useState<Map<string, BookWithThumbnail>>(
@@ -149,6 +157,16 @@ export default function Library() {
     targetFolder: string | null;
     targetFolderName: string;
   }>({ open: false, targetFolder: null, targetFolderName: "" });
+  const [createFolderDialog, setCreateFolderDialog] = useState<{
+    open: boolean;
+    parentPath: string | null;
+    folderName: string;
+  }>({ open: false, parentPath: null, folderName: "" });
+  const [folderActionDialog, setFolderActionDialog] = useState<{
+    mode: "rename" | "delete";
+    folder: FolderInfo;
+    value: string;
+  } | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   const bookQuery = useMemo(
@@ -157,9 +175,17 @@ export default function Library() {
       search: deferredSearch,
       sort,
       fileType: fileTypeFilter,
-      folderPath: activeSection === "usb" ? null : selectedFolder,
+      folderPath: activeSection === "usb" ? null : selectedFolder ?? "",
+      includeSubfolders: settings.showSubfolderBooks,
     }),
-    [activeSection, deferredSearch, fileTypeFilter, selectedFolder, sort],
+    [
+      activeSection,
+      deferredSearch,
+      fileTypeFilter,
+      selectedFolder,
+      settings.showSubfolderBooks,
+      sort,
+    ],
   );
 
   const {
@@ -186,16 +212,54 @@ export default function Library() {
   const loadLibraryFolders = useCallback(async () => {
     if (!electronApiAvailable) return;
     try {
-      const folders = await window.api.getAllFolders();
+      const [structure, folders] = await Promise.all([
+        window.api.getFolderStructure(),
+        window.api.getAllFolders(),
+      ]);
+      setFolderStructure(
+        structure.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
+      );
       setLibraryFolders(folders);
     } catch (error) {
       console.error("Error loading library folders:", error);
     }
   }, [electronApiAvailable]);
 
+  const loadGlobalRecentBooks = useCallback(async () => {
+    if (!electronApiAvailable) return;
+    try {
+      const result = await window.api.listBooks({
+        section: "all",
+        search: "",
+        sort: "recent_desc",
+        fileType: "all",
+        folderPath: null,
+        limit: 80,
+        offset: 0,
+      });
+
+      const recent = result.items
+        .filter((book: BookWithThumbnail) => {
+          const openedAt = new Date(book.lastOpenedAt).getTime();
+          return (book.lastOpenedAt && !Number.isNaN(openedAt)) || book.currentPage > 0;
+        })
+        .slice(0, 8);
+
+      setGlobalRecentBooks(recent);
+    } catch (error) {
+      console.error("Error loading recent books:", error);
+      setGlobalRecentBooks([]);
+    }
+  }, [electronApiAvailable]);
+
   const refreshLibraryState = useCallback(async () => {
-    await Promise.all([refreshBooks(), loadLocalDocs(), loadLibraryFolders()]);
-  }, [loadLibraryFolders, loadLocalDocs, refreshBooks]);
+    await Promise.all([
+      refreshBooks(),
+      loadLocalDocs(),
+      loadLibraryFolders(),
+      loadGlobalRecentBooks(),
+    ]);
+  }, [loadGlobalRecentBooks, loadLibraryFolders, loadLocalDocs, refreshBooks]);
 
   useEffect(() => {
     if (!electronApiAvailable || !window.api.onLibraryUpdated) return;
@@ -214,6 +278,12 @@ export default function Library() {
   useEffect(() => {
     refreshLibraryState();
   }, [refreshLibraryState]);
+
+  const handleFolderSelect = useCallback((folderPath: string | null) => {
+    setSelectedFolder(folderPath);
+    setSelectedBook(null);
+    setKindlePanelOpen(false);
+  }, []);
 
   const startPaneResize = (
     pane: "sidebar" | "details",
@@ -417,6 +487,107 @@ export default function Library() {
     });
   };
 
+  const openCreateFolderDialog = (parentPath: string | null) => {
+    setCreateFolderDialog({
+      open: true,
+      parentPath,
+      folderName: "",
+    });
+  };
+
+  const closeCreateFolderDialog = () => {
+    setCreateFolderDialog({
+      open: false,
+      parentPath: null,
+      folderName: "",
+    });
+  };
+
+  const confirmCreateFolder = async () => {
+    const folderName = createFolderDialog.folderName.trim();
+    if (!folderName) {
+      toast.error("Informe o nome da pasta");
+      return;
+    }
+
+    const result = await window.api.createFolder(
+      folderName,
+      createFolderDialog.parentPath,
+    );
+
+    if (result.success) {
+      toast.success("Pasta criada");
+      closeCreateFolderDialog();
+      await refreshLibraryState();
+    } else {
+      toast.error(result.error || "Erro ao criar pasta");
+    }
+  };
+
+  const openRenameFolderDialog = (folder: FolderInfo) => {
+    setFolderActionDialog({
+      mode: "rename",
+      folder,
+      value: folder.name,
+    });
+  };
+
+  const openDeleteFolderDialog = (folder: FolderInfo) => {
+    setFolderActionDialog({
+      mode: "delete",
+      folder,
+      value: folder.name,
+    });
+  };
+
+  const closeFolderActionDialog = () => {
+    setFolderActionDialog(null);
+  };
+
+  const confirmFolderAction = async () => {
+    if (!folderActionDialog) return;
+
+    if (folderActionDialog.mode === "rename") {
+      const newName = folderActionDialog.value.trim();
+      if (!newName) {
+        toast.error("Informe o nome da pasta");
+        return;
+      }
+
+      const result = await window.api.renameFolder(
+        folderActionDialog.folder.fullPath,
+        newName,
+      );
+
+      if (result.success) {
+        toast.success("Pasta renomeada");
+        closeFolderActionDialog();
+        await refreshLibraryState();
+      } else {
+        toast.error(result.error || "Erro ao renomear pasta");
+      }
+      return;
+    }
+
+    const result = await window.api.deleteFolder(
+      folderActionDialog.folder.fullPath,
+      true,
+    );
+
+    if (result.success) {
+      toast.success("Pasta excluida");
+      const selected = normalizeFolderPath(selectedFolder);
+      const deleted = normalizeFolderPath(folderActionDialog.folder.path);
+      if (selected === deleted || selected.startsWith(`${deleted}/`)) {
+        handleFolderSelect(null);
+      }
+      closeFolderActionDialog();
+      await refreshLibraryState();
+    } else {
+      toast.error(result.error || "Erro ao excluir pasta");
+    }
+  };
+
   const handleImportConfirm = async (action: "move" | "copy") => {
     const { targetFolder } = importDialog;
     const result = await window.api.importPdf(targetFolder, action);
@@ -482,7 +653,6 @@ export default function Library() {
   };
 
   const handleContextSelect = (book: BookWithThumbnail) => {
-    setSelectedBook(null);
     setSelectedHashes((previous) => new Set(previous).add(book.fileHash));
     setSelectedBookMap((previous) => new Map(previous).set(book.fileHash, book));
   };
@@ -502,32 +672,16 @@ export default function Library() {
     setDraggingBookHashes([]);
   };
 
-  const recentBooks = useMemo(
-    () =>
-      activeSection === "usb"
-        ? []
-        :
-      books
-        .filter((book) => {
-          const openedAt = new Date(book.lastOpenedAt).getTime();
-          return (book.lastOpenedAt && !Number.isNaN(openedAt)) || book.currentPage > 0;
-        })
-        .sort((a, b) => {
-          const aTime = new Date(a.lastOpenedAt).getTime();
-          const bTime = new Date(b.lastOpenedAt).getTime();
-          const aValid = a.lastOpenedAt && !Number.isNaN(aTime);
-          const bValid = b.lastOpenedAt && !Number.isNaN(bTime);
-          if (aValid && bValid) return bTime - aTime;
-          if (aValid) return -1;
-          if (bValid) return 1;
-          return 0;
-        })
-        .slice(0, 8),
-    [activeSection, books],
-  );
   const selectedBooks = useMemo(
     () => Array.from(selectedBookMap.values()),
     [selectedBookMap],
+  );
+  const visibleFolders = useMemo(
+    () =>
+      activeSection === "usb"
+        ? []
+        : getFolderChildren(folderStructure, selectedFolder),
+    [activeSection, folderStructure, selectedFolder],
   );
 
   const displayBooks = useMemo(() => {
@@ -558,6 +712,61 @@ export default function Library() {
         : representative;
     });
   }, [activeSection, books]);
+
+  const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
+    <section className="mb-4">
+      <div className="mb-1.5 flex items-center justify-between">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Continuar lendo
+        </h2>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {globalRecentBooks.map((book) => (
+          <RecentBookCard
+            key={book.fileHash}
+            book={book}
+            onClick={() => handleOpen(book.filePath, book.fileHash)}
+          />
+        ))}
+      </div>
+    </section>
+  ) : null;
+
+  const folderExplorerSection = activeSection !== "usb" ? (
+    <section className="mb-5 border-b border-zinc-800 pb-4">
+      <FolderPathBar
+        folders={folderStructure}
+        selectedFolder={selectedFolder}
+        onFolderSelect={handleFolderSelect}
+        onCreateFolder={openCreateFolderDialog}
+        onImportBook={handleImportBook}
+      />
+      <FolderGrid
+        folders={visibleFolders}
+        onFolderSelect={handleFolderSelect}
+        books={displayBooks}
+        selectedFolder={selectedFolder}
+        draggingBookHashes={draggingBookHashes}
+        onCreateFolder={openCreateFolderDialog}
+        onImportBook={handleImportBook}
+        onRenameFolder={openRenameFolderDialog}
+        onDeleteFolder={openDeleteFolderDialog}
+        onMoveBook={handleMoveBook}
+        onMoveBooks={handleMoveBooks}
+      />
+    </section>
+  ) : null;
+
+  const bookGridTopContent = (
+    <>
+      {folderExplorerSection}
+      {recentBooksSection && (
+        <div className="mb-4 border-b border-zinc-800 pb-4">
+          {recentBooksSection}
+        </div>
+      )}
+    </>
+  );
 
   useEffect(() => {
     if (kindlePanelOpen && selectedBooks.length === 0) {
@@ -679,8 +888,11 @@ export default function Library() {
           <div className="h-full overflow-y-auto">
             <FolderTree
               selectedFolder={selectedFolder}
-              onFolderSelect={setSelectedFolder}
+              onFolderSelect={handleFolderSelect}
               localDocuments={localDocuments}
+              folderStructure={folderStructure}
+              includeSubfolders={settings.showSubfolderBooks}
+              onFoldersChanged={refreshLibraryState}
               onMoveBook={handleMoveBook}
               onMoveBooks={handleMoveBooks}
               draggingBookHashes={draggingBookHashes}
@@ -911,29 +1123,7 @@ export default function Library() {
                 hasMore={hasMore}
                 loadingMore={loadingMore}
                 onLoadMore={fetchNextPage}
-                topContent={
-                  recentBooks.length > 0 ? (
-                    <section className="my-3">
-                      <div className="mb-1.5 flex items-center justify-between">
-                        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                          Continuar lendo
-                        </h2>
-                        {/* <span className="text-[11px] text-zinc-700">
-                          Ultimos abertos
-                        </span> */}
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto pb-1">
-                        {recentBooks.map((book) => (
-                          <RecentBookCard
-                            key={book.fileHash}
-                            book={book}
-                            onClick={() => handleOpen(book.filePath, book.fileHash)}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ) : null
-                }
+                topContent={bookGridTopContent}
               />
             )}
           </main>
@@ -973,14 +1163,151 @@ export default function Library() {
           </aside>
         )}
 
-        {kindlePanelOpen && (
-          <KindleSendPanel
-            books={selectedBooks}
-            onClose={() => setKindlePanelOpen(false)}
-            onSent={refreshLibraryState}
-          />
-        )}
+      {kindlePanelOpen && (
+        <KindleSendPanel
+          books={selectedBooks}
+          onClose={() => setKindlePanelOpen(false)}
+          onSent={refreshLibraryState}
+        />
+      )}
       </div>
+
+      {createFolderDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <form
+            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              confirmCreateFolder();
+            }}
+          >
+            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
+              <FolderOpen size={18} className="text-green-400" />
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Nova pasta
+              </h2>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Nome da pasta
+              </label>
+              <input
+                type="text"
+                value={createFolderDialog.folderName}
+                onChange={(event) =>
+                  setCreateFolderDialog((current) => ({
+                    ...current,
+                    folderName: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                autoFocus
+              />
+              <p className="text-xs text-zinc-600">
+                Destino: {createFolderDialog.parentPath || "Biblioteca"}
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+              <button
+                type="button"
+                onClick={closeCreateFolderDialog}
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
+              >
+                Criar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {folderActionDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <form
+            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              confirmFolderAction();
+            }}
+          >
+            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
+              {folderActionDialog.mode === "delete" ? (
+                <Trash2 size={18} className="text-red-400" />
+              ) : (
+                <FolderOpen size={18} className="text-green-400" />
+              )}
+              <h2 className="text-sm font-semibold text-zinc-100">
+                {folderActionDialog.mode === "delete"
+                  ? "Excluir pasta"
+                  : "Renomear pasta"}
+              </h2>
+            </div>
+
+            <div className="space-y-3 p-4">
+              {folderActionDialog.mode === "delete" ? (
+                <>
+                  <p className="text-sm text-zinc-400">
+                    Tem certeza que deseja excluir a pasta{" "}
+                    <span className="font-medium text-zinc-100">
+                      "{folderActionDialog.folder.name}"
+                    </span>
+                    ?
+                  </p>
+                  <p className="text-xs text-zinc-600">
+                    Esta pasta e todo o seu conteudo serao excluidos permanentemente.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    Nome da pasta
+                  </label>
+                  <input
+                    type="text"
+                    value={folderActionDialog.value}
+                    onChange={(event) =>
+                      setFolderActionDialog((current) =>
+                        current
+                          ? { ...current, value: event.target.value }
+                          : current,
+                      )
+                    }
+                    className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                    autoFocus
+                  />
+                </>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+              <button
+                type="button"
+                onClick={closeFolderActionDialog}
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className={`cursor-pointer rounded-sm px-4 py-2 text-sm font-medium ${
+                  folderActionDialog.mode === "delete"
+                    ? "bg-red-500 text-white hover:bg-red-400"
+                    : "bg-green-500 text-zinc-950 hover:bg-green-400"
+                }`}
+              >
+                {folderActionDialog.mode === "delete" ? "Excluir" : "Salvar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <ImportBookDialog
         isOpen={importDialog.open}
@@ -1088,7 +1415,7 @@ export default function Library() {
                 onChange={(event) => setSyncTargetFolder(event.target.value)}
                 className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
               >
-                <option value="">Raiz da library</option>
+                <option value="">Raiz</option>
                 {libraryFolders.map((folder) => (
                   <option key={folder} value={folder}>
                     {folder}
