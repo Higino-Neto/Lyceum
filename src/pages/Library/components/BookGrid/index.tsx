@@ -62,6 +62,8 @@ const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; g
   large: { minWidth: 220, rowHeight: 374, gap: 24 },
 };
 
+const WIDTH_THRESHOLD = 5;
+
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const [width, setWidth] = useState(0);
@@ -71,7 +73,10 @@ function useElementWidth<T extends HTMLElement>() {
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      setWidth(entry.contentRect.width);
+      setWidth((prev) => {
+        const next = entry.contentRect.width;
+        return Math.abs(next - prev) > WIDTH_THRESHOLD ? next : prev;
+      });
     });
 
     observer.observe(element);
@@ -108,20 +113,25 @@ export default function BookGrid({
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
   const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
   const density = GRID_DENSITY[gridDensity];
-  const gridColumns = Math.max(
-    1,
-    Math.floor((scrollWidth + density.gap) / (density.minWidth + density.gap)),
-  );
-  const gridColumnWidth = gridColumns > 0
-    ? (scrollWidth - density.gap * (gridColumns - 1)) / gridColumns
-    : density.minWidth;
-  const gridRowHeight = Math.ceil(Math.max(
-    density.rowHeight,
-    (gridColumnWidth - 8) * 1.5 + 88 + density.gap,
-  ));
-  const rowCount = viewMode === "grid"
-    ? Math.ceil(books.length / gridColumns)
-    : books.length;
+  const { gridColumns, gridColumnWidth, gridRowHeight, rowCount } = useMemo(() => {
+    const cols = Math.max(
+      1,
+      Math.floor((scrollWidth + density.gap) / (density.minWidth + density.gap)),
+    );
+    const colWidth = cols > 0
+      ? (scrollWidth - density.gap * (cols - 1)) / cols
+      : density.minWidth;
+    const rowH = Math.ceil(Math.max(
+      density.rowHeight,
+      (colWidth - 8) * 1.5 + 88 + density.gap,
+    ));
+    return {
+      gridColumns: cols,
+      gridColumnWidth: colWidth,
+      gridRowHeight: rowH,
+      rowCount: viewMode === "grid" ? Math.ceil(books.length / cols) : books.length,
+    };
+  }, [scrollWidth, density, viewMode, books.length]);
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -169,9 +179,13 @@ export default function BookGrid({
     }
   }, [lastVirtualRow?.index, rowCount, hasMore, loadingMore]);
 
+  const prevGridColumns = useRef(gridColumns);
   useEffect(() => {
-    virtualizer.measure();
-  }, [gridColumns, gridDensity, gridRowHeight, viewMode, virtualizer]);
+    if (prevGridColumns.current !== gridColumns) {
+      prevGridColumns.current = gridColumns;
+      virtualizer.measure();
+    }
+  }, [gridColumns, virtualizer]);
 
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
@@ -219,7 +233,7 @@ export default function BookGrid({
   if (viewMode === "grid") {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
           {topContent}
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
             {virtualRows.map((virtualRow) => {
@@ -269,7 +283,7 @@ export default function BookGrid({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto pr-1">
+      <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto" style={{ scrollbarGutter: "stable" }}>
         {topContent}
         <div className="min-w-max space-y-1">
           <div
