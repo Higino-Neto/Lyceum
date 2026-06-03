@@ -51,33 +51,35 @@ function useFolderPreviewImages(
   );
 
   useEffect(() => {
-    if (initialPreviews.length > 0 || previewPaths.length === 0) {
+    if (initialPreviews.length > 0) return;
+    if (previewPaths.length === 0) {
       setLoadedFromPaths([]);
-      return undefined;
+      return;
     }
 
     let canceled = false;
-    const unsubscribers = previewPaths.map((thumbnailPath) => {
+
+    for (const thumbnailPath of previewPaths) {
       const cached = thumbnailCache.get(thumbnailPath);
       if (cached) {
-        setLoadedFromPaths((current) => (
-          current.includes(cached) ? current : [...current, cached].slice(0, 3)
-        ));
+        setLoadedFromPaths((current) =>
+          current.includes(cached) ? current : [...current, cached].slice(0, 3),
+        );
+        continue;
       }
 
-      const unsubscribe = thumbnailCache.subscribe(thumbnailPath, (thumbnail) => {
-        if (canceled || !thumbnail) return;
-        setLoadedFromPaths((current) => (
-          current.includes(thumbnail) ? current : [...current, thumbnail].slice(0, 3)
-        ));
+      if (typeof window.api?.getThumbnail !== "function") continue;
+
+      window.api.getThumbnail(thumbnailPath).then((value: string | null) => {
+        if (canceled || !value) return;
+        setLoadedFromPaths((current) =>
+          current.includes(value) ? current : [...current, value].slice(0, 3),
+        );
       });
-      thumbnailCache.load(thumbnailPath, "visible");
-      return unsubscribe;
-    });
+    }
 
     return () => {
       canceled = true;
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [initialPreviews.length, previewPaths]);
 
