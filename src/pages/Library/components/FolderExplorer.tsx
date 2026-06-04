@@ -47,9 +47,9 @@ interface FolderGridContextMenuState {
   folder: FolderInfo | null;
 }
 
-function bookBelongsToFolder(book: BookWithThumbnail, folderPath: string) {
+function bookBelongsToFolder(book: BookWithThumbnail, folder: FolderInfo) {
   const normalizedBookFolder = normalizeFolderPath(book.folderPath);
-  const normalizedFolder = normalizeFolderPath(folderPath);
+  const normalizedFolder = normalizeFolderPath(folder.fullPath);
   if (!normalizedBookFolder || !normalizedFolder) return false;
 
   return folderPathsEqual(normalizedBookFolder, normalizedFolder)
@@ -58,7 +58,7 @@ function bookBelongsToFolder(book: BookWithThumbnail, folderPath: string) {
 
 function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
   const previewBooks = books
-    .filter((book) => bookBelongsToFolder(book, folder.path))
+    .filter((book) => bookBelongsToFolder(book, folder))
     .filter((book) => book.thumbnail || book.thumbnailPath)
     .slice(0, 3);
 

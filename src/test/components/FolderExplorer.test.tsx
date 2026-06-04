@@ -39,7 +39,7 @@ const previewBook = {
   title: "Algorithms",
   filePath: "C:\\library\\Computer Science\\Algorithms.pdf",
   fileHash: "book-1",
-  folderPath: "Computer Science",
+  folderPath: "C:\\library\\Computer Science",
   currentPage: 0,
   currentZoom: null,
   currentScroll: null,
