@@ -403,6 +403,21 @@ contextBridge.exposeInMainWorld("api", {
   moveBook: (fileHash: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
 
+  getWatchFolders: () =>
+    ipcRenderer.invoke("library:get-watch-folders"),
+
+  addWatchFolder: (folderPath: string, label?: string) =>
+    ipcRenderer.invoke("library:add-watch-folder", folderPath, label),
+
+  removeWatchFolder: (id: number) =>
+    ipcRenderer.invoke("library:remove-watch-folder", id),
+
+  getWatchFolderBooks: (folderPath: string) =>
+    ipcRenderer.invoke("library:get-watch-folder-books", folderPath),
+
+  getWatchFolderBookCount: (folderPath: string) =>
+    ipcRenderer.invoke("library:get-watch-folder-book-count", folderPath),
+
   backupInit: (supabaseUrl: string, supabaseAnonKey: string) =>
     ipcRenderer.invoke("backup:init", supabaseUrl, supabaseAnonKey),
 

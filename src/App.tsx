@@ -21,6 +21,17 @@ import { supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 
+import React from "react";
+import ReactDOMClient from "react-dom/client";
+import { installComponentAtlasRuntime } from "@component-atlas/runtime";
+
+if (import.meta.env.DEV) {
+  installComponentAtlasRuntime({
+    react: React,
+    reactDOM: ReactDOMClient,
+  });
+}
+
 const AUTO_HIDE_REVEAL_DELAY_MS = 120;
 const AUTO_HIDE_DISMISS_DELAY_MS = 420;
 const APP_FRAME_SIZE = 7;

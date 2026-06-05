@@ -14,7 +14,7 @@ import {
   X,
   FilePlus,
 } from "lucide-react";
-import { FolderInfo } from "../../../types/LibraryTypes";
+import { FolderInfo, WatchFolderInfo } from "../../../types/LibraryTypes";
 import { DocumentRecord } from "../../../types/ReadingTypes";
 import toast from "react-hot-toast";
 import FolderContextMenu from "./FolderContextMenu";
@@ -122,6 +122,8 @@ export default function FolderTree({
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
+  const [watchFolders, setWatchFolders] = useState<WatchFolderInfo[]>([]);
+  const [watchFolderCounts, setWatchFolderCounts] = useState<Record<number, number>>({});
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     folder: FolderInfo | null;
@@ -168,24 +170,45 @@ export default function FolderTree({
     }
   }, [applyFolderStructure, electronApiAvailable]);
 
+  const loadWatchFolders = useCallback(async () => {
+    if (!electronApiAvailable || !window.api.getWatchFolders) return;
+    try {
+      const folders = await window.api.getWatchFolders();
+      setWatchFolders(folders);
+      const counts: Record<number, number> = {};
+      if (window.api.getWatchFolderBookCount) {
+        for (const wf of folders) {
+          counts[wf.id] = await window.api.getWatchFolderBookCount(wf.path);
+        }
+      }
+      setWatchFolderCounts(counts);
+    } catch (error) {
+      console.error("Error loading watch folders:", error);
+    }
+  }, [electronApiAvailable]);
+
   const refreshFolders = useCallback(async () => {
     if (onFoldersChanged) {
       await onFoldersChanged();
-      return;
     }
 
-    await loadFolders();
-  }, [loadFolders, onFoldersChanged]);
+    await loadWatchFolders();
+    if (!onFoldersChanged) {
+      await loadFolders();
+    }
+  }, [loadFolders, loadWatchFolders, onFoldersChanged]);
 
   useEffect(() => {
     if (folderStructure) {
       applyFolderStructure(folderStructure);
+      loadWatchFolders();
       return;
     }
 
     if (!electronApiAvailable) return;
     loadFolders();
-  }, [applyFolderStructure, electronApiAvailable, folderStructure, loadFolders]);
+    loadWatchFolders();
+  }, [applyFolderStructure, electronApiAvailable, folderStructure, loadFolders, loadWatchFolders]);
 
   const filteredFolders = useMemo(() => {
     return filterFolders(folders, searchTerm);
@@ -446,6 +469,31 @@ export default function FolderTree({
     }
   };
 
+  const handleAddWatchFolder = async () => {
+    if (!window.api.selectFolder) return;
+    try {
+      const result = await window.api.selectFolder();
+      if (result.canceled || result.filePaths.length === 0) return;
+      const folderPath = result.filePaths[0];
+      await window.api.addWatchFolder(folderPath);
+      await loadWatchFolders();
+      toast.success("Pasta externa adicionada");
+    } catch (error) {
+      toast.error("Erro ao adicionar pasta externa");
+    }
+  };
+
+  const handleRemoveWatchFolder = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await window.api.removeWatchFolder(id);
+      await loadWatchFolders();
+      toast.success("Pasta externa removida");
+    } catch (error) {
+      toast.error("Erro ao remover pasta externa");
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = () => closeContextMenu();
     if (contextMenu.visible) {
@@ -558,9 +606,18 @@ export default function FolderTree({
         </div>
       </div>
 
-      {folders.length === 0 ? (
-        <div className="flex-shrink-0 p-4 text-center text-xs text-zinc-500 cursor-default">
-          Nenhuma pasta na biblioteca
+      {folders.length === 0 && watchFolders.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-6 px-4">
+          <p className="text-xs text-zinc-500 cursor-default">
+            Nenhuma pasta na biblioteca
+          </p>
+          <button
+            onClick={handleAddWatchFolder}
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+          >
+            <FolderPlus size={13} />
+            Adicionar pasta externa
+          </button>
         </div>
       ) : (
         <>
@@ -655,6 +712,56 @@ export default function FolderTree({
                   autoFocus
                   placeholder="Nome da pasta"
                 />
+              </div>
+            )}
+
+            {watchFolders.length > 0 && (
+              <div className="border-t border-zinc-800 mt-3 pt-2 px-1">
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Pastas externas
+                  </span>
+                  <button
+                    onClick={handleAddWatchFolder}
+                    className="p-1 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    title="Adicionar pasta externa"
+                  >
+                    <FolderPlus size={14} />
+                  </button>
+                </div>
+                {watchFolders.map((wf) => {
+                  const isSelected = wf.path === selectedFolder;
+                  return (
+                    <div
+                      key={wf.id}
+                      onClick={() => onFolderSelect(wf.path)}
+                      className={`group flex items-center gap-2 cursor-pointer rounded-sm px-2 py-2 text-sm transition-colors ${
+                        isSelected
+                          ? "bg-zinc-800 text-zinc-100"
+                          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                      }`}
+                    >
+                      <Folder size={15} className="text-zinc-500" />
+                      <span className="flex-1 truncate">{wf.label || wf.path.split(/[/\\]/).pop()}</span>
+                      <span
+                        className={`text-[11px] px-1.5 py-0.5 rounded-sm mr-1 ${
+                          isSelected
+                            ? "bg-zinc-700 text-zinc-300"
+                            : "bg-zinc-800 text-zinc-500"
+                        }`}
+                      >
+                        {watchFolderCounts[wf.id] ?? "?"}
+                      </span>
+                      <button
+                        onClick={(e) => handleRemoveWatchFolder(wf.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-zinc-700 rounded-sm transition-opacity cursor-pointer text-zinc-500 hover:text-red-400"
+                        title="Remover pasta externa"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

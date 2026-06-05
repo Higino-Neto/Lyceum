@@ -449,6 +449,15 @@ export function initDatabase() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS watch_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      path TEXT NOT NULL UNIQUE,
+      label TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
 
@@ -1473,4 +1482,60 @@ export function hasWordIndex(fileHash: string): boolean {
 
 export function deleteWordIndex(fileHash: string): void {
   db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
+}
+
+export interface WatchFolderRecord {
+  id: number;
+  path: string;
+  label: string | null;
+  createdAt: string;
+}
+
+export function getWatchFolders(): WatchFolderRecord[] {
+  return db.prepare<[], WatchFolderRecord>(`SELECT * FROM watch_folders ORDER BY label, path`).all();
+}
+
+export function addWatchFolder(folderPath: string, label?: string): WatchFolderRecord {
+  const cleanLabel = label || folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
+  db.prepare(
+    `INSERT OR IGNORE INTO watch_folders (path, label) VALUES (?, ?)`
+  ).run(folderPath, cleanLabel);
+
+  const record = db.prepare<[string], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE path = ?`
+  ).get(folderPath);
+
+  if (!record) {
+    return db.prepare<[], WatchFolderRecord>(
+      `SELECT * FROM watch_folders ORDER BY id DESC LIMIT 1`
+    ).get()!;
+  }
+
+  return record;
+}
+
+export function removeWatchFolder(id: number): void {
+  db.prepare(`DELETE FROM watch_folders WHERE id = ?`).run(id);
+}
+
+export function getWatchFolderBooks(folderPath: string): DocumentRecord[] {
+  const normalizedPath = folderPath.replace(/\\/g, "/");
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
+  ).all(normalizedPath);
+}
+
+export function getUnsyncedFolderPaths(): string[] {
+  const rows = db.prepare<[], { folderPath: string }>(
+    `SELECT DISTINCT REPLACE(folderPath, '\\', '/') as folderPath FROM documents WHERE isSynced = 0 AND folderPath IS NOT NULL`
+  ).all();
+  return rows.map(r => r.folderPath).filter(Boolean);
+}
+
+export function getUnsyncedBookCount(folderPath: string): number {
+  const normalizedPath = folderPath.replace(/\\/g, "/");
+  const result = db.prepare<[string], { count: number }>(
+    `SELECT COUNT(*) as count FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
+  ).get(normalizedPath);
+  return result?.count || 0;
 }

@@ -14,7 +14,13 @@ import {
   updateLastOpened,
   deleteDocument,
   searchDocuments,
+  getWatchFolders,
+  addWatchFolder,
+  removeWatchFolder,
+  getWatchFolderBooks,
+  getUnsyncedBookCount,
   type DocumentRecord,
+  type WatchFolderRecord,
 } from "../local-database";
 import {
   scanLibrary,
@@ -296,5 +302,29 @@ export function registerLibraryHandlers() {
     } catch (error) {
       return { success: false, error: String(error) };
     }
+  });
+
+  ipcMain.handle("library:get-watch-folders", () => {
+    return getWatchFolders();
+  });
+
+  ipcMain.handle("library:add-watch-folder", (_, folderPath: string, label?: string) => {
+    const record = addWatchFolder(folderPath, label);
+    win?.webContents.send("library:updated");
+    return record;
+  });
+
+  ipcMain.handle("library:remove-watch-folder", (_, id: number) => {
+    removeWatchFolder(id);
+    win?.webContents.send("library:updated");
+    return { success: true };
+  });
+
+  ipcMain.handle("library:get-watch-folder-books", (_, folderPath: string) => {
+    return getWatchFolderBooks(folderPath);
+  });
+
+  ipcMain.handle("library:get-watch-folder-book-count", (_, folderPath: string) => {
+    return getUnsyncedBookCount(folderPath);
   });
 }

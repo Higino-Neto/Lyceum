@@ -95,3 +95,10 @@ export interface FolderInfo {
   bookCount: number;
   subfolders: FolderInfo[];
 }
+
+export interface WatchFolderInfo {
+  id: number;
+  path: string;
+  label: string | null;
+  createdAt: string;
+}

@@ -304,6 +304,14 @@ interface Window {
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
 
+    selectFolder: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+
+    getWatchFolders: () => Promise<WatchFolderInfo[]>;
+    addWatchFolder: (folderPath: string, label?: string) => Promise<WatchFolderInfo>;
+    removeWatchFolder: (id: number) => Promise<{ success: boolean }>;
+    getWatchFolderBooks: (folderPath: string) => Promise<DocumentRecord[]>;
+    getWatchFolderBookCount: (folderPath: string) => Promise<number>;
+
     backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
     backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
     backupClearSession: () => Promise<{ success: boolean; error?: string }>;
@@ -429,6 +437,12 @@ interface Window {
       category?: string,
     ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
     searchLocalBooks: (query: string) => Promise<any[]>;
+
+    getWatchFolders: () => Promise<any[]>;
+    addWatchFolder: (folderPath: string, label?: string) => Promise<any>;
+    removeWatchFolder: (id: number) => Promise<{ success: boolean }>;
+    getWatchFolderBooks: (folderPath: string) => Promise<any[]>;
+    getWatchFolderBookCount: (folderPath: string) => Promise<number>;
 
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;

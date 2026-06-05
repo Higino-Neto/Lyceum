@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.7.4",
+  "version": "1.7.5",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {
@@ -99,7 +99,8 @@
     "pdf-poppler": "^0.2.3",
     "pdfjs-dist": "^4.10.38",
     "sharp": "^0.34.5",
-    "wink-lemmatizer": "^3.0.4"
+    "wink-lemmatizer": "^3.0.4",
+    "@component-atlas/runtime": "file:C:/Users/tawlt/OneDrive/Documentos/Component-Atlas/packages/runtime"
   },
   "devDependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -39,7 +39,7 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import { BookWithThumbnail, FolderInfo, LibrarySection } from "../../types/LibraryTypes";
+import { BookWithThumbnail, FolderInfo, LibrarySection, WatchFolderInfo } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
@@ -136,6 +136,7 @@ export default function Library() {
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [folderStructure, setFolderStructure] = useState<FolderInfo[]>([]);
+  const [watchFolderPaths, setWatchFolderPaths] = useState<Set<string>>(new Set());
   const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
   const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
@@ -225,6 +226,16 @@ export default function Library() {
     }
   }, [electronApiAvailable]);
 
+  const loadWatchFolderPaths = useCallback(async () => {
+    if (!electronApiAvailable || !window.api.getWatchFolders) return;
+    try {
+      const folders = await window.api.getWatchFolders();
+      setWatchFolderPaths(new Set(folders.map((wf: WatchFolderInfo) => wf.path)));
+    } catch (error) {
+      console.error("Error loading watch folder paths:", error);
+    }
+  }, [electronApiAvailable]);
+
   const loadGlobalRecentBooks = useCallback(async () => {
     if (!electronApiAvailable) return;
     try {
@@ -258,8 +269,9 @@ export default function Library() {
       loadLocalDocs(),
       loadLibraryFolders(),
       loadGlobalRecentBooks(),
+      loadWatchFolderPaths(),
     ]);
-  }, [loadGlobalRecentBooks, loadLibraryFolders, loadLocalDocs, refreshBooks]);
+  }, [loadGlobalRecentBooks, loadLibraryFolders, loadLocalDocs, loadWatchFolderPaths, refreshBooks]);
 
   useEffect(() => {
     if (!electronApiAvailable || !window.api.onLibraryUpdated) return;
@@ -283,7 +295,13 @@ export default function Library() {
     setSelectedFolder(folderPath);
     setSelectedBook(null);
     setKindlePanelOpen(false);
-  }, []);
+    if (folderPath && watchFolderPaths.has(folderPath)) {
+      setActiveSection("unsynced");
+    } else if (folderPath === null) {
+      const isWatchRoot = watchFolderPaths.size > 0;
+      if (!isWatchRoot) setActiveSection("synced");
+    }
+  }, [watchFolderPaths]);
 
   const startPaneResize = (
     pane: "sidebar" | "details",
