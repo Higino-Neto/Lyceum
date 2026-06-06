@@ -53,6 +53,7 @@ setHabitCompletion,
   deleteHabitCompletion,
   getAllDocumentCategories,
   getDocumentByFilePath,
+  getSourceFolders,
 } from "./local-database";
 import {
   initBackupClient,
@@ -76,7 +77,11 @@ import {
   validateCbzFile,
 } from "./services/document-processing";
 import { registerBookHandlers, setWindow as setBooksWindow } from "./handlers/books.handler";
-import { registerLibraryHandlers, setWindow as setLibraryWindow } from "./handlers/library.handler";
+import {
+  registerLibraryHandlers,
+  setFileWatcherRefresh,
+  setWindow as setLibraryWindow,
+} from "./handlers/library.handler";
 
 const {
   app,
@@ -118,6 +123,11 @@ type EpubToPdfModule = typeof import("../src/lib/epub-to-pdf");
 
 let lyceumConversionModulePromise: Promise<LyceumConversionModule> | null = null;
 let pdfToEpubModulePromise: Promise<PdfToEpubModule> | null = null;
+
+function isPathInside(basePath: string, targetPath: string): boolean {
+  const relative = path.relative(path.resolve(basePath), path.resolve(targetPath));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
 let epubToPdfModulePromise: Promise<EpubToPdfModule> | null = null;
 
 function loadLyceumConversionModule(): Promise<LyceumConversionModule> {
@@ -1629,7 +1639,9 @@ async function processFile(filePath: string): Promise<void> {
       updateProcessingStatus(fileHash, "processing");
     }
 
-    const relativePath = path.relative(LIBRARY_PATH(), filePath);
+    const sourceRoot = getSourceFolders().find((folder) => isPathInside(folder.path, filePath));
+    const rootPath = sourceRoot?.path || LIBRARY_PATH();
+    const relativePath = path.relative(rootPath, filePath);
     const pathParts = relativePath.split(path.sep);
     const category = pathParts.length > 1 ? pathParts[0] : null;
 
@@ -1693,6 +1705,12 @@ async function processFile(filePath: string): Promise<void> {
 
 function setupFileWatcher() {
   const libraryPath = LIBRARY_PATH();
+  const watchedPaths = [
+    libraryPath,
+    ...getSourceFolders()
+      .map((folder) => folder.path)
+      .filter((folderPath) => fs.existsSync(folderPath)),
+  ];
   
   if (fileWatcher) {
     fileWatcher.close();
@@ -1702,7 +1720,7 @@ function setupFileWatcher() {
     fs.mkdirSync(libraryPath, { recursive: true });
   }
 
-  fileWatcher = chokidar.watch(libraryPath, {
+  fileWatcher = chokidar.watch(watchedPaths, {
     persistent: true,
     ignoreInitial: true,
     depth: 99,
@@ -1713,19 +1731,19 @@ function setupFileWatcher() {
   } as any);
 
   fileWatcher.on("add", (filePath) => {
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    if (isPdf || isEpub) {
-      console.log(`[Main] New ${isEpub ? "EPUB" : "PDF"} detected:`, filePath);
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum"]
+      .includes(path.extname(filePath).toLowerCase());
+    if (isBook) {
+      console.log("[Main] New book detected:", filePath);
       processFile(filePath);
     }
   });
 
   fileWatcher.on("unlink", (filePath) => {
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    if (isPdf || isEpub) {
-      console.log(`[Main] ${isEpub ? "EPUB" : "PDF"} removed:`, filePath);
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum"]
+      .includes(path.extname(filePath).toLowerCase());
+    if (isBook) {
+      console.log("[Main] Book removed:", filePath);
       // Try to find by path first (most reliable)
       const doc = getDocumentByPath(filePath);
       if (doc) {
@@ -1758,49 +1776,55 @@ function setupFileWatcher() {
     console.error("[Main] File watcher error:", error);
   });
 
-  console.log("[Main] File watcher setup for:", libraryPath);
+  console.log("[Main] File watcher setup for:", watchedPaths);
 }
 
 async function scanLibrary() {
-  const libraryPath = LIBRARY_PATH();
+  const roots = [
+    LIBRARY_PATH(),
+    ...getSourceFolders().map((folder) => folder.path),
+  ].filter((rootPath) => fs.existsSync(rootPath));
 
-  if (!fs.existsSync(libraryPath)) return;
+  for (const rootPath of roots) {
+    const bookFiles = getAllBookFiles(rootPath);
 
-  const pdfFiles = getAllPdfFiles(libraryPath);
+    for (const filePath of bookFiles) {
+      try {
+        const fileHash = generateFileHash(filePath);
+        const existing = getDocumentByHash(fileHash);
 
-  for (const filePath of pdfFiles) {
-    try {
-      const fileHash = generateFileHash(filePath);
-      const existing = getDocumentByHash(fileHash);
+        if (existing && existing.processingStatus === "completed" && existing.filePath === filePath) {
+          continue;
+        }
 
-      if (existing && existing.processingStatus === "completed") {
-        continue;
+        await processFile(filePath);
+      } catch (error) {
+        console.error("Error scanning:", filePath, error);
       }
-
-      await processFile(filePath);
-    } catch (error) {
-      console.error("Error scanning:", filePath, error);
     }
   }
 }
 
 async function resyncLibrary(): Promise<{ added: number; removed: number; updated: number }> {
-  const libraryPath = LIBRARY_PATH();
+  const roots = [
+    LIBRARY_PATH(),
+    ...getSourceFolders().map((folder) => folder.path),
+  ].filter((rootPath) => fs.existsSync(rootPath));
   let added = 0, removed = 0, updated = 0;
 
-  if (!fs.existsSync(libraryPath)) {
+  if (roots.length === 0) {
     return { added: 0, removed: 0, updated: 0 };
   }
 
-  const pdfFiles = getAllPdfFiles(libraryPath);
-  const pdfFileSet = new Set(pdfFiles.map(f => f.toLowerCase()));
+  const bookFiles = roots.flatMap((rootPath) => getAllBookFiles(rootPath));
+  const bookFileSet = new Set(bookFiles.map(f => f.toLowerCase()));
 
   const allDocs = getAllDocuments();
-  const docsInLibrary = allDocs.filter(d => d.filePath && d.filePath.startsWith(libraryPath));
+  const docsInLibrary = allDocs.filter(d => d.filePath && d.isSynced === 1 && roots.some((rootPath) => isPathInside(rootPath, d.filePath)));
 
   for (const doc of docsInLibrary) {
-    if (doc.filePath && !pdfFileSet.has(doc.filePath.toLowerCase())) {
-      console.log("[Main] Resync: PDF no longer exists, removing from DB:", doc.filePath);
+    if (doc.filePath && !bookFileSet.has(doc.filePath.toLowerCase())) {
+      console.log("[Main] Resync: book no longer exists, removing from DB:", doc.filePath);
       deleteDocument(doc.fileHash);
       removed++;
     }
@@ -1828,7 +1852,7 @@ async function resyncLibrary(): Promise<{ added: number; removed: number; update
     }
   };
 
-  await processInBatches(pdfFiles, 10);
+  await processInBatches(bookFiles, 10);
 
   console.log(`[Main] Resync complete: added=${added}, removed=${removed}, updated=${updated}`);
   return { added, removed, updated };
@@ -3514,6 +3538,7 @@ app.whenReady().then(async () => {
 
   setBooksWindow(win);
   setLibraryWindow(win);
+  setFileWatcherRefresh(setupFileWatcher);
   registerBookHandlers();
   registerLibraryHandlers();
 

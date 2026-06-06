@@ -39,7 +39,7 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import { BookWithThumbnail, FolderInfo, LibrarySection, WatchFolderInfo } from "../../types/LibraryTypes";
+import { BookWithThumbnail, FolderInfo, LibraryRootInfo, LibrarySection, WatchFolderInfo } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
@@ -68,6 +68,10 @@ interface OpenBookResult {
   fileName?: string;
   filePath?: string;
   fileType?: string;
+}
+
+function isAbsoluteFolderPath(folderPath: string | null): boolean {
+  return Boolean(folderPath && (/^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\")));
 }
 
 function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: () => void }) {
@@ -136,6 +140,7 @@ export default function Library() {
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [folderStructure, setFolderStructure] = useState<FolderInfo[]>([]);
+  const [libraryRoots, setLibraryRoots] = useState<LibraryRootInfo[]>([]);
   const [watchFolderPaths, setWatchFolderPaths] = useState<Set<string>>(new Set());
   const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
   const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
@@ -176,7 +181,7 @@ export default function Library() {
       search: deferredSearch,
       sort,
       fileType: fileTypeFilter,
-      folderPath: activeSection === "usb" ? null : selectedFolder ?? "",
+      folderPath: activeSection === "usb" ? null : selectedFolder,
       includeSubfolders: settings.showSubfolderBooks,
     }),
     [
@@ -213,13 +218,32 @@ export default function Library() {
   const loadLibraryFolders = useCallback(async () => {
     if (!electronApiAvailable) return;
     try {
-      const [structure, folders] = await Promise.all([
+      const [structure, folders, roots] = await Promise.all([
         window.api.getFolderStructure(),
         window.api.getAllFolders(),
+        window.api.getLibraryRoots ? window.api.getLibraryRoots() : Promise.resolve([]),
       ]);
-      setFolderStructure(
-        structure.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
+      const sourceRoots = (roots as LibraryRootInfo[]).filter((root) => root.type === "source");
+      const sourceStructures = await Promise.all(
+        sourceRoots.map(async (root) => ({
+          root,
+          folders: window.api.getFolderStructure
+            ? await window.api.getFolderStructure(root.path)
+            : [],
+        })),
       );
+      const sourceRootFolders: FolderInfo[] = sourceStructures.map(({ root, folders }) => ({
+        name: root.label,
+        path: root.path,
+        fullPath: root.path,
+        bookCount: 0,
+        subfolders: folders.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
+      }));
+      setLibraryRoots(roots as LibraryRootInfo[]);
+      setFolderStructure([
+        ...structure.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
+        ...sourceRootFolders,
+      ]);
       setLibraryFolders(folders);
     } catch (error) {
       console.error("Error loading library folders:", error);
@@ -295,13 +319,21 @@ export default function Library() {
     setSelectedFolder(folderPath);
     setSelectedBook(null);
     setKindlePanelOpen(false);
+    const sourcePaths = new Set(
+      libraryRoots
+        .filter((root) => root.type === "source")
+        .map((root) => root.path.replace(/\\/g, "/").toLowerCase()),
+    );
+    const normalizedFolder = folderPath?.replace(/\\/g, "/").toLowerCase();
     if (folderPath && watchFolderPaths.has(folderPath)) {
       setActiveSection("unsynced");
+    } else if (normalizedFolder && Array.from(sourcePaths).some((sourcePath) => normalizedFolder === sourcePath || normalizedFolder.startsWith(`${sourcePath}/`))) {
+      setActiveSection("synced");
     } else if (folderPath === null) {
       const isWatchRoot = watchFolderPaths.size > 0;
       if (!isWatchRoot) setActiveSection("synced");
     }
-  }, [watchFolderPaths]);
+  }, [libraryRoots, watchFolderPaths]);
 
   const startPaneResize = (
     pane: "sidebar" | "details",
@@ -418,11 +450,25 @@ export default function Library() {
     fileHash: string,
     targetFolder: string | null,
   ): Promise<boolean> => {
-    const book = books.find(
-      (candidate) => candidate.fileHash === fileHash,
-    );
+    const book =
+      selectedBookMap.get(fileHash) ||
+      books.find((candidate) => candidate.fileHash === fileHash);
+    const mergedVariantCount = book?.bookId
+      ? book.mergedBooks?.length || books.filter((candidate) => candidate.bookId === book.bookId).length
+      : 0;
 
-    if (book && book.isSynced !== 1) {
+    if (book?.bookId && mergedVariantCount > 1 && window.api.moveMergedBook) {
+      const result = await window.api.moveMergedBook(book.bookId, targetFolder);
+      if (result.success) {
+        await refreshLibraryState();
+        return true;
+      }
+
+      toast.error(result.error || "Erro ao mover livro mesclado");
+      return false;
+    }
+
+    if (book && book.isSynced !== 1 && !isAbsoluteFolderPath(targetFolder)) {
       const result = await window.api.syncDocument(
         fileHash,
         "move",
@@ -471,8 +517,28 @@ export default function Library() {
   ): Promise<boolean> => {
     let moved = 0;
     let failed = 0;
+    const movedBookIds = new Set<string>();
 
     for (const fileHash of fileHashes) {
+      const book =
+        selectedBookMap.get(fileHash) ||
+        books.find((candidate) => candidate.fileHash === fileHash);
+      const mergedVariantCount = book?.bookId
+        ? book.mergedBooks?.length || books.filter((candidate) => candidate.bookId === book.bookId).length
+        : 0;
+      if (book?.bookId && mergedVariantCount > 1 && window.api.moveMergedBook) {
+        if (movedBookIds.has(book.bookId)) continue;
+        movedBookIds.add(book.bookId);
+        const result = await window.api.moveMergedBook(book.bookId, targetFolder);
+        if (result.success) {
+          moved += mergedVariantCount;
+        } else {
+          failed += mergedVariantCount;
+          toast.error(result.error || "Erro ao mover livro mesclado");
+        }
+        continue;
+      }
+
       const success = await handleMoveBook(fileHash, targetFolder);
       if (success) {
         moved++;
@@ -909,6 +975,7 @@ export default function Library() {
               onFolderSelect={handleFolderSelect}
               localDocuments={localDocuments}
               folderStructure={folderStructure}
+              libraryRoots={libraryRoots}
               includeSubfolders={settings.showSubfolderBooks}
               onFoldersChanged={refreshLibraryState}
               onMoveBook={handleMoveBook}

@@ -69,6 +69,21 @@ interface BookCategory {
   createdAt: string;
 }
 
+interface WatchFolderInfo {
+  id: number;
+  path: string;
+  label: string | null;
+  type: "watch" | "source";
+  createdAt: string;
+}
+
+interface LibraryRootInfo {
+  id: number | null;
+  type: "library" | "source";
+  label: string;
+  path: string;
+}
+
 interface OpenPdfResult extends DocumentRecord {
   fileBuffer: ArrayBuffer;
 }
@@ -295,7 +310,8 @@ interface Window {
     categoryGetColors: () => Promise<string[]>;
     categoryImportFromFolders: () => Promise<{ imported: number }>;
 
-    getFolderStructure: () => Promise<FolderInfo[]>;
+    getFolderStructure: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getLibraryRoots: () => Promise<LibraryRootInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
     createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
@@ -303,12 +319,16 @@ interface Window {
     deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
+    moveMergedBook: (bookId: string, targetFolderPath: string | null) => Promise<{ success: boolean; moved?: number; error?: string }>;
 
     selectFolder: () => Promise<{ canceled: boolean; filePaths: string[] }>;
 
     getWatchFolders: () => Promise<WatchFolderInfo[]>;
     addWatchFolder: (folderPath: string, label?: string) => Promise<WatchFolderInfo>;
     removeWatchFolder: (id: number) => Promise<{ success: boolean }>;
+    addSourceFolder: (folderPath: string, label?: string) => Promise<{ success: boolean; folder?: WatchFolderInfo; error?: string }>;
+    removeSourceFolder: (id: number) => Promise<{ success: boolean; removedDocuments: number; error?: string }>;
+    resyncSourceFolder: (id: number) => Promise<{ success: boolean; scanned?: number; error?: string }>;
     getWatchFolderBooks: (folderPath: string) => Promise<DocumentRecord[]>;
     getWatchFolderBookCount: (folderPath: string) => Promise<number>;
 

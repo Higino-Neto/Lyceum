@@ -454,9 +454,16 @@ export function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       path TEXT NOT NULL UNIQUE,
       label TEXT,
+      type TEXT NOT NULL DEFAULT 'watch',
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  try {
+    db.exec(`ALTER TABLE watch_folders ADD COLUMN type TEXT NOT NULL DEFAULT 'watch'`);
+  } catch {
+    // Column already exists
+  }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
@@ -1488,18 +1495,23 @@ export interface WatchFolderRecord {
   id: number;
   path: string;
   label: string | null;
+  type: "watch" | "source";
   createdAt: string;
 }
 
-export function getWatchFolders(): WatchFolderRecord[] {
-  return db.prepare<[], WatchFolderRecord>(`SELECT * FROM watch_folders ORDER BY label, path`).all();
+export function getWatchFolders(type: "watch" | "source" = "watch"): WatchFolderRecord[] {
+  return db.prepare<[string], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE type = ? ORDER BY label, path`
+  ).all(type);
 }
 
-export function addWatchFolder(folderPath: string, label?: string): WatchFolderRecord {
+function addTypedWatchFolder(folderPath: string, label: string | undefined, type: "watch" | "source"): WatchFolderRecord {
   const cleanLabel = label || folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
   db.prepare(
-    `INSERT OR IGNORE INTO watch_folders (path, label) VALUES (?, ?)`
-  ).run(folderPath, cleanLabel);
+    `INSERT INTO watch_folders (path, label, type)
+     VALUES (?, ?, ?)
+     ON CONFLICT(path) DO UPDATE SET label = excluded.label, type = excluded.type`
+  ).run(folderPath, cleanLabel, type);
 
   const record = db.prepare<[string], WatchFolderRecord>(
     `SELECT * FROM watch_folders WHERE path = ?`
@@ -1514,8 +1526,45 @@ export function addWatchFolder(folderPath: string, label?: string): WatchFolderR
   return record;
 }
 
+export function addWatchFolder(folderPath: string, label?: string): WatchFolderRecord {
+  return addTypedWatchFolder(folderPath, label, "watch");
+}
+
+export function getSourceFolders(): WatchFolderRecord[] {
+  return getWatchFolders("source");
+}
+
+export function addSourceFolder(folderPath: string, label?: string): WatchFolderRecord {
+  return addTypedWatchFolder(folderPath, label, "source");
+}
+
 export function removeWatchFolder(id: number): void {
   db.prepare(`DELETE FROM watch_folders WHERE id = ?`).run(id);
+}
+
+export function removeSourceFolder(id: number): WatchFolderRecord | undefined {
+  const record = db.prepare<[number], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE id = ? AND type = 'source'`
+  ).get(id);
+  if (!record) return undefined;
+  removeWatchFolder(id);
+  return record;
+}
+
+export function deleteDocumentsUnderPath(rootPath: string): number {
+  const normalizedRoot = normalizeStoredPath(path.resolve(rootPath));
+  if (!normalizedRoot) return 0;
+  const docs = db.prepare<[string, string], DocumentRecord>(
+    `SELECT * FROM documents
+     WHERE REPLACE(filePath, '\\', '/') = ?
+        OR REPLACE(filePath, '\\', '/') LIKE ?`
+  ).all(normalizedRoot, `${normalizedRoot}/%`);
+
+  for (const doc of docs) {
+    deleteDocument(doc.fileHash);
+  }
+
+  return docs.length;
 }
 
 export function getWatchFolderBooks(folderPath: string): DocumentRecord[] {

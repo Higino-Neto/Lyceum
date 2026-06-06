@@ -13,8 +13,9 @@ import {
   MoreVertical,
   X,
   FilePlus,
+  HardDrive,
 } from "lucide-react";
-import { FolderInfo, WatchFolderInfo } from "../../../types/LibraryTypes";
+import { FolderInfo, LibraryRootInfo, WatchFolderInfo } from "../../../types/LibraryTypes";
 import { DocumentRecord } from "../../../types/ReadingTypes";
 import toast from "react-hot-toast";
 import FolderContextMenu from "./FolderContextMenu";
@@ -24,6 +25,7 @@ interface FolderTreeProps {
   onFolderSelect: (folderPath: string | null) => void;
   localDocuments: DocumentRecord[];
   folderStructure?: FolderInfo[];
+  libraryRoots?: LibraryRootInfo[];
   includeSubfolders?: boolean;
   onFoldersChanged?: () => Promise<void> | void;
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
@@ -92,6 +94,7 @@ export default function FolderTree({
   onFolderSelect,
   localDocuments,
   folderStructure,
+  libraryRoots = [],
   includeSubfolders = false,
   onFoldersChanged,
   onMoveBook,
@@ -138,6 +141,19 @@ export default function FolderTree({
   const draggingBook = draggingBooks.length > 0;
 
   const isDropTarget = dragOver === "root";
+  const sourceRoots = useMemo(
+    () => libraryRoots.filter((root) => root.type === "source"),
+    [libraryRoots],
+  );
+  const sourceRootPaths = useMemo(
+    () => new Set(sourceRoots.map((root) => root.path.replace(/\\/g, "/").toLowerCase())),
+    [sourceRoots],
+  );
+
+  const isSourceRootFolder = useCallback((folder: FolderInfo | null) => {
+    if (!folder) return false;
+    return sourceRootPaths.has(folder.fullPath.replace(/\\/g, "/").toLowerCase());
+  }, [sourceRootPaths]);
 
   const applyFolderStructure = useCallback((structure: FolderInfo[]) => {
     const filtered = structure.filter((f) => !f.name.startsWith("."));
@@ -483,6 +499,60 @@ export default function FolderTree({
     }
   };
 
+  const handleAddSourceFolder = async () => {
+    if (!window.api.selectFolder || !window.api.addSourceFolder) return;
+    try {
+      const result = await window.api.selectFolder();
+      if (result.canceled || result.filePaths.length === 0) return;
+      const addResult = await window.api.addSourceFolder(result.filePaths[0]);
+      if (addResult.success) {
+        await refreshFolders();
+        toast.success("Pasta fonte adicionada");
+      } else {
+        toast.error(addResult.error || "Erro ao adicionar pasta fonte");
+      }
+    } catch (error) {
+      toast.error("Erro ao adicionar pasta fonte");
+    }
+  };
+
+  const handleRemoveSourceFolder = async (folder: FolderInfo) => {
+    const root = sourceRoots.find((candidate) => candidate.path.replace(/\\/g, "/").toLowerCase() === folder.fullPath.replace(/\\/g, "/").toLowerCase());
+    if (!root?.id || !window.api.removeSourceFolder) return;
+    try {
+      const result = await window.api.removeSourceFolder(root.id);
+      if (result.success) {
+        if (selectedFolder?.replace(/\\/g, "/").toLowerCase().startsWith(root.path.replace(/\\/g, "/").toLowerCase())) {
+          onFolderSelect(null);
+        }
+        await refreshFolders();
+        toast.success("Pasta fonte removida");
+      } else {
+        toast.error(result.error || "Erro ao remover pasta fonte");
+      }
+    } catch (error) {
+      toast.error("Erro ao remover pasta fonte");
+    }
+    closeContextMenu();
+  };
+
+  const handleResyncSourceFolder = async (folder: FolderInfo) => {
+    const root = sourceRoots.find((candidate) => candidate.path.replace(/\\/g, "/").toLowerCase() === folder.fullPath.replace(/\\/g, "/").toLowerCase());
+    if (!root?.id || !window.api.resyncSourceFolder) return;
+    try {
+      const result = await window.api.resyncSourceFolder(root.id);
+      if (result.success) {
+        await refreshFolders();
+        toast.success("Pasta fonte atualizada");
+      } else {
+        toast.error(result.error || "Erro ao atualizar pasta fonte");
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar pasta fonte");
+    }
+    closeContextMenu();
+  };
+
   const handleRemoveWatchFolder = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -568,6 +638,15 @@ export default function FolderTree({
                   <FilePlus size={14} />
                 </button>
               )}
+              {window.api?.addSourceFolder && (
+                <button
+                  onClick={handleAddSourceFolder}
+                  className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                  title="Adicionar pasta fonte"
+                >
+                  <HardDrive size={14} />
+                </button>
+              )}
             <button
               onClick={toggleExpandAll}
               className="p-1.5 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
@@ -618,6 +697,15 @@ export default function FolderTree({
             <FolderPlus size={13} />
             Adicionar pasta externa
           </button>
+          {window.api?.addSourceFolder && (
+            <button
+              onClick={handleAddSourceFolder}
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+            >
+              <HardDrive size={13} />
+              Adicionar pasta fonte
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -777,15 +865,39 @@ export default function FolderTree({
       )}
 
       {contextMenu.visible && contextMenu.folder && (
-        <FolderContextMenu
-          folder={contextMenu.folder}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onCreateFolder={handleCreateFromContext}
-          onImportBook={onImportBook ? handleImportFromContext : undefined}
-          onRenameFolder={handleRename}
-          onDeleteFolder={handleDeleteClick}
-        />
+        isSourceRootFolder(contextMenu.folder) ? (
+          <div
+            className="fixed z-50 min-w-[190px] rounded-sm border border-zinc-700 bg-zinc-900 py-1 shadow-xl"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              type="button"
+              onClick={() => handleResyncSourceFolder(contextMenu.folder!)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+            >
+              <RefreshCw size={14} />
+              Atualizar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRemoveSourceFolder(contextMenu.folder!)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-300 hover:bg-red-950/40"
+            >
+              <X size={14} />
+              Remover pasta fonte
+            </button>
+          </div>
+        ) : (
+          <FolderContextMenu
+            folder={contextMenu.folder}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onCreateFolder={handleCreateFromContext}
+            onImportBook={onImportBook ? handleImportFromContext : undefined}
+            onRenameFolder={handleRename}
+            onDeleteFolder={handleDeleteClick}
+          />
+        )
       )}
 
       {deleteDialog.open && (
@@ -895,19 +1007,30 @@ function FolderNode({
   onDrop: (targetPath: string) => void;
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
 }) {
+  const normalizeAbsolutePath = (value: string) =>
+    value.replace(/\\/g, "/").replace(/\/+$/g, "").toLowerCase();
+
+  const isAbsoluteLike = (value: string) =>
+    /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith("/") || value.startsWith("\\\\");
+
   const countDocsInFolder = (folderPath: string | null, includeNested = true): number => {
     if (!libraryPath || !localDocuments.length) return 0;
 
     const targetPath = folderPath
-      ? `${libraryPath}\\${folderPath.replace(/\//g, "\\")}`
+      ? isAbsoluteLike(folderPath)
+        ? folderPath
+        : `${libraryPath}\\${folderPath.replace(/\//g, "\\")}`
       : libraryPath;
+    const normalizedTarget = normalizeAbsolutePath(targetPath);
 
     return localDocuments.filter((doc) => {
       if (!doc.filePath) return false;
-      const docDir = doc.filePath.substring(0, doc.filePath.lastIndexOf("\\"));
+      const normalizedFilePath = normalizeAbsolutePath(doc.filePath);
+      const lastSlash = normalizedFilePath.lastIndexOf("/");
+      const docDir = lastSlash >= 0 ? normalizedFilePath.slice(0, lastSlash) : normalizedFilePath;
       return includeNested
-        ? docDir === targetPath || docDir.startsWith(targetPath + "\\")
-        : docDir === targetPath;
+        ? docDir === normalizedTarget || docDir.startsWith(`${normalizedTarget}/`)
+        : docDir === normalizedTarget;
     }).length;
   };
 

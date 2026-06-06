@@ -98,13 +98,13 @@ function CoverPreview({
   const isEmpty = bookCount === 0 && folderCount === 0;
 
   return (
-    <div className="relative h-28 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 p-3">
+    <div className="relative h-28 w-full flex justify-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 p-3">
       {images.length > 0 ? (
         <div className="flex h-full items-end pl-2">
           {images.slice(0, 3).map((src, index) => (
             <div
               key={`${src}-${index}`}
-              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/40"
+              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-950 shadow-xl shadow-black hover:-translate-y-0.5"
               style={{
                 marginLeft: index === 0 ? 0 : -18,
                 transform: `rotate(${[-6, 2, 7][index] || 0}deg) translateY(${index === 1 ? -7 : 0}px)`,
@@ -180,9 +180,9 @@ export default function FolderCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={[
-        "group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-md border bg-zinc-950/60 p-2.5 text-left shadow-sm transition-all duration-200",
-        "hover:-translate-y-0.5 hover:border-emerald-400/60 hover:bg-zinc-900/90 hover:shadow-lg hover:shadow-emerald-950/25",
-        "focus:outline-none focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/35",
+        "group relative flex h-full min-h-[196px] w-55 cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
+        "hover:border-emerald-400/60 hover:bg-zinc-900/90",
+        "",
         isSelected ? "border-emerald-400/80 bg-emerald-500/10 shadow-emerald-950/30" : "border-zinc-800",
         isDropTarget ? "border-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-400/70" : "",
       ].join(" ")}
@@ -204,11 +204,13 @@ export default function FolderCard({
         </button>
       )}
 
-      <CoverPreview
+     <div className="flex justify-center">
+       <CoverPreview
         images={images}
         bookCount={bookCount}
         folderCount={folderCount}
       />
+     </div>
 
       <div className="mt-3 flex min-w-0 items-end gap-2">
         <div className="min-w-0 flex-1">

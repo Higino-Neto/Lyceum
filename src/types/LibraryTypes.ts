@@ -100,5 +100,13 @@ export interface WatchFolderInfo {
   id: number;
   path: string;
   label: string | null;
+  type: "watch" | "source";
   createdAt: string;
+}
+
+export interface LibraryRootInfo {
+  id: number | null;
+  type: "library" | "source";
+  label: string;
+  path: string;
 }

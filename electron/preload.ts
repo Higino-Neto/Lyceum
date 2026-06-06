@@ -379,8 +379,11 @@ contextBridge.exposeInMainWorld("api", {
   categoryImportFromFolders: () =>
     ipcRenderer.invoke("category:import-from-folders"),
 
-  getFolderStructure: () =>
-    ipcRenderer.invoke("library:get-folder-structure"),
+  getFolderStructure: (rootPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-structure", rootPath),
+
+  getLibraryRoots: () =>
+    ipcRenderer.invoke("library:get-library-roots"),
 
   getAllFolders: () =>
     ipcRenderer.invoke("library:get-all-folders"),
@@ -403,6 +406,9 @@ contextBridge.exposeInMainWorld("api", {
   moveBook: (fileHash: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
 
+  moveMergedBook: (bookId: string, targetFolderPath: string | null) =>
+    ipcRenderer.invoke("library:move-merged-book", bookId, targetFolderPath),
+
   getWatchFolders: () =>
     ipcRenderer.invoke("library:get-watch-folders"),
 
@@ -411,6 +417,15 @@ contextBridge.exposeInMainWorld("api", {
 
   removeWatchFolder: (id: number) =>
     ipcRenderer.invoke("library:remove-watch-folder", id),
+
+  addSourceFolder: (folderPath: string, label?: string) =>
+    ipcRenderer.invoke("library:add-source-folder", folderPath, label),
+
+  removeSourceFolder: (id: number) =>
+    ipcRenderer.invoke("library:remove-source-folder", id),
+
+  resyncSourceFolder: (id: number) =>
+    ipcRenderer.invoke("library:resync-source-folder", id),
 
   getWatchFolderBooks: (folderPath: string) =>
     ipcRenderer.invoke("library:get-watch-folder-books", folderPath),

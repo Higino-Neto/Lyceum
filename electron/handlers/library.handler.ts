@@ -17,8 +17,13 @@ import {
   getWatchFolders,
   addWatchFolder,
   removeWatchFolder,
+  getSourceFolders,
+  addSourceFolder,
+  removeSourceFolder,
+  deleteDocumentsUnderPath,
   getWatchFolderBooks,
   getUnsyncedBookCount,
+  getDocumentsByBookId,
   type DocumentRecord,
   type WatchFolderRecord,
 } from "../local-database";
@@ -29,6 +34,8 @@ import {
   getFolderStructure,
   getAllFoldersFlat,
   getBooksInFolder,
+  getLibraryRoots,
+  resolveManagedFolderPath,
 } from "../services/library-service";
 import {
   LIBRARY_PATH,
@@ -52,9 +59,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 let win: BrowserWindow | null = null;
+let refreshFileWatchers: (() => void) | null = null;
 
 export function setWindow(w: BrowserWindow | null) {
   win = w;
+}
+
+export function setFileWatcherRefresh(callback: (() => void) | null) {
+  refreshFileWatchers = callback;
 }
 
 export function registerLibraryHandlers() {
@@ -141,8 +153,15 @@ export function registerLibraryHandlers() {
     }
   });
 
-  ipcMain.handle("library:get-folder-structure", () => {
-    return getFolderStructure(LIBRARY_PATH());
+  ipcMain.handle("library:get-folder-structure", (_, rootPath?: string | null) => {
+    if (!rootPath) return getFolderStructure(LIBRARY_PATH());
+    const root = getLibraryRoots().find((candidate) => path.resolve(candidate.path) === path.resolve(rootPath));
+    if (!root) return [];
+    return getFolderStructure(root.path, root.type === "source");
+  });
+
+  ipcMain.handle("library:get-library-roots", () => {
+    return getLibraryRoots();
   });
 
   ipcMain.handle("library:get-all-folders", () => {
@@ -271,14 +290,15 @@ export function registerLibraryHandlers() {
 
       const currentDir = path.dirname(doc.filePath);
       const fileName = path.basename(doc.filePath);
-      const targetDir = resolveLibraryRelativePath(targetFolderPath);
-      if (currentDir === targetDir) return { success: true };
+      const target = resolveManagedFolderPath(targetFolderPath);
+      const targetDir = target.targetDir;
+      if (path.resolve(currentDir) === path.resolve(targetDir)) return { success: true };
       if (!fs.existsSync(targetDir)) return { success: false, error: "Pasta de destino não existe" };
 
       const newFilePath = getUniqueFilePath(targetDir, fileName);
       moveFileAcrossDevices(doc.filePath, newFilePath);
       updateDocumentPath(fileHash, newFilePath);
-      updateDocumentSyncStatus(fileHash, true, targetFolderPath || undefined);
+      updateDocumentSyncStatus(fileHash, true, target.category);
 
       win?.webContents.send("library:updated");
       return { success: true };
@@ -287,6 +307,52 @@ export function registerLibraryHandlers() {
       let errorMessage = "Erro ao mover livro";
       if (err.code === "EBUSY") errorMessage = "Arquivo está sendo usado";
       else if (err.code === "EPERM") errorMessage = "Permissão negada";
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  ipcMain.handle("library:move-merged-book", async (_, bookId: string, targetFolderPath: string | null) => {
+    const docs = getDocumentsByBookId(bookId).filter((doc) => doc.filePath);
+    if (docs.length === 0) return { success: false, error: "Livro mesclado nÃ£o encontrado" };
+
+    const moved: { fileHash: string; from: string; to: string }[] = [];
+
+    try {
+      const target = resolveManagedFolderPath(targetFolderPath);
+      if (!fs.existsSync(target.targetDir)) return { success: false, error: "Pasta de destino nÃ£o existe" };
+
+      for (const doc of docs) {
+        const currentPath = doc.filePath;
+        const currentDir = path.dirname(currentPath);
+        if (path.resolve(currentDir) === path.resolve(target.targetDir)) continue;
+
+        const newFilePath = getUniqueFilePath(target.targetDir, path.basename(currentPath));
+        moveFileAcrossDevices(currentPath, newFilePath);
+        moved.push({ fileHash: doc.fileHash, from: currentPath, to: newFilePath });
+      }
+
+      for (const item of moved) {
+        updateDocumentPath(item.fileHash, item.to);
+        updateDocumentSyncStatus(item.fileHash, true, target.category);
+      }
+
+      win?.webContents.send("library:updated");
+      return { success: true, moved: moved.length };
+    } catch (error: unknown) {
+      for (const item of [...moved].reverse()) {
+        try {
+          if (fs.existsSync(item.to) && !fs.existsSync(item.from)) {
+            moveFileAcrossDevices(item.to, item.from);
+          }
+        } catch (rollbackError) {
+          console.error("[LibraryHandler] Error rolling back merged move:", rollbackError);
+        }
+      }
+
+      const err = error as Error & { code?: string };
+      let errorMessage = "Erro ao mover livro mesclado";
+      if (err.code === "EBUSY") errorMessage = "Arquivo estÃ¡ sendo usado";
+      else if (err.code === "EPERM") errorMessage = "PermissÃ£o negada";
       return { success: false, error: errorMessage };
     }
   });
@@ -318,6 +384,46 @@ export function registerLibraryHandlers() {
     removeWatchFolder(id);
     win?.webContents.send("library:updated");
     return { success: true };
+  });
+
+  ipcMain.handle("library:add-source-folder", async (_, folderPath: string, label?: string) => {
+    const resolvedPath = path.resolve(folderPath);
+    if (!fs.existsSync(resolvedPath)) {
+      return { success: false, error: "Pasta nÃ£o encontrada" };
+    }
+
+    const record = addSourceFolder(resolvedPath, label);
+    const files = getAllBookFiles(resolvedPath);
+    for (const filePath of files) {
+      await processFile(filePath, { rootPath: resolvedPath, isSynced: true });
+    }
+
+    refreshFileWatchers?.();
+    win?.webContents.send("library:updated");
+    return { success: true, folder: record };
+  });
+
+  ipcMain.handle("library:remove-source-folder", (_, id: number) => {
+    const record = removeSourceFolder(id);
+    if (!record) return { success: false, error: "Pasta fonte nÃ£o encontrada", removedDocuments: 0 };
+
+    const removedDocuments = deleteDocumentsUnderPath(record.path);
+    refreshFileWatchers?.();
+    win?.webContents.send("library:updated");
+    return { success: true, removedDocuments };
+  });
+
+  ipcMain.handle("library:resync-source-folder", async (_, id: number) => {
+    const folder = getSourceFolders().find((candidate) => candidate.id === id);
+    if (!folder) return { success: false, error: "Pasta fonte nÃ£o encontrada" };
+    if (!fs.existsSync(folder.path)) return { success: false, error: "Pasta fonte indisponÃ­vel" };
+
+    const files = getAllBookFiles(folder.path);
+    for (const filePath of files) {
+      await processFile(filePath, { rootPath: folder.path, isSynced: true });
+    }
+    win?.webContents.send("library:updated");
+    return { success: true, scanned: files.length };
   });
 
   ipcMain.handle("library:get-watch-folder-books", (_, folderPath: string) => {

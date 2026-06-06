@@ -36,8 +36,14 @@ interface FolderGridProps {
   onImportBook?: (targetFolder: string | null) => void;
   onRenameFolder?: (folder: FolderInfo) => void;
   onDeleteFolder?: (folder: FolderInfo) => void;
-  onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
-  onMoveBooks?: (fileHashes: string[], targetFolder: string | null) => Promise<boolean>;
+  onMoveBook?: (
+    fileHash: string,
+    targetFolder: string | null,
+  ) => Promise<boolean>;
+  onMoveBooks?: (
+    fileHashes: string[],
+    targetFolder: string | null,
+  ) => Promise<boolean>;
 }
 
 interface FolderGridContextMenuState {
@@ -52,8 +58,10 @@ function bookBelongsToFolder(book: BookWithThumbnail, folder: FolderInfo) {
   const normalizedFolder = normalizeFolderPath(folder.fullPath);
   if (!normalizedBookFolder || !normalizedFolder) return false;
 
-  return folderPathsEqual(normalizedBookFolder, normalizedFolder)
-    || normalizedBookFolder.startsWith(`${normalizedFolder}/`);
+  return (
+    folderPathsEqual(normalizedBookFolder, normalizedFolder) ||
+    normalizedBookFolder.startsWith(`${normalizedFolder}/`)
+  );
 }
 
 function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
@@ -68,7 +76,9 @@ function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
       .filter((thumbnail): thumbnail is string => Boolean(thumbnail)),
     coverPreviewPaths: previewBooks
       .map((book) => book.thumbnailPath)
-      .filter((thumbnailPath): thumbnailPath is string => Boolean(thumbnailPath)),
+      .filter((thumbnailPath): thumbnailPath is string =>
+        Boolean(thumbnailPath),
+      ),
   };
 }
 
@@ -105,9 +115,15 @@ export function FolderPathBar({
           const isLast = index === breadcrumbs.length - 1;
 
           return (
-            <div key={`${crumb.path ?? "root"}-${index}`} className="flex min-w-0 items-center">
+            <div
+              key={`${crumb.path ?? "root"}-${index}`}
+              className="flex min-w-0 items-center"
+            >
               {index > 0 && (
-                <ChevronRight size={13} className="mx-1 flex-shrink-0 text-zinc-600" />
+                <ChevronRight
+                  size={13}
+                  className="mx-1 flex-shrink-0 text-zinc-600"
+                />
               )}
               <button
                 type="button"
@@ -174,7 +190,10 @@ export function FolderGrid({
   });
   const draggingBooks = draggingBookHashes.length > 0;
   const folderCoverMap = useMemo(() => {
-    const map = new Map<string, { coverPreviews: string[]; coverPreviewPaths: string[] }>();
+    const map = new Map<
+      string,
+      { coverPreviews: string[]; coverPreviewPaths: string[] }
+    >();
     for (const folder of folders) {
       map.set(folder.path, folderCoverPreviews(folder, books));
     }
@@ -206,10 +225,7 @@ export function FolderGrid({
     setContextMenu({ visible: false, x: 0, y: 0, folder: null });
   };
 
-  const openContextMenu = (
-    event: React.MouseEvent,
-    folder: FolderInfo,
-  ) => {
+  const openContextMenu = (event: React.MouseEvent, folder: FolderInfo) => {
     event.preventDefault();
     event.stopPropagation();
     setContextMenu({
@@ -228,7 +244,7 @@ export function FolderGrid({
 
   return (
     <section className="mb-5">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between px-2">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Pastas
         </h2>
@@ -243,12 +259,21 @@ export function FolderGrid({
           <p className="text-sm">Nenhuma subpasta</p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3 pr-1">
+        <div
+          className={`grid gap-3 pr-1 ${
+            folders.length <= 4
+              ? "justify-start grid-cols-[repeat(auto-fill,220px)]"
+              : "grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
+          }`}
+        >
           {folders.map((folder) => {
             const bookCount = getFolderBookCount(folder);
             const isDropTarget = dragOverPath === folder.path;
             const folderCount = folder.subfolders.length;
-            const previews = folderCoverMap.get(folder.path) ?? { coverPreviews: [], coverPreviewPaths: [] };
+            const previews = folderCoverMap.get(folder.path) ?? {
+              coverPreviews: [],
+              coverPreviewPaths: [],
+            };
 
             return (
               <FolderCard
