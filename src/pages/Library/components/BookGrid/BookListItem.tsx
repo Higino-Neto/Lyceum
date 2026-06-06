@@ -22,19 +22,19 @@ export interface ExplorerColumns {
 
 interface BookListItemProps {
   book: BookWithThumbnail;
-  onOpen: () => void;
-  onSync?: (action: "move" | "copy") => void;
-  onDelete?: () => void;
+  onOpen: (book: BookWithThumbnail) => void;
+  onSync?: (book: BookWithThumbnail, action: "move" | "copy") => void;
+  onDelete?: (book: BookWithThumbnail) => void;
   showSyncActions: boolean;
-  onClick?: () => void;
+  onClick?: (book: BookWithThumbnail) => void;
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   isChecked?: boolean;
   selectedCount?: number;
-  onToggleSelection?: () => void;
-  onContextSelect?: () => void;
+  onToggleSelection?: (book: BookWithThumbnail) => void;
+  onContextSelect?: (book: BookWithThumbnail) => void;
   columns: ExplorerColumns;
 }
 
@@ -64,14 +64,14 @@ function BookListItem({
 
   const handleClick = () => {
     if (selectionMode) {
-      onToggleSelection?.();
+      onToggleSelection?.(book);
       return;
     }
 
     if (onClick) {
-      onClick();
+      onClick(book);
     } else {
-      onOpen();
+      onOpen(book);
     }
   };
 
@@ -80,7 +80,7 @@ function BookListItem({
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextSelect?.();
+        onContextSelect?.(book);
       }}
       className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-all ${
         isSelected
@@ -163,7 +163,7 @@ function BookListItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onSync("move");
+                onSync(book, "move");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
               title="Mover para library"
@@ -173,7 +173,7 @@ function BookListItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onSync("copy");
+                onSync(book, "copy");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
               title="Copiar para library"
@@ -186,7 +186,7 @@ function BookListItem({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              onDelete(book);
             }}
             className="cursor-pointer rounded p-2 hover:bg-red-500/20"
             title="Remover"
@@ -199,7 +199,7 @@ function BookListItem({
   );
 }
 
-function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbnail) {
+export function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbnail) {
   return (
     previous.id === next.id &&
     previous.fileHash === next.fileHash &&

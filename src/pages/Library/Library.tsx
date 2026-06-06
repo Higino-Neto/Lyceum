@@ -117,6 +117,32 @@ function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: (
   );
 }
 
+interface MergedBookCacheEntry {
+  representative: BookWithThumbnail;
+  signature: string;
+  value: BookWithThumbnail;
+}
+
+function getMergedBookSignature(group: BookWithThumbnail[]) {
+  return group
+    .map((book) => [
+      book.id,
+      book.fileHash,
+      book.title,
+      book.filePath,
+      book.thumbnail,
+      book.thumbnailPath,
+      book.numPages,
+      book.fileType,
+      book.fileSize,
+      book.lastOpenedAt,
+      book.createdAt,
+      book.processingStatus,
+      book.updatedAt,
+    ].join("\u001f"))
+    .join("\u001e");
+}
+
 export default function Library() {
   const navigate = useNavigate();
   const { prepareBooks } = useConversionQueue();
@@ -144,6 +170,7 @@ export default function Library() {
   const [watchFolderPaths, setWatchFolderPaths] = useState<Set<string>>(new Set());
   const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
   const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
+  const mergedBookCacheRef = useRef(new Map<string, MergedBookCacheEntry>());
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [selectedBookMap, setSelectedBookMap] = useState<Map<string, BookWithThumbnail>>(
     new Map(),
@@ -382,7 +409,7 @@ export default function Library() {
     window.addEventListener("pointerup", handleUp);
   };
 
-  const handleOpen = async (filePath: string, fileHash?: string) => {
+  const handleOpen = useCallback(async (filePath: string, fileHash?: string) => {
     const isUsbBook = activeSection === "usb";
     const result: OpenBookResult | null = isUsbBook
       ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
@@ -425,18 +452,18 @@ export default function Library() {
         navigationId: crypto.randomUUID(),
       },
     });
-  };
+  }, [activeSection, navigate, refreshBooks]);
 
-  const handleBookClick = (book: BookWithThumbnail) => {
+  const handleBookClick = useCallback((book: BookWithThumbnail) => {
     setSelectedBook(book);
-  };
+  }, []);
 
-  const handleBookDeleted = () => {
+  const handleBookDeleted = useCallback(() => {
     setSelectedBook(null);
     refreshLibraryState();
-  };
+  }, [refreshLibraryState]);
 
-  const handleDeleteBook = async (fileHash: string): Promise<boolean> => {
+  const handleDeleteBook = useCallback(async (fileHash: string): Promise<boolean> => {
     const result = await window.api.deleteBook(fileHash, false);
     if (result.success) {
       await refreshLibraryState();
@@ -444,7 +471,7 @@ export default function Library() {
     }
     toast.error(result.error || "Erro ao remover livro");
     return false;
-  };
+  }, [refreshLibraryState]);
 
   const handleMoveBook = async (
     fileHash: string,
@@ -493,10 +520,10 @@ export default function Library() {
     return false;
   };
 
-  const openSyncDialog = (fileHash: string, action: "move" | "copy") => {
+  const openSyncDialog = useCallback((fileHash: string, action: "move" | "copy") => {
     setSyncTargetFolder(selectedFolder || libraryFolders[0] || "");
     setSyncDialog({ fileHash, action });
-  };
+  }, [libraryFolders, selectedFolder]);
 
   const confirmSyncToLibrary = async () => {
     if (!syncDialog) return;
@@ -715,7 +742,7 @@ export default function Library() {
     }
   };
 
-  const toggleSelection = (book: BookWithThumbnail) => {
+  const toggleSelection = useCallback((book: BookWithThumbnail) => {
     setSelectedHashes((previous) => {
       const next = new Set(previous);
       if (next.has(book.fileHash)) {
@@ -734,27 +761,31 @@ export default function Library() {
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleContextSelect = (book: BookWithThumbnail) => {
+  const handleContextSelect = useCallback((book: BookWithThumbnail) => {
     setSelectedHashes((previous) => new Set(previous).add(book.fileHash));
     setSelectedBookMap((previous) => new Map(previous).set(book.fileHash, book));
-  };
+  }, []);
 
-  const handleBookDragStart = (fileHash: string) => {
+  const handleBookDragStart = useCallback((fileHash: string) => {
     if (selectedHashes.has(fileHash)) {
       setDraggingBookHashes(Array.from(selectedHashes));
       return;
     }
 
     setDraggingBookHashes([fileHash]);
-  };
+  }, [selectedHashes]);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedHashes(new Set());
     setSelectedBookMap(new Map());
     setDraggingBookHashes([]);
-  };
+  }, []);
+
+  const handleBookDragEnd = useCallback(() => {
+    setDraggingBookHashes([]);
+  }, []);
 
   const selectedBooks = useMemo(
     () => Array.from(selectedBookMap.values()),
@@ -783,7 +814,8 @@ export default function Library() {
       grouped.get(groupKey)?.push(book);
     }
 
-    return orderedKeys.map((groupKey) => {
+    const nextCache = new Map<string, MergedBookCacheEntry>();
+    const result = orderedKeys.map((groupKey) => {
       const group = grouped.get(groupKey) || [];
       const representative =
         group.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf")) ||
@@ -791,10 +823,26 @@ export default function Library() {
         group.find((book) => book.thumbnailPath) ||
         group.find((book) => book.fileType === "epub") ||
         group[0];
-      return group.length > 1
-        ? { ...representative, mergedBooks: group }
-        : representative;
+      if (group.length <= 1) return representative;
+
+      const signature = getMergedBookSignature(group);
+      const cached = mergedBookCacheRef.current.get(groupKey);
+      if (
+        cached &&
+        cached.representative === representative &&
+        cached.signature === signature
+      ) {
+        nextCache.set(groupKey, cached);
+        return cached.value;
+      }
+
+      const value = { ...representative, mergedBooks: group };
+      nextCache.set(groupKey, { representative, signature, value });
+      return value;
     });
+
+    mergedBookCacheRef.current = nextCache;
+    return result;
   }, [activeSection, books]);
 
   const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
@@ -1199,7 +1247,7 @@ export default function Library() {
                 onBookClick={handleBookClick}
                 selectedBookId={selectedBook?.id}
                 onDragStart={handleBookDragStart}
-                onDragEnd={() => setDraggingBookHashes([])}
+                onDragEnd={handleBookDragEnd}
                 selectionMode={selectedHashes.size > 0}
                 selectedHashes={selectedHashes}
                 selectedCount={selectedHashes.size}

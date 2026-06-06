@@ -1,5 +1,5 @@
 import { Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -7,25 +7,27 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import { areBooksEqual } from "./BookListItem";
+import { useLazyThumbnail } from "./useLazyThumbnail";
 
 interface BookCardProps {
   book: BookWithThumbnail;
-  onOpen: () => void;
-  onSync?: (action: "move" | "copy") => void;
-  onDelete?: () => void;
+  onOpen: (book: BookWithThumbnail) => void;
+  onSync?: (book: BookWithThumbnail, action: "move" | "copy") => void;
+  onDelete?: (book: BookWithThumbnail) => void;
   showSyncActions: boolean;
-  onClick?: () => void;
+  onClick?: (book: BookWithThumbnail) => void;
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   isChecked?: boolean;
   selectedCount?: number;
-  onToggleSelection?: () => void;
-  onContextSelect?: () => void;
+  onToggleSelection?: (book: BookWithThumbnail) => void;
+  onContextSelect?: (book: BookWithThumbnail) => void;
 }
 
-export default function BookCard({
+function BookCard({
   book,
   onOpen,
   onSync,
@@ -43,40 +45,23 @@ export default function BookCard({
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [thumbnail, setThumbnail] = useState(book.thumbnail);
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const formatCount = book.mergedBooks?.length || 1;
   const formatLabel =
     formatCount > 1
       ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
       : getFileTypeLabel(book.fileType, book.filePath);
 
-  useEffect(() => {
-    let canceled = false;
-    setThumbnail(book.thumbnail);
-
-    if (!book.thumbnail && book.thumbnailPath) {
-      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
-        if (!canceled) {
-          setThumbnail(value || undefined);
-        }
-      });
-    }
-
-    return () => {
-      canceled = true;
-    };
-  }, [book.thumbnail, book.thumbnailPath]);
-
   const handleClick = () => {
     if (selectionMode) {
-      onToggleSelection?.();
+      onToggleSelection?.(book);
       return;
     }
 
     if (onClick) {
-      onClick();
+      onClick(book);
     } else {
-      onOpen();
+      onOpen(book);
     }
   };
 
@@ -88,7 +73,7 @@ export default function BookCard({
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextSelect?.();
+        onContextSelect?.(book);
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -125,7 +110,7 @@ export default function BookCard({
         </div>
       )}
 
-      <div className="relative aspect-[2/3] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+      <div ref={thumbnailRef} className="relative aspect-[2/3] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
         {thumbnail ? (
           <img
             src={thumbnail}
@@ -165,7 +150,7 @@ export default function BookCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    onSync("move");
+                    onSync(book, "move");
                     setMenuOpen(false);
                   }}
                   className="flex cursor-pointer items-center gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-t-sm"
@@ -176,7 +161,7 @@ export default function BookCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    onSync("copy");
+                    onSync(book, "copy");
                     setMenuOpen(false);
                   }}
                   className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700"
@@ -188,7 +173,7 @@ export default function BookCard({
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      onDelete();
+                      onDelete(book);
                       setMenuOpen(false);
                     }}
                     className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 rounded-b-sm border-t border-zinc-700"
@@ -219,3 +204,12 @@ export default function BookCard({
     </div>
   );
 }
+
+export default memo(BookCard, (previous, next) => (
+  areBooksEqual(previous.book, next.book) &&
+  previous.showSyncActions === next.showSyncActions &&
+  previous.isSelected === next.isSelected &&
+  previous.selectionMode === next.selectionMode &&
+  previous.isChecked === next.isChecked &&
+  previous.selectedCount === next.selectedCount
+));

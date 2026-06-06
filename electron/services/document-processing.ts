@@ -9,7 +9,7 @@ import { extractFirstCbzImage, inspectCbzPageCount, parseCbzBuffer } from "../..
 const require = createRequire(import.meta.url);
 
 export const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
-export const THUMB_WIDTH = 300;
+export const THUMB_WIDTH = 220;
 
 export type BookFileType = "pdf" | "epub" | "cbz" | "azw3" | "kfx";
 

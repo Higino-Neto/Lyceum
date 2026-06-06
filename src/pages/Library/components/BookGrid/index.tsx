@@ -1,5 +1,6 @@
 import { BookOpen, RefreshCw } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -187,6 +188,30 @@ export default function BookGrid({
     thumbnailCache.prefetch(virtualThumbnailPaths);
   }, [virtualThumbnailPaths]);
 
+  const handleOpenBook = useCallback((book: BookWithThumbnail) => {
+    onOpen(book.filePath, book.fileHash);
+  }, [onOpen]);
+
+  const handleSyncBook = useCallback((book: BookWithThumbnail, action: "move" | "copy") => {
+    onSync?.(book.fileHash, action);
+  }, [onSync]);
+
+  const handleDeleteBook = useCallback((book: BookWithThumbnail) => {
+    onDelete?.(book.fileHash);
+  }, [onDelete]);
+
+  const handleClickBook = useCallback((book: BookWithThumbnail) => {
+    onBookClick?.(book);
+  }, [onBookClick]);
+
+  const handleToggleSelection = useCallback((book: BookWithThumbnail) => {
+    onToggleSelection?.(book);
+  }, [onToggleSelection]);
+
+  const handleContextSelect = useCallback((book: BookWithThumbnail) => {
+    onContextSelect?.(book);
+  }, [onContextSelect]);
+
   const startResize = (
     key: keyof ExplorerColumns,
     min: number,
@@ -262,19 +287,19 @@ export default function BookGrid({
                     <BookCard
                       key={book.id}
                       book={book}
-                      onOpen={() => onOpen(book.filePath, book.fileHash)}
-                      onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
-                      onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
+                      onOpen={handleOpenBook}
+                      onSync={onSync ? handleSyncBook : undefined}
+                      onDelete={onDelete ? handleDeleteBook : undefined}
                       showSyncActions={showSyncActions ?? false}
-                      onClick={() => onBookClick?.(book)}
+                      onClick={onBookClick ? handleClickBook : undefined}
                       isSelected={selectedBookId === book.id}
                       onDragStart={onDragStart}
                       onDragEnd={onDragEnd}
                       selectionMode={selectionMode}
                       isChecked={selectedHashes.has(book.fileHash)}
                       selectedCount={selectedCount}
-                      onToggleSelection={() => onToggleSelection?.(book)}
-                      onContextSelect={() => onContextSelect?.(book)}
+                      onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
+                      onContextSelect={onContextSelect ? handleContextSelect : undefined}
                     />
                   ))}
                 </div>
@@ -325,19 +350,19 @@ export default function BookGrid({
                 >
                   <BookListItem
                     book={book}
-                    onOpen={() => onOpen(book.filePath, book.fileHash)}
-                    onSync={onSync ? (action) => onSync(book.fileHash, action) : undefined}
-                    onDelete={onDelete ? () => onDelete(book.fileHash) : undefined}
+                    onOpen={handleOpenBook}
+                    onSync={onSync ? handleSyncBook : undefined}
+                    onDelete={onDelete ? handleDeleteBook : undefined}
                     showSyncActions={showSyncActions ?? false}
-                    onClick={() => onBookClick?.(book)}
+                    onClick={onBookClick ? handleClickBook : undefined}
                     isSelected={selectedBookId === book.id}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     selectionMode={selectionMode}
                     isChecked={selectedHashes.has(book.fileHash)}
                     selectedCount={selectedCount}
-                    onToggleSelection={() => onToggleSelection?.(book)}
-                    onContextSelect={() => onContextSelect?.(book)}
+                    onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
+                    onContextSelect={onContextSelect ? handleContextSelect : undefined}
                     columns={columns}
                   />
                 </div>
