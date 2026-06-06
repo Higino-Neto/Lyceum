@@ -230,6 +230,16 @@ export default function FolderTree({
     return filterFolders(folders, searchTerm);
   }, [folders, searchTerm]);
 
+  const filteredLibraryFolders = useMemo(
+    () => filteredFolders.filter((folder) => !isSourceRootFolder(folder)),
+    [filteredFolders, isSourceRootFolder],
+  );
+
+  const filteredSourceFolders = useMemo(
+    () => filteredFolders.filter((folder) => isSourceRootFolder(folder)),
+    [filteredFolders, isSourceRootFolder],
+  );
+
   const filteredFlatFolders = useMemo(() => {
     return flattenFolders(filteredFolders);
   }, [filteredFolders]);
@@ -743,7 +753,7 @@ export default function FolderTree({
               </span>
             </button>
 
-            {filteredFolders.map((folder) => (
+            {filteredLibraryFolders.map((folder) => (
               <FolderNode
                 key={folder.path}
                 folder={folder}
@@ -780,6 +790,63 @@ export default function FolderTree({
                 onMoveBook={onMoveBook}
               />
             ))}
+
+            {filteredSourceFolders.length > 0 && (
+              <div className="mt-3 border-t border-zinc-800 pt-2">
+                <div className="mb-1 flex items-center justify-between px-2">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Pastas fonte
+                  </span>
+                  {window.api?.addSourceFolder && (
+                    <button
+                      onClick={handleAddSourceFolder}
+                      className="p-1 hover:bg-zinc-800 rounded-sm text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                      title="Adicionar pasta fonte"
+                    >
+                      <HardDrive size={14} />
+                    </button>
+                  )}
+                </div>
+                {filteredSourceFolders.map((folder) => (
+                  <FolderNode
+                    key={folder.path}
+                    folder={folder}
+                    selectedPath={selectedFolder}
+                    onSelect={onFolderSelect}
+                    level={0}
+                    expandedPaths={expandedPaths}
+                    onToggleExpand={toggleExpand}
+                    onContextMenu={handleContextMenu}
+                    renamingPath={renamingFolder}
+                    renameValue={renameValue}
+                    onRenameChange={setRenameValue}
+                    onRenameSubmit={submitRename}
+                    onRenameCancel={() => {
+                      setRenamingFolder(null);
+                      setRenameValue("");
+                    }}
+                    searchTerm={searchTerm}
+                    localDocuments={localDocuments}
+                    libraryPath={libraryPath}
+                    includeSubfolders={includeSubfolders}
+                    creatingFolderAt={creatingFolderAt}
+                    onCreateFolder={handleCreateFolderAt}
+                    onCancelCreate={cancelCreateFolder}
+                    newFolderName={newFolderName}
+                    onNewFolderNameChange={setNewFolderName}
+                    draggingFolder={draggingFolder}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    dragOver={dragOver}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onMoveBook={onMoveBook}
+                    sourcePathLabel={folder.fullPath}
+                  />
+                ))}
+              </div>
+            )}
 
             {creatingFolderAt === "" && (
               <div
@@ -830,7 +897,15 @@ export default function FolderTree({
                       }`}
                     >
                       <Folder size={15} className="text-zinc-500" />
-                      <span className="flex-1 truncate">{wf.label || wf.path.split(/[/\\]/).pop()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{wf.label || wf.path.split(/[/\\]/).pop()}</span>
+                        <span
+                          className="mt-0.5 block truncate text-[10px] leading-3 text-zinc-500"
+                          title={wf.path}
+                        >
+                          {wf.path}
+                        </span>
+                      </span>
                       <span
                         className={`text-[11px] px-1.5 py-0.5 rounded-sm mr-1 ${
                           isSelected
@@ -976,6 +1051,7 @@ function FolderNode({
   onDragLeave,
   onDrop,
   onMoveBook,
+  sourcePathLabel,
 }: {
   folder: FolderInfo;
   selectedPath: string | null;
@@ -1006,6 +1082,7 @@ function FolderNode({
   onDragLeave: () => void;
   onDrop: (targetPath: string) => void;
   onMoveBook?: (fileHash: string, targetFolder: string | null) => Promise<boolean>;
+  sourcePathLabel?: string;
 }) {
   const normalizeAbsolutePath = (value: string) =>
     value.replace(/\\/g, "/").replace(/\/+$/g, "").toLowerCase();
@@ -1110,7 +1187,12 @@ function FolderNode({
           <span className="w-5" />
         )}
 
-        {folderBookCount === 0 && subfoldersBooks === 0 ? (
+        {sourcePathLabel ? (
+          <HardDrive
+            size={15}
+            className={isSelected ? "text-green-400" : "text-zinc-500"}
+          />
+        ) : folderBookCount === 0 && subfoldersBooks === 0 ? (
           <Folder size={15} className="text-zinc-600" />
         ) : folderBookCount > 0 ? (
           <FolderOpen
@@ -1156,8 +1238,18 @@ function FolderNode({
             />
           </div>
         ) : (
-          <span className="flex-1 truncate text-sm">
-            {searchTerm ? highlightMatch(folder.name, searchTerm) : folder.name}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm">
+              {searchTerm ? highlightMatch(folder.name, searchTerm) : folder.name}
+            </span>
+            {sourcePathLabel && (
+              <span
+                className="mt-0.5 block truncate text-[10px] leading-3 text-zinc-500"
+                title={sourcePathLabel}
+              >
+                {sourcePathLabel}
+              </span>
+            )}
           </span>
         )}
 

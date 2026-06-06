@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BookCard from "../../pages/Library/components/BookGrid/BookCard";
 import {
@@ -37,39 +37,51 @@ function createBook(overrides: Partial<BookWithThumbnail> = {}): BookWithThumbna
   };
 }
 
+const VALID_HASH = "a".repeat(64);
+
 describe("BookCard", () => {
   beforeEach(() => {
     resetThumbnailCacheForTests();
     vi.restoreAllMocks();
   });
 
-  it("loads thumbnails through the renderer cache batch API", async () => {
-    const getThumbnail = vi.fn().mockResolvedValue("data:image/webp;base64,slow");
-    const getThumbnails = vi.fn().mockResolvedValue({
-      "thumb.webp": "data:image/webp;base64,cached",
-    });
-
-    Object.defineProperty(window, "api", {
-      value: { getThumbnail, getThumbnails },
-      writable: true,
-      configurable: true,
-    });
-
+  it("renders img with thumbnail prop when provided", () => {
     render(
       <BookCard
-        book={createBook()}
+        book={createBook({ thumbnail: "data:image/webp;base64,inline" })}
         onOpen={vi.fn()}
         showSyncActions={false}
       />,
     );
 
-    await waitFor(() => {
-      expect(getThumbnails).toHaveBeenCalledWith(["thumb.webp"]);
-      expect(getThumbnail).not.toHaveBeenCalled();
-      expect(screen.getByAltText("Cached Book.epub")).toHaveAttribute(
-        "src",
-        "data:image/webp;base64,cached",
-      );
-    });
+    const img = screen.getByAltText("Cached Book.epub");
+    expect(img).toHaveAttribute("src", "data:image/webp;base64,inline");
+  });
+
+  it("renders img with thumb:// URL when thumbnailPath has a valid hash", () => {
+    const thumbnailPath = `C:\\thumbnails\\${VALID_HASH}-thumbnail.webp`;
+    render(
+      <BookCard
+        book={createBook({ thumbnailPath })}
+        onOpen={vi.fn()}
+        showSyncActions={false}
+      />,
+    );
+
+    const img = screen.getByAltText("Cached Book.epub");
+    expect(img).toHaveAttribute("src", `thumb://${VALID_HASH}`);
+  });
+
+  it("shows fallback icon when no thumbnail is available", () => {
+    render(
+      <BookCard
+        book={createBook({ thumbnail: undefined, thumbnailPath: "thumb.webp" })}
+        onOpen={vi.fn()}
+        showSyncActions={false}
+      />,
+    );
+
+    expect(screen.queryByAltText("Cached Book.epub")).not.toBeInTheDocument();
+    expect(document.querySelector(".lucide-file-text")).toBeTruthy();
   });
 });

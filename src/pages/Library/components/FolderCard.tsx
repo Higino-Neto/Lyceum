@@ -18,6 +18,7 @@ import { thumbnailCache } from "./BookGrid/thumbnailCache";
 export type FolderCardProps = {
   id: string;
   name: string;
+  detail?: string;
   bookCount: number;
   folderCount: number;
   coverPreviews?: string[];
@@ -139,6 +140,7 @@ function CoverPreview({
 export default function FolderCard({
   id,
   name,
+  detail,
   bookCount,
   folderCount,
   coverPreviews,
@@ -172,7 +174,7 @@ export default function FolderCard({
       tabIndex={0}
       aria-label={`Abrir pasta ${name}`}
       aria-pressed={isSelected || undefined}
-      title={name}
+      title={detail ? `${name}\n${detail}` : name}
       onClick={open}
       onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
@@ -215,6 +217,11 @@ export default function FolderCard({
       <div className="mt-3 flex min-w-0 items-end gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-zinc-100">{name}</p>
+          {detail && (
+            <p className="mt-0.5 truncate text-[10px] leading-3 text-zinc-500">
+              {detail}
+            </p>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
             <span className="inline-flex items-center gap-1">
               <Boxes size={12} className={folderCount > 0 ? "text-emerald-300/80" : "text-zinc-600"} />

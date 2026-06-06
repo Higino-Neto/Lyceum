@@ -165,6 +165,34 @@ export default function BookGrid({
     return paths;
   }, [books, gridColumns, viewMode, virtualRows]);
 
+  const virtualThumbnailRequests = useMemo(() => {
+    const requests = new Map<string, { fileHash: string; filePath: string; fileType?: BookWithThumbnail["fileType"] | null }>();
+
+    const collect = (book: BookWithThumbnail | undefined) => {
+      if (!book || book.thumbnail || book.thumbnailPath || !book.fileHash || !book.filePath) return;
+      requests.set(book.fileHash, {
+        fileHash: book.fileHash,
+        filePath: book.filePath,
+        fileType: book.fileType,
+      });
+    };
+
+    for (const virtualRow of virtualRows) {
+      if (viewMode === "grid") {
+        const start = virtualRow.index * gridColumns;
+        const end = Math.min(start + gridColumns, books.length);
+        for (let index = start; index < end; index++) {
+          collect(books[index]);
+        }
+        continue;
+      }
+
+      collect(books[virtualRow.index]);
+    }
+
+    return Array.from(requests.values());
+  }, [books, gridColumns, viewMode, virtualRows]);
+
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
 
@@ -187,6 +215,11 @@ export default function BookGrid({
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
   }, [virtualThumbnailPaths]);
+
+  useEffect(() => {
+    if (virtualThumbnailRequests.length === 0) return;
+    void window.api?.ensureThumbnails?.(virtualThumbnailRequests);
+  }, [virtualThumbnailRequests]);
 
   const handleOpenBook = useCallback((book: BookWithThumbnail) => {
     onOpen(book.filePath, book.fileHash);

@@ -2,9 +2,10 @@ import electron, {
   type BrowserWindow as ElectronBrowserWindow,
   type BrowserWindowConstructorOptions,
   type IpcMainInvokeEvent,
+  net,
 } from "electron";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
@@ -82,6 +83,10 @@ import {
   setFileWatcherRefresh,
   setWindow as setLibraryWindow,
 } from "./handlers/library.handler";
+import {
+  scanLibrary as queueLibraryScan,
+  setLibraryChangeEmitter,
+} from "./services/library-service";
 
 const {
   app,
@@ -1546,6 +1551,7 @@ function getFolderStructure(libraryPath: string): FolderInfo[] {
         const relativePath = path.relative(relativeTo, itemFullPath);
         
         const bookFiles = getAllBookFiles(itemFullPath);
+        if (bookFiles.length === 0) continue;
         
         folders.push({
           name: item.name,
@@ -1625,8 +1631,8 @@ async function processFile(filePath: string): Promise<void> {
     }
 
     if (existing && existing.processingStatus === "completed") {
-      // Still update thumbnail and page count
-      const thumbnailPath = await generateThumbnail(filePath, fileHash, true, fileType);
+      // Only generate thumbnail if missing; never force-delete existing ones
+      const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
       if (thumbnailPath) {
         updateThumbnailPath(fileHash, thumbnailPath);
       }
@@ -1793,7 +1799,7 @@ async function scanLibrary() {
         const fileHash = generateFileHash(filePath);
         const existing = getDocumentByHash(fileHash);
 
-        if (existing && existing.processingStatus === "completed" && existing.filePath === filePath) {
+        if (existing && existing.filePath && existing.processingStatus === "completed" && path.resolve(existing.filePath).toLowerCase() === path.resolve(filePath).toLowerCase()) {
           continue;
         }
 
@@ -2311,19 +2317,7 @@ function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | 
   return match ? path.join(thumbnailsDir, match) : null;
 }
 
-function thumbnailToDataUrl(imagePath: string) {
-  const ext = path.extname(imagePath).toLowerCase();
-  const mime =
-    ext === ".png"
-      ? "image/png"
-      : ext === ".webp"
-        ? "image/webp"
-        : "image/jpeg";
-  const buffer = fs.readFileSync(imagePath);
-  return `data:${mime};base64,${buffer.toString("base64")}`;
-}
-
-function readThumbnailDataUrl(thumbnailPath: string) {
+function resolveThumbnailUrl(thumbnailPath: string): string | null {
   if (!thumbnailPath) return null;
 
   const thumbnailsDir = THUMBNAILS_DIR();
@@ -2333,13 +2327,14 @@ function readThumbnailDataUrl(thumbnailPath: string) {
     return null;
   }
 
-  if (fs.existsSync(normalizedThumbnailPath)) {
-    return thumbnailToDataUrl(normalizedThumbnailPath);
-  }
-
   const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
-  const matchingThumbnail = hash ? findThumbnailByHash(thumbnailsDir, hash) : null;
-  return matchingThumbnail ? thumbnailToDataUrl(matchingThumbnail) : null;
+  if (!hash) return null;
+
+  // Verify the file actually exists
+  const existing = findThumbnailByHash(thumbnailsDir, hash);
+  if (!existing) return null;
+
+  return `thumb://${hash}`;
 }
 
 function createAppWindow(
@@ -3062,7 +3057,7 @@ ipcMain.handle("app:get-last-document", () => {
 
 ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
   try {
-    return readThumbnailDataUrl(thumbnailPath);
+    return resolveThumbnailUrl(thumbnailPath);
   } catch (error) {
     console.error("[thumbnail:get] Error:", error);
     return null;
@@ -3076,7 +3071,7 @@ ipcMain.handle("thumbnail:get-many", async (_, thumbnailPaths: string[]) => {
     const uniquePaths = Array.from(new Set(thumbnailPaths)).slice(0, 96);
 
     for (const thumbnailPath of uniquePaths) {
-      result[thumbnailPath] = readThumbnailDataUrl(thumbnailPath);
+      result[thumbnailPath] = resolveThumbnailUrl(thumbnailPath);
     }
   } catch (error) {
     console.error("[thumbnail:get-many] Error:", error);
@@ -3486,8 +3481,30 @@ const startupFile = startArgs.find(
   (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
 );
 
+protocol.registerSchemesAsPrivileged([
+  { scheme: "thumb", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
+function parseThumbUrlHash(requestUrl: string): string {
+  const url = new URL(requestUrl);
+  return (url.hostname || url.pathname.replace(/^\/+/, "")).replace(/\/+$/, "");
+}
+
 app.whenReady().then(async () => {
   const fs = require("fs");
+
+  protocol.handle("thumb", (request) => {
+    const fileHash = parseThumbUrlHash(request.url);
+    if (!SHA256_HEX_PATTERN.test(fileHash)) {
+      return new Response(null, { status: 404 });
+    }
+    const thumbPath = findThumbnailByHash(THUMBNAILS_DIR(), fileHash);
+    if (!thumbPath) {
+      return new Response(null, { status: 404 });
+    }
+    return net.fetch(pathToFileURL(thumbPath).toString());
+  });
+
   protocol.handle("pdf-resource", (request) => {
     const filePath = request.url.replace(/^pdf-resource:\/\//, "");
     return new Promise((resolve, reject) => {
@@ -3500,8 +3517,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;
@@ -3532,15 +3549,19 @@ app.whenReady().then(async () => {
   setupUsbDeviceWatcher();
 
   importCategoriesFromFolders();
-  await scanLibrary();
-  autoUpdater.checkForUpdatesAndNotify();
   createWindow();
 
   setBooksWindow(win);
   setLibraryWindow(win);
+  setLibraryChangeEmitter(() => win?.webContents.send("library:updated"));
   setFileWatcherRefresh(setupFileWatcher);
   registerBookHandlers();
   registerLibraryHandlers();
+  autoUpdater.checkForUpdatesAndNotify();
+
+  void queueLibraryScan().catch((error) => {
+    console.error("[Main] Background library scan failed:", error);
+  });
 
   if (startupFile) {
     console.log("[Main] Startup file detected, waiting for window to load...");

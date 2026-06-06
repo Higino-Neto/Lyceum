@@ -82,7 +82,7 @@ function BookListItem({
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-all ${
+      className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-shadow ${
         isSelected
           ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"

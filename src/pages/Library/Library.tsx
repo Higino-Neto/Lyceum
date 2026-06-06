@@ -179,6 +179,7 @@ export default function Library() {
   const [confirmMergeBooks, setConfirmMergeBooks] = useState(false);
   const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [regeneratingAllThumbnails, setRegeneratingAllThumbnails] = useState(false);
   const [kindlePanelOpen, setKindlePanelOpen] = useState(false);
   const [syncDialog, setSyncDialog] = useState<{
     fileHash: string;
@@ -941,6 +942,19 @@ export default function Library() {
     if (failed > 0) toast.error(`${failed} thumbnail${failed !== 1 ? "s" : ""} com erro`);
   };
 
+  const runRegenerateAllThumbnails = async () => {
+    if (!window.api?.regenerateAllThumbnails || regeneratingAllThumbnails) return;
+    setRegeneratingAllThumbnails(true);
+    try {
+      const result = await window.api.regenerateAllThumbnails();
+      toast.success(`${result.queued} thumbnail${result.queued !== 1 ? "s" : ""} na fila`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao enfileirar thumbnails");
+    } finally {
+      setRegeneratingAllThumbnails(false);
+    }
+  };
+
   const runMergeBooks = async () => {
     if (selectedBooks.length < 2) return;
     setBulkBusy(true);
@@ -1147,6 +1161,17 @@ export default function Library() {
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={runRegenerateAllThumbnails}
+                disabled={regeneratingAllThumbnails}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Regenerar todas as thumbnails"
+                aria-label="Regenerar todas as thumbnails"
+              >
+                <RefreshCw size={14} className={regeneratingAllThumbnails ? "animate-spin" : ""} />
+              </button>
             </div>
           </header>
 

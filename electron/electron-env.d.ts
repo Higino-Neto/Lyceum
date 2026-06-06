@@ -232,9 +232,11 @@ interface Window {
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
     getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
+    ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) => Promise<{ queued: number; skipped: number }>;
+    regenerateAllThumbnails: () => Promise<{ queued: number; skipped: number; total: number }>;
 
     getLibraryPath: () => Promise<string>;
-    scanLibrary: () => Promise<void>;
+    scanLibrary: () => Promise<{ queued: number; skipped: number; total: number }>;
     resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
@@ -441,9 +443,11 @@ interface Window {
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
     getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
+    ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) => Promise<{ queued: number; skipped: number }>;
+    regenerateAllThumbnails: () => Promise<{ queued: number; skipped: number; total: number }>;
 
     getLibraryPath: () => Promise<string>;
-    scanLibrary: () => Promise<void>;
+    scanLibrary: () => Promise<{ queued: number; skipped: number; total: number }>;
     resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 

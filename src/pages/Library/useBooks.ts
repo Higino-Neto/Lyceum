@@ -156,11 +156,13 @@ export default function useBooks(options: UseBooksOptions) {
     booksQuery.fetchNextPage();
   }, [apiAvailable, booksQuery]);
 
-  const refreshBooks = useCallback(() => {
+  const refreshBooks = useCallback(async () => {
     if (!apiAvailable) return;
-    queryClient.resetQueries({ queryKey: booksQueryKey, exact: true });
-    queryClient.refetchQueries({ queryKey: ["book-counts"] });
-    queryClient.refetchQueries({ queryKey: ["categories"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: booksQueryKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: ["book-counts"] }),
+      queryClient.invalidateQueries({ queryKey: ["categories"] }),
+    ]);
   }, [apiAvailable, queryClient, booksQueryKey]);
 
   const handleSync = async (

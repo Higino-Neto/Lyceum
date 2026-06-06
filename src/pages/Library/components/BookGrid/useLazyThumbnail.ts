@@ -1,52 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
-import { thumbnailCache } from "./thumbnailCache";
+
+function getThumbnailSrc(book: BookWithThumbnail): string | undefined {
+  if (book.thumbnail) return book.thumbnail;
+  if (book.thumbnailPath) {
+    const baseName = book.thumbnailPath.split(/[/\\]/).pop() || "";
+    const hash = baseName.split("-")[0];
+    if (/^[a-f0-9]{64}$/i.test(hash)) return `thumb://${hash}`;
+  }
+  return undefined;
+}
 
 export function useLazyThumbnail(book: BookWithThumbnail) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isVisible, setIsVisible] = useState(Boolean(book.thumbnail));
-  const [thumbnail, setThumbnail] = useState<string | undefined>(book.thumbnail);
+  const [src, setSrc] = useState<string | undefined>(() => getThumbnailSrc(book));
 
   useEffect(() => {
-    setThumbnail(book.thumbnail);
-    setIsVisible(Boolean(book.thumbnail));
+    setSrc(getThumbnailSrc(book));
   }, [book.fileHash, book.thumbnail, book.thumbnailPath]);
 
-  useEffect(() => {
-    if (book.thumbnail || !book.thumbnailPath) return;
-
-    const element = containerRef.current;
-    if (!element || !("IntersectionObserver" in window)) {
-      setIsVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setIsVisible(true);
-        observer.disconnect();
-      },
-      { rootMargin: "240px 0px" },
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [book.thumbnail, book.thumbnailPath]);
-
-  useEffect(() => {
-    if (book.thumbnail || !book.thumbnailPath || !isVisible) return;
-
-    const cached = thumbnailCache.get(book.thumbnailPath);
-    if (cached) {
-      setThumbnail(cached);
-      return;
-    }
-
-    const unsubscribe = thumbnailCache.subscribe(book.thumbnailPath, setThumbnail);
-    thumbnailCache.load(book.thumbnailPath, "visible");
-    return unsubscribe;
-  }, [book.thumbnail, book.thumbnailPath, isVisible]);
-
-  return { thumbnail, thumbnailRef: containerRef };
+  return { thumbnail: src, thumbnailRef: containerRef };
 }

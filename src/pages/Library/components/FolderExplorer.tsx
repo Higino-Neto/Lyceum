@@ -82,6 +82,10 @@ function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
   };
 }
 
+function isAbsoluteFolderPath(folderPath: string) {
+  return /^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\");
+}
+
 export function FolderPathBar({
   folders,
   selectedFolder,
@@ -280,6 +284,7 @@ export function FolderGrid({
                 key={folder.path}
                 id={folder.path}
                 name={folder.name}
+                detail={isAbsoluteFolderPath(folder.path) ? folder.fullPath : undefined}
                 bookCount={bookCount}
                 folderCount={folderCount}
                 coverPreviews={previews.coverPreviews}

@@ -1,37 +1,18 @@
-import { waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  resetThumbnailCacheForTests,
   thumbnailCache,
 } from "../pages/Library/components/BookGrid/thumbnailCache";
 
 describe("thumbnailCache", () => {
-  beforeEach(() => {
-    resetThumbnailCacheForTests();
-    vi.restoreAllMocks();
-  });
+  it("returns undefined (no-op after thumb:// protocol migration)", () => {
+    expect(thumbnailCache.get("any")).toBeUndefined();
+    expect(thumbnailCache.get(null)).toBeUndefined();
 
-  it("batches thumbnail requests through the renderer IPC API", async () => {
-    const getThumbnails = vi.fn().mockResolvedValue({
-      "a.webp": "data:image/webp;base64,a",
-      "b.webp": "data:image/webp;base64,b",
-    });
+    thumbnailCache.load("any");
+    thumbnailCache.prefetch(["a", "b"]);
+    thumbnailCache.clear();
+    thumbnailCache.subscribe("x", () => {});
 
-    Object.defineProperty(window, "api", {
-      value: { getThumbnails },
-      writable: true,
-      configurable: true,
-    });
-
-    const subscriber = vi.fn();
-    thumbnailCache.subscribe("a.webp", subscriber);
-    thumbnailCache.load("a.webp");
-    thumbnailCache.load("b.webp");
-
-    await waitFor(() => {
-      expect(getThumbnails).toHaveBeenCalledTimes(1);
-      expect(getThumbnails).toHaveBeenCalledWith(["a.webp", "b.webp"]);
-      expect(subscriber).toHaveBeenCalledWith("data:image/webp;base64,a");
-    });
+    expect(true).toBe(true);
   });
 });

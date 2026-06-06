@@ -242,6 +242,10 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),
   getThumbnails: (thumbnailPaths: string[]) =>
     ipcRenderer.invoke("thumbnail:get-many", thumbnailPaths),
+  ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) =>
+    ipcRenderer.invoke("thumbnail:ensure-many", books),
+  regenerateAllThumbnails: () =>
+    ipcRenderer.invoke("thumbnail:regenerate-all"),
 
   getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
 

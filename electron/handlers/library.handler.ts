@@ -31,6 +31,9 @@ import {
   scanLibrary,
   resyncLibrary,
   processFile,
+  queueThumbnailGeneration,
+  queueAllThumbnailRegeneration,
+  setLibraryChangeEmitter,
   getFolderStructure,
   getAllFoldersFlat,
   getBooksInFolder,
@@ -63,6 +66,7 @@ let refreshFileWatchers: (() => void) | null = null;
 
 export function setWindow(w: BrowserWindow | null) {
   win = w;
+  setLibraryChangeEmitter(w ? () => w.webContents.send("library:updated") : null);
 }
 
 export function setFileWatcherRefresh(callback: (() => void) | null) {
@@ -75,7 +79,15 @@ export function registerLibraryHandlers() {
   });
 
   ipcMain.handle("library:scan", async () => {
-    await scanLibrary();
+    return scanLibrary();
+  });
+
+  ipcMain.handle("thumbnail:ensure-many", async (_, requests) => {
+    return queueThumbnailGeneration(Array.isArray(requests) ? requests.slice(0, 96) : []);
+  });
+
+  ipcMain.handle("thumbnail:regenerate-all", async () => {
+    return queueAllThumbnailRegeneration();
   });
 
   ipcMain.handle("library:resync", async () => {

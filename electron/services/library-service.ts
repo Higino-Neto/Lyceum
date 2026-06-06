@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import electron from "electron";
 import {
   getAllDocuments,
   addDocument,
@@ -11,6 +10,7 @@ import {
   updateDocumentNumPages,
   updateDocumentPath,
   updateDocumentSyncStatus,
+  updateDocumentFileIdentity,
   updateFileSize,
   updateMetadata,
   updateProcessingStatus,
@@ -21,9 +21,10 @@ import {
 } from "../local-database";
 import {
   LIBRARY_PATH,
+  THUMBNAILS_DIR,
   generateFileHash,
   getAllBookFiles as getAllBookFilesUtil,
-  inferFileTypeFromPath,
+  inferBookFileTypeFromPath,
 } from "./file-service";
 import {
   generateThumbnail,
@@ -35,8 +36,6 @@ import {
   validateCbzFile,
   type BookFileType,
 } from "./document-processing";
-
-const { app } = electron;
 
 export interface FolderInfo {
   name: string;
@@ -56,10 +55,135 @@ export interface LibraryRootInfo {
 interface ProcessFileOptions {
   rootPath?: string;
   isSynced?: boolean;
+  generateThumbnail?: boolean;
 }
+
+interface LibraryJob {
+  key: string;
+  run: () => Promise<boolean | void>;
+}
+
+export interface ScanLibraryResult {
+  queued: number;
+  skipped: number;
+  total: number;
+}
+
+export interface ThumbnailRequest {
+  fileHash: string;
+  filePath: string;
+  fileType?: BookFileType | null;
+  force?: boolean;
+}
+
+let emitLibraryChanged: (() => void) | null = null;
+
+export function setLibraryChangeEmitter(callback: (() => void) | null) {
+  emitLibraryChanged = callback;
+}
+
+class LibraryJobQueue {
+  private queue: LibraryJob[] = [];
+  private queuedKeys = new Set<string>();
+  private active = 0;
+  private scheduled = false;
+  private changedSinceEmit = 0;
+  private emitTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(private readonly maxConcurrency = 1) {}
+
+  enqueue(job: LibraryJob): boolean {
+    if (this.queuedKeys.has(job.key)) return false;
+    this.queuedKeys.add(job.key);
+    this.queue.push(job);
+    this.schedule();
+    return true;
+  }
+
+  private schedule() {
+    if (this.scheduled) return;
+    this.scheduled = true;
+    setImmediate(() => {
+      this.scheduled = false;
+      void this.processNext();
+    });
+  }
+
+  private async processNext() {
+    while (this.active < this.maxConcurrency && this.queue.length > 0) {
+      const job = this.queue.shift();
+      if (!job) return;
+
+      this.active++;
+      this.queuedKeys.delete(job.key);
+
+      setImmediate(async () => {
+        try {
+          const changed = await job.run();
+          if (changed !== false) {
+            this.changedSinceEmit++;
+            if (this.changedSinceEmit >= 6) {
+              this.flushChanges();
+            }
+          }
+        } catch (error) {
+          console.error("[LibraryService] Background job error:", error);
+        } finally {
+          this.active--;
+          if (this.queue.length > 0) {
+            this.schedule();
+          } else {
+            this.flushChanges();
+          }
+        }
+      });
+    }
+  }
+
+  private flushChanges() {
+    if (this.changedSinceEmit === 0) return;
+    if (this.emitTimer) return;
+    this.emitTimer = setTimeout(() => {
+      this.emitTimer = null;
+      if (this.changedSinceEmit === 0) return;
+      this.changedSinceEmit = 0;
+      emitLibraryChanged?.();
+    }, 500);
+  }
+}
+
+const libraryJobQueue = new LibraryJobQueue(1);
 
 function normalizePathForCompare(filePath: string): string {
   return path.resolve(filePath).replace(/\\/g, "/").toLowerCase();
+}
+
+function isCompletedDocumentCurrent(existing: DocumentRecord | undefined, filePath: string): boolean {
+  if (!existing || existing.processingStatus !== "completed" || !existing.filePath) return false;
+  if (normalizePathForCompare(existing.filePath) !== normalizePathForCompare(filePath)) return false;
+
+  try {
+    const stats = fs.statSync(filePath);
+    const sameMtime = existing.fileMtime === Math.round(stats.mtimeMs);
+    const sameSize = existing.fileSize === stats.size;
+    return sameMtime && sameSize;
+  } catch {
+    return false;
+  }
+}
+
+function getSupportedThumbnailFileType(filePath: string, fileType?: string | null): BookFileType | null {
+  const inferred = (fileType || inferBookFileTypeFromPath(filePath)).toLowerCase();
+  if (
+    inferred === "pdf" ||
+    inferred === "epub" ||
+    inferred === "cbz" ||
+    inferred === "azw3" ||
+    inferred === "kfx"
+  ) {
+    return inferred;
+  }
+  return null;
 }
 
 function isWithinRoot(rootPath: string, targetPath: string): boolean {
@@ -170,11 +294,13 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     const isCbz = lowerPath.endsWith(".cbz");
     const isPdf = lowerPath.endsWith(".pdf");
     const fileType: BookFileType = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
-    const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+    const thumbnailsDir = THUMBNAILS_DIR();
+    const shouldGenerateThumbnail = options.generateThumbnail !== false;
     if (isCbz) {
       await validateCbzFile(filePath);
     }
 
+    const stats = fs.statSync(filePath);
     const existingByPath = getDocumentByPath(filePath);
     const fileHash = generateFileHash(filePath);
     const existing = existingByPath || getDocumentByHash(fileHash);
@@ -184,18 +310,21 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     const category = categoryForFile(filePath, rootPath);
 
     if (existingByPath && existingByPath.fileHash !== fileHash) {
-      updateDocumentPath(fileHash, filePath);
+      updateDocumentFileIdentity(existingByPath.fileHash, fileHash, filePath, stats.size);
     }
 
     if (existing && existing.processingStatus === "completed") {
       if (existing.filePath !== filePath) updateDocumentPath(fileHash, filePath);
       updateDocumentSyncStatus(fileHash, isSynced, category);
-      const thumbnailPath = await generateThumbnail(filePath, fileHash, {
-        thumbnailsDir, force: true, fileType, logPrefix: "[LibraryService]",
-      });
-      if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
+      if (shouldGenerateThumbnail && !existing.thumbnailPath) {
+        const thumbnailPath = await generateThumbnail(filePath, fileHash, {
+          thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
+        });
+        if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
+      }
       const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
+      updateFileSize(fileHash, fs.statSync(filePath).size);
       return;
     }
 
@@ -203,12 +332,13 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       updateProcessingStatus(fileHash, "processing");
     }
 
-    const stats = fs.statSync(filePath);
     const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
     const metadata = isPdf ? await extractPdfMetadata(filePath) : isCbz ? null : await extractEpubMetadata(filePath);
-    const thumbnailPath = await generateThumbnail(filePath, fileHash, {
-      thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
-    });
+    const thumbnailPath = shouldGenerateThumbnail
+      ? await generateThumbnail(filePath, fileHash, {
+          thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
+        })
+      : null;
 
     if (existing) {
       if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
@@ -253,24 +383,121 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
   }
 }
 
-export async function scanLibrary(): Promise<void> {
+export async function scanLibrary(): Promise<ScanLibraryResult> {
   const roots = getLibraryRoots();
+  let queued = 0;
+  let skipped = 0;
+  let total = 0;
 
   for (const root of roots) {
     if (!fs.existsSync(root.path)) continue;
 
     const bookFiles = getAllBookFilesUtil(root.path);
     for (const filePath of bookFiles) {
+      total++;
       try {
-        const fileHash = generateFileHash(filePath);
-        const existing = getDocumentByHash(fileHash);
-        if (existing && existing.processingStatus === "completed" && existing.filePath === filePath) continue;
-        await processFile(filePath, { rootPath: root.path, isSynced: true });
+        const existingByPath = getDocumentByPath(filePath);
+        if (isCompletedDocumentCurrent(existingByPath, filePath)) {
+          skipped++;
+          continue;
+        }
+
+        const added = libraryJobQueue.enqueue({
+          key: `scan:${normalizePathForCompare(filePath)}`,
+          run: async () => {
+            await processFile(filePath, {
+              rootPath: root.path,
+              isSynced: true,
+              generateThumbnail: false,
+            });
+            return true;
+          },
+        });
+
+        if (added) queued++;
       } catch (error) {
         console.error("[LibraryService] Error scanning:", filePath, error);
       }
     }
   }
+
+  if (queued === 0 && skipped > 0) {
+    emitLibraryChanged?.();
+  }
+
+  return { queued, skipped, total };
+}
+
+export function queueThumbnailGeneration(requests: ThumbnailRequest[]): { queued: number; skipped: number } {
+  let queued = 0;
+  let skipped = 0;
+
+  for (const request of requests) {
+    if (!request.fileHash || !request.filePath) {
+      skipped++;
+      continue;
+    }
+
+    const doc = getDocumentByHash(request.fileHash);
+    if (!doc || !doc.filePath || normalizePathForCompare(doc.filePath) !== normalizePathForCompare(request.filePath)) {
+      skipped++;
+      continue;
+    }
+
+    if (!request.force && doc.thumbnailPath && fs.existsSync(doc.thumbnailPath)) {
+      skipped++;
+      continue;
+    }
+
+    const fileType = getSupportedThumbnailFileType(request.filePath, request.fileType);
+    if (!fileType) {
+      skipped++;
+      continue;
+    }
+
+    const added = libraryJobQueue.enqueue({
+      key: `thumb:${request.fileHash}`,
+      run: async () => {
+        const thumbnailPath = await generateThumbnail(request.filePath, request.fileHash, {
+          thumbnailsDir: THUMBNAILS_DIR(),
+          force: request.force === true,
+          fileType,
+          logPrefix: "[LibraryService]",
+        });
+
+        if (!thumbnailPath) return false;
+        updateThumbnailPath(request.fileHash, thumbnailPath);
+        return true;
+      },
+    });
+
+    if (added) {
+      queued++;
+    } else {
+      skipped++;
+    }
+  }
+
+  return { queued, skipped };
+}
+
+export function queueAllThumbnailRegeneration(): { queued: number; skipped: number; total: number } {
+  const docs = getAllDocuments();
+  const result = queueThumbnailGeneration(
+    docs
+      .filter((doc) => Boolean(doc.fileHash && doc.filePath))
+      .map((doc) => ({
+        fileHash: doc.fileHash,
+        filePath: doc.filePath,
+        fileType: doc.fileType as BookFileType,
+        force: true,
+      })),
+  );
+
+  return {
+    ...result,
+    total: docs.length,
+  };
 }
 
 export async function resyncLibrary(): Promise<{ added: number; removed: number; updated: number }> {
@@ -340,6 +567,7 @@ export function getFolderStructure(rootPath: string = LIBRARY_PATH(), useAbsolut
         const itemFullPath = path.join(dirPath, item.name);
         const relativePath = path.relative(relativeTo, itemFullPath);
         const bookFiles = getAllBookFilesUtil(itemFullPath);
+        if (bookFiles.length === 0) continue;
         folders.push({
           name: item.name,
           path: useAbsolutePaths ? itemFullPath : relativePath,

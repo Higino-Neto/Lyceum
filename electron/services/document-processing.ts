@@ -9,7 +9,8 @@ import { extractFirstCbzImage, inspectCbzPageCount, parseCbzBuffer } from "../..
 const require = createRequire(import.meta.url);
 
 export const THUMBNAIL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
-export const THUMB_WIDTH = 220;
+export const THUMB_WIDTH = 160;
+const THUMB_WEBP_QUALITY = 72;
 
 export type BookFileType = "pdf" | "epub" | "cbz" | "azw3" | "kfx";
 
@@ -285,7 +286,7 @@ export async function generateThumbnail(
     const imageBuffer = fs.readFileSync(generatedPath);
     await sharp(imageBuffer)
       .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 85 })
+      .webp({ quality: THUMB_WEBP_QUALITY })
       .toFile(outputPath);
     fs.unlinkSync(generatedPath);
     console.log(`${logPrefix} Thumbnail generated: ${outputPath}`);
@@ -336,7 +337,7 @@ async function writeImageThumbnail(imageBuffer: Buffer, outputPath: string) {
   const sharp = require("sharp");
   await sharp(imageBuffer)
     .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 85 })
+    .webp({ quality: THUMB_WEBP_QUALITY })
     .toFile(outputPath);
   return outputPath;
 }
@@ -522,7 +523,7 @@ async function generateEpubThumbnail(
     const sharp = require("sharp");
     await sharp(coverImage.getData())
       .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 85 })
+      .webp({ quality: THUMB_WEBP_QUALITY })
       .toFile(outputPath);
 
     console.log(`${logPrefix} Generated EPUB thumbnail: ${outputPath}`);
