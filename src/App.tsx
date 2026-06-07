@@ -24,12 +24,13 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 
 import React from "react";
 import ReactDOMClient from "react-dom/client";
-import { installComponentAtlasRuntime } from "@component-atlas/runtime";
 
 if (import.meta.env.DEV) {
-  installComponentAtlasRuntime({
-    react: React,
-    reactDOM: ReactDOMClient,
+  import("@component-atlas/runtime").then(({ installComponentAtlasRuntime }) => {
+    installComponentAtlasRuntime({
+      react: React,
+      reactDOM: ReactDOMClient,
+    });
   });
 }
 
