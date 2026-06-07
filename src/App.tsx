@@ -26,11 +26,10 @@ import React from "react";
 import ReactDOMClient from "react-dom/client";
 
 if (import.meta.env.DEV) {
-  import("@component-atlas/runtime").then(({ installComponentAtlasRuntime }) => {
-    installComponentAtlasRuntime({
-      react: React,
-      reactDOM: ReactDOMClient,
-    });
+  const { installComponentAtlasRuntime } = await import("@component-atlas/runtime");
+  installComponentAtlasRuntime({
+    react: React,
+    reactDOM: ReactDOMClient,
   });
 }
 
