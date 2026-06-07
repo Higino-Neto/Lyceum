@@ -11,8 +11,10 @@ import {
   getUnsyncedBookCount,
   getWatchFolderBooks,
   getWatchFolders,
+  mergeDocuments,
   removeSourceFolder,
   removeWatchFolder,
+  updateDocumentBookId,
   updateDocumentPath,
   updateDocumentSyncStatus,
 } from "../local-database";
@@ -31,6 +33,17 @@ import { processFile, resolveManagedFolderPath } from "./library-service";
 interface FolderOperationResult {
   success: boolean;
   error?: string;
+}
+
+interface MoveDocumentsToFolderResult extends FolderOperationResult {
+  moved?: number;
+}
+
+interface FolderBooksResult extends FolderOperationResult {
+  folderPath?: string;
+  fullPath?: string;
+  moved?: number;
+  mergedCount?: number;
 }
 
 function permissionError(defaultMessage: string, error: unknown) {
@@ -56,6 +69,91 @@ function findExactSourceFolder(folderPath: string) {
   return getSourceFolders().find(
     (folder) => path.resolve(folder.path) === resolvedPath,
   );
+}
+
+function collectDocumentsForHashes(fileHashes: string[]) {
+  const docsByHash = new Map<string, ReturnType<typeof getDocumentByHash>>();
+  const uniqueHashes = Array.from(new Set(fileHashes.filter(Boolean)));
+
+  for (const fileHash of uniqueHashes) {
+    const doc = getDocumentByHash(fileHash);
+    if (!doc) continue;
+    docsByHash.set(doc.fileHash, doc);
+
+    if (doc.bookId) {
+      for (const groupedDoc of getDocumentsByBookId(doc.bookId)) {
+        docsByHash.set(groupedDoc.fileHash, groupedDoc);
+      }
+    }
+  }
+
+  return Array.from(docsByHash.values()).filter(
+    (doc): doc is NonNullable<ReturnType<typeof getDocumentByHash>> => Boolean(doc),
+  );
+}
+
+function getCanonicalFolderTitle(docs: Array<NonNullable<ReturnType<typeof getDocumentByHash>>>) {
+  const doc = docs.find((candidate) => candidate.title?.trim()) || docs[0];
+  const title = doc?.title?.trim() || doc?.fileName || "Livro";
+  return title.replace(/\.[a-z0-9]+$/i, "").trim() || "Livro";
+}
+
+function createPrefixedFolder(
+  prefix: "_" | "__",
+  title: string,
+  parentPath: string | null = null,
+) {
+  const cleanTitle = title
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Livro";
+  const safeFolderName = sanitizeFolderName(`${prefix}${cleanTitle}`);
+  const target = resolveManagedFolderPath(parentPath);
+  const targetDir = getUniqueDirPath(target.targetDir, safeFolderName);
+  fs.mkdirSync(targetDir, { recursive: true });
+  return targetDir;
+}
+
+function moveDocumentsToFolder(
+  docs: Array<NonNullable<ReturnType<typeof getDocumentByHash>>>,
+  targetDir: string,
+): MoveDocumentsToFolderResult {
+  const moved: { fileHash: string; from: string; to: string }[] = [];
+
+  try {
+    for (const doc of docs) {
+      if (!doc.filePath || !fs.existsSync(doc.filePath)) {
+        throw new Error("Arquivo nao encontrado");
+      }
+
+      const currentDir = path.dirname(doc.filePath);
+      if (path.resolve(currentDir) === path.resolve(targetDir)) continue;
+
+      const newFilePath = getUniqueFilePath(targetDir, path.basename(doc.filePath));
+      moveFileAcrossDevices(doc.filePath, newFilePath);
+      moved.push({ fileHash: doc.fileHash, from: doc.filePath, to: newFilePath });
+    }
+
+    for (const item of moved) {
+      updateDocumentPath(item.fileHash, item.to);
+      updateDocumentSyncStatus(item.fileHash, true);
+      updateDocumentBookId(item.fileHash, null);
+    }
+
+    return { success: true, moved: moved.length };
+  } catch (error: unknown) {
+    for (const item of [...moved].reverse()) {
+      try {
+        if (fs.existsSync(item.to) && !fs.existsSync(item.from)) {
+          moveFileAcrossDevices(item.to, item.from);
+        }
+      } catch (rollbackError) {
+        console.error("[FolderService] Error rolling back folder book move:", rollbackError);
+      }
+    }
+
+    return { success: false, error: bookMoveError("Erro ao mover livros", error) };
+  }
 }
 
 export function createManagedFolder(
@@ -281,6 +379,85 @@ export function moveMergedManagedBook(
     }
 
     return { success: false, error: bookMoveError("Erro ao mover livro mesclado", error) };
+  }
+}
+
+export function mergeBooksIntoManagedFolder(
+  fileHashes: string[],
+  parentPath: string | null = null,
+): FolderBooksResult {
+  const docs = collectDocumentsForHashes(fileHashes);
+  if (docs.length < 2) {
+    return { success: false, error: "Selecione pelo menos dois livros" };
+  }
+
+  let targetDir: string | null = null;
+
+  try {
+    targetDir = createPrefixedFolder("_", getCanonicalFolderTitle(docs), parentPath);
+    const moveResult = moveDocumentsToFolder(docs, targetDir);
+    if (!moveResult.success) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+      return moveResult;
+    }
+
+    const movedHashes = docs.map((doc) => doc.fileHash);
+    const mergeResult = mergeDocuments(movedHashes, `folder-${Date.now()}`);
+    if (mergeResult.success) {
+      for (const doc of mergeResult.documents) {
+        updateDocumentBookId(doc.fileHash, null);
+      }
+    } else {
+      for (const doc of docs) {
+        updateDocumentBookId(doc.fileHash, null);
+      }
+    }
+
+    return {
+      success: true,
+      folderPath: path.relative(LIBRARY_PATH(), targetDir),
+      fullPath: targetDir,
+      moved: moveResult.moved,
+      mergedCount: docs.length,
+    };
+  } catch (error: unknown) {
+    if (targetDir && fs.existsSync(targetDir) && fs.readdirSync(targetDir).length === 0) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+    return { success: false, error: bookMoveError("Erro ao mesclar livros", error) };
+  }
+}
+
+export function createManagedCollection(
+  name: string,
+  fileHashes: string[],
+  parentPath: string | null = null,
+): FolderBooksResult {
+  const docs = collectDocumentsForHashes(fileHashes);
+  let targetDir: string | null = null;
+
+  try {
+    targetDir = createPrefixedFolder("__", name, parentPath);
+
+    if (docs.length > 0) {
+      const moveResult = moveDocumentsToFolder(docs, targetDir);
+      if (!moveResult.success) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+        return moveResult;
+      }
+    }
+
+    return {
+      success: true,
+      folderPath: path.relative(LIBRARY_PATH(), targetDir),
+      fullPath: targetDir,
+      moved: docs.length,
+    };
+  } catch (error: unknown) {
+    if (targetDir && fs.existsSync(targetDir) && fs.readdirSync(targetDir).length === 0) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+    return { success: false, error: folderOperationError("Erro ao criar colecao", error) };
   }
 }
 

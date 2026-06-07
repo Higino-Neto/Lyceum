@@ -15,6 +15,7 @@ import {
   FolderOpen,
   GitMerge,
   LayoutGrid,
+  Layers,
   List,
   Move,
   PanelLeft,
@@ -47,6 +48,9 @@ import {
   getBookFolderLabel,
   getFileTypeLabel,
   getFolderChildren,
+  classifyFolder,
+  classifyFolders,
+  calculateSimilarity,
   normalizeFolderPath,
   getTitleWithoutExtension,
 } from "./utils";
@@ -78,6 +82,220 @@ interface OpenBookResult {
 
 function isAbsoluteFolderPath(folderPath: string | null): boolean {
   return Boolean(folderPath && (/^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\")));
+}
+
+function getPathLeaf(folderPath?: string | null): string {
+  return (folderPath || "").split(/[\\/]+/).filter(Boolean).at(-1) || "";
+}
+
+function normalizeAbsoluteFolderPath(folderPath?: string | null): string {
+  return (folderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/g, "")
+    .toLowerCase();
+}
+
+function stripSpecialFolderPrefix(name: string): string {
+  return name.replace(/^_+/, "") || name;
+}
+
+function getSyntheticFolderId(folderPath: string): number {
+  let hash = 0;
+  for (let index = 0; index < folderPath.length; index++) {
+    hash = ((hash << 5) - hash + folderPath.charCodeAt(index)) | 0;
+  }
+  return -Math.max(1, Math.abs(hash));
+}
+
+function isDocumentDirectlyInFolder(
+  book: BookWithThumbnail,
+  folder: FolderInfo,
+): boolean {
+  return (
+    normalizeAbsoluteFolderPath(book.folderPath) ===
+    normalizeAbsoluteFolderPath(folder.fullPath)
+  );
+}
+
+function pickRepresentativeBook(books: BookWithThumbnail[]) {
+  return (
+    books.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf")) ||
+    books.find((book) => book.fileType === "epub" || book.fileType === "pdf") ||
+    books.find((book) => book.thumbnailPath || book.thumbnail) ||
+    books.find((book) => book.fileType === "epub") ||
+    books[0]
+  );
+}
+
+function buildSpecialFolderBook(
+  folder: FolderInfo,
+  documents: BookWithThumbnail[],
+  folderType: "merged" | "collection",
+): BookWithThumbnail | null {
+  const directDocuments = documents.filter((document) =>
+    isDocumentDirectlyInFolder(document, folder),
+  );
+  const variants = directDocuments.length > 0 ? directDocuments : documents;
+  const representative = pickRepresentativeBook(variants);
+  const folderPath = folder.fullPath || folder.path;
+  const title = stripSpecialFolderPrefix(folder.name) || representative?.title || folder.name;
+  const syntheticFileHash = `${folderType}-folder:${normalizeAbsoluteFolderPath(folderPath)}`;
+
+  return {
+    ...(representative || {
+      filePath: folderPath,
+      currentPage: 0,
+      currentZoom: null,
+      currentScroll: null,
+      annotations: null,
+      thumbnailPath: null,
+      numPages: 0,
+      createdAt: new Date(0).toISOString(),
+      lastOpenedAt: new Date(0).toISOString(),
+      isSynced: 1,
+      category: null,
+      isFavorite: 0,
+      rating: 0,
+      notes: null,
+      author: null,
+      description: null,
+      isbn: null,
+      publisher: null,
+      publishDate: null,
+      fileSize: 0,
+      processingStatus: "completed" as const,
+      fileType: "lyceum" as const,
+    }),
+    id: getSyntheticFolderId(folderPath),
+    title,
+    fileHash: syntheticFileHash,
+    folderPath,
+    mergedBooks: variants,
+    syntheticFolderPath: folder.path,
+    syntheticFolderType: folderType,
+  };
+}
+
+function collectSpecialFoldersForDisplay(
+  folders: FolderInfo[],
+  includeNested: boolean,
+): Array<{ folder: FolderInfo; type: "merged" | "collection" }> {
+  const result: Array<{ folder: FolderInfo; type: "merged" | "collection" }> = [];
+
+  const visit = (items: FolderInfo[]) => {
+    for (const folder of items) {
+      const folderType = classifyFolder(folder.name);
+      if (folderType === "merged" || folderType === "collection") {
+        result.push({ folder, type: folderType });
+      }
+
+      if (includeNested && folder.subfolders.length > 0) {
+        visit(folder.subfolders);
+      }
+    }
+  };
+
+  visit(folders);
+  return result;
+}
+
+function getBookSortTitle(book: BookWithThumbnail): string {
+  return getTitleWithoutExtension(book.title || book.fileName || book.filePath || "", book.fileType)
+    .toLocaleLowerCase("pt-BR");
+}
+
+function getBookSortDate(book: BookWithThumbnail): number {
+  const value = book.lastOpenedAt || book.updatedAt || book.importedAt || book.createdAt;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortBooksForLibraryView(
+  books: BookWithThumbnail[],
+  sortOption: SortOption,
+): BookWithThumbnail[] {
+  const indexed = books.map((book, index) => ({ book, index }));
+  indexed.sort((left, right) => {
+    const titleCompare = getBookSortTitle(left.book).localeCompare(
+      getBookSortTitle(right.book),
+      "pt-BR",
+      { sensitivity: "base", numeric: true },
+    );
+
+    let result = 0;
+    switch (sortOption) {
+      case "title_desc":
+        result = -titleCompare || right.book.id - left.book.id;
+        break;
+      case "recent_desc":
+        result = getBookSortDate(right.book) - getBookSortDate(left.book) || right.book.id - left.book.id;
+        break;
+      case "recent_asc":
+        result = getBookSortDate(left.book) - getBookSortDate(right.book) || left.book.id - right.book.id;
+        break;
+      case "pages_desc":
+        result = (right.book.numPages || 0) - (left.book.numPages || 0) || titleCompare;
+        break;
+      case "pages_asc":
+        result = (left.book.numPages || 0) - (right.book.numPages || 0) || titleCompare;
+        break;
+      case "size_desc":
+        result = (right.book.fileSize || 0) - (left.book.fileSize || 0) || titleCompare;
+        break;
+      case "size_asc":
+        result = (left.book.fileSize || 0) - (right.book.fileSize || 0) || titleCompare;
+        break;
+      case "title_asc":
+      default:
+        result = titleCompare || left.book.id - right.book.id;
+        break;
+    }
+
+    return result || left.index - right.index;
+  });
+  return indexed.map((item) => item.book);
+}
+
+function matchesLibrarySearch(book: BookWithThumbnail, query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed) return true;
+
+  const candidates = [
+    book,
+    ...(book.mergedBooks || []),
+  ];
+
+  return candidates.some((candidate) => {
+    const haystack = [
+      candidate.title,
+      candidate.author,
+      candidate.fileName,
+      candidate.series,
+      candidate.publisher,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return (
+      haystack.toLocaleLowerCase("pt-BR").includes(trimmed.toLocaleLowerCase("pt-BR")) ||
+      calculateSimilarity(candidate.title || "", candidate.author || null, trimmed).matches
+    );
+  });
+}
+
+function matchesLibraryFileTypes(
+  book: BookWithThumbnail,
+  filters: FileTypeFilter[],
+): boolean {
+  const activeFilters = filters.filter((
+    filter,
+  ): filter is Exclude<FileTypeFilter, "all"> => filter !== "all");
+  if (activeFilters.length === 0) return true;
+  const candidates = book.mergedBooks?.length ? book.mergedBooks : [book];
+  return candidates.some((candidate) => (
+    candidate.fileType
+      ? activeFilters.includes(candidate.fileType as Exclude<FileTypeFilter, "all">)
+      : false
+  ));
 }
 
 function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: () => void }) {
@@ -164,6 +382,7 @@ function LibraryContent() {
     createFolder,
     renameFolder,
     deleteFolder,
+    moveFolder,
     moveBook: moveBookInLibrary,
   } = useLibraryContext();
   const electronApiAvailable = !!window.api?.listBooks;
@@ -186,6 +405,7 @@ function LibraryContent() {
   const [readingPreviewTab, setReadingPreviewTab] = useState<ReadingLaunchState | null>(null);
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
+  const [specialFolderBooks, setSpecialFolderBooks] = useState<BookWithThumbnail[]>([]);
   const folderDragDrop = useFolderDragDrop();
   const mergedBookCacheRef = useRef(new Map<string, MergedBookCacheEntry>());
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
@@ -194,6 +414,10 @@ function LibraryContent() {
   );
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [confirmMergeBooks, setConfirmMergeBooks] = useState(false);
+  const [collectionDialog, setCollectionDialog] = useState({
+    open: false,
+    name: "",
+  });
   const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [regeneratingAllThumbnails, setRegeneratingAllThumbnails] = useState(false);
@@ -525,8 +749,51 @@ function LibraryContent() {
   }, [openBookForReading, rightPanelsAreDrawer]);
 
   const handleBookClick = useCallback((book: BookWithThumbnail) => {
+    if (book.syntheticFolderType === "collection" && book.syntheticFolderPath) {
+      handleFolderSelect(book.syntheticFolderPath);
+      return;
+    }
+
     setSelectedBook(book);
-  }, []);
+  }, [handleFolderSelect]);
+
+  const cleanupConsumedCollections = useCallback(async (
+    consumedBooks: BookWithThumbnail[],
+    destinationPath?: string | null,
+  ) => {
+    const destination = normalizeFolderPath(destinationPath);
+    const collectionPaths = Array.from(new Set(
+      consumedBooks
+        .filter((book) => book.syntheticFolderType === "collection" && book.syntheticFolderPath)
+        .map((book) => book.syntheticFolderPath as string)
+        .filter((folderPath) => normalizeFolderPath(folderPath) !== destination),
+    ));
+
+    for (const folderPath of collectionPaths) {
+      const result = await deleteFolder(folderPath, true);
+      if (!result.success) {
+        console.warn("[Library] Could not delete consumed collection folder:", folderPath, result.error);
+      }
+    }
+  }, [deleteFolder]);
+
+  const findDisplayBookByHash = useCallback((fileHash: string) => (
+    selectedBookMap.get(fileHash) ||
+    specialFolderBooks.find((candidate) => candidate.fileHash === fileHash) ||
+    books.find((candidate) => candidate.fileHash === fileHash)
+  ), [books, selectedBookMap, specialFolderBooks]);
+
+  const getConcreteFileHashesFromBooks = useCallback((
+    items: BookWithThumbnail[],
+  ) => Array.from(new Set(
+    items.flatMap((book) =>
+      book.mergedBooks?.length
+        ? book.mergedBooks.map((variant) => variant.fileHash)
+        : book.syntheticFolderType
+          ? []
+          : [book.fileHash],
+    ),
+  )), []);
 
   const handleBookDeleted = useCallback(() => {
     setSelectedBook(null);
@@ -549,7 +816,24 @@ function LibraryContent() {
   ): Promise<boolean> => {
     const book =
       selectedBookMap.get(fileHash) ||
+      specialFolderBooks.find((candidate) => candidate.fileHash === fileHash) ||
       books.find((candidate) => candidate.fileHash === fileHash);
+
+    if (
+      book?.folderPath &&
+      book.syntheticFolderType &&
+      book.syntheticFolderPath
+    ) {
+      const result = await moveFolder(book.syntheticFolderPath, targetFolder);
+      if (result.success) {
+        await refreshLibraryState();
+        return true;
+      }
+
+      toast.error(result.error || "Erro ao mover pasta especial");
+      return false;
+    }
+
     const mergedVariantCount = book?.bookId
       ? book.mergedBooks?.length || books.filter((candidate) => candidate.bookId === book.bookId).length
       : 0;
@@ -618,7 +902,24 @@ function LibraryContent() {
     for (const fileHash of fileHashes) {
       const book =
         selectedBookMap.get(fileHash) ||
+        specialFolderBooks.find((candidate) => candidate.fileHash === fileHash) ||
         books.find((candidate) => candidate.fileHash === fileHash);
+      const mergedFolderVariantCount = book?.mergedBooks?.length || 0;
+      if (
+        book?.folderPath &&
+        book.syntheticFolderType &&
+        book.syntheticFolderPath
+      ) {
+        const result = await moveFolder(book.syntheticFolderPath, targetFolder);
+        if (result.success) {
+          moved += Math.max(1, mergedFolderVariantCount);
+        } else {
+          failed += Math.max(1, mergedFolderVariantCount);
+          toast.error(result.error || "Erro ao mover pasta especial");
+        }
+        continue;
+      }
+
       const mergedVariantCount = book?.bookId
         ? book.mergedBooks?.length || books.filter((candidate) => candidate.bookId === book.bookId).length
         : 0;
@@ -657,6 +958,74 @@ function LibraryContent() {
     }
 
     return failed === 0;
+  };
+
+  const handleDropBooksOnBook = async (
+    targetBook: BookWithThumbnail,
+    sourceFileHashes: string[],
+    action: "merge" | "collection",
+  ) => {
+    const sourceBooks = sourceFileHashes
+      .map(findDisplayBookByHash)
+      .filter((book): book is BookWithThumbnail => Boolean(book));
+    const sourceConcreteFileHashes = getConcreteFileHashesFromBooks(sourceBooks);
+    const targetFileHashes = getConcreteFileHashesFromBooks([targetBook]);
+    const fileHashes = Array.from(
+      new Set([...sourceConcreteFileHashes, ...targetFileHashes].filter(Boolean)),
+    );
+
+    if (fileHashes.length < 2) return;
+
+    setBulkBusy(true);
+    try {
+      if (
+        action === "merge" &&
+        targetBook.syntheticFolderType === "merged" &&
+        targetBook.syntheticFolderPath
+      ) {
+        await handleMoveBooks(sourceConcreteFileHashes, targetBook.syntheticFolderPath);
+        await cleanupConsumedCollections(sourceBooks, targetBook.syntheticFolderPath);
+        return;
+      }
+
+      if (
+        action === "collection" &&
+        targetBook.syntheticFolderType === "collection" &&
+        targetBook.syntheticFolderPath
+      ) {
+        await handleMoveBooks(sourceConcreteFileHashes, targetBook.syntheticFolderPath);
+        await cleanupConsumedCollections(sourceBooks, targetBook.syntheticFolderPath);
+        return;
+      }
+
+      const result = action === "merge"
+        ? window.api.mergeBooksIntoFolder
+          ? await window.api.mergeBooksIntoFolder(fileHashes, selectedFolder)
+          : await window.api.mergeBooks(fileHashes)
+        : await window.api.createCollection(
+            getTitleWithoutExtension(targetBook.title, targetBook.fileType),
+            fileHashes,
+            selectedFolder,
+          );
+
+      if (result.success) {
+        if (action === "collection") {
+          await cleanupConsumedCollections(
+            [targetBook, ...sourceBooks],
+            "folderPath" in result ? result.folderPath || null : null,
+          );
+        }
+        toast.success(action === "merge" ? "Livros mesclados" : "Colecao criada");
+        await refreshLibraryState();
+      } else {
+        toast.error(result.error || (action === "merge" ? "Erro ao mesclar livros" : "Erro ao criar colecao"));
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao processar livros");
+    } finally {
+      folderDragDrop.clearDrag();
+      setBulkBusy(false);
+    }
   };
 
   const handleImportBook = async (targetFolder: string | null) => {
@@ -724,10 +1093,16 @@ function LibraryContent() {
     if (!folderActionDialog) return;
 
     if (folderActionDialog.mode === "rename") {
-      const newName = folderActionDialog.value.trim();
+      let newName = folderActionDialog.value.trim();
       if (!newName) {
         toast.error("Informe o nome da pasta");
         return;
+      }
+      const folderType = classifyFolder(folderActionDialog.folder.name);
+      if (folderType === "collection" && !newName.startsWith("__")) {
+        newName = `__${newName.replace(/^_+/, "")}`;
+      } else if (folderType === "merged" && (newName.startsWith("__") || !newName.startsWith("_"))) {
+        newName = `_${newName.replace(/^_+/, "")}`;
       }
 
       const result = await renameFolder(
@@ -854,6 +1229,17 @@ function LibraryContent() {
     () => Array.from(selectedBookMap.values()),
     [selectedBookMap],
   );
+  const selectedConcreteBooks = useMemo(
+    () =>
+      selectedBooks.flatMap((book) =>
+        book.mergedBooks?.length
+          ? book.mergedBooks
+          : book.syntheticFolderType
+            ? []
+            : [book],
+      ),
+    [selectedBooks],
+  );
   const visibleFolders = useMemo(
     () =>
       activeSection === "usb"
@@ -861,15 +1247,102 @@ function LibraryContent() {
         : getFolderChildren(folderStructure, selectedFolder),
     [activeSection, folderStructure, selectedFolder],
   );
+  const unifiedLibraryView = settings.unifiedLibraryView && activeSection !== "usb";
+  const classifiedVisibleFolders = useMemo(
+    () => classifyFolders(visibleFolders),
+    [visibleFolders],
+  );
+  const visibleSpecialFolders = useMemo(
+    () => collectSpecialFoldersForDisplay(
+      visibleFolders,
+      settings.showSubfolderBooks,
+    ),
+    [settings.showSubfolderBooks, visibleFolders],
+  );
+  const currentFolderType = classifyFolder(getPathLeaf(selectedFolder));
+
+  useEffect(() => {
+    if (
+      activeSection === "usb" ||
+      visibleSpecialFolders.length === 0 ||
+      !window.api?.getBooksInFolder
+    ) {
+      setSpecialFolderBooks([]);
+      return;
+    }
+
+    let canceled = false;
+
+    const loadSpecialFolders = async () => {
+      const cards = await Promise.all(
+        visibleSpecialFolders.map(async ({ folder, type }) => {
+          const documents = await window.api.getBooksInFolder(folder.path);
+          return buildSpecialFolderBook(
+            folder,
+            documents as BookWithThumbnail[],
+            type,
+          );
+        }),
+      );
+
+      if (!canceled) {
+        setSpecialFolderBooks(
+          cards.filter((book): book is BookWithThumbnail => Boolean(book)),
+        );
+      }
+    };
+
+    void loadSpecialFolders();
+
+    return () => {
+      canceled = true;
+    };
+  }, [
+    activeSection,
+    visibleSpecialFolders,
+  ]);
 
   const displayBooks = useMemo(() => {
     if (activeSection === "usb") return books;
+    const filteredSpecialFolderBooks =
+      activeSection === "synced"
+        ? specialFolderBooks.filter((book) =>
+            matchesLibrarySearch(book, deferredSearch) &&
+            matchesLibraryFileTypes(book, fileTypeFilter),
+          )
+        : [];
+    const collapsedSpecialFolderPaths = currentFolderType === "normal"
+      ? new Set(
+          visibleSpecialFolders.map(({ folder }) =>
+            normalizeAbsoluteFolderPath(folder.fullPath),
+          ),
+        )
+      : new Set<string>();
+    const booksForDisplay =
+      collapsedSpecialFolderPaths.size === 0
+        ? books
+        : books.filter(
+            (book) => {
+              const folderPath = normalizeAbsoluteFolderPath(book.folderPath);
+              return !Array.from(collapsedSpecialFolderPaths).some(
+                (collapsedPath) =>
+                  folderPath === collapsedPath ||
+                  folderPath.startsWith(`${collapsedPath}/`),
+              );
+            },
+          );
+    const booksForGrouping = sortBooksForLibraryView(
+      [...booksForDisplay, ...filteredSpecialFolderBooks],
+      sort,
+    );
 
     const grouped = new Map<string, BookWithThumbnail[]>();
     const orderedKeys: string[] = [];
 
-    for (const book of books) {
-      const groupKey = book.bookId || book.fileHash;
+    for (const book of booksForGrouping) {
+      const groupKey = book.syntheticFolderType
+        ? book.fileHash
+        : book.bookId || book.fileHash;
       if (!grouped.has(groupKey)) {
         grouped.set(groupKey, []);
         orderedKeys.push(groupKey);
@@ -880,13 +1353,8 @@ function LibraryContent() {
     const nextCache = new Map<string, MergedBookCacheEntry>();
     const result = orderedKeys.map((groupKey) => {
       const group = grouped.get(groupKey) || [];
-      const representative =
-        group.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf")) ||
-        group.find((book) => book.fileType === "epub" || book.fileType === "pdf") ||
-        group.find((book) => book.thumbnailPath) ||
-        group.find((book) => book.fileType === "epub") ||
-        group[0];
-      if (group.length <= 1) return representative;
+      const representative = pickRepresentativeBook(group);
+      if (group.length <= 1 || representative.syntheticFolderType) return representative;
 
       const signature = getMergedBookSignature(group);
       const cached = mergedBookCacheRef.current.get(groupKey);
@@ -906,7 +1374,20 @@ function LibraryContent() {
 
     mergedBookCacheRef.current = nextCache;
     return result;
-  }, [activeSection, books]);
+  }, [
+    activeSection,
+    books,
+    currentFolderType,
+    deferredSearch,
+    fileTypeFilter,
+    sort,
+    specialFolderBooks,
+    visibleSpecialFolders,
+  ]);
+
+  const bookGridBooks = displayBooks;
+
+  const selectableDisplayBooks = bookGridBooks;
 
   const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
     <section className="mb-4">
@@ -928,7 +1409,7 @@ function LibraryContent() {
   ) : null;
 
   const folderExplorerSection = activeSection !== "usb" ? (
-    <section className="mb-5 border-b border-zinc-800 pb-4">
+    <section className={unifiedLibraryView ? "mb-4" : "mb-5 border-b border-zinc-800 pb-4"}>
       <FolderPathBar
         folders={folderStructure}
         selectedFolder={selectedFolder}
@@ -936,19 +1417,21 @@ function LibraryContent() {
         onCreateFolder={openCreateFolderDialog}
         onImportBook={handleImportBook}
       />
-      <FolderGrid
-        folders={visibleFolders}
-        onFolderSelect={handleFolderSelect}
-        books={displayBooks}
-        selectedFolder={selectedFolder}
-        draggingBookHashes={folderDragDrop.draggedBooks}
-        onCreateFolder={openCreateFolderDialog}
-        onImportBook={handleImportBook}
-        onRenameFolder={openRenameFolderDialog}
-        onDeleteFolder={openDeleteFolderDialog}
-        onMoveBook={handleMoveBook}
-        onMoveBooks={handleMoveBooks}
-      />
+      {!unifiedLibraryView && (
+        <FolderGrid
+          folders={classifiedVisibleFolders.normal}
+          onFolderSelect={handleFolderSelect}
+          books={displayBooks}
+          selectedFolder={selectedFolder}
+          draggingBookHashes={folderDragDrop.draggedBooks}
+          onCreateFolder={openCreateFolderDialog}
+          onImportBook={handleImportBook}
+          onRenameFolder={openRenameFolderDialog}
+          onDeleteFolder={openDeleteFolderDialog}
+          onMoveBook={handleMoveBook}
+          onMoveBooks={handleMoveBooks}
+        />
+      )}
     </section>
   ) : null;
 
@@ -964,24 +1447,24 @@ function LibraryContent() {
   );
 
   useEffect(() => {
-    if (kindlePanelOpen && selectedBooks.length === 0) {
+    if (kindlePanelOpen && selectedConcreteBooks.length === 0) {
       setKindlePanelOpen(false);
     }
-  }, [kindlePanelOpen, selectedBooks.length]);
+  }, [kindlePanelOpen, selectedConcreteBooks.length]);
 
   const selectAllFiltered = () => {
-    setSelectedHashes(new Set(displayBooks.map((book) => book.fileHash)));
-    setSelectedBookMap(new Map(displayBooks.map((book) => [book.fileHash, book])));
+    setSelectedHashes(new Set(selectableDisplayBooks.map((book) => book.fileHash)));
+    setSelectedBookMap(new Map(selectableDisplayBooks.map((book) => [book.fileHash, book])));
   };
 
   const openConversionWithSelection = () => {
-    if (selectedBooks.length === 0) return;
-    prepareBooks(selectedBooks);
+    if (selectedConcreteBooks.length === 0) return;
+    prepareBooks(selectedConcreteBooks);
     navigate("/conversion");
   };
 
   const openKindlePanel = () => {
-    if (selectedBooks.length === 0) return;
+    if (selectedConcreteBooks.length === 0) return;
     setSelectedBook(null);
     setReadingPreviewOpen(false);
     setKindlePanelOpen(true);
@@ -993,7 +1476,7 @@ function LibraryContent() {
     let generated = 0;
     let failed = 0;
 
-    for (const fileHash of selectedHashes) {
+    for (const fileHash of getSelectedFileHashes()) {
       const result = await window.api.regenerateThumbnail(fileHash);
       if (result.success) generated++;
       else failed++;
@@ -1018,23 +1501,27 @@ function LibraryContent() {
     }
   };
 
+  const getSelectedFileHashes = () =>
+    getConcreteFileHashesFromBooks(selectedConcreteBooks);
+
   const runMergeBooks = async () => {
-    if (selectedBooks.length < 2) return;
+    if (selectedConcreteBooks.length < 2) return;
     setBulkBusy(true);
     try {
-      const fileHashes = Array.from(
-        new Set(
-          selectedBooks.flatMap((book) =>
-            book.mergedBooks?.length
-              ? book.mergedBooks.map((variant) => variant.fileHash)
-              : [book.fileHash],
-          ),
-        ),
-      );
-      const result = await window.api.mergeBooks(fileHashes);
+      const fileHashes = getSelectedFileHashes();
+      const result = window.api.mergeBooksIntoFolder
+        ? await window.api.mergeBooksIntoFolder(fileHashes, selectedFolder)
+        : await window.api.mergeBooks(fileHashes);
       if (result.success) {
+        const mergedCount = "mergedCount" in result
+          ? result.mergedCount || fileHashes.length
+          : fileHashes.length;
+        await cleanupConsumedCollections(
+          selectedBooks,
+          "folderPath" in result ? result.folderPath || null : null,
+        );
         toast.success(
-          `${result.mergedCount} arquivo${result.mergedCount !== 1 ? "s" : ""} mesclado${result.mergedCount !== 1 ? "s" : ""} como um livro`,
+          `${mergedCount} arquivo${mergedCount !== 1 ? "s" : ""} mesclado${mergedCount !== 1 ? "s" : ""} em pasta _`,
         );
         clearSelection();
         setSelectedBook(null);
@@ -1050,12 +1537,41 @@ function LibraryContent() {
     }
   };
 
+  const runCreateCollection = async () => {
+    const name = collectionDialog.name.trim();
+    if (!name) {
+      toast.error("Informe o nome da colecao");
+      return;
+    }
+    if (selectedConcreteBooks.length === 0) return;
+
+    setBulkBusy(true);
+    try {
+      const fileHashes = getSelectedFileHashes();
+      const result = await window.api.createCollection(name, fileHashes, selectedFolder);
+      if (result.success) {
+        await cleanupConsumedCollections(selectedBooks, result.folderPath || null);
+        toast.success("Colecao criada");
+        setCollectionDialog({ open: false, name: "" });
+        clearSelection();
+        setSelectedBook(null);
+        await refreshLibraryState();
+      } else {
+        toast.error(result.error || "Erro ao criar colecao");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar colecao");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const runBulkDelete = async () => {
     setBulkBusy(true);
     let removed = 0;
     let failed = 0;
 
-    for (const fileHash of selectedHashes) {
+    for (const fileHash of getSelectedFileHashes()) {
       const result = await window.api.deleteBook(fileHash, bulkDeleteFileAlso);
       if (result.success) removed++;
       else failed++;
@@ -1284,7 +1800,7 @@ function LibraryContent() {
                 </button>
                 <button
                   onClick={openConversionWithSelection}
-                  disabled={selectedBooks.length === 0}
+                  disabled={selectedConcreteBooks.length === 0}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Send size={14} />
@@ -1293,7 +1809,7 @@ function LibraryContent() {
                 {activeSection !== "usb" && (
                   <button
                     onClick={openKindlePanel}
-                    disabled={selectedBooks.length === 0}
+                    disabled={selectedConcreteBooks.length === 0}
                     className="flex cursor-pointer items-center gap-2 rounded-sm border border-green-500/50 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-200 hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Usb size={14} />
@@ -1303,16 +1819,26 @@ function LibraryContent() {
                 {activeSection !== "usb" && (
                   <button
                     onClick={() => setConfirmMergeBooks(true)}
-                    disabled={bulkBusy || selectedBooks.length < 2}
+                    disabled={bulkBusy || selectedConcreteBooks.length < 2}
                     className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <GitMerge size={14} />
                     Mesclar livros
                   </button>
                 )}
-                <button
-                  onClick={runBulkRegenerateThumbnails}
-                  disabled={bulkBusy}
+                {activeSection !== "usb" && (
+                  <button
+                    onClick={() => setCollectionDialog({ open: true, name: "" })}
+                    disabled={bulkBusy || selectedConcreteBooks.length === 0}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Layers size={14} />
+                    Criar colecao
+                  </button>
+                )}
+                  <button
+                    onClick={runBulkRegenerateThumbnails}
+                    disabled={bulkBusy || selectedConcreteBooks.length === 0}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={bulkBusy ? "animate-spin" : ""} />
@@ -1343,7 +1869,7 @@ function LibraryContent() {
               </div>
             ) : (
               <BookGrid
-                books={displayBooks}
+                books={bookGridBooks}
                 viewMode={viewMode}
                 gridDensity={gridDensity}
                 onOpen={handleOpen}
@@ -1363,6 +1889,17 @@ function LibraryContent() {
                 loadingMore={loadingMore}
                 onLoadMore={fetchNextPage}
                 topContent={bookGridTopContent}
+                folders={unifiedLibraryView ? classifiedVisibleFolders.normal : undefined}
+                onFolderSelect={unifiedLibraryView ? handleFolderSelect : undefined}
+                selectedFolder={selectedFolder}
+                draggingBookHashes={folderDragDrop.draggedBooks}
+                onCreateFolder={openCreateFolderDialog}
+                onImportBook={handleImportBook}
+                onRenameFolder={openRenameFolderDialog}
+                onDeleteFolder={openDeleteFolderDialog}
+                onMoveBook={handleMoveBook}
+                onMoveBooks={handleMoveBooks}
+                onDropBooksOnBook={handleDropBooksOnBook}
               />
             )}
           </main>
@@ -1450,7 +1987,7 @@ function LibraryContent() {
 
       {kindlePanelOpen && (
         <KindleSendPanel
-          books={selectedBooks}
+          books={selectedConcreteBooks}
           onClose={() => setKindlePanelOpen(false)}
           onSent={refreshLibraryState}
         />
@@ -1507,6 +2044,64 @@ function LibraryContent() {
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
               >
                 Criar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {collectionDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <form
+            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              runCreateCollection();
+            }}
+          >
+            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
+              <Layers size={18} className="text-emerald-300" />
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Nova colecao
+              </h2>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Nome da colecao
+              </label>
+              <input
+                type="text"
+                value={collectionDialog.name}
+                onChange={(event) =>
+                  setCollectionDialog((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                autoFocus
+              />
+              <p className="text-xs text-zinc-600">
+                {selectedBooks.length} item{selectedBooks.length !== 1 ? "s" : ""} selecionado{selectedBooks.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+              <button
+                type="button"
+                onClick={() => setCollectionDialog({ open: false, name: "" })}
+                disabled={bulkBusy}
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={bulkBusy || collectionDialog.name.trim().length === 0}
+                className="cursor-pointer rounded-sm bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {bulkBusy ? "Criando..." : "Criar"}
               </button>
             </div>
           </form>
@@ -1632,7 +2227,7 @@ function LibraryContent() {
               </button>
               <button
                 onClick={runBulkDelete}
-                disabled={bulkBusy}
+                disabled={bulkBusy || selectedConcreteBooks.length === 0}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy ? "Removendo..." : "Remover"}
@@ -1650,9 +2245,8 @@ function LibraryContent() {
               <h3 className="text-base font-medium">Mesclar livros</h3>
             </div>
             <p className="text-sm text-zinc-400 mb-4">
-              Os arquivos continuarÃ£o separados, mas passarÃ£o a usar os mesmos
-              metadados e a mesma capa na biblioteca. Ao abrir, vocÃª poderÃ¡
-              escolher o formato.
+              Os arquivos serao movidos para uma pasta iniciada por "_".
+              A biblioteca mostrara essa pasta como um unico livro com variantes.
             </p>
             <div className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-500">
               {selectedBooks.length} itens selecionados
@@ -1667,7 +2261,7 @@ function LibraryContent() {
               </button>
               <button
                 onClick={runMergeBooks}
-                disabled={bulkBusy || selectedBooks.length < 2}
+                disabled={bulkBusy || selectedConcreteBooks.length < 2}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 hover:bg-green-400 text-zinc-950 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy ? "Mesclando..." : "Mesclar"}

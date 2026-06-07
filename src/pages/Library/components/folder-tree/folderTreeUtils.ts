@@ -1,5 +1,6 @@
 import type { FolderInfo } from "../../../../types/LibraryTypes";
 import type { DocumentRecord } from "../../../../types/ReadingTypes";
+import { classifyFolder } from "../../utils";
 import type { FlatFolderNode, FolderTreeListItem } from "./types";
 
 export function normalizeAbsolutePath(value: string) {
@@ -11,7 +12,12 @@ export function isAbsoluteLike(value: string) {
 }
 
 export function visibleFolders(folders: FolderInfo[]) {
-  return folders.filter((folder) => !folder.name.startsWith("."));
+  return folders
+    .filter((folder) => !folder.name.startsWith(".") && classifyFolder(folder.name) === "normal")
+    .map((folder) => ({
+      ...folder,
+      subfolders: visibleFolders(folder.subfolders),
+    }));
 }
 
 export function countDocsInFolder(
@@ -84,7 +90,7 @@ export function flattenTree(
 export function collectExpandablePaths(folders: FolderInfo[]) {
   const paths = new Set<string>();
   const visit = (items: FolderInfo[]) => {
-    for (const folder of items) {
+    for (const folder of visibleFolders(items)) {
       if (folder.subfolders.length > 0) {
         paths.add(folder.path);
         visit(folder.subfolders);

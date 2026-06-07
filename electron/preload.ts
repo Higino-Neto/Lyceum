@@ -319,6 +319,9 @@ contextBridge.exposeInMainWorld("api", {
   mergeBooks: (fileHashes: string[]) =>
     ipcRenderer.invoke("book:merge", fileHashes),
 
+  mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) =>
+    ipcRenderer.invoke("book:merge-into-folder", fileHashes, parentPath ?? null),
+
   getDocumentByTitle: (title: string) =>
     ipcRenderer.invoke("book:get-by-title", title),
 
@@ -413,6 +416,9 @@ contextBridge.exposeInMainWorld("api", {
 
    createFolder: (folderName: string, parentPath: string | null = null) =>
      ipcRenderer.invoke("library:create-folder", folderName, parentPath),
+
+  createCollection: (name: string, fileHashes: string[], parentPath?: string | null) =>
+    ipcRenderer.invoke("library:create-collection", name, fileHashes, parentPath ?? null),
 
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),

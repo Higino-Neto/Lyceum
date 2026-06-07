@@ -215,6 +215,7 @@ interface Window {
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
     mergeBooks: (fileHashes: string[]) => Promise<{ success: boolean; bookId: string; mergedCount: number; documents: DocumentRecord[]; error?: string }>;
+    mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) => Promise<{ success: boolean; folderPath?: string; fullPath?: string; moved?: number; mergedCount?: number; error?: string }>;
     getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
@@ -244,6 +245,7 @@ interface Window {
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
     createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
+    createCollection: (name: string, fileHashes: string[], parentPath?: string | null) => Promise<{ success: boolean; folderPath?: string; fullPath?: string; moved?: number; error?: string }>;
     renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
     deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;

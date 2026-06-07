@@ -4,6 +4,8 @@ import {
   normalizeText,
   tokenize,
   calculateSimilarity,
+  classifyFolder,
+  classifyFolders,
   LOCAL_BOOK_PREFIX,
   findFolderTrail,
   folderPathsEqual,
@@ -101,6 +103,44 @@ describe("Library Utils", () => {
   describe("LOCAL_BOOK_PREFIX", () => {
     it("should be 'local-'", () => {
       expect(LOCAL_BOOK_PREFIX).toBe("local-");
+    });
+  });
+
+  describe("folder classification", () => {
+    it("classifies normal, merged, and collection folders by prefix", () => {
+      expect(classifyFolder("Fiction")).toBe("normal");
+      expect(classifyFolder("_Dune")).toBe("merged");
+      expect(classifyFolder("__Sci-Fi")).toBe("collection");
+    });
+
+    it("groups folders by classification", () => {
+      const grouped = classifyFolders([
+        {
+          name: "Fiction",
+          path: "Fiction",
+          fullPath: "C:\\library\\Fiction",
+          bookCount: 1,
+          subfolders: [],
+        },
+        {
+          name: "_Dune",
+          path: "_Dune",
+          fullPath: "C:\\library\\_Dune",
+          bookCount: 2,
+          subfolders: [],
+        },
+        {
+          name: "__Sci-Fi",
+          path: "__Sci-Fi",
+          fullPath: "C:\\library\\__Sci-Fi",
+          bookCount: 3,
+          subfolders: [],
+        },
+      ]);
+
+      expect(grouped.normal.map((folder) => folder.name)).toEqual(["Fiction"]);
+      expect(grouped.merged.map((folder) => folder.name)).toEqual(["_Dune"]);
+      expect(grouped.collection.map((folder) => folder.name)).toEqual(["__Sci-Fi"]);
     });
   });
 

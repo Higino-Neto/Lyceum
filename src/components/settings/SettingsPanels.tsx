@@ -637,7 +637,11 @@ export function GeneralSettingsPanel() {
 }
 
 export function LibrarySettingsPanel() {
-  const { settings, setShowSubfolderBooks } = useAppSettings();
+  const {
+    settings,
+    setShowSubfolderBooks,
+    setUnifiedLibraryView,
+  } = useAppSettings();
 
   return (
     <div>
@@ -645,6 +649,7 @@ export function LibrarySettingsPanel() {
         title="Pastas"
         description="Controle como os livros aparecem quando você navega pela árvore da biblioteca."
       >
+        <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-zinc-100">
@@ -656,6 +661,7 @@ export function LibrarySettingsPanel() {
           </div>
           <button
             type="button"
+            aria-label="Alternar livros de subpastas"
             onClick={() => setShowSubfolderBooks(!settings.showSubfolderBooks)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
               settings.showSubfolderBooks ? "bg-green-500" : "bg-zinc-700"
@@ -668,6 +674,33 @@ export function LibrarySettingsPanel() {
               }`}
             />
           </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 border-t border-zinc-800/70 pt-5">
+          <div>
+            <p className="text-sm font-medium text-zinc-100">
+              Exibição unificada
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              Pastas comuns aparecem no grid da biblioteca. Colecoes e livros mesclados aparecem como cards de livro e seguem os mesmos filtros.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Alternar exibição unificada"
+            onClick={() => setUnifiedLibraryView(!settings.unifiedLibraryView)}
+            className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+              settings.unifiedLibraryView ? "bg-green-500" : "bg-zinc-700"
+            }`}
+            aria-pressed={settings.unifiedLibraryView}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                settings.unifiedLibraryView ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
         </div>
       </SettingsSection>
     </div>

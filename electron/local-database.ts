@@ -814,7 +814,7 @@ export function getLastDocument(): DocumentRecord | undefined {
     .get();
 }
 
-export function updateDocumentBookId(fileHash: string, bookId: string): void {
+export function updateDocumentBookId(fileHash: string, bookId: string | null): void {
   db.prepare(
     `UPDATE documents SET bookId = ? WHERE fileHash = ?`
   ).run(bookId, fileHash);

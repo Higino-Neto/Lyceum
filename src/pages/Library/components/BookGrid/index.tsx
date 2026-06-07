@@ -1,17 +1,36 @@
 import { BookOpen, RefreshCw } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type DragEvent as ReactDragEvent,
   type ReactNode,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { BookWithThumbnail } from "../../../../types/LibraryTypes";
+import {
+  BookWithThumbnail,
+  FolderInfo,
+} from "../../../../types/LibraryTypes";
+import {
+  getFolderBookInfo,
+  useBooksInFolder,
+} from "../../../../hooks/useBooksInFolder";
+import {
+  folderPathsEqual,
+  getFolderBookCount,
+} from "../../utils";
+import FolderCard from "../FolderCard";
+import FolderContextMenu from "../FolderContextMenu";
+import DropActionMenu from "../DropActionMenu";
 import BookCard from "./BookCard";
 import BookListItem, { ExplorerColumns, type ListLayoutMode } from "./BookListItem";
+import FolderListItem from "./FolderListItem";
 import { thumbnailCache } from "./thumbnailCache";
 
 export type GridDensity = "compact" | "comfortable" | "large";
@@ -37,6 +56,35 @@ interface BookGridProps {
   loadingMore?: boolean;
   onLoadMore?: () => void;
   topContent?: ReactNode;
+  folders?: FolderInfo[];
+  onFolderSelect?: (folderPath: string | null) => void;
+  selectedFolder?: string | null;
+  draggingBookHashes?: string[];
+  onCreateFolder?: (parentPath: string | null) => void;
+  onImportBook?: (targetFolder: string | null) => void;
+  onRenameFolder?: (folder: FolderInfo) => void;
+  onDeleteFolder?: (folder: FolderInfo) => void;
+  isFolderReadOnly?: (folder: FolderInfo) => boolean;
+  onMoveBook?: (
+    fileHash: string,
+    targetFolder: string | null,
+  ) => Promise<boolean>;
+  onMoveBooks?: (
+    fileHashes: string[],
+    targetFolder: string | null,
+  ) => Promise<boolean>;
+  onDropBooksOnBook?: (
+    targetBook: BookWithThumbnail,
+    sourceFileHashes: string[],
+    action: "merge" | "collection",
+  ) => void | Promise<void>;
+}
+
+interface FolderContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  folder: FolderInfo | null;
 }
 
 const DEFAULT_COLUMNS: ExplorerColumns = {
@@ -71,6 +119,11 @@ const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; g
 };
 
 const WIDTH_THRESHOLD = 5;
+const EMPTY_FOLDERS: FolderInfo[] = [];
+
+function isAbsoluteFolderPath(folderPath: string) {
+  return /^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\");
+}
 
 function getListLayout(width: number): ListLayoutMode {
   if (width >= 1000) return "full";
@@ -102,6 +155,13 @@ function useElementWidth<T extends HTMLElement>() {
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+
+    if (typeof ResizeObserver === "undefined") {
+      const updateWidth = () => setWidth(element.getBoundingClientRect().width);
+      updateWidth();
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
 
     const observer = new ResizeObserver(([entry]) => {
       setWidth((prev) => {
@@ -140,12 +200,43 @@ export default function BookGrid({
   loadingMore = false,
   onLoadMore,
   topContent,
+  folders = EMPTY_FOLDERS,
+  onFolderSelect,
+  selectedFolder = null,
+  draggingBookHashes = [],
+  onCreateFolder,
+  onImportBook,
+  onRenameFolder,
+  onDeleteFolder,
+  isFolderReadOnly,
+  onMoveBook,
+  onMoveBooks,
+  onDropBooksOnBook,
 }: BookGridProps) {
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<FolderContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    folder: null,
+  });
+  const [dropMenu, setDropMenu] = useState<{
+    x: number;
+    y: number;
+    targetBook: BookWithThumbnail;
+    sourceFileHashes: string[];
+  } | null>(null);
+  const [virtualizerOffset, setVirtualizerOffset] = useState(0);
+  const staticContentRef = useRef<HTMLDivElement | null>(null);
   const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
   const density = GRID_DENSITY[gridDensity];
   const listLayout = getListLayout(scrollWidth);
   const listGridTemplate = getListTemplate(listLayout, columns);
+  const hasBooks = books.length > 0;
+  const hasFolders = folders.length > 0;
+  const draggingBooks = draggingBookHashes.length > 0;
+  const folderBookIndex = useBooksInFolder(books, folders);
   const visibleListHeaders = LIST_HEADERS.filter((header) =>
     LIST_HEADERS_BY_LAYOUT[listLayout].includes(header.key),
   );
@@ -174,6 +265,7 @@ export default function BookGrid({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => viewMode === "grid" ? gridRowHeight : listLayout === "narrow" ? 66 : 58,
     overscan: 3,
+    scrollMargin: virtualizerOffset,
   });
 
   const virtualRows = virtualizer.getVirtualItems();
@@ -245,7 +337,7 @@ export default function BookGrid({
 
   useEffect(() => {
     virtualizer.measure();
-  }, [gridColumns, gridDensity, gridRowHeight, listLayout, viewMode, virtualizer]);
+  }, [gridColumns, gridDensity, gridRowHeight, listLayout, viewMode, virtualizer, virtualizerOffset]);
 
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
@@ -280,6 +372,125 @@ export default function BookGrid({
     onContextSelect?.(book);
   }, [onContextSelect]);
 
+  const measureStaticContent = useCallback(() => {
+    const nextOffset = staticContentRef.current?.offsetHeight ?? 0;
+    setVirtualizerOffset((current) =>
+      Math.abs(current - nextOffset) > 1 ? nextOffset : current,
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    measureStaticContent();
+
+    const element = staticContentRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(measureStaticContent);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [
+    books.length,
+    folders.length,
+    gridColumns,
+    gridDensity,
+    listLayout,
+    measureStaticContent,
+    topContent,
+    viewMode,
+  ]);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu({ visible: false, x: 0, y: 0, folder: null });
+  }, []);
+
+  const openContextMenu = useCallback((event: ReactMouseEvent, folder: FolderInfo) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      folder,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+    document.addEventListener("click", closeContextMenu);
+    return () => document.removeEventListener("click", closeContextMenu);
+  }, [closeContextMenu, contextMenu.visible]);
+
+  const handleOpenFolder = useCallback((folderPath: string) => {
+    onFolderSelect?.(folderPath);
+  }, [onFolderSelect]);
+
+  const handleDropOnFolder = useCallback(async (folderPath: string) => {
+    if (!draggingBooks) return;
+
+    try {
+      const success =
+        draggingBookHashes.length > 1 && onMoveBooks
+          ? await onMoveBooks(draggingBookHashes, folderPath)
+          : onMoveBook
+            ? await onMoveBook(draggingBookHashes[0], folderPath)
+            : false;
+
+      if (success && draggingBookHashes.length === 1) {
+        toast.success("Livro movido");
+      }
+    } catch {
+      toast.error("Erro ao mover livro");
+    } finally {
+      setDragOverPath(null);
+    }
+  }, [draggingBookHashes, draggingBooks, onMoveBook, onMoveBooks]);
+
+  const getFolderDisplayInfo = useCallback((folder: FolderInfo) => {
+    const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
+    return {
+      bookCount: getFolderBookCount(folder) || indexedInfo.bookCount,
+      folderCount: folder.subfolders.length,
+      previews: indexedInfo,
+      readOnly: isFolderReadOnly?.(folder) ?? false,
+      detail: isAbsoluteFolderPath(folder.path) ? folder.fullPath : undefined,
+      isDropTarget: dragOverPath === folder.path,
+    };
+  }, [dragOverPath, folderBookIndex, isFolderReadOnly]);
+
+  const canDropOnBook = useCallback((book: BookWithThumbnail) => {
+    if (!onDropBooksOnBook || draggingBookHashes.length === 0) return false;
+    const targetHashes = new Set(
+      book.mergedBooks?.length
+        ? book.mergedBooks.map((variant) => variant.fileHash)
+        : [book.fileHash],
+    );
+    return draggingBookHashes.some((fileHash) => !targetHashes.has(fileHash));
+  }, [draggingBookHashes, onDropBooksOnBook]);
+
+  const openDropMenu = useCallback((
+    book: BookWithThumbnail,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) => {
+    if (!canDropOnBook(book)) return;
+    const targetHashes = new Set(
+      book.mergedBooks?.length
+        ? book.mergedBooks.map((variant) => variant.fileHash)
+        : [book.fileHash],
+    );
+    const sourceFileHashes = draggingBookHashes.filter(
+      (fileHash) => !targetHashes.has(fileHash),
+    );
+    if (sourceFileHashes.length === 0) return;
+
+    setDropMenu({
+      x: event.clientX,
+      y: event.clientY,
+      targetBook: book,
+      sourceFileHashes,
+    });
+  }, [canDropOnBook, draggingBookHashes]);
+
   const startResize = (
     key: keyof ExplorerColumns,
     min: number,
@@ -303,6 +514,165 @@ export default function BookGrid({
     window.addEventListener("pointerup", handleUp);
   };
 
+  const renderGridFolders = () => {
+    if (folders.length === 0) return null;
+
+    return (
+      <section className="mb-4">
+        <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Pastas
+        </h2>
+        <div
+          className="grid items-start px-1"
+          style={{
+            columnGap: density.gap,
+            rowGap: density.gap,
+            gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+          }}
+        >
+          {folders.map((folder) => {
+            const displayInfo = getFolderDisplayInfo(folder);
+
+            return (
+              <FolderCard
+                key={folder.path}
+                id={folder.path}
+                name={folder.name}
+                detail={displayInfo.detail}
+                bookCount={displayInfo.bookCount}
+                folderCount={displayInfo.folderCount}
+                coverPreviews={displayInfo.previews.coverPreviews}
+                coverPreviewPaths={displayInfo.previews.coverPreviewPaths}
+                isSelected={folderPathsEqual(folder.path, selectedFolder)}
+                isEmpty={displayInfo.bookCount === 0 && displayInfo.folderCount === 0}
+                isDropTarget={displayInfo.isDropTarget}
+                onOpen={handleOpenFolder}
+                onContextMenu={
+                  displayInfo.readOnly
+                    ? undefined
+                    : (_, event) => {
+                        if (event) openContextMenu(event, folder);
+                      }
+                }
+                onDragOver={displayInfo.readOnly ? undefined : (event) => {
+                  if (!draggingBooks) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDragOverPath(folder.path);
+                }}
+                onDragLeave={displayInfo.readOnly ? undefined : () => setDragOverPath(null)}
+                onDrop={displayInfo.readOnly ? undefined : (event) => {
+                  event.preventDefault();
+                  void handleDropOnFolder(folder.path);
+                }}
+                fluid
+              />
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  const renderListFolders = () => {
+    if (folders.length === 0) return null;
+
+    return (
+      <div className="space-y-1">
+        {folders.map((folder) => {
+          const displayInfo = getFolderDisplayInfo(folder);
+
+          return (
+            <FolderListItem
+              key={folder.path}
+              folder={folder}
+              bookCount={displayInfo.bookCount}
+              folderCount={displayInfo.folderCount}
+              detail={displayInfo.detail}
+              gridTemplateColumns={listGridTemplate}
+              listLayout={listLayout}
+              isSelected={folderPathsEqual(folder.path, selectedFolder)}
+              isDropTarget={displayInfo.isDropTarget}
+              onOpen={handleOpenFolder}
+              onContextMenu={
+                displayInfo.readOnly
+                  ? undefined
+                  : (event) => openContextMenu(event, folder)
+              }
+              onDragOver={displayInfo.readOnly ? undefined : (event) => {
+                if (!draggingBooks) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setDragOverPath(folder.path);
+              }}
+              onDragLeave={displayInfo.readOnly ? undefined : () => setDragOverPath(null)}
+              onDrop={displayInfo.readOnly ? undefined : (event) => {
+                event.preventDefault();
+                void handleDropOnFolder(folder.path);
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  const folderBookSeparator = hasFolders && hasBooks ? (
+    <div className="my-4 border-t border-zinc-800/80" aria-hidden="true" />
+  ) : null;
+
+  const folderContextMenu = contextMenu.visible && contextMenu.folder ? (
+    <FolderContextMenu
+      folder={contextMenu.folder}
+      x={contextMenu.x}
+      y={contextMenu.y}
+      onCreateFolder={(folder) => {
+        closeContextMenu();
+        onCreateFolder?.(folder.path);
+      }}
+      onImportBook={
+        onImportBook
+          ? (folder) => {
+              closeContextMenu();
+              onImportBook(folder.path);
+            }
+          : undefined
+      }
+      onRenameFolder={(folder) => {
+        closeContextMenu();
+        onRenameFolder?.(folder);
+      }}
+      onDeleteFolder={(folder) => {
+        closeContextMenu();
+        onDeleteFolder?.(folder);
+      }}
+    />
+  ) : null;
+
+  const dropActionMenu = dropMenu ? (
+    <DropActionMenu
+      x={dropMenu.x}
+      y={dropMenu.y}
+      onClose={() => setDropMenu(null)}
+      onMerge={() => {
+        void onDropBooksOnBook?.(
+          dropMenu.targetBook,
+          dropMenu.sourceFileHashes,
+          "merge",
+        );
+        setDropMenu(null);
+      }}
+      onCreateCollection={() => {
+        void onDropBooksOnBook?.(
+          dropMenu.targetBook,
+          dropMenu.sourceFileHashes,
+          "collection",
+        );
+        setDropMenu(null);
+      }}
+    />
+  ) : null;
+
   const loadingIndicator = loadingMore ? (
     <div className="flex items-center justify-center gap-2 py-4 text-xs text-zinc-500">
       <RefreshCw size={14} className="animate-spin" />
@@ -310,7 +680,7 @@ export default function BookGrid({
     </div>
   ) : null;
 
-  if (books.length === 0) {
+  if (!hasBooks && !hasFolders) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div
@@ -319,11 +689,13 @@ export default function BookGrid({
           className="min-h-0 flex-1 overflow-y-auto"
           style={{ scrollbarGutter: "stable" }}
         >
-          {topContent}
+          <div ref={staticContentRef}>{topContent}</div>
           <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-20">
             <BookOpen size={22} className="text-zinc-600" />
             <p className="text-sm text-zinc-500">Nenhum livro nesta secao.</p>
           </div>
+          {folderContextMenu}
+          {dropActionMenu}
         </div>
       </div>
     );
@@ -333,7 +705,11 @@ export default function BookGrid({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
-          {topContent}
+          <div ref={staticContentRef}>
+            {topContent}
+            {renderGridFolders()}
+            {folderBookSeparator}
+          </div>
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
             {virtualRows.map((virtualRow) => {
               const rowBooks = books.slice(
@@ -348,7 +724,7 @@ export default function BookGrid({
                   style={{
                     columnGap: density.gap,
                     gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
-                    transform: `translateY(${virtualRow.start}px)`,
+                    transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
                   }}
                 >
                   {rowBooks.map((book) => (
@@ -368,6 +744,8 @@ export default function BookGrid({
                       selectedCount={selectedCount}
                       onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                       onContextSelect={onContextSelect ? handleContextSelect : undefined}
+                      canDropOnBook={canDropOnBook}
+                      onDropOnBook={openDropMenu}
                     />
                   ))}
                 </div>
@@ -375,6 +753,8 @@ export default function BookGrid({
             })}
           </div>
           {loadingIndicator}
+          {folderContextMenu}
+          {dropActionMenu}
         </div>
       </div>
     );
@@ -383,26 +763,30 @@ export default function BookGrid({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto" style={{ scrollbarGutter: "stable" }}>
-        {topContent}
         <div className="min-w-0 space-y-1">
-          <div
-            className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
-            style={{ gridTemplateColumns: listGridTemplate }}
-          >
-            {visibleListHeaders.map((header) => (
-              <div key={header.key} className="relative flex items-center px-3 py-2">
-                <span>{header.label}</span>
-                {listLayout === "full" && (
-                <button
-                  type="button"
-                  className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
-                  onPointerDown={(event) => startResize(header.key, header.min, event)}
-                  aria-label={`Redimensionar coluna ${header.label}`}
-                />
-                )}
-              </div>
-            ))}
-            <div />
+          <div ref={staticContentRef} className="space-y-1">
+            {topContent}
+            <div
+              className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
+              style={{ gridTemplateColumns: listGridTemplate }}
+            >
+              {visibleListHeaders.map((header) => (
+                <div key={header.key} className="relative flex items-center px-3 py-2">
+                  <span>{header.label}</span>
+                  {listLayout === "full" && (
+                  <button
+                    type="button"
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
+                    onPointerDown={(event) => startResize(header.key, header.min, event)}
+                    aria-label={`Redimensionar coluna ${header.label}`}
+                  />
+                  )}
+                </div>
+              ))}
+              <div />
+            </div>
+            {renderListFolders()}
+            {folderBookSeparator}
           </div>
 
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
@@ -414,7 +798,7 @@ export default function BookGrid({
                 <div
                   key={virtualRow.key}
                   className="absolute left-0 top-0 w-full"
-                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                  style={{ transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)` }}
                 >
                   <BookListItem
                     book={book}
@@ -431,6 +815,8 @@ export default function BookGrid({
                     selectedCount={selectedCount}
                     onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                     onContextSelect={onContextSelect ? handleContextSelect : undefined}
+                    canDropOnBook={canDropOnBook}
+                    onDropOnBook={openDropMenu}
                     columns={columns}
                     gridTemplateColumns={listGridTemplate}
                     listLayout={listLayout}
@@ -441,6 +827,8 @@ export default function BookGrid({
           </div>
         </div>
         {loadingIndicator}
+        {folderContextMenu}
+        {dropActionMenu}
       </div>
     </div>
   );

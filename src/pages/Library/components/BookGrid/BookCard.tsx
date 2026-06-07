@@ -1,5 +1,5 @@
-import { AlertTriangle, Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
-import { memo, useState } from "react";
+import { AlertTriangle, Check, Copy, FileText, Folder, Move, MoreVertical, Trash2 } from "lucide-react";
+import { memo, useState, type DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -25,6 +25,58 @@ interface BookCardProps {
   selectedCount?: number;
   onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
+  canDropOnBook?: (book: BookWithThumbnail) => boolean;
+  onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
+}
+
+function CollectionThumbnailTile({ book }: { book: BookWithThumbnail }) {
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+
+  return (
+    <div ref={thumbnailRef} className="min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+      {thumbnail ? (
+        <img
+          src={thumbnail}
+          alt={book.title}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <FileText size={18} className="text-zinc-700" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CollectionThumbnailGrid({
+  books,
+}: {
+  books: BookWithThumbnail[];
+}) {
+  const previewBooks = books.slice(0, 4);
+
+  if (previewBooks.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <FileText size={28} className="text-zinc-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-zinc-800">
+      {previewBooks.map((previewBook) => (
+        <CollectionThumbnailTile
+          key={previewBook.fileHash}
+          book={previewBook}
+        />
+      ))}
+      {Array.from({ length: Math.max(0, 4 - previewBooks.length) }).map((_, index) => (
+        <div key={`empty-${index}`} className="bg-zinc-950" />
+      ))}
+    </div>
+  );
 }
 
 function BookCard({
@@ -42,11 +94,16 @@ function BookCard({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
+  canDropOnBook,
+  onDropOnBook,
 }: BookCardProps) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const formatCount = book.mergedBooks?.length || 1;
+  const isCollection = book.syntheticFolderType === "collection";
+  const showCollectionGrid =
+    isCollection && (book.mergedBooks?.length || 0) > 1;
   const formatLabel =
     formatCount > 1
       ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
@@ -68,8 +125,10 @@ function BookCard({
   return (
     <div
       className={`bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
-        isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
-      } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""}`}
+          isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
+        } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""} ${
+          isCollection ? "border border-dashed border-zinc-700/40 hover:border-emerald-500/40" : ""
+        }`}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -97,6 +156,17 @@ function BookCard({
         onDragStart?.(book.fileHash);
       }}
       onDragEndCapture={() => onDragEnd?.()}
+      onDragOver={(event) => {
+        if (!canDropOnBook?.(book)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(event) => {
+        if (!canDropOnBook?.(book)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDropOnBook?.(book, event);
+      }}
     >
       {(selectionMode || isChecked) && (
         <div
@@ -110,8 +180,17 @@ function BookCard({
         </div>
       )}
 
-      <div ref={thumbnailRef} className="relative aspect-[2/3] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
-        {thumbnail ? (
+      <div ref={thumbnailRef} className={`relative aspect-[2/3] overflow-hidden rounded-sm border bg-zinc-900 ${
+          showCollectionGrid ? "border-dashed border-zinc-700/60" : "border-zinc-800"
+        }`}>
+        {showCollectionGrid ? (
+          <div className="relative h-full w-full">
+            <CollectionThumbnailGrid books={book.mergedBooks || []} />
+            <div className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-sm bg-zinc-900/90 border border-zinc-700/60 shadow-sm">
+              <Folder size={13} className="text-emerald-400" />
+            </div>
+          </div>
+        ) : thumbnail ? (
           <img
             src={thumbnail}
             alt={book.title}
@@ -193,17 +272,28 @@ function BookCard({
       </div>
 
       <div className="flex h-[72px] flex-col">
-        <p className="text-xs text-zinc-300 line-clamp-2 leading-4">
+        <p className={`text-xs leading-4 ${isCollection ? "font-medium text-zinc-100" : "text-zinc-300"} line-clamp-2`}>
           {getTitleWithoutExtension(book.title, book.fileType)}
         </p>
         <p className="mt-1 truncate text-xs text-zinc-500">
           {getBookFolderLabel(book.filePath)}
         </p>
         <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-zinc-500">
-          <span>{formatPageCount(book.numPages, book.fileType)}</span>
-          <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
-            {formatLabel}
-          </span>
+          {isCollection ? (
+            <>
+              <span>{book.mergedBooks?.length || 0} livros</span>
+              <span className="rounded-sm bg-emerald-950/50 px-1.5 py-0.5 text-emerald-300">
+                Coleção
+              </span>
+            </>
+          ) : (
+            <>
+              <span>{formatPageCount(book.numPages, book.fileType)}</span>
+              <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+                {formatLabel}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -216,5 +306,7 @@ export default memo(BookCard, (previous, next) => (
   previous.isSelected === next.isSelected &&
   previous.selectionMode === next.selectionMode &&
   previous.isChecked === next.isChecked &&
-  previous.selectedCount === next.selectedCount
+  previous.selectedCount === next.selectedCount &&
+  previous.canDropOnBook === next.canDropOnBook &&
+  previous.onDropOnBook === next.onDropOnBook
 ));

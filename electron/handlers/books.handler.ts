@@ -26,6 +26,8 @@ import {
   deleteWordIndex,
 } from "../local-database";
 import { reopenDocument, renameBook, deleteBook } from "../services/document-service";
+import { mergeBooksIntoManagedFolder } from "../services/folder-service";
+import { notifyFolderChanged } from "../services/library-service";
 import { generateThumbnail } from "../services/document-processing";
 import { LIBRARY_PATH, USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
 import { extractVocabularyFromEpub } from "../services/vocabulary-service";
@@ -332,6 +334,15 @@ export function registerBookHandlers() {
     const bookId = existingBookId || `local-${randomUUID()}`;
     const result = mergeDocuments(fileHashes, bookId);
     if (result.success) {
+      win?.webContents.send("library:updated");
+    }
+    return result;
+  });
+
+  ipcMain.handle("book:merge-into-folder", (_, fileHashes: string[], parentPath: string | null = null) => {
+    const result = mergeBooksIntoManagedFolder(fileHashes, parentPath);
+    if (result.success) {
+      notifyFolderChanged();
       win?.webContents.send("library:updated");
     }
     return result;

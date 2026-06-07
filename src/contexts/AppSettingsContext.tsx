@@ -149,6 +149,7 @@ interface AppSettings {
   autoHideEnabled: boolean;
   autoHideOverlay: boolean;
   showSubfolderBooks: boolean;
+  unifiedLibraryView: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -160,6 +161,7 @@ interface AppSettingsContextValue {
   setAutoHideEnabled: (value: boolean) => void;
   setAutoHideOverlay: (value: boolean) => void;
   setShowSubfolderBooks: (value: boolean) => void;
+  setUnifiedLibraryView: (value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
@@ -170,6 +172,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoHideEnabled: false,
   autoHideOverlay: false,
   showSubfolderBooks: false,
+  unifiedLibraryView: false,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -225,6 +228,7 @@ function loadSettings(): AppSettings {
       autoHideEnabled: parsed.autoHideEnabled ?? legacy.autoHideEnabled,
       autoHideOverlay: parsed.autoHideOverlay ?? legacy.autoHideOverlay,
       showSubfolderBooks: parsed.showSubfolderBooks ?? DEFAULT_SETTINGS.showSubfolderBooks,
+      unifiedLibraryView: parsed.unifiedLibraryView ?? DEFAULT_SETTINGS.unifiedLibraryView,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -326,6 +330,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           showSubfolderBooks: value,
+        })),
+      setUnifiedLibraryView: (value) =>
+        setSettings((current) => ({
+          ...current,
+          unifiedLibraryView: value,
         })),
     }),
     [effectiveTheme, settings],

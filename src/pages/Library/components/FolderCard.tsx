@@ -31,13 +31,14 @@ export type FolderCardProps = {
   onDragLeave?: DragEventHandler<HTMLDivElement>;
   onDrop?: DragEventHandler<HTMLDivElement>;
   isDropTarget?: boolean;
+  fluid?: boolean;
 };
 
 function formatCount(count: number, singular: string, plural: string) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function useFolderPreviewImages(
+export function useFolderPreviewImages(
   coverPreviews: string[] = [],
   coverPreviewPaths: string[] = [],
 ) {
@@ -153,6 +154,7 @@ export default function FolderCard({
   onDragLeave,
   onDrop,
   isDropTarget = false,
+  fluid = false,
 }: FolderCardProps) {
   const images = useFolderPreviewImages(coverPreviews, coverPreviewPaths);
   const empty = isEmpty ?? (bookCount === 0 && folderCount === 0);
@@ -182,7 +184,8 @@ export default function FolderCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={[
-        "group relative flex h-full min-h-[196px] w-55 cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
+        "group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
+        fluid ? "w-full" : "w-55",
         "hover:border-emerald-400/60 hover:bg-zinc-900/90",
         "",
         isSelected ? "border-emerald-400/80 bg-emerald-500/10 shadow-emerald-950/30" : "border-zinc-800",

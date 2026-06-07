@@ -2,6 +2,7 @@ export { default as LibraryHeader } from "./LibraryHeader";
 export { default as SectionTabs } from "./SectionTabs";
 export { default as FilterBar } from "./FilterBar";
 export { default as BookDetailPanel } from "./BookDetailPanel";
+export { default as DropActionMenu } from "./DropActionMenu";
 export { default as FolderCard } from "./FolderCard";
 export { default as FolderTree } from "./FolderTree";
 export { FolderGrid, FolderPathBar } from "./FolderExplorer";

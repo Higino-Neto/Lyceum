@@ -54,6 +54,7 @@ import { openReadableFile } from "../services/document-service";
 import {
   addManagedSourceFolder,
   addManagedWatchFolder,
+  createManagedCollection,
   createManagedFolder,
   deleteManagedFolder,
   getManagedWatchFolderBookCount,
@@ -229,6 +230,12 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:create-folder", async (_, folderName: string, parentPath: string | null = null) => {
     const result = createManagedFolder(folderName, parentPath);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:create-collection", async (_, name: string, fileHashes: string[] = [], parentPath: string | null = null) => {
+    const result = createManagedCollection(name, fileHashes, parentPath);
     emitLibraryUpdated(result);
     return result;
   });
