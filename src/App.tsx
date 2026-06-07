@@ -22,16 +22,16 @@ import { useAppSettings } from "./contexts/AppSettingsContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
-import React from "react";
-import ReactDOMClient from "react-dom/client";
+// import React from "react";
+// import ReactDOMClient from "react-dom/client";
 
-if (import.meta.env.DEV) {
-  const { installComponentAtlasRuntime } = await import("@component-atlas/runtime");
-  installComponentAtlasRuntime({
-    react: React,
-    reactDOM: ReactDOMClient,
-  });
-}
+// if (import.meta.env.DEV) {
+//   const { installComponentAtlasRuntime } = await import("@component-atlas/runtime");
+//   installComponentAtlasRuntime({
+//     react: React,
+//     reactDOM: ReactDOMClient,
+//   });
+// }
 
 const AUTO_HIDE_REVEAL_DELAY_MS = 120;
 const AUTO_HIDE_DISMISS_DELAY_MS = 420;
