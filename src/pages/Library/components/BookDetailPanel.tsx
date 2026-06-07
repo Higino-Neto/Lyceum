@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
+  AlertTriangle,
   X,
   Trash2,
   FolderOpen,
@@ -18,6 +19,7 @@ import {
   FileType,
   Sparkles,
   Search,
+  PanelRightOpen,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
@@ -40,9 +42,11 @@ interface BookDetailPanelProps {
   book: BookWithThumbnail;
   onClose: () => void;
   onOpenEmbed: (book?: BookWithThumbnail) => void;
+  onOpenPreview?: (book?: BookWithThumbnail) => void;
   onDelete?: () => void;
   onRefresh: () => void;
   readOnly?: boolean;
+  previewOpen?: boolean;
 }
 
 type EditMode = "title" | "author" | null;
@@ -88,9 +92,11 @@ export default function BookDetailPanel({
   book,
   onClose,
   onOpenEmbed,
+  onOpenPreview,
   onDelete,
   onRefresh,
   readOnly = false,
+  previewOpen = false,
 }: BookDetailPanelProps) {
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -553,6 +559,11 @@ export default function BookDetailPanel({
                 <RefreshCw size={24} className="text-white animate-spin" />
               </div>
             )}
+            {book.processingStatus === "failed" && (
+              <div className="absolute top-1.5 left-1.5 z-20" title="Arquivo corrompido ou não suportado">
+                <AlertTriangle size={18} className="text-amber-400 drop-shadow-sm" />
+              </div>
+            )}
             {isDragging && (
               <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-green-400">
@@ -582,6 +593,16 @@ export default function BookDetailPanel({
                 <p className="text-xs text-zinc-500">{formatFileSize(book.fileSize)}</p>
               </div>
             </div>
+
+            {book.processingStatus === "failed" && (
+              <div className="flex items-start gap-2 rounded-sm bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-400">Arquivo corrompido</p>
+                  <p className="text-[11px] text-amber-300/70">O arquivo não é um PDF válido ou está danificado</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-start gap-2">
               <Calendar size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
@@ -775,11 +796,12 @@ export default function BookDetailPanel({
           </div>
         )}
 
-        <button
+        <div className="flex gap-2">
+          <button
           onClick={() => onOpenEmbed(selectedVariant)}
           disabled={!canOpenInReader}
-          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
-        >
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          >
           <BookOpen size={16} />
           {/* <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[11px] uppercase tracking-wide">
             EmbedPDF
@@ -790,6 +812,23 @@ export default function BookDetailPanel({
               : "Começar a Ler"
             : "Formato não suportado no leitor"}
         </button>
+        {onOpenPreview && (
+          <button
+            type="button"
+            onClick={() => onOpenPreview(selectedVariant)}
+            disabled={!canOpenInReader}
+            className={`flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500 ${
+              previewOpen
+                ? "border-green-500/70 bg-green-500/15 text-green-200 hover:bg-green-500/25"
+                : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-200"
+            }`}
+            title={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
+            aria-label={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
+          >
+            <PanelRightOpen size={16} />
+          </button>
+        )}
+        </div>
         {!readOnly && (
         <div className="space-y-2">
           <div className={`grid gap-2 ${book.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>

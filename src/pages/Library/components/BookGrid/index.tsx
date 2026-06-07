@@ -11,7 +11,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import BookCard from "./BookCard";
-import BookListItem, { ExplorerColumns } from "./BookListItem";
+import BookListItem, { ExplorerColumns, type ListLayoutMode } from "./BookListItem";
 import { thumbnailCache } from "./thumbnailCache";
 
 export type GridDensity = "compact" | "comfortable" | "large";
@@ -57,6 +57,13 @@ const LIST_HEADERS: { key: keyof ExplorerColumns; label: string; min: number }[]
   { key: "size", label: "Tamanho", min: 82 },
 ];
 
+const LIST_HEADERS_BY_LAYOUT: Record<ListLayoutMode, (keyof ExplorerColumns)[]> = {
+  full: ["name", "folder", "type", "pages", "modified", "size"],
+  medium: ["name", "folder", "type", "pages", "modified"],
+  compact: ["name", "pages"],
+  narrow: ["name"],
+};
+
 const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; gap: number }> = {
   compact: { minWidth: 124, rowHeight: 238, gap: 16 },
   comfortable: { minWidth: 158, rowHeight: 292, gap: 16 },
@@ -64,6 +71,29 @@ const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; g
 };
 
 const WIDTH_THRESHOLD = 5;
+
+function getListLayout(width: number): ListLayoutMode {
+  if (width >= 1000) return "full";
+  if (width >= 700) return "medium";
+  if (width >= 500) return "compact";
+  return "narrow";
+}
+
+function getListTemplate(layout: ListLayoutMode, columns: ExplorerColumns) {
+  if (layout === "full") {
+    return `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`;
+  }
+
+  if (layout === "medium") {
+    return "minmax(240px, 2fr) minmax(130px, 1fr) 72px 90px 98px 76px";
+  }
+
+  if (layout === "compact") {
+    return "minmax(0, 1fr) 88px 76px";
+  }
+
+  return "minmax(0, 1fr) 76px";
+}
 
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
@@ -114,6 +144,11 @@ export default function BookGrid({
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
   const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
   const density = GRID_DENSITY[gridDensity];
+  const listLayout = getListLayout(scrollWidth);
+  const listGridTemplate = getListTemplate(listLayout, columns);
+  const visibleListHeaders = LIST_HEADERS.filter((header) =>
+    LIST_HEADERS_BY_LAYOUT[listLayout].includes(header.key),
+  );
   const { gridColumns, gridColumnWidth, gridRowHeight, rowCount } = useMemo(() => {
     const cols = Math.max(
       1,
@@ -137,7 +172,7 @@ export default function BookGrid({
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => viewMode === "grid" ? gridRowHeight : 56,
+    estimateSize: () => viewMode === "grid" ? gridRowHeight : listLayout === "narrow" ? 66 : 58,
     overscan: 3,
   });
 
@@ -210,7 +245,7 @@ export default function BookGrid({
 
   useEffect(() => {
     virtualizer.measure();
-  }, [gridColumns, gridDensity, gridRowHeight, viewMode, virtualizer]);
+  }, [gridColumns, gridDensity, gridRowHeight, listLayout, viewMode, virtualizer]);
 
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
@@ -349,22 +384,22 @@ export default function BookGrid({
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto" style={{ scrollbarGutter: "stable" }}>
         {topContent}
-        <div className="min-w-max space-y-1">
+        <div className="min-w-0 space-y-1">
           <div
             className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
-            style={{
-              gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
-            }}
+            style={{ gridTemplateColumns: listGridTemplate }}
           >
-            {LIST_HEADERS.map((header) => (
+            {visibleListHeaders.map((header) => (
               <div key={header.key} className="relative flex items-center px-3 py-2">
                 <span>{header.label}</span>
+                {listLayout === "full" && (
                 <button
                   type="button"
                   className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
                   onPointerDown={(event) => startResize(header.key, header.min, event)}
                   aria-label={`Redimensionar coluna ${header.label}`}
                 />
+                )}
               </div>
             ))}
             <div />
@@ -397,6 +432,8 @@ export default function BookGrid({
                     onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                     onContextSelect={onContextSelect ? handleContextSelect : undefined}
                     columns={columns}
+                    gridTemplateColumns={listGridTemplate}
+                    listLayout={listLayout}
                   />
                 </div>
               );

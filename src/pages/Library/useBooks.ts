@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  LibraryFileTypeFilter,
   LibraryListResult,
   LibrarySection,
   LibrarySortOption,
@@ -18,7 +17,7 @@ interface UseBooksOptions {
   section: LibrarySection;
   search: string;
   sort: LibrarySortOption;
-  fileType: LibraryFileTypeFilter;
+  fileType: string;
   folderPath: string | null;
   includeSubfolders: boolean;
 }
@@ -33,7 +32,7 @@ interface UsbBooksApi {
   listUsbBooks: (query: {
     search?: string;
     sort?: LibrarySortOption;
-    fileType?: LibraryFileTypeFilter;
+    fileType?: string;
     limit?: number;
     offset?: number;
     countOnly?: boolean;

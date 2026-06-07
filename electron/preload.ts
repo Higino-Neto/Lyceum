@@ -1,4 +1,11 @@
 import electron from "electron";
+import type {
+  BookFormat,
+  FolderChangedPayload,
+  LibraryFileTypeFilter,
+  LibrarySection,
+  LibrarySortOption,
+} from "../src/types/LibraryTypes";
 
 const { ipcRenderer, contextBridge } = electron;
 
@@ -83,21 +90,6 @@ interface BookCategory {
   createdAt: string;
 }
 
-type BookFormat =
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
-
 contextBridge.exposeInMainWorld("api", {
   openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
 
@@ -134,12 +126,12 @@ contextBridge.exposeInMainWorld("api", {
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
   listBooks: (query: {
-    section?: "all" | "synced" | "unsynced" | "usb";
+    section?: LibrarySection;
     search?: string;
     folderPath?: string | null;
     includeSubfolders?: boolean;
-    fileType?: "all" | "pdf" | "epub";
-    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+    fileType?: LibraryFileTypeFilter;
+    sort?: LibrarySortOption;
     limit?: number;
     offset?: number;
   }) => ipcRenderer.invoke("library:list-books", query),
@@ -148,8 +140,8 @@ contextBridge.exposeInMainWorld("api", {
 
   listUsbBooks: (query: {
     search?: string;
-    fileType?: "all" | "pdf" | "epub";
-    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+    fileType?: LibraryFileTypeFilter;
+    sort?: LibrarySortOption;
     limit?: number;
     offset?: number;
   }) => ipcRenderer.invoke("usb:list-books", query),
@@ -341,6 +333,12 @@ contextBridge.exposeInMainWorld("api", {
     return () => ipcRenderer.removeListener("library:updated", callback);
   },
 
+  onLibraryNotification: (callback: (notification: { type: "success" | "error" | "warning"; message: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, notification: { type: "success" | "error" | "warning"; message: string }) => callback(notification);
+    ipcRenderer.on("library:notification", listener);
+    return () => ipcRenderer.removeListener("library:notification", listener);
+  },
+
   onUsbDevicesUpdated: (callback: () => void) => {
     const listener = () => callback();
     ipcRenderer.on("usb:devices-updated", listener);
@@ -385,6 +383,24 @@ contextBridge.exposeInMainWorld("api", {
 
   getFolderStructure: (rootPath?: string | null) =>
     ipcRenderer.invoke("library:get-folder-structure", rootPath),
+
+  getFolderStructureCached: (rootPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-structure-cached", rootPath),
+
+  getFolderChildren: (parentPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-children", parentPath ?? null),
+
+  getFolderStats: (folderPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-stats", folderPath ?? null),
+
+  folderExists: (folderPath?: string | null) =>
+    ipcRenderer.invoke("library:folder-exists", folderPath ?? null),
+
+  onFolderChanged: (callback: (payload: FolderChangedPayload) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, payload: FolderChangedPayload) => callback(payload);
+    ipcRenderer.on("folder:changed", listener);
+    return () => ipcRenderer.removeListener("folder:changed", listener);
+  },
 
   getLibraryRoots: () =>
     ipcRenderer.invoke("library:get-library-roots"),

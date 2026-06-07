@@ -152,6 +152,25 @@ describe("FolderExplorer", () => {
     expect(onDeleteFolder).toHaveBeenCalledWith(folders[0]);
   });
 
+  it("does not expose folder actions for read-only folders", () => {
+    const onDeleteFolder = vi.fn();
+    render(
+      <FolderGrid
+        folders={folders}
+        onFolderSelect={vi.fn()}
+        onDeleteFolder={onDeleteFolder}
+        isFolderReadOnly={() => true}
+      />,
+    );
+
+    fireEvent.contextMenu(
+      screen.getByRole("button", { name: "Abrir pasta Computer Science" }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(onDeleteFolder).not.toHaveBeenCalled();
+  });
+
   it("navigates through breadcrumbs", () => {
     const onFolderSelect = vi.fn();
     render(
@@ -185,5 +204,21 @@ describe("FolderExplorer", () => {
 
     expect(onCreateFolder).toHaveBeenCalledWith("Computer Science");
     expect(onImportBook).toHaveBeenCalledWith("Computer Science");
+  });
+
+  it("hides create and import actions for the current read-only folder", () => {
+    render(
+      <FolderPathBar
+        folders={folders}
+        selectedFolder="Computer Science"
+        onFolderSelect={vi.fn()}
+        onCreateFolder={vi.fn()}
+        onImportBook={vi.fn()}
+        readOnlyCurrentFolder
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Nova pasta/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Adicionar livro/i })).not.toBeInTheDocument();
   });
 });

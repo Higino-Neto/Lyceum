@@ -20,6 +20,8 @@ export interface ExplorerColumns {
   size: number;
 }
 
+export type ListLayoutMode = "full" | "medium" | "compact" | "narrow";
+
 interface BookListItemProps {
   book: BookWithThumbnail;
   onOpen: (book: BookWithThumbnail) => void;
@@ -36,6 +38,8 @@ interface BookListItemProps {
   onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
   columns: ExplorerColumns;
+  gridTemplateColumns: string;
+  listLayout: ListLayoutMode;
 }
 
 function BookListItem({
@@ -53,7 +57,8 @@ function BookListItem({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
-  columns,
+  gridTemplateColumns,
+  listLayout,
 }: BookListItemProps) {
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const formatCount = book.mergedBooks?.length || 1;
@@ -87,9 +92,7 @@ function BookListItem({
           ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"
       } ${isChecked ? "border-green-500 bg-green-950/20" : ""}`}
-      style={{
-        gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
-      }}
+      style={{ gridTemplateColumns }}
       draggable={!selectionMode || isChecked}
       onDragStartCapture={(e) => {
         if (selectionMode && !isChecked) {
@@ -136,26 +139,50 @@ function BookListItem({
             </div>
           )}
         </div>
-        <p className="min-w-0 truncate text-sm text-zinc-200">
-          {getTitleWithoutExtension(book.title, book.fileType)}
-        </p>
+        <div className="min-w-0">
+          <p className="min-w-0 truncate text-sm text-zinc-200">
+            {getTitleWithoutExtension(book.title, book.fileType)}
+          </p>
+          {(listLayout === "compact" || listLayout === "narrow") && (
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+              <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 uppercase text-zinc-300">
+                {formatLabel}
+              </span>
+              {listLayout !== "narrow" && (
+                <span className="min-w-0 truncate">
+                  {getBookFolderLabel(book.filePath)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="truncate px-3 py-2 text-xs text-zinc-500">
         {getBookFolderLabel(book.filePath)}
       </div>
+      )}
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="px-3 py-2 text-xs text-zinc-400">
         {formatLabel}
       </div>
+      )}
+      {listLayout !== "narrow" && (
       <div className="px-3 py-2 text-xs text-zinc-400">
         {formatPageCount(book.numPages, book.fileType)}
       </div>
+      )}
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="px-3 py-2 text-xs text-zinc-500">
         {formatShortDate(book.lastOpenedAt || book.createdAt)}
       </div>
+      )}
+      {listLayout === "full" && (
       <div className="px-3 py-2 text-xs text-zinc-500">
         {formatFileSize(book.fileSize)}
       </div>
+      )}
 
       <div className="flex justify-end gap-1 px-2">
         {showSyncActions && onSync && (
@@ -235,5 +262,7 @@ export default memo(BookListItem, (previous, next) => (
   previous.selectionMode === next.selectionMode &&
   previous.isChecked === next.isChecked &&
   previous.selectedCount === next.selectedCount &&
+  previous.gridTemplateColumns === next.gridTemplateColumns &&
+  previous.listLayout === next.listLayout &&
   areColumnsEqual(previous.columns, next.columns)
 ));

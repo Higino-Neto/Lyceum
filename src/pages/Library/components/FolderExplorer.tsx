@@ -9,11 +9,14 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { BookWithThumbnail, FolderInfo } from "../../../types/LibraryTypes";
 import {
+  getFolderBookInfo,
+  useBooksInFolder,
+} from "../../../hooks/useBooksInFolder";
+import {
   folderPathsEqual,
   getFolderBookCount,
   getFolderBreadcrumbs,
   getParentFolderPath,
-  normalizeFolderPath,
 } from "../utils";
 import FolderCard from "./FolderCard";
 import FolderContextMenu from "./FolderContextMenu";
@@ -24,6 +27,7 @@ interface FolderPathBarProps {
   onFolderSelect: (folderPath: string | null) => void;
   onCreateFolder?: (parentPath: string | null) => void;
   onImportBook?: (targetFolder: string | null) => void;
+  readOnlyCurrentFolder?: boolean;
 }
 
 interface FolderGridProps {
@@ -36,6 +40,7 @@ interface FolderGridProps {
   onImportBook?: (targetFolder: string | null) => void;
   onRenameFolder?: (folder: FolderInfo) => void;
   onDeleteFolder?: (folder: FolderInfo) => void;
+  isFolderReadOnly?: (folder: FolderInfo) => boolean;
   onMoveBook?: (
     fileHash: string,
     targetFolder: string | null,
@@ -53,35 +58,6 @@ interface FolderGridContextMenuState {
   folder: FolderInfo | null;
 }
 
-function bookBelongsToFolder(book: BookWithThumbnail, folder: FolderInfo) {
-  const normalizedBookFolder = normalizeFolderPath(book.folderPath);
-  const normalizedFolder = normalizeFolderPath(folder.fullPath);
-  if (!normalizedBookFolder || !normalizedFolder) return false;
-
-  return (
-    folderPathsEqual(normalizedBookFolder, normalizedFolder) ||
-    normalizedBookFolder.startsWith(`${normalizedFolder}/`)
-  );
-}
-
-function folderCoverPreviews(folder: FolderInfo, books: BookWithThumbnail[]) {
-  const previewBooks = books
-    .filter((book) => bookBelongsToFolder(book, folder))
-    .filter((book) => book.thumbnail || book.thumbnailPath)
-    .slice(0, 3);
-
-  return {
-    coverPreviews: previewBooks
-      .map((book) => book.thumbnail)
-      .filter((thumbnail): thumbnail is string => Boolean(thumbnail)),
-    coverPreviewPaths: previewBooks
-      .map((book) => book.thumbnailPath)
-      .filter((thumbnailPath): thumbnailPath is string =>
-        Boolean(thumbnailPath),
-      ),
-  };
-}
-
 function isAbsoluteFolderPath(folderPath: string) {
   return /^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\");
 }
@@ -92,6 +68,7 @@ export function FolderPathBar({
   onFolderSelect,
   onCreateFolder,
   onImportBook,
+  readOnlyCurrentFolder = false,
 }: FolderPathBarProps) {
   const breadcrumbs = useMemo(
     () => getFolderBreadcrumbs(folders, selectedFolder),
@@ -147,7 +124,7 @@ export function FolderPathBar({
         })}
       </nav>
 
-      {onCreateFolder && (
+      {onCreateFolder && !readOnlyCurrentFolder && (
         <button
           type="button"
           onClick={() => onCreateFolder(selectedFolder)}
@@ -158,7 +135,7 @@ export function FolderPathBar({
         </button>
       )}
 
-      {onImportBook && (
+      {onImportBook && !readOnlyCurrentFolder && (
         <button
           type="button"
           onClick={() => onImportBook(selectedFolder)}
@@ -182,6 +159,7 @@ export function FolderGrid({
   onImportBook,
   onRenameFolder,
   onDeleteFolder,
+  isFolderReadOnly,
   onMoveBook,
   onMoveBooks,
 }: FolderGridProps) {
@@ -193,16 +171,7 @@ export function FolderGrid({
     folder: null,
   });
   const draggingBooks = draggingBookHashes.length > 0;
-  const folderCoverMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { coverPreviews: string[]; coverPreviewPaths: string[] }
-    >();
-    for (const folder of folders) {
-      map.set(folder.path, folderCoverPreviews(folder, books));
-    }
-    return map;
-  }, [folders, books]);
+  const folderBookIndex = useBooksInFolder(books, folders);
 
   const handleDrop = async (folderPath: string) => {
     if (!draggingBooks) return;
@@ -271,13 +240,12 @@ export function FolderGrid({
           }`}
         >
           {folders.map((folder) => {
-            const bookCount = getFolderBookCount(folder);
+            const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
+            const bookCount = getFolderBookCount(folder) || indexedInfo.bookCount;
             const isDropTarget = dragOverPath === folder.path;
             const folderCount = folder.subfolders.length;
-            const previews = folderCoverMap.get(folder.path) ?? {
-              coverPreviews: [],
-              coverPreviewPaths: [],
-            };
+            const previews = indexedInfo;
+            const readOnly = isFolderReadOnly?.(folder) ?? false;
 
             return (
               <FolderCard
@@ -293,17 +261,21 @@ export function FolderGrid({
                 isEmpty={bookCount === 0 && folderCount === 0}
                 isDropTarget={isDropTarget}
                 onOpen={onFolderSelect}
-                onContextMenu={(_, event) => {
-                  if (event) openContextMenu(event, folder);
-                }}
-                onDragOver={(event) => {
+                onContextMenu={
+                  readOnly
+                    ? undefined
+                    : (_, event) => {
+                        if (event) openContextMenu(event, folder);
+                      }
+                }
+                onDragOver={readOnly ? undefined : (event) => {
                   if (!draggingBooks) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
                   setDragOverPath(folder.path);
                 }}
-                onDragLeave={() => setDragOverPath(null)}
-                onDrop={(event) => {
+                onDragLeave={readOnly ? undefined : () => setDragOverPath(null)}
+                onDrop={readOnly ? undefined : (event) => {
                   event.preventDefault();
                   handleDrop(folder.path);
                 }}

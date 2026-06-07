@@ -1,4 +1,4 @@
-import { Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, FileText, Move, MoreVertical, Trash2 } from "lucide-react";
 import { memo, useState } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
@@ -126,6 +126,11 @@ function BookCard({
         {book.processingStatus === "processing" && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {book.processingStatus === "failed" && (
+          <div className="absolute top-1.5 left-1.5 z-20" title="Arquivo corrompido ou não suportado">
+            <AlertTriangle size={15} className="text-amber-400 drop-shadow-sm" />
           </div>
         )}
         

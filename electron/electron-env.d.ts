@@ -1,65 +1,8 @@
 /// <reference types="vite-plugin-electron/electron-env" />
 
-interface DocumentRecord {
-  id: number;
-  title: string;
-  filePath: string;
-  fileHash: string;
-  fileName: string | null;
-  folderPath: string | null;
-  fileMtime: number | null;
-  currentPage: number;
-  currentZoom: number | null;
-  currentScroll: number | null;
-  annotations: string | null;
-  thumbnailPath: string | null;
-  numPages: number;
-  createdAt: string;
-  lastOpenedAt: string;
-  isSynced: number;
-  category: string | null;
-  isFavorite: number;
-  rating: number;
-  notes: string | null;
-  author: string | null;
-  description: string | null;
-  isbn: string | null;
-  publisher: string | null;
-  publishDate: string | null;
-  language: string | null;
-  identifier: string | null;
-  asin: string | null;
-  subject: string | null;
-  series: string | null;
-  seriesIndex: string | null;
-  authorSort: string | null;
-  titleSort: string | null;
-  fileSize: number;
-  processingStatus: "pending" | "processing" | "completed" | "failed";
-  bookId: string | null;
-  fileType: BookFormat;
-  importedAt: string | null;
-  updatedAt: string | null;
-}
-
-interface LibraryListQuery {
-  section?: "all" | "synced" | "unsynced";
-  search?: string;
-  folderPath?: string | null;
-  includeSubfolders?: boolean;
-  fileType?: "all" | BookFormat;
-  sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
-  limit?: number;
-  offset?: number;
-}
-
-interface LibraryListResult {
-  items: DocumentRecord[];
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-}
+type DocumentRecord = import("../src/types/LibraryTypes").DocumentRecord;
+type LibraryListQuery = import("../src/types/LibraryTypes").LibraryListQuery;
+type LibraryListResult = import("../src/types/LibraryTypes").LibraryListResult;
 
 interface BookCategory {
   id: number;
@@ -69,20 +12,11 @@ interface BookCategory {
   createdAt: string;
 }
 
-interface WatchFolderInfo {
-  id: number;
-  path: string;
-  label: string | null;
-  type: "watch" | "source";
-  createdAt: string;
-}
-
-interface LibraryRootInfo {
-  id: number | null;
-  type: "library" | "source";
-  label: string;
-  path: string;
-}
+type WatchFolderInfo = import("../src/types/LibraryTypes").WatchFolderInfo;
+type LibraryRootInfo = import("../src/types/LibraryTypes").LibraryRootInfo;
+type FolderInfo = import("../src/types/LibraryTypes").FolderInfo;
+type FolderStats = import("../src/types/LibraryTypes").FolderStats;
+type FolderChangedPayload = import("../src/types/LibraryTypes").FolderChangedPayload;
 
 interface OpenPdfResult extends DocumentRecord {
   fileBuffer: ArrayBuffer;
@@ -96,20 +30,7 @@ interface NativePdfViewerState {
   canAccess: boolean;
 }
 
-type BookFormat =
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
+type BookFormat = import("../src/types/LibraryTypes").BookFormat;
 
 type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
 type MetadataSearchField = "title" | "author" | "isbn";
@@ -298,6 +219,7 @@ interface Window {
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
     onLibraryUpdated: (callback: () => void) => () => void;
+    onLibraryNotification: (callback: (notification: { type: "success" | "error" | "warning"; message: string }) => void) => () => void;
 
     categoryCreate: (name: string, color?: string) => Promise<BookCategory | null>;
     categoryUpdate: (id: number, name: string, color: string) => Promise<boolean>;
@@ -313,6 +235,11 @@ interface Window {
     categoryImportFromFolders: () => Promise<{ imported: number }>;
 
     getFolderStructure: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderStructureCached: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderChildren: (parentPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderStats: (folderPath?: string | null) => Promise<FolderStats>;
+    folderExists: (folderPath?: string | null) => Promise<boolean>;
+    onFolderChanged: (callback: (payload: FolderChangedPayload) => void) => () => void;
     getLibraryRoots: () => Promise<LibraryRootInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;

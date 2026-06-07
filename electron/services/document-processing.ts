@@ -37,6 +37,7 @@ export interface GenerateThumbnailOptions {
   force?: boolean;
   fileType?: BookFileType;
   logPrefix?: string;
+  onWarning?: (message: string) => void;
 }
 
 export function formatPdfDate(pdfDate: string | undefined): string | undefined {
@@ -213,6 +214,34 @@ export function findThumbnailByHash(thumbnailsDir: string, fileHash: string): st
   return matchingFile ? path.join(thumbnailsDir, matchingFile) : null;
 }
 
+export function isPdfMagicBytesValid(filePath: string): boolean {
+  try {
+    const fd = fs.openSync(filePath, "r");
+    const magic = Buffer.alloc(4);
+    fs.readSync(fd, magic, 0, 4, 0);
+    fs.closeSync(fd);
+    return magic.toString("ascii") === "%PDF";
+  } catch {
+    return false;
+  }
+}
+
+export function ensureAsciiPdfPath(filePath: string): { path: string; cleanup: () => void } {
+  const hasNonAscii = [...filePath].some(c => c.charCodeAt(0) > 127);
+  if (!hasNonAscii) {
+    return { path: filePath, cleanup: () => {} };
+  }
+  const safeName = `lyceum-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+  const tempPath = path.join(os.tmpdir(), safeName);
+  fs.copyFileSync(filePath, tempPath);
+  return {
+    path: tempPath,
+    cleanup: () => {
+      try { fs.unlinkSync(tempPath); } catch { /* ignore */ }
+    },
+  };
+}
+
 export async function generateThumbnail(
   filePath: string,
   fileHash: string,
@@ -267,17 +296,43 @@ export async function generateThumbnail(
       return await generateKfxThumbnail(filePath, fileHash, thumbnailsDir, logPrefix);
     }
 
-    const pdfRequire = require("pdf-poppler");
-    await pdfRequire.convert(filePath, {
-      format: "jpeg",
-      out_dir: thumbnailsDir,
-      out_prefix: fileHash,
-      page: 1,
-    });
+    const actualExt = path.extname(filePath).toLowerCase();
+    if (actualExt !== ".pdf") {
+      const msg = `Skipping thumbnail: ${path.basename(filePath)} is not a PDF (got fileType=${fileType})`;
+      options.onWarning?.(msg);
+      console.warn(`${logPrefix} ${msg}`);
+      return null;
+    }
+
+    const fd = fs.openSync(filePath, "r");
+    const magic = Buffer.alloc(4);
+    fs.readSync(fd, magic, 0, 4, 0);
+    fs.closeSync(fd);
+    if (magic.toString("ascii") !== "%PDF") {
+      const msg = `File has .pdf extension but is not a valid PDF (magic bytes: ${magic.toString("hex")}): ${path.basename(filePath)}`;
+      options.onWarning?.(msg);
+      console.warn(`${logPrefix} ${msg}`);
+      return null;
+    }
+
+    const { path: pdfPath, cleanup } = ensureAsciiPdfPath(filePath);
+    try {
+      const pdfRequire = require("pdf-poppler");
+      await pdfRequire.convert(pdfPath, {
+        format: "jpeg",
+        out_dir: thumbnailsDir,
+        out_prefix: fileHash,
+        page: 1,
+      });
+    } finally {
+      cleanup();
+    }
 
     const generatedPath = findThumbnailByHash(thumbnailsDir, fileHash);
     if (!generatedPath) {
-      console.error(`${logPrefix} No thumbnail file found after generation for hash: ${fileHash}`);
+      const msg = `No thumbnail file found after generation for hash: ${fileHash}`;
+      options.onWarning?.(msg);
+      console.error(`${logPrefix} ${msg}`);
       return null;
     }
 
@@ -292,7 +347,9 @@ export async function generateThumbnail(
     console.log(`${logPrefix} Thumbnail generated: ${outputPath}`);
     return outputPath;
   } catch (error) {
-    console.error(`${logPrefix} Error generating thumbnail:`, error);
+    const msg = `Error generating thumbnail for ${path.basename(filePath)}`;
+    options.onWarning?.(msg);
+    console.error(`${logPrefix} ${msg}:`, error);
     return null;
   }
 }

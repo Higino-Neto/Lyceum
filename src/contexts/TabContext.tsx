@@ -15,7 +15,7 @@ import {
 
 const STORAGE_KEY = "document_tabs";
 
-type TabScope = "main" | "detached";
+type TabScope = "main" | "detached" | "preview";
 
 interface OpenFileResult {
   fileHash: string;
@@ -232,7 +232,7 @@ function saveTabsToStorage(tabs: DocumentTab[], activeTabId: string | null): voi
 }
 
 function createInitialState(scope: TabScope, initialTab?: InitialTabData | null) {
-  if (scope === "detached") {
+  if (scope !== "main") {
     if (!initialTab) {
       return {
         tabs: [] as DocumentTab[],

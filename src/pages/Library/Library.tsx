@@ -32,6 +32,7 @@ import {
   FolderGrid,
   FolderPathBar,
   FolderTree,
+  LibraryReadingPreviewPane,
   SectionTabs,
   SortOption,
 } from "./components";
@@ -39,7 +40,7 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import { BookWithThumbnail, FolderInfo, LibraryRootInfo, LibrarySection, WatchFolderInfo } from "../../types/LibraryTypes";
+import { BookWithThumbnail, FolderInfo, LibrarySection } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import { DocumentRecord } from "../../types/ReadingTypes";
 import {
@@ -51,6 +52,11 @@ import {
 } from "./utils";
 import { useConversionQueue } from "../../contexts/ConversionQueueContext";
 import { useAppSettings } from "../../contexts/AppSettingsContext";
+import { LibraryProvider, useLibraryContext } from "../../contexts/LibraryContext";
+import { useFolderDragDrop } from "../../hooks/useFolderDragDrop";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
+import useMediaQuery from "../../hooks/useMediaQuery";
+import type { ReadingLaunchState } from "../ReadingPage/ReadingPage";
 
 interface UsbLibraryApi {
   onUsbDevicesUpdated?: (callback: () => void) => () => void;
@@ -143,33 +149,44 @@ function getMergedBookSignature(group: BookWithThumbnail[]) {
     .join("\u001e");
 }
 
-export default function Library() {
+function LibraryContent() {
   const navigate = useNavigate();
   const { prepareBooks } = useConversionQueue();
   const { settings } = useAppSettings();
+  const {
+    folderStructure,
+    selectedFolder,
+    libraryRoots,
+    libraryFolders,
+    watchFolderPaths,
+    refreshFolders,
+    selectFolder,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveBook: moveBookInLibrary,
+  } = useLibraryContext();
   const electronApiAvailable = !!window.api?.listBooks;
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useLocalStorage<"grid" | "list">("library_viewMode", "grid");
   const [gridDensity, setGridDensity] = useState<GridDensity>("comfortable");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortOption>("title_asc");
-  const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>("all");
-  const [activeSection, setActiveSection] = useState<LibrarySection>("synced");
+  const [sort, setSort] = useLocalStorage<SortOption>("library_sort", "title_asc");
+  const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter[]>([]);
+  const [activeSection, setActiveSection] = useLocalStorage<LibrarySection>("library_activeSection", "synced");
 
   const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
     null,
   );
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
-  const [detailPanelWidth, setDetailPanelWidth] = useState(320);
+  const [showSidebar, setShowSidebar] = useLocalStorage("library_showSidebar", true);
+  const [sidebarWidth, setSidebarWidth] = useLocalStorage("library_sidebarWidth", 256);
+  const [detailPanelWidth, setDetailPanelWidth] = useLocalStorage("library_detailPanelWidth", 320);
+  const [readingPreviewWidth, setReadingPreviewWidth] = useLocalStorage("library_readingPreviewWidth", 520);
+  const [readingPreviewOpen, setReadingPreviewOpen] = useState(false);
+  const [readingPreviewTab, setReadingPreviewTab] = useState<ReadingLaunchState | null>(null);
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
-  const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
-  const [folderStructure, setFolderStructure] = useState<FolderInfo[]>([]);
-  const [libraryRoots, setLibraryRoots] = useState<LibraryRootInfo[]>([]);
-  const [watchFolderPaths, setWatchFolderPaths] = useState<Set<string>>(new Set());
   const [globalRecentBooks, setGlobalRecentBooks] = useState<BookWithThumbnail[]>([]);
-  const [draggingBookHashes, setDraggingBookHashes] = useState<string[]>([]);
+  const folderDragDrop = useFolderDragDrop();
   const mergedBookCacheRef = useRef(new Map<string, MergedBookCacheEntry>());
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [selectedBookMap, setSelectedBookMap] = useState<Map<string, BookWithThumbnail>>(
@@ -202,13 +219,17 @@ export default function Library() {
     value: string;
   } | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const sidebarIsDrawer = useMediaQuery("(max-width: 1279px)");
+  const rightPanelsAreDrawer = useMediaQuery("(max-width: 1023px)");
+  const compactHeader = useMediaQuery("(max-width: 639px)");
+  const previousSidebarDrawerRef = useRef(sidebarIsDrawer);
 
   const bookQuery = useMemo(
     () => ({
       section: activeSection,
       search: deferredSearch,
       sort,
-      fileType: fileTypeFilter,
+      fileType: fileTypeFilter.length === 0 ? "all" : fileTypeFilter.join(","),
       folderPath: activeSection === "usb" ? null : selectedFolder,
       includeSubfolders: settings.showSubfolderBooks,
     }),
@@ -243,51 +264,6 @@ export default function Library() {
     }
   }, [electronApiAvailable]);
 
-  const loadLibraryFolders = useCallback(async () => {
-    if (!electronApiAvailable) return;
-    try {
-      const [structure, folders, roots] = await Promise.all([
-        window.api.getFolderStructure(),
-        window.api.getAllFolders(),
-        window.api.getLibraryRoots ? window.api.getLibraryRoots() : Promise.resolve([]),
-      ]);
-      const sourceRoots = (roots as LibraryRootInfo[]).filter((root) => root.type === "source");
-      const sourceStructures = await Promise.all(
-        sourceRoots.map(async (root) => ({
-          root,
-          folders: window.api.getFolderStructure
-            ? await window.api.getFolderStructure(root.path)
-            : [],
-        })),
-      );
-      const sourceRootFolders: FolderInfo[] = sourceStructures.map(({ root, folders }) => ({
-        name: root.label,
-        path: root.path,
-        fullPath: root.path,
-        bookCount: 0,
-        subfolders: folders.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
-      }));
-      setLibraryRoots(roots as LibraryRootInfo[]);
-      setFolderStructure([
-        ...structure.filter((folder: FolderInfo) => !folder.name.startsWith(".")),
-        ...sourceRootFolders,
-      ]);
-      setLibraryFolders(folders);
-    } catch (error) {
-      console.error("Error loading library folders:", error);
-    }
-  }, [electronApiAvailable]);
-
-  const loadWatchFolderPaths = useCallback(async () => {
-    if (!electronApiAvailable || !window.api.getWatchFolders) return;
-    try {
-      const folders = await window.api.getWatchFolders();
-      setWatchFolderPaths(new Set(folders.map((wf: WatchFolderInfo) => wf.path)));
-    } catch (error) {
-      console.error("Error loading watch folder paths:", error);
-    }
-  }, [electronApiAvailable]);
-
   const loadGlobalRecentBooks = useCallback(async () => {
     if (!electronApiAvailable) return;
     try {
@@ -319,17 +295,33 @@ export default function Library() {
     await Promise.all([
       refreshBooks(),
       loadLocalDocs(),
-      loadLibraryFolders(),
+      refreshFolders(),
       loadGlobalRecentBooks(),
-      loadWatchFolderPaths(),
     ]);
-  }, [loadGlobalRecentBooks, loadLibraryFolders, loadLocalDocs, loadWatchFolderPaths, refreshBooks]);
+  }, [loadGlobalRecentBooks, loadLocalDocs, refreshBooks, refreshFolders]);
 
   useEffect(() => {
     if (!electronApiAvailable || !window.api.onLibraryUpdated) return;
     const unsubscribe = window.api.onLibraryUpdated(refreshLibraryState);
     return () => unsubscribe();
   }, [electronApiAvailable, refreshLibraryState]);
+
+  useEffect(() => {
+    if (!electronApiAvailable || !window.api.onLibraryNotification) return;
+    const unsubscribe = window.api.onLibraryNotification((notification) => {
+      if (notification.type === "error") {
+        toast.error(notification.message);
+      } else if (notification.type === "warning") {
+        toast(notification.message, {
+          icon: "⚠️",
+          style: { background: "#1c1917", border: "1px solid #d97706", color: "#fbbf24" },
+        });
+      } else if (notification.type === "success") {
+        toast.success(notification.message);
+      }
+    });
+    return () => unsubscribe();
+  }, [electronApiAvailable]);
 
   useEffect(() => {
     if (!electronApiAvailable) return;
@@ -343,41 +335,86 @@ export default function Library() {
     refreshLibraryState();
   }, [refreshLibraryState]);
 
-  const handleFolderSelect = useCallback((folderPath: string | null) => {
-    setSelectedFolder(folderPath);
-    setSelectedBook(null);
-    setKindlePanelOpen(false);
-    const sourcePaths = new Set(
+  useEffect(() => {
+    const wasDrawer = previousSidebarDrawerRef.current;
+    if (sidebarIsDrawer && !wasDrawer) {
+      setShowSidebar(false);
+    } else if (!sidebarIsDrawer && wasDrawer) {
+      setShowSidebar(true);
+    }
+    previousSidebarDrawerRef.current = sidebarIsDrawer;
+  }, [setShowSidebar, sidebarIsDrawer]);
+
+  const sourceRootPaths = useMemo(
+    () =>
       libraryRoots
         .filter((root) => root.type === "source")
-        .map((root) => root.path.replace(/\\/g, "/").toLowerCase()),
-    );
-    const normalizedFolder = folderPath?.replace(/\\/g, "/").toLowerCase();
+        .map((root) => root.path.replace(/\\/g, "/").replace(/\/+$/g, "").toLowerCase()),
+    [libraryRoots],
+  );
+
+  const isSourceFolderPath = useCallback(
+    (folderPath?: string | null) => {
+      if (!folderPath) return false;
+      const normalizedFolder = folderPath
+        .replace(/\\/g, "/")
+        .replace(/\/+$/g, "")
+        .toLowerCase();
+      return sourceRootPaths.some(
+        (sourcePath) =>
+          normalizedFolder === sourcePath ||
+          normalizedFolder.startsWith(`${sourcePath}/`),
+      );
+    },
+    [sourceRootPaths],
+  );
+
+  const handleFolderSelect = useCallback((folderPath: string | null) => {
+    selectFolder(folderPath);
+    setSelectedBook(null);
+    setKindlePanelOpen(false);
+    if (sidebarIsDrawer) {
+      setShowSidebar(false);
+    }
     if (folderPath && watchFolderPaths.has(folderPath)) {
       setActiveSection("unsynced");
-    } else if (normalizedFolder && Array.from(sourcePaths).some((sourcePath) => normalizedFolder === sourcePath || normalizedFolder.startsWith(`${sourcePath}/`))) {
+    } else if (isSourceFolderPath(folderPath)) {
       setActiveSection("synced");
     } else if (folderPath === null) {
       const isWatchRoot = watchFolderPaths.size > 0;
       if (!isWatchRoot) setActiveSection("synced");
     }
-  }, [libraryRoots, watchFolderPaths]);
+  }, [isSourceFolderPath, selectFolder, setShowSidebar, sidebarIsDrawer, watchFolderPaths]);
 
   const startPaneResize = (
-    pane: "sidebar" | "details",
+    pane: "sidebar" | "details" | "preview",
     event: ReactPointerEvent,
   ) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const startX = event.clientX;
-    const startWidth = pane === "sidebar" ? sidebarWidth : detailPanelWidth;
+    const startWidth =
+      pane === "sidebar"
+        ? sidebarWidth
+        : pane === "details"
+          ? detailPanelWidth
+          : readingPreviewWidth;
     const shellRect =
       document.querySelector("[data-library-shell]")?.getBoundingClientRect() ??
       document.body.getBoundingClientRect();
-    const minWidth = pane === "sidebar" ? 220 : 300;
-    const maxWidth = pane === "sidebar"
-      ? 420
-      : Math.max(360, Math.min(760, shellRect.width - 420));
+    const previewRect =
+      document.querySelector("[data-library-preview]")?.getBoundingClientRect();
+    const detailsRightBoundary =
+      pane === "details" && previewRect ? previewRect.left : shellRect.right;
+    const availableWidth =
+      pane === "details" ? detailsRightBoundary - shellRect.left : shellRect.width;
+    const minWidth = pane === "sidebar" ? 220 : pane === "preview" ? 380 : 300;
+    const maxWidth =
+      pane === "sidebar"
+        ? 420
+        : pane === "preview"
+          ? Math.max(minWidth, Math.min(900, shellRect.width - 420))
+          : Math.max(minWidth, Math.min(760, availableWidth - 420));
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
 
@@ -385,8 +422,9 @@ export default function Library() {
     document.body.style.userSelect = "none";
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const nextWidth = pane === "details"
-        ? Math.min(maxWidth, Math.max(minWidth, shellRect.right - moveEvent.clientX))
+      const rightBoundary = pane === "details" ? detailsRightBoundary : shellRect.right;
+      const nextWidth = pane === "details" || pane === "preview"
+        ? Math.min(maxWidth, Math.max(minWidth, rightBoundary - moveEvent.clientX))
         : Math.min(
             maxWidth,
             Math.max(minWidth, startWidth + moveEvent.clientX - startX),
@@ -394,8 +432,10 @@ export default function Library() {
 
       if (pane === "sidebar") {
         setSidebarWidth(nextWidth);
-      } else {
+      } else if (pane === "details") {
         setDetailPanelWidth(nextWidth);
+      } else {
+        setReadingPreviewWidth(nextWidth);
       }
     };
 
@@ -410,7 +450,10 @@ export default function Library() {
     window.addEventListener("pointerup", handleUp);
   };
 
-  const handleOpen = useCallback(async (filePath: string, fileHash?: string) => {
+  const openBookForReading = useCallback(async (
+    filePath: string,
+    fileHash?: string,
+  ): Promise<ReadingLaunchState | null> => {
     const isUsbBook = activeSection === "usb";
     const result: OpenBookResult | null = isUsbBook
       ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
@@ -422,17 +465,17 @@ export default function Library() {
           ? "Este formato ainda nÃ£o pode ser aberto no leitor"
           : result.error || "Erro ao abrir o arquivo",
       );
-      return;
+      return null;
     }
 
     if (!result) {
       toast.error("Erro ao abrir o arquivo");
-      return;
+      return null;
     }
 
     if ("error" in result) {
       toast.error(result.message || "Erro ao abrir o arquivo");
-      return;
+      return null;
     }
 
     if (result.foundAt && result.foundAt !== filePath) {
@@ -440,20 +483,46 @@ export default function Library() {
       refreshBooks();
     }
 
-    navigate("/reading", {
-      state: {
-        fileBuffer: result.fileBuffer,
-        fileHash: result.fileHash,
-        fileName: result.fileName || filePath.split(/[/\\]/).pop(),
-        filePath: result.foundAt || result.filePath || filePath,
-        fileType:
-          result.fileType ||
-          (filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf"),
-        source: isUsbBook ? "local" : "library",
-        navigationId: crypto.randomUUID(),
-      },
-    });
-  }, [activeSection, navigate, refreshBooks]);
+    return {
+      fileBuffer: result.fileBuffer,
+      fileHash: result.fileHash || fileHash || filePath,
+      fileName: result.fileName || filePath.split(/[/\\]/).pop(),
+      filePath: result.foundAt || result.filePath || filePath,
+      fileType:
+        result.fileType === "epub" || filePath.toLowerCase().endsWith(".epub")
+          ? "epub"
+          : "pdf",
+      source: isUsbBook ? "local" : "library",
+      navigationId: crypto.randomUUID(),
+    };
+  }, [activeSection, refreshBooks]);
+
+  const handleOpen = useCallback(async (filePath: string, fileHash?: string) => {
+    const launchState = await openBookForReading(filePath, fileHash);
+    if (!launchState) {
+      return;
+    }
+
+    navigate("/reading", { state: launchState });
+  }, [navigate, openBookForReading]);
+
+  const handleOpenPreview = useCallback(async (book: BookWithThumbnail) => {
+    if (!book.filePath) {
+      toast.error("Caminho do arquivo nÃ£o encontrado");
+      return;
+    }
+
+    const launchState = await openBookForReading(book.filePath, book.fileHash);
+    if (!launchState) {
+      return;
+    }
+
+    setReadingPreviewOpen(true);
+    setReadingPreviewTab(launchState);
+    if (rightPanelsAreDrawer) {
+      setSelectedBook(null);
+    }
+  }, [openBookForReading, rightPanelsAreDrawer]);
 
   const handleBookClick = useCallback((book: BookWithThumbnail) => {
     setSelectedBook(book);
@@ -511,9 +580,8 @@ export default function Library() {
       return false;
     }
 
-    const result = await window.api.moveBook(fileHash, targetFolder);
+    const result = await moveBookInLibrary(fileHash, targetFolder);
     if (result.success) {
-      await refreshLibraryState();
       return true;
     }
 
@@ -622,15 +690,11 @@ export default function Library() {
       return;
     }
 
-    const result = await window.api.createFolder(
-      folderName,
-      createFolderDialog.parentPath,
-    );
+    const result = await createFolder(createFolderDialog.parentPath, folderName);
 
     if (result.success) {
       toast.success("Pasta criada");
       closeCreateFolderDialog();
-      await refreshLibraryState();
     } else {
       toast.error(result.error || "Erro ao criar pasta");
     }
@@ -666,7 +730,7 @@ export default function Library() {
         return;
       }
 
-      const result = await window.api.renameFolder(
+      const result = await renameFolder(
         folderActionDialog.folder.fullPath,
         newName,
       );
@@ -674,14 +738,13 @@ export default function Library() {
       if (result.success) {
         toast.success("Pasta renomeada");
         closeFolderActionDialog();
-        await refreshLibraryState();
       } else {
         toast.error(result.error || "Erro ao renomear pasta");
       }
       return;
     }
 
-    const result = await window.api.deleteFolder(
+    const result = await deleteFolder(
       folderActionDialog.folder.fullPath,
       true,
     );
@@ -694,7 +757,6 @@ export default function Library() {
         handleFolderSelect(null);
       }
       closeFolderActionDialog();
-      await refreshLibraryState();
     } else {
       toast.error(result.error || "Erro ao excluir pasta");
     }
@@ -771,22 +833,22 @@ export default function Library() {
 
   const handleBookDragStart = useCallback((fileHash: string) => {
     if (selectedHashes.has(fileHash)) {
-      setDraggingBookHashes(Array.from(selectedHashes));
+      folderDragDrop.startBookDrag(Array.from(selectedHashes));
       return;
     }
 
-    setDraggingBookHashes([fileHash]);
-  }, [selectedHashes]);
+    folderDragDrop.startBookDrag([fileHash]);
+  }, [folderDragDrop, selectedHashes]);
 
   const clearSelection = useCallback(() => {
     setSelectedHashes(new Set());
     setSelectedBookMap(new Map());
-    setDraggingBookHashes([]);
-  }, []);
+    folderDragDrop.clearDrag();
+  }, [folderDragDrop]);
 
   const handleBookDragEnd = useCallback(() => {
-    setDraggingBookHashes([]);
-  }, []);
+    folderDragDrop.clearDrag();
+  }, [folderDragDrop]);
 
   const selectedBooks = useMemo(
     () => Array.from(selectedBookMap.values()),
@@ -879,7 +941,7 @@ export default function Library() {
         onFolderSelect={handleFolderSelect}
         books={displayBooks}
         selectedFolder={selectedFolder}
-        draggingBookHashes={draggingBookHashes}
+        draggingBookHashes={folderDragDrop.draggedBooks}
         onCreateFolder={openCreateFolderDialog}
         onImportBook={handleImportBook}
         onRenameFolder={openRenameFolderDialog}
@@ -921,6 +983,7 @@ export default function Library() {
   const openKindlePanel = () => {
     if (selectedBooks.length === 0) return;
     setSelectedBook(null);
+    setReadingPreviewOpen(false);
     setKindlePanelOpen(true);
   };
 
@@ -1026,46 +1089,62 @@ export default function Library() {
   }
 
   return (
-    <div className="lyceum-page-library flex h-full min-h-0 overflow-hidden bg-zinc-950 p-2 text-zinc-100">
+    <div className="lyceum-page-library relative flex h-full min-h-0 overflow-hidden bg-zinc-950 p-1 text-zinc-100 xs:p-2">
       {showSidebar && (
-        <aside className="lyceum-library-sidebar relative h-full flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/50"
-          style={{ width: sidebarWidth }}
+        <aside
+          className={`lyceum-library-sidebar h-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/95 ${
+            sidebarIsDrawer
+              ? "fixed bottom-2 left-2 top-2 z-50 shadow-2xl"
+              : "relative flex-shrink-0 bg-zinc-900/50"
+          }`}
+          style={{ width: sidebarIsDrawer ? "min(88vw, 320px)" : sidebarWidth }}
         >
           <div className="h-full overflow-y-auto">
             <FolderTree
               selectedFolder={selectedFolder}
               onFolderSelect={handleFolderSelect}
               localDocuments={localDocuments}
-              folderStructure={folderStructure}
-              libraryRoots={libraryRoots}
               includeSubfolders={settings.showSubfolderBooks}
               onFoldersChanged={refreshLibraryState}
               onMoveBook={handleMoveBook}
               onMoveBooks={handleMoveBooks}
-              draggingBookHashes={draggingBookHashes}
+              draggingBookHashes={folderDragDrop.draggedBooks}
               onImportBook={handleImportBook}
             />
           </div>
           <button
             type="button"
             onPointerDown={(event) => startPaneResize("sidebar", event)}
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70"
+            className={`absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
+              sidebarIsDrawer ? "hidden" : ""
+            }`}
             title="Redimensionar painel de pastas"
           />
         </aside>
       )}
 
+      {showSidebar && sidebarIsDrawer && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/55"
+          onClick={() => setShowSidebar(false)}
+          aria-label="Fechar painel de pastas"
+        />
+      )}
+
       <div
         data-library-shell
-        className="lyceum-library-shell ml-2 flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
+        className={`lyceum-library-shell flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 ${
+          showSidebar && !sidebarIsDrawer ? "ml-2" : ""
+        }`}
       >
         <div className="flex h-full min-w-0 flex-1 flex-col">
-          <header className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <header className="flex flex-shrink-0 flex-col gap-3 border-b border-zinc-800 px-2 py-3 sm:px-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <BookOpen size={20} className="text-zinc-400" />
               <h1 className="text-base font-semibold tracking-tight">Biblioteca</h1>
-              <span className="text-zinc-700">|</span>
-              <span className="text-xs text-zinc-500">
+              <span className="hidden text-zinc-700 sm:inline">|</span>
+              <span className="text-xs text-zinc-500 sm:whitespace-nowrap">
                 {counts.synced + counts.unsynced + counts.usb} volumes
               </span>
               <SectionTabs
@@ -1077,7 +1156,7 @@ export default function Library() {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
@@ -1139,6 +1218,7 @@ export default function Library() {
                 </button>
               </div>
 
+              {!compactHeader && (
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
                 {(
                   [
@@ -1161,6 +1241,7 @@ export default function Library() {
                   </button>
                 ))}
               </div>
+              )}
 
               <button
                 type="button"
@@ -1175,7 +1256,7 @@ export default function Library() {
             </div>
           </header>
 
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
             <div className="flex-shrink-0 border-zinc-900">
               <FilterBar
                 search={search}
@@ -1287,38 +1368,84 @@ export default function Library() {
           </main>
         </div>
 
+        {selectedBook && !kindlePanelOpen && rightPanelsAreDrawer && (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/55"
+            onClick={() => setSelectedBook(null)}
+            aria-label="Fechar detalhes"
+          />
+        )}
+
         {selectedBook && !kindlePanelOpen && (
-          <aside className="lyceum-library-detail relative h-full flex-shrink-0 overflow-hidden border-l border-zinc-800 bg-zinc-900"
+          <aside
+            className={`lyceum-library-detail h-full overflow-hidden border-l border-zinc-800 bg-zinc-900 ${
+              rightPanelsAreDrawer
+                ? "fixed bottom-0 right-0 top-0 z-50 shadow-2xl"
+                : "relative flex-shrink-0"
+            }`}
             style={{
-              flexBasis: detailPanelWidth,
-              width: detailPanelWidth,
-              minWidth: 300,
-              maxWidth: 760,
+              flexBasis: rightPanelsAreDrawer ? undefined : detailPanelWidth,
+              width: rightPanelsAreDrawer ? "min(92vw, 420px)" : detailPanelWidth,
+              minWidth: rightPanelsAreDrawer ? 0 : 300,
+              maxWidth: rightPanelsAreDrawer ? undefined : 760,
             }}
           >
             <button
               type="button"
               onPointerDown={(event) => startPaneResize("details", event)}
-              className="absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70"
+              className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
+                rightPanelsAreDrawer ? "hidden" : ""
+              }`}
               title="Redimensionar detalhes"
             />
             <div className="h-full overflow-y-auto">
             <BookDetailPanel
               book={selectedBook}
               onClose={() => setSelectedBook(null)}
-              onOpenEmbed={async () => {
-                if (!selectedBook.filePath) {
+              onOpenEmbed={async (bookToOpen = selectedBook) => {
+                if (!bookToOpen.filePath) {
                   toast.error("Caminho do arquivo não encontrado");
                   return;
                 }
-                await handleOpen(selectedBook.filePath, selectedBook.fileHash);
+                await handleOpen(bookToOpen.filePath, bookToOpen.fileHash);
+              }}
+              onOpenPreview={(bookToOpen = selectedBook) => {
+                void handleOpenPreview(bookToOpen);
               }}
               onDelete={handleBookDeleted}
               onRefresh={handleBookRefresh}
               readOnly={activeSection === "usb"}
+              previewOpen={readingPreviewOpen}
             />
             </div>
           </aside>
+        )}
+
+        {readingPreviewOpen && !kindlePanelOpen && rightPanelsAreDrawer && (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/55"
+            onClick={() => {
+              setReadingPreviewOpen(false);
+              setReadingPreviewTab(null);
+            }}
+            aria-label="Fechar previa"
+          />
+        )}
+
+        {readingPreviewOpen && !kindlePanelOpen && (
+          <LibraryReadingPreviewPane
+            width={readingPreviewWidth}
+            drawer={rightPanelsAreDrawer}
+            incomingTab={readingPreviewTab}
+            onIncomingTabConsumed={() => setReadingPreviewTab(null)}
+            onClose={() => {
+              setReadingPreviewOpen(false);
+              setReadingPreviewTab(null);
+            }}
+            onResizeStart={(event) => startPaneResize("preview", event)}
+          />
         )}
 
       {kindlePanelOpen && (
@@ -1602,5 +1729,13 @@ export default function Library() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Library() {
+  return (
+    <LibraryProvider>
+      <LibraryContent />
+    </LibraryProvider>
   );
 }

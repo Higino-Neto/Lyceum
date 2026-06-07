@@ -20,6 +20,7 @@ import { getLastRoute } from "./hooks/useRouteState";
 import { supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 import React from "react";
 import ReactDOMClient from "react-dom/client";
@@ -44,7 +45,7 @@ function App() {
   const navigate = useNavigate();
   const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } = useAppSettings();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage("sidebarCollapsed", true);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hideTimerRef = useRef<number | null>(null);

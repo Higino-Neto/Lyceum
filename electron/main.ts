@@ -68,6 +68,8 @@ import { dictionaryManager } from "./dictionary-manager";
 import { quickLookup } from "./lookup-engine";
 import { closeAllStorage } from "./dictionary-storage";
 import {
+  ensureAsciiPdfPath,
+  isPdfMagicBytesValid,
   THUMBNAIL_EXTENSIONS,
   extractEpubMetadata,
   extractPdfMetadata as extractMetadata,
@@ -1610,9 +1612,12 @@ async function processFile(filePath: string): Promise<void> {
     if (!fs.existsSync(filePath)) return;
 
     const lowerPath = filePath.toLowerCase();
+    const isPdf = lowerPath.endsWith(".pdf");
     const isEpub = lowerPath.endsWith(".epub");
     const isCbz = lowerPath.endsWith(".cbz");
-    const isPdf = lowerPath.endsWith(".pdf");
+    const isAzw3 = lowerPath.endsWith(".azw3");
+    const isKfx = lowerPath.endsWith(".kfx");
+    if (!isPdf && !isEpub && !isCbz && !isAzw3 && !isKfx) return;
     const fileType: "pdf" | "epub" | "cbz" = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
     if (isCbz) {
       await validateCbzFile(filePath);
@@ -1635,9 +1640,18 @@ async function processFile(filePath: string): Promise<void> {
       const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
       if (thumbnailPath) {
         updateThumbnailPath(fileHash, thumbnailPath);
+      } else if (isPdf && !isPdfMagicBytesValid(filePath)) {
+        console.warn(`[Main] PDF appears corrupted: ${filePath}`);
+        updateProcessingStatus(fileHash, "failed");
+        win?.webContents.send("library:updated");
       }
       const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
+      return;
+    }
+
+    if (existing && existing.processingStatus === "failed" && isPdf && !isPdfMagicBytesValid(filePath)) {
+      win?.webContents.send("library:updated");
       return;
     }
 
@@ -1737,7 +1751,7 @@ function setupFileWatcher() {
   } as any);
 
   fileWatcher.on("add", (filePath) => {
-    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum"]
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".cbz"]
       .includes(path.extname(filePath).toLowerCase());
     if (isBook) {
       console.log("[Main] New book detected:", filePath);
@@ -1746,7 +1760,7 @@ function setupFileWatcher() {
   });
 
   fileWatcher.on("unlink", (filePath) => {
-    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum"]
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".cbz"]
       .includes(path.extname(filePath).toLowerCase());
     if (isBook) {
       console.log("[Main] Book removed:", filePath);
@@ -2055,12 +2069,17 @@ function createPdfImageAssetRenderer(pdfPath: string, fileHash: string) {
         fs.mkdirSync(tempDir, { recursive: true });
 
         const outPrefix = `page-${pageNumber}`;
-        await pdfRequire.convert(pdfPath, {
-          format: "jpeg",
-          out_dir: tempDir,
-          out_prefix: outPrefix,
-          page: pageNumber,
-        });
+        const { path: safePdfPath, cleanup } = ensureAsciiPdfPath(pdfPath);
+        try {
+          await pdfRequire.convert(safePdfPath, {
+            format: "jpeg",
+            out_dir: tempDir,
+            out_prefix: outPrefix,
+            page: pageNumber,
+          });
+        } finally {
+          cleanup();
+        }
 
         const renderedPath = fs
           .readdirSync(tempDir)

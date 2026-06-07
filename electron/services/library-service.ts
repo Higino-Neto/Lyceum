@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import chokidar, { type FSWatcher } from "chokidar";
 import {
   getAllDocuments,
   addDocument,
@@ -22,6 +23,7 @@ import {
 import {
   LIBRARY_PATH,
   THUMBNAILS_DIR,
+  ALL_BOOK_EXTENSIONS,
   generateFileHash,
   getAllBookFiles as getAllBookFilesUtil,
   inferBookFileTypeFromPath,
@@ -34,6 +36,7 @@ import {
   getEpubChapterCount,
   getCbzPageCount,
   validateCbzFile,
+  isPdfMagicBytesValid,
   type BookFileType,
 } from "./document-processing";
 
@@ -43,6 +46,23 @@ export interface FolderInfo {
   fullPath: string;
   bookCount: number;
   subfolders: FolderInfo[];
+  hasChildren?: boolean;
+  isLoaded?: boolean;
+  stats?: FolderStats;
+}
+
+export interface FolderStats {
+  bookCount: number;
+  totalSizeMB: number;
+  lastModified: string | null;
+  formatBreakdown: Record<string, number>;
+}
+
+export interface FolderChangedPayload {
+  event: "add" | "addDir" | "change" | "unlink" | "unlinkDir" | "manual";
+  path?: string;
+  rootPath?: string;
+  changedAt: string;
 }
 
 export interface LibraryRootInfo {
@@ -76,10 +96,46 @@ export interface ThumbnailRequest {
   force?: boolean;
 }
 
+export interface NotificationPayload {
+  type: "success" | "error" | "warning";
+  message: string;
+}
+
 let emitLibraryChanged: (() => void) | null = null;
+let emitNotification: ((notification: NotificationPayload) => void) | null = null;
+let emitFolderChanged: ((payload: FolderChangedPayload) => void) | null = null;
+let folderWatcher: FSWatcher | null = null;
+let folderWatchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+const FOLDER_STRUCTURE_CACHE_LIMIT = 8;
+const folderStructureCache = new Map<string, {
+  rootMtime: number;
+  value: FolderInfo[];
+}>();
 
 export function setLibraryChangeEmitter(callback: (() => void) | null) {
   emitLibraryChanged = callback;
+}
+
+export function setNotificationEmitter(callback: ((notification: NotificationPayload) => void) | null) {
+  emitNotification = callback;
+}
+
+export function setFolderChangeEmitter(callback: ((payload: FolderChangedPayload) => void) | null) {
+  emitFolderChanged = callback;
+}
+
+let lastNotification: { type: string; message: string } | null = null;
+
+function sendNotification(type: NotificationPayload["type"], message: string) {
+  if (lastNotification?.type === type && lastNotification?.message === message) return;
+  lastNotification = { type, message };
+  emitNotification?.({ type, message });
+  if (type === "error") {
+    console.error(`[Notification] ${message}`);
+  } else {
+    console.warn(`[Notification] ${message}`);
+  }
 }
 
 class LibraryJobQueue {
@@ -156,6 +212,77 @@ const libraryJobQueue = new LibraryJobQueue(1);
 
 function normalizePathForCompare(filePath: string): string {
   return path.resolve(filePath).replace(/\\/g, "/").toLowerCase();
+}
+
+function normalizeCachePath(filePath: string): string {
+  return path.resolve(filePath).replace(/\\/g, "/");
+}
+
+function safeStat(targetPath: string): fs.Stats | null {
+  try {
+    return fs.statSync(targetPath);
+  } catch {
+    return null;
+  }
+}
+
+function safeReadDir(dirPath: string): fs.Dirent[] {
+  try {
+    return fs.readdirSync(dirPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+function isVisibleDirectory(item: fs.Dirent): boolean {
+  return item.isDirectory() && !item.name.startsWith(".");
+}
+
+function isBookFileName(fileName: string): boolean {
+  return ALL_BOOK_EXTENSIONS.has(path.extname(fileName).toLowerCase());
+}
+
+function getRootMtime(rootPath: string): number {
+  return safeStat(rootPath)?.mtimeMs ?? 0;
+}
+
+function getCacheKey(rootPath: string, useAbsolutePaths: boolean): string {
+  return `${normalizeCachePath(rootPath)}::${useAbsolutePaths ? "abs" : "rel"}`;
+}
+
+function setCachedFolderStructure(key: string, rootMtime: number, value: FolderInfo[]) {
+  folderStructureCache.delete(key);
+  folderStructureCache.set(key, { rootMtime, value });
+
+  while (folderStructureCache.size > FOLDER_STRUCTURE_CACHE_LIMIT) {
+    const oldestKey = folderStructureCache.keys().next().value;
+    if (!oldestKey) break;
+    folderStructureCache.delete(oldestKey);
+  }
+}
+
+export function invalidateFolderStructureCache(rootPath?: string) {
+  if (!rootPath) {
+    folderStructureCache.clear();
+    return;
+  }
+
+  const normalizedRoot = normalizeCachePath(rootPath);
+  for (const key of Array.from(folderStructureCache.keys())) {
+    if (key.startsWith(`${normalizedRoot}::`)) {
+      folderStructureCache.delete(key);
+    }
+  }
+}
+
+export function notifyFolderChanged(payload: Partial<FolderChangedPayload> = {}) {
+  invalidateFolderStructureCache(payload.rootPath);
+  emitFolderChanged?.({
+    event: payload.event ?? "manual",
+    path: payload.path,
+    rootPath: payload.rootPath,
+    changedAt: new Date().toISOString(),
+  });
 }
 
 function isCompletedDocumentCurrent(existing: DocumentRecord | undefined, filePath: string): boolean {
@@ -290,9 +417,12 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     if (!fs.existsSync(filePath)) return;
 
     const lowerPath = filePath.toLowerCase();
+    const isPdf = lowerPath.endsWith(".pdf");
     const isEpub = lowerPath.endsWith(".epub");
     const isCbz = lowerPath.endsWith(".cbz");
-    const isPdf = lowerPath.endsWith(".pdf");
+    const isAzw3 = lowerPath.endsWith(".azw3");
+    const isKfx = lowerPath.endsWith(".kfx");
+    if (!isPdf && !isEpub && !isCbz && !isAzw3 && !isKfx) return;
     const fileType: BookFileType = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
     const thumbnailsDir = THUMBNAILS_DIR();
     const shouldGenerateThumbnail = options.generateThumbnail !== false;
@@ -319,12 +449,24 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       if (shouldGenerateThumbnail && !existing.thumbnailPath) {
         const thumbnailPath = await generateThumbnail(filePath, fileHash, {
           thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
+          onWarning: (msg) => sendNotification("warning", msg),
         });
-        if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
+        if (thumbnailPath) {
+          updateThumbnailPath(fileHash, thumbnailPath);
+        } else if (isPdf && !isPdfMagicBytesValid(filePath)) {
+          sendNotification("warning", `PDF appears corrupted: ${path.basename(filePath)}`);
+          updateProcessingStatus(fileHash, "failed");
+          emitLibraryChanged?.();
+        }
       }
       const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
       updateFileSize(fileHash, fs.statSync(filePath).size);
+      return;
+    }
+
+    if (existing && existing.processingStatus === "failed" && isPdf && !isPdfMagicBytesValid(filePath)) {
+      emitLibraryChanged?.();
       return;
     }
 
@@ -337,8 +479,14 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     const thumbnailPath = shouldGenerateThumbnail
       ? await generateThumbnail(filePath, fileHash, {
           thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
+          onWarning: (msg) => sendNotification("warning", msg),
         })
       : null;
+
+    const pdfCorrupted = isPdf && !thumbnailPath && !isPdfMagicBytesValid(filePath);
+    if (pdfCorrupted) {
+      sendNotification("warning", `PDF appears corrupted: ${path.basename(filePath)}`);
+    }
 
     if (existing) {
       if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
@@ -351,9 +499,10 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
           publishDate: metadata.creationDate,
         });
       }
-      updateProcessingStatus(fileHash, "completed");
+      updateProcessingStatus(fileHash, pdfCorrupted ? "failed" : "completed");
       updateDocumentPath(fileHash, filePath);
       updateDocumentSyncStatus(fileHash, isSynced, category);
+      emitLibraryChanged?.();
     } else {
       const ext = isCbz ? ".cbz" : isEpub ? ".epub" : ".pdf";
       const title = path.basename(filePath, ext);
@@ -370,7 +519,8 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
           });
         }
         updateDocumentSyncStatus(fileHash, isSynced, category);
-        updateProcessingStatus(fileHash, "completed");
+        updateProcessingStatus(fileHash, pdfCorrupted ? "failed" : "completed");
+        emitLibraryChanged?.();
       }
     }
   } catch (error) {
@@ -560,20 +710,22 @@ export function getFolderStructure(rootPath: string = LIBRARY_PATH(), useAbsolut
 
   const buildTree = (dirPath: string, relativeTo: string): FolderInfo[] => {
     if (!fs.existsSync(dirPath)) return [];
-    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    const items = safeReadDir(dirPath);
     const folders: FolderInfo[] = [];
     for (const item of items) {
-      if (item.isDirectory() && !item.name.startsWith(".")) {
+      if (isVisibleDirectory(item)) {
         const itemFullPath = path.join(dirPath, item.name);
         const relativePath = path.relative(relativeTo, itemFullPath);
         const bookFiles = getAllBookFilesUtil(itemFullPath);
-        if (bookFiles.length === 0) continue;
+        const subfolders = buildTree(itemFullPath, relativeTo);
         folders.push({
           name: item.name,
           path: useAbsolutePaths ? itemFullPath : relativePath,
           fullPath: itemFullPath,
           bookCount: bookFiles.length,
-          subfolders: buildTree(itemFullPath, relativeTo),
+          subfolders,
+          hasChildren: subfolders.length > 0,
+          isLoaded: true,
         });
       }
     }
@@ -581,6 +733,170 @@ export function getFolderStructure(rootPath: string = LIBRARY_PATH(), useAbsolut
   };
 
   return buildTree(rootPath, rootPath);
+}
+
+export function getFolderStructureCached(
+  rootPath: string = LIBRARY_PATH(),
+  useAbsolutePaths = false,
+): FolderInfo[] {
+  if (!fs.existsSync(rootPath)) return [];
+
+  const key = getCacheKey(rootPath, useAbsolutePaths);
+  const rootMtime = getRootMtime(rootPath);
+  const cached = folderStructureCache.get(key);
+  if (cached && cached.rootMtime === rootMtime) {
+    folderStructureCache.delete(key);
+    folderStructureCache.set(key, cached);
+    return cached.value;
+  }
+
+  const value = getFolderStructure(rootPath, useAbsolutePaths);
+  setCachedFolderStructure(key, rootMtime, value);
+  return value;
+}
+
+function countDirectBookFiles(folderPath: string): number {
+  return safeReadDir(folderPath).filter((item) => item.isFile() && isBookFileName(item.name)).length;
+}
+
+function hasVisibleSubfolders(folderPath: string): boolean {
+  return safeReadDir(folderPath).some(isVisibleDirectory);
+}
+
+export function getFolderChildren(parentPath: string | null = null): FolderInfo[] {
+  const target = resolveManagedFolderPath(parentPath);
+  if (!fs.existsSync(target.targetDir)) return [];
+
+  const useAbsolutePaths = target.rootType === "source";
+  return safeReadDir(target.targetDir)
+    .filter(isVisibleDirectory)
+    .map((item) => {
+      const itemFullPath = path.join(target.targetDir, item.name);
+      return {
+        name: item.name,
+        path: useAbsolutePaths ? itemFullPath : path.relative(target.rootPath, itemFullPath),
+        fullPath: itemFullPath,
+        bookCount: countDirectBookFiles(itemFullPath),
+        subfolders: [],
+        hasChildren: hasVisibleSubfolders(itemFullPath),
+        isLoaded: false,
+      } satisfies FolderInfo;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function getFolderStats(folderPath: string | null = null): FolderStats {
+  const target = resolveManagedFolderPath(folderPath);
+  let bookCount = 0;
+  let totalBytes = 0;
+  let newestMtime = safeStat(target.targetDir)?.mtimeMs ?? 0;
+  const formatBreakdown: Record<string, number> = {};
+  const pending = [target.targetDir];
+
+  while (pending.length > 0) {
+    const currentDir = pending.pop();
+    if (!currentDir) continue;
+
+    for (const item of safeReadDir(currentDir)) {
+      const itemPath = path.join(currentDir, item.name);
+      const stats = safeStat(itemPath);
+      if (!stats) continue;
+      newestMtime = Math.max(newestMtime, stats.mtimeMs);
+
+      if (isVisibleDirectory(item)) {
+        pending.push(itemPath);
+        continue;
+      }
+
+      if (!item.isFile() || !isBookFileName(item.name)) continue;
+      const format = path.extname(item.name).slice(1).toLowerCase() || "unknown";
+      bookCount++;
+      totalBytes += stats.size;
+      formatBreakdown[format] = (formatBreakdown[format] ?? 0) + 1;
+    }
+  }
+
+  return {
+    bookCount,
+    totalSizeMB: Number((totalBytes / (1024 * 1024)).toFixed(2)),
+    lastModified: newestMtime > 0 ? new Date(newestMtime).toISOString() : null,
+    formatBreakdown,
+  };
+}
+
+export function folderExists(folderPath: string | null = null): boolean {
+  try {
+    return safeStat(resolveManagedFolderPath(folderPath).targetDir)?.isDirectory() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function findWatchedRootForPath(changedPath?: string): string | undefined {
+  if (!changedPath) return undefined;
+  return getLibraryRoots()
+    .map((root) => root.path)
+    .find((rootPath) => isWithinRoot(rootPath, changedPath));
+}
+
+function scheduleFolderChanged(event: FolderChangedPayload["event"], changedPath?: string) {
+  const rootPath = findWatchedRootForPath(changedPath);
+  invalidateFolderStructureCache(rootPath);
+
+  if (folderWatchDebounce) {
+    clearTimeout(folderWatchDebounce);
+  }
+
+  folderWatchDebounce = setTimeout(() => {
+    folderWatchDebounce = null;
+    notifyFolderChanged({ event, path: changedPath, rootPath });
+  }, 250);
+}
+
+export function stopLibraryPathWatcher() {
+  if (folderWatchDebounce) {
+    clearTimeout(folderWatchDebounce);
+    folderWatchDebounce = null;
+  }
+
+  if (folderWatcher) {
+    void folderWatcher.close();
+    folderWatcher = null;
+  }
+}
+
+export function watchLibraryPath() {
+  stopLibraryPathWatcher();
+
+  const watchedPaths = getLibraryRoots()
+    .map((root) => root.path)
+    .filter((rootPath) => fs.existsSync(rootPath));
+
+  if (watchedPaths.length === 0) return;
+
+  folderWatcher = chokidar.watch(watchedPaths, {
+    persistent: true,
+    ignoreInitial: true,
+    depth: 99,
+    awaitWriteFinish: {
+      stabilityThreshold: 500,
+      pollInterval: 100,
+    },
+  });
+
+  for (const event of ["add", "addDir", "change", "unlink", "unlinkDir"] as const) {
+    folderWatcher.on(event, (changedPath) => {
+      scheduleFolderChanged(event, changedPath);
+    });
+  }
+
+  folderWatcher.on("error", (error) => {
+    console.error("[LibraryService] Folder watcher error:", error);
+  });
+}
+
+export function refreshLibraryPathWatcher() {
+  watchLibraryPath();
 }
 
 export function getAllFoldersFlat(libraryPath: string): string[] {
@@ -598,6 +914,91 @@ export function getAllFoldersFlat(libraryPath: string): string[] {
     }
   };
   scan(libraryPath);
+  return folders.sort((a, b) => a.localeCompare(b));
+}
+
+async function getAllBookFilesAsync(dir: string): Promise<string[]> {
+  const results: string[] = [];
+  let items: fs.Dirent[];
+  try {
+    items = await fs.promises.readdir(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  await Promise.all(items.map(async (item) => {
+    const fullPath = path.join(dir, item.name);
+    if (item.isDirectory()) {
+      results.push(...await getAllBookFilesAsync(fullPath));
+      return;
+    }
+    if (ALL_BOOK_EXTENSIONS.has(path.extname(item.name).toLowerCase())) {
+      results.push(fullPath);
+    }
+  }));
+
+  return results;
+}
+
+export async function getFolderStructureAsync(
+  rootPath: string = LIBRARY_PATH(),
+  useAbsolutePaths = false,
+): Promise<FolderInfo[]> {
+  if (!fs.existsSync(rootPath)) return [];
+
+  const buildTree = async (dirPath: string, relativeTo: string): Promise<FolderInfo[]> => {
+    let items: fs.Dirent[];
+    try {
+      items = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const folders: Array<FolderInfo | null> = await Promise.all(items.map(async (item) => {
+      if (!item.isDirectory() || item.name.startsWith(".")) return null;
+
+      const itemFullPath = path.join(dirPath, item.name);
+      const bookFiles = await getAllBookFilesAsync(itemFullPath);
+      const subfolders = await buildTree(itemFullPath, relativeTo);
+
+      return {
+        name: item.name,
+        path: useAbsolutePaths ? itemFullPath : path.relative(relativeTo, itemFullPath),
+        fullPath: itemFullPath,
+        bookCount: bookFiles.length,
+        subfolders,
+        hasChildren: subfolders.length > 0,
+        isLoaded: true,
+      } satisfies FolderInfo;
+    }));
+
+    return folders
+      .filter((folder): folder is FolderInfo => Boolean(folder))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  return buildTree(rootPath, rootPath);
+}
+
+export async function getAllFoldersFlatAsync(libraryPath: string): Promise<string[]> {
+  const folders: string[] = [];
+  const scan = async (dir: string) => {
+    let items: fs.Dirent[];
+    try {
+      items = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    await Promise.all(items.map(async (item) => {
+      if (!item.isDirectory() || item.name.startsWith(".")) return;
+      const fullPath = path.join(dir, item.name);
+      folders.push(path.relative(libraryPath, fullPath));
+      await scan(fullPath);
+    }));
+  };
+
+  await scan(libraryPath);
   return folders.sort((a, b) => a.localeCompare(b));
 }
 

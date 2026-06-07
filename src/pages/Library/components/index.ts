@@ -5,6 +5,7 @@ export { default as BookDetailPanel } from "./BookDetailPanel";
 export { default as FolderCard } from "./FolderCard";
 export { default as FolderTree } from "./FolderTree";
 export { FolderGrid, FolderPathBar } from "./FolderExplorer";
+export { default as LibraryReadingPreviewPane } from "./LibraryReadingPreviewPane";
 export { default as BooksSection } from "./BooksSection";
 export { default as StatisticsPanel } from "./StatisticsPanel";
 export type { FileTypeFilter, SortOption } from "./FilterBar";
