@@ -33,9 +33,7 @@ It is built for readers who want one place to collect, read, understand, convert
   <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-.AppImage-fcc624?style=for-the-badge">&nbsp&nbsp&nbsp</a>
 </p>
 
-<video autoplay muted loop playsinline width="100%" poster="https://raw.githubusercontent.com/Higino-Neto/Lyceum/main/public/images/lyceum-library-with-preview-v1.png">
-  <source src="https://raw.githubusercontent.com/Higino-Neto/Lyceum/main/public/images/lyceum-flow-v1.mp4" type="video/mp4">
-</video>
+<img alt="Full workflow — import EPUB, read, convert to AZW3, send to Kindle" src="public/images/lyceum-flow-v1.gif" width="100%">
 
 ## Your Library, Evolved
 
