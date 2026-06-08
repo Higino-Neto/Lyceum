@@ -1,161 +1,140 @@
-# Lyceum
+# Lyceum (Beta)
 
-Lyceum is a desktop reading companion for PDF and EPUB books. It combines a local library, an embedded reader, reading sessions, dashboards, habits, and cloud-backed reading statistics in one Electron application.
+<p align="center">
+  <img src="public/logo.svg" alt="Lyceum logo" width="76" />
+</p>
 
-The project is built for readers who want more than a file viewer: Lyceum keeps documents organized, remembers reader state, tracks reading effort, and turns a local collection into measurable progress.
+<h3 align="center">A smarter home for every book you read</h3>
 
-![Library](public/library-v1.png)
+<p align="center">
+  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Higino-Neto/Lyceum?style=for-the-badge">&nbsp</a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f?style=for-the-badge">&nbsp</a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0969da?style=for-the-badge">
+  <a href="https://github.com/Higino-Neto/Lyceum/stargazers">&nbsp<img alt="GitHub stars" src="https://img.shields.io/github/stars/Higino-Neto/Lyceum?style=for-the-badge"></a>
+</p>
 
-## What Lyceum Does
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/images/lyceum-library-with-preview-v1.png">
+  <source media="(prefers-color-scheme: light)" srcset="public/images/lyceum-library-with-preview-v1.png">
+  <img alt="Lyceum library showing book covers, folders, search, progress, and metadata" src="public/images/lyceum-library-with-preview-v1.png">
+</picture>
 
-- Opens PDF and EPUB files in an integrated reader with persistent tabs.
-- Saves reading state locally, including page, zoom, scroll, and annotations state.
-- Manages a local library folder with folders, thumbnails, metadata, favorites, ratings, notes, and search.
-- Detects unsynchronized documents and can move or copy them into the managed library.
-- Tracks reading sessions and sends reading history to Supabase.
-- Shows dashboards with pages read, reading time, streaks, heatmaps, charts, and rankings.
-- Supports user accounts through Supabase Auth.
-- Packages as a desktop app through Electron Builder and publishes releases through GitHub Releases.
+## What is Lyceum?
 
-## Screenshots
+Lyceum is a desktop app that manages your ebook library, reads PDF and EPUB files, tracks your progress, converts formats, and sends books to your portable E-Reader. It turns a loose folder of documents into a living reading workspace with covers, metadata, folders, notes, statistics, and local-first conversion tools.
 
-### Reader
+It is built for readers who want one place to collect, read, understand, convert, and move their books without bouncing between a file manager, a reader, a stats spreadsheet, and a portable E-Reader transfer tool.
 
-![Reader](public/reader-v3.png)
+## Download
 
-### Dashboard
+<p>
+  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-.exe%20%2F%20NSIS-0078d4?style=for-the-badge">&nbsp&nbsp&nbsp</a>
+  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for macOS" src="https://img.shields.io/badge/macOS-.dmg-000000?style=for-the-badge">&nbsp&nbsp&nbsp</a>
+  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-.AppImage-fcc624?style=for-the-badge">&nbsp&nbsp&nbsp</a>
+</p>
 
-![Dashboard](public/dashboard-v3.png)
+<video src="public/images/lyceum-flow-v1.mp4" controls muted loop width="100%">
+  <img alt="Full workflow — import EPUB, read, convert to AZW3, send to Kindle" src="public/images/lyceum-library-with-preview-v1.png">
+</video>
 
-### Add Reading
+## Your Library, Evolved
 
-![Add Reading](public/addReading-v3.png)
+Your library is the center of Lyceum. Import PDFs, EPUBs, CBZ files, TXT documents, and HTML books, then keep them organized with real folders, collections, covers, and rich metadata.
 
-### Authentication
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/library-v1.png">
+  <source media="(prefers-color-scheme: light)" srcset="public/library-v1.png">
+  <img alt="Lyceum library grid with book covers and folder navigation" src="public/library-v1.png">
+</picture>
 
-![Sign Up](public/signUp-v2.png)
+- Browse books as a cover grid with visible thumbnails and metadata.
+- Create, rename, move, and delete real folders inside the managed library.
+- Edit title, author, series, publisher, ISBN, language, description, notes, and cover data.
+- Search across your library and filter by format, date, and sync status.
+- Detect documents that live outside the managed library and move or copy them in when you are ready.
+- Source folder your already defined library in disc.
+
+> [Image: library list view with sortable rows, file format chips, progress, rating, sync state, and quick actions]
+> [Image: folder tree with drag-and-drop reordering, nested folders, and a context menu]
+> [Image: book metadata editor showing title, author, series, publisher, ISBN, language, description, tags, cover, notes, favorite, and rating]
+
+## Smart Reader
+
+Open multiple books at once, switch between them like browser tabs, and come back exactly where you stopped.
+
+![Reader with tabs](public/reader-v3.png)
+
+- Read PDF and EPUB files inside the app, without losing the library context.
+- Keep multiple documents open in persistent tabs.
+- Restore page, zoom, scroll, chapter position, and reader state after restart.
+- Use focus-friendly reading surfaces for long sessions.
+- Navigate EPUB chapters and table-of-contents entries directly.
+
+> [Image: reader with a PDF tab and an EPUB tab open side by side in the tab bar]
+> [Image: EPUB reader with table of contents open, current chapter highlighted, and reading position restored]
+
+## Know Your Reading
+
+Lyceum turns reading into visible momentum. Reading sessions become dashboards, streaks, charts, and rankings that make your progress easier to understand.
+
+![Reading dashboard](public/dashboard-v3.png)
+
+![Reading entry and book history](public/addReading-v3.png)
+
+- See GitHub-style heatmaps for reading consistency.
+- Track current streaks, pages read, time spent, books finished, and weekly pace.
+- Review charts for pages per day, time per week, and books per month.
+- Sync account-level reading statistics with Supabase when configured.
+- Compare rankings when cloud reading data is enabled.
+
+> [Image: dashboard heatmap with streak counter, weekly reading cards, and a calm dark interface]
+> [Image: statistics charts showing pages per day, reading time by week, and books completed by month]
+
+## Break Free from Formats
+
+Lyceum helps your books move where you need them. Convert locally between common reading formats without installing Calibre, Pandoc, ebook-convert, or kindlegen.
+
+- Import EPUB, PDF, CBZ, TXT, HTML, AZW3, and KFX into the library.
+- Convert all formats to all formats with Lyceum's local pipeline.
+- Generate KFX when Kindle Previewer is configured for that optional route.
+- Keep files on your machine during conversion.
+- Review conversion results and warnings instead of guessing what happened.
+
+> [Image: conversion dialog with a selected source book and output choices for EPUB, PDF, AZW3, and KFX]
+> [Image: conversion report showing output path, format, warnings, metadata, and validation status]
+
+## Send to Kindle
+
+Connect a Kindle, choose books from the library, and let Lyceum prepare the right files for sideloading.
+
+- Detect Kindle devices through USB storage or Windows MTP.
+- Convert EPUB, PDF, TXT, HTML, and CBZ to KFX, AZW3, or MOBI before transfer when needed.
+- Organize output filenames by title and author.
+- Avoid unsupported direct transfers by guiding books through the conversion path.
+- This feature works better with latest versions of kindle.
+
+> [Image: Kindle send panel showing a detected Paperwhite, a selected book queue, AZW3 conversion enabled, and transfer status]
+> [GIF: sending three books to Kindle, with one already in AZW3 and two converted before transfer]
+
+## Built-in Dictionary
+
+Stay in the flow when a word interrupts you. Lyceum can look up words inside the reader, use local dictionary packages, and help you build vocabulary from the books you already own.
+
+- Select a word in an EPUB and open definitions without leaving the reader.
+- Use downloaded bilingual dictionary packages for offline lookup.
+- Extract vocabulary signals from EPUB text for deeper study.
+
+> [Image: dictionary lookup panel inside the EPUB reader showing original word, phonetic hint, definitions, and translated meanings]
+> [Image: vocabulary view showing frequent words extracted from an EPUB and dictionary package controls]
+
+## Under the Hood
+
+Lyceum uses a practical desktop stack: Electron for native APIs, React and TypeScript for the interface, Tailwind for styling, SQLite for local library state, Supabase for optional cloud reading data, PDF.js and EPUB tooling for readers, sharp for thumbnails and image processing, and Vitest for tests.
+
 
 ## Documentation
 
-The full project documentation lives in [`docs/`](docs/index.md). It covers the product, local architecture, reader, library, database model, development workflow, and release process.
-
-Start here:
-
-- [Project Documentation](docs/index.md)
-- [Architecture](docs/architecture.md)
-- [Library and Reader](docs/library-reader.md)
-- [Data and Sync](docs/data-and-sync.md)
-- [Development Guide](docs/development.md)
-- [Release Guide](docs/release.md)
-
-The repository also includes a GitHub Pages workflow at [`.github/workflows/docs.yml`](.github/workflows/docs.yml). After GitHub Pages is enabled for Actions in the repository settings, documentation changes pushed to `main` are published automatically.
-
-## Tech Stack
-
-- React 18, TypeScript, Vite, and Tailwind CSS for the renderer.
-- Electron for the desktop shell, native file dialogs, file watching, IPC, and packaging.
-- SQLite through `better-sqlite3` for local document state.
-- Supabase Auth and PostgreSQL for user accounts, reading entries, stats, books, and rankings.
-- `@embedpdf/react-pdf-viewer`, `pdf-lib`, `pdf-poppler`, and `epubjs` for document reading and processing.
-- TanStack Query for remote data caching.
-- Vitest and Testing Library for tests.
-
-## Getting Started
-
-Requirements:
-
-- Node.js 20+
-- npm
-- A Supabase project if you want authentication and cloud stats
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Create a local environment file:
-
-```bash
-cp .env.example .env
-```
-
-Configure Supabase:
-
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-Run the app in development:
-
-```bash
-npm run dev
-```
-
-Build the renderer and Electron main process:
-
-```bash
-npm run build
-```
-
-Create desktop packages:
-
-```bash
-npm run dist
-```
-
-## Scripts
-
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Starts Vite and Electron in development mode. |
-| `npm run build` | Type-checks and builds the app. |
-| `npm run dist` | Builds distributable desktop packages. |
-| `npm run lint` | Runs ESLint. |
-| `npm run test` | Runs Vitest in watch mode. |
-| `npm run test:run` | Runs the test suite once. |
-
-## Project Structure
-
-```text
-.
-├── electron/              # Electron main process, preload, SQLite, backup, dictionary services
-├── src/                   # React renderer
-│   ├── api/               # Supabase API helpers
-│   ├── components/        # Shared UI components
-│   ├── contexts/          # React contexts, including document tabs
-│   ├── hooks/             # Shared hooks
-│   ├── pages/             # App screens
-│   │   ├── DashboardPage/
-│   │   ├── Library/
-│   │   ├── ReadingPage/
-│   │   └── HabitTrackerPage/
-│   ├── test/              # Vitest and Testing Library tests
-│   ├── types/             # Shared TypeScript types
-│   └── utils/             # Utility functions
-├── public/                # Static assets and screenshots
-├── scripts/               # Utility scripts
-├── docs/                  # GitHub Pages documentation
-└── .github/workflows/     # Release and documentation workflows
-```
-
-## Data Model
-
-Lyceum uses two persistence layers:
-
-- Local SQLite stores document metadata, file paths, reader state, thumbnails, categories, local habits, and offline-friendly library data.
-- Supabase stores authenticated user data, reading entries, books, reading statistics, categories, and ranking-related data.
-
-See [Data and Sync](docs/data-and-sync.md) for the full model and data flow.
-
-## Contributing
-
-1. Create a branch from `main`.
-2. Install dependencies with `npm install`.
-3. Make the change with focused tests when behavior changes.
-4. Run `npm run build` and the relevant tests.
-5. Open a pull request with the user-facing behavior and verification notes.
+The full documentation lives in [docs](docs/index.md), including architecture, local data, sync behavior, development, and releases.
 
 ## License
 
