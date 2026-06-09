@@ -106,7 +106,7 @@ function CoverPreview({
           {images.slice(0, 3).map((src, index) => (
             <div
               key={`${src}-${index}`}
-              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-950 shadow-xl shadow-black hover:-translate-y-0.5"
+              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/20 hover:-translate-y-0.5"
               style={{
                 marginLeft: index === 0 ? 0 : -18,
                 transform: `rotate(${[-6, 2, 7][index] || 0}deg) translateY(${index === 1 ? -7 : 0}px)`,
