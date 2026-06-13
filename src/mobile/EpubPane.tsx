@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface EpubPaneProps {
   dataUrl?: string;
   location?: string;
-  onLocationChange: (location: string) => void;
+  onLocationChange: (location: string, progressPercent: number) => void;
 }
 
 interface TocItem {
@@ -491,11 +491,10 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
           const cfi = section?.start?.cfi;
           if (!cfi) return;
           currentCfiRef.current = cfi;
-          onLocationChangeRef.current(cfi);
-
           const percent = book.locations?.percentageFromCfi
             ? Math.round((book.locations.percentageFromCfi(cfi) || 0) * 100)
             : 0;
+          onLocationChangeRef.current(cfi, percent);
           setProgress(percent);
           setPositionLabel(percent > 0
             ? `${percent}%`

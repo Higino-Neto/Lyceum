@@ -10,14 +10,21 @@ function safePathPart(value: string) {
 function extensionFor(book: Pick<MobileBook, "fileName" | "fileType">) {
   const match = book.fileName.match(/\.([a-z0-9]+)$/i);
   if (match?.[1]) return match[1].toLowerCase();
-  return book.fileType === "other" ? "bin" : book.fileType;
+  return book.fileType;
+}
+
+function folderPart(folderId?: string) {
+  return folderId ? safePathPart(folderId) : "root";
+}
+
+function storagePathFor(book: Pick<MobileBook, "id" | "fileName" | "fileType" | "folderId">, folderId = book.folderId) {
+  return `${BOOKS_DIR}/${folderPart(folderId)}/${safePathPart(book.id)}.${extensionFor(book)}`;
 }
 
 function mimeFor(book: Pick<MobileBook, "fileType" | "mimeType">) {
   if (book.mimeType) return book.mimeType;
   if (book.fileType === "pdf") return "application/pdf";
   if (book.fileType === "epub") return "application/epub+zip";
-  if (book.fileType === "html") return "text/html";
   if (book.fileType === "txt") return "text/plain";
   return "application/octet-stream";
 }
@@ -39,12 +46,13 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-export async function writeMobileBookFile(book: MobileBook, dataUrl: string) {
+export async function writeMobileBookFile(book: MobileBook, dataUrl: string, folderId = book.folderId) {
   const { data } = splitDataUrl(dataUrl);
-  const path = `${BOOKS_DIR}/${safePathPart(book.id)}.${extensionFor(book)}`;
+  if (!data) throw new Error("O arquivo importado esta vazio");
+  const path = storagePathFor(book, folderId);
 
   await Filesystem.mkdir({
-    path: BOOKS_DIR,
+    path: `${BOOKS_DIR}/${folderPart(folderId)}`,
     directory: Directory.Data,
     recursive: true,
   }).catch(() => undefined);
@@ -56,6 +64,34 @@ export async function writeMobileBookFile(book: MobileBook, dataUrl: string) {
   });
 
   return path;
+}
+
+export async function moveMobileBookFile(book: MobileBook, folderId?: string) {
+  if (!book.storagePath) return undefined;
+  const nextPath = storagePathFor(book, folderId);
+  if (nextPath === book.storagePath) return nextPath;
+
+  await Filesystem.mkdir({
+    path: `${BOOKS_DIR}/${folderPart(folderId)}`,
+    directory: Directory.Data,
+    recursive: true,
+  }).catch(() => undefined);
+
+  await Filesystem.rename({
+    from: book.storagePath,
+    to: nextPath,
+    directory: Directory.Data,
+    toDirectory: Directory.Data,
+  });
+  return nextPath;
+}
+
+export async function deleteMobileBookFile(book?: MobileBook | null) {
+  if (!book?.storagePath) return;
+  await Filesystem.deleteFile({
+    path: book.storagePath,
+    directory: Directory.Data,
+  }).catch(() => undefined);
 }
 
 export async function resolveMobileBookDataUrl(book?: MobileBook | null) {
@@ -86,5 +122,6 @@ export function getStoredBookPatch(book: MobileBook, file: File, dataUrl: string
     fileSize: file.size,
     storagePath,
     dataUrl: storagePath ? undefined : dataUrl,
+    updatedAt: new Date().toISOString(),
   };
 }

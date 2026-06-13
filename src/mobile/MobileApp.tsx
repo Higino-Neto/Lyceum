@@ -23,34 +23,57 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import EpubPane from "./EpubPane";
+import MobileLibraryScreenV2 from "./MobileLibraryScreen";
 import PdfPane from "./PdfPane";
-import { getStoredBookPatch, resolveMobileBookDataUrl, writeMobileBookFile } from "./bookFileStorage";
+import {
+  deleteMobileBookFile,
+  getStoredBookPatch,
+  moveMobileBookFile,
+  resolveMobileBookDataUrl,
+  writeMobileBookFile,
+} from "./bookFileStorage";
 import {
   calculateStats,
   createBookFromFile,
+  createFolder,
   createHabit,
-  createManualBook,
   createSession,
+  createSourceFolder,
   formatShortDate,
   getTodayKey,
+  hydrateMobileState,
+  inferFileType,
   loadMobileState,
   readFileAsDataUrl,
   saveMobileState,
 } from "./storage";
+import {
+  descendantFolderIds,
+  ensureFolderPath,
+  findDuplicateBook,
+  sanitizeFolderName,
+  type MobileLibraryQuery,
+} from "./libraryModel";
 import { getMobileSession, getMobileSupabase, hasSupabaseConfig } from "./supabaseMobile";
+import {
+  loadPersistentSourceFile,
+  pickPersistentSourceFolder,
+  releasePersistentSourceFolder,
+  scanPersistentSourceFolder,
+  supportsPersistentSourceFolders,
+  type NativeSourceFile,
+} from "./sourceFolderBridge";
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
-import { hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
+import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import type { MobileBook, MobileHabit, MobileLibraryState, MobileTab } from "./types";
 
 const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
   { id: "library", label: "Biblioteca", icon: Library },
-  { id: "reader", label: "Colecoes", icon: Folder },
-  { id: "dashboard", label: "Recentes", icon: Clock3 },
-  { id: "habits", label: "Favoritos", icon: Star },
+  { id: "reader", label: "Leitor", icon: Folder },
+  { id: "recent", label: "Recentes", icon: Clock3 },
+  { id: "favorites", label: "Favoritos", icon: Star },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
-
-const categories = ["Geral", "Ficcao", "Tecnologia", "Filosofia", "Idiomas", "Academico"];
 
 function updateBook(state: MobileLibraryState, bookId: string, patch: Partial<MobileBook>) {
   return {
@@ -86,6 +109,14 @@ function StatTile({ label, value, detail }: { label: string; value: string; deta
 
 type LibraryFilter = "all" | "pdf" | "epub";
 type LibraryView = "grid" | "list";
+
+interface SourceImportEntry {
+  name: string;
+  size: number;
+  mimeType: string;
+  relativePath: string;
+  loadFile: () => Promise<File>;
+}
 
 function getProgress(book: MobileBook) {
   if (book.totalPages <= 1) return book.minutesRead > 0 ? 16 : 0;
@@ -412,14 +443,19 @@ function MissingBookFile({
 
 function MobileApp() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const sourceFolderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
   const [state, setState] = useState<MobileLibraryState>(() => loadMobileState());
+  const [repositoryReady, setRepositoryReady] = useState(false);
   const [activeTab, setActiveTab] = useState<MobileTab>("library");
-  const [query, setQuery] = useState("");
-  const [libraryFilter, setLibraryFilter] = useState<LibraryFilter>("all");
+  const [libraryQuery, setLibraryQuery] = useState<MobileLibraryQuery>({
+    search: "",
+    scope: "all",
+    fileType: "all",
+    sort: "title_asc",
+  });
   const [libraryView, setLibraryView] = useState<LibraryView>("grid");
-  const [manualTitle, setManualTitle] = useState("");
-  const [manualAuthor, setManualAuthor] = useState("");
+  const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
   const [newHabitName, setNewHabitName] = useState("");
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -427,7 +463,7 @@ function MobileApp() {
   const [isReading, setIsReading] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [sessionStartPage, setSessionStartPage] = useState<number | null>(null);
-  const [epubLocation, setEpubLocation] = useState<Record<string, string>>({});
+  const [sessionStartProgress, setSessionStartProgress] = useState<number | null>(null);
   const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
   const [readerFileLoading, setReaderFileLoading] = useState(false);
 
@@ -439,8 +475,22 @@ function MobileApp() {
   const today = getTodayKey();
 
   useEffect(() => {
+    if (!repositoryReady) return;
     saveMobileState(state);
-  }, [state]);
+  }, [repositoryReady, state]);
+
+  useEffect(() => {
+    let cancelled = false;
+    hydrateMobileState().then((hydrated) => {
+      if (!cancelled) {
+        setState(hydrated);
+        setRepositoryReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -541,16 +591,6 @@ function MobileApp() {
     };
   }, [readerDataUrls, selectedBook]);
 
-  const visibleBooks = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return state.books;
-    return state.books.filter((book) =>
-      [book.title, book.author, book.fileName, book.category]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalized)),
-    );
-  }, [query, state.books]);
-
   const selectBook = useCallback((bookId: string) => {
     setState((current) => updateBook({ ...current, selectedBookId: bookId }, bookId, {
       lastOpenedAt: new Date().toISOString(),
@@ -558,21 +598,22 @@ function MobileApp() {
     setActiveTab("reader");
   }, []);
 
-  const importFiles = async (files: FileList | null) => {
+  const importFiles = async (files: FileList | null, folderId = libraryQuery.folderId) => {
     if (!files?.length) return;
     const imported: MobileBook[] = [];
+    const existing = [...state.books];
 
     for (const file of Array.from(files)) {
       try {
-        const dataUrl = await readFileAsDataUrl(file);
-        const book = createBookFromFile(file, dataUrl);
-        const thumbnailPatch = await extractThumbnailPatch(book, file);
-        let storagePath: string | undefined;
-        try {
-          storagePath = await writeMobileBookFile(book, dataUrl);
-        } catch {
-          storagePath = undefined;
+        if (!inferFileType(file)) throw new Error(`Formato nao suportado: ${file.name}`);
+        if (findDuplicateBook([...existing, ...imported], file)) {
+          toast(`Ignorado por parecer duplicado: ${file.name}`);
+          continue;
         }
+        const dataUrl = await readFileAsDataUrl(file);
+        const book = createBookFromFile(file, dataUrl, folderId);
+        const thumbnailPatch = await extractThumbnailPatch(book, file);
+        const storagePath = await writeMobileBookFile(book, dataUrl, folderId);
         imported.push({
           ...book,
           ...getStoredBookPatch(book, file, dataUrl, storagePath),
@@ -592,8 +633,134 @@ function MobileApp() {
       books: [...imported, ...current.books],
       selectedBookId: imported[0].id,
     }));
-    setActiveTab("reader");
     toast.success(imported.length === 1 ? "Livro importado" : `${imported.length} livros importados`);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const importSourceEntries = async (
+    entries: SourceImportEntry[],
+    requestedSourceId?: string,
+    detectedName = "Pasta importada",
+    nativeUri?: string,
+  ) => {
+    const supportedEntries = entries.filter((entry) => inferFileType({ name: entry.name, type: entry.mimeType } as File));
+    if (!supportedEntries.length) {
+      toast.error("A pasta nao contem PDF, EPUB ou TXT");
+      return;
+    }
+
+    const existingSource = state.sourceFolders.find((source) => source.id === requestedSourceId);
+    const source = existingSource || createSourceFolder(detectedName, supportedEntries.length);
+    let workingFolders = [...state.folders];
+    const imported: MobileBook[] = [];
+    const updated = new Map<string, MobileBook>();
+
+    for (const entry of supportedEntries) {
+      try {
+        const relativePath = entry.relativePath.replace(/\\/g, "/");
+        const parts = relativePath.split("/").filter(Boolean);
+        const nestedParts = parts.slice(1, -1);
+        const ensured = ensureFolderPath([source.name, ...nestedParts], workingFolders);
+        workingFolders = ensured.folders;
+        const duplicate = findDuplicateBook(
+          [...state.books.filter((book) => book.sourceFolderId === source.id), ...imported],
+          { name: entry.name, size: entry.size } as File,
+          relativePath,
+        );
+        if (duplicate && duplicate.fileSize === entry.size) continue;
+
+        const file = await entry.loadFile();
+        const dataUrl = await readFileAsDataUrl(file);
+        if (duplicate) {
+          const nextBook = { ...duplicate, folderId: ensured.folderId, sourceFolderId: source.id, sourceRelativePath: relativePath };
+          const storagePath = await writeMobileBookFile(nextBook, dataUrl, ensured.folderId);
+          if (duplicate.storagePath && duplicate.storagePath !== storagePath) await deleteMobileBookFile(duplicate);
+          const thumbnailPatch = await extractThumbnailPatch(nextBook, file);
+          updated.set(duplicate.id, {
+            ...nextBook,
+            ...getStoredBookPatch(nextBook, file, dataUrl, storagePath),
+            ...thumbnailPatch,
+          });
+          continue;
+        }
+
+        const book = createBookFromFile(file, dataUrl, ensured.folderId);
+        const storagePath = await writeMobileBookFile(book, dataUrl, ensured.folderId);
+        const thumbnailPatch = await extractThumbnailPatch(book, file);
+        imported.push({
+          ...book,
+          ...getStoredBookPatch(book, file, dataUrl, storagePath),
+          ...thumbnailPatch,
+          sourceFolderId: source.id,
+          sourceRelativePath: relativePath,
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : `Falha ao importar ${entry.name}`);
+      }
+    }
+
+    const refreshedSource = {
+      ...source,
+      name: existingSource?.name || detectedName,
+      lastImportedAt: new Date().toISOString(),
+      lastFileCount: supportedEntries.length,
+      nativeUri: nativeUri || existingSource?.nativeUri,
+    };
+    setState((current) => ({
+      ...current,
+      folders: workingFolders,
+      sourceFolders: existingSource
+        ? current.sourceFolders.map((item) => item.id === source.id ? refreshedSource : item)
+        : [refreshedSource, ...current.sourceFolders],
+      books: [
+        ...imported,
+        ...current.books.map((book) => updated.get(book.id) || book),
+      ],
+      selectedBookId: imported[0]?.id || current.selectedBookId,
+    }));
+    setSourceFolderRefreshId(undefined);
+    if (sourceFolderInputRef.current) sourceFolderInputRef.current.value = "";
+    toast.success(`${imported.length} novo(s), ${updated.size} atualizado(s)`);
+  };
+
+  const importSourceFolder = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const sourceFiles = Array.from(files);
+    const firstRelativePath = sourceFiles[0].webkitRelativePath || sourceFiles[0].name;
+    const detectedName = firstRelativePath.split("/")[0] || "Pasta importada";
+    await importSourceEntries(sourceFiles.map((file) => ({
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+      relativePath: file.webkitRelativePath || `${detectedName}/${file.name}`,
+      loadFile: async () => file,
+    })), sourceFolderRefreshId, detectedName);
+  };
+
+  const connectOrRefreshSourceFolder = async (sourceFolderId?: string) => {
+    if (!supportsPersistentSourceFolders()) {
+      setSourceFolderRefreshId(sourceFolderId);
+      sourceFolderInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const existingSource = state.sourceFolders.find((source) => source.id === sourceFolderId);
+      const selection = existingSource?.nativeUri
+        ? { uri: existingSource.nativeUri, name: existingSource.name }
+        : await pickPersistentSourceFolder();
+      const scan = await scanPersistentSourceFolder(selection.uri);
+      const entries = scan.files.map((file: NativeSourceFile): SourceImportEntry => ({
+        name: file.name,
+        size: file.size,
+        mimeType: file.mimeType,
+        relativePath: `${scan.name || selection.name}/${file.relativePath}`,
+        loadFile: () => loadPersistentSourceFile(file),
+      }));
+      await importSourceEntries(entries, sourceFolderId, scan.name || selection.name, selection.uri);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao conectar pasta-fonte");
+    }
   };
 
   const attachFileToSelectedBook = async (files: FileList | null) => {
@@ -602,18 +769,16 @@ function MobileApp() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const thumbnailPatch = await extractThumbnailPatch(selectedBook, file);
-      let storagePath: string | undefined;
-      try {
-        storagePath = await writeMobileBookFile(selectedBook, dataUrl);
-      } catch {
-        storagePath = undefined;
-      }
+      const fileType = inferFileType(file);
+      if (!fileType) throw new Error("Use um arquivo PDF, EPUB ou TXT");
+      const linkedBook = { ...selectedBook, fileName: file.name, fileType };
+      const thumbnailPatch = await extractThumbnailPatch(linkedBook, file);
+      const storagePath = await writeMobileBookFile(linkedBook, dataUrl, selectedBook.folderId);
 
       setReaderDataUrls((current) => ({ ...current, [selectedBook.id]: dataUrl }));
       setState((current) => updateBook(current, selectedBook.id, {
-        ...getStoredBookPatch(selectedBook, file, dataUrl, storagePath),
-        fileType: selectedBook.fileType,
+        ...getStoredBookPatch(linkedBook, file, dataUrl, storagePath),
+        fileType,
         lastOpenedAt: new Date().toISOString(),
         ...thumbnailPatch,
       }));
@@ -625,27 +790,117 @@ function MobileApp() {
     }
   };
 
-  const addManualBook = () => {
-    const title = manualTitle.trim();
-    if (!title) return;
-    const book = createManualBook(title, manualAuthor.trim() || undefined);
+  const createManagedFolder = (name: string, parentId?: string) => {
+    const safeName = sanitizeFolderName(name);
+    if (!safeName) return;
+    setState((current) => {
+      if (current.folders.some((folder) => folder.parentId === parentId && folder.name.toLocaleLowerCase("pt-BR") === safeName.toLocaleLowerCase("pt-BR"))) {
+        toast.error("Ja existe uma pasta com este nome");
+        return current;
+      }
+      return { ...current, folders: [...current.folders, createFolder(safeName, parentId)] };
+    });
+  };
+
+  const renameManagedFolder = (folderId: string, name: string) => {
+    const safeName = sanitizeFolderName(name);
+    if (!safeName) return;
     setState((current) => ({
       ...current,
-      books: [book, ...current.books],
-      selectedBookId: book.id,
+      folders: current.folders.map((folder) => folder.id === folderId ? { ...folder, name: safeName, updatedAt: new Date().toISOString() } : folder),
     }));
-    setManualTitle("");
-    setManualAuthor("");
-    setActiveTab("reader");
-    toast.success("Livro criado");
+  };
+
+  const moveBooks = async (bookIds: string[], folderId?: string) => {
+    const patches = new Map<string, Partial<MobileBook>>();
+    for (const bookId of bookIds) {
+      const book = state.books.find((item) => item.id === bookId);
+      if (!book) continue;
+      try {
+        const storagePath = await moveMobileBookFile(book, folderId);
+        patches.set(bookId, { folderId, storagePath, updatedAt: new Date().toISOString() });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : `Falha ao mover ${book.title}`);
+      }
+    }
+    setState((current) => ({ ...current, books: current.books.map((book) => ({ ...book, ...(patches.get(book.id) || {}) })) }));
+    if (patches.size) toast.success(`${patches.size} livro(s) movido(s)`);
+  };
+
+  const deleteBooks = async (bookIds: string[]) => {
+    const ids = new Set(bookIds);
+    const targets = state.books.filter((book) => ids.has(book.id));
+    await Promise.all(targets.map(async (book) => {
+      await deleteMobileBookFile(book);
+      await deleteMobileBookThumbnail(book);
+    }));
+    setReaderDataUrls((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !ids.has(id))));
+    setState((current) => ({
+      ...current,
+      books: current.books.filter((book) => !ids.has(book.id)),
+      selectedBookId: ids.has(current.selectedBookId || "") ? current.books.find((book) => !ids.has(book.id))?.id : current.selectedBookId,
+    }));
+    toast.success(`${targets.length} livro(s) removido(s)`);
+  };
+
+  const deleteManagedFolder = async (folderId: string) => {
+    const ids = descendantFolderIds(folderId, state.folders);
+    const folder = state.folders.find((item) => item.id === folderId);
+    if (!folder || !window.confirm(`Excluir a pasta ${folder.name}? Os livros serao movidos para a pasta superior.`)) return;
+    const affected = state.books.filter((book) => book.folderId && ids.has(book.folderId));
+    await moveBooks(affected.map((book) => book.id), folder.parentId);
+    setState((current) => ({
+      ...current,
+      folders: current.folders.filter((item) => !ids.has(item.id)),
+      books: current.books.map((book) => book.folderId && ids.has(book.folderId) ? { ...book, folderId: folder.parentId } : book),
+    }));
+  };
+
+  const updateMobileBook = (bookId: string, patch: Partial<MobileBook>) => {
+    setState((current) => {
+      const category = patch.category?.trim();
+      return {
+        ...updateBook(current, bookId, patch),
+        categories: category && !current.categories.includes(category) ? [...current.categories, category] : current.categories,
+      };
+    });
+  };
+
+  const deleteSourceFolder = async (sourceFolderId: string) => {
+    const source = state.sourceFolders.find((item) => item.id === sourceFolderId);
+    if (!source || !window.confirm(`Desconectar ${source.name}? Os livros importados continuarao na biblioteca.`)) return;
+    if (source.nativeUri) await releasePersistentSourceFolder(source.nativeUri).catch(() => undefined);
+    setState((current) => ({
+      ...current,
+      sourceFolders: current.sourceFolders.filter((item) => item.id !== sourceFolderId),
+      books: current.books.map((book) => book.sourceFolderId === sourceFolderId
+        ? { ...book, sourceFolderId: undefined, sourceRelativePath: undefined }
+        : book),
+    }));
+    setLibraryQuery((current) => current.sourceFolderId === sourceFolderId
+      ? { ...current, sourceFolderId: undefined, scope: "all" }
+      : current);
   };
 
   const finishSession = () => {
     if (!selectedBook) return;
+    if (elapsedSeconds < 30) {
+      toast.error("Leia por pelo menos 30 segundos antes de registrar");
+      return;
+    }
     const minutes = Math.max(1, Math.round(elapsedSeconds / 60));
     const initialPage = sessionStartPage ?? selectedBook.currentPage;
-    const pages = Math.max(1, Math.abs(selectedBook.currentPage - initialPage) + 1);
-    const session = createSession(selectedBook, minutes, pages);
+    const initialProgress = sessionStartProgress ?? selectedBook.progressPercent ?? 0;
+    const finalProgress = selectedBook.progressPercent ?? 0;
+    const pages = selectedBook.fileType === "pdf"
+      ? Math.max(0, Math.abs(selectedBook.currentPage - initialPage))
+      : Math.max(0, Math.round(Math.abs(finalProgress - initialProgress)));
+    const session = createSession(selectedBook, minutes, pages, {
+      startPage: initialPage,
+      endPage: selectedBook.currentPage,
+      startProgress: initialProgress,
+      endProgress: finalProgress,
+    });
 
     setState((current) => updateBook({
       ...current,
@@ -657,6 +912,7 @@ function MobileApp() {
     setIsReading(false);
     setElapsedSeconds(0);
     setSessionStartPage(null);
+    setSessionStartProgress(null);
     toast.success("Sessao registrada");
   };
 
@@ -665,6 +921,7 @@ function MobileApp() {
     setIsReading((value) => {
       if (!value && sessionStartPage === null) {
         setSessionStartPage(selectedBook.currentPage);
+        setSessionStartProgress(selectedBook.progressPercent ?? selectedBook.textScrollPercent ?? 0);
       }
       return !value;
     });
@@ -763,15 +1020,24 @@ function MobileApp() {
         ref={fileInputRef}
         className="hidden"
         type="file"
-        accept=".pdf,.epub,.txt,.html,.htm,application/pdf,text/*"
+        accept=".pdf,.epub,.txt,application/pdf,application/epub+zip,text/plain"
         multiple
         onChange={(event) => importFiles(event.target.files)}
+      />
+      <input
+        ref={sourceFolderInputRef}
+        className="hidden"
+        type="file"
+        accept=".pdf,.epub,.txt,application/pdf,application/epub+zip,text/plain"
+        multiple
+        {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+        onChange={(event) => importSourceFolder(event.target.files)}
       />
       <input
         ref={replaceFileInputRef}
         className="hidden"
         type="file"
-        accept=".pdf,.epub,.txt,.html,.htm,application/pdf,text/*"
+        accept=".pdf,.epub,.txt,application/pdf,application/epub+zip,text/plain"
         onChange={(event) => attachFileToSelectedBook(event.target.files)}
       />
 
@@ -822,20 +1088,26 @@ function MobileApp() {
 
         <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && selectedBook?.fileType === "epub") ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
           {activeTab === "library" && (
-            <MobileLibraryScreen
-              books={state.books}
-              query={query}
-              filter={libraryFilter}
+            <MobileLibraryScreenV2
+              state={state}
+              query={libraryQuery}
               view={libraryView}
-              onQueryChange={setQuery}
-              onFilterChange={setLibraryFilter}
+              onQueryChange={setLibraryQuery}
               onViewChange={setLibraryView}
-              onSelectBook={selectBook}
-              onImportClick={() => fileInputRef.current?.click()}
+              onOpenBook={selectBook}
+              onImportFiles={() => fileInputRef.current?.click()}
+              onImportSourceFolder={connectOrRefreshSourceFolder}
+              onCreateFolder={createManagedFolder}
+              onRenameFolder={renameManagedFolder}
+              onDeleteFolder={deleteManagedFolder}
+              onDeleteSourceFolder={deleteSourceFolder}
+              onUpdateBook={updateMobileBook}
+              onMoveBooks={moveBooks}
+              onDeleteBooks={deleteBooks}
             />
           )}
 
-          {false && activeTab === "library" && (
+          {/* Legacy library prototype retained in history; the managed library is rendered above.
             <section className="space-y-5 p-4">
               <div className="flex gap-2">
                 <button
@@ -933,7 +1205,7 @@ function MobileApp() {
                 </div>
               )}
             </section>
-          )}
+          */}
 
           {activeTab === "reader" && (
             <>
@@ -941,9 +1213,13 @@ function MobileApp() {
                 <div className="h-[calc(100dvh-64px)] w-full">
                   <EpubPane
                     dataUrl={selectedBookDataUrl}
-                    location={epubLocation[selectedBook.id]}
-                    onLocationChange={(location) => {
-                      setEpubLocation((current) => ({ ...current, [selectedBook.id]: location }));
+                    location={selectedBook.epubLocation}
+                    onLocationChange={(location, progressPercent) => {
+                      setState((current) => updateBook(current, selectedBook.id, {
+                        epubLocation: location,
+                        progressPercent,
+                        lastOpenedAt: new Date().toISOString(),
+                      }));
                     }}
                   />
                 </div>
@@ -1048,7 +1324,15 @@ function MobileApp() {
                             }}
                           />
                         ) : selectedBookDataUrl && selectedBook.fileType === "txt" ? (
-                          <TextReader dataUrl={selectedBookDataUrl} />
+                          <TextReader
+                            dataUrl={selectedBookDataUrl}
+                            initialProgress={selectedBook.textScrollPercent || 0}
+                            onProgress={(progressPercent) => setState((current) => updateBook(current, selectedBook.id, {
+                              textScrollPercent: progressPercent,
+                              progressPercent,
+                              lastOpenedAt: new Date().toISOString(),
+                            }))}
+                          />
                         ) : (
                           <div className="min-h-[360px] p-5 text-sm leading-7 text-zinc-300">
                             <p>
@@ -1113,7 +1397,7 @@ function MobileApp() {
                           value={selectedBook.category}
                           onChange={(event) => setBookCategory(selectedBook.id, event.target.value)}
                         >
-                          {categories.map((category) => (
+                          {state.categories.map((category) => (
                             <option key={category}>{category}</option>
                           ))}
                         </select>
@@ -1133,13 +1417,27 @@ function MobileApp() {
             </>
           )}
 
-          {activeTab === "dashboard" && (
+          {activeTab === "recent" && (
             <section className="space-y-5 p-4">
               <div className="grid grid-cols-2 gap-3">
                 <StatTile label="Livros" value={String(stats.books)} detail="no aparelho" />
                 <StatTile label="Paginas" value={String(stats.pagesRead)} detail="registradas" />
                 <StatTile label="Tempo" value={`${stats.minutesRead}m`} detail="de leitura" />
                 <StatTile label="Streak" value={`${stats.currentStreak}d`} detail="dias seguidos" />
+              </div>
+
+              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+                <h2 className="text-base font-semibold text-zinc-100">Continuar lendo</h2>
+                <div className="mt-3 space-y-2">
+                  {state.books.filter((book) => book.lastOpenedAt).sort((left, right) => String(right.lastOpenedAt).localeCompare(String(left.lastOpenedAt))).slice(0, 6).map((book) => (
+                    <button key={book.id} className="flex w-full items-center gap-3 rounded-xl bg-zinc-950 p-3 text-left" onClick={() => selectBook(book.id)} type="button">
+                      <div className="h-12 w-9 overflow-hidden rounded bg-zinc-800">{book.thumbnailUrl ? <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" /> : null}</div>
+                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{book.title}</p><p className="mt-1 text-xs text-zinc-500">{book.fileType === "pdf" ? `Pagina ${book.currentPage}` : `${Math.round(book.progressPercent || book.textScrollPercent || 0)}%`} · {book.minutesRead} min</p></div>
+                      <ChevronRight size={17} className="text-zinc-600" />
+                    </button>
+                  ))}
+                  {!state.books.some((book) => book.lastOpenedAt) && <p className="text-sm text-zinc-500">Abra um livro para ele aparecer aqui.</p>}
+                </div>
               </div>
 
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
@@ -1165,54 +1463,19 @@ function MobileApp() {
             </section>
           )}
 
-          {activeTab === "habits" && (
-            <section className="space-y-5 p-4">
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-sm font-medium text-zinc-100">Novo habito</p>
-                <div className="mt-3 flex gap-2">
-                  <input
-                    className="h-11 min-w-0 flex-1 rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
-                    placeholder="Ex: ler antes de dormir"
-                    value={newHabitName}
-                    onChange={(event) => setNewHabitName(event.target.value)}
-                  />
-                  <button
-                    className="grid h-11 w-11 place-items-center rounded bg-green-600 text-white"
-                    onClick={addHabit}
-                    type="button"
-                    aria-label="Adicionar habito"
-                  >
-                    <Plus size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-zinc-100">Hoje</h2>
-                  <p className="text-sm text-zinc-500">
-                    {stats.finishedHabitsToday}/{state.habits.length}
-                  </p>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {state.habits.map((habit) => {
-                    const done = Boolean(habit.completions[today]);
-                    return (
-                      <button
-                        key={habit.id}
-                        className="flex w-full items-center gap-3 rounded bg-zinc-950 p-3 text-left"
-                        onClick={() => toggleHabit(habit)}
-                        type="button"
-                      >
-                        <span className={done ? "text-green-400" : "text-zinc-500"}>
-                          {done ? <CheckSquare size={20} /> : <Square size={20} />}
-                        </span>
-                        <span className="min-w-0 flex-1 text-sm font-medium text-zinc-100">{habit.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          {activeTab === "favorites" && (
+            <section className="space-y-3 p-4">
+              {state.books.filter((book) => book.isFavorite).length === 0 ? (
+                <EmptyState title="Nenhum favorito" body="Marque livros com o coracao no leitor ou nos detalhes da biblioteca." />
+              ) : state.books.filter((book) => book.isFavorite).map((book) => (
+                <button key={book.id} className="flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-left" onClick={() => selectBook(book.id)} type="button">
+                  <div className="h-16 w-12 overflow-hidden rounded-lg bg-zinc-800">
+                    {book.thumbnailUrl ? <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" /> : <div className="grid h-full place-items-center text-xs uppercase text-emerald-400">{book.fileType}</div>}
+                  </div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.author || book.category}</p></div>
+                  <Heart className="fill-emerald-400 text-emerald-400" size={18} />
+                </button>
+              ))}
             </section>
           )}
 
@@ -1302,8 +1565,9 @@ function MobileApp() {
   );
 }
 
-function TextReader({ dataUrl }: { dataUrl: string }) {
+function TextReader({ dataUrl, initialProgress, onProgress }: { dataUrl: string; initialProgress: number; onProgress: (progress: number) => void }) {
   const [content, setContent] = useState("Carregando texto...");
+  const scrollRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     fetch(dataUrl)
@@ -1312,8 +1576,22 @@ function TextReader({ dataUrl }: { dataUrl: string }) {
       .catch(() => setContent("Nao foi possivel ler o arquivo de texto."));
   }, [dataUrl]);
 
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || content === "Carregando texto...") return;
+    element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight) * (initialProgress / 100);
+  }, [content, initialProgress]);
+
   return (
-    <article className="max-h-[560px] overflow-y-auto bg-zinc-100 p-5 text-base leading-8 text-zinc-950">
+    <article
+      ref={scrollRef}
+      className="max-h-[560px] overflow-y-auto bg-zinc-100 p-5 text-base leading-8 text-zinc-950"
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        const available = Math.max(1, element.scrollHeight - element.clientHeight);
+        onProgress(Math.round((element.scrollTop / available) * 100));
+      }}
+    >
       <pre className="whitespace-pre-wrap font-sans">{content}</pre>
     </article>
   );
