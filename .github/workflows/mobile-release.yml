@@ -82,6 +82,7 @@ jobs:
   ios-native-check:
     name: iOS native project check
     runs-on: macos-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

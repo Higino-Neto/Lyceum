@@ -45,13 +45,13 @@
         "ext": "pdf",
         "name": "PDF Document",
         "description": "PDF Document",
-        "icon": "resources/icons/pdf-icon.ico"
+        "icon": "pdf-icon"
       },
       {
         "ext": "epub",
         "name": "EPUB Book",
         "description": "EPUB Book",
-        "icon": "resources/icons/epub-icon.ico"
+        "icon": "epub-icon"
       }
     ],
     "nsis": {
