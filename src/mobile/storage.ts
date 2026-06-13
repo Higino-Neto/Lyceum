@@ -1,231 +1,160 @@
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import type {
   MobileBook,
   MobileFileType,
   MobileHabit,
+  MobileLibraryFolder,
   MobileLibraryState,
   MobileReadingSession,
+  MobileSourceFolder,
   MobileStats,
 } from "./types";
 
+export const MOBILE_SCHEMA_VERSION = 2;
 const STORAGE_KEY = "lyceum_mobile_mvp_state";
+const DEFAULT_CATEGORIES = ["Geral", "Ficcao", "Tecnologia", "Filosofia", "Idiomas", "Academico"];
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const localDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
-function makeId(prefix: string) {
+export function makeMobileId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}_${crypto.randomUUID()}`;
   }
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-const demoHabits: MobileHabit[] = [
-  {
-    id: "habit_daily_reading",
-    name: "Ler por 20 minutos",
-    targetDays: [0, 1, 2, 3, 4, 5, 6],
-    completions: {},
-  },
-  {
-    id: "habit_review_notes",
-    name: "Revisar notas",
-    targetDays: [1, 3, 5],
-    completions: {},
-  },
-];
-
-const demoImportedAt = "2026-05-18T09:41:00.000Z";
-
-const demoBooks: MobileBook[] = [
-  {
-    id: "demo_crime_castigo",
-    title: "Crime e Castigo",
-    author: "Fiodor Dostoievski",
-    fileName: "crime-e-castigo.pdf",
-    fileType: "pdf",
-    thumbnailKey: "crime-castigo",
-    importedAt: demoImportedAt,
-    currentPage: 210,
-    totalPages: 552,
-    minutesRead: 128,
-    category: "Literatura",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_essencialismo",
-    title: "Essencialismo",
-    author: "Greg McKeown",
-    fileName: "essencialismo.pdf",
-    fileType: "pdf",
-    thumbnailKey: "essencialismo",
-    importedAt: demoImportedAt,
-    currentPage: 174,
-    totalPages: 268,
-    minutesRead: 74,
-    category: "Produtividade",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_habitos_atomicos",
-    title: "Habitos Atomicos",
-    author: "James Clear",
-    fileName: "habitos-atomicos.epub",
-    fileType: "epub",
-    thumbnailKey: "habitos-atomicos",
-    importedAt: demoImportedAt,
-    currentPage: 234,
-    totalPages: 325,
-    minutesRead: 96,
-    category: "Desenvolvimento",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_sapiens",
-    title: "Sapiens",
-    author: "Yuval Noah Harari",
-    fileName: "sapiens.pdf",
-    fileType: "pdf",
-    thumbnailKey: "sapiens",
-    importedAt: demoImportedAt,
-    currentPage: 108,
-    totalPages: 450,
-    minutesRead: 112,
-    category: "Historia",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_pai_rico",
-    title: "Pai Rico, Pai Pobre",
-    author: "Robert Kiyosaki",
-    fileName: "pai-rico-pai-pobre.pdf",
-    fileType: "pdf",
-    thumbnailKey: "pai-rico",
-    importedAt: demoImportedAt,
-    currentPage: 81,
-    totalPages: 336,
-    minutesRead: 60,
-    category: "Financas",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_mindset",
-    title: "Mindset",
-    author: "Carol S. Dweck",
-    fileName: "mindset.epub",
-    fileType: "epub",
-    thumbnailKey: "mindset",
-    importedAt: demoImportedAt,
-    currentPage: 96,
-    totalPages: 320,
-    minutesRead: 22,
-    category: "Psicologia",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_ultima_supersticao",
-    title: "A Ultima Supersticao",
-    author: "Daniel Rops",
-    fileName: "a-ultima-supersticao.epub",
-    fileType: "epub",
-    thumbnailKey: "ultima-supersticao",
-    importedAt: demoImportedAt,
-    currentPage: 108,
-    totalPages: 312,
-    minutesRead: 140,
-    category: "Non-fiction",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_common_sense_guide",
-    title: "A Common-Sense Guide",
-    author: "Jay Wengrow",
-    fileName: "a-common-sense-guide.pdf",
-    fileType: "pdf",
-    thumbnailKey: "common-sense-guide",
-    importedAt: demoImportedAt,
-    currentPage: 17,
-    totalPages: 256,
-    minutesRead: 48,
-    category: "Technology",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_aristotle_revenge",
-    title: "Aristotle's Revenge",
-    author: "Edward Feser",
-    fileName: "aristotles-revenge.epub",
-    fileType: "epub",
-    thumbnailKey: "aristotles-revenge",
-    importedAt: demoImportedAt,
-    currentPage: 48,
-    totalPages: 300,
-    minutesRead: 85,
-    category: "Philosophy",
-    isFavorite: false,
-    notes: "",
-  },
-  {
-    id: "demo_karamazov",
-    title: "Os Irmaos Karamazov",
-    author: "Fyodor Dostoevsky",
-    fileName: "os-irmaos-karamazov.epub",
-    fileType: "epub",
-    thumbnailKey: "karamazov",
-    importedAt: demoImportedAt,
-    currentPage: 278,
-    totalPages: 818,
-    minutesRead: 340,
-    category: "Literature",
-    isFavorite: true,
-    notes: "",
-  },
-];
-
 export const emptyMobileState = (): MobileLibraryState => ({
-  books: demoBooks,
+  schemaVersion: MOBILE_SCHEMA_VERSION,
+  books: [],
+  folders: [],
+  sourceFolders: [],
+  categories: [...DEFAULT_CATEGORIES],
   sessions: [],
-  habits: demoHabits,
-  selectedBookId: demoBooks[0]?.id,
+  habits: [],
 });
+
+function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
+  if (!value.id || !value.fileName || !value.title) return null;
+  const fileType = value.fileType;
+  if (fileType !== "pdf" && fileType !== "epub" && fileType !== "txt") return null;
+
+  return {
+    id: value.id,
+    title: value.title,
+    author: value.author,
+    description: value.description,
+    isbn: value.isbn,
+    publisher: value.publisher,
+    publishDate: value.publishDate,
+    fileName: value.fileName,
+    fileType,
+    dataUrl: value.storagePath ? undefined : value.dataUrl,
+    storagePath: value.storagePath,
+    mimeType: value.mimeType,
+    fileSize: value.fileSize,
+    folderId: value.folderId,
+    sourceFolderId: value.sourceFolderId,
+    sourceRelativePath: value.sourceRelativePath,
+    thumbnailKey: value.thumbnailKey,
+    thumbnailPath: value.thumbnailPath,
+    thumbnailUrl: value.thumbnailUrl,
+    thumbnailSource: value.thumbnailSource,
+    thumbnailExtractAttempted: value.thumbnailExtractAttempted,
+    importedAt: value.importedAt || new Date().toISOString(),
+    updatedAt: value.updatedAt,
+    lastOpenedAt: value.lastOpenedAt,
+    currentPage: Math.max(1, Number(value.currentPage) || 1),
+    totalPages: Math.max(1, Number(value.totalPages) || 1),
+    progressPercent: Math.min(100, Math.max(0, Number(value.progressPercent) || 0)),
+    epubLocation: value.epubLocation,
+    textScrollPercent: Math.min(100, Math.max(0, Number(value.textScrollPercent) || 0)),
+    currentZoom: value.currentZoom,
+    minutesRead: Math.max(0, Number(value.minutesRead) || 0),
+    category: value.category || "Geral",
+    isFavorite: Boolean(value.isFavorite),
+    rating: Math.min(5, Math.max(0, Number(value.rating) || 0)),
+    notes: value.notes || "",
+  };
+}
+
+export function migrateMobileState(value: unknown): MobileLibraryState {
+  if (!value || typeof value !== "object") return emptyMobileState();
+  const parsed = value as Partial<MobileLibraryState>;
+  const books = Array.isArray(parsed.books)
+    ? parsed.books
+      .map((book) => normalizeBook(book))
+      .filter((book): book is MobileBook => Boolean(book))
+      .filter((book) => !book.id.startsWith("demo_") || Boolean(book.storagePath || book.dataUrl))
+    : [];
+  const folders = Array.isArray(parsed.folders) ? parsed.folders.filter((folder): folder is MobileLibraryFolder => Boolean(folder?.id && folder?.name)) : [];
+  const sourceFolders = Array.isArray(parsed.sourceFolders)
+    ? parsed.sourceFolders.filter((folder): folder is MobileSourceFolder => Boolean(folder?.id && folder?.name))
+    : [];
+  const categories = Array.from(new Set([
+    ...DEFAULT_CATEGORIES,
+    ...(Array.isArray(parsed.categories) ? parsed.categories : []),
+    ...books.map((book) => book.category),
+  ].filter(Boolean)));
+
+  return {
+    schemaVersion: MOBILE_SCHEMA_VERSION,
+    books,
+    folders,
+    sourceFolders,
+    categories,
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+    habits: Array.isArray(parsed.habits) ? parsed.habits : [],
+    selectedBookId: books.some((book) => book.id === parsed.selectedBookId) ? parsed.selectedBookId : books[0]?.id,
+    selectedFolderId: folders.some((folder) => folder.id === parsed.selectedFolderId) ? parsed.selectedFolderId : undefined,
+  };
+}
 
 export function loadMobileState(): MobileLibraryState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyMobileState();
-    const parsed = JSON.parse(raw) as MobileLibraryState;
-    return {
-      books: Array.isArray(parsed.books) ? parsed.books : [],
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      habits: Array.isArray(parsed.habits) && parsed.habits.length > 0 ? parsed.habits : demoHabits,
-      selectedBookId: parsed.selectedBookId,
-    };
+    return raw ? migrateMobileState(JSON.parse(raw)) : emptyMobileState();
   } catch {
     return emptyMobileState();
   }
 }
 
-export function saveMobileState(state: MobileLibraryState) {
+export async function hydrateMobileState() {
+  if (!Capacitor.isNativePlatform()) return loadMobileState();
   try {
+    const { value } = await Preferences.get({ key: STORAGE_KEY });
+    const state = value ? migrateMobileState(JSON.parse(value)) : loadMobileState();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return state;
   } catch {
-    // Keep the in-memory session alive if browser storage is full.
+    return loadMobileState();
   }
 }
 
-export function inferFileType(file: File): MobileFileType {
+export function saveMobileState(state: MobileLibraryState) {
+  const normalized = migrateMobileState(state);
+  const serialized = JSON.stringify(normalized);
+  try {
+    localStorage.setItem(STORAGE_KEY, serialized);
+  } catch {
+    // Preferences remains the durable native repository if the web mirror is full.
+  }
+  if (Capacitor.isNativePlatform()) {
+    void Preferences.set({ key: STORAGE_KEY, value: serialized });
+  }
+}
+
+export function inferFileType(file: File): MobileFileType | null {
   const name = file.name.toLowerCase();
   if (file.type === "application/pdf" || name.endsWith(".pdf")) return "pdf";
-  if (name.endsWith(".epub")) return "epub";
-  if (file.type === "text/html" || name.endsWith(".html") || name.endsWith(".htm")) return "html";
-  if (file.type.startsWith("text/") || name.endsWith(".txt")) return "txt";
-  return "other";
+  if (file.type === "application/epub+zip" || name.endsWith(".epub")) return "epub";
+  if (file.type.startsWith("text/plain") || name.endsWith(".txt")) return "txt";
+  return null;
 }
 
 export function guessTitle(fileName: string) {
@@ -245,101 +174,86 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-export function createBookFromFile(file: File, dataUrl: string): MobileBook {
-  const id = makeId("book");
+export function createBookFromFile(file: File, dataUrl: string, folderId?: string): MobileBook {
+  const fileType = inferFileType(file);
+  if (!fileType) throw new Error(`Formato nao suportado: ${file.name}`);
+  const id = makeMobileId("book");
   return {
     id,
     title: guessTitle(file.name),
     fileName: file.name,
-    fileType: inferFileType(file),
+    fileType,
     dataUrl,
     mimeType: file.type || undefined,
     fileSize: file.size,
+    folderId,
     thumbnailKey: `generated-${id}`,
     importedAt: new Date().toISOString(),
     currentPage: 1,
     totalPages: 1,
+    progressPercent: 0,
+    textScrollPercent: 0,
     minutesRead: 0,
     category: "Geral",
     isFavorite: false,
+    rating: 0,
     notes: "",
   };
 }
 
-export function createManualBook(title: string, author?: string): MobileBook {
-  const id = makeId("book");
-  return {
-    id,
-    title,
-    author,
-    fileName: `${title}.lyceum`,
-    fileType: "other",
-    thumbnailKey: `generated-${id}`,
-    importedAt: new Date().toISOString(),
-    currentPage: 1,
-    totalPages: 1,
-    minutesRead: 0,
-    category: "Geral",
-    isFavorite: false,
-    notes: "",
-  };
+export function createFolder(name: string, parentId?: string): MobileLibraryFolder {
+  return { id: makeMobileId("folder"), name: name.trim(), parentId, createdAt: new Date().toISOString() };
 }
 
-export function createSession(book: MobileBook, minutes: number, pages: number): MobileReadingSession {
+export function createSourceFolder(name: string, count: number): MobileSourceFolder {
+  const now = new Date().toISOString();
+  return { id: makeMobileId("source"), name: name.trim(), createdAt: now, lastImportedAt: now, lastFileCount: count };
+}
+
+export function createSession(
+  book: MobileBook,
+  minutes: number,
+  pages: number,
+  details: Partial<MobileReadingSession> = {},
+): MobileReadingSession {
   return {
-    id: makeId("session"),
+    id: makeMobileId("session"),
     bookId: book.id,
     title: book.title,
     date: new Date().toISOString(),
     minutes,
     pages,
+    ...details,
   };
 }
 
 export function createHabit(name: string): MobileHabit {
-  return {
-    id: makeId("habit"),
-    name,
-    targetDays: [0, 1, 2, 3, 4, 5, 6],
-    completions: {},
-  };
+  return { id: makeMobileId("habit"), name, targetDays: [0, 1, 2, 3, 4, 5, 6], completions: {} };
 }
 
 export function calculateStats(state: MobileLibraryState): MobileStats {
   const pagesRead = state.sessions.reduce((total, session) => total + session.pages, 0);
   const minutesRead = state.sessions.reduce((total, session) => total + session.minutes, 0);
-  const today = todayKey();
+  const today = localDateKey();
   const finishedHabitsToday = state.habits.filter((habit) => habit.completions[today]).length;
-
-  return {
-    books: state.books.length,
-    pagesRead,
-    minutesRead,
-    currentStreak: calculateReadingStreak(state.sessions),
-    finishedHabitsToday,
-  };
+  return { books: state.books.length, pagesRead, minutesRead, currentStreak: calculateReadingStreak(state.sessions), finishedHabitsToday };
 }
 
 export function calculateReadingStreak(sessions: MobileReadingSession[]) {
-  const dates = new Set(sessions.map((session) => session.date.slice(0, 10)));
+  const dates = new Set(sessions.map((session) => localDateKey(new Date(session.date))));
   let streak = 0;
   const cursor = new Date();
-
-  while (dates.has(cursor.toISOString().slice(0, 10))) {
+  while (dates.has(localDateKey(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
-
   return streak;
 }
 
 export function formatShortDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-  }).format(new Date(value));
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date(value));
 }
 
 export function getTodayKey() {
-  return todayKey();
+  return localDateKey();
 }

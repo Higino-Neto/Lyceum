@@ -412,6 +412,14 @@ export async function persistExtractedBookThumbnail(book: MobileBook, dataUrl: s
   };
 }
 
+export async function deleteMobileBookThumbnail(book?: MobileBook | null) {
+  if (!book?.thumbnailPath || !Capacitor.isNativePlatform()) return;
+  await Filesystem.deleteFile({
+    path: book.thumbnailPath,
+    directory: Directory.Data,
+  }).catch(() => undefined);
+}
+
 export async function hydrateMobileBookThumbnails(books: MobileBook[]): Promise<{ books: MobileBook[]; changed: boolean }> {
   const native = Capacitor.isNativePlatform();
   let changed = false;
