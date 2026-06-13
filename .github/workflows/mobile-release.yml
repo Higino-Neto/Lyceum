@@ -53,6 +53,25 @@ jobs:
       - name: Prepare native Android assets
         run: npm run mobile:native-assets
 
+      - name: Generate signing keystore for release APK
+        shell: bash
+        run: |
+          STORE_PASS=$(openssl rand -hex 16)
+          KEY_PASS=$(openssl rand -hex 16)
+          keytool -genkey -v \
+            -keystore "${{ runner.temp }}/release.keystore" \
+            -alias release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$STORE_PASS" \
+            -keypass "$KEY_PASS" \
+            -dname "CN=Lyceum Mobile, OU=, O=Higino-Neto, L=, S=, C="
+          echo "ANDROID_SIGNING_STORE_FILE=${{ runner.temp }}/release.keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_STORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_ALIAS=release" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+
       - name: Build Android APKs
         working-directory: android
         run: |
