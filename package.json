@@ -112,8 +112,7 @@
     "pdf-poppler": "^0.2.3",
     "pdfjs-dist": "^4.10.38",
     "sharp": "^0.34.5",
-    "wink-lemmatizer": "^3.0.4",
-    "@component-atlas/runtime": "file:C:/Users/tawlt/OneDrive/Documentos/Component-Atlas/packages/runtime"
+    "wink-lemmatizer": "^3.0.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
