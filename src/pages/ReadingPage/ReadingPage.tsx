@@ -10,7 +10,7 @@ import { FileType } from "../../types/DocumentTab";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { softFadeUp, springFast, subtleScale } from "../../utils/motionPresets";
 
-interface ReadingRouteState {
+export interface ReadingLaunchState {
   fileBuffer?: ArrayBuffer;
   fileHash?: string;
   fileName?: string;
@@ -41,15 +41,11 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
 }
 
 function ReadingContent() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
-  const routeState = (location.state as ReadingRouteState | null) ?? null;
   const session = useReadingSession();
-  const { activeTab, addTab } = useTabContext();
+  const { activeTab } = useTabContext();
   const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const navigationId = routeState?.navigationId;
 
   useEffect(() => {
     const checkFocusMode = () => {
@@ -62,41 +58,6 @@ function ReadingContent() {
     return () => clearInterval(interval);
   }, [activeType]);
 
-
-  useEffect(() => {
-    if (!routeState?.fileHash) {
-      return;
-    }
-
-    if (navigationId && processedNavigationIds.has(navigationId)) {
-      navigate(`${location.pathname}${location.search}`, {
-        replace: true,
-        state: null,
-      });
-      return;
-    }
-
-    if (navigationId) {
-      processedNavigationIds.add(navigationId);
-    }
-
-    addTab(
-      routeState.fileHash,
-      routeState.fileName || "Livro sem nome",
-      inferFileType(routeState.fileName, routeState.fileType),
-      {
-        buffer: routeState.fileBuffer,
-        filePath: routeState.filePath,
-        source: routeState.source || "local",
-        libraryDocumentId: routeState.libraryDocumentId,
-      }
-    );
-
-    navigate(`${location.pathname}${location.search}`, {
-      replace: true,
-      state: null,
-    });
-  }, [addTab, location.pathname, location.search, navigate, navigationId, routeState]);
 
   useEffect(() => {
     setActiveType(activeTab?.fileType ?? null);
@@ -236,7 +197,19 @@ function ReadingContent() {
   );
 }
 
-function TabBarWithContent() {
+interface ReadingWorkspaceProps {
+  incomingTab?: ReadingLaunchState | null;
+  onIncomingTabConsumed?: () => void;
+  enableShortcuts?: boolean;
+  className?: string;
+}
+
+export function ReadingWorkspace({
+  incomingTab = null,
+  onIncomingTabConsumed,
+  enableShortcuts = true,
+  className = "",
+}: ReadingWorkspaceProps) {
   const reduceMotion = useReducedMotion();
   const {
     tabs,
@@ -259,6 +232,34 @@ function TabBarWithContent() {
       buffer: result.buffer,
     });
   }, [addTab, openReadableFile]);
+
+  useEffect(() => {
+    if (!incomingTab?.fileHash) {
+      return;
+    }
+
+    if (incomingTab.navigationId && processedNavigationIds.has(incomingTab.navigationId)) {
+      onIncomingTabConsumed?.();
+      return;
+    }
+
+    if (incomingTab.navigationId) {
+      processedNavigationIds.add(incomingTab.navigationId);
+    }
+
+    addTab(
+      incomingTab.fileHash,
+      incomingTab.fileName || "Livro sem nome",
+      inferFileType(incomingTab.fileName, incomingTab.fileType),
+      {
+        buffer: incomingTab.fileBuffer,
+        filePath: incomingTab.filePath,
+        source: incomingTab.source || "local",
+        libraryDocumentId: incomingTab.libraryDocumentId,
+      }
+    );
+    onIncomingTabConsumed?.();
+  }, [addTab, incomingTab, onIncomingTabConsumed]);
 
   const activateTabByOffset = useCallback((offset: number) => {
     if (tabs.length === 0) {
@@ -330,6 +331,10 @@ function TabBarWithContent() {
   ]);
 
   useEffect(() => {
+    if (!enableShortcuts) {
+      return;
+    }
+
     const handledKeys = new Set(["w", "t", "tab", "pageup", "pagedown"]);
     const unsubscribe = window.api?.onReadingShortcut?.(
       (data: { key: string; shift?: boolean }) => {
@@ -360,11 +365,11 @@ function TabBarWithContent() {
       window.removeEventListener("keydown", handleKeyDown, true);
       unsubscribe?.();
     };
-  }, [handleReadingShortcut]);
+  }, [enableShortcuts, handleReadingShortcut]);
 
   return (
     <motion.div
-      className="flex h-full flex-col bg-zinc-950"
+      className={["flex h-full flex-col bg-zinc-950", className].filter(Boolean).join(" ")}
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : 0.16 }}
@@ -386,10 +391,12 @@ function TabBarWithContent() {
 
 export default function ReadingPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search]
   );
+  const routeState = (location.state as ReadingLaunchState | null) ?? null;
 
   const mode = searchParams.get("mode");
   const detached = mode === "detached";
@@ -416,9 +423,19 @@ export default function ReadingPage() {
     };
   }, [detached, fileHash, fileName, fileType, searchParams]);
 
+  const handleRouteStateConsumed = useCallback(() => {
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
+    });
+  }, [location.pathname, location.search, navigate]);
+
   return (
     <TabProvider scope={detached ? "detached" : "main"} initialTab={initialTab}>
-      <TabBarWithContent />
+      <ReadingWorkspace
+        incomingTab={routeState}
+        onIncomingTabConsumed={handleRouteStateConsumed}
+      />
     </TabProvider>
   );
 }

@@ -10,7 +10,7 @@
     "clean:build": "node scripts/clean-build.mjs",
     "size:audit": "node scripts/size-audit.mjs",
     "prebuild": "node scripts/clean-build.mjs",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/verify-electron-imports.mjs",
     "build:mobile": "vite build --config vite.mobile.config.ts",
     "mobile:ota": "npm run build:mobile && node scripts/prepare-mobile-ota.mjs",
     "mobile:native-assets": "node scripts/prepare-native-mobile-assets.mjs",
@@ -86,7 +86,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "resources/icons/icon.ico"
     },
     "mac": {
       "target": "dmg"
@@ -130,8 +130,8 @@
     "@testing-library/user-event": "^14.5.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/chokidar": "^1.7.5",
-    "@types/react": "^18.2.64",
-    "@types/react-dom": "^18.2.21",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@uiw/react-heat-map": "^2.3.3",

@@ -1,32 +1,70 @@
-import { fireEvent, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HabitTrackerPage from "../../pages/HabitTrackerPage/HabitTrackerPage";
 import { renderWithBasicProviders } from "../helpers/renderWithProviders";
+
+const originalWindowApi = window.api;
+
+const mockHabitApi = {
+  habitsGetAll: vi.fn().mockResolvedValue([]),
+  habitsGetAllCompletions: vi.fn().mockResolvedValue([]),
+  habitsAdd: vi.fn().mockResolvedValue(undefined),
+  habitsUpdate: vi.fn().mockResolvedValue(undefined),
+  habitsDelete: vi.fn().mockResolvedValue(undefined),
+  habitsSetCompletion: vi.fn().mockResolvedValue(undefined),
+  habitsDeleteCompletion: vi.fn().mockResolvedValue(undefined),
+};
+
+async function renderHabitTrackerPage() {
+  renderWithBasicProviders(<HabitTrackerPage />);
+  await waitFor(() => {
+    expect(mockHabitApi.habitsGetAllCompletions).toHaveBeenCalled();
+  });
+}
+
+function submitHabit(name: string) {
+  const nameInput = screen.getByRole("textbox", { name: /Nome do h.bito/i });
+  fireEvent.change(nameInput, { target: { value: name } });
+  expect(nameInput).toHaveValue(name);
+  fireEvent.submit(nameInput.closest("form")!);
+}
 
 describe("HabitTrackerPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.clearAllMocks();
+    Object.defineProperty(window, "api", {
+      value: mockHabitApi,
+      writable: true,
+      configurable: true,
+    });
   });
 
-  it("creates and renders a new habit", () => {
-    renderWithBasicProviders(<HabitTrackerPage />);
-
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Ler 20 páginas" },
+  afterEach(() => {
+    Object.defineProperty(window, "api", {
+      value: originalWindowApi,
+      writable: true,
+      configurable: true,
     });
-
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
-
-    expect(screen.getByText("Ler 20 páginas")).toBeInTheDocument();
   });
 
-  it("toggles a day completion and persists it", () => {
-    renderWithBasicProviders(<HabitTrackerPage />);
+  it("creates and renders a new habit", async () => {
+    await renderHabitTrackerPage();
 
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Meditar" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
+    submitHabit("Ler 20 paginas");
+
+    expect(await screen.findByText("Ler 20 paginas")).toBeInTheDocument();
+    expect(mockHabitApi.habitsAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Ler 20 paginas" })
+    );
+  });
+
+  it("toggles a day completion and persists it", async () => {
+    await renderHabitTrackerPage();
+
+    submitHabit("Meditar");
+
+    await screen.findByText("Meditar");
 
     const firstDayButton = screen.getAllByRole("button", {
       name: /Meditar - dia \d+/i,
@@ -34,19 +72,22 @@ describe("HabitTrackerPage", () => {
 
     fireEvent.click(firstDayButton);
 
-    expect(firstDayButton).toHaveAttribute("aria-pressed", "true");
-    expect(window.localStorage.getItem("lyceum_habit_tracker")).toContain(
-      "Meditar"
+    await waitFor(() => {
+      expect(firstDayButton).toHaveAttribute("aria-pressed", "true");
+    });
+    expect(mockHabitApi.habitsSetCompletion).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "true"
     );
   });
 
-  it("removes a habit and its stored completions", () => {
-    renderWithBasicProviders(<HabitTrackerPage />);
+  it("removes a habit and its stored completions", async () => {
+    await renderHabitTrackerPage();
 
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Escrever" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
+    submitHabit("Escrever");
+
+    await screen.findByText("Escrever");
 
     const firstDayButton = screen.getAllByRole("button", {
       name: /Escrever - dia \d+/i,
@@ -57,24 +98,20 @@ describe("HabitTrackerPage", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
 
-    expect(screen.queryByText("Escrever")).not.toBeInTheDocument();
-    expect(window.localStorage.getItem("lyceum_habit_tracker")).not.toContain(
-      "Escrever"
-    );
+    await waitFor(() => {
+      expect(screen.queryByText("Escrever")).not.toBeInTheDocument();
+    });
+    expect(mockHabitApi.habitsDelete).toHaveBeenCalledWith(expect.any(String));
   });
 
-  it("reorders habits with drag and drop", () => {
-    renderWithBasicProviders(<HabitTrackerPage />);
+  it("reorders habits with drag and drop", async () => {
+    await renderHabitTrackerPage();
 
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Alongar" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
+    submitHabit("Alongar");
+    await screen.findByText("Alongar");
 
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Estudar" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
+    submitHabit("Estudar");
+    await screen.findByText("Estudar");
 
     const dragHandle = screen.getByRole("button", {
       name: /Reordenar h.bito Estudar/i,
@@ -91,19 +128,18 @@ describe("HabitTrackerPage", () => {
     expect(habitNames[1]).toHaveTextContent("Alongar");
   });
 
-  it("creates a measurable habit with unit and stores a numeric value", () => {
-    renderWithBasicProviders(<HabitTrackerPage />);
+  it("creates a measurable habit with unit and stores a numeric value", async () => {
+    await renderHabitTrackerPage();
 
-    fireEvent.change(screen.getByLabelText(/Nome do hábito/i), {
-      target: { value: "Estudar" },
-    });
+    const nameInput = screen.getByRole("textbox", { name: /Nome do h.bito/i });
+    fireEvent.change(nameInput, { target: { value: "Estudar" } });
     fireEvent.click(screen.getByLabelText(/Mensurar/i));
     fireEvent.change(screen.getByLabelText(/Unidade de medida/i), {
       target: { value: "Horas" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Adicionar hábito/i }));
+    fireEvent.submit(nameInput.closest("form")!);
 
-    expect(screen.getByText("Estudar (Horas)")).toBeInTheDocument();
+    expect(await screen.findByText("Estudar (Horas)")).toBeInTheDocument();
 
     const firstDayButton = screen.getAllByRole("button", {
       name: /Estudar \(Horas\) - dia \d+/i,
@@ -120,50 +156,45 @@ describe("HabitTrackerPage", () => {
     });
     fireEvent.keyDown(measureInput, { key: "Enter" });
 
-    expect(
-      screen.getAllByRole("button", {
-        name: /Estudar \(Horas\) - dia \d+/i,
-      })[0]
-    ).toHaveTextContent("2");
-
-    const savedState = JSON.parse(
-      window.localStorage.getItem("lyceum_habit_tracker") ?? "{}"
-    );
-
-    expect(savedState.habits[0]).toMatchObject({
-      name: "Estudar",
-      unit: "Horas",
-      valueMode: "measure",
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("button", {
+          name: /Estudar \(Horas\) - dia \d+/i,
+        })[0]
+      ).toHaveTextContent("2");
     });
-    expect(
-      Object.values(savedState.completions[savedState.habits[0].id])
-    ).toContain(2);
-  });
 
-  it("renders when persisted tracker data uses the old object format", () => {
-    window.localStorage.setItem(
-      "lyceum_habit_tracker",
-      JSON.stringify({
-        habits: [
-          {
-            id: "habit-1",
-            name: "Meditar",
-            createdAt: new Date().toISOString(),
-            unit: "yn",
-            valueMode: "toggle",
-          },
-        ],
-        completions: {
-          "habit-1": {
-            "2026-04-01": true,
-            "2026-04-02": 3,
-          },
-        },
+    expect(mockHabitApi.habitsAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Estudar",
+        unit: "Horas",
+        valueMode: "measure",
       })
     );
+    expect(mockHabitApi.habitsSetCompletion).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "2"
+    );
+  });
+
+  it("renders persisted tracker data loaded from the app API", async () => {
+    mockHabitApi.habitsGetAll.mockResolvedValueOnce([
+      {
+        id: "habit-1",
+        name: "Meditar",
+        createdAt: new Date().toISOString(),
+        unit: "yn",
+        valueMode: "toggle",
+      },
+    ]);
+    mockHabitApi.habitsGetAllCompletions.mockResolvedValueOnce([
+      { habitId: "habit-1", dateKey: "2026-04-01", value: null },
+      { habitId: "habit-1", dateKey: "2026-04-02", value: "3" },
+    ]);
 
     renderWithBasicProviders(<HabitTrackerPage />);
 
-    expect(screen.getByText("Meditar")).toBeInTheDocument();
+    expect(await screen.findByText("Meditar")).toBeInTheDocument();
   });
 });

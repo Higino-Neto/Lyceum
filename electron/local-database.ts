@@ -2,57 +2,27 @@ import Database from "better-sqlite3";
 import electron from "electron";
 import path from "path";
 import fs from "fs";
+import type {
+  BookFileType,
+  DocumentRecord,
+  LibraryFileTypeFilter,
+  LibraryListQuery,
+  LibraryListResult,
+  LibrarySection,
+  LibrarySortOption,
+} from "../src/types/LibraryTypes";
 
 const { app } = electron;
 
-export type BookFileType =
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
-
-export interface DocumentRecord {
-  id: number;
-  title: string;
-  filePath: string;
-  fileHash: string;
-  fileName: string | null;
-  folderPath: string | null;
-  fileMtime: number | null;
-  currentPage: number;
-  currentZoom: number | null;
-  currentScroll: number | null;
-  annotations: string | null;
-  thumbnailPath: string | null;
-  numPages: number;
-  createdAt: string;
-  lastOpenedAt: string;
-  isSynced: number;
-  category: string | null;
-  isFavorite: number;
-  rating: number;
-  notes: string | null;
-  author: string | null;
-  description: string | null;
-  isbn: string | null;
-  publisher: string | null;
-  publishDate: string | null;
-  fileSize: number;
-  processingStatus: "pending" | "processing" | "completed" | "failed";
-  bookId: string | null;
-  fileType: BookFileType;
-  importedAt: string | null;
-  updatedAt: string | null;
-}
+export type {
+  BookFileType,
+  DocumentRecord,
+  LibraryFileTypeFilter,
+  LibraryListQuery,
+  LibraryListResult,
+  LibrarySection,
+  LibrarySortOption,
+};
 
 export interface BookCategory {
   id: number;
@@ -72,40 +42,6 @@ const DEFAULT_COLORS = [
 ];
 
 let db: Database.Database;
-
-export type LibrarySection = "all" | "synced" | "unsynced";
-export type LibrarySortOption =
-  | "title"
-  | "recent"
-  | "pages"
-  | "size"
-  | "title_asc"
-  | "title_desc"
-  | "recent_desc"
-  | "recent_asc"
-  | "pages_desc"
-  | "pages_asc"
-  | "size_desc"
-  | "size_asc";
-export type LibraryFileTypeFilter = "all" | BookFileType;
-
-export interface LibraryListQuery {
-  section?: LibrarySection;
-  search?: string;
-  folderPath?: string | null;
-  fileType?: LibraryFileTypeFilter;
-  sort?: LibrarySortOption;
-  limit?: number;
-  offset?: number;
-}
-
-export interface LibraryListResult {
-  items: DocumentRecord[];
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-}
 
 function normalizeStoredPath(filePath: string | null | undefined): string | null {
   return filePath ? filePath.replace(/\\/g, "/") : null;
@@ -277,6 +213,14 @@ export function initDatabase() {
     isbn TEXT,
     publisher TEXT,
     publishDate TEXT,
+    language TEXT,
+    identifier TEXT,
+    asin TEXT,
+    subject TEXT,
+    series TEXT,
+    seriesIndex TEXT,
+    authorSort TEXT,
+    titleSort TEXT,
     fileSize INTEGER DEFAULT 0,
     processingStatus TEXT DEFAULT 'pending',
     bookId TEXT,
@@ -290,7 +234,8 @@ export function initDatabase() {
 
   const migrationColumns = [
     "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "fileSize", "processingStatus", "bookId", "fileType",
+    "description", "isbn", "publisher", "publishDate", "language", "identifier", "asin", "subject",
+    "series", "seriesIndex", "authorSort", "titleSort", "fileSize", "processingStatus", "bookId", "fileType",
     "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt"
   ];
 
@@ -431,6 +376,22 @@ export function initDatabase() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS watch_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      path TEXT NOT NULL UNIQUE,
+      label TEXT,
+      type TEXT NOT NULL DEFAULT 'watch',
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  try {
+    db.exec(`ALTER TABLE watch_folders ADD COLUMN type TEXT NOT NULL DEFAULT 'watch'`);
+  } catch {
+    // Column already exists
+  }
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
 
@@ -472,6 +433,11 @@ export function initDatabase() {
     END
     WHERE filePath IS NOT NULL
   `);
+
+  db.exec(`DELETE FROM documents WHERE fileType = 'pdf' AND LOWER(filePath) LIKE '%.docx'`);
+  db.exec(`DELETE FROM documents WHERE fileType = 'pdf' AND LOWER(filePath) LIKE '%.txt'`);
+  db.exec(`DELETE FROM documents WHERE fileType = 'pdf' AND LOWER(filePath) LIKE '%.html'`);
+  db.exec(`DELETE FROM documents WHERE fileType = 'pdf' AND LOWER(filePath) LIKE '%.htm'`);
 
   hydrateDocumentFileMetadata();
 
@@ -743,17 +709,36 @@ export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
   }
 
   if (query.fileType && query.fileType !== "all") {
-    where.push("LOWER(COALESCE(d.fileType, '')) = ?");
-    values.push(query.fileType);
+    const fileTypes = String(query.fileType).split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+    if (fileTypes.length === 1) {
+      where.push("LOWER(COALESCE(d.fileType, '')) = ?");
+      values.push(fileTypes[0]);
+    } else if (fileTypes.length > 1) {
+      where.push(`LOWER(COALESCE(d.fileType, '')) IN (${fileTypes.map(() => "?").join(",")})`);
+      values.push(...fileTypes);
+    }
   }
 
-  if (query.folderPath) {
+  if (query.folderPath !== undefined && query.folderPath !== null) {
     const absoluteFolder = path.isAbsolute(query.folderPath)
       ? query.folderPath
       : path.join(app.getPath("userData"), "library", query.folderPath);
     const normalizedFolder = normalizeStoredPath(absoluteFolder);
-    where.push("(d.folderPath = ? OR d.folderPath LIKE ? OR REPLACE(d.filePath, '\\', '/') LIKE ?)");
-    values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
+    const normalizedFilePath = "REPLACE(d.filePath, '\\', '/')";
+
+    if (query.includeSubfolders === false) {
+      where.push(
+        `(d.folderPath = ? OR (${normalizedFilePath} LIKE ? AND ${normalizedFilePath} NOT LIKE ?))`,
+      );
+      values.push(
+        normalizedFolder,
+        `${normalizedFolder}/%`,
+        `${normalizedFolder}/%/%`,
+      );
+    } else {
+      where.push(`(d.folderPath = ? OR d.folderPath LIKE ? OR ${normalizedFilePath} LIKE ?)`);
+      values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
+    }
   }
 
   const ftsQuery = query.search ? tokenizeSearch(query.search) : "";
@@ -829,7 +814,7 @@ export function getLastDocument(): DocumentRecord | undefined {
     .get();
 }
 
-export function updateDocumentBookId(fileHash: string, bookId: string): void {
+export function updateDocumentBookId(fileHash: string, bookId: string | null): void {
   db.prepare(
     `UPDATE documents SET bookId = ? WHERE fileHash = ?`
   ).run(bookId, fileHash);
@@ -839,6 +824,147 @@ export function getDocumentsByBookId(bookId: string): DocumentRecord[] {
   return db.prepare<[string], DocumentRecord>(
     `SELECT * FROM documents WHERE bookId = ?`
   ).all(bookId);
+}
+
+type SharedMetadata = Pick<
+  DocumentRecord,
+  | "title"
+  | "author"
+  | "description"
+  | "isbn"
+  | "publisher"
+  | "publishDate"
+  | "language"
+  | "identifier"
+  | "asin"
+  | "subject"
+  | "series"
+  | "seriesIndex"
+  | "authorSort"
+  | "titleSort"
+>;
+
+const SHARED_METADATA_FIELDS: (keyof SharedMetadata)[] = [
+  "title",
+  "author",
+  "description",
+  "isbn",
+  "publisher",
+  "publishDate",
+  "language",
+  "identifier",
+  "asin",
+  "subject",
+  "series",
+  "seriesIndex",
+  "authorSort",
+  "titleSort",
+];
+
+function hasMeaningfulValue(value: unknown): boolean {
+  return typeof value === "string" ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+export function mergeDocuments(fileHashes: string[], bookId: string): {
+  success: boolean;
+  bookId: string;
+  mergedCount: number;
+  documents: DocumentRecord[];
+  error?: string;
+} {
+  const uniqueHashes = Array.from(new Set(fileHashes.filter(Boolean)));
+  if (uniqueHashes.length < 2) {
+    return { success: false, bookId, mergedCount: 0, documents: [], error: "Selecione pelo menos dois livros" };
+  }
+
+  const selectedDocs = uniqueHashes
+    .map((fileHash) => getDocumentByHash(fileHash))
+    .filter((doc): doc is DocumentRecord => Boolean(doc));
+
+  if (selectedDocs.length < 2) {
+    return { success: false, bookId, mergedCount: 0, documents: [], error: "Livros nao encontrados" };
+  }
+
+  const existingBookIds = Array.from(
+    new Set(selectedDocs.map((doc) => doc.bookId).filter((value): value is string => Boolean(value))),
+  );
+  const groupedDocs = existingBookIds.flatMap((existingBookId) => getDocumentsByBookId(existingBookId));
+  const allDocsByHash = new Map<string, DocumentRecord>();
+  for (const doc of [...selectedDocs, ...groupedDocs]) {
+    allDocsByHash.set(doc.fileHash, doc);
+  }
+
+  const allDocs = Array.from(allDocsByHash.values());
+  const canonical = selectedDocs[0];
+  const sharedMetadata = SHARED_METADATA_FIELDS.reduce((metadata, field) => {
+    const canonicalValue = canonical[field];
+    const fallbackValue = allDocs.find((doc) => hasMeaningfulValue(doc[field]))?.[field] ?? null;
+    return {
+      ...metadata,
+      [field]: hasMeaningfulValue(canonicalValue) ? canonicalValue : fallbackValue,
+    };
+  }, {} as SharedMetadata);
+  const sharedThumbnailPath =
+    canonical.thumbnailPath ||
+    allDocs.find((doc) => hasMeaningfulValue(doc.thumbnailPath))?.thumbnailPath ||
+    null;
+
+  const updateSql = `
+    UPDATE documents
+    SET bookId = ?,
+        title = ?,
+        author = ?,
+        description = ?,
+        isbn = ?,
+        publisher = ?,
+        publishDate = ?,
+        language = ?,
+        identifier = ?,
+        asin = ?,
+        subject = ?,
+        series = ?,
+        seriesIndex = ?,
+        authorSort = ?,
+        titleSort = ?,
+        thumbnailPath = COALESCE(?, thumbnailPath),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE fileHash = ?
+  `;
+  const update = db.prepare(updateSql);
+
+  const updateMany = db.transaction((docs: DocumentRecord[]) => {
+    for (const doc of docs) {
+      update.run(
+        bookId,
+        sharedMetadata.title,
+        sharedMetadata.author,
+        sharedMetadata.description,
+        sharedMetadata.isbn,
+        sharedMetadata.publisher,
+        sharedMetadata.publishDate,
+        sharedMetadata.language,
+        sharedMetadata.identifier,
+        sharedMetadata.asin,
+        sharedMetadata.subject,
+        sharedMetadata.series,
+        sharedMetadata.seriesIndex,
+        sharedMetadata.authorSort,
+        sharedMetadata.titleSort,
+        sharedThumbnailPath,
+        doc.fileHash,
+      );
+      refreshDocumentSearchIndex(doc.fileHash);
+    }
+  });
+
+  updateMany(allDocs);
+
+  return {
+    success: true,
+    bookId,
+    mergedCount: allDocs.length,
+    documents: allDocs.map((doc) => getDocumentByHash(doc.fileHash)).filter((doc): doc is DocumentRecord => Boolean(doc)),
+  };
 }
 
 export function getDocumentByTitle(title: string): DocumentRecord | undefined {
@@ -958,6 +1084,14 @@ export function updateMetadata(
     isbn?: string;
     publisher?: string;
     publishDate?: string;
+    language?: string;
+    identifier?: string;
+    asin?: string;
+    subject?: string;
+    series?: string;
+    seriesIndex?: string;
+    authorSort?: string;
+    titleSort?: string;
   }
 ): void {
   const sets: string[] = [];
@@ -988,6 +1122,38 @@ export function updateMetadata(
     sets.push("publishDate = ?");
     values.push(metadata.publishDate);
   }
+  if (metadata.language !== undefined) {
+    sets.push("language = ?");
+    values.push(metadata.language);
+  }
+  if (metadata.identifier !== undefined) {
+    sets.push("identifier = ?");
+    values.push(metadata.identifier);
+  }
+  if (metadata.asin !== undefined) {
+    sets.push("asin = ?");
+    values.push(metadata.asin);
+  }
+  if (metadata.subject !== undefined) {
+    sets.push("subject = ?");
+    values.push(metadata.subject);
+  }
+  if (metadata.series !== undefined) {
+    sets.push("series = ?");
+    values.push(metadata.series);
+  }
+  if (metadata.seriesIndex !== undefined) {
+    sets.push("seriesIndex = ?");
+    values.push(metadata.seriesIndex);
+  }
+  if (metadata.authorSort !== undefined) {
+    sets.push("authorSort = ?");
+    values.push(metadata.authorSort);
+  }
+  if (metadata.titleSort !== undefined) {
+    sets.push("titleSort = ?");
+    values.push(metadata.titleSort);
+  }
   
   if (sets.length > 0) {
     sets.push("updatedAt = CURRENT_TIMESTAMP");
@@ -1012,6 +1178,28 @@ export function getDocumentsPendingProcessing(): DocumentRecord[] {
 
 export function updateFileSize(fileHash: string, fileSize: number): void {
   db.prepare(`UPDATE documents SET fileSize = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(fileSize, fileHash);
+}
+
+export function updateDocumentFileIdentity(
+  oldFileHash: string,
+  newFileHash: string,
+  filePath: string,
+  fileSize: number,
+): void {
+  db.prepare(
+    `
+    UPDATE documents
+    SET fileHash = ?,
+        filePath = ?,
+        fileName = ?,
+        folderPath = ?,
+        fileMtime = ?,
+        fileSize = ?,
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE fileHash = ?
+  `,
+  ).run(newFileHash, filePath, getFileName(filePath), getFolderPath(filePath), getFileMtime(filePath), fileSize, oldFileHash);
+  refreshDocumentSearchIndex(newFileHash);
 }
 
 export function updateTitle(fileHash: string, newTitle: string): void {
@@ -1080,6 +1268,14 @@ export function getDocumentsForBackup(): {
   isbn: string | null;
   publisher: string | null;
   publishDate: string | null;
+  language: string | null;
+  identifier: string | null;
+  asin: string | null;
+  subject: string | null;
+  series: string | null;
+  seriesIndex: string | null;
+  authorSort: string | null;
+  titleSort: string | null;
   category: string | null;
   processingStatus: string;
   bookId: string | null;
@@ -1231,4 +1427,102 @@ export function hasWordIndex(fileHash: string): boolean {
 
 export function deleteWordIndex(fileHash: string): void {
   db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
+}
+
+export interface WatchFolderRecord {
+  id: number;
+  path: string;
+  label: string | null;
+  type: "watch" | "source";
+  createdAt: string;
+}
+
+export function getWatchFolders(type: "watch" | "source" = "watch"): WatchFolderRecord[] {
+  return db.prepare<[string], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE type = ? ORDER BY label, path`
+  ).all(type);
+}
+
+function addTypedWatchFolder(folderPath: string, label: string | undefined, type: "watch" | "source"): WatchFolderRecord {
+  const cleanLabel = label || folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
+  db.prepare(
+    `INSERT INTO watch_folders (path, label, type)
+     VALUES (?, ?, ?)
+     ON CONFLICT(path) DO UPDATE SET label = excluded.label, type = excluded.type`
+  ).run(folderPath, cleanLabel, type);
+
+  const record = db.prepare<[string], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE path = ?`
+  ).get(folderPath);
+
+  if (!record) {
+    return db.prepare<[], WatchFolderRecord>(
+      `SELECT * FROM watch_folders ORDER BY id DESC LIMIT 1`
+    ).get()!;
+  }
+
+  return record;
+}
+
+export function addWatchFolder(folderPath: string, label?: string): WatchFolderRecord {
+  return addTypedWatchFolder(folderPath, label, "watch");
+}
+
+export function getSourceFolders(): WatchFolderRecord[] {
+  return getWatchFolders("source");
+}
+
+export function addSourceFolder(folderPath: string, label?: string): WatchFolderRecord {
+  return addTypedWatchFolder(folderPath, label, "source");
+}
+
+export function removeWatchFolder(id: number): void {
+  db.prepare(`DELETE FROM watch_folders WHERE id = ?`).run(id);
+}
+
+export function removeSourceFolder(id: number): WatchFolderRecord | undefined {
+  const record = db.prepare<[number], WatchFolderRecord>(
+    `SELECT * FROM watch_folders WHERE id = ? AND type = 'source'`
+  ).get(id);
+  if (!record) return undefined;
+  removeWatchFolder(id);
+  return record;
+}
+
+export function deleteDocumentsUnderPath(rootPath: string): number {
+  const normalizedRoot = normalizeStoredPath(path.resolve(rootPath));
+  if (!normalizedRoot) return 0;
+  const docs = db.prepare<[string, string], DocumentRecord>(
+    `SELECT * FROM documents
+     WHERE REPLACE(filePath, '\\', '/') = ?
+        OR REPLACE(filePath, '\\', '/') LIKE ?`
+  ).all(normalizedRoot, `${normalizedRoot}/%`);
+
+  for (const doc of docs) {
+    deleteDocument(doc.fileHash);
+  }
+
+  return docs.length;
+}
+
+export function getWatchFolderBooks(folderPath: string): DocumentRecord[] {
+  const normalizedPath = folderPath.replace(/\\/g, "/");
+  return db.prepare<[string], DocumentRecord>(
+    `SELECT * FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
+  ).all(normalizedPath);
+}
+
+export function getUnsyncedFolderPaths(): string[] {
+  const rows = db.prepare<[], { folderPath: string }>(
+    `SELECT DISTINCT REPLACE(folderPath, '\\', '/') as folderPath FROM documents WHERE isSynced = 0 AND folderPath IS NOT NULL`
+  ).all();
+  return rows.map(r => r.folderPath).filter(Boolean);
+}
+
+export function getUnsyncedBookCount(folderPath: string): number {
+  const normalizedPath = folderPath.replace(/\\/g, "/");
+  const result = db.prepare<[string], { count: number }>(
+    `SELECT COUNT(*) as count FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
+  ).get(normalizedPath);
+  return result?.count || 0;
 }

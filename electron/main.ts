@@ -2,9 +2,10 @@ import electron, {
   type BrowserWindow as ElectronBrowserWindow,
   type BrowserWindowConstructorOptions,
   type IpcMainInvokeEvent,
+  net,
 } from "electron";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
@@ -53,6 +54,7 @@ setHabitCompletion,
   deleteHabitCompletion,
   getAllDocumentCategories,
   getDocumentByFilePath,
+  getSourceFolders,
 } from "./local-database";
 import {
   initBackupClient,
@@ -66,15 +68,27 @@ import { dictionaryManager } from "./dictionary-manager";
 import { quickLookup } from "./lookup-engine";
 import { closeAllStorage } from "./dictionary-storage";
 import {
+  ensureAsciiPdfPath,
+  isPdfMagicBytesValid,
   THUMBNAIL_EXTENSIONS,
   extractEpubMetadata,
   extractPdfMetadata as extractMetadata,
   generateThumbnail as generateBookThumbnail,
+  getCbzPageCount,
   getEpubChapterCount,
   getPdfPageCount,
+  validateCbzFile,
 } from "./services/document-processing";
 import { registerBookHandlers, setWindow as setBooksWindow } from "./handlers/books.handler";
-import { registerLibraryHandlers, setWindow as setLibraryWindow } from "./handlers/library.handler";
+import {
+  registerLibraryHandlers,
+  setFileWatcherRefresh,
+  setWindow as setLibraryWindow,
+} from "./handlers/library.handler";
+import {
+  scanLibrary as queueLibraryScan,
+  setLibraryChangeEmitter,
+} from "./services/library-service";
 
 const {
   app,
@@ -95,11 +109,13 @@ import { PDFDocument } from "pdf-lib";
 import type { EpubAsset, ImageCandidate } from "../src/lib/pdf-to-epub";
 import type { BookFormat } from "../src/lib/lyceum";
 
-process.env.APP_ROOT = path.join(__dirname, "..");
+const bundledFromChunksDir = path.basename(__dirname) === "chunks";
+process.env.APP_ROOT = path.resolve(__dirname, bundledFromChunksDir ? "../.." : "..");
 
-export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
+const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+const PRELOAD_ENTRY = path.join(MAIN_DIST, "preload.cjs");
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -114,6 +130,11 @@ type EpubToPdfModule = typeof import("../src/lib/epub-to-pdf");
 
 let lyceumConversionModulePromise: Promise<LyceumConversionModule> | null = null;
 let pdfToEpubModulePromise: Promise<PdfToEpubModule> | null = null;
+
+function isPathInside(basePath: string, targetPath: string): boolean {
+  const relative = path.relative(path.resolve(basePath), path.resolve(targetPath));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
 let epubToPdfModulePromise: Promise<EpubToPdfModule> | null = null;
 
 function loadLyceumConversionModule(): Promise<LyceumConversionModule> {
@@ -340,7 +361,7 @@ function getAllPdfFiles(dir: string): string[] {
       results = results.concat(getAllBookFiles(fullPath));
     } else if (file.isFile()) {
       const fileName = file.name.toLowerCase();
-      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub") || fileName.endsWith(".cbz")) && !fileName.includes(".tmp")) {
         results.push(fullPath);
       }
     }
@@ -362,7 +383,7 @@ function getAllBookFiles(dir: string): string[] {
       results.push(...getAllBookFiles(fullPath));
     } else if (file.isFile()) {
       const fileName = file.name.toLowerCase();
-      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub")) && !fileName.includes(".tmp")) {
+      if ((fileName.endsWith(".pdf") || fileName.endsWith(".epub") || fileName.endsWith(".cbz")) && !fileName.includes(".tmp")) {
         results.push(fullPath);
       }
     }
@@ -744,6 +765,14 @@ function buildWindowsMtpBookRecord(entry: WindowsMtpBookEntry, index: number): D
     isbn: null,
     publisher: null,
     publishDate: null,
+    language: null,
+    identifier: null,
+    asin: null,
+    subject: null,
+    series: null,
+    seriesIndex: null,
+    authorSort: null,
+    titleSort: null,
     fileSize: entry.size || 0,
     processingStatus: "completed",
     bookId: null,
@@ -903,6 +932,14 @@ async function buildUsbBookRecord(
     isbn: null,
     publisher,
     publishDate,
+    language: null,
+    identifier: null,
+    asin: null,
+    subject: null,
+    series: null,
+    seriesIndex: null,
+    authorSort: null,
+    titleSort: null,
     fileSize: stats.size,
     processingStatus: "completed",
     bookId: null,
@@ -1121,7 +1158,7 @@ async function prepareKindleTransferFile(
     return { success: false, error: "Formato de origem nao suportado" };
   }
 
-  const convertibleToAzw3 = new Set<BookFormat>(["pdf", "epub", "txt", "html"]);
+  const convertibleToAzw3 = new Set<BookFormat>(["pdf", "epub", "txt", "html", "cbz"]);
   const kindleDirectFormats = new Set<BookFormat>(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
   const shouldConvert = Boolean(
     options.convertToAzw3 &&
@@ -1181,11 +1218,17 @@ async function prepareKindleTransferFile(
       : {
           title,
           author: book.author || undefined,
-          language: "pt-BR",
+          language: book.language || "pt-BR",
           publisher: book.publisher || undefined,
           description: book.description || undefined,
           publishDate: book.publishDate || undefined,
-          identifier: `LYCEUM-${sourceHash.slice(0, 8)}`,
+          identifier: book.identifier || `LYCEUM-${sourceHash.slice(0, 8)}`,
+          asin: book.asin || undefined,
+          subject: book.subject || undefined,
+          series: book.series || undefined,
+          seriesIndex: book.seriesIndex || undefined,
+          authorSort: book.authorSort || undefined,
+          titleSort: book.titleSort || undefined,
         },
     renderImageAsset: sourceFormat === "pdf"
       ? createPdfImageAssetRenderer(localPath, `kindle-${sourceHash}`)
@@ -1510,6 +1553,7 @@ function getFolderStructure(libraryPath: string): FolderInfo[] {
         const relativePath = path.relative(relativeTo, itemFullPath);
         
         const bookFiles = getAllBookFiles(itemFullPath);
+        if (bookFiles.length === 0) continue;
         
         folders.push({
           name: item.name,
@@ -1567,9 +1611,17 @@ async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
 
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const fileType: "pdf" | "epub" = isEpub ? "epub" : "pdf";
+    const lowerPath = filePath.toLowerCase();
+    const isPdf = lowerPath.endsWith(".pdf");
+    const isEpub = lowerPath.endsWith(".epub");
+    const isCbz = lowerPath.endsWith(".cbz");
+    const isAzw3 = lowerPath.endsWith(".azw3");
+    const isKfx = lowerPath.endsWith(".kfx");
+    if (!isPdf && !isEpub && !isCbz && !isAzw3 && !isKfx) return;
+    const fileType: "pdf" | "epub" | "cbz" = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
+    if (isCbz) {
+      await validateCbzFile(filePath);
+    }
 
     // First check if document exists by path (handles file modifications that change hash)
     const existingByPath = getDocumentByPath(filePath);
@@ -1584,13 +1636,22 @@ async function processFile(filePath: string): Promise<void> {
     }
 
     if (existing && existing.processingStatus === "completed") {
-      // Still update thumbnail and page count
-      const thumbnailPath = await generateThumbnail(filePath, fileHash, true, fileType);
+      // Only generate thumbnail if missing; never force-delete existing ones
+      const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
       if (thumbnailPath) {
         updateThumbnailPath(fileHash, thumbnailPath);
+      } else if (isPdf && !isPdfMagicBytesValid(filePath)) {
+        console.warn(`[Main] PDF appears corrupted: ${filePath}`);
+        updateProcessingStatus(fileHash, "failed");
+        win?.webContents.send("library:updated");
       }
-      const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
+      const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
+      return;
+    }
+
+    if (existing && existing.processingStatus === "failed" && isPdf && !isPdfMagicBytesValid(filePath)) {
+      win?.webContents.send("library:updated");
       return;
     }
 
@@ -1598,13 +1659,15 @@ async function processFile(filePath: string): Promise<void> {
       updateProcessingStatus(fileHash, "processing");
     }
 
-    const relativePath = path.relative(LIBRARY_PATH(), filePath);
+    const sourceRoot = getSourceFolders().find((folder) => isPathInside(folder.path, filePath));
+    const rootPath = sourceRoot?.path || LIBRARY_PATH();
+    const relativePath = path.relative(rootPath, filePath);
     const pathParts = relativePath.split(path.sep);
     const category = pathParts.length > 1 ? pathParts[0] : null;
 
     const stats = fs.statSync(filePath);
-    const numPages = isPdf ? await getPdfPageCount(filePath) : await getEpubChapterCount(filePath);
-    const metadata = isPdf ? await extractMetadata(filePath) : await extractEpubMetadata(filePath);
+    const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
+    const metadata = isPdf ? await extractMetadata(filePath) : isCbz ? null : await extractEpubMetadata(filePath);
     const thumbnailPath = await generateThumbnail(filePath, fileHash, false, fileType);
 
     if (existing) {
@@ -1622,7 +1685,7 @@ async function processFile(filePath: string): Promise<void> {
       }
       updateProcessingStatus(fileHash, "completed");
     } else {
-      const ext = isEpub ? ".epub" : ".pdf";
+      const ext = isCbz ? ".cbz" : isEpub ? ".epub" : ".pdf";
       const title = path.basename(filePath, ext);
       addDocument(
         title,
@@ -1662,6 +1725,12 @@ async function processFile(filePath: string): Promise<void> {
 
 function setupFileWatcher() {
   const libraryPath = LIBRARY_PATH();
+  const watchedPaths = [
+    libraryPath,
+    ...getSourceFolders()
+      .map((folder) => folder.path)
+      .filter((folderPath) => fs.existsSync(folderPath)),
+  ];
   
   if (fileWatcher) {
     fileWatcher.close();
@@ -1671,7 +1740,7 @@ function setupFileWatcher() {
     fs.mkdirSync(libraryPath, { recursive: true });
   }
 
-  fileWatcher = chokidar.watch(libraryPath, {
+  fileWatcher = chokidar.watch(watchedPaths, {
     persistent: true,
     ignoreInitial: true,
     depth: 99,
@@ -1682,19 +1751,19 @@ function setupFileWatcher() {
   } as any);
 
   fileWatcher.on("add", (filePath) => {
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    if (isPdf || isEpub) {
-      console.log(`[Main] New ${isEpub ? "EPUB" : "PDF"} detected:`, filePath);
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".cbz"]
+      .includes(path.extname(filePath).toLowerCase());
+    if (isBook) {
+      console.log("[Main] New book detected:", filePath);
       processFile(filePath);
     }
   });
 
   fileWatcher.on("unlink", (filePath) => {
-    const isPdf = filePath.toLowerCase().endsWith(".pdf");
-    const isEpub = filePath.toLowerCase().endsWith(".epub");
-    if (isPdf || isEpub) {
-      console.log(`[Main] ${isEpub ? "EPUB" : "PDF"} removed:`, filePath);
+    const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".cbz"]
+      .includes(path.extname(filePath).toLowerCase());
+    if (isBook) {
+      console.log("[Main] Book removed:", filePath);
       // Try to find by path first (most reliable)
       const doc = getDocumentByPath(filePath);
       if (doc) {
@@ -1727,49 +1796,55 @@ function setupFileWatcher() {
     console.error("[Main] File watcher error:", error);
   });
 
-  console.log("[Main] File watcher setup for:", libraryPath);
+  console.log("[Main] File watcher setup for:", watchedPaths);
 }
 
 async function scanLibrary() {
-  const libraryPath = LIBRARY_PATH();
+  const roots = [
+    LIBRARY_PATH(),
+    ...getSourceFolders().map((folder) => folder.path),
+  ].filter((rootPath) => fs.existsSync(rootPath));
 
-  if (!fs.existsSync(libraryPath)) return;
+  for (const rootPath of roots) {
+    const bookFiles = getAllBookFiles(rootPath);
 
-  const pdfFiles = getAllPdfFiles(libraryPath);
+    for (const filePath of bookFiles) {
+      try {
+        const fileHash = generateFileHash(filePath);
+        const existing = getDocumentByHash(fileHash);
 
-  for (const filePath of pdfFiles) {
-    try {
-      const fileHash = generateFileHash(filePath);
-      const existing = getDocumentByHash(fileHash);
+        if (existing && existing.filePath && existing.processingStatus === "completed" && path.resolve(existing.filePath).toLowerCase() === path.resolve(filePath).toLowerCase()) {
+          continue;
+        }
 
-      if (existing && existing.processingStatus === "completed") {
-        continue;
+        await processFile(filePath);
+      } catch (error) {
+        console.error("Error scanning:", filePath, error);
       }
-
-      await processFile(filePath);
-    } catch (error) {
-      console.error("Error scanning:", filePath, error);
     }
   }
 }
 
 async function resyncLibrary(): Promise<{ added: number; removed: number; updated: number }> {
-  const libraryPath = LIBRARY_PATH();
+  const roots = [
+    LIBRARY_PATH(),
+    ...getSourceFolders().map((folder) => folder.path),
+  ].filter((rootPath) => fs.existsSync(rootPath));
   let added = 0, removed = 0, updated = 0;
 
-  if (!fs.existsSync(libraryPath)) {
+  if (roots.length === 0) {
     return { added: 0, removed: 0, updated: 0 };
   }
 
-  const pdfFiles = getAllPdfFiles(libraryPath);
-  const pdfFileSet = new Set(pdfFiles.map(f => f.toLowerCase()));
+  const bookFiles = roots.flatMap((rootPath) => getAllBookFiles(rootPath));
+  const bookFileSet = new Set(bookFiles.map(f => f.toLowerCase()));
 
   const allDocs = getAllDocuments();
-  const docsInLibrary = allDocs.filter(d => d.filePath && d.filePath.startsWith(libraryPath));
+  const docsInLibrary = allDocs.filter(d => d.filePath && d.isSynced === 1 && roots.some((rootPath) => isPathInside(rootPath, d.filePath)));
 
   for (const doc of docsInLibrary) {
-    if (doc.filePath && !pdfFileSet.has(doc.filePath.toLowerCase())) {
-      console.log("[Main] Resync: PDF no longer exists, removing from DB:", doc.filePath);
+    if (doc.filePath && !bookFileSet.has(doc.filePath.toLowerCase())) {
+      console.log("[Main] Resync: book no longer exists, removing from DB:", doc.filePath);
       deleteDocument(doc.fileHash);
       removed++;
     }
@@ -1797,7 +1872,7 @@ async function resyncLibrary(): Promise<{ added: number; removed: number; update
     }
   };
 
-  await processInBatches(pdfFiles, 10);
+  await processInBatches(bookFiles, 10);
 
   console.log(`[Main] Resync complete: added=${added}, removed=${removed}, updated=${updated}`);
   return { added, removed, updated };
@@ -1814,9 +1889,32 @@ function ensureLibraryFolder() {
 }
 
 function generateFileHash(filePath: string) {
-  const fileBuffer = fs.readFileSync(filePath);
   const hash = crypto.createHash("sha256");
-  hash.update(fileBuffer);
+  const stats = fs.statSync(filePath);
+
+  if (stats.isDirectory()) {
+    const hashDirectory = (dirPath: string, relativeRoot = "") => {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      for (const entry of entries) {
+        const entryPath = path.join(dirPath, entry.name);
+        const relativePath = path.join(relativeRoot, entry.name).replace(/\\/g, "/");
+        hash.update(relativePath);
+        if (entry.isDirectory()) {
+          hashDirectory(entryPath, relativePath);
+        } else if (entry.isFile()) {
+          hash.update(fs.readFileSync(entryPath));
+        }
+      }
+    };
+
+    hash.update("lyceum-directory:");
+    hashDirectory(filePath);
+  } else {
+    hash.update(fs.readFileSync(filePath));
+  }
+
   return hash.digest("hex");
 }
 
@@ -1884,6 +1982,14 @@ interface KindleSendBookInput {
   publisher?: string | null;
   description?: string | null;
   publishDate?: string | null;
+  language?: string | null;
+  identifier?: string | null;
+  asin?: string | null;
+  subject?: string | null;
+  series?: string | null;
+  seriesIndex?: string | null;
+  authorSort?: string | null;
+  titleSort?: string | null;
 }
 
 interface KindleSendOptions {
@@ -1963,12 +2069,17 @@ function createPdfImageAssetRenderer(pdfPath: string, fileHash: string) {
         fs.mkdirSync(tempDir, { recursive: true });
 
         const outPrefix = `page-${pageNumber}`;
-        await pdfRequire.convert(pdfPath, {
-          format: "jpeg",
-          out_dir: tempDir,
-          out_prefix: outPrefix,
-          page: pageNumber,
-        });
+        const { path: safePdfPath, cleanup } = ensureAsciiPdfPath(pdfPath);
+        try {
+          await pdfRequire.convert(safePdfPath, {
+            format: "jpeg",
+            out_dir: tempDir,
+            out_prefix: outPrefix,
+            page: pageNumber,
+          });
+        } finally {
+          cleanup();
+        }
 
         const renderedPath = fs
           .readdirSync(tempDir)
@@ -2195,7 +2306,7 @@ async function generateThumbnail(
   filePath: string,
   fileHash: string,
   force = false,
-  fileType: "pdf" | "epub" = "pdf",
+  fileType: "pdf" | "epub" | "cbz" | "azw3" | "kfx" = "pdf",
 ): Promise<string | null> {
   return generateBookThumbnail(filePath, fileHash, {
     thumbnailsDir: THUMBNAILS_DIR(),
@@ -2225,6 +2336,26 @@ function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | 
   return match ? path.join(thumbnailsDir, match) : null;
 }
 
+function resolveThumbnailUrl(thumbnailPath: string): string | null {
+  if (!thumbnailPath) return null;
+
+  const thumbnailsDir = THUMBNAILS_DIR();
+  const normalizedThumbnailPath = path.resolve(thumbnailPath);
+
+  if (!isPathWithin(thumbnailsDir, normalizedThumbnailPath)) {
+    return null;
+  }
+
+  const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
+  if (!hash) return null;
+
+  // Verify the file actually exists
+  const existing = findThumbnailByHash(thumbnailsDir, hash);
+  if (!existing) return null;
+
+  return `thumb://${hash}`;
+}
+
 function createAppWindow(
   options: BrowserWindowConstructorOptions = {}
 ) {
@@ -2236,7 +2367,7 @@ function createAppWindow(
     frame: false,
     backgroundColor: "#09090b",
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: PRELOAD_ENTRY,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -2454,6 +2585,8 @@ ipcMain.handle("reading:save", (_, payload) => {
   };
 
   updateReadingState(fileHash, safeState);
+  updateLastOpened(fileHash);
+  win?.webContents.send("library:updated");
 });
 
 ipcMain.handle("reading:get", (_, fileHash) => {
@@ -2557,10 +2690,17 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
       metadata: {
         title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, path.extname(doc.filePath)),
         author: doc.author || undefined,
-        language: "pt-BR",
+        language: doc.language || "pt-BR",
         publisher: doc.publisher || undefined,
         description: doc.description || undefined,
         publishDate: doc.publishDate || undefined,
+        identifier: doc.identifier || undefined,
+        asin: doc.asin || undefined,
+        subject: doc.subject || undefined,
+        series: doc.series || undefined,
+        seriesIndex: doc.seriesIndex || undefined,
+        authorSort: doc.authorSort || undefined,
+        titleSort: doc.titleSort || undefined,
       },
       renderImageAsset: sourceFormat === "pdf"
         ? createPdfImageAssetRenderer(doc.filePath, fileHash)
@@ -2570,7 +2710,7 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
     const outputHash = generateFileHash(outputPath);
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
     const outputFileType = targetFormat;
-    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf" || targetFormat === "azw3" || targetFormat === "kfx"
       ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
       : null;
     const numPages = targetFormat === "pdf"
@@ -2660,7 +2800,7 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
 
     const outputHash = generateFileHash(outputPath);
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
-    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf"
+    const thumbnailPath = targetFormat === "epub" || targetFormat === "pdf" || targetFormat === "azw3" || targetFormat === "kfx"
       ? await generateThumbnail(outputPath, outputHash, false, targetFormat)
       : null;
     const numPages = targetFormat === "pdf"
@@ -2756,7 +2896,7 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
     const converted = await convertPdfToEpub(toArrayBuffer(pdfBuffer), {
       title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, ".pdf"),
       author: doc.author || undefined,
-      language: "pt-BR",
+      language: doc.language || "pt-BR",
       publisher: doc.publisher || undefined,
       description: doc.description || undefined,
       renderImageAsset,
@@ -2879,7 +3019,7 @@ ipcMain.handle("dialog:select-folder", async () => {
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile", "multiSelections"],
-    filters: [{ name: "Livros", extensions: ["pdf", "epub"] }],
+    filters: [{ name: "Livros", extensions: ["pdf", "epub", "cbz"] }],
   });
   
   if (result.canceled || result.filePaths.length === 0) {
@@ -2900,6 +3040,9 @@ ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, actio
       try {
         const fileName = path.basename(filePath);
         const destPath = getUniqueFilePath(targetDir, fileName);
+        if (filePath.toLowerCase().endsWith(".cbz")) {
+          await validateCbzFile(filePath);
+        }
 
         if (action === "move") {
           moveFileAcrossDevices(filePath, destPath);
@@ -2933,44 +3076,27 @@ ipcMain.handle("app:get-last-document", () => {
 
 ipcMain.handle("thumbnail:get", async (_, thumbnailPath: string) => {
   try {
-    if (!thumbnailPath) {
-      return null;
-    }
-
-    const thumbnailsDir = THUMBNAILS_DIR();
-    const normalizedThumbnailPath = path.resolve(thumbnailPath);
-
-    if (!isPathWithin(thumbnailsDir, normalizedThumbnailPath)) {
-      return null;
-    }
-
-    const toDataUrl = (imagePath: string) => {
-      const ext = path.extname(imagePath).toLowerCase();
-      const mime =
-        ext === ".png"
-          ? "image/png"
-          : ext === ".webp"
-            ? "image/webp"
-            : "image/jpeg";
-      const buffer = fs.readFileSync(imagePath);
-      return `data:${mime};base64,${buffer.toString("base64")}`;
-    };
-
-    if (fs.existsSync(normalizedThumbnailPath)) {
-      return toDataUrl(normalizedThumbnailPath);
-    }
-
-    const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
-    const matchingThumbnail = hash ? findThumbnailByHash(thumbnailsDir, hash) : null;
-    if (matchingThumbnail) {
-      return toDataUrl(matchingThumbnail);
-    }
-
-    return null;
+    return resolveThumbnailUrl(thumbnailPath);
   } catch (error) {
     console.error("[thumbnail:get] Error:", error);
     return null;
   }
+});
+
+ipcMain.handle("thumbnail:get-many", async (_, thumbnailPaths: string[]) => {
+  const result: Record<string, string | null> = {};
+
+  try {
+    const uniquePaths = Array.from(new Set(thumbnailPaths)).slice(0, 96);
+
+    for (const thumbnailPath of uniquePaths) {
+      result[thumbnailPath] = resolveThumbnailUrl(thumbnailPath);
+    }
+  } catch (error) {
+    console.error("[thumbnail:get-many] Error:", error);
+  }
+
+  return result;
 });
 
 function findFileByHash(fileHash: string, searchPaths: string[]): string | null {
@@ -3374,8 +3500,30 @@ const startupFile = startArgs.find(
   (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
 );
 
+protocol.registerSchemesAsPrivileged([
+  { scheme: "thumb", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
+function parseThumbUrlHash(requestUrl: string): string {
+  const url = new URL(requestUrl);
+  return (url.hostname || url.pathname.replace(/^\/+/, "")).replace(/\/+$/, "");
+}
+
 app.whenReady().then(async () => {
   const fs = require("fs");
+
+  protocol.handle("thumb", (request) => {
+    const fileHash = parseThumbUrlHash(request.url);
+    if (!SHA256_HEX_PATTERN.test(fileHash)) {
+      return new Response(null, { status: 404 });
+    }
+    const thumbPath = findThumbnailByHash(THUMBNAILS_DIR(), fileHash);
+    if (!thumbPath) {
+      return new Response(null, { status: 404 });
+    }
+    return net.fetch(pathToFileURL(thumbPath).toString());
+  });
+
   protocol.handle("pdf-resource", (request) => {
     const filePath = request.url.replace(/^pdf-resource:\/\//, "");
     return new Promise((resolve, reject) => {
@@ -3388,8 +3536,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://covers.openlibrary.org; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org; object-src 'none'; base-uri 'self';";
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;
@@ -3420,14 +3568,19 @@ app.whenReady().then(async () => {
   setupUsbDeviceWatcher();
 
   importCategoriesFromFolders();
-  await scanLibrary();
-  autoUpdater.checkForUpdatesAndNotify();
   createWindow();
 
   setBooksWindow(win);
   setLibraryWindow(win);
+  setLibraryChangeEmitter(() => win?.webContents.send("library:updated"));
+  setFileWatcherRefresh(setupFileWatcher);
   registerBookHandlers();
   registerLibraryHandlers();
+  autoUpdater.checkForUpdatesAndNotify();
+
+  void queueLibraryScan().catch((error) => {
+    console.error("[Main] Background library scan failed:", error);
+  });
 
   if (startupFile) {
     console.log("[Main] Startup file detected, waiting for window to load...");

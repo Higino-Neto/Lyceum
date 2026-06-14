@@ -152,6 +152,13 @@ function writeAndroidAssets() {
 function writeIosAssets() {
   replaceDir(webDir, path.join(root, "ios", "App", "App", "public"));
   writeJson(path.join(root, "ios", "App", "App", "capacitor.config.json"), iosConfig);
+  writeFileSync(
+    path.join(root, "ios", "App", "App", "config.xml"),
+    "<?xml version='1.0' encoding='utf-8'?>\n" +
+      '<widget version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">\n' +
+      '  <access origin="*" />\n' +
+      "</widget>\n",
+  );
 }
 
 writeAndroidAssets();

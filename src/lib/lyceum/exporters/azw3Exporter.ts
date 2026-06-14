@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateAzw3Buffer } from "../mobi/azw3Pipeline";
-import { buildAzw3 } from "../mobi/azw3Writer";
+import { buildAzw3Async } from "../mobi/azw3Writer";
+import { hydrateTextualResources, prepareKindleImages } from "../mobi/records/resources";
 import { mergeDefinedBookMetadata } from "../schema/manifest";
 import type { ExportInput, ExportResult, LyceumExporter } from "../schema/types";
 
@@ -22,9 +23,14 @@ export class Azw3Exporter implements LyceumExporter {
     await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
 
     const metadata = mergeDefinedBookMetadata(input.package.metadata, input.metadata);
-    const azw3 = buildAzw3({
+    const prepared = await prepareKindleImages(hydrateTextualResources(input.package));
+    if (!prepared.pkg.textual) {
+      throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para AZW3.");
+    }
+
+    const azw3 = await buildAzw3Async({
       metadata,
-      textual: input.package.textual,
+      textual: prepared.pkg.textual,
       embedSource: false,
     });
     const buffer = Buffer.from(azw3.buffer);
@@ -41,10 +47,13 @@ export class Azw3Exporter implements LyceumExporter {
       outputFormat: "azw3",
       report: {
         outputFormat: "azw3",
-        warnings: validation.warnings,
+        warnings: [
+          ...prepared.warnings,
+          ...validation.warnings,
+        ],
         stats: {
           backend: "lyceum-manual",
-          chapterCount: input.package.textual.chapters.length,
+          chapterCount: prepared.pkg.textual.chapters.length,
           fileSize: validation.metadata.fileSize,
           compression: validation.metadata.compression || 0,
           mobiVersion: validation.metadata.mobiVersion || 0,
@@ -65,6 +74,10 @@ export class Azw3Exporter implements LyceumExporter {
           hasIndx: Boolean(validation.metadata.hasIndx),
           hasSrcs: Boolean(validation.metadata.hasSrcs),
           hasEof: Boolean(validation.metadata.hasEof),
+          imageResourceCount: azw3.stats.imageResourceCount,
+          convertedImageCount: prepared.convertedImageCount,
+          resizedImageCount: prepared.resizedImageCount,
+          thumbnailGenerated: prepared.thumbnailGenerated,
         },
       },
     };

@@ -1,4 +1,11 @@
 import electron from "electron";
+import type {
+  BookFormat,
+  FolderChangedPayload,
+  LibraryFileTypeFilter,
+  LibrarySection,
+  LibrarySortOption,
+} from "../src/types/LibraryTypes";
 
 const { ipcRenderer, contextBridge } = electron;
 
@@ -36,11 +43,43 @@ interface NativePdfViewerState {
 }
 
 interface MetadataUpdate {
+  title?: string;
   author?: string;
   description?: string;
   isbn?: string;
   publisher?: string;
   publishDate?: string;
+  language?: string;
+  identifier?: string;
+  asin?: string;
+  subject?: string;
+  series?: string;
+  seriesIndex?: string;
+  authorSort?: string;
+  titleSort?: string;
+  pageCount?: number;
+}
+
+type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
+type MetadataSearchField = "title" | "author" | "isbn";
+
+interface BookMetadataCandidate {
+  id: string;
+  source: "openlibrary" | "google" | "loc";
+  sourceLabel: string;
+  title: string;
+  subtitle?: string;
+  authors: string[];
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  isbn10?: string;
+  isbn13?: string;
+  pageCount?: number;
+  categories: string[];
+  description?: string;
+  thumbnailUrl?: string;
+  externalUrl?: string;
 }
 
 interface BookCategory {
@@ -50,21 +89,6 @@ interface BookCategory {
   bookCount: number;
   createdAt: string;
 }
-
-type BookFormat =
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
 
 contextBridge.exposeInMainWorld("api", {
   openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
@@ -102,11 +126,12 @@ contextBridge.exposeInMainWorld("api", {
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
   listBooks: (query: {
-    section?: "all" | "synced" | "unsynced" | "usb";
+    section?: LibrarySection;
     search?: string;
     folderPath?: string | null;
-    fileType?: "all" | "pdf" | "epub";
-    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+    includeSubfolders?: boolean;
+    fileType?: LibraryFileTypeFilter;
+    sort?: LibrarySortOption;
     limit?: number;
     offset?: number;
   }) => ipcRenderer.invoke("library:list-books", query),
@@ -115,8 +140,8 @@ contextBridge.exposeInMainWorld("api", {
 
   listUsbBooks: (query: {
     search?: string;
-    fileType?: "all" | "pdf" | "epub";
-    sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
+    fileType?: LibraryFileTypeFilter;
+    sort?: LibrarySortOption;
     limit?: number;
     offset?: number;
   }) => ipcRenderer.invoke("usb:list-books", query),
@@ -139,6 +164,14 @@ contextBridge.exposeInMainWorld("api", {
       publisher?: string | null;
       description?: string | null;
       publishDate?: string | null;
+      language?: string | null;
+      identifier?: string | null;
+      asin?: string | null;
+      subject?: string | null;
+      series?: string | null;
+      seriesIndex?: string | null;
+      authorSort?: string | null;
+      titleSort?: string | null;
     }>;
     convertToAzw3?: boolean;
     preserveMetadata?: boolean;
@@ -199,6 +232,12 @@ contextBridge.exposeInMainWorld("api", {
 
   getThumbnail: (thumbnailPath: string) =>
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),
+  getThumbnails: (thumbnailPaths: string[]) =>
+    ipcRenderer.invoke("thumbnail:get-many", thumbnailPaths),
+  ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) =>
+    ipcRenderer.invoke("thumbnail:ensure-many", books),
+  regenerateAllThumbnails: () =>
+    ipcRenderer.invoke("thumbnail:regenerate-all"),
 
   getLibraryPath: () => ipcRenderer.invoke("library:get-path"),
 
@@ -238,6 +277,9 @@ contextBridge.exposeInMainWorld("api", {
   updateNotes: (fileHash: string, notes: string) =>
     ipcRenderer.invoke("book:update-notes", fileHash, notes),
 
+  searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) =>
+    ipcRenderer.invoke("book:search-metadata", source, query, field, limit),
+
   updateMetadata: (fileHash: string, metadata: MetadataUpdate) => 
     ipcRenderer.invoke("book:update-metadata", fileHash, metadata),
 
@@ -265,11 +307,20 @@ contextBridge.exposeInMainWorld("api", {
   setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") =>
     ipcRenderer.invoke("pdf:set-thumbnail", fileHash, imagePath, mode),
 
+  setThumbnailFromUrl: (fileHash: string, imageUrl: string, mode: "replace" | "prepend") =>
+    ipcRenderer.invoke("book:set-thumbnail-from-url", fileHash, imageUrl, mode),
+
   updateBookId: (fileHash: string, bookId: string) =>
     ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
 
   getDocumentsByBookId: (bookId: string) =>
     ipcRenderer.invoke("book:get-by-book-id", bookId),
+
+  mergeBooks: (fileHashes: string[]) =>
+    ipcRenderer.invoke("book:merge", fileHashes),
+
+  mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) =>
+    ipcRenderer.invoke("book:merge-into-folder", fileHashes, parentPath ?? null),
 
   getDocumentByTitle: (title: string) =>
     ipcRenderer.invoke("book:get-by-title", title),
@@ -283,6 +334,12 @@ contextBridge.exposeInMainWorld("api", {
   onLibraryUpdated: (callback: () => void) => {
     ipcRenderer.on("library:updated", callback);
     return () => ipcRenderer.removeListener("library:updated", callback);
+  },
+
+  onLibraryNotification: (callback: (notification: { type: "success" | "error" | "warning"; message: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, notification: { type: "success" | "error" | "warning"; message: string }) => callback(notification);
+    ipcRenderer.on("library:notification", listener);
+    return () => ipcRenderer.removeListener("library:notification", listener);
   },
 
   onUsbDevicesUpdated: (callback: () => void) => {
@@ -327,8 +384,29 @@ contextBridge.exposeInMainWorld("api", {
   categoryImportFromFolders: () =>
     ipcRenderer.invoke("category:import-from-folders"),
 
-  getFolderStructure: () =>
-    ipcRenderer.invoke("library:get-folder-structure"),
+  getFolderStructure: (rootPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-structure", rootPath),
+
+  getFolderStructureCached: (rootPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-structure-cached", rootPath),
+
+  getFolderChildren: (parentPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-children", parentPath ?? null),
+
+  getFolderStats: (folderPath?: string | null) =>
+    ipcRenderer.invoke("library:get-folder-stats", folderPath ?? null),
+
+  folderExists: (folderPath?: string | null) =>
+    ipcRenderer.invoke("library:folder-exists", folderPath ?? null),
+
+  onFolderChanged: (callback: (payload: FolderChangedPayload) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, payload: FolderChangedPayload) => callback(payload);
+    ipcRenderer.on("folder:changed", listener);
+    return () => ipcRenderer.removeListener("folder:changed", listener);
+  },
+
+  getLibraryRoots: () =>
+    ipcRenderer.invoke("library:get-library-roots"),
 
   getAllFolders: () =>
     ipcRenderer.invoke("library:get-all-folders"),
@@ -338,6 +416,9 @@ contextBridge.exposeInMainWorld("api", {
 
    createFolder: (folderName: string, parentPath: string | null = null) =>
      ipcRenderer.invoke("library:create-folder", folderName, parentPath),
+
+  createCollection: (name: string, fileHashes: string[], parentPath?: string | null) =>
+    ipcRenderer.invoke("library:create-collection", name, fileHashes, parentPath ?? null),
 
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),
@@ -350,6 +431,33 @@ contextBridge.exposeInMainWorld("api", {
 
   moveBook: (fileHash: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
+
+  moveMergedBook: (bookId: string, targetFolderPath: string | null) =>
+    ipcRenderer.invoke("library:move-merged-book", bookId, targetFolderPath),
+
+  getWatchFolders: () =>
+    ipcRenderer.invoke("library:get-watch-folders"),
+
+  addWatchFolder: (folderPath: string, label?: string) =>
+    ipcRenderer.invoke("library:add-watch-folder", folderPath, label),
+
+  removeWatchFolder: (id: number) =>
+    ipcRenderer.invoke("library:remove-watch-folder", id),
+
+  addSourceFolder: (folderPath: string, label?: string) =>
+    ipcRenderer.invoke("library:add-source-folder", folderPath, label),
+
+  removeSourceFolder: (id: number) =>
+    ipcRenderer.invoke("library:remove-source-folder", id),
+
+  resyncSourceFolder: (id: number) =>
+    ipcRenderer.invoke("library:resync-source-folder", id),
+
+  getWatchFolderBooks: (folderPath: string) =>
+    ipcRenderer.invoke("library:get-watch-folder-books", folderPath),
+
+  getWatchFolderBookCount: (folderPath: string) =>
+    ipcRenderer.invoke("library:get-watch-folder-book-count", folderPath),
 
   backupInit: (supabaseUrl: string, supabaseAnonKey: string) =>
     ipcRenderer.invoke("backup:init", supabaseUrl, supabaseAnonKey),

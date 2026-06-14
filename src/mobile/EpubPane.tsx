@@ -219,6 +219,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
   const loadIdRef = useRef(0);
   const searchResultsCacheRef = useRef<Map<string, SearchHit[]>>(new Map());
   const lastDisplayedRef = useRef<string | undefined>(location);
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settingsRef = useRef<ReaderSettings>(loadSettings());
   const scrollCleanupRef = useRef<(() => void) | null>(null);
 

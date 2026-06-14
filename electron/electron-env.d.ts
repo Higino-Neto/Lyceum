@@ -1,56 +1,8 @@
 /// <reference types="vite-plugin-electron/electron-env" />
 
-interface DocumentRecord {
-  id: number;
-  title: string;
-  filePath: string;
-  fileHash: string;
-  fileName: string | null;
-  folderPath: string | null;
-  fileMtime: number | null;
-  currentPage: number;
-  currentZoom: number | null;
-  currentScroll: number | null;
-  annotations: string | null;
-  thumbnailPath: string | null;
-  numPages: number;
-  createdAt: string;
-  lastOpenedAt: string;
-  isSynced: number;
-  category: string | null;
-  isFavorite: number;
-  rating: number;
-  notes: string | null;
-  author: string | null;
-  description: string | null;
-  isbn: string | null;
-  publisher: string | null;
-  publishDate: string | null;
-  fileSize: number;
-  processingStatus: "pending" | "processing" | "completed" | "failed";
-  bookId: string | null;
-  fileType: BookFormat;
-  importedAt: string | null;
-  updatedAt: string | null;
-}
-
-interface LibraryListQuery {
-  section?: "all" | "synced" | "unsynced";
-  search?: string;
-  folderPath?: string | null;
-  fileType?: "all" | BookFormat;
-  sort?: "title" | "recent" | "pages" | "size" | "title_asc" | "title_desc" | "recent_desc" | "recent_asc" | "pages_desc" | "pages_asc" | "size_desc" | "size_asc";
-  limit?: number;
-  offset?: number;
-}
-
-interface LibraryListResult {
-  items: DocumentRecord[];
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-}
+type DocumentRecord = import("../src/types/LibraryTypes").DocumentRecord;
+type LibraryListQuery = import("../src/types/LibraryTypes").LibraryListQuery;
+type LibraryListResult = import("../src/types/LibraryTypes").LibraryListResult;
 
 interface BookCategory {
   id: number;
@@ -59,6 +11,12 @@ interface BookCategory {
   bookCount: number;
   createdAt: string;
 }
+
+type WatchFolderInfo = import("../src/types/LibraryTypes").WatchFolderInfo;
+type LibraryRootInfo = import("../src/types/LibraryTypes").LibraryRootInfo;
+type FolderInfo = import("../src/types/LibraryTypes").FolderInfo;
+type FolderStats = import("../src/types/LibraryTypes").FolderStats;
+type FolderChangedPayload = import("../src/types/LibraryTypes").FolderChangedPayload;
 
 interface OpenPdfResult extends DocumentRecord {
   fileBuffer: ArrayBuffer;
@@ -72,20 +30,29 @@ interface NativePdfViewerState {
   canAccess: boolean;
 }
 
-type BookFormat =
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
+type BookFormat = import("../src/types/LibraryTypes").BookFormat;
+
+type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
+type MetadataSearchField = "title" | "author" | "isbn";
+
+interface BookMetadataCandidate {
+  id: string;
+  source: "openlibrary" | "google" | "loc";
+  sourceLabel: string;
+  title: string;
+  subtitle?: string;
+  authors: string[];
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  isbn10?: string;
+  isbn13?: string;
+  pageCount?: number;
+  categories: string[];
+  description?: string;
+  thumbnailUrl?: string;
+  externalUrl?: string;
+}
 
 interface ConversionTarget {
   format: BookFormat;
@@ -185,9 +152,12 @@ interface Window {
     } | { error: string; message: string } | null>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
+    getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
+    ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) => Promise<{ queued: number; skipped: number }>;
+    regenerateAllThumbnails: () => Promise<{ queued: number; skipped: number; total: number }>;
 
     getLibraryPath: () => Promise<string>;
-    scanLibrary: () => Promise<void>;
+    scanLibrary: () => Promise<{ queued: number; skipped: number; total: number }>;
     resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
@@ -210,13 +180,29 @@ interface Window {
     toggleFavorite: (fileHash: string) => Promise<boolean>;
     updateRating: (fileHash: string, rating: number) => Promise<boolean>;
     updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
+    searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) => Promise<{
+      success: boolean;
+      results: BookMetadataCandidate[];
+      warnings: string[];
+      error?: string;
+    }>;
     updateMetadata: (fileHash: string, metadata: {
+      title?: string;
       author?: string;
       description?: string;
       isbn?: string;
       publisher?: string;
       publishDate?: string;
-    }) => Promise<boolean>;
+      language?: string;
+      identifier?: string;
+      asin?: string;
+      subject?: string;
+      series?: string;
+      seriesIndex?: string;
+      authorSort?: string;
+      titleSort?: string;
+      pageCount?: number;
+    }) => Promise<{ success: boolean; fileHash?: string; warnings?: string[]; error?: string }>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
     renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
     deleteBook: (fileHash: string, deleteFile?: boolean) => Promise<{ success: boolean; error?: string }>;
@@ -224,13 +210,17 @@ interface Window {
     getFavorites: () => Promise<DocumentRecord[]>;
     processPendingBooks: () => Promise<{ processed: number }>;
     regenerateThumbnail: (fileHash: string) => Promise<{ success: boolean; thumbnailPath?: string; error?: string }>;
-    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; error?: string }>;
+    setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
+    setThumbnailFromUrl: (fileHash: string, imageUrl: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
+    mergeBooks: (fileHashes: string[]) => Promise<{ success: boolean; bookId: string; mergedCount: number; documents: DocumentRecord[]; error?: string }>;
+    mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) => Promise<{ success: boolean; folderPath?: string; fullPath?: string; moved?: number; mergedCount?: number; error?: string }>;
     getDocumentByTitle: (title: string) => Promise<DocumentRecord | undefined>;
     openLibraryFolder: () => Promise<string>;
     showBookInFolder: (filePath: string) => Promise<boolean>;
     onLibraryUpdated: (callback: () => void) => () => void;
+    onLibraryNotification: (callback: (notification: { type: "success" | "error" | "warning"; message: string }) => void) => () => void;
 
     categoryCreate: (name: string, color?: string) => Promise<BookCategory | null>;
     categoryUpdate: (id: number, name: string, color: string) => Promise<boolean>;
@@ -245,14 +235,33 @@ interface Window {
     categoryGetColors: () => Promise<string[]>;
     categoryImportFromFolders: () => Promise<{ imported: number }>;
 
-    getFolderStructure: () => Promise<FolderInfo[]>;
+    getFolderStructure: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderStructureCached: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderChildren: (parentPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderStats: (folderPath?: string | null) => Promise<FolderStats>;
+    folderExists: (folderPath?: string | null) => Promise<boolean>;
+    onFolderChanged: (callback: (payload: FolderChangedPayload) => void) => () => void;
+    getLibraryRoots: () => Promise<LibraryRootInfo[]>;
     getAllFolders: () => Promise<string[]>;
     getBooksInFolder: (folderPath: string | null) => Promise<DocumentRecord[]>;
     createFolder: (folderName: string, parentPath?: string | null) => Promise<{ success: boolean; error?: string }>;
+    createCollection: (name: string, fileHashes: string[], parentPath?: string | null) => Promise<{ success: boolean; folderPath?: string; fullPath?: string; moved?: number; error?: string }>;
     renameFolder: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
     deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
+    moveMergedBook: (bookId: string, targetFolderPath: string | null) => Promise<{ success: boolean; moved?: number; error?: string }>;
+
+    selectFolder: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+
+    getWatchFolders: () => Promise<WatchFolderInfo[]>;
+    addWatchFolder: (folderPath: string, label?: string) => Promise<WatchFolderInfo>;
+    removeWatchFolder: (id: number) => Promise<{ success: boolean }>;
+    addSourceFolder: (folderPath: string, label?: string) => Promise<{ success: boolean; folder?: WatchFolderInfo; error?: string }>;
+    removeSourceFolder: (id: number) => Promise<{ success: boolean; removedDocuments: number; error?: string }>;
+    resyncSourceFolder: (id: number) => Promise<{ success: boolean; scanned?: number; error?: string }>;
+    getWatchFolderBooks: (folderPath: string) => Promise<DocumentRecord[]>;
+    getWatchFolderBookCount: (folderPath: string) => Promise<number>;
 
     backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
     backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;
@@ -362,9 +371,12 @@ interface Window {
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;
 
     getThumbnail: (thumbnailPath: string) => Promise<string | null>;
+    getThumbnails: (thumbnailPaths: string[]) => Promise<Record<string, string | null>>;
+    ensureThumbnails: (books: Array<{ fileHash: string; filePath: string; fileType?: BookFormat | null }>) => Promise<{ queued: number; skipped: number }>;
+    regenerateAllThumbnails: () => Promise<{ queued: number; skipped: number; total: number }>;
 
     getLibraryPath: () => Promise<string>;
-    scanLibrary: () => Promise<void>;
+    scanLibrary: () => Promise<{ queued: number; skipped: number; total: number }>;
     resyncLibrary: () => Promise<{ added: number; removed: number; updated: number }>;
     moveToLibrary: (filePath: string) => Promise<void>;
 
@@ -378,6 +390,12 @@ interface Window {
       category?: string,
     ) => Promise<{ success: boolean; newPath?: string; error?: string }>;
     searchLocalBooks: (query: string) => Promise<any[]>;
+
+    getWatchFolders: () => Promise<any[]>;
+    addWatchFolder: (folderPath: string, label?: string) => Promise<any>;
+    removeWatchFolder: (id: number) => Promise<{ success: boolean }>;
+    getWatchFolderBooks: (folderPath: string) => Promise<any[]>;
+    getWatchFolderBookCount: (folderPath: string) => Promise<number>;
 
     windowMinimize: () => Promise<void>;
     windowMaximize: () => Promise<void>;

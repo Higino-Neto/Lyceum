@@ -5,6 +5,8 @@ import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const optionalCanvasStub = path.resolve(__dirname, "scripts/shims/canvas-optional.cjs");
+
 export default defineConfig({
   plugins: [
     react(),
@@ -13,11 +15,21 @@ export default defineConfig({
       main: {
         entry: "electron/main.ts",
         vite: {
+          resolve: {
+            alias: {
+              canvas: optionalCanvasStub,
+            },
+          },
           build: {
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
-              external: ["better-sqlite3", "bindings", "adm-zip"],
+              external: ["better-sqlite3", "bindings", "adm-zip", "jsdom"],
+              output: {
+                entryFileNames: "[name].js",
+                chunkFileNames: "chunks/[name].js",
+                assetFileNames: "assets/[name][extname]",
+              },
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
@@ -27,6 +39,17 @@ export default defineConfig({
       },
       preload: {
         input: path.join(__dirname, "electron/preload.ts"),
+        vite: {
+          build: {
+            emptyOutDir: false,
+            rollupOptions: {
+              output: {
+                entryFileNames: "preload.cjs",
+                format: "cjs",
+              },
+            },
+          },
+        },
       },
       renderer:
         process.env.NODE_ENV === "test"
@@ -83,6 +106,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      canvas: optionalCanvasStub,
       crypto: "node:crypto",
     },
   },

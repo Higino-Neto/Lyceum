@@ -451,7 +451,9 @@ export default function BooksSection({
                   <p className="text-xs text-zinc-500 truncate">{book.author || "Autor desconhecido"}</p>
                 </div>
                 {book.thumbnail_url && (
-                  <img src={book.thumbnail_url} alt="" className="w-8 h-12 object-cover rounded-sm" />
+                  <span className="flex h-12 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900">
+                    <img src={book.thumbnail_url} alt="" className="h-full w-full object-contain" />
+                  </span>
                 )}
               </div>
             ))}
@@ -496,12 +498,12 @@ export default function BooksSection({
                   {isSelectedForMerge && <Check size={14} className="text-white" />}
                 </div>
               )}
-              <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
+              <div className="relative overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 aspect-[2/3]">
                 {book.thumbnail_url ? (
                   <img
                     src={book.thumbnail_url}
                     alt={book.title}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -544,12 +546,12 @@ export default function BooksSection({
                   {isSelectedForMerge && <Check size={14} className="text-white" />}
                 </div>
               )}
-              <div className="relative rounded-sm overflow-hidden aspect-[4/5] bg-zinc-900 border border-zinc-800">
+              <div className="relative overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 aspect-[2/3]">
                 {localThumbnails[doc.fileHash] ? (
                   <img
                     src={localThumbnails[doc.fileHash]}
                     alt={doc.title}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}

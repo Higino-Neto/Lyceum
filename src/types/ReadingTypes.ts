@@ -1,21 +1,11 @@
 // ─── Tipos compartilhados entre os componentes de leitura ───────────────────
 
-export type TimerState = "idle" | "running" | "paused" | "finished";
+export type {
+  DocumentRecord,
+  ReadingDocumentFileType,
+} from "./LibraryTypes";
 
-export type ReadingDocumentFileType =
-  | "pdf"
-  | "epub"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "html"
-  | "docx"
-  | "cbz"
-  | "lyceum";
+export type TimerState = "idle" | "running" | "paused" | "finished";
 
 export type ReadingCategory =
   | "fiction"
@@ -50,40 +40,6 @@ export interface ReadingSession {
   totalWords: number;
   initialPage: number;
   finalPage: number;
-}
-
-export interface DocumentRecord {
-  id: number;
-  title: string;
-  filePath: string;
-  fileHash: string;
-  fileName?: string | null;
-  folderPath?: string | null;
-  fileMtime?: number | null;
-  currentPage: number;
-  currentZoom: number | null;
-  currentScroll: number | null;
-  annotations: string | null;
-  thumbnailPath: string | null;
-  numPages: number;
-  createdAt: string;
-  lastOpenedAt: string;
-  isSynced: number;
-  category: string | null;
-  isFavorite: number;
-  rating: number;
-  notes: string | null;
-  author: string | null;
-  description: string | null;
-  isbn: string | null;
-  publisher: string | null;
-  publishDate: string | null;
-  fileSize: number;
-  processingStatus: "pending" | "processing" | "completed" | "failed";
-  bookId: string | null;
-  fileType?: ReadingDocumentFileType;
-  importedAt?: string | null;
-  updatedAt?: string | null;
 }
 
 /** Props do modal de sessão concluída */

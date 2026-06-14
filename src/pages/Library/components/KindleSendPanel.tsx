@@ -54,6 +54,14 @@ interface KindleSendApi {
       publisher?: string | null;
       description?: string | null;
       publishDate?: string | null;
+      language?: string | null;
+      identifier?: string | null;
+      asin?: string | null;
+      subject?: string | null;
+      series?: string | null;
+      seriesIndex?: string | null;
+      authorSort?: string | null;
+      titleSort?: string | null;
     }>;
     convertToAzw3?: boolean;
     preserveMetadata?: boolean;
@@ -75,7 +83,7 @@ interface KindleSendPanelProps {
   onSent?: () => void;
 }
 
-const CONVERTIBLE_TO_AZW3 = new Set(["pdf", "epub", "txt", "html"]);
+const CONVERTIBLE_TO_AZW3 = new Set(["pdf", "epub", "txt", "html", "cbz"]);
 const DIRECT_KINDLE_FORMATS = new Set(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
 const DEFAULT_DESTINATION = "documents/Downloads";
 
@@ -219,6 +227,14 @@ export default function KindleSendPanel({
           publisher: book.publisher,
           description: book.description,
           publishDate: book.publishDate,
+          language: book.language,
+          identifier: book.identifier,
+          asin: book.asin,
+          subject: book.subject,
+          series: book.series,
+          seriesIndex: book.seriesIndex,
+          authorSort: book.authorSort,
+          titleSort: book.titleSort,
         })),
         convertToAzw3,
         preserveMetadata,

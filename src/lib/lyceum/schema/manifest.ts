@@ -48,6 +48,22 @@ export function mergeBookMetadata(
     publisher: metadata?.publisher || undefined,
     description: metadata?.description || undefined,
     publishDate: metadata?.publishDate || undefined,
+    subject: metadata?.subject || undefined,
+    rights: metadata?.rights || undefined,
+    contributor: metadata?.contributor || undefined,
+    authorSort: metadata?.authorSort || undefined,
+    titleSort: metadata?.titleSort || undefined,
+    series: metadata?.series || undefined,
+    seriesIndex: metadata?.seriesIndex || undefined,
+    groupPosition: metadata?.groupPosition || undefined,
+    displaySeq: metadata?.displaySeq || undefined,
+    isbn: metadata?.isbn || undefined,
+    asin: metadata?.asin || undefined,
+    rating: metadata?.rating || undefined,
+    timestamp: metadata?.timestamp || undefined,
+    coverResourceId: metadata?.coverResourceId || undefined,
+    coverHref: metadata?.coverHref || undefined,
+    coverPageHref: metadata?.coverPageHref || undefined,
   };
 }
 
@@ -58,10 +74,10 @@ export function mergeDefinedBookMetadata(
   const metadata = { ...base };
 
   for (const [key, value] of Object.entries(overrides || {}) as Array<
-    [keyof LyceumBookMetadata, string | undefined]
+    [keyof LyceumBookMetadata, LyceumBookMetadata[keyof LyceumBookMetadata] | undefined]
   >) {
     if (value !== undefined && value !== null) {
-      metadata[key] = value;
+      (metadata as Record<keyof LyceumBookMetadata, LyceumBookMetadata[keyof LyceumBookMetadata]>)[key] = value;
     }
   }
 

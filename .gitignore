@@ -18,9 +18,10 @@ dist-ssr
 release
 release-mobile
 dist-electron
-supabase
+/supabase
 coverage
 AGENTS.md
+.tmp/
 
 
 # Editor directories and files

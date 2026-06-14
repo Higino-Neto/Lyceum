@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  LibraryFileTypeFilter,
   LibraryListResult,
   LibrarySection,
   LibrarySortOption,
@@ -18,8 +17,9 @@ interface UseBooksOptions {
   section: LibrarySection;
   search: string;
   sort: LibrarySortOption;
-  fileType: LibraryFileTypeFilter;
+  fileType: string;
   folderPath: string | null;
+  includeSubfolders: boolean;
 }
 
 interface SectionCounts {
@@ -32,7 +32,7 @@ interface UsbBooksApi {
   listUsbBooks: (query: {
     search?: string;
     sort?: LibrarySortOption;
-    fileType?: LibraryFileTypeFilter;
+    fileType?: string;
     limit?: number;
     offset?: number;
     countOnly?: boolean;
@@ -41,6 +41,10 @@ interface UsbBooksApi {
 
 function getUsbApi(): UsbBooksApi {
   return window.api as unknown as UsbBooksApi;
+}
+
+function hasLibraryApi(): boolean {
+  return !!window.api?.listBooks;
 }
 
 async function loadPage(options: UseBooksOptions, offset: number): Promise<LibraryListResult> {
@@ -60,6 +64,7 @@ async function loadPage(options: UseBooksOptions, offset: number): Promise<Libra
     sort: options.sort,
     fileType: options.fileType,
     folderPath: options.folderPath,
+    includeSubfolders: options.includeSubfolders,
     limit: PAGE_SIZE,
     offset,
   });
@@ -71,6 +76,7 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
     sort: options.sort,
     fileType: options.fileType,
     folderPath: options.folderPath,
+    includeSubfolders: options.includeSubfolders,
     limit: 1,
     offset: 0,
   };
@@ -100,6 +106,7 @@ async function loadCounts(options: UseBooksOptions): Promise<SectionCounts> {
 export default function useBooks(options: UseBooksOptions) {
   const queryClient = useQueryClient();
   const booksQueryKey = useMemo(() => ["books", options] as const, [options]);
+  const apiAvailable = hasLibraryApi();
 
   const booksQuery = useInfiniteQuery({
     queryKey: booksQueryKey,
@@ -107,18 +114,21 @@ export default function useBooks(options: UseBooksOptions) {
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.offset + lastPage.limit : undefined,
+    enabled: apiAvailable,
   });
 
   const countsQuery = useQuery({
     queryKey: ["book-counts", options],
     queryFn: () => loadCounts(options),
     staleTime: 30_000,
+    enabled: apiAvailable,
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
     queryFn: () => window.api.getCategories(),
     staleTime: 60_000,
+    enabled: apiAvailable,
   });
 
   const books = useMemo(
@@ -141,14 +151,18 @@ export default function useBooks(options: UseBooksOptions) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const fetchNextPage = useCallback(() => {
+    if (!apiAvailable) return;
     booksQuery.fetchNextPage();
-  }, [booksQuery]);
+  }, [apiAvailable, booksQuery]);
 
-  const refreshBooks = useCallback(() => {
-    queryClient.resetQueries({ queryKey: booksQueryKey, exact: true });
-    queryClient.refetchQueries({ queryKey: ["book-counts"] });
-    queryClient.refetchQueries({ queryKey: ["categories"] });
-  }, [queryClient, booksQueryKey]);
+  const refreshBooks = useCallback(async () => {
+    if (!apiAvailable) return;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: booksQueryKey, exact: true }),
+      queryClient.invalidateQueries({ queryKey: ["book-counts"] }),
+      queryClient.invalidateQueries({ queryKey: ["categories"] }),
+    ]);
+  }, [apiAvailable, queryClient, booksQueryKey]);
 
   const handleSync = async (
     fileHash: string,

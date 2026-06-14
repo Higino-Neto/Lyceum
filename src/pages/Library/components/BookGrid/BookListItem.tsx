@@ -1,5 +1,6 @@
-import { Check, Copy, FileText, Move, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Copy, FileText, Folder, Move, Trash2 } from "lucide-react";
+import { memo } from "react";
+import type { DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -9,6 +10,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import { useLazyThumbnail } from "./useLazyThumbnail";
 
 export interface ExplorerColumns {
   name: number;
@@ -19,25 +21,31 @@ export interface ExplorerColumns {
   size: number;
 }
 
+export type ListLayoutMode = "full" | "medium" | "compact" | "narrow";
+
 interface BookListItemProps {
   book: BookWithThumbnail;
-  onOpen: () => void;
-  onSync?: (action: "move" | "copy") => void;
-  onDelete?: () => void;
+  onOpen: (book: BookWithThumbnail) => void;
+  onSync?: (book: BookWithThumbnail, action: "move" | "copy") => void;
+  onDelete?: (book: BookWithThumbnail) => void;
   showSyncActions: boolean;
-  onClick?: () => void;
+  onClick?: (book: BookWithThumbnail) => void;
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   isChecked?: boolean;
   selectedCount?: number;
-  onToggleSelection?: () => void;
-  onContextSelect?: () => void;
+  onToggleSelection?: (book: BookWithThumbnail) => void;
+  onContextSelect?: (book: BookWithThumbnail) => void;
+  canDropOnBook?: (book: BookWithThumbnail) => boolean;
+  onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
   columns: ExplorerColumns;
+  gridTemplateColumns: string;
+  listLayout: ListLayoutMode;
 }
 
-export default function BookListItem({
+function BookListItem({
   book,
   onOpen,
   onSync,
@@ -52,37 +60,29 @@ export default function BookListItem({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
-  columns,
+  canDropOnBook,
+  onDropOnBook,
+  gridTemplateColumns,
+  listLayout,
 }: BookListItemProps) {
-  const [thumbnail, setThumbnail] = useState(book.thumbnail);
-
-  useEffect(() => {
-    let canceled = false;
-    setThumbnail(book.thumbnail);
-
-    if (!book.thumbnail && book.thumbnailPath) {
-      window.api.getThumbnail(book.thumbnailPath).then((value: string | null) => {
-        if (!canceled) {
-          setThumbnail(value || undefined);
-        }
-      });
-    }
-
-    return () => {
-      canceled = true;
-    };
-  }, [book.thumbnail, book.thumbnailPath]);
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+  const isCollection = book.syntheticFolderType === "collection";
+  const formatCount = book.mergedBooks?.length || 1;
+  const formatLabel =
+    formatCount > 1
+      ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
+      : getFileTypeLabel(book.fileType, book.filePath);
 
   const handleClick = () => {
     if (selectionMode) {
-      onToggleSelection?.();
+      onToggleSelection?.(book);
       return;
     }
 
     if (onClick) {
-      onClick();
+      onClick(book);
     } else {
-      onOpen();
+      onOpen(book);
     }
   };
 
@@ -91,16 +91,14 @@ export default function BookListItem({
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextSelect?.();
+        onContextSelect?.(book);
       }}
-      className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-all ${
+      className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-shadow ${
         isSelected
           ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"
       } ${isChecked ? "border-green-500 bg-green-950/20" : ""}`}
-      style={{
-        gridTemplateColumns: `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`,
-      }}
+      style={{ gridTemplateColumns }}
       draggable={!selectionMode || isChecked}
       onDragStartCapture={(e) => {
         if (selectionMode && !isChecked) {
@@ -121,6 +119,17 @@ export default function BookListItem({
         onDragStart?.(book.fileHash);
       }}
       onDragEndCapture={() => onDragEnd?.()}
+      onDragOver={(event) => {
+        if (!canDropOnBook?.(book)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(event) => {
+        if (!canDropOnBook?.(book)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDropOnBook?.(book, event);
+      }}
     >
       <div className="flex min-w-0 items-center gap-3 px-3 py-2">
         <div
@@ -134,39 +143,71 @@ export default function BookListItem({
         >
           <Check size={13} />
         </div>
-        <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
-          {thumbnail ? (
-            <img
-              src={thumbnail}
-              alt={book.title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <FileText size={14} className="text-zinc-600" />
+        {isCollection ? (
+          <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800 flex items-center justify-center">
+            <Folder size={16} className="text-emerald-400" />
+          </div>
+        ) : (
+          <div ref={thumbnailRef} className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
+            {thumbnail ? (
+              <img
+                src={thumbnail}
+                alt={book.title}
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <FileText size={14} className="text-zinc-600" />
+              </div>
+            )}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="min-w-0 truncate text-sm text-zinc-200">
+            {getTitleWithoutExtension(book.title, book.fileType)}
+          </p>
+          {(listLayout === "compact" || listLayout === "narrow") && (
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+            <span className={`rounded-sm px-1.5 py-0.5 ${isCollection ? "bg-emerald-950/50 text-emerald-300" : "bg-zinc-800 uppercase text-zinc-300"}`}>
+                {isCollection ? "Coleção" : formatLabel}
+              </span>
+              {listLayout !== "narrow" && (
+                <span className="min-w-0 truncate">
+                  {getBookFolderLabel(book.filePath)}
+                </span>
+              )}
             </div>
           )}
         </div>
-        <p className="min-w-0 truncate text-sm text-zinc-200">
-          {getTitleWithoutExtension(book.title, book.fileType)}
-        </p>
       </div>
 
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="truncate px-3 py-2 text-xs text-zinc-500">
         {getBookFolderLabel(book.filePath)}
       </div>
+      )}
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="px-3 py-2 text-xs text-zinc-400">
-        {getFileTypeLabel(book.fileType, book.filePath)}
+        {isCollection ? (
+          <span className="rounded-sm bg-emerald-950/50 px-1.5 py-0.5 text-emerald-300">Coleção</span>
+        ) : formatLabel}
       </div>
+      )}
+      {listLayout !== "narrow" && (
       <div className="px-3 py-2 text-xs text-zinc-400">
-        {formatPageCount(book.numPages, book.fileType)}
+        {isCollection ? `${book.mergedBooks?.length || 0} livros` : formatPageCount(book.numPages, book.fileType)}
       </div>
+      )}
+      {(listLayout === "full" || listLayout === "medium") && (
       <div className="px-3 py-2 text-xs text-zinc-500">
         {formatShortDate(book.lastOpenedAt || book.createdAt)}
       </div>
+      )}
+      {listLayout === "full" && (
       <div className="px-3 py-2 text-xs text-zinc-500">
         {formatFileSize(book.fileSize)}
       </div>
+      )}
 
       <div className="flex justify-end gap-1 px-2">
         {showSyncActions && onSync && (
@@ -174,7 +215,7 @@ export default function BookListItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onSync("move");
+                onSync(book, "move");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
               title="Mover para library"
@@ -184,7 +225,7 @@ export default function BookListItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onSync("copy");
+                onSync(book, "copy");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
               title="Copiar para library"
@@ -197,7 +238,7 @@ export default function BookListItem({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              onDelete(book);
             }}
             className="cursor-pointer rounded p-2 hover:bg-red-500/20"
             title="Remover"
@@ -209,3 +250,55 @@ export default function BookListItem({
     </div>
   );
 }
+
+export function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbnail) {
+  const previousMergedSignature = previous.mergedBooks
+    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}`)
+    .join("|");
+  const nextMergedSignature = next.mergedBooks
+    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}`)
+    .join("|");
+
+  return (
+    previous.id === next.id &&
+    previous.fileHash === next.fileHash &&
+    previous.title === next.title &&
+    previous.filePath === next.filePath &&
+    previous.thumbnail === next.thumbnail &&
+    previous.thumbnailPath === next.thumbnailPath &&
+    previous.numPages === next.numPages &&
+    previous.fileType === next.fileType &&
+    previous.fileSize === next.fileSize &&
+    previous.lastOpenedAt === next.lastOpenedAt &&
+    previous.createdAt === next.createdAt &&
+    previous.processingStatus === next.processingStatus &&
+    previous.syntheticFolderPath === next.syntheticFolderPath &&
+    previous.syntheticFolderType === next.syntheticFolderType &&
+    previousMergedSignature === nextMergedSignature
+  );
+}
+
+function areColumnsEqual(previous: ExplorerColumns, next: ExplorerColumns) {
+  return (
+    previous.name === next.name &&
+    previous.folder === next.folder &&
+    previous.type === next.type &&
+    previous.pages === next.pages &&
+    previous.modified === next.modified &&
+    previous.size === next.size
+  );
+}
+
+export default memo(BookListItem, (previous, next) => (
+  areBooksEqual(previous.book, next.book) &&
+  previous.showSyncActions === next.showSyncActions &&
+  previous.isSelected === next.isSelected &&
+  previous.selectionMode === next.selectionMode &&
+  previous.isChecked === next.isChecked &&
+  previous.selectedCount === next.selectedCount &&
+  previous.gridTemplateColumns === next.gridTemplateColumns &&
+  previous.listLayout === next.listLayout &&
+  previous.canDropOnBook === next.canDropOnBook &&
+  previous.onDropOnBook === next.onDropOnBook &&
+  areColumnsEqual(previous.columns, next.columns)
+));

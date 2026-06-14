@@ -75,3 +75,6 @@ export function textualResourcesPath(rootPath: string) {
   return path.join(rootPath, "content", "textual", "resources.json");
 }
 
+export function comicPagesPath(rootPath: string) {
+  return path.join(rootPath, "content", "comic", "pages.json");
+}

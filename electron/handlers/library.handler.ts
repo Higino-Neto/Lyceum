@@ -1,6 +1,5 @@
 import { ipcMain, BrowserWindow, shell } from "electron";
 import {
-  getAllDocuments,
   listDocuments,
   getDocumentsBySyncStatus,
   getDocumentByHash,
@@ -15,39 +14,87 @@ import {
   deleteDocument,
   searchDocuments,
   type DocumentRecord,
+  type WatchFolderRecord,
 } from "../local-database";
 import {
   scanLibrary,
   resyncLibrary,
   processFile,
-  getFolderStructure,
-  getAllFoldersFlat,
+  queueThumbnailGeneration,
+  queueAllThumbnailRegeneration,
+  setLibraryChangeEmitter,
+  setNotificationEmitter,
+  getFolderStructureAsync,
+  getAllFoldersFlatAsync,
   getBooksInFolder,
+  getLibraryRoots,
+  getFolderStructureCached,
+  getFolderChildren,
+  getFolderStats,
+  folderExists,
+  notifyFolderChanged,
+  refreshLibraryPathWatcher,
+  setFolderChangeEmitter,
+  stopLibraryPathWatcher,
+  watchLibraryPath,
 } from "../services/library-service";
 import {
   LIBRARY_PATH,
   USER_DATA_PATH,
   THUMBNAILS_DIR,
-  assertPathWithin,
   resolveLibraryRelativePath,
-  sanitizeFolderName,
   getUniqueFilePath,
-  getUniqueDirPath,
   moveFileAcrossDevices,
-  isPathWithin,
-  getAllBookFiles,
+  inferBookFileTypeFromPath,
   inferFileTypeFromPath,
   toReadableFileType,
 } from "../services/file-service";
-import { generateThumbnail } from "../services/document-processing";
+import { generateThumbnail, type BookFileType } from "../services/document-processing";
 import { openReadableFile } from "../services/document-service";
+import {
+  addManagedSourceFolder,
+  addManagedWatchFolder,
+  createManagedCollection,
+  createManagedFolder,
+  deleteManagedFolder,
+  getManagedWatchFolderBookCount,
+  listManagedWatchFolderBooks,
+  listManagedWatchFolders,
+  moveManagedBook,
+  moveManagedFolder,
+  moveMergedManagedBook,
+  renameManagedFolder,
+  removeManagedSourceFolder,
+  removeManagedWatchFolder,
+  resyncManagedSourceFolder,
+} from "../services/folder-service";
 import fs from "node:fs";
 import path from "node:path";
 
 let win: BrowserWindow | null = null;
+let refreshFileWatchers: (() => void) | null = null;
 
 export function setWindow(w: BrowserWindow | null) {
   win = w;
+  setLibraryChangeEmitter(w ? () => w.webContents.send("library:updated") : null);
+  setNotificationEmitter(w ? (n) => w.webContents.send("library:notification", n) : null);
+  setFolderChangeEmitter(w ? (payload) => w.webContents.send("folder:changed", payload) : null);
+  if (w) {
+    watchLibraryPath();
+  } else {
+    stopLibraryPathWatcher();
+  }
+}
+
+export function setFileWatcherRefresh(callback: (() => void) | null) {
+  refreshFileWatchers = callback;
+}
+
+function emitLibraryUpdated(result: { success?: boolean }) {
+  if (result.success) {
+    notifyFolderChanged();
+    win?.webContents.send("library:updated");
+  }
 }
 
 export function registerLibraryHandlers() {
@@ -56,11 +103,20 @@ export function registerLibraryHandlers() {
   });
 
   ipcMain.handle("library:scan", async () => {
-    await scanLibrary();
+    return scanLibrary();
+  });
+
+  ipcMain.handle("thumbnail:ensure-many", async (_, requests) => {
+    return queueThumbnailGeneration(Array.isArray(requests) ? requests.slice(0, 96) : []);
+  });
+
+  ipcMain.handle("thumbnail:regenerate-all", async () => {
+    return queueAllThumbnailRegeneration();
   });
 
   ipcMain.handle("library:resync", async () => {
     const result = await resyncLibrary();
+    notifyFolderChanged();
     win?.webContents.send("library:updated");
     return result;
   });
@@ -121,7 +177,7 @@ export function registerLibraryHandlers() {
         updateDocumentSyncStatus(fileHash, true, category);
         const newThumbnail = await generateThumbnail(targetPath, fileHash, {
           thumbnailsDir: THUMBNAILS_DIR(), force: false,
-          fileType: inferFileTypeFromPath(targetPath),
+          fileType: inferBookFileTypeFromPath(targetPath) as BookFileType,
           logPrefix: "[LibraryHandler]",
         });
         if (newThumbnail) updateThumbnailPath(fileHash, newThumbnail);
@@ -134,12 +190,38 @@ export function registerLibraryHandlers() {
     }
   });
 
-  ipcMain.handle("library:get-folder-structure", () => {
-    return getFolderStructure(LIBRARY_PATH());
+  ipcMain.handle("library:get-folder-structure", async (_, rootPath?: string | null) => {
+    if (!rootPath) return getFolderStructureAsync(LIBRARY_PATH());
+    const root = getLibraryRoots().find((candidate) => path.resolve(candidate.path) === path.resolve(rootPath));
+    if (!root) return [];
+    return getFolderStructureAsync(root.path, root.type === "source");
+  });
+
+  ipcMain.handle("library:get-folder-structure-cached", (_, rootPath?: string | null) => {
+    if (!rootPath) return getFolderStructureCached(LIBRARY_PATH());
+    const root = getLibraryRoots().find((candidate) => path.resolve(candidate.path) === path.resolve(rootPath));
+    if (!root) return [];
+    return getFolderStructureCached(root.path, root.type === "source");
+  });
+
+  ipcMain.handle("library:get-folder-children", (_, parentPath: string | null = null) => {
+    return getFolderChildren(parentPath);
+  });
+
+  ipcMain.handle("library:get-folder-stats", (_, folderPath: string | null = null) => {
+    return getFolderStats(folderPath);
+  });
+
+  ipcMain.handle("library:folder-exists", (_, folderPath: string | null = null) => {
+    return folderExists(folderPath);
+  });
+
+  ipcMain.handle("library:get-library-roots", () => {
+    return getLibraryRoots();
   });
 
   ipcMain.handle("library:get-all-folders", () => {
-    return getAllFoldersFlat(LIBRARY_PATH());
+    return getAllFoldersFlatAsync(LIBRARY_PATH());
   });
 
   ipcMain.handle("library:get-books-in-folder", (_, folderPath: string | null) => {
@@ -147,141 +229,45 @@ export function registerLibraryHandlers() {
   });
 
   ipcMain.handle("library:create-folder", async (_, folderName: string, parentPath: string | null = null) => {
-    try {
-      const basePath = resolveLibraryRelativePath(parentPath);
-      const safeFolderName = sanitizeFolderName(folderName);
-      const newFolderPath = assertPathWithin(
-        LIBRARY_PATH(),
-        path.join(basePath, safeFolderName),
-        "Caminho inválido",
-      );
-      if (fs.existsSync(newFolderPath)) return { success: false, error: "Pasta já existe" };
-      fs.mkdirSync(newFolderPath, { recursive: true });
-      win?.webContents.send("library:updated");
-      return { success: true };
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string };
-      let errorMessage = "Erro ao criar pasta";
-      if (err.code === "EACCES") errorMessage = "Permissão negada";
-      return { success: false, error: errorMessage };
-    }
+    const result = createManagedFolder(folderName, parentPath);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:create-collection", async (_, name: string, fileHashes: string[] = [], parentPath: string | null = null) => {
+    const result = createManagedCollection(name, fileHashes, parentPath);
+    emitLibraryUpdated(result);
+    return result;
   });
 
   ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
-    try {
-      const safeOldPath = assertPathWithin(LIBRARY_PATH(), oldPath, "Caminho inválido");
-      const parentPathDir = path.dirname(safeOldPath);
-      const safeFolderName = sanitizeFolderName(newName);
-      const newPath = assertPathWithin(LIBRARY_PATH(), path.join(parentPathDir, safeFolderName), "Caminho inválido");
-
-      if (fs.existsSync(newPath)) return { success: false, error: "Já existe uma pasta com este nome" };
-
-      const allDocs = getAllDocuments();
-      const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(safeOldPath));
-      fs.renameSync(safeOldPath, newPath);
-
-      for (const doc of docsInFolder) {
-        if (doc.filePath) {
-          const newFilePath = doc.filePath.replace(safeOldPath, newPath);
-          updateDocumentPath(doc.fileHash, newFilePath);
-        }
-      }
-
-      win?.webContents.send("library:updated");
-      return { success: true };
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string };
-      let errorMessage = "Erro ao renomear pasta";
-      if (err.code === "EBUSY" || err.code === "ENOTEMPTY") errorMessage = "Pasta está sendo usada";
-      else if (err.code === "EPERM") errorMessage = "Permissão negada";
-      return { success: false, error: errorMessage };
-    }
+    const result = renameManagedFolder(oldPath, newName);
+    emitLibraryUpdated(result);
+    return result;
   });
 
   ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
-    try {
-      const safeFolderPath = assertPathWithin(LIBRARY_PATH(), folderPath, "Caminho inválido");
-      if (safeFolderPath === LIBRARY_PATH()) return { success: false, error: "A pasta raiz não pode ser excluída" };
-      if (!fs.existsSync(safeFolderPath)) return { success: false, error: "Pasta não existe" };
-
-      if (!force) {
-        const items = fs.readdirSync(safeFolderPath, { withFileTypes: true });
-        const nonEmpty = items.filter(item => !item.name.startsWith("."));
-        if (nonEmpty.length > 0) return { success: false, error: "Pasta não está vazia" };
-      }
-
-      fs.rmSync(safeFolderPath, { recursive: true, force: true });
-      win?.webContents.send("library:updated");
-      return { success: true };
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string };
-      let errorMessage = "Erro ao excluir pasta";
-      if (err.code === "EBUSY" || err.code === "ENOTEMPTY") errorMessage = "Pasta está sendo usada";
-      else if (err.code === "EPERM") errorMessage = "Permissão negada";
-      return { success: false, error: errorMessage };
-    }
+    const result = deleteManagedFolder(folderPath, force);
+    emitLibraryUpdated(result);
+    return result;
   });
 
   ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: string | null) => {
-    try {
-      const libraryPath = LIBRARY_PATH();
-      const safeSourcePath = assertPathWithin(libraryPath, sourcePath, "Caminho inválido");
-      if (!fs.existsSync(safeSourcePath)) return { success: false, error: "Pasta não existe" };
-
-      const targetDir = resolveLibraryRelativePath(targetPath);
-      const folderName = path.basename(safeSourcePath);
-      let destinationPath = path.join(targetDir, folderName);
-      if (fs.existsSync(destinationPath)) destinationPath = getUniqueDirPath(targetDir, folderName);
-      if (safeSourcePath === destinationPath) return { success: true };
-      if (isPathWithin(safeSourcePath, destinationPath)) return { success: false, error: "Não pode mover uma pasta para dentro de si mesma" };
-
-      const allDocs = getAllDocuments();
-      const docsInFolder = allDocs.filter(d => d.filePath && d.filePath.startsWith(safeSourcePath));
-      fs.renameSync(safeSourcePath, destinationPath);
-
-      for (const doc of docsInFolder) {
-        if (doc.filePath) {
-          const newFilePath = doc.filePath.replace(safeSourcePath, destinationPath);
-          updateDocumentPath(doc.fileHash, newFilePath);
-        }
-      }
-
-      win?.webContents.send("library:updated");
-      return { success: true };
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string };
-      let errorMessage = "Erro ao mover pasta";
-      if (err.code === "EBUSY" || err.code === "ENOTEMPTY") errorMessage = "Pasta está sendo usada";
-      else if (err.code === "EPERM") errorMessage = "Permissão negada";
-      return { success: false, error: errorMessage };
-    }
+    const result = moveManagedFolder(sourcePath, targetPath);
+    emitLibraryUpdated(result);
+    return result;
   });
 
   ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath: string | null) => {
-    try {
-      const doc = getDocumentByHash(fileHash);
-      if (!doc || !doc.filePath) return { success: false, error: "Livro não encontrado" };
+    const result = moveManagedBook(fileHash, targetFolderPath);
+    emitLibraryUpdated(result);
+    return result;
+  });
 
-      const currentDir = path.dirname(doc.filePath);
-      const fileName = path.basename(doc.filePath);
-      const targetDir = resolveLibraryRelativePath(targetFolderPath);
-      if (currentDir === targetDir) return { success: true };
-      if (!fs.existsSync(targetDir)) return { success: false, error: "Pasta de destino não existe" };
-
-      const newFilePath = getUniqueFilePath(targetDir, fileName);
-      moveFileAcrossDevices(doc.filePath, newFilePath);
-      updateDocumentPath(fileHash, newFilePath);
-      updateDocumentSyncStatus(fileHash, true, targetFolderPath || undefined);
-
-      win?.webContents.send("library:updated");
-      return { success: true };
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string };
-      let errorMessage = "Erro ao mover livro";
-      if (err.code === "EBUSY") errorMessage = "Arquivo está sendo usado";
-      else if (err.code === "EPERM") errorMessage = "Permissão negada";
-      return { success: false, error: errorMessage };
-    }
+  ipcMain.handle("library:move-merged-book", async (_, bookId: string, targetFolderPath: string | null) => {
+    const result = moveMergedManagedBook(bookId, targetFolderPath);
+    emitLibraryUpdated(result);
+    return result;
   });
 
   ipcMain.handle("file:open-external", async (_, filePath: string) => {
@@ -295,5 +281,56 @@ export function registerLibraryHandlers() {
     } catch (error) {
       return { success: false, error: String(error) };
     }
+  });
+
+  ipcMain.handle("library:get-watch-folders", () => {
+    return listManagedWatchFolders();
+  });
+
+  ipcMain.handle("library:add-watch-folder", (_, folderPath: string, label?: string) => {
+    const record = addManagedWatchFolder(folderPath, label);
+    notifyFolderChanged();
+    win?.webContents.send("library:updated");
+    return record;
+  });
+
+  ipcMain.handle("library:remove-watch-folder", (_, id: number) => {
+    const result = removeManagedWatchFolder(id);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:add-source-folder", async (_, folderPath: string, label?: string) => {
+    const result = await addManagedSourceFolder(folderPath, label);
+    if (result.success) {
+      refreshFileWatchers?.();
+      refreshLibraryPathWatcher();
+    }
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:remove-source-folder", (_, id: number) => {
+    const result = removeManagedSourceFolder(id);
+    if (result.success) {
+      refreshFileWatchers?.();
+      refreshLibraryPathWatcher();
+    }
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:resync-source-folder", async (_, id: number) => {
+    const result = await resyncManagedSourceFolder(id);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:get-watch-folder-books", (_, folderPath: string) => {
+    return listManagedWatchFolderBooks(folderPath);
+  });
+
+  ipcMain.handle("library:get-watch-folder-book-count", (_, folderPath: string) => {
+    return getManagedWatchFolderBookCount(folderPath);
   });
 }

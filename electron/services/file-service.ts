@@ -223,6 +223,15 @@ export function inferFileTypeFromPath(
   return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
 }
 
+export function inferBookFileTypeFromPath(
+  filePath?: string | null,
+  fallback = "pdf",
+) {
+  if (!filePath) return fallback;
+  const extension = path.extname(filePath).toLowerCase().replace(/^\./, "");
+  return extension || fallback;
+}
+
 export function getUniquePathInDir(targetDir: string, fileName: string): string {
   const destPath = path.join(targetDir, fileName);
   if (!fs.existsSync(destPath)) {

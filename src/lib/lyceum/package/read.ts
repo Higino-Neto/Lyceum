@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import type {
   LyceumBookMetadata,
+  LyceumComicContent,
+  LyceumComicPage,
   LyceumManifest,
   LyceumPackage,
   LyceumTextualChapter,
@@ -8,6 +10,7 @@ import type {
   LyceumTextualResource,
 } from "../schema/types";
 import {
+  comicPagesPath,
   manifestPath,
   metadataPath,
   textualChapterPath,
@@ -82,6 +85,24 @@ function validateMetadata(value: unknown): LyceumBookMetadata {
     publisher: optionalString(metadata, "publisher"),
     description: optionalString(metadata, "description"),
     publishDate: optionalString(metadata, "publishDate"),
+    subject: Array.isArray(metadata.subject)
+      ? metadata.subject.filter((item): item is string => typeof item === "string")
+      : optionalString(metadata, "subject"),
+    rights: optionalString(metadata, "rights"),
+    contributor: optionalString(metadata, "contributor"),
+    authorSort: optionalString(metadata, "authorSort"),
+    titleSort: optionalString(metadata, "titleSort"),
+    series: optionalString(metadata, "series"),
+    seriesIndex: optionalString(metadata, "seriesIndex"),
+    groupPosition: optionalString(metadata, "groupPosition"),
+    displaySeq: optionalString(metadata, "displaySeq"),
+    isbn: optionalString(metadata, "isbn"),
+    asin: optionalString(metadata, "asin"),
+    rating: typeof metadata.rating === "number" && Number.isFinite(metadata.rating) ? metadata.rating : undefined,
+    timestamp: optionalString(metadata, "timestamp"),
+    coverResourceId: optionalString(metadata, "coverResourceId"),
+    coverHref: optionalString(metadata, "coverHref"),
+    coverPageHref: optionalString(metadata, "coverPageHref"),
   };
 }
 
@@ -134,6 +155,38 @@ function validateResources(value: unknown): LyceumTextualResource[] {
   });
 }
 
+function validateComicPage(value: unknown, index: number): LyceumComicPage {
+  const page = assertRecord(value, `comic page ${index + 1}`);
+  const byteLength = page.byteLength;
+
+  return {
+    id: requireString(page, "id", `comic page ${index + 1}`),
+    href: requireString(page, "href", `comic page ${index + 1}`),
+    title: requireString(page, "title", `comic page ${index + 1}`),
+    mediaType: requireString(page, "mediaType", `comic page ${index + 1}`),
+    byteLength: typeof byteLength === "number" && Number.isFinite(byteLength) ? byteLength : 0,
+    width: typeof page.width === "number" && Number.isFinite(page.width) ? page.width : undefined,
+    height: typeof page.height === "number" && Number.isFinite(page.height) ? page.height : undefined,
+    resourceHref: optionalString(page, "resourceHref"),
+    originalPath: optionalString(page, "originalPath"),
+  };
+}
+
+function validateComicContent(value: unknown): LyceumComicContent {
+  const comic = assertRecord(value, "content/comic/pages.json");
+  const pages = Array.isArray(comic.pages)
+    ? comic.pages.map(validateComicPage)
+    : [];
+  const pageCount = typeof comic.pageCount === "number" && Number.isFinite(comic.pageCount)
+    ? comic.pageCount
+    : pages.length;
+  const totalBytes = typeof comic.totalBytes === "number" && Number.isFinite(comic.totalBytes)
+    ? comic.totalBytes
+    : pages.reduce((sum, page) => sum + page.byteLength, 0);
+
+  return { pages, pageCount, totalBytes };
+}
+
 function readTextualContent(rootPath: string): LyceumTextualContent | undefined {
   const spinePath = textualSpinePath(rootPath);
   if (!fs.existsSync(spinePath)) {
@@ -156,6 +209,7 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     href: item.href,
     title: item.title,
     xhtml: fs.readFileSync(textualChapterPath(rootPath, item.href), "utf8"),
+    mediaType: "application/xhtml+xml",
   }));
 
   return {
@@ -167,6 +221,15 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
   };
 }
 
+function readComicContent(rootPath: string): LyceumComicContent | undefined {
+  const pagesPath = comicPagesPath(rootPath);
+  if (!fs.existsSync(pagesPath)) {
+    return undefined;
+  }
+
+  return validateComicContent(readJson<unknown>(pagesPath));
+}
+
 export function readLyceumPackage(rootPath: string): LyceumPackage {
   const manifest = validateManifest(readJson<unknown>(manifestPath(rootPath)));
   const metadata = validateMetadata(readJson<unknown>(metadataPath(rootPath)));
@@ -176,6 +239,6 @@ export function readLyceumPackage(rootPath: string): LyceumPackage {
     manifest,
     metadata,
     textual: readTextualContent(rootPath),
+    comic: readComicContent(rootPath),
   };
 }
-

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
+  AlertTriangle,
   X,
   Trash2,
   FolderOpen,
@@ -17,6 +18,8 @@ import {
   Upload,
   FileType,
   Sparkles,
+  Search,
+  PanelRightOpen,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
@@ -33,14 +36,17 @@ const getTitleWithoutExtension = (title: string, fileType?: string) => {
 };
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
+import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
   onClose: () => void;
-  onOpenEmbed: () => void;
+  onOpenEmbed: (book?: BookWithThumbnail) => void;
+  onOpenPreview?: (book?: BookWithThumbnail) => void;
   onDelete?: () => void;
   onRefresh: () => void;
   readOnly?: boolean;
+  previewOpen?: boolean;
 }
 
 type EditMode = "title" | "author" | null;
@@ -52,13 +58,45 @@ interface ConversionTarget {
   reason?: string;
 }
 
+function DetailSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4 p-4">
+      <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
+        <div className="aspect-[3/4] rounded-md bg-zinc-800" />
+        <div className="space-y-3">
+          <div className="h-4 w-20 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-28 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-24 rounded-sm bg-zinc-800" />
+          <div className="h-3 w-32 rounded-sm bg-zinc-800" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
+        <div className="h-6 w-48 rounded-sm bg-zinc-800" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
+        <div className="h-5 w-36 rounded-sm bg-zinc-800" />
+      </div>
+      <div className="h-10 w-full rounded-sm bg-zinc-800" />
+      <div className="grid grid-cols-3 gap-2">
+        <div className="h-10 rounded-sm bg-zinc-800" />
+        <div className="h-10 rounded-sm bg-zinc-800" />
+        <div className="h-10 rounded-sm bg-zinc-800" />
+      </div>
+    </div>
+  );
+}
+
 export default function BookDetailPanel({
   book,
   onClose,
   onOpenEmbed,
+  onOpenPreview,
   onDelete,
   onRefresh,
   readOnly = false,
+  previewOpen = false,
 }: BookDetailPanelProps) {
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -83,6 +121,8 @@ export default function BookDetailPanel({
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showMetadataSearchDialog, setShowMetadataSearchDialog] = useState(false);
+  const [selectedVariantHash, setSelectedVariantHash] = useState(book.fileHash);
   const [isDragging, setIsDragging] = useState(false);
   const [thumbnailDialog, setThumbnailDialog] = useState<{
     open: boolean;
@@ -97,6 +137,31 @@ export default function BookDetailPanel({
   const [conversionTargets, setConversionTargets] = useState<ConversionTarget[]>([]);
   const [selectedConversionTarget, setSelectedConversionTarget] = useState<ConversionFormat | null>(null);
   const isConverting = isConvertingToEpub || isConvertingToPdf;
+
+  const prevHashRef = useRef<string | undefined>(undefined);
+  const wasPanelOpenRef = useRef(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (!book) {
+      wasPanelOpenRef.current = false;
+      return;
+    }
+
+    if (!wasPanelOpenRef.current) {
+      wasPanelOpenRef.current = true;
+      prevHashRef.current = book.fileHash;
+      return;
+    }
+
+    if (book.fileHash === prevHashRef.current) return;
+
+    prevHashRef.current = book.fileHash;
+    setIsTransitioning(true);
+    requestAnimationFrame(() => {
+      setIsTransitioning(false);
+    });
+  }, [book]);
 
   useEffect(() => {
     if (book.filePath) {
@@ -113,6 +178,16 @@ export default function BookDetailPanel({
       }
     }
   }, [book]);
+
+  const formatVariants = book.mergedBooks?.length ? book.mergedBooks : [book];
+  const selectedVariant =
+    formatVariants.find((variant) => variant.fileHash === selectedVariantHash) ||
+    formatVariants[0] ||
+    book;
+
+  useEffect(() => {
+    setSelectedVariantHash(book.fileHash);
+  }, [book.fileHash]);
 
   useEffect(() => {
     if (book.fileType === "epub") {
@@ -293,9 +368,12 @@ export default function BookDetailPanel({
       const newTitle = editMode === "title" ? editValue.trim() : getTitleWithoutExtension(book.title, book.fileType);
       const newAuthor = editMode === "author" ? editValue.trim() : (book.author || "");
       
-      const result = await window.api.renameBook(book.fileHash, newTitle, newAuthor);
+      const result = await window.api.updateMetadata(book.fileHash, {
+        title: newTitle,
+        author: newAuthor,
+      });
       if (result.success) {
-        toast.success("Livro atualizado com sucesso!");
+        toast.success("Metadados gravados no arquivo.");
         setEditMode(null);
         setEditValue("");
         onRefresh();
@@ -432,7 +510,8 @@ export default function BookDetailPanel({
     return bookPath.split(/[/\\]/).filter(Boolean);
   };
 
-  const canOpenInReader = book.fileType === "pdf" || book.fileType === "epub";
+  const canOpenInReader = selectedVariant.fileType === "pdf" || selectedVariant.fileType === "epub";
+  const hasFormatVariants = formatVariants.length > 1;
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
@@ -447,7 +526,10 @@ export default function BookDetailPanel({
 
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="relative flex-1 overflow-y-auto p-4">
+        <div className={`absolute inset-0 z-10 transition-opacity duration-100 ${isTransitioning ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <DetailSkeleton />
+        </div>
         <div className="space-y-4">
           <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
           <div 
@@ -465,7 +547,7 @@ export default function BookDetailPanel({
                 key={thumbnailKey}
                 src={thumbnail}
                 alt={book.title}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600">
@@ -475,6 +557,11 @@ export default function BookDetailPanel({
             {book.processingStatus === "processing" && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <RefreshCw size={24} className="text-white animate-spin" />
+              </div>
+            )}
+            {book.processingStatus === "failed" && (
+              <div className="absolute top-1.5 left-1.5 z-20" title="Arquivo corrompido ou não suportado">
+                <AlertTriangle size={18} className="text-amber-400 drop-shadow-sm" />
               </div>
             )}
             {isDragging && (
@@ -506,6 +593,16 @@ export default function BookDetailPanel({
                 <p className="text-xs text-zinc-500">{formatFileSize(book.fileSize)}</p>
               </div>
             </div>
+
+            {book.processingStatus === "failed" && (
+              <div className="flex items-start gap-2 rounded-sm bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-400">Arquivo corrompido</p>
+                  <p className="text-[11px] text-amber-300/70">O arquivo não é um PDF válido ou está danificado</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-start gap-2">
               <Calendar size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
@@ -649,6 +746,17 @@ export default function BookDetailPanel({
           </div>
         </div>
 
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => setShowMetadataSearchDialog(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-sm border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-200 transition-colors hover:bg-green-500/20"
+          >
+            <Search size={15} />
+            Pesquisar e editar metadados
+          </button>
+        )}
+
         <div className="space-y-2">
           <p className="text-xs text-zinc-500">
             {formatPageCount(book.numPages, book.fileType)}{" "}
@@ -659,11 +767,41 @@ export default function BookDetailPanel({
           </p>
         </div>
 
-        <button
-          onClick={onOpenEmbed}
+        {hasFormatVariants && (
+          <div className="space-y-2 rounded-sm border border-zinc-800 bg-zinc-950/50 p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Formato para abrir
+            </p>
+            <div className="grid gap-2">
+              {formatVariants.map((variant) => (
+                <button
+                  key={variant.fileHash}
+                  type="button"
+                  onClick={() => setSelectedVariantHash(variant.fileHash)}
+                  className={`flex min-w-0 items-center justify-between gap-3 rounded-sm border px-3 py-2 text-left transition-colors ${
+                    selectedVariantHash === variant.fileHash
+                      ? "border-green-500/70 bg-green-500/10 text-green-100"
+                      : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
+                  }`}
+                >
+                  <span className="min-w-0 truncate text-xs">
+                    {variant.fileName || variant.filePath.split(/[/\\]/).pop() || variant.title}
+                  </span>
+                  <span className="flex-shrink-0 rounded-sm bg-zinc-800 px-1.5 py-0.5 text-[11px] uppercase text-zinc-300">
+                    {getFileTypeLabel(variant.fileType, variant.filePath)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+          onClick={() => onOpenEmbed(selectedVariant)}
           disabled={!canOpenInReader}
-          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
-        >
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          >
           <BookOpen size={16} />
           {/* <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[11px] uppercase tracking-wide">
             EmbedPDF
@@ -674,6 +812,23 @@ export default function BookDetailPanel({
               : "Começar a Ler"
             : "Formato não suportado no leitor"}
         </button>
+        {onOpenPreview && (
+          <button
+            type="button"
+            onClick={() => onOpenPreview(selectedVariant)}
+            disabled={!canOpenInReader}
+            className={`flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500 ${
+              previewOpen
+                ? "border-green-500/70 bg-green-500/15 text-green-200 hover:bg-green-500/25"
+                : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-200"
+            }`}
+            title={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
+            aria-label={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
+          >
+            <PanelRightOpen size={16} />
+          </button>
+        )}
+        </div>
         {!readOnly && (
         <div className="space-y-2">
           <div className={`grid gap-2 ${book.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>
@@ -789,8 +944,16 @@ export default function BookDetailPanel({
           onSetThumbnail={handleSetThumbnail}
           onClose={() => setThumbnailDialog({ open: false, imagePath: "" })}
         />
+        <BookMetadataSearchDialog
+          isOpen={showMetadataSearchDialog}
+          book={book}
+          thumbnail={thumbnail}
+          onClose={() => setShowMetadataSearchDialog(false)}
+          onSaved={onRefresh}
+        />
         </>
         )}
+      </div>
       </div>
 
       {showConversionDialog && (
@@ -872,7 +1035,6 @@ export default function BookDetailPanel({
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 }
