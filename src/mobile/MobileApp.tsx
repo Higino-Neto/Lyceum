@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  CheckSquare,
   ChevronDown,
   ChevronRight,
   Clock3,
@@ -9,14 +8,11 @@ import {
   Heart,
   Library,
   Menu,
-  Pause,
-  Play,
   Plus,
   Search,
   Settings,
   SlidersHorizontal,
   Star,
-  Square,
   UserCircle,
   X,
 } from "lucide-react";
@@ -33,14 +29,19 @@ import {
   writeMobileBookFile,
 } from "./bookFileStorage";
 import {
-  calculateStats,
+  acknowledgeNativeBook,
+  getPendingNativeBooks,
+  listenForIncomingBooks,
+  loadNativeBook,
+  pickNativeBooks,
+  supportsNativeDocumentPicker,
+  supportsNativeIncomingBooks,
+  type NativeImportFile,
+} from "./incomingBooksBridge";
+import {
   createBookFromFile,
   createFolder,
-  createHabit,
-  createSession,
   createSourceFolder,
-  formatShortDate,
-  getTodayKey,
   hydrateMobileState,
   inferFileType,
   loadMobileState,
@@ -65,7 +66,7 @@ import {
 } from "./sourceFolderBridge";
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
-import type { MobileBook, MobileHabit, MobileLibraryState, MobileTab } from "./types";
+import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
 
 const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
   { id: "library", label: "Biblioteca", icon: Library },
@@ -97,16 +98,6 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
   );
 }
 
-function StatTile({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-50">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500">{detail}</p>
-    </div>
-  );
-}
-
 type LibraryFilter = "all" | "pdf" | "epub";
 type LibraryView = "grid" | "list";
 
@@ -115,11 +106,28 @@ interface SourceImportEntry {
   size: number;
   mimeType: string;
   relativePath: string;
-  loadFile: () => Promise<File>;
+  loadFile: (signal?: AbortSignal, onProgress?: (loaded: number, total: number) => void) => Promise<File>;
+}
+
+interface ImportJob {
+  id: string;
+  name: string;
+  progress: number;
+  status: "reading" | "processing" | "done" | "cancelled" | "error";
+  message?: string;
+}
+
+interface ImportCandidate {
+  key: string;
+  name: string;
+  size: number;
+  loadFile: (signal: AbortSignal, onProgress: (loaded: number, total: number) => void) => Promise<File>;
+  acknowledge?: () => Promise<void>;
 }
 
 function getProgress(book: MobileBook) {
-  if (book.totalPages <= 1) return book.minutesRead > 0 ? 16 : 0;
+  if (book.fileType !== "pdf") return Math.round(book.progressPercent || book.textScrollPercent || 0);
+  if (book.totalPages <= 1) return 0;
   return Math.min(96, Math.max(4, Math.round((book.currentPage / book.totalPages) * 100)));
 }
 
@@ -445,7 +453,10 @@ function MobileApp() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceFolderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
+  const importControllersRef = useRef(new Map<string, AbortController>());
+  const incomingProcessingRef = useRef(new Set<string>());
   const [state, setState] = useState<MobileLibraryState>(() => loadMobileState());
+  const stateRef = useRef(state);
   const [repositoryReady, setRepositoryReady] = useState(false);
   const [activeTab, setActiveTab] = useState<MobileTab>("library");
   const [libraryQuery, setLibraryQuery] = useState<MobileLibraryQuery>({
@@ -456,23 +467,21 @@ function MobileApp() {
   });
   const [libraryView, setLibraryView] = useState<LibraryView>("grid");
   const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
-  const [newHabitName, setNewHabitName] = useState("");
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
-  const [isReading, setIsReading] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [sessionStartPage, setSessionStartPage] = useState<number | null>(null);
-  const [sessionStartProgress, setSessionStartProgress] = useState<number | null>(null);
   const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
   const [readerFileLoading, setReaderFileLoading] = useState(false);
+  const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const selectedBook = state.books.find((book) => book.id === state.selectedBookId) || state.books[0];
   const selectedBookDataUrl = selectedBook ? (readerDataUrls[selectedBook.id] || selectedBook.dataUrl) : undefined;
   const isPdfBook = selectedBook?.fileType === "pdf";
   const isEbookReader = selectedBook?.fileType === "pdf" || selectedBook?.fileType === "epub";
-  const stats = useMemo(() => calculateStats(state), [state]);
-  const today = getTodayKey();
 
   useEffect(() => {
     if (!repositoryReady) return;
@@ -550,12 +559,6 @@ function MobileApp() {
   }, []);
 
   useEffect(() => {
-    if (!isReading) return undefined;
-    const interval = window.setInterval(() => setElapsedSeconds((value) => value + 1), 1000);
-    return () => window.clearInterval(interval);
-  }, [isReading]);
-
-  useEffect(() => {
     let cancelled = false;
     const book = selectedBook;
 
@@ -598,21 +601,50 @@ function MobileApp() {
     setActiveTab("reader");
   }, []);
 
-  const importFiles = async (files: FileList | null, folderId = libraryQuery.folderId) => {
-    if (!files?.length) return;
-    const imported: MobileBook[] = [];
-    const existing = [...state.books];
+  const updateImportJob = (jobId: string, patch: Partial<ImportJob>) => {
+    setImportJobs((current) => current.map((job) => job.id === jobId ? { ...job, ...patch } : job));
+  };
 
-    for (const file of Array.from(files)) {
+  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId) => {
+    if (!candidates.length) return;
+    const imported: MobileBook[] = [];
+    const existing = [...stateRef.current.books];
+
+    for (const candidate of candidates) {
+      const jobId = `import_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const controller = new AbortController();
+      importControllersRef.current.set(jobId, controller);
+      setImportJobs((current) => [...current.filter((job) => job.status === "reading" || job.status === "processing"), {
+        id: jobId,
+        name: candidate.name,
+        progress: 0,
+        status: "reading",
+      }]);
+
       try {
+        const file = await candidate.loadFile(controller.signal, (loaded, total) => {
+          const progress = total > 0 ? Math.round((loaded / total) * 58) : 12;
+          updateImportJob(jobId, { progress: Math.min(58, progress), status: "reading", message: "Lendo arquivo" });
+        });
+        if (controller.signal.aborted) throw new DOMException("Importacao cancelada", "AbortError");
         if (!inferFileType(file)) throw new Error(`Formato nao suportado: ${file.name}`);
         if (findDuplicateBook([...existing, ...imported], file)) {
           toast(`Ignorado por parecer duplicado: ${file.name}`);
+          updateImportJob(jobId, { progress: 100, status: "done", message: "Ja estava na biblioteca" });
+          await candidate.acknowledge?.();
           continue;
         }
-        const dataUrl = await readFileAsDataUrl(file);
+        const dataUrl = await readFileAsDataUrl(file, {
+          signal: controller.signal,
+          onProgress: (loaded, total) => {
+            const progress = total > 0 ? 58 + Math.round((loaded / total) * 22) : 68;
+            updateImportJob(jobId, { progress: Math.min(80, progress), status: "reading", message: "Preparando livro" });
+          },
+        });
+        updateImportJob(jobId, { progress: 84, status: "processing", message: "Extraindo capa e salvando" });
         const book = createBookFromFile(file, dataUrl, folderId);
         const thumbnailPatch = await extractThumbnailPatch(book, file);
+        if (controller.signal.aborted) throw new DOMException("Importacao cancelada", "AbortError");
         const storagePath = await writeMobileBookFile(book, dataUrl, folderId);
         imported.push({
           ...book,
@@ -622,20 +654,95 @@ function MobileApp() {
         if (storagePath) {
           setReaderDataUrls((current) => ({ ...current, [book.id]: dataUrl }));
         }
+        await candidate.acknowledge?.();
+        updateImportJob(jobId, { progress: 100, status: "done", message: "Importado" });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Falha ao importar arquivo");
+        const cancelled = controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError") || (error instanceof Error && error.message.toLowerCase().includes("cancel"));
+        updateImportJob(jobId, {
+          status: cancelled ? "cancelled" : "error",
+          message: cancelled ? "Cancelado" : error instanceof Error ? error.message : "Falha ao importar arquivo",
+        });
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Falha ao importar arquivo");
+      } finally {
+        importControllersRef.current.delete(jobId);
+        incomingProcessingRef.current.delete(candidate.key);
       }
     }
 
-    if (!imported.length) return;
-    setState((current) => ({
-      ...current,
-      books: [...imported, ...current.books],
-      selectedBookId: imported[0].id,
-    }));
-    toast.success(imported.length === 1 ? "Livro importado" : `${imported.length} livros importados`);
+    if (imported.length) {
+      setState((current) => ({
+        ...current,
+        books: [...imported, ...current.books],
+        selectedBookId: imported[0].id,
+      }));
+      toast.success(imported.length === 1 ? "Livro importado" : `${imported.length} livros importados`);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const importFiles = async (files: FileList | null, folderId = libraryQuery.folderId) => {
+    if (!files?.length) return;
+    await importCandidates(Array.from(files).map((file) => ({
+      key: `web:${file.name}:${file.size}:${file.lastModified}`,
+      name: file.name,
+      size: file.size,
+      loadFile: async () => file,
+    })), folderId);
+  };
+
+  const importNativeFiles = async (files: NativeImportFile[], folderId = libraryQuery.folderId) => {
+    const candidates = files.filter((file) => {
+      if (incomingProcessingRef.current.has(file.uri)) return false;
+      incomingProcessingRef.current.add(file.uri);
+      return true;
+    }).map((nativeFile): ImportCandidate => ({
+      key: nativeFile.uri,
+      name: nativeFile.name,
+      size: nativeFile.size,
+      loadFile: (signal, onProgress) => loadNativeBook(nativeFile, onProgress, signal),
+      acknowledge: () => acknowledgeNativeBook(nativeFile.uri),
+    }));
+    await importCandidates(candidates, folderId);
+  };
+
+  const openFileImporter = async () => {
+    if (!supportsNativeDocumentPicker()) {
+      fileInputRef.current?.click();
+      return;
+    }
+    try {
+      await importNativeFiles(await pickNativeBooks());
+    } catch (error) {
+      if (!(error instanceof Error && error.message.toLowerCase().includes("cancel"))) {
+        toast.error(error instanceof Error ? error.message : "Falha ao abrir o seletor de arquivos");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!repositoryReady || !supportsNativeIncomingBooks()) return undefined;
+    let disposed = false;
+    let listener: { remove: () => Promise<void> } | undefined;
+    const consumePending = async () => {
+      try {
+        const pending = await getPendingNativeBooks();
+        if (!disposed && pending.length) {
+          setActiveTab("library");
+          await importNativeFiles(pending);
+        }
+      } catch (error) {
+        if (!disposed) toast.error(error instanceof Error ? error.message : "Falha ao receber arquivo compartilhado");
+      }
+    };
+    void consumePending();
+    void listenForIncomingBooks(() => { void consumePending(); }).then((handle) => {
+      listener = handle;
+    });
+    return () => {
+      disposed = true;
+      void listener?.remove();
+    };
+  }, [repositoryReady]);
 
   const importSourceEntries = async (
     entries: SourceImportEntry[],
@@ -656,6 +763,8 @@ function MobileApp() {
     const updated = new Map<string, MobileBook>();
 
     for (const entry of supportedEntries) {
+      let sourceJobId: string | undefined;
+      let sourceController: AbortController | undefined;
       try {
         const relativePath = entry.relativePath.replace(/\\/g, "/");
         const parts = relativePath.split("/").filter(Boolean);
@@ -669,8 +778,27 @@ function MobileApp() {
         );
         if (duplicate && duplicate.fileSize === entry.size) continue;
 
-        const file = await entry.loadFile();
-        const dataUrl = await readFileAsDataUrl(file);
+        sourceJobId = `source_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        sourceController = new AbortController();
+        importControllersRef.current.set(sourceJobId, sourceController);
+        setImportJobs((current) => [...current.filter((job) => job.status === "reading" || job.status === "processing"), {
+          id: sourceJobId!,
+          name: entry.name,
+          progress: 0,
+          status: "reading",
+          message: "Lendo pasta-fonte",
+        }]);
+        const file = await entry.loadFile(sourceController.signal, (loaded, total) => {
+          updateImportJob(sourceJobId!, { progress: total > 0 ? Math.min(58, Math.round((loaded / total) * 58)) : 12 });
+        });
+        const dataUrl = await readFileAsDataUrl(file, {
+          signal: sourceController.signal,
+          onProgress: (loaded, total) => updateImportJob(sourceJobId!, {
+            progress: total > 0 ? 58 + Math.round((loaded / total) * 22) : 68,
+            message: "Preparando livro",
+          }),
+        });
+        updateImportJob(sourceJobId, { progress: 84, status: "processing", message: "Salvando na biblioteca" });
         if (duplicate) {
           const nextBook = { ...duplicate, folderId: ensured.folderId, sourceFolderId: source.id, sourceRelativePath: relativePath };
           const storagePath = await writeMobileBookFile(nextBook, dataUrl, ensured.folderId);
@@ -681,6 +809,7 @@ function MobileApp() {
             ...getStoredBookPatch(nextBook, file, dataUrl, storagePath),
             ...thumbnailPatch,
           });
+          updateImportJob(sourceJobId, { progress: 100, status: "done", message: "Atualizado" });
           continue;
         }
 
@@ -694,8 +823,13 @@ function MobileApp() {
           sourceFolderId: source.id,
           sourceRelativePath: relativePath,
         });
+        updateImportJob(sourceJobId, { progress: 100, status: "done", message: "Importado" });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : `Falha ao importar ${entry.name}`);
+        const cancelled = sourceController?.signal.aborted || (error instanceof Error && error.message.toLowerCase().includes("cancel"));
+        if (sourceJobId) updateImportJob(sourceJobId, { status: cancelled ? "cancelled" : "error", message: cancelled ? "Cancelado" : error instanceof Error ? error.message : `Falha ao importar ${entry.name}` });
+        if (!cancelled) toast.error(error instanceof Error ? error.message : `Falha ao importar ${entry.name}`);
+      } finally {
+        if (sourceJobId) importControllersRef.current.delete(sourceJobId);
       }
     }
 
@@ -755,7 +889,7 @@ function MobileApp() {
         size: file.size,
         mimeType: file.mimeType,
         relativePath: `${scan.name || selection.name}/${file.relativePath}`,
-        loadFile: () => loadPersistentSourceFile(file),
+        loadFile: (signal, onProgress) => loadPersistentSourceFile(file, onProgress, signal),
       }));
       await importSourceEntries(entries, sourceFolderId, scan.name || selection.name, selection.uri);
     } catch (error) {
@@ -809,6 +943,25 @@ function MobileApp() {
       ...current,
       folders: current.folders.map((folder) => folder.id === folderId ? { ...folder, name: safeName, updatedAt: new Date().toISOString() } : folder),
     }));
+  };
+
+  const moveManagedFolder = (folderId: string, parentId?: string) => {
+    setState((current) => {
+      const folder = current.folders.find((item) => item.id === folderId);
+      if (!folder || folder.parentId === parentId) return current;
+      if (parentId && descendantFolderIds(folderId, current.folders).has(parentId)) {
+        toast.error("Uma pasta nao pode ser movida para dentro dela mesma");
+        return current;
+      }
+      if (current.folders.some((item) => item.id !== folderId && item.parentId === parentId && item.name.toLocaleLowerCase("pt-BR") === folder.name.toLocaleLowerCase("pt-BR"))) {
+        toast.error("Ja existe uma pasta com este nome no destino");
+        return current;
+      }
+      return {
+        ...current,
+        folders: current.folders.map((item) => item.id === folderId ? { ...item, parentId, updatedAt: new Date().toISOString() } : item),
+      };
+    });
   };
 
   const moveBooks = async (bookIds: string[], folderId?: string) => {
@@ -882,58 +1035,6 @@ function MobileApp() {
       : current);
   };
 
-  const finishSession = () => {
-    if (!selectedBook) return;
-    if (elapsedSeconds < 30) {
-      toast.error("Leia por pelo menos 30 segundos antes de registrar");
-      return;
-    }
-    const minutes = Math.max(1, Math.round(elapsedSeconds / 60));
-    const initialPage = sessionStartPage ?? selectedBook.currentPage;
-    const initialProgress = sessionStartProgress ?? selectedBook.progressPercent ?? 0;
-    const finalProgress = selectedBook.progressPercent ?? 0;
-    const pages = selectedBook.fileType === "pdf"
-      ? Math.max(0, Math.abs(selectedBook.currentPage - initialPage))
-      : Math.max(0, Math.round(Math.abs(finalProgress - initialProgress)));
-    const session = createSession(selectedBook, minutes, pages, {
-      startPage: initialPage,
-      endPage: selectedBook.currentPage,
-      startProgress: initialProgress,
-      endProgress: finalProgress,
-    });
-
-    setState((current) => updateBook({
-      ...current,
-      sessions: [session, ...current.sessions],
-    }, selectedBook.id, {
-      minutesRead: selectedBook.minutesRead + minutes,
-      lastOpenedAt: new Date().toISOString(),
-    }));
-    setIsReading(false);
-    setElapsedSeconds(0);
-    setSessionStartPage(null);
-    setSessionStartProgress(null);
-    toast.success("Sessao registrada");
-  };
-
-  const toggleReadingTimer = () => {
-    if (!selectedBook) return;
-    setIsReading((value) => {
-      if (!value && sessionStartPage === null) {
-        setSessionStartPage(selectedBook.currentPage);
-        setSessionStartProgress(selectedBook.progressPercent ?? selectedBook.textScrollPercent ?? 0);
-      }
-      return !value;
-    });
-  };
-
-  const changePage = (delta: number) => {
-    if (!selectedBook) return;
-    const currentPage = Math.max(1, selectedBook.currentPage + delta);
-    const totalPages = Math.max(selectedBook.totalPages, currentPage);
-    setState((current) => updateBook(current, selectedBook.id, { currentPage, totalPages }));
-  };
-
   const saveBookNotes = (bookId: string, notes: string) => {
     setState((current) => updateBook(current, bookId, { notes }));
   };
@@ -946,33 +1047,6 @@ function MobileApp() {
     const book = state.books.find((item) => item.id === bookId);
     if (!book) return;
     setState((current) => updateBook(current, bookId, { isFavorite: !book.isFavorite }));
-  };
-
-  const addHabit = () => {
-    const name = newHabitName.trim();
-    if (!name) return;
-    setState((current) => ({
-      ...current,
-      habits: [createHabit(name), ...current.habits],
-    }));
-    setNewHabitName("");
-  };
-
-  const toggleHabit = (habit: MobileHabit) => {
-    setState((current) => ({
-      ...current,
-      habits: current.habits.map((item) =>
-        item.id === habit.id
-          ? {
-              ...item,
-              completions: {
-                ...item.completions,
-                [today]: !item.completions[today],
-              },
-            }
-          : item,
-      ),
-    }));
   };
 
   const signIn = async (mode: "signin" | "signup") => {
@@ -1041,23 +1115,29 @@ function MobileApp() {
         onChange={(event) => attachFileToSelectedBook(event.target.files)}
       />
 
+      {importJobs.length > 0 && (
+        <aside className="fixed inset-x-3 bottom-[calc(82px+env(safe-area-inset-bottom))] z-[80] mx-auto max-w-[454px] rounded-2xl border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl" aria-label="Progresso das importacoes">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Importacoes</p>
+            <button className="grid h-8 w-8 place-items-center rounded-full bg-zinc-900 text-zinc-400" onClick={() => setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing"))} aria-label="Limpar importacoes concluidas" type="button"><X size={15} /></button>
+          </div>
+          <div className="max-h-52 space-y-2 overflow-y-auto">
+            {importJobs.map((job) => {
+              const running = job.status === "reading" || job.status === "processing";
+              return <div key={job.id} className="rounded-xl bg-zinc-900 p-3">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-100">{job.name}</p><p className={`mt-0.5 text-[11px] ${job.status === "error" ? "text-red-400" : job.status === "done" ? "text-emerald-400" : "text-zinc-500"}`}>{job.message || "Preparando"}</p></div>
+                  {running ? <button className="h-8 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300" onClick={() => importControllersRef.current.get(job.id)?.abort()} type="button">Cancelar</button> : <span className="text-xs tabular-nums text-zinc-500">{job.status === "done" ? "100%" : job.status === "cancelled" ? "Cancelado" : "Falhou"}</span>}
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800"><div className={`h-full rounded-full transition-all duration-200 ${job.status === "error" ? "bg-red-500" : job.status === "cancelled" ? "bg-zinc-600" : "bg-emerald-500"}`} style={{ width: job.progress + "%" }} /></div>
+              </div>;
+            })}
+          </div>
+        </aside>
+      )}
+
       <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-zinc-950">
-        {activeTab === "library" ? null : activeTab === "reader" && selectedBook?.fileType === "epub" ? (
-          <header className="sticky top-0 z-20 bg-zinc-950/95 pb-2 pt-[max(10px,env(safe-area-inset-top))] backdrop-blur">
-            <div className="flex items-center justify-between px-3">
-              <button
-                className="grid h-9 w-9 place-items-center rounded bg-zinc-900 text-zinc-200"
-                onClick={() => setActiveTab("library")}
-                type="button"
-                aria-label="Voltar a biblioteca"
-              >
-                <X size={16} />
-              </button>
-              <p className="truncate text-xs text-zinc-500">{selectedBook?.title}</p>
-              <div className="w-9" />
-            </div>
-          </header>
-        ) : (
+        {activeTab === "library" || (activeTab === "reader" && isEbookReader) ? null : (
           <header
             className={
               activeTab === "reader" && isEbookReader
@@ -1086,7 +1166,7 @@ function MobileApp() {
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && selectedBook?.fileType === "epub") ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
           {activeTab === "library" && (
             <MobileLibraryScreenV2
               state={state}
@@ -1095,10 +1175,11 @@ function MobileApp() {
               onQueryChange={setLibraryQuery}
               onViewChange={setLibraryView}
               onOpenBook={selectBook}
-              onImportFiles={() => fileInputRef.current?.click()}
+              onImportFiles={() => { void openFileImporter(); }}
               onImportSourceFolder={connectOrRefreshSourceFolder}
               onCreateFolder={createManagedFolder}
               onRenameFolder={renameManagedFolder}
+              onMoveFolder={moveManagedFolder}
               onDeleteFolder={deleteManagedFolder}
               onDeleteSourceFolder={deleteSourceFolder}
               onUpdateBook={updateMobileBook}
@@ -1196,7 +1277,7 @@ function MobileApp() {
                         </div>
                         <p className="truncate text-xs text-zinc-500">{book.author || book.fileName}</p>
                         <p className="mt-1 text-xs text-zinc-500">
-                          Pag. {book.currentPage} · {book.minutesRead} min · {book.category}
+                          {book.fileType === "pdf" ? `Pagina ${book.currentPage}` : `${getProgress(book)}%`} · {book.category}
                         </p>
                       </div>
                       <ChevronRight className="text-zinc-600" size={18} />
@@ -1210,7 +1291,7 @@ function MobileApp() {
           {activeTab === "reader" && (
             <>
               {selectedBook && selectedBook.fileType === "epub" && selectedBookDataUrl ? (
-                <div className="h-[calc(100dvh-64px)] w-full">
+                <div className="h-dvh w-full">
                   <EpubPane
                     dataUrl={selectedBookDataUrl}
                     location={selectedBook.epubLocation}
@@ -1221,6 +1302,8 @@ function MobileApp() {
                         lastOpenedAt: new Date().toISOString(),
                       }));
                     }}
+                    bookTitle={selectedBook.title}
+                    onBack={() => setActiveTab("library")}
                   />
                 </div>
               ) : selectedBook && selectedBook.fileType === "epub" ? (
@@ -1231,7 +1314,7 @@ function MobileApp() {
                   onBack={() => setActiveTab("library")}
                 />
               ) : (
-                <section className={isEbookReader ? "space-y-3 px-3 py-3" : "space-y-4 p-4"}>
+                <section className={selectedBook?.fileType === "pdf" ? "h-[100dvh]" : isEbookReader ? "space-y-3 px-3 py-3" : "space-y-4 p-4"}>
                   {!selectedBook ? (
                     <EmptyState
                       title="Nenhum livro selecionado"
@@ -1248,7 +1331,7 @@ function MobileApp() {
                     />
                   ) : (
                     <>
-                      <div className={isEbookReader ? "rounded bg-zinc-900/70 px-3 py-2" : "rounded border border-zinc-800 bg-zinc-900 p-4"}>
+                      {selectedBook.fileType !== "pdf" && <div className={isEbookReader ? "rounded bg-zinc-900/70 px-3 py-2" : "rounded border border-zinc-800 bg-zinc-900 p-4"}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className={isEbookReader ? "truncate text-sm font-semibold text-zinc-50" : "truncate text-lg font-semibold text-zinc-50"}>{selectedBook.title}</p>
@@ -1267,42 +1350,18 @@ function MobileApp() {
                           </button>
                         </div>
 
-                        {isEbookReader ? (
-                          <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                            <div className="rounded bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
-                              {selectedBook.fileType === "pdf" ? (
-                                <>
-                                  Pag. <span className="font-semibold text-zinc-100">{selectedBook.currentPage}</span>
-                                  {selectedBook.totalPages > 1 && <>/{selectedBook.totalPages}</>} · {selectedBook.minutesRead} min
-                                </>
-                              ) : (
-                                <>EPUB · {selectedBook.minutesRead} min</>
-                              )}
-                              {isReading && <> · sessao {Math.floor(elapsedSeconds / 60)}m</>}
-                            </div>
-                            <button
-                              className="flex h-9 items-center justify-center gap-2 rounded bg-green-600 px-3 text-xs font-semibold text-white"
-                              onClick={toggleReadingTimer}
-                              type="button"
-                            >
-                              {isReading ? <Pause size={14} /> : <Play size={14} />}
-                              {isReading ? "Pausar" : "Ler"}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="mt-4 grid grid-cols-3 gap-2">
-                            <StatTile label="Pagina" value={String(selectedBook.currentPage)} detail="posicao atual" />
-                            <StatTile label="Tempo" value={`${selectedBook.minutesRead}m`} detail="registrado" />
-                            <StatTile label="Sessao" value={`${Math.floor(elapsedSeconds / 60)}m`} detail={isReading ? "rodando" : "pausada"} />
-                          </div>
-                        )}
-                      </div>
+                        <div className="mt-3 rounded bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
+                          {selectedBook.fileType.toUpperCase()} · {getProgress(selectedBook)}%
+                        </div>
+                      </div>}
 
                       <div className={isEbookReader ? "overflow-hidden bg-zinc-900" : "overflow-hidden rounded border border-zinc-800 bg-zinc-900"}>
                         {selectedBook.fileType === "pdf" && selectedBookDataUrl ? (
                           <PdfPane
                             dataUrl={selectedBookDataUrl}
                             currentPage={selectedBook.currentPage}
+                            initialZoom={selectedBook.currentZoom || 1}
+                            onClose={() => setActiveTab("library")}
                             onPageChange={(page) => {
                               setState((current) => {
                                 const book = current.books.find((item) => item.id === selectedBook.id);
@@ -1321,6 +1380,9 @@ function MobileApp() {
                                   currentPage: Math.min(book?.currentPage ?? 1, totalPages),
                                 });
                               });
+                            }}
+                            onZoomChange={(currentZoom) => {
+                              setState((current) => updateBook(current, selectedBook.id, { currentZoom }));
                             }}
                           />
                         ) : selectedBookDataUrl && selectedBook.fileType === "txt" ? (
@@ -1342,52 +1404,6 @@ function MobileApp() {
                           </div>
                         )}
                       </div>
-
-                      <div
-                        className={
-                          isEbookReader
-                            ? "grid grid-cols-1 gap-2"
-                            : "grid grid-cols-[1fr_1fr_1fr] gap-2"
-                        }
-                      >
-                        {!isEbookReader && (
-                          <button
-                            className="rounded border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm font-medium text-zinc-100"
-                            onClick={() => changePage(-1)}
-                            type="button"
-                          >
-                            - Pagina
-                          </button>
-                        )}
-                        {!isEbookReader && (
-                          <button
-                            className="flex items-center justify-center gap-2 rounded bg-green-600 px-3 py-3 text-sm font-semibold text-white"
-                            onClick={toggleReadingTimer}
-                            type="button"
-                          >
-                            {isReading ? <Pause size={16} /> : <Play size={16} />}
-                            {isReading ? "Pausar" : "Ler"}
-                          </button>
-                        )}
-                        {!isEbookReader && (
-                          <button
-                            className="rounded border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm font-medium text-zinc-100"
-                            onClick={() => changePage(1)}
-                            type="button"
-                          >
-                            + Pagina
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        className={isEbookReader ? "flex h-10 w-full items-center justify-center gap-2 rounded bg-zinc-100 text-sm font-semibold text-zinc-950" : "flex h-12 w-full items-center justify-center gap-2 rounded bg-zinc-100 text-sm font-semibold text-zinc-950"}
-                        onClick={finishSession}
-                        type="button"
-                      >
-                        <Clock3 size={17} />
-                        Registrar sessao
-                      </button>
 
                       {!isEbookReader && (
                       <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
@@ -1419,11 +1435,10 @@ function MobileApp() {
 
           {activeTab === "recent" && (
             <section className="space-y-5 p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <StatTile label="Livros" value={String(stats.books)} detail="no aparelho" />
-                <StatTile label="Paginas" value={String(stats.pagesRead)} detail="registradas" />
-                <StatTile label="Tempo" value={`${stats.minutesRead}m`} detail="de leitura" />
-                <StatTile label="Streak" value={`${stats.currentStreak}d`} detail="dias seguidos" />
+              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs uppercase tracking-wide text-zinc-500">Sua biblioteca</p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-50">{state.books.length} livros</p>
+                <p className="mt-1 text-sm text-zinc-500">Retome exatamente de onde parou.</p>
               </div>
 
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
@@ -1432,7 +1447,7 @@ function MobileApp() {
                   {state.books.filter((book) => book.lastOpenedAt).sort((left, right) => String(right.lastOpenedAt).localeCompare(String(left.lastOpenedAt))).slice(0, 6).map((book) => (
                     <button key={book.id} className="flex w-full items-center gap-3 rounded-xl bg-zinc-950 p-3 text-left" onClick={() => selectBook(book.id)} type="button">
                       <div className="h-12 w-9 overflow-hidden rounded bg-zinc-800">{book.thumbnailUrl ? <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" /> : null}</div>
-                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{book.title}</p><p className="mt-1 text-xs text-zinc-500">{book.fileType === "pdf" ? `Pagina ${book.currentPage}` : `${Math.round(book.progressPercent || book.textScrollPercent || 0)}%`} · {book.minutesRead} min</p></div>
+                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{book.title}</p><p className="mt-1 text-xs text-zinc-500">{book.fileType === "pdf" ? `Pagina ${book.currentPage}${book.totalPages > 1 ? ` de ${book.totalPages}` : ""}` : `${Math.round(book.progressPercent || book.textScrollPercent || 0)}% concluido`}</p></div>
                       <ChevronRight size={17} className="text-zinc-600" />
                     </button>
                   ))}
@@ -1440,26 +1455,6 @@ function MobileApp() {
                 </div>
               </div>
 
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <h2 className="text-base font-semibold text-zinc-100">Atividade recente</h2>
-                {state.sessions.length === 0 ? (
-                  <p className="mt-3 text-sm leading-6 text-zinc-500">Registre uma sessao no leitor para alimentar o painel.</p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {state.sessions.slice(0, 8).map((session) => (
-                      <div key={session.id} className="flex items-center justify-between rounded bg-zinc-950 p-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-zinc-100">{session.title}</p>
-                          <p className="text-xs text-zinc-500">{formatShortDate(session.date)}</p>
-                        </div>
-                        <p className="shrink-0 text-sm text-zinc-300">
-                          {session.pages}p · {session.minutes}m
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </section>
           )}
 
@@ -1537,7 +1532,7 @@ function MobileApp() {
           )}
         </main>
 
-        {activeTab === "reader" && selectedBook?.fileType === "epub" ? null : (
+        {activeTab === "reader" && isEbookReader ? null : (
           <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
             <div className="grid grid-cols-5 gap-1">
               {tabs.map((tab) => {

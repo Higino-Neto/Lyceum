@@ -22,7 +22,6 @@ function makeBook(patch: Partial<MobileBook> = {}): MobileBook {
     importedAt: patch.importedAt || "2026-01-01T00:00:00.000Z",
     currentPage: patch.currentPage || 1,
     totalPages: patch.totalPages || 100,
-    minutesRead: patch.minutesRead || 0,
     category: patch.category || "Geral",
     isFavorite: patch.isFavorite || false,
     ...patch,
@@ -38,14 +37,16 @@ describe("mobile library state", () => {
   it("migrates the original MVP shape into the versioned schema", () => {
     const migrated = migrateMobileState({
       books: [makeBook({ category: "Historia" })],
-      sessions: [],
-      habits: [],
+      sessions: [{ id: "legacy-session" }],
+      habits: [{ id: "legacy-habit" }],
       selectedBookId: "book-1",
     });
 
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.categories).toContain("Historia");
     expect(migrated.selectedBookId).toBe("book-1");
+    expect(migrated).not.toHaveProperty("sessions");
+    expect(migrated).not.toHaveProperty("habits");
   });
 
   it("removes fileless showcase books from old MVP installs", () => {

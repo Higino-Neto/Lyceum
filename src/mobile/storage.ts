@@ -3,24 +3,14 @@ import { Preferences } from "@capacitor/preferences";
 import type {
   MobileBook,
   MobileFileType,
-  MobileHabit,
   MobileLibraryFolder,
   MobileLibraryState,
-  MobileReadingSession,
   MobileSourceFolder,
-  MobileStats,
 } from "./types";
 
-export const MOBILE_SCHEMA_VERSION = 2;
+export const MOBILE_SCHEMA_VERSION = 3;
 const STORAGE_KEY = "lyceum_mobile_mvp_state";
 const DEFAULT_CATEGORIES = ["Geral", "Ficcao", "Tecnologia", "Filosofia", "Idiomas", "Academico"];
-
-const localDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 export function makeMobileId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -35,8 +25,6 @@ export const emptyMobileState = (): MobileLibraryState => ({
   folders: [],
   sourceFolders: [],
   categories: [...DEFAULT_CATEGORIES],
-  sessions: [],
-  habits: [],
 });
 
 function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
@@ -75,7 +63,6 @@ function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
     epubLocation: value.epubLocation,
     textScrollPercent: Math.min(100, Math.max(0, Number(value.textScrollPercent) || 0)),
     currentZoom: value.currentZoom,
-    minutesRead: Math.max(0, Number(value.minutesRead) || 0),
     category: value.category || "Geral",
     isFavorite: Boolean(value.isFavorite),
     rating: Math.min(5, Math.max(0, Number(value.rating) || 0)),
@@ -108,8 +95,6 @@ export function migrateMobileState(value: unknown): MobileLibraryState {
     folders,
     sourceFolders,
     categories,
-    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    habits: Array.isArray(parsed.habits) ? parsed.habits : [],
     selectedBookId: books.some((book) => book.id === parsed.selectedBookId) ? parsed.selectedBookId : books[0]?.id,
     selectedFolderId: folders.some((folder) => folder.id === parsed.selectedFolderId) ? parsed.selectedFolderId : undefined,
   };
@@ -165,11 +150,23 @@ export function guessTitle(fileName: string) {
     .trim() || "Livro importado";
 }
 
-export function readFileAsDataUrl(file: File): Promise<string> {
+export function readFileAsDataUrl(
+  file: File,
+  options: { onProgress?: (loaded: number, total: number) => void; signal?: AbortSignal } = {},
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    const abort = () => reader.abort();
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
+    reader.onabort = () => reject(new DOMException("Importacao cancelada", "AbortError"));
+    reader.onprogress = (event) => options.onProgress?.(event.loaded, event.lengthComputable ? event.total : file.size);
+    reader.onloadend = () => options.signal?.removeEventListener("abort", abort);
+    if (options.signal?.aborted) {
+      reject(new DOMException("Importacao cancelada", "AbortError"));
+      return;
+    }
+    options.signal?.addEventListener("abort", abort, { once: true });
     reader.readAsDataURL(file);
   });
 }
@@ -193,7 +190,6 @@ export function createBookFromFile(file: File, dataUrl: string, folderId?: strin
     totalPages: 1,
     progressPercent: 0,
     textScrollPercent: 0,
-    minutesRead: 0,
     category: "Geral",
     isFavorite: false,
     rating: 0,
@@ -208,52 +204,4 @@ export function createFolder(name: string, parentId?: string): MobileLibraryFold
 export function createSourceFolder(name: string, count: number): MobileSourceFolder {
   const now = new Date().toISOString();
   return { id: makeMobileId("source"), name: name.trim(), createdAt: now, lastImportedAt: now, lastFileCount: count };
-}
-
-export function createSession(
-  book: MobileBook,
-  minutes: number,
-  pages: number,
-  details: Partial<MobileReadingSession> = {},
-): MobileReadingSession {
-  return {
-    id: makeMobileId("session"),
-    bookId: book.id,
-    title: book.title,
-    date: new Date().toISOString(),
-    minutes,
-    pages,
-    ...details,
-  };
-}
-
-export function createHabit(name: string): MobileHabit {
-  return { id: makeMobileId("habit"), name, targetDays: [0, 1, 2, 3, 4, 5, 6], completions: {} };
-}
-
-export function calculateStats(state: MobileLibraryState): MobileStats {
-  const pagesRead = state.sessions.reduce((total, session) => total + session.pages, 0);
-  const minutesRead = state.sessions.reduce((total, session) => total + session.minutes, 0);
-  const today = localDateKey();
-  const finishedHabitsToday = state.habits.filter((habit) => habit.completions[today]).length;
-  return { books: state.books.length, pagesRead, minutesRead, currentStreak: calculateReadingStreak(state.sessions), finishedHabitsToday };
-}
-
-export function calculateReadingStreak(sessions: MobileReadingSession[]) {
-  const dates = new Set(sessions.map((session) => localDateKey(new Date(session.date))));
-  let streak = 0;
-  const cursor = new Date();
-  while (dates.has(localDateKey(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
-
-export function formatShortDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date(value));
-}
-
-export function getTodayKey() {
-  return localDateKey();
 }

@@ -19,11 +19,15 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @CapacitorPlugin(name = "SourceFolders")
 public class SourceFoldersPlugin extends Plugin {
     private static final int MAX_FILES = 5000;
     private static final long MAX_FILE_BYTES = 250L * 1024L * 1024L;
+    private static final Map<String, AtomicBoolean> CANCELLATIONS = new ConcurrentHashMap<>();
 
     @PluginMethod
     public void pickFolder(PluginCall call) {
@@ -56,6 +60,7 @@ public class SourceFoldersPlugin extends Plugin {
     @PluginMethod
     public void scanFolder(PluginCall call) {
         String uriValue = call.getString("uri");
+        String requestId = call.getString("requestId", uriValue);
         if (uriValue == null || uriValue.isEmpty()) {
             call.reject("URI da pasta ausente");
             return;
@@ -87,6 +92,8 @@ public class SourceFoldersPlugin extends Plugin {
             return;
         }
 
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        CANCELLATIONS.put(requestId, cancelled);
         execute(() -> {
             try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriValue));
                  ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -95,17 +102,35 @@ public class SourceFoldersPlugin extends Plugin {
                 long total = 0;
                 int read;
                 while ((read = input.read(buffer)) >= 0) {
+                    if (cancelled.get()) throw new InterruptedException("Importacao cancelada");
                     total += read;
                     if (total > MAX_FILE_BYTES) throw new IllegalStateException("Arquivo excede 250 MB");
                     output.write(buffer, 0, read);
+                    JSObject progress = new JSObject();
+                    progress.put("requestId", requestId);
+                    progress.put("loaded", total);
+                    progress.put("total", call.getLong("size", 0L));
+                    notifyListeners("sourceImportProgress", progress);
                 }
                 JSObject response = new JSObject();
                 response.put("base64", Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP));
                 call.resolve(response);
+            } catch (InterruptedException error) {
+                call.reject("Importacao cancelada", "IMPORT_CANCELLED", error);
             } catch (Exception error) {
                 call.reject("Falha ao ler arquivo da pasta-fonte", error);
+            } finally {
+                CANCELLATIONS.remove(requestId);
             }
         });
+    }
+
+    @PluginMethod
+    public void cancelRead(PluginCall call) {
+        String requestId = call.getString("requestId");
+        AtomicBoolean cancellation = requestId == null ? null : CANCELLATIONS.get(requestId);
+        if (cancellation != null) cancellation.set(true);
+        call.resolve();
     }
 
     @PluginMethod

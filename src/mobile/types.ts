@@ -40,7 +40,6 @@ export interface MobileBook {
   epubLocation?: string;
   textScrollPercent?: number;
   currentZoom?: number;
-  minutesRead: number;
   category: string;
   isFavorite: boolean;
   rating?: number;
@@ -65,42 +64,12 @@ export interface MobileSourceFolder {
   note?: string;
 }
 
-export interface MobileReadingSession {
-  id: string;
-  bookId: string;
-  title: string;
-  date: string;
-  minutes: number;
-  pages: number;
-  startPage?: number;
-  endPage?: number;
-  startProgress?: number;
-  endProgress?: number;
-}
-
-export interface MobileHabit {
-  id: string;
-  name: string;
-  targetDays: number[];
-  completions: Record<string, boolean>;
-}
-
 export interface MobileLibraryState {
   schemaVersion: number;
   books: MobileBook[];
   folders: MobileLibraryFolder[];
   sourceFolders: MobileSourceFolder[];
   categories: string[];
-  sessions: MobileReadingSession[];
-  habits: MobileHabit[];
   selectedBookId?: string;
   selectedFolderId?: string;
-}
-
-export interface MobileStats {
-  books: number;
-  pagesRead: number;
-  minutesRead: number;
-  currentStreak: number;
-  finishedHabitsToday: number;
 }
