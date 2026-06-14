@@ -1,13 +1,17 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronDown, ChevronUp, Minus, Plus, RotateCcw, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Maximize2, RotateCw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import "pdfjs-dist/web/pdf_viewer.css";
 
 interface PdfPaneProps {
   dataUrl?: string;
   currentPage: number;
+  initialZoom?: number;
   onPageChange: (page: number) => void;
   onPageCountChange: (pageCount: number) => void;
+  onZoomChange?: (zoom: number) => void;
+  onClose?: () => void;
 }
 
 interface SearchHit {
@@ -15,7 +19,7 @@ interface SearchHit {
   excerpt: string;
 }
 
-interface PdfPageCanvasProps {
+interface PdfPageProps {
   fitWidth: number;
   pageNumber: number;
   pdf: any;
@@ -27,7 +31,7 @@ function dataUrlToUint8Array(dataUrl: string) {
   const [, base64 = ""] = dataUrl.split(",");
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
 }
 
@@ -40,73 +44,104 @@ function normalizeText(value: string) {
 }
 
 function buildExcerpt(text: string, query: string) {
-  const normalizedText = normalizeText(text);
-  const normalizedQuery = normalizeText(query);
-  const index = normalizedText.indexOf(normalizedQuery);
+  const index = normalizeText(text).indexOf(normalizeText(query));
   if (index < 0) return text.slice(0, 96);
   const start = Math.max(0, index - 42);
   const end = Math.min(text.length, index + query.length + 54);
   return `${start > 0 ? "..." : ""}${text.slice(start, end)}${end < text.length ? "..." : ""}`;
 }
 
+function touchDistance(touches: { length: number; [index: number]: { clientX: number; clientY: number } }) {
+  if (touches.length < 2) return 0;
+  const x = touches[0].clientX - touches[1].clientX;
+  const y = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(x, y);
+}
+
 export default function PdfPane({
   dataUrl,
   currentPage,
+  initialZoom = 1,
   onPageChange,
   onPageCountChange,
+  onZoomChange,
+  onClose,
 }: PdfPaneProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onPageChangeRef = useRef(onPageChange);
   const onPageCountChangeRef = useRef(onPageCountChange);
+  const onZoomChangeRef = useRef(onZoomChange);
+  const hideControlsTimerRef = useRef<number | undefined>(undefined);
+  const searchRunRef = useRef(0);
+  const pinchRef = useRef<{ distance: number; zoom: number } | undefined>(undefined);
+  const initialScrollDoneRef = useRef(false);
   const [pdf, setPdf] = useState<any>(null);
   const [pageCount, setPageCount] = useState(0);
   const [fitWidth, setFitWidth] = useState(320);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => clamp(initialZoom || 1, 1, 4));
   const [rotation, setRotation] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [activeHitIndex, setActiveHitIndex] = useState(0);
 
   const pageNumber = clamp(currentPage || 1, 1, Math.max(1, pageCount || 1));
-  const progress = pageCount > 0 ? Math.round((pageNumber / pageCount) * 100) : 0;
-  const estimatedPageHeight = Math.round(fitWidth * (rotation % 180 === 0 ? 1.42 : 0.78) * zoom) + 44;
+  const estimatedPageHeight = Math.round(fitWidth * (rotation % 180 === 0 ? 1.42 : 0.78) * zoom) + 28;
+  const progress = pageCount > 0 ? (pageNumber / pageCount) * 100 : 0;
 
   const virtualizer = useVirtualizer({
     count: pageCount,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => estimatedPageHeight,
-    overscan: 5,
+    overscan: 3,
   });
-
   const virtualItems = virtualizer.getVirtualItems();
+
+  const scheduleControlsHide = useCallback(() => {
+    window.clearTimeout(hideControlsTimerRef.current);
+    if (searchOpen || !controlsVisible) return;
+    hideControlsTimerRef.current = window.setTimeout(() => setControlsVisible(false), 3200);
+  }, [controlsVisible, searchOpen]);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+  }, []);
 
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
     onPageCountChangeRef.current = onPageCountChange;
-  }, [onPageChange, onPageCountChange]);
+    onZoomChangeRef.current = onZoomChange;
+  }, [onPageChange, onPageCountChange, onZoomChange]);
 
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return undefined;
+    scheduleControlsHide();
+    return () => window.clearTimeout(hideControlsTimerRef.current);
+  }, [controlsVisible, scheduleControlsHide, searchOpen]);
 
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) setFitWidth(Math.max(260, width - 24));
+  useEffect(() => {
+    const timer = window.setTimeout(() => onZoomChangeRef.current?.(zoom), 180);
+    virtualizer.measure();
+    return () => window.clearTimeout(timer);
+  }, [estimatedPageHeight, virtualizer, zoom]);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry?.contentRect.width) setFitWidth(Math.max(260, entry.contentRect.width - 24));
     });
-    observer.observe(scrollElement);
+    observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    virtualizer.measure();
-  }, [estimatedPageHeight, rotation, virtualizer, zoom]);
-
-  useEffect(() => {
-    const center = virtualItems[Math.floor(virtualItems.length / 2)];
+    const visible = virtualItems.filter((item) => item.end >= (scrollRef.current?.scrollTop || 0));
+    const center = visible[Math.floor(visible.length / 2)] || virtualItems[Math.floor(virtualItems.length / 2)];
     if (!center) return;
     const nextPage = center.index + 1;
     if (nextPage !== pageNumber) onPageChangeRef.current(nextPage);
@@ -115,6 +150,8 @@ export default function PdfPane({
   useEffect(() => {
     let disposed = false;
     let loadingTask: any;
+    initialScrollDoneRef.current = false;
+    searchRunRef.current += 1;
 
     async function loadPdf() {
       if (!dataUrl) return;
@@ -123,7 +160,6 @@ export default function PdfPane({
       setPdf(null);
       setPageCount(0);
       setHits([]);
-
       try {
         const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -137,19 +173,17 @@ export default function PdfPane({
           loadedPdf.destroy?.();
           return;
         }
-
         setPdf(loadedPdf);
         setPageCount(loadedPdf.numPages);
         onPageCountChangeRef.current(loadedPdf.numPages);
-      } catch (err) {
-        if (!disposed) setError(err instanceof Error ? err.message : "Nao foi possivel abrir este PDF");
+      } catch (loadError) {
+        if (!disposed) setError(loadError instanceof Error ? loadError.message : "Nao foi possivel abrir este PDF");
       } finally {
         if (!disposed) setIsLoading(false);
       }
     }
 
-    loadPdf();
-
+    void loadPdf();
     return () => {
       disposed = true;
       loadingTask?.destroy?.();
@@ -157,312 +191,250 @@ export default function PdfPane({
   }, [dataUrl]);
 
   useEffect(() => {
-    if (!pdf || pageCount < 1) return;
-    virtualizer.scrollToIndex(clamp(pageNumber, 1, pageCount) - 1, { align: "start" });
-  }, [pdf, pageCount]);
+    if (!pdf || pageCount < 1 || initialScrollDoneRef.current) return;
+    initialScrollDoneRef.current = true;
+    requestAnimationFrame(() => virtualizer.scrollToIndex(clamp(pageNumber, 1, pageCount) - 1, { align: "start" }));
+  }, [pageCount, pageNumber, pdf, virtualizer]);
 
   const scrollToPage = useCallback((page: number) => {
     if (pageCount < 1) return;
     const targetPage = clamp(page, 1, pageCount);
     virtualizer.scrollToIndex(targetPage - 1, { align: "start" });
     onPageChangeRef.current(targetPage);
-  }, [pageCount, virtualizer]);
+    scheduleControlsHide();
+  }, [pageCount, scheduleControlsHide, virtualizer]);
 
-  const setPageFromInput = (value: string) => {
-    const nextPage = Number(value);
-    if (Number.isFinite(nextPage)) scrollToPage(Math.round(nextPage));
-  };
+  const cancelSearch = useCallback(() => {
+    searchRunRef.current += 1;
+    setIsSearching(false);
+  }, []);
 
   const runSearch = async () => {
     const searchQuery = query.trim();
-    if (!pdf || searchQuery.length < 2) {
-      setHits([]);
-      setActiveHitIndex(0);
-      return;
-    }
-
+    if (!pdf || searchQuery.length < 2) return;
+    const runId = searchRunRef.current + 1;
+    searchRunRef.current = runId;
     setIsSearching(true);
+    setHits([]);
+    setActiveHitIndex(0);
+    const nextHits: SearchHit[] = [];
+    const normalizedQuery = normalizeText(searchQuery);
+
     try {
-      const nextHits: SearchHit[] = [];
-      const normalizedQuery = normalizeText(searchQuery);
       for (let page = 1; page <= pageCount; page += 1) {
+        if (searchRunRef.current !== runId) return;
         const pdfPage = await pdf.getPage(page);
         const textContent = await pdfPage.getTextContent();
         const text = textContent.items.map((item: any) => item.str || "").join(" ");
         if (normalizeText(text).includes(normalizedQuery)) {
           nextHits.push({ page, excerpt: buildExcerpt(text, searchQuery) });
+          setHits([...nextHits]);
         }
+        if (page % 4 === 0) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       }
-      setHits(nextHits);
-      setActiveHitIndex(0);
-      if (nextHits[0]) scrollToPage(nextHits[0].page);
+      if (searchRunRef.current === runId && nextHits[0]) scrollToPage(nextHits[0].page);
     } finally {
-      setIsSearching(false);
+      if (searchRunRef.current === runId) setIsSearching(false);
     }
   };
 
   const goToHit = (index: number) => {
-    if (hits.length === 0) return;
+    if (!hits.length) return;
     const nextIndex = (index + hits.length) % hits.length;
     setActiveHitIndex(nextIndex);
     scrollToPage(hits[nextIndex].page);
   };
 
-  return (
-    <div className="bg-zinc-950">
-      <div className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <button
-            className="h-9 rounded bg-zinc-900 px-3 text-sm font-medium text-zinc-100 disabled:opacity-40"
-            disabled={pageNumber <= 1}
-            onClick={() => scrollToPage(pageNumber - 1)}
-            type="button"
-          >
-            Ant.
-          </button>
-          <label className="flex min-w-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-400">
-            <input
-              className="h-9 w-14 rounded bg-zinc-900 px-2 text-center text-sm text-zinc-100"
-              inputMode="numeric"
-              min={1}
-              max={Math.max(1, pageCount)}
-              type="number"
-              value={pageNumber}
-              onChange={(event) => setPageFromInput(event.target.value)}
-            />
-            <span>/ {Math.max(1, pageCount)}</span>
-          </label>
-          <button
-            className="h-9 rounded bg-zinc-900 px-3 text-sm font-medium text-zinc-100 disabled:opacity-40"
-            disabled={pageNumber >= pageCount}
-            onClick={() => scrollToPage(pageNumber + 1)}
-            type="button"
-          >
-            Prox.
-          </button>
-          <button
-            className="grid h-9 w-9 place-items-center rounded bg-zinc-900 text-zinc-100"
-            onClick={() => setSearchOpen((value) => !value)}
-            type="button"
-            aria-label="Buscar no PDF"
-          >
-            {searchOpen ? <X size={16} /> : <Search size={16} />}
-          </button>
-        </div>
+  const handleReaderTap = (event: React.MouseEvent<HTMLDivElement>) => {
+    const selection = window.getSelection()?.toString().trim();
+    if (selection || searchOpen) return;
+    const bounds = rootRef.current?.getBoundingClientRect();
+    if (!bounds || event.clientY > bounds.top + bounds.height * 0.3) return;
+    setControlsVisible((visible) => !visible);
+  };
 
-        <div className="grid grid-cols-4 gap-2 px-3 pb-2">
-          <button
-            className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
-            disabled={zoom <= 0.75}
-            onClick={() => setZoom((value) => clamp(Number((value - 0.15).toFixed(2)), 0.75, 2.2))}
-            type="button"
-            aria-label="Diminuir zoom"
-          >
-            <Minus size={17} />
+  return (
+    <div
+      ref={rootRef}
+      className="relative isolate h-full min-h-[100dvh] overflow-hidden bg-[#151515]"
+      onClick={handleReaderTap}
+      onDoubleClick={() => setZoom((value) => value > 1.15 ? 1 : 2)}
+      onTouchStart={(event) => {
+        if (event.touches.length === 2) {
+          pinchRef.current = { distance: touchDistance(event.touches), zoom };
+          revealControls();
+        }
+      }}
+      onTouchMove={(event) => {
+        if (event.touches.length !== 2 || !pinchRef.current) return;
+        event.preventDefault();
+        const distance = touchDistance(event.touches);
+        if (distance > 0) setZoom(clamp(pinchRef.current.zoom * (distance / pinchRef.current.distance), 1, 4));
+      }}
+      onTouchEnd={(event) => {
+        if (event.touches.length < 2) pinchRef.current = undefined;
+        scheduleControlsHide();
+      }}
+    >
+      <div
+        className={`absolute inset-x-0 top-0 z-30 border-b border-white/10 bg-zinc-950/90 pt-[env(safe-area-inset-top)] shadow-xl backdrop-blur-xl transition duration-200 ${controlsVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-full opacity-0"}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex h-14 items-center gap-2 px-3">
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={onClose} type="button" aria-label="Voltar para a biblioteca">
+            <ArrowLeft size={19} />
           </button>
-          <button
-            className="flex h-9 items-center justify-center gap-2 rounded bg-zinc-900 text-sm font-medium text-zinc-100"
-            onClick={() => setZoom(1)}
-            type="button"
-          >
-            <RotateCcw size={15} />
-            {Math.round(zoom * 100)}%
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => { cancelSearch(); setSearchOpen((value) => !value); }} type="button" aria-label="Buscar">
+            {searchOpen ? <X size={18} /> : <Search size={18} />}
           </button>
-          <button
-            className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
-            disabled={zoom >= 2.2}
-            onClick={() => setZoom((value) => clamp(Number((value + 0.15).toFixed(2)), 0.75, 2.2))}
-            type="button"
-            aria-label="Aumentar zoom"
-          >
-            <Plus size={17} />
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-sm font-semibold text-white">Pagina {pageNumber} de {Math.max(1, pageCount)}</p>
+            <p className="text-[11px] text-zinc-400">{Math.round(zoom * 100)}% · toque duplo para ampliar</p>
+          </div>
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => setZoom(1)} type="button" aria-label="Ajustar a largura">
+            <Maximize2 size={18} />
           </button>
-          <button
-            className="h-9 rounded bg-zinc-900 text-sm font-medium text-zinc-100"
-            onClick={() => setRotation((value) => (value + 90) % 360)}
-            type="button"
-          >
-            Girar
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => setRotation((value) => (value + 90) % 360)} type="button" aria-label="Girar pagina">
+            <RotateCw size={18} />
           </button>
         </div>
 
         {searchOpen && (
-          <div className="border-t border-zinc-800 p-3">
+          <div className="border-t border-white/10 p-3">
             <div className="flex gap-2">
               <input
-                className="h-10 min-w-0 flex-1 rounded bg-zinc-900 px-3 text-sm text-zinc-100"
-                placeholder="Buscar no PDF"
+                autoFocus
+                className="h-11 min-w-0 flex-1 rounded-xl bg-white/10 px-3 text-sm text-white outline-none ring-emerald-500 focus:ring-2"
+                placeholder="Buscar neste PDF"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") runSearch();
-                }}
+                onKeyDown={(event) => { if (event.key === "Enter") void runSearch(); }}
               />
-              <button
-                className="rounded bg-green-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
-                disabled={isSearching}
-                onClick={runSearch}
-                type="button"
-              >
-                {isSearching ? "..." : "Ir"}
+              <button className="rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-40" disabled={query.trim().length < 2} onClick={() => isSearching ? cancelSearch() : void runSearch()} type="button">
+                {isSearching ? "Cancelar" : "Buscar"}
               </button>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-500">
-              <span>{hits.length > 0 ? `${activeHitIndex + 1}/${hits.length} resultado(s)` : "Digite ao menos 2 caracteres"}</span>
+            <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
+              <span>{isSearching ? `Procurando... ${hits.length} encontrados` : hits.length ? `${activeHitIndex + 1} de ${hits.length}` : "Selecione e copie textos diretamente na pagina"}</span>
               <div className="flex gap-1">
-                <button
-                  className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-200 disabled:opacity-40"
-                  disabled={hits.length === 0}
-                  onClick={() => goToHit(activeHitIndex - 1)}
-                  type="button"
-                  aria-label="Resultado anterior"
-                >
-                  <ChevronUp size={15} />
-                </button>
-                <button
-                  className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-200 disabled:opacity-40"
-                  disabled={hits.length === 0}
-                  onClick={() => goToHit(activeHitIndex + 1)}
-                  type="button"
-                  aria-label="Proximo resultado"
-                >
-                  <ChevronDown size={15} />
-                </button>
+                <button className="grid h-8 w-8 place-items-center rounded-full bg-white/10 disabled:opacity-30" disabled={!hits.length} onClick={() => goToHit(activeHitIndex - 1)} type="button" aria-label="Resultado anterior"><ChevronUp size={16} /></button>
+                <button className="grid h-8 w-8 place-items-center rounded-full bg-white/10 disabled:opacity-30" disabled={!hits.length} onClick={() => goToHit(activeHitIndex + 1)} type="button" aria-label="Proximo resultado"><ChevronDown size={16} /></button>
               </div>
             </div>
-            {hits[activeHitIndex] && (
-              <p className="mt-2 rounded bg-zinc-900 p-2 text-xs leading-5 text-zinc-300">
-                Pag. {hits[activeHitIndex].page}: {hits[activeHitIndex].excerpt}
-              </p>
-            )}
+            {hits[activeHitIndex] && <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-300">Pag. {hits[activeHitIndex].page}: {hits[activeHitIndex].excerpt}</p>}
           </div>
         )}
-
-        <div className="h-1 bg-zinc-800">
-          <div className="h-full bg-green-500" style={{ width: `${progress}%` }} />
-        </div>
+        <div className="h-0.5 bg-white/10"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} /></div>
       </div>
 
-      <div ref={scrollRef} className="relative h-[calc(100vh-252px)] min-h-[480px] overflow-y-auto bg-zinc-900">
-        {isLoading && (
-          <div className="absolute inset-x-3 top-3 z-10 rounded bg-zinc-950/90 px-3 py-2 text-center text-sm text-zinc-300">
-            Abrindo PDF...
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-zinc-900 p-6 text-center text-sm leading-6 text-zinc-300">
-            {error}
-          </div>
-        )}
-        <div
-          className="relative mx-auto w-full"
-          style={{ height: `${virtualizer.getTotalSize()}px` }}
-        >
+      <div
+        ref={scrollRef}
+        className="h-full overflow-auto overscroll-contain bg-[#191919]"
+        style={{ touchAction: "pan-x pan-y" }}
+        onScroll={scheduleControlsHide}
+      >
+        {isLoading && <div className="sticky left-3 top-3 z-20 mx-auto w-fit rounded-full bg-black/75 px-4 py-2 text-sm text-zinc-200 backdrop-blur">Abrindo PDF...</div>}
+        {error && <div className="absolute inset-0 z-20 grid place-items-center p-8 text-center text-sm leading-6 text-zinc-300">{error}</div>}
+        <div className="relative min-w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
           {virtualItems.map((item) => (
             <div
               key={item.key}
               ref={virtualizer.measureElement}
               data-index={item.index}
-              className="absolute left-0 top-0 w-full px-3 py-2"
+              className="absolute left-0 top-0 min-w-full px-3 py-3"
               style={{ transform: `translateY(${item.start}px)` }}
             >
-              <PdfPageCanvas
-                fitWidth={fitWidth}
-                pageNumber={item.index + 1}
-                pdf={pdf}
-                rotation={rotation}
-                zoom={zoom}
-              />
+              <PdfPage fitWidth={fitWidth} pageNumber={item.index + 1} pdf={pdf} rotation={rotation} zoom={zoom} />
             </div>
           ))}
         </div>
       </div>
+
+      {!controlsVisible && !searchOpen && (
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
+          <span className="rounded-full bg-black/55 px-3 py-1 text-[11px] text-white/70 backdrop-blur">Toque no topo para controles</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function PdfPageCanvas({ fitWidth, pageNumber, pdf, rotation, zoom }: PdfPageCanvasProps) {
+function PdfPage({ fitWidth, pageNumber, pdf, rotation, zoom }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const textLayerRef = useRef<HTMLDivElement | null>(null);
   const renderTaskRef = useRef<any>(null);
+  const textLayerTaskRef = useRef<any>(null);
   const [pageSize, setPageSize] = useState({ width: fitWidth, height: Math.round(fitWidth * 1.42) });
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let disposed = false;
-
     async function renderPage() {
-      if (!pdf || !canvasRef.current) return;
+      if (!pdf || !canvasRef.current || !textLayerRef.current) return;
       renderTaskRef.current?.cancel?.();
+      textLayerTaskRef.current?.cancel?.();
       setIsRendering(true);
       setError(null);
 
       try {
-        const page = await pdf.getPage(pageNumber);
+        const [page, pdfjs] = await Promise.all([pdf.getPage(pageNumber), import("pdfjs-dist/build/pdf.mjs")]);
         if (disposed) return;
-
         const baseViewport = page.getViewport({ scale: 1, rotation });
-        const fitScale = fitWidth / baseViewport.width;
-        const scale = clamp(fitScale * zoom, 0.55, 3);
-        const viewport = page.getViewport({ scale, rotation });
+        const viewport = page.getViewport({ scale: clamp((fitWidth / baseViewport.width) * zoom, 0.5, 5), rotation });
         setPageSize({ width: viewport.width, height: viewport.height });
 
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d", { alpha: false });
         if (!context) return;
-
         const outputScale = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.floor(viewport.width * outputScale);
         canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
         context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, viewport.width, viewport.height);
 
+        const textContainer = textLayerRef.current;
+        textContainer.replaceChildren();
+        textContainer.style.width = `${viewport.width}px`;
+        textContainer.style.height = `${viewport.height}px`;
+        textContainer.style.setProperty("--scale-factor", String(viewport.scale));
+
         const renderTask = page.render({ canvasContext: context, viewport });
         renderTaskRef.current = renderTask;
-        await renderTask.promise;
-      } catch (err) {
-        if (!disposed && !(err instanceof Error && err.name === "RenderingCancelledException")) {
-          setError(err instanceof Error ? err.message : "Falha ao renderizar pagina");
+        const textContent = await page.getTextContent();
+        if (disposed) return;
+        const textLayerTask = new pdfjs.TextLayer({ textContentSource: textContent, container: textContainer, viewport });
+        textLayerTaskRef.current = textLayerTask;
+        await Promise.all([renderTask.promise, textLayerTask.render()]);
+      } catch (renderError) {
+        if (!disposed && !(renderError instanceof Error && renderError.name === "RenderingCancelledException")) {
+          setError(renderError instanceof Error ? renderError.message : "Falha ao renderizar pagina");
         }
       } finally {
         if (!disposed) setIsRendering(false);
       }
     }
 
-    renderPage();
-
+    void renderPage();
     return () => {
       disposed = true;
       renderTaskRef.current?.cancel?.();
+      textLayerTaskRef.current?.cancel?.();
     };
   }, [fitWidth, pageNumber, pdf, rotation, zoom]);
 
   return (
-    <div className="mx-auto" style={{ width: pageSize.width }}>
-      <div className="mb-2 flex items-center justify-between px-1 text-xs text-zinc-400">
-        <span>Pagina {pageNumber}</span>
-        {isRendering && <span>Renderizando...</span>}
-      </div>
-      <div
-        className="relative overflow-hidden bg-zinc-100 shadow-lg shadow-black/30"
-        style={{ width: pageSize.width, minHeight: pageSize.height }}
-      >
+    <div className="mx-auto pb-2" style={{ width: pageSize.width }}>
+      <div className="relative overflow-hidden bg-white shadow-2xl shadow-black/40" style={{ width: pageSize.width, height: pageSize.height }}>
         <canvas ref={canvasRef} className="block bg-white" />
-        {isRendering && (
-          <div className="absolute inset-0 grid place-items-center bg-zinc-100 text-xs text-zinc-500">
-            Renderizando...
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 grid place-items-center bg-zinc-100 p-4 text-center text-xs text-zinc-700">
-            {error}
-          </div>
-        )}
+        <div ref={textLayerRef} className="textLayer select-text" />
+        {isRendering && <div className="pointer-events-none absolute inset-0 grid place-items-center bg-white/70 text-xs text-zinc-500">Renderizando...</div>}
+        {error && <div className="absolute inset-0 grid place-items-center bg-white p-4 text-center text-xs text-zinc-700">{error}</div>}
       </div>
+      <p className="mt-2 text-center text-[11px] text-zinc-500">{pageNumber}</p>
     </div>
   );
 }

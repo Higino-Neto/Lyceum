@@ -558,9 +558,6 @@ const persistReadingLocation = useCallback(
     const highlightColors = HIGHLIGHT_COLORS[settingsRef.current.theme];
     const fontFamily = getFontStack(settingsRef.current.fontFamily);
     const isPaginated = settingsRef.current.epubReadingMode === "paginated";
-    const paddingValue = isPaginated
-      ? 6
-      : Math.round((100 - settingsRef.current.contentWidth) / 2);
 
     let themeStyle = doc.getElementById(
       "lyceum-theme-styles",
@@ -584,7 +581,7 @@ const persistReadingLocation = useCallback(
       }
 
       body {
-        padding: 0 ${paddingValue}% !important;
+        padding: 0 ${isPaginated ? 0 : Math.round((100 - settingsRef.current.contentWidth) / 2)}% !important;
         font-family: ${fontFamily} !important;
         font-size: ${settingsRef.current.fontSize}% !important;
         line-height: ${settingsRef.current.lineHeight} !important;
@@ -879,9 +876,7 @@ const persistReadingLocation = useCallback(
     const themeColors = THEME_COLORS[settingsRef.current.theme];
     const fontFamily = getFontStack(settingsRef.current.fontFamily);
     const isPaginated = settingsRef.current.epubReadingMode === "paginated";
-    const paddingValue = isPaginated
-      ? 6
-      : Math.round((100 - settingsRef.current.contentWidth) / 2);
+    const paddingValue = isPaginated ? 0 : Math.round((100 - settingsRef.current.contentWidth) / 2);
 
     rendition.themes.register({
       lyceum: {

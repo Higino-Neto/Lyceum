@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
-  AlignJustify,
-  AlignLeft,
   BookMarked,
   ChevronDown,
   ChevronUp,
@@ -11,7 +9,6 @@ import {
   Moon,
   Plus,
   Search,
-  Settings2,
   Sun,
   X,
 } from "lucide-react";
@@ -21,6 +18,8 @@ interface EpubPaneProps {
   dataUrl?: string;
   location?: string;
   onLocationChange: (location: string, progressPercent: number) => void;
+  bookTitle: string;
+  onBack: () => void;
 }
 
 interface TocItem {
@@ -37,16 +36,9 @@ interface SearchHit {
 }
 
 type ReaderTheme = "paper" | "dark" | "sepia";
-type ReaderFlow = "paginated" | "scrolled-doc";
-type FontFamily = "georgia" | "serif" | "sans" | "opendyslexic";
-type TextAlign = "justify" | "left";
-type MarginLevel = "compact" | "medium" | "wide";
 
-const MARGIN_PX: Record<MarginLevel, number> = {
-  compact: 4,
-  medium: 10,
-  wide: 20,
-};
+type FontFamily = "georgia" | "serif" | "sans" | "opendyslexic";
+type MarginLevel = "compact" | "medium" | "wide";
 
 const MARGIN_CONTENT_WIDTH: Record<MarginLevel, number> = {
   compact: 92,
@@ -65,11 +57,12 @@ interface ReaderSettings {
   fontSize: number;
   lineHeight: number;
   fontFamily: FontFamily;
-  textAlign: TextAlign;
   marginLevel: MarginLevel;
   letterSpacing: number;
   paragraphSpacing: number;
   textIndent: number;
+  fontWeight: number;
+  wordSpacing: number;
 }
 
 const FONT_MAP: Record<FontFamily, string> = {
@@ -120,11 +113,12 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   fontSize: 100,
   lineHeight: 1.55,
   fontFamily: "georgia",
-  textAlign: "justify",
   marginLevel: "medium",
   letterSpacing: 0,
   paragraphSpacing: 1,
   textIndent: 0,
+  fontWeight: 0,
+  wordSpacing: 0,
 };
 
 function dataUrlToArrayBuffer(dataUrl: string) {
@@ -162,32 +156,17 @@ function getSectionText(section: any) {
     || "";
 }
 
-function computeBodyPad(level: MarginLevel, paginated: boolean): string {
-  if (paginated) {
-    const viewport = window.innerWidth;
-    const base = MARGIN_PX[level];
-    let px: number;
-    if (viewport < 480) {
-      px = base;
-    } else if (viewport < 768) {
-      px = base * 2;
-    } else if (viewport < 1024) {
-      px = base * 3;
-    } else {
-      px = base * 5;
-    }
-    return `0 ${Math.round(px)}px`;
-  }
+function computeBodyPad(level: MarginLevel): string {
   const pct = Math.round((100 - MARGIN_CONTENT_WIDTH[level]) / 2);
   return `0 ${pct}%`;
 }
 
-function buildOverrideCss(settings: ReaderSettings, paginated: boolean) {
+function buildOverrideCss(settings: ReaderSettings) {
   const colors = THEME_COLORS[settings.theme];
   const fontStack = FONT_MAP[settings.fontFamily];
-  const bodyPad = computeBodyPad(settings.marginLevel, paginated);
+  const bodyPad = computeBodyPad(settings.marginLevel);
 
-  const baseCss = `
+  return `
     :root { color-scheme: ${settings.theme === "dark" ? "dark" : "light"}; }
 
     html, body {
@@ -201,8 +180,11 @@ function buildOverrideCss(settings: ReaderSettings, paginated: boolean) {
       font-family: ${fontStack} !important;
       font-size: ${settings.fontSize}% !important;
       line-height: ${settings.lineHeight} !important;
-      text-align: ${settings.textAlign} !important;
+      text-align: justify !important;
       letter-spacing: ${settings.letterSpacing}em !important;
+      word-spacing: ${settings.wordSpacing * 0.08}em !important;
+      font-weight: ${300 + settings.fontWeight * 125} !important;
+      padding: ${bodyPad} !important;
     }
 
     p {
@@ -226,23 +208,9 @@ function buildOverrideCss(settings: ReaderSettings, paginated: boolean) {
       background: ${settings.theme === "dark" ? "rgba(74, 222, 128, 0.35)" : settings.theme === "sepia" ? "rgba(217, 119, 6, 0.25)" : "rgba(4, 120, 87, 0.28)"};
     }
   `;
-
-  if (paginated) {
-    return baseCss + `
-      body {
-        padding: ${computeBodyPad(settings.marginLevel, true)} !important;
-      }
-    `;
-  }
-
-  return baseCss + `
-    body {
-      padding: ${bodyPad} !important;
-    }
-  `;
 }
 
-export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPaneProps) {
+export default function EpubPane({ dataUrl, location, onLocationChange, bookTitle, onBack }: EpubPaneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bookRef = useRef<any>(null);
   const renditionRef = useRef<any>(null);
@@ -253,20 +221,21 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
   const lastDisplayedRef = useRef<string | undefined>(location);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settingsRef = useRef<ReaderSettings>(loadSettings());
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const showOverlayRef = useRef(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [activeHitIndex, setActiveHitIndex] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
-  const [flow, setFlow] = useState<ReaderFlow>("paginated");
+
+
   const [progress, setProgress] = useState(0);
   const [positionLabel, setPositionLabel] = useState("Inicio");
 
@@ -288,7 +257,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
       for (const iframe of iframes) {
         const doc = iframe?.contentDocument;
         if (!doc?.head) continue;
-        const css = buildOverrideCss(settingsRef.current, flow === "paginated");
+        const css = buildOverrideCss(settingsRef.current);
         let styleEl = doc.getElementById("lyceum-theme-styles") as HTMLStyleElement | null;
         if (!styleEl) {
           styleEl = doc.createElement("style");
@@ -300,54 +269,22 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
     } catch {
       // cross-origin or destroyed iframes
     }
-  }, [flow]);
+  }, []);
 
   const injectStylesRef = useRef(injectStylesToAllIframes);
   useEffect(() => {
     injectStylesRef.current = injectStylesToAllIframes;
   }, [injectStylesToAllIframes]);
 
-  const startOverlayTimer = useCallback(() => {
-    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-    overlayTimerRef.current = setTimeout(() => setShowOverlay(false), 4000);
+  const handleTapZone = useCallback(() => {
+    setShowOverlay((v) => !v);
   }, []);
-
-  const handleShowOverlay = useCallback(() => {
-    setShowOverlay(true);
-    startOverlayTimer();
-  }, [startOverlayTimer]);
-
-  const handleKeepOverlay = useCallback(() => {
-    startOverlayTimer();
-  }, [startOverlayTimer]);
-
-  const goPrev = useCallback(() => {
-    renditionRef.current?.prev();
-  }, []);
-
-  const goNext = useCallback(() => {
-    renditionRef.current?.next();
-  }, []);
-
-  const handleTapZone = useCallback((zone: "prev" | "next" | "overlay") => {
-    if (zone === "overlay") {
-      handleShowOverlay();
-      return;
-    }
-    if (showOverlayRef.current) {
-      setShowOverlay(false);
-      return;
-    }
-    if (zone === "prev") goPrev();
-    else goNext();
-  }, [goPrev, goNext, handleShowOverlay]);
 
   const applyReaderStyles = useCallback((rendition: any) => {
     if (!rendition?.themes) return;
 
     const s = settingsRef.current;
     const fontStack = FONT_MAP[s.fontFamily];
-    const isPag = flow === "paginated";
 
     function bodyStyles(theme: ReaderTheme): Record<string, string> {
       const c = THEME_COLORS[theme];
@@ -357,11 +294,10 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
         "font-family": `${fontStack} !important`,
         "font-size": `${s.fontSize}% !important`,
         "line-height": `${s.lineHeight} !important`,
-        "text-align": `${s.textAlign} !important`,
         "letter-spacing": `${s.letterSpacing}em !important`,
         margin: "0 !important",
+        padding: `${computeBodyPad(s.marginLevel)} !important`,
       };
-      base.padding = `${computeBodyPad(s.marginLevel, isPag)} !important`;
       return base;
     }
 
@@ -383,9 +319,11 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
     rendition.themes.fontSize(`${s.fontSize}%`);
     rendition.themes.override("line-height", `${s.lineHeight}`, true);
     rendition.themes.override("font-family", fontStack, true);
-    rendition.themes.override("text-align", s.textAlign, true);
-    rendition.themes.override("padding", computeBodyPad(s.marginLevel, isPag), true);
-  }, [flow]);
+    rendition.themes.override("letter-spacing", `${s.letterSpacing}em`, true);
+    rendition.themes.override("word-spacing", `${s.wordSpacing * 0.08}em`, true);
+    rendition.themes.override("font-weight", `${300 + s.fontWeight * 125}`, true);
+    rendition.themes.override("padding", computeBodyPad(s.marginLevel), true);
+  }, []);
 
   useEffect(() => {
     showOverlayRef.current = showOverlay;
@@ -404,7 +342,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
     if (!rendition) return;
     applyReaderStyles(rendition);
     injectStylesToAllIframes();
-  }, [settings, flow, applyReaderStyles, injectStylesToAllIframes]);
+  }, [settings, applyReaderStyles, injectStylesToAllIframes]);
 
   useEffect(() => {
     const rendition = renditionRef.current;
@@ -424,12 +362,6 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     };
   }, []);
 
@@ -474,9 +406,9 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
         const rendition = book.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
-          flow,
+          flow: "scrolled-doc",
           spread: "none",
-          manager: flow === "scrolled-doc" ? "continuous" : "default",
+          manager: "continuous",
           allowScriptedContent: false,
           resizeOnOrientationChange: true,
         });
@@ -485,6 +417,32 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
 
         rendition.on("rendered", () => {
           injectStylesRef.current?.();
+
+          scrollCleanupRef.current?.();
+
+          try {
+            const iframes = document.querySelectorAll<HTMLIFrameElement>("iframe");
+            const handlers: Array<() => void> = [];
+            for (const iframe of iframes) {
+              const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+              if (!doc) continue;
+              const onScroll = () => {
+                if (showOverlayRef.current) {
+                  setShowOverlay(false);
+                }
+              };
+              doc.addEventListener("scroll", onScroll, { passive: true });
+              handlers.push(() => doc.removeEventListener("scroll", onScroll));
+            }
+            if (handlers.length > 0) {
+              scrollCleanupRef.current = () => {
+                handlers.forEach((fn) => fn());
+                scrollCleanupRef.current = null;
+              };
+            }
+          } catch {
+            // cross-origin iframe
+          }
         });
 
         rendition.on("relocated", (section: any) => {
@@ -534,6 +492,8 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
 
     return () => {
       mounted = false;
+      scrollCleanupRef.current?.();
+      scrollCleanupRef.current = null;
       try {
         renditionRef.current?.destroy?.();
         book?.destroy?.();
@@ -544,7 +504,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
       bookRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataUrl, flow]);
+  }, [dataUrl]);
 
   const updateSetting = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -637,49 +597,55 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: colors.background, color: colors.foreground }}>
       {showOverlay && (
-        <div
-          className="absolute top-0 left-0 right-0 z-30 bg-zinc-950/95 backdrop-blur shadow-2xl"
-          onMouseEnter={handleKeepOverlay}
-          onMouseMove={handleKeepOverlay}
-        >
-          <div className="flex items-center gap-2 px-3 py-2 md:px-5 md:py-3 lg:px-6 lg:py-4">
+        <div className="absolute inset-0 z-30 flex flex-col bg-zinc-950/95 backdrop-blur shadow-2xl">
+          {/* Header bar */}
+          <div className="flex items-center gap-2 px-3 py-3">
             <button
-              className="grid h-9 w-9 md:h-10 md:w-10 lg:h-12 lg:w-12 place-items-center rounded bg-zinc-900 text-zinc-100"
-              onClick={() => setTocOpen((value) => !value)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              onClick={onBack}
               type="button"
-              aria-label="Sumario"
+              aria-label="Voltar"
             >
-              <List size={17} className="md:h-5 md:w-5 lg:h-6 lg:w-6" />
+              <X size={16} />
             </button>
-            <div className="min-w-0 flex-1 text-center">
-              <p className="truncate text-xs md:text-sm text-zinc-400">{positionLabel}</p>
-              <div className="mt-1 h-1 md:h-1.5 rounded bg-zinc-800">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-zinc-100">{bookTitle}</p>
+              <div className="mt-1.5 h-1 rounded bg-zinc-800">
                 <div className="h-full rounded bg-green-500" style={{ width: `${progress}%` }} />
               </div>
             </div>
             <button
-              className="grid h-9 w-9 md:h-10 md:w-10 lg:h-12 lg:w-12 place-items-center rounded bg-zinc-900 text-zinc-100"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              onClick={() => setTocOpen((value) => !value)}
+              type="button"
+              aria-label="Sumario"
+            >
+              <List size={16} />
+            </button>
+            <button
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={() => setSearchOpen((value) => !value)}
               type="button"
               aria-label="Buscar"
             >
-              {searchOpen ? <X size={16} className="md:h-5 md:w-5 lg:h-6 lg:w-6" /> : <Search size={16} className="md:h-5 md:w-5 lg:h-6 lg:w-6" />}
+              {searchOpen ? <X size={16} /> : <Search size={16} />}
             </button>
             <button
-              className="grid h-9 w-9 md:h-10 md:w-10 lg:h-12 lg:w-12 place-items-center rounded bg-zinc-900 text-zinc-100"
-              onClick={() => setSettingsOpen((value) => !value)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              onClick={() => setShowOverlay(false)}
               type="button"
-              aria-label="Ajustes"
+              aria-label="Fechar"
             >
-              <Settings2 size={16} className="md:h-5 md:w-5 lg:h-6 lg:w-6" />
+              <ChevronDown size={16} />
             </button>
           </div>
 
+          {/* Search panel */}
           {searchOpen && (
-            <div className="border-t border-zinc-800 p-3 md:p-5 lg:p-6">
+            <div className="border-t border-zinc-800 px-3 py-3">
               <div className="flex gap-2">
                 <input
-                  className="h-10 md:h-11 lg:h-12 min-w-0 flex-1 rounded bg-zinc-900 px-3 md:px-4 lg:px-5 text-sm md:text-base lg:text-lg text-zinc-100"
+                  className="h-10 min-w-0 flex-1 rounded bg-zinc-900 px-3 text-sm text-zinc-100"
                   placeholder="Buscar no EPUB"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -688,7 +654,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
                   }}
                 />
                 <button
-                  className="rounded bg-green-600 px-3 md:px-5 lg:px-6 text-sm md:text-base lg:text-lg font-semibold text-white disabled:opacity-50"
+                  className="rounded bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
                   disabled={isSearching}
                   onClick={runSearch}
                   type="button"
@@ -704,7 +670,6 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
                     disabled={hits.length === 0}
                     onClick={() => goToHit(activeHitIndex - 1)}
                     type="button"
-                    aria-label="Resultado anterior"
                   >
                     <ChevronUp size={15} />
                   </button>
@@ -713,7 +678,6 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
                     disabled={hits.length === 0}
                     onClick={() => goToHit(activeHitIndex + 1)}
                     type="button"
-                    aria-label="Proximo resultado"
                   >
                     <ChevronDown size={15} />
                   </button>
@@ -727,38 +691,37 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
             </div>
           )}
 
-          {settingsOpen && (
-            <div className="border-t border-zinc-800 p-3 md:p-5 lg:p-6 space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-x-6 lg:gap-x-8 md:space-y-0">
-              {/* Theme */}
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tema</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["paper", "dark", "sepia"] as ReaderTheme[]).map((item) => (
-                    <button
-                      key={item}
-                      className={`flex h-9 items-center justify-center gap-2 rounded text-sm font-medium ${
-                        settings.theme === item ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
-                      }`}
-                      onClick={() => updateSetting("theme", item)}
-                      type="button"
-                    >
-                      {item === "dark" ? <Moon size={15} /> : <Sun size={15} />}
-                      {item === "paper" ? "Papel" : item === "dark" ? "Noite" : "Sepia"}
-                    </button>
-                  ))}
-                </div>
+          {/* Settings */}
+          <div className="flex-1 overflow-y-auto border-t border-zinc-800 px-3 py-4">
+            {/* Font family */}
+            <div className="mb-4">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Fonte</label>
+              <div className="grid grid-cols-4 gap-2">
+                {fontOptions.map((font) => (
+                  <button
+                    key={font}
+                    className={`h-9 rounded text-sm font-medium ${
+                      settings.fontFamily === font ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                    }`}
+                    onClick={() => updateSetting("fontFamily", font)}
+                    type="button"
+                  >
+                    {FONT_LABELS[font]}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Font size + Line height */}
+            {/* Font size + Line height */}
+            <div className="mb-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Fonte & Espacamento</label>
-                <div className="grid grid-cols-4 gap-2">
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tamanho</label>
+                <div className="grid grid-cols-3 gap-1">
                   <button
                     className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
                     disabled={settings.fontSize <= 60}
                     onClick={() => updateSetting("fontSize", Math.max(60, settings.fontSize - 5))}
                     type="button"
-                    aria-label="Diminuir fonte"
                   >
                     <Minus size={16} />
                   </button>
@@ -770,109 +733,111 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
                     disabled={settings.fontSize >= 200}
                     onClick={() => updateSetting("fontSize", Math.min(200, settings.fontSize + 5))}
                     type="button"
-                    aria-label="Aumentar fonte"
                   >
                     <Plus size={16} />
                   </button>
-                  <button
-                    className="h-9 rounded bg-zinc-900 text-xs font-medium text-zinc-100"
-                    onClick={() => {
-                      const next = settings.lineHeight >= 2.2 ? 1.0 : Number((settings.lineHeight + 0.15).toFixed(2));
-                      updateSetting("lineHeight", next);
-                    }}
-                    type="button"
-                  >
-                    {`${settings.lineHeight.toFixed(2)}`}
-                  </button>
                 </div>
               </div>
-
-              {/* Font family */}
               <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tipo de Fonte</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {fontOptions.map((font) => (
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Linha</label>
+                <button
+                  className="h-9 w-full rounded bg-zinc-900 text-xs font-medium text-zinc-100"
+                  onClick={() => {
+                    const next = settings.lineHeight >= 2.2 ? 1.0 : Number((settings.lineHeight + 0.15).toFixed(2));
+                    updateSetting("lineHeight", next);
+                  }}
+                  type="button"
+                >
+                  {settings.lineHeight.toFixed(2)}
+                </button>
+              </div>
+            </div>
+
+            {/* Font weight + Word spacing */}
+            <div className="mb-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Peso</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { value: 0, label: "Leve" },
+                    { value: 1, label: "Normal" },
+                    { value: 2, label: "Negrito" },
+                  ].map(({ value, label }) => (
                     <button
-                      key={font}
-                      className={`h-9 rounded text-sm font-medium ${
-                        settings.fontFamily === font ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                      key={value}
+                      className={`h-9 rounded text-xs font-medium ${
+                        settings.fontWeight === value ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
                       }`}
-                      onClick={() => updateSetting("fontFamily", font)}
+                      onClick={() => updateSetting("fontWeight", value)}
                       type="button"
                     >
-                      {FONT_LABELS[font]}
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Text align */}
               <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Alinhamento</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["justify", "left"] as TextAlign[]).map((align) => (
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Palavras</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { value: 0, label: "Nenhum" },
+                    { value: 1, label: "Pouco" },
+                    { value: 2, label: "Muito" },
+                  ].map(({ value, label }) => (
                     <button
-                      key={align}
-                      className={`flex h-9 items-center justify-center gap-2 rounded text-sm font-medium ${
-                        settings.textAlign === align ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                      key={value}
+                      className={`h-9 rounded text-xs font-medium ${
+                        settings.wordSpacing === value ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
                       }`}
-                      onClick={() => updateSetting("textAlign", align)}
+                      onClick={() => updateSetting("wordSpacing", value)}
                       type="button"
                     >
-                      {align === "justify" ? <AlignJustify size={15} /> : <AlignLeft size={15} />}
-                      {align === "justify" ? "Justificar" : "Esquerda"}
+                      {label}
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Margins */}
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Margens</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["compact", "medium", "wide"] as MarginLevel[]).map((level) => (
-                    <button
-                      key={level}
-                      className={`h-9 rounded text-sm font-medium ${
-                        settings.marginLevel === level ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
-                      }`}
-                      onClick={() => updateSetting("marginLevel", level)}
-                      type="button"
-                    >
-                      {MARGIN_LABELS[level]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Flow mode */}
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Modo</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    className={`h-9 rounded text-sm font-medium ${flow === "paginated" ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"}`}
-                    onClick={() => {
-                      currentCfiRef.current = lastDisplayedRef.current || currentCfiRef.current;
-                      setFlow("paginated");
-                    }}
-                    type="button"
-                  >
-                    Paginas
-                  </button>
-                  <button
-                    className={`h-9 rounded text-sm font-medium ${flow === "scrolled-doc" ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"}`}
-                    onClick={() => {
-                      currentCfiRef.current = lastDisplayedRef.current || currentCfiRef.current;
-                      setFlow("scrolled-doc");
-                    }}
-                    type="button"
-                  >
-                    Scroll
-                  </button>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Theme */}
+            <div className="mb-4">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tema</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["paper", "dark", "sepia"] as ReaderTheme[]).map((item) => (
+                  <button
+                    key={item}
+                    className={`flex h-9 items-center justify-center gap-2 rounded text-sm font-medium ${
+                      settings.theme === item ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                    }`}
+                    onClick={() => updateSetting("theme", item)}
+                    type="button"
+                  >
+                    {item === "dark" ? <Moon size={15} /> : <Sun size={15} />}
+                    {item === "paper" ? "Papel" : item === "dark" ? "Noite" : "Sépia"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Margins */}
+            <div>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Margens</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["compact", "medium", "wide"] as MarginLevel[]).map((level) => (
+                  <button
+                    key={level}
+                    className={`h-9 rounded text-sm font-medium ${
+                      settings.marginLevel === level ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                    }`}
+                    onClick={() => updateSetting("marginLevel", level)}
+                    type="button"
+                  >
+                    {MARGIN_LABELS[level]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -897,22 +862,8 @@ export default function EpubPane({ dataUrl, location, onLocationChange }: EpubPa
             <div
               className="absolute top-0 left-0 right-0 z-20 pointer-events-auto"
               style={{ height: "10%" }}
-              onClick={() => handleTapZone("overlay")}
+              onClick={handleTapZone}
             />
-            {flow === "paginated" && (
-              <>
-                <div
-                  className="h-full w-1/2 cursor-pointer pointer-events-auto"
-                  style={{ paddingTop: "10%" }}
-                  onClick={() => handleTapZone("prev")}
-                />
-                <div
-                  className="absolute top-0 right-0 h-full w-1/2 cursor-pointer pointer-events-auto"
-                  style={{ paddingTop: "10%" }}
-                  onClick={() => handleTapZone("next")}
-                />
-              </>
-            )}
           </div>
         )}
       </div>
