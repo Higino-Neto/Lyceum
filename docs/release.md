@@ -24,6 +24,15 @@ On pushes to `main`, it:
 5. Runs Electron Builder with GitHub publishing.
 
 The workflow uses `GITHUB_TOKEN` through the `GH_TOKEN` environment variable.
+It also requires these GitHub repository variables or secrets before publishing:
+
+```env
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+Vite embeds those values into the renderer bundle at build time. If they are missing,
+the workflow fails before Electron Builder publishes an installer.
 
 ## Versioning
 
@@ -46,4 +55,3 @@ To enable it:
 2. Open Pages.
 3. Select GitHub Actions as the Pages source.
 4. Push changes to `docs/` on `main`.
-

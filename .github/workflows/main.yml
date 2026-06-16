@@ -11,6 +11,9 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
 
     steps:
       - uses: actions/checkout@v3
@@ -20,6 +23,12 @@ jobs:
           node-version: 20
 
       - run: npm install
+      - name: Verify Supabase release config
+        run: |
+          if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
+            Write-Error "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them as GitHub repository variables or secrets before publishing Lyceum."
+            exit 1
+          }
       - run: npm run build
       - run: npx electron-builder --publish always
         env:
