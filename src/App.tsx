@@ -17,7 +17,7 @@ import { Toaster } from "react-hot-toast";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
-import { supabase } from "./lib/supabase";
+import { getSupabaseConfig, supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
@@ -133,10 +133,9 @@ function App() {
   useEffect(() => {
     if (!window.api?.backupInit || !window.api?.backupSetSession) return;
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const supabaseConfig = getSupabaseConfig();
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseConfig) {
       console.log("[Backup] Supabase credentials not configured");
       return;
     }
@@ -185,7 +184,10 @@ function App() {
 
     const ensureBackupSession = async (session: Session | null) => {
       if (!backupInitializedRef.current) {
-        const initResult = await window.api.backupInit(supabaseUrl, supabaseAnonKey);
+        const initResult = await window.api.backupInit(
+          supabaseConfig.url,
+          supabaseConfig.anonKey,
+        );
         if (!initResult.success) {
           throw new Error(initResult.error || "Failed to initialize backup client");
         }
