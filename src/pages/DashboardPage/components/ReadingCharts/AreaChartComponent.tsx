@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import ChartTooltip from "./ChartTooltip";
 import formatDate from "./utils/formatDate";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
+import { buildAreaPagesData, hasPositiveChartData } from "./utils/chartData";
 
 interface AreaChartProps {
   usersData: UserReadingData[];
@@ -10,43 +11,10 @@ interface AreaChartProps {
 
 export default function AreaChartComponent({ usersData }: AreaChartProps) {
   const chartData = useMemo(() => {
-    const allDates = new Set<string>();
-    usersData.forEach((userData) => {
-      userData.readings.forEach((item) => {
-        allDates.add(item.reading_date);
-      });
-    });
-
-    const sortedDates = Array.from(allDates)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .slice(-30);
-
-    let accumulators: Record<string, Record<string, number>> = {};
-    sortedDates.forEach((date) => {
-      accumulators[date] = {};
-      usersData.forEach((userData) => {
-        const prevDate = sortedDates[sortedDates.indexOf(date) - 1];
-        const prevValue = prevDate ? (accumulators[prevDate]?.[userData.user.username] || 0) : 0;
-        const dayValue = userData.readings
-          .filter((r) => r.reading_date === date)
-          .reduce((sum, r) => sum + r.pages, 0);
-        accumulators[date][userData.user.username] = prevValue + dayValue;
-      });
-    });
-
-    return sortedDates.map((date) => {
-      const dataPoint: Record<string, string | number> = { date };
-      usersData.forEach((userData) => {
-        dataPoint[userData.user.username] = accumulators[date][userData.user.username] || 0;
-      });
-      return dataPoint;
-    });
+    return buildAreaPagesData(usersData);
   }, [usersData]);
 
-  if (
-    chartData.length === 0 ||
-    usersData.every((u) => u.readings.length === 0)
-  ) {
+  if (!hasPositiveChartData(chartData, usersData)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível

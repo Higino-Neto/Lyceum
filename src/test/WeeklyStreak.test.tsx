@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import WeeklyStreak from "../pages/DashboardPage/components/WeeklyStreak";
 
@@ -17,14 +16,22 @@ const createTestQueryClient = () =>
 const renderWithProviders = (component: React.ReactElement) => {
   const queryClient = createTestQueryClient();
   return render(
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{component}</BrowserRouter>
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
   );
 };
 
-vi.mock("../../../utils/getReadings", () => ({
+vi.mock("../utils/getReadings", () => ({
   default: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../utils/getUserReadings", () => ({
+  default: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../contexts/SelectedUsersContext", () => ({
+  useSelectedUsers: () => ({
+    selectedUsers: [],
+  }),
 }));
 
 describe("WeeklyStreak", () => {

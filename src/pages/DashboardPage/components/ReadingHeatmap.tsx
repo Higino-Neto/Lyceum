@@ -142,24 +142,25 @@ export function ReadingHeatMap() {
 
     return (
       <rect {...props} fill={fillColor}>
-        <title>{`${data.date}: ${tooltipContent}`}</title>
+        <title className="">{`${data.date}: ${tooltipContent}`}</title>
       </rect>
     );
   };
 
   return (
-    <div className="flex flex-col bg-zinc-900 text-white rounded-sm h-full p-4">
+    <div className="flex flex-col bg-zinc-900 text-white rounded-sm  h-full p-4">
       <div className="flex items-center justify-start gap-2 mb-2">
         <CalendarDays size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
       </div>
-      <div className="w-full">
+      <div className="flex flex-col h-full w-full justify-center items-center">
+        <div className="w-full">
         <HeatMap
           value={value || []}
           startDate={startDate}
           endDate={endDate}
-          rectSize={11}
-          space={3}
-          weekLabels={["", "", "", "", "", "", ""]}
+          rectSize={12}
+          space={6}
+          weekLabels={["d", "s", "t", "q", "q", "s", "s"]}
           monthLabels={[
             "Jan",
             "Fev",
@@ -181,6 +182,7 @@ export function ReadingHeatMap() {
           style={{ color: "var(--ui-zinc-200)", width: "100%" }}
           rectRender={rectRender}
         />
+      </div>
       </div>
     </div>
   );

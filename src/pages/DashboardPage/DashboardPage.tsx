@@ -84,7 +84,7 @@ export default function Dashboard() {
             animate="visible"
           >
             <motion.section
-              className="grid grid-cols-1 gap-4 md:grid-cols-3"
+              className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3"
               variants={reduceMotion ? undefined : panelStagger}
             >
               {isLoading ? (
@@ -125,7 +125,7 @@ export default function Dashboard() {
                 </>
               )}
               <motion.div
-                className="rounded-sm border border-zinc-800 bg-zinc-900"
+                className="h-full rounded-sm border border-zinc-800 bg-zinc-900"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}
@@ -133,7 +133,7 @@ export default function Dashboard() {
                 <ReadingHeatMap />
               </motion.div>
               <motion.div
-                className="rounded-sm bg-zinc-900"
+                className="h-full rounded-sm bg-zinc-900"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}
@@ -141,7 +141,7 @@ export default function Dashboard() {
                 <WeeklyStreak />
               </motion.div>
               <motion.div
-                className="rounded-sm bg-zinc-900"
+                className="h-full rounded-sm bg-zinc-900"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}

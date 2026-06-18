@@ -3,6 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import ChartTooltip from "./ChartTooltip";
 import formatDate from "./utils/formatDate";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
+import { buildDailyPagesData, hasPositiveChartData } from "./utils/chartData";
 
 export default function DailyPagesChart({
   usersData,
@@ -10,33 +11,10 @@ export default function DailyPagesChart({
   usersData: UserReadingData[];
 }) {
   const chartData = useMemo(() => {
-    const allDates = new Set<string>();
-    usersData.forEach((userData) => {
-      userData.readings.forEach((item) => {
-        allDates.add(item.reading_date);
-      });
-    });
-
-    const sortedDates = Array.from(allDates)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .slice(-30);
-
-    return sortedDates.map((date) => {
-      const dataPoint: Record<string, string | number> = { date };
-      usersData.forEach((userData) => {
-        const userPages = userData.readings
-          .filter((r) => r.reading_date === date)
-          .reduce((sum, r) => sum + r.pages, 0);
-        dataPoint[userData.user.username] = userPages;
-      });
-      return dataPoint;
-    });
+    return buildDailyPagesData(usersData);
   }, [usersData]);
 
-  if (
-    chartData.length === 0 ||
-    usersData.every((u) => u.readings.length === 0)
-  ) {
+  if (!hasPositiveChartData(chartData, usersData)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível

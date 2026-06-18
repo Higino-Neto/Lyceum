@@ -4,6 +4,7 @@ import { WEEKDAY_NAMES, WEEKDAY_ORDER } from "./utils/getWeekInfo";
 import parseLocalDate from "./utils/parseLocalDate";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ChartTooltip from "./ChartTooltip";
+import { hasPositiveChartData } from "./utils/chartData";
 
 export default function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
   const chartData = useMemo(() => {
@@ -40,7 +41,7 @@ export default function WeekdayChart({ usersData }: { usersData: UserReadingData
     });
   }, [usersData]);
 
-  const hasData = usersData.some((u) => u.readings.length > 0);
+  const hasData = hasPositiveChartData(chartData, usersData);
 
   if (!hasData) {
     return (

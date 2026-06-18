@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
-import parseLocalDate from "./utils/parseLocalDate";
-import { getWeekNumber, getWeekRange } from "./utils/getWeekInfo";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ChartTooltip from "./ChartTooltip";
+import { buildWeeklyPagesData, hasPositiveChartData } from "./utils/chartData";
 
 export default function WeeklyPagesChart({
   usersData,
@@ -11,44 +10,10 @@ export default function WeeklyPagesChart({
   usersData: UserReadingData[];
 }) {
   const chartData = useMemo(() => {
-    const allWeeks = new Set<string>();
-    const weekKeys = new Map<string, string>();
-
-    usersData.forEach((userData) => {
-      userData.readings.forEach((item) => {
-        const date = parseLocalDate(item.reading_date);
-        const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
-        const weekRange = getWeekRange(date);
-        allWeeks.add(weekKey);
-        weekKeys.set(weekKey, weekRange);
-      });
-    });
-
-    const sortedWeeks = Array.from(allWeeks).sort().slice(-10);
-
-    return sortedWeeks.map((weekKey) => {
-      const dataPoint: Record<string, string | number> = {
-        week: weekKeys.get(weekKey) || weekKey,
-        key: weekKey,
-      };
-      usersData.forEach((userData) => {
-        const userPages = userData.readings
-          .filter((r) => {
-            const date = parseLocalDate(r.reading_date);
-            const wK = `${date.getFullYear()}-W${getWeekNumber(date)}`;
-            return wK === weekKey;
-          })
-          .reduce((sum, r) => sum + r.pages, 0);
-        dataPoint[userData.user.username] = userPages;
-      });
-      return dataPoint;
-    });
+    return buildWeeklyPagesData(usersData);
   }, [usersData]);
 
-  if (
-    chartData.length === 0 ||
-    usersData.every((u) => u.readings.length === 0)
-  ) {
+  if (!hasPositiveChartData(chartData, usersData)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
         Nenhum dado disponível
