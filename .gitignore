@@ -22,6 +22,7 @@ dist-electron
 coverage
 AGENTS.md
 .tmp/
+/public/pdfjs/
 
 
 # Editor directories and files

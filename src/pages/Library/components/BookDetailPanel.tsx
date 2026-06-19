@@ -42,6 +42,7 @@ interface BookDetailPanelProps {
   book: BookWithThumbnail;
   onClose: () => void;
   onOpenEmbed: (book?: BookWithThumbnail) => void;
+  onOpenPdfJs?: (book?: BookWithThumbnail) => void;
   onOpenPreview?: (book?: BookWithThumbnail) => void;
   onDelete?: () => void;
   onRefresh: () => void;
@@ -92,6 +93,7 @@ export default function BookDetailPanel({
   book,
   onClose,
   onOpenEmbed,
+  onOpenPdfJs,
   onOpenPreview,
   onDelete,
   onRefresh,
@@ -797,7 +799,30 @@ export default function BookDetailPanel({
         )}
 
         <div className="flex gap-2">
-          <button
+          {selectedVariant.fileType === "pdf" ? (
+            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenEmbed(selectedVariant)}
+                disabled={!canOpenInReader}
+                className="flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 px-2 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+              >
+                <BookOpen size={16} />
+                <span className="truncate">EmbedPDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenPdfJs?.(selectedVariant)}
+                disabled={!canOpenInReader || !onOpenPdfJs}
+                className="flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-sm border border-zinc-700 bg-zinc-800 px-2 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-100 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500"
+              >
+                <FileText size={16} />
+                <span className="truncate">PDF.js</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
           onClick={() => onOpenEmbed(selectedVariant)}
           disabled={!canOpenInReader}
           className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
@@ -811,7 +836,8 @@ export default function BookDetailPanel({
               ? "Continuar Leitura"
               : "Começar a Ler"
             : "Formato não suportado no leitor"}
-        </button>
+            </button>
+          )}
         {onOpenPreview && (
           <button
             type="button"

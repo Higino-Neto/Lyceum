@@ -1,4 +1,5 @@
 export type FileType = "pdf" | "epub";
+export type PdfRenderer = "embedpdf" | "pdfjs";
 
 export interface DocumentTab {
   id: string;
@@ -8,6 +9,7 @@ export interface DocumentTab {
   buffer?: ArrayBuffer;
   filePath?: string;
   libraryDocumentId?: string;
+  pdfRenderer?: PdfRenderer;
   position: number;
   isActive: boolean;
   source: "library" | "local";
@@ -27,6 +29,7 @@ export interface PersistedDocumentTab {
   fileType: FileType;
   filePath?: string;
   libraryDocumentId?: string;
+  pdfRenderer?: PdfRenderer;
   position: number;
   source: "library" | "local";
 }

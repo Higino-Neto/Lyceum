@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' lyceum-pdf:; font-src 'self' data:; object-src 'none'; base-uri 'none';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mozilla PDF.js Viewer</title>
+    <link rel="stylesheet" href="./web/pdf_viewer.css" />
+    <link rel="stylesheet" href="./viewer.css" />
+  </head>
+  <body>
+    <div id="toolbar" role="toolbar" aria-label="PDF.js">
+      <button id="previous" class="toolbar-button" type="button" title="Pagina anterior" aria-label="Pagina anterior">
+        &#8249;
+      </button>
+      <button id="next" class="toolbar-button" type="button" title="Proxima pagina" aria-label="Proxima pagina">
+        &#8250;
+      </button>
+
+      <div class="toolbar-page">
+        <input id="pageNumber" type="number" min="1" value="1" aria-label="Pagina atual" />
+        <span id="pageCount">/ 0</span>
+      </div>
+
+      <span class="toolbar-separator" aria-hidden="true"></span>
+
+      <button id="zoomOut" class="toolbar-button" type="button" title="Reduzir zoom" aria-label="Reduzir zoom">
+        -
+      </button>
+      <select id="scaleSelect" aria-label="Zoom">
+        <option value="auto">Auto</option>
+        <option value="page-width" selected>Largura</option>
+        <option value="page-fit">Pagina</option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+        <option value="2">200%</option>
+        <option value="3">300%</option>
+      </select>
+      <button id="zoomIn" class="toolbar-button" type="button" title="Aumentar zoom" aria-label="Aumentar zoom">
+        +
+      </button>
+
+      <div class="toolbar-spacer"></div>
+
+      <input id="findInput" type="search" placeholder="Buscar" aria-label="Buscar no PDF" />
+    </div>
+
+    <div id="viewerContainer" tabindex="0">
+      <div id="viewer" class="pdfViewer"></div>
+    </div>
+
+    <div id="loading" role="status">Abrindo PDF...</div>
+    <div id="error" role="alert" hidden></div>
+
+    <script type="module" src="./viewer.mjs"></script>
+  </body>
+</html>

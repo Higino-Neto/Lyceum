@@ -10,10 +10,12 @@ import {
 import {
   DocumentTab,
   FileType,
+  PdfRenderer,
   PersistedDocumentTab,
 } from "../types/DocumentTab";
 
 const STORAGE_KEY = "document_tabs";
+const DEFAULT_PDF_RENDERER: PdfRenderer = "embedpdf";
 
 type TabScope = "main" | "detached" | "preview";
 
@@ -31,6 +33,7 @@ interface InitialTabData {
   fileType: FileType;
   filePath?: string;
   libraryDocumentId?: string;
+  pdfRenderer?: PdfRenderer;
   source?: "library" | "local";
 }
 
@@ -51,6 +54,7 @@ interface TabContextValue {
       buffer?: ArrayBuffer;
       filePath?: string;
       libraryDocumentId?: string;
+      pdfRenderer?: PdfRenderer;
       source?: "library" | "local";
     }
   ) => string;
@@ -58,6 +62,7 @@ interface TabContextValue {
   setActiveTab: (tabId: string) => void;
   reorderTabs: (activeId: string, overId: string) => void;
   detachTab: (tabId: string) => Promise<void>;
+  setPdfRenderer: (tabId: string, renderer: PdfRenderer) => void;
   updateTabBuffer: (tabId: string, buffer: ArrayBuffer) => void;
   getTabById: (tabId: string) => DocumentTab | undefined;
   openPdfFile: () => Promise<OpenFileResult | undefined>;
@@ -103,6 +108,10 @@ function createTab(
     fileType: data.fileType,
     filePath: data.filePath,
     libraryDocumentId: data.libraryDocumentId,
+    pdfRenderer:
+      data.fileType === "pdf"
+        ? normalizePdfRenderer(data.pdfRenderer)
+        : undefined,
     buffer: options?.buffer,
     position: options?.position ?? 0,
     isActive: options?.isActive ?? false,
@@ -137,6 +146,10 @@ function inferTabFileType(
   return fallback;
 }
 
+function normalizePdfRenderer(value: unknown): PdfRenderer {
+  return value === "pdfjs" ? "pdfjs" : DEFAULT_PDF_RENDERER;
+}
+
 function normalizePersistedTab(rawTab: unknown, index: number): PersistedDocumentTab | null {
   if (!rawTab || typeof rawTab !== "object") {
     return null;
@@ -160,6 +173,8 @@ function normalizePersistedTab(rawTab: unknown, index: number): PersistedDocumen
     filePath: typeof tab.filePath === "string" ? tab.filePath : undefined,
     libraryDocumentId:
       typeof tab.libraryDocumentId === "string" ? tab.libraryDocumentId : undefined,
+    pdfRenderer:
+      tab.fileType === "pdf" ? normalizePdfRenderer(tab.pdfRenderer) : undefined,
     position: typeof tab.position === "number" ? tab.position : index,
     source: tab.source === "library" ? "library" : "local",
   };
@@ -213,6 +228,8 @@ function saveTabsToStorage(tabs: DocumentTab[], activeTabId: string | null): voi
       fileType: tab.fileType,
       filePath: tab.filePath,
       libraryDocumentId: tab.libraryDocumentId,
+      pdfRenderer:
+        tab.fileType === "pdf" ? normalizePdfRenderer(tab.pdfRenderer) : undefined,
       position: index,
       source: tab.source,
     }));
@@ -394,6 +411,7 @@ export function TabProvider({
         buffer?: ArrayBuffer;
         filePath?: string;
         libraryDocumentId?: string;
+        pdfRenderer?: PdfRenderer;
         source?: "library" | "local";
       }
     ) => {
@@ -412,6 +430,10 @@ export function TabProvider({
                     fileName,
                     filePath: options?.filePath ?? tab.filePath,
                     libraryDocumentId: options?.libraryDocumentId ?? tab.libraryDocumentId,
+                    pdfRenderer:
+                      fileType === "pdf"
+                        ? normalizePdfRenderer(options?.pdfRenderer ?? tab.pdfRenderer)
+                        : undefined,
                     source: options?.source ?? tab.source,
                     buffer: options?.buffer ?? tab.buffer,
                     isLoading: false,
@@ -432,6 +454,8 @@ export function TabProvider({
           fileType,
           filePath: options?.filePath,
           libraryDocumentId: options?.libraryDocumentId,
+          pdfRenderer:
+            fileType === "pdf" ? normalizePdfRenderer(options?.pdfRenderer) : undefined,
           source: options?.source,
         },
         {
@@ -497,11 +521,25 @@ export function TabProvider({
       fileType: tab.fileType,
       filePath: tab.filePath,
       libraryDocumentId: tab.libraryDocumentId,
+      pdfRenderer: tab.pdfRenderer,
       source: tab.source,
     });
 
     removeTab(tabId);
   }, [removeTab]);
+
+  const setPdfRenderer = useCallback((tabId: string, renderer: PdfRenderer) => {
+    setTabs((previousTabs) =>
+      previousTabs.map((tab) =>
+        tab.id === tabId && tab.fileType === "pdf"
+          ? {
+              ...tab,
+              pdfRenderer: normalizePdfRenderer(renderer),
+            }
+          : tab
+      )
+    );
+  }, []);
 
   const updateTabBuffer = useCallback((tabId: string, buffer: ArrayBuffer) => {
     setTabs((previousTabs) =>
@@ -605,6 +643,7 @@ export function TabProvider({
     setActiveTab,
     reorderTabs,
     detachTab,
+    setPdfRenderer,
     updateTabBuffer,
     getTabById,
     openPdfFile,

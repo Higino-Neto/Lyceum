@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import useReadingSession from "./hooks/useReadingSession";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
 import PdfViewer from "./components/pdf-reader/Viewer";
+import {
+  normalizePdfRenderer,
+  type PdfRenderer,
+} from "./components/pdf-reader/pdfRenderer";
 import EpubViewer from "./components/epub-reader/Viewer";
 import { TabProvider, useTabContext } from "../../contexts/TabContext";
 import TabBar from "../../components/tabs/TabBar";
@@ -16,6 +20,7 @@ export interface ReadingLaunchState {
   fileName?: string;
   filePath?: string;
   fileType?: FileType;
+  pdfRenderer?: PdfRenderer;
   source?: "library" | "local";
   libraryDocumentId?: string;
   navigationId?: string;
@@ -43,7 +48,7 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
 function ReadingContent() {
   const reduceMotion = useReducedMotion();
   const session = useReadingSession();
-  const { activeTab } = useTabContext();
+  const { activeTab, setPdfRenderer } = useTabContext();
   const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
 
@@ -102,6 +107,8 @@ function ReadingContent() {
         pdfData={activeTab.buffer}
         fileHash={activeTab.fileHash}
         fileName={activeTab.fileName}
+        renderer={normalizePdfRenderer(activeTab.pdfRenderer)}
+        onRendererChange={(renderer) => setPdfRenderer(activeTab.id, renderer)}
         hasSessionStarted={session.sessionStart}
         hasSessionFinished={session.sessionFinish}
         onReadingInfo={session.handleReadingInfo}
@@ -256,6 +263,7 @@ export function ReadingWorkspace({
         filePath: incomingTab.filePath,
         source: incomingTab.source || "local",
         libraryDocumentId: incomingTab.libraryDocumentId,
+        pdfRenderer: incomingTab.pdfRenderer,
       }
     );
     onIncomingTabConsumed?.();
@@ -403,6 +411,7 @@ export default function ReadingPage() {
   const fileHash = searchParams.get("fileHash");
   const fileType = searchParams.get("fileType");
   const fileName = searchParams.get("fileName");
+  const pdfRenderer = normalizePdfRenderer(searchParams.get("pdfRenderer"));
 
   const initialTab = useMemo(() => {
     if (!detached || !fileHash || (fileType !== "pdf" && fileType !== "epub")) {
@@ -419,9 +428,10 @@ export default function ReadingPage() {
       fileType: detachedFileType,
       filePath: searchParams.get("filePath") || undefined,
       libraryDocumentId: searchParams.get("libraryDocumentId") || undefined,
+      pdfRenderer,
       source: detachedSource,
     };
-  }, [detached, fileHash, fileName, fileType, searchParams]);
+  }, [detached, fileHash, fileName, fileType, pdfRenderer, searchParams]);
 
   const handleRouteStateConsumed = useCallback(() => {
     navigate(`${location.pathname}${location.search}`, {

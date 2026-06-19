@@ -218,7 +218,12 @@ export default function AddReadingPage() {
   const [entries, setEntries] = useState<ReadingEntry[]>(() => {
     const saved = loadState();
     if (saved?.entries) {
-      return saved.entries as ReadingEntry[];
+      const today = new Date().toLocaleDateString("sv-SE");
+      const restored = saved.entries as ReadingEntry[];
+      return restored.map((entry: ReadingEntry) => ({
+        ...entry,
+        date: today,
+      }));
     }
     return [
       {

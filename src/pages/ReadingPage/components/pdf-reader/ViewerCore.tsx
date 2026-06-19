@@ -68,7 +68,7 @@ export default function ViewerCore({
             dark: DARK_THEME,
           },
         }}
-        className={`h-[calc(100vh-80px)]`}
+        className="h-full"
       />
     </>
   );

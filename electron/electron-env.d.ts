@@ -290,6 +290,7 @@ openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: stri
       fileType: "pdf" | "epub";
       filePath?: string;
       libraryDocumentId?: string;
+      pdfRenderer?: "embedpdf" | "pdfjs";
       source?: "library" | "local";
     }) => Promise<void>;
 

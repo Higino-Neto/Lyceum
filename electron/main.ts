@@ -178,6 +178,24 @@ const EREADER_MARKERS = [
   ".adobe-digital-editions",
   "books",
 ];
+const PDFJS_ASSET_MIME_TYPES: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".bcmap": "application/octet-stream",
+  ".pfb": "application/octet-stream",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
 
 interface FolderInfo {
   name: string;
@@ -2149,8 +2167,11 @@ interface NativePdfViewerRestoreState {
   scrollTop: number;
 }
 
-function findNativePdfViewerFrame(sourceUrl: string) {
-  if (!win || !sourceUrl) return null;
+function findNativePdfViewerFrame(
+  sourceUrl: string,
+  targetWindow: ElectronBrowserWindow | null = win,
+) {
+  if (!targetWindow || !sourceUrl) return null;
 
   const normalizedUrl = sourceUrl.replace(/#.*$/, "");
   
@@ -2163,7 +2184,7 @@ function findNativePdfViewerFrame(sourceUrl: string) {
   ];
 
   return (
-    win.webContents.mainFrame.framesInSubtree.find((frame) => {
+    targetWindow.webContents.mainFrame.framesInSubtree.find((frame) => {
       const frameUrl = frame.url || "";
       return candidates.some((candidate) => candidate && frameUrl.includes(candidate));
     }) ?? null
@@ -2172,12 +2193,13 @@ function findNativePdfViewerFrame(sourceUrl: string) {
 
 async function waitForNativePdfViewerFrame(
   sourceUrl: string,
+  targetWindow: ElectronBrowserWindow | null = win,
   timeoutMs = 8000,
 ) {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const frame = findNativePdfViewerFrame(sourceUrl);
+    const frame = findNativePdfViewerFrame(sourceUrl, targetWindow);
     if (frame) {
       return frame;
     }
@@ -2190,8 +2212,9 @@ async function waitForNativePdfViewerFrame(
 
 async function getNativePdfViewerState(
   sourceUrl: string,
+  targetWindow: ElectronBrowserWindow | null = win,
 ): Promise<NativePdfViewerState | null> {
-  const frame = await waitForNativePdfViewerFrame(sourceUrl);
+  const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
 
   try {
@@ -2236,8 +2259,9 @@ async function getNativePdfViewerState(
 async function applyNativePdfViewerState(
   sourceUrl: string,
   state: NativePdfViewerRestoreState,
+  targetWindow: ElectronBrowserWindow | null = win,
 ): Promise<NativePdfViewerState | null> {
-  const frame = await waitForNativePdfViewerFrame(sourceUrl);
+  const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
 
   try {
@@ -2354,6 +2378,73 @@ function resolveThumbnailUrl(thumbnailPath: string): string | null {
   if (!existing) return null;
 
   return `thumb://${hash}`;
+}
+
+function getPdfjsAssetsRoot(): string {
+  return path.join(process.env.VITE_PUBLIC!, "pdfjs");
+}
+
+function getPdfjsAssetPath(requestUrl: string): string | null {
+  try {
+    const url = new URL(requestUrl);
+    const relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, "")) || "viewer.html";
+    if (!isSafeRelativePath(relativePath)) {
+      return null;
+    }
+
+    const assetPath = path.resolve(getPdfjsAssetsRoot(), relativePath);
+    return isPathWithin(getPdfjsAssetsRoot(), assetPath) ? assetPath : null;
+  } catch {
+    return null;
+  }
+}
+
+function createLocalFileResponse(filePath: string, contentType?: string): Response {
+  const headers = new Headers();
+  if (contentType) {
+    headers.set("Content-Type", contentType);
+  }
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+
+  return new Response(fs.readFileSync(filePath), { headers });
+}
+
+function handlePdfjsAssetRequest(request: Request): Response {
+  const assetPath = getPdfjsAssetPath(request.url);
+  if (!assetPath || !fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
+    return new Response(null, { status: 404 });
+  }
+
+  const contentType =
+    PDFJS_ASSET_MIME_TYPES[path.extname(assetPath).toLowerCase()] ||
+    "application/octet-stream";
+
+  return createLocalFileResponse(assetPath, contentType);
+}
+
+function parseLyceumPdfHash(requestUrl: string): string | null {
+  try {
+    const url = new URL(requestUrl);
+    const candidate = path.basename(url.pathname, ".pdf") || url.hostname.replace(/\.pdf$/i, "");
+    return SHA256_HEX_PATTERN.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+function handleLyceumPdfRequest(request: Request): Response {
+  const fileHash = parseLyceumPdfHash(request.url);
+  if (!fileHash) {
+    return new Response(null, { status: 404 });
+  }
+
+  const document = getDocumentByHash(fileHash);
+  if (!document?.filePath || document.fileType !== "pdf" || !fs.existsSync(document.filePath)) {
+    return new Response(null, { status: 404 });
+  }
+
+  return createLocalFileResponse(document.filePath, "application/pdf");
 }
 
 function createAppWindow(
@@ -2593,9 +2684,9 @@ ipcMain.handle("reading:get", (_, fileHash) => {
   return getDocumentByHash(fileHash);
 });
 
-ipcMain.handle("native-pdf-viewer:get-state", async (_, sourceUrl: string) => {
+ipcMain.handle("native-pdf-viewer:get-state", async (event, sourceUrl: string) => {
   try {
-    return await getNativePdfViewerState(sourceUrl);
+    return await getNativePdfViewerState(sourceUrl, getTargetWindow(event));
   } catch (error) {
     console.error("[native-pdf-viewer:get-state] IPC Error:", error);
     return null;
@@ -2604,7 +2695,7 @@ ipcMain.handle("native-pdf-viewer:get-state", async (_, sourceUrl: string) => {
 
 ipcMain.handle(
   "native-pdf-viewer:apply-state",
-  async (_, sourceUrl: string, state: NativePdfViewerRestoreState) => {
+  async (event, sourceUrl: string, state: NativePdfViewerRestoreState) => {
     if (!state) return null;
 
     try {
@@ -2612,7 +2703,7 @@ ipcMain.handle(
         page: state.page ?? 1,
         currentScale: state.currentScale ?? 1,
         scrollTop: state.scrollTop ?? 0,
-      });
+      }, getTargetWindow(event));
     } catch (error) {
       console.error("[native-pdf-viewer:apply-state] IPC Error:", error);
       return null;
@@ -3157,6 +3248,7 @@ ipcMain.handle(
       fileType: "pdf" | "epub";
       filePath?: string;
       libraryDocumentId?: string;
+      pdfRenderer?: "embedpdf" | "pdfjs";
       source?: "library" | "local";
     }
   ) => {
@@ -3170,6 +3262,7 @@ ipcMain.handle(
       fileType: data.fileType,
       fileName: data.fileName,
       filePath: data.filePath,
+      pdfRenderer: data.pdfRenderer,
       source: data.source,
       libraryDocumentId: data.libraryDocumentId,
     });
@@ -3502,6 +3595,9 @@ const startupFile = startArgs.find(
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "thumb", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+  { scheme: "lyceum-pdfjs", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+  { scheme: "lyceum-pdf", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+  { scheme: "pdf-resource", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
 function parseThumbUrlHash(requestUrl: string): string {
@@ -3524,6 +3620,14 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(thumbPath).toString());
   });
 
+  protocol.handle("lyceum-pdfjs", (request) => {
+    return handlePdfjsAssetRequest(request);
+  });
+
+  protocol.handle("lyceum-pdf", (request) => {
+    return handleLyceumPdfRequest(request);
+  });
+
   protocol.handle("pdf-resource", (request) => {
     const filePath = request.url.replace(/^pdf-resource:\/\//, "");
     return new Promise((resolve, reject) => {
@@ -3536,8 +3640,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: pdf-resource: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data:; connect-src 'self' blob: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;

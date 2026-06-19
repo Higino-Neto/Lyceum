@@ -61,6 +61,7 @@ import { useFolderDragDrop } from "../../hooks/useFolderDragDrop";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import useMediaQuery from "../../hooks/useMediaQuery";
 import type { ReadingLaunchState } from "../ReadingPage/ReadingPage";
+import type { PdfRenderer } from "../ReadingPage/components/pdf-reader/pdfRenderer";
 
 interface UsbLibraryApi {
   onUsbDevicesUpdated?: (callback: () => void) => () => void;
@@ -677,6 +678,7 @@ function LibraryContent() {
   const openBookForReading = useCallback(async (
     filePath: string,
     fileHash?: string,
+    pdfRenderer?: PdfRenderer,
   ): Promise<ReadingLaunchState | null> => {
     const isUsbBook = activeSection === "usb";
     const result: OpenBookResult | null = isUsbBook
@@ -707,22 +709,29 @@ function LibraryContent() {
       refreshBooks();
     }
 
+    const fileType =
+      result.fileType === "epub" || filePath.toLowerCase().endsWith(".epub")
+        ? "epub"
+        : "pdf";
+
     return {
       fileBuffer: result.fileBuffer,
       fileHash: result.fileHash || fileHash || filePath,
       fileName: result.fileName || filePath.split(/[/\\]/).pop(),
       filePath: result.foundAt || result.filePath || filePath,
-      fileType:
-        result.fileType === "epub" || filePath.toLowerCase().endsWith(".epub")
-          ? "epub"
-          : "pdf",
+      fileType,
+      pdfRenderer: fileType === "pdf" ? pdfRenderer : undefined,
       source: isUsbBook ? "local" : "library",
       navigationId: crypto.randomUUID(),
     };
   }, [activeSection, refreshBooks]);
 
-  const handleOpen = useCallback(async (filePath: string, fileHash?: string) => {
-    const launchState = await openBookForReading(filePath, fileHash);
+  const handleOpen = useCallback(async (
+    filePath: string,
+    fileHash?: string,
+    pdfRenderer?: PdfRenderer,
+  ) => {
+    const launchState = await openBookForReading(filePath, fileHash, pdfRenderer);
     if (!launchState) {
       return;
     }
@@ -1945,7 +1954,18 @@ function LibraryContent() {
                   toast.error("Caminho do arquivo não encontrado");
                   return;
                 }
-                await handleOpen(bookToOpen.filePath, bookToOpen.fileHash);
+                await handleOpen(
+                  bookToOpen.filePath,
+                  bookToOpen.fileHash,
+                  bookToOpen.fileType === "pdf" ? "embedpdf" : undefined,
+                );
+              }}
+              onOpenPdfJs={async (bookToOpen = selectedBook) => {
+                if (!bookToOpen.filePath) {
+                  toast.error("Caminho do arquivo nao encontrado");
+                  return;
+                }
+                await handleOpen(bookToOpen.filePath, bookToOpen.fileHash, "pdfjs");
               }}
               onOpenPreview={(bookToOpen = selectedBook) => {
                 void handleOpenPreview(bookToOpen);
