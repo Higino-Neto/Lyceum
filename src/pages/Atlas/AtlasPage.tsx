@@ -1739,7 +1739,7 @@ function AtomicEditor({
             Selecione um livro para escrever notas de leitura.
           </div>
         ) : (
-          <div className="h-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500">
+          <div className="h-full rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500">
             <AtomicCodeMirrorEditor
               key={selectedItem.id}
               documentId={selectedItem.id}
@@ -1908,7 +1908,7 @@ function StatusBoardV2({
           )}
         </div>
       </section>
-      <AtomicEditor selectedItem={selectedItem} vaultPath={vaultPath} notePath={notePath} content={noteContent} loading={noteLoading} saving={noteSaving} onChooseVault={onChooseVault} onSave={onSaveNote} />
+      <AtomicEditor key={selectedItem?.id || "no-selection"} selectedItem={selectedItem} vaultPath={vaultPath} notePath={notePath} content={noteContent} loading={noteLoading} saving={noteSaving} onChooseVault={onChooseVault} onSave={onSaveNote} />
       <PageSettingsDialog item={pageDialogItem} onClose={() => setPageDialogItem(null)} onSave={onProgressSave} onProgressEvent={onProgressEvent} />
     </div>
   );
