@@ -5,6 +5,7 @@ import {
   Home,
   LibraryBig,
   LogIn,
+  Map,
   Settings,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -76,6 +77,13 @@ export default function Sidebar({
           label="Biblioteca"
           active={pathname === "/library"}
           onClick={() => navigate("/library")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={Map}
+          label="Atlas"
+          active={pathname === "/atlas"}
+          onClick={() => navigate("/atlas")}
           collapsed={collapsed}
         />
         <SidebarItem

@@ -3,6 +3,9 @@
 type DocumentRecord = import("../src/types/LibraryTypes").DocumentRecord;
 type LibraryListQuery = import("../src/types/LibraryTypes").LibraryListQuery;
 type LibraryListResult = import("../src/types/LibraryTypes").LibraryListResult;
+type ReadingStatus = import("../src/types/LibraryTypes").ReadingStatus;
+type ReadingMapPayload = import("../src/types/LibraryTypes").ReadingMapPayload;
+type ReadingStatusPayload = import("../src/types/LibraryTypes").ReadingStatusPayload;
 
 interface BookCategory {
   id: number;
@@ -66,6 +69,18 @@ interface GenericConversionResult {
   fileHash?: string;
   packageRoot?: string;
   report?: Record<string, unknown> & { warnings?: string[] };
+  error?: string;
+}
+
+interface AtlasMapResult {
+  success: boolean;
+  payload?: ReadingMapPayload;
+  error?: string;
+}
+
+interface AtlasStatusResult {
+  success: boolean;
+  payload?: ReadingStatusPayload;
   error?: string;
 }
 
@@ -180,6 +195,26 @@ interface Window {
     toggleFavorite: (fileHash: string) => Promise<boolean>;
     updateRating: (fileHash: string, rating: number) => Promise<boolean>;
     updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
+    updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
+    getReadingMap: (mapId?: string | null) => Promise<AtlasMapResult>;
+    createReadingMap: (title: string, description?: string | null) => Promise<AtlasMapResult>;
+    createReadingMapSection: (mapId: string, title: string, description?: string) => Promise<AtlasMapResult>;
+    updateReadingMapSection: (sectionId: string, updates: { title?: string; description?: string }) => Promise<AtlasMapResult>;
+    addLibraryBookToReadingMap: (sectionId: string, fileHash: string) => Promise<AtlasMapResult>;
+    addManualBookToReadingMap: (sectionId: string, data: { title: string; author?: string | null; status?: ReadingStatus }) => Promise<AtlasMapResult>;
+    updateReadingMapItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasMapResult>;
+    reorderReadingMapItem: (itemId: string, direction: "up" | "down") => Promise<AtlasMapResult>;
+    moveReadingMapItem: (itemId: string, targetSectionId: string) => Promise<AtlasMapResult>;
+    positionReadingMapItem: (itemId: string, targetSectionId: string, targetIndex: number) => Promise<AtlasMapResult>;
+    deleteReadingMapItem: (itemId: string) => Promise<AtlasMapResult>;
+    getReadingStatusItems: () => Promise<AtlasStatusResult>;
+    addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
+    addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasStatusResult>;
+    positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemProgress: (itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
+    addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) => Promise<AtlasStatusResult>;
+    deleteReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
     searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) => Promise<{
       success: boolean;
       results: BookMetadataCandidate[];
@@ -402,6 +437,26 @@ interface Window {
     windowMaximize: () => Promise<void>;
     windowClose: () => Promise<void>;
     windowIsMaximized: () => Promise<boolean>;
+    updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
+    getReadingMap: (mapId?: string | null) => Promise<AtlasMapResult>;
+    createReadingMap: (title: string, description?: string | null) => Promise<AtlasMapResult>;
+    createReadingMapSection: (mapId: string, title: string, description?: string) => Promise<AtlasMapResult>;
+    updateReadingMapSection: (sectionId: string, updates: { title?: string; description?: string }) => Promise<AtlasMapResult>;
+    addLibraryBookToReadingMap: (sectionId: string, fileHash: string) => Promise<AtlasMapResult>;
+    addManualBookToReadingMap: (sectionId: string, data: { title: string; author?: string | null; status?: ReadingStatus }) => Promise<AtlasMapResult>;
+    updateReadingMapItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasMapResult>;
+    reorderReadingMapItem: (itemId: string, direction: "up" | "down") => Promise<AtlasMapResult>;
+    moveReadingMapItem: (itemId: string, targetSectionId: string) => Promise<AtlasMapResult>;
+    positionReadingMapItem: (itemId: string, targetSectionId: string, targetIndex: number) => Promise<AtlasMapResult>;
+    deleteReadingMapItem: (itemId: string) => Promise<AtlasMapResult>;
+    getReadingStatusItems: () => Promise<AtlasStatusResult>;
+    addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
+    addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasStatusResult>;
+    positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemProgress: (itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
+    addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) => Promise<AtlasStatusResult>;
+    deleteReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
 
     backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
     backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;

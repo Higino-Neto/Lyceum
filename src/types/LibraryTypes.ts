@@ -16,6 +16,7 @@ export type BookFileType =
 export type LibraryBookFileType = BookFileType;
 export type ReadingDocumentFileType = BookFileType;
 export type BookFormat = BookFileType;
+export type ReadingStatus = "want_to_read" | "reading" | "read";
 
 export interface DocumentRecord {
   id: number;
@@ -57,6 +58,72 @@ export interface DocumentRecord {
   fileType: BookFileType;
   importedAt: string | null;
   updatedAt: string | null;
+  readingStatus?: ReadingStatus | null;
+  completedAt?: string | null;
+}
+
+export interface ReadingMap {
+  id: string;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingMapItem {
+  id: string;
+  sectionId: string;
+  bookId: string | null;
+  title: string;
+  author: string | null;
+  coverPath: string | null;
+  status: ReadingStatus;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  book?: BookWithThumbnail | null;
+  missingDocument?: boolean;
+}
+
+export interface ReadingMapSection {
+  id: string;
+  mapId: string;
+  title: string;
+  description: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadingMapSectionWithItems extends ReadingMapSection {
+  items: ReadingMapItem[];
+}
+
+export interface ReadingMapPayload {
+  maps: ReadingMap[];
+  activeMap: ReadingMap;
+  sections: ReadingMapSectionWithItems[];
+}
+
+export interface ReadingStatusItem {
+  id: string;
+  bookId: string | null;
+  title: string;
+  author: string | null;
+  coverPath: string | null;
+  status: ReadingStatus;
+  order: number;
+  manualCurrentPage: number;
+  manualTotalPages: number | null;
+  localProgressPages: number;
+  createdAt: string;
+  updatedAt: string;
+  book?: BookWithThumbnail | null;
+  missingDocument?: boolean;
+}
+
+export interface ReadingStatusPayload {
+  items: ReadingStatusItem[];
 }
 
 export interface BookWithThumbnail

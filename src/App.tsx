@@ -7,6 +7,7 @@ import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
+import AtlasPage from "./pages/Atlas/AtlasPage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import ConversionPage from "./pages/Conversion/ConversionPage";
 import getUser from "./utils/getUser";
@@ -496,6 +497,16 @@ function App() {
                   <ProtectedRoute
                     isLoggedIn={isLoggedIn}
                     children={<Library />}
+                  />
+                }
+              />
+
+              <Route
+                path="/atlas"
+                element={
+                  <ProtectedRoute
+                    isLoggedIn={isLoggedIn}
+                    children={<AtlasPage />}
                   />
                 }
               />

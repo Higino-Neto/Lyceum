@@ -6,12 +6,32 @@ import {
   getDocumentById,
   getFavoriteDocuments,
   getDocumentsPendingProcessing,
+  addLibraryBookToReadingStatus,
+  addManualBookToReadingStatus,
+  addReadingStatusProgressEvent,
   updateThumbnailPath,
   updateTitle,
   updateAuthor,
   toggleFavorite,
   updateRating,
   updateNotes,
+  updateReadingStatus,
+  addLibraryBookToReadingMapSection,
+  addManualBookToReadingMapSection,
+  createReadingMap,
+  createReadingMapSection,
+  deleteReadingMapItem,
+  deleteReadingStatusItem,
+  getReadingMapPayload,
+  getReadingStatusPayload,
+  moveReadingMapItem,
+  positionReadingMapItem,
+  positionReadingStatusItem,
+  reorderReadingMapItem,
+  updateReadingMapItemStatus,
+  updateReadingMapSection,
+  updateReadingStatusItemProgress,
+  updateReadingStatusItemStatus,
   updateMetadata,
   mergeDocuments,
   updateDocumentBookId,
@@ -191,6 +211,166 @@ export function registerBookHandlers() {
   ipcMain.handle("book:update-notes", (_, fileHash: string, notes: string) => {
     updateNotes(fileHash, notes);
     return true;
+  });
+
+  ipcMain.handle("book:update-reading-status", (_, fileHash: string, status) => {
+    try {
+      return { success: updateReadingStatus(fileHash, status) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:get-map", (_, mapId?: string | null) => {
+    try {
+      return { success: true, payload: getReadingMapPayload(mapId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:create-map", (_, title: string, description?: string | null) => {
+    try {
+      return { success: true, payload: createReadingMap(title, description) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:create-section", (_, mapId: string, title: string, description?: string) => {
+    try {
+      return { success: true, payload: createReadingMapSection(mapId, title, description || "") };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-section", (_, sectionId: string, updates: { title?: string; description?: string }) => {
+    try {
+      return { success: true, payload: updateReadingMapSection(sectionId, updates) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:add-library-book", (_, sectionId: string, fileHash: string) => {
+    try {
+      return { success: true, payload: addLibraryBookToReadingMapSection(sectionId, fileHash) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:add-manual-book", (_, sectionId: string, data: { title: string; author?: string | null; status?: string }) => {
+    try {
+      return { success: true, payload: addManualBookToReadingMapSection(sectionId, data as Parameters<typeof addManualBookToReadingMapSection>[1]) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-item-status", (_, itemId: string, status) => {
+    try {
+      return { success: true, payload: updateReadingMapItemStatus(itemId, status) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:reorder-item", (_, itemId: string, direction: "up" | "down") => {
+    try {
+      return { success: true, payload: reorderReadingMapItem(itemId, direction) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:move-item", (_, itemId: string, targetSectionId: string) => {
+    try {
+      return { success: true, payload: moveReadingMapItem(itemId, targetSectionId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:position-item", (_, itemId: string, targetSectionId: string, targetIndex: number) => {
+    try {
+      return { success: true, payload: positionReadingMapItem(itemId, targetSectionId, targetIndex) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:delete-item", (_, itemId: string) => {
+    try {
+      return { success: true, payload: deleteReadingMapItem(itemId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:get-status-items", () => {
+    try {
+      return { success: true, payload: getReadingStatusPayload() };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:add-status-library-book", (_, status, fileHash: string) => {
+    try {
+      return { success: true, payload: addLibraryBookToReadingStatus(status, fileHash) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:add-status-manual-book", (_, data: { title: string; author?: string | null; status: string }) => {
+    try {
+      return { success: true, payload: addManualBookToReadingStatus(data as Parameters<typeof addManualBookToReadingStatus>[0]) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-status-item-status", (_, itemId: string, status) => {
+    try {
+      return { success: true, payload: updateReadingStatusItemStatus(itemId, status) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:position-status-item", (_, itemId: string, status, targetIndex: number) => {
+    try {
+      return { success: true, payload: positionReadingStatusItem(itemId, status, targetIndex) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-status-item-progress", (_, itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) => {
+    try {
+      return { success: true, payload: updateReadingStatusItemProgress(itemId, updates) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:add-status-progress-event", (_, itemId: string, pages: number, note?: string | null) => {
+    try {
+      return { success: true, payload: addReadingStatusProgressEvent(itemId, pages, note) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:delete-status-item", (_, itemId: string) => {
+    try {
+      return { success: true, payload: deleteReadingStatusItem(itemId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   ipcMain.handle("book:search-metadata", async (_, source: MetadataSearchScope, query: string, field: MetadataSearchField, limit?: number) => {

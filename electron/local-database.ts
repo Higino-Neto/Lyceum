@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import electron from "electron";
 import path from "path";
 import fs from "fs";
+import { randomUUID } from "node:crypto";
 import type {
   BookFileType,
   DocumentRecord,
@@ -10,6 +11,14 @@ import type {
   LibraryListResult,
   LibrarySection,
   LibrarySortOption,
+  ReadingMap,
+  ReadingMapItem,
+  ReadingMapPayload,
+  ReadingMapSection,
+  ReadingMapSectionWithItems,
+  ReadingStatus,
+  ReadingStatusItem,
+  ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
 
 const { app } = electron;
@@ -35,6 +44,38 @@ export interface BookCategory {
 export interface DocumentWithCategories extends DocumentRecord {
   categories: BookCategory[];
 }
+
+interface ReadingMapSectionRow extends Omit<ReadingMapSection, "order"> {
+  orderIndex: number;
+}
+
+interface ReadingMapItemRow extends Omit<ReadingMapItem, "order" | "book" | "missingDocument"> {
+  orderIndex: number;
+}
+
+interface ReadingStatusItemRow extends Omit<ReadingStatusItem, "order" | "book" | "missingDocument" | "localProgressPages"> {
+  orderIndex: number;
+}
+
+const DEFAULT_READING_MAP_ID = "default-reading-map";
+const DEFAULT_READING_MAP_SECTIONS = [
+  {
+    title: "Preambulo",
+    description: "Uma introducao ao ato de ler com profundidade e proposito.\n\nCobre:\n- Principios de leitura ativa\n- Niveis de compreensao\n- Preparacao para estudo profundo",
+  },
+  {
+    title: "Fundamentos",
+    description: "Conceitos essenciais que sustentam o restante da trilha.\n\nCobre:\n- Mentalidade de crescimento\n- Definicao de objetivos\n- Disciplina e consistencia",
+  },
+  {
+    title: "Aprofundamento",
+    description: "Livros que aprofundam habitos, consciencia e foco.\n\nCobre:\n- Formacao de habitos\n- Consciencia e foco\n- Clareza mental",
+  },
+  {
+    title: "Especializacao",
+    description: "Aplicacao do conhecimento em areas especificas para desempenho excepcional.\n\nCobre:\n- Produtividade e foco profundo\n- Mentalidade e aprendizado\n- Resiliencia e incerteza",
+  },
+];
 
 const DEFAULT_COLORS = [
   "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
@@ -228,7 +269,9 @@ export function initDatabase() {
     folderPath TEXT,
     fileMtime INTEGER,
     importedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    readingStatus TEXT,
+    completedAt TEXT
   )
   `);
 
@@ -236,7 +279,7 @@ export function initDatabase() {
     "isSynced", "isFavorite", "rating", "notes", "author",
     "description", "isbn", "publisher", "publishDate", "language", "identifier", "asin", "subject",
     "series", "seriesIndex", "authorSort", "titleSort", "fileSize", "processingStatus", "bookId", "fileType",
-    "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt"
+    "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt", "readingStatus", "completedAt"
   ];
 
   for (const col of migrationColumns) {
@@ -247,6 +290,7 @@ export function initDatabase() {
       col === "fileType" ? "TEXT DEFAULT 'pdf'" :
       col === "fileMtime" ? "INTEGER" :
       col === "importedAt" || col === "updatedAt" ? "TEXT" :
+      col === "readingStatus" || col === "completedAt" ? "TEXT" :
       "TEXT"
     }`;
     try {
@@ -279,6 +323,81 @@ export function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_title ON documents(title COLLATE NOCASE)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author COLLATE NOCASE)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_processing ON documents(processingStatus)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_reading_status ON documents(readingStatus)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reading_maps (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reading_map_sections (
+      id TEXT PRIMARY KEY,
+      mapId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      orderIndex INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (mapId) REFERENCES reading_maps(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reading_map_items (
+      id TEXT PRIMARY KEY,
+      sectionId TEXT NOT NULL,
+      bookId TEXT,
+      title TEXT NOT NULL,
+      author TEXT,
+      coverPath TEXT,
+      status TEXT NOT NULL DEFAULT 'want_to_read',
+      orderIndex INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sectionId) REFERENCES reading_map_sections(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_maps_updated ON reading_maps(updatedAt DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_map_sections_map ON reading_map_sections(mapId, orderIndex)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_map_items_section ON reading_map_items(sectionId, orderIndex)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reading_status_items (
+      id TEXT PRIMARY KEY,
+      bookId TEXT,
+      title TEXT NOT NULL,
+      author TEXT,
+      coverPath TEXT,
+      status TEXT NOT NULL DEFAULT 'want_to_read',
+      orderIndex INTEGER NOT NULL DEFAULT 0,
+      manualCurrentPage INTEGER NOT NULL DEFAULT 0,
+      manualTotalPages INTEGER,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reading_status_progress_events (
+      id TEXT PRIMARY KEY,
+      statusItemId TEXT NOT NULL,
+      pages INTEGER NOT NULL DEFAULT 0,
+      note TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (statusItemId) REFERENCES reading_status_items(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_status ON reading_status_items(status, orderIndex)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_book ON reading_status_items(bookId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_events_item ON reading_status_progress_events(statusItemId, createdAt)`);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS local_books (
@@ -650,7 +769,16 @@ export function updateReadingState(
     SET currentPage = ?,
         currentZoom = ?,
         currentScroll = ?,
-        annotations = ?
+        annotations = ?,
+        readingStatus = CASE
+          WHEN readingStatus IS NULL AND COALESCE(numPages, 0) > 1 AND ? >= numPages THEN 'read'
+          WHEN readingStatus IS NULL AND ? > 1 THEN 'reading'
+          ELSE readingStatus
+        END,
+        completedAt = CASE
+          WHEN readingStatus IS NULL AND COALESCE(numPages, 0) > 1 AND ? >= numPages THEN COALESCE(completedAt, CURRENT_TIMESTAMP)
+          ELSE completedAt
+        END
     WHERE fileHash = ?
     `);
 
@@ -659,8 +787,721 @@ export function updateReadingState(
     state.currentZoom,
     state.currentScroll,
     state.annotations,
+    state.currentPage,
+    state.currentPage,
+    state.currentPage,
     fileHash,
   );
+}
+
+function assertReadingStatus(status: ReadingStatus): void {
+  if (status !== "want_to_read" && status !== "reading" && status !== "read") {
+    throw new Error("Invalid reading status");
+  }
+}
+
+export function updateReadingStatus(fileHash: string, status: ReadingStatus): boolean {
+  assertReadingStatus(status);
+
+  const result = db.prepare(`
+    UPDATE documents
+    SET readingStatus = ?,
+        completedAt = CASE
+          WHEN ? = 'read' THEN COALESCE(completedAt, CURRENT_TIMESTAMP)
+          ELSE NULL
+        END,
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE fileHash = ?
+  `).run(status, status, fileHash);
+
+  return result.changes > 0;
+}
+
+function toReadingMapSection(row: ReadingMapSectionRow): ReadingMapSection {
+  return {
+    id: row.id,
+    mapId: row.mapId,
+    title: row.title,
+    description: row.description,
+    order: row.orderIndex,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function inferDocumentReadingStatus(doc: DocumentRecord): ReadingStatus {
+  if (doc.readingStatus) {
+    return doc.readingStatus;
+  }
+
+  const currentPage = Math.max(0, Number(doc.currentPage) || 0);
+  const numPages = Math.max(0, Number(doc.numPages) || 0);
+  if (numPages > 1 && currentPage >= numPages) return "read";
+  if (currentPage > 1) return "reading";
+  return "want_to_read";
+}
+
+function toReadingMapItem(row: ReadingMapItemRow): ReadingMapItem {
+  const book = row.bookId ? getDocumentByHash(row.bookId) : null;
+  const storedStatus = row.status && (row.status === "want_to_read" || row.status === "reading" || row.status === "read")
+    ? row.status
+    : "want_to_read";
+  const status = book ? inferDocumentReadingStatus(book) : storedStatus;
+
+  return {
+    id: row.id,
+    sectionId: row.sectionId,
+    bookId: row.bookId,
+    title: row.title,
+    author: row.author,
+    coverPath: row.coverPath,
+    status,
+    order: row.orderIndex,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    book: book || null,
+    missingDocument: Boolean(row.bookId && !book),
+  };
+}
+
+function getReadingMapById(mapId: string): ReadingMap | undefined {
+  return db.prepare<[string], ReadingMap>(
+    `SELECT * FROM reading_maps WHERE id = ?`,
+  ).get(mapId);
+}
+
+function insertDefaultSections(mapId: string): void {
+  const insert = db.prepare(`
+    INSERT INTO reading_map_sections (id, mapId, title, description, orderIndex)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  DEFAULT_READING_MAP_SECTIONS.forEach((section, index) => {
+    insert.run(
+      `${mapId}-section-${index + 1}`,
+      mapId,
+      section.title,
+      section.description,
+      index,
+    );
+  });
+}
+
+function ensureDefaultReadingMap(): ReadingMap {
+  let map = db.prepare<[], ReadingMap>(
+    `SELECT * FROM reading_maps ORDER BY datetime(createdAt) ASC LIMIT 1`,
+  ).get();
+
+  if (!map) {
+    db.prepare(`
+      INSERT INTO reading_maps (id, title, description)
+      VALUES (?, ?, ?)
+    `).run(
+      DEFAULT_READING_MAP_ID,
+      "Meu Mapa de Leitura",
+      "Uma trilha inicial para organizar leituras atuais e futuras.",
+    );
+    insertDefaultSections(DEFAULT_READING_MAP_ID);
+    map = getReadingMapById(DEFAULT_READING_MAP_ID);
+  }
+
+  if (!map) {
+    throw new Error("Could not create reading map");
+  }
+
+  const sectionCount = db.prepare<[string], { count: number }>(
+    `SELECT COUNT(*) as count FROM reading_map_sections WHERE mapId = ?`,
+  ).get(map.id)?.count ?? 0;
+
+  if (sectionCount === 0) {
+    insertDefaultSections(map.id);
+  }
+
+  return map;
+}
+
+export function listReadingMaps(): ReadingMap[] {
+  ensureDefaultReadingMap();
+  return db.prepare<[], ReadingMap>(
+    `SELECT * FROM reading_maps ORDER BY datetime(updatedAt) DESC, datetime(createdAt) ASC`,
+  ).all();
+}
+
+export function getReadingMapPayload(mapId?: string | null): ReadingMapPayload {
+  const maps = listReadingMaps();
+  const activeMap =
+    (mapId ? maps.find((map) => map.id === mapId) : undefined) ||
+    maps[0] ||
+    ensureDefaultReadingMap();
+
+  const sectionRows = db.prepare<[string], ReadingMapSectionRow>(
+    `SELECT * FROM reading_map_sections WHERE mapId = ? ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(activeMap.id);
+  const itemRows = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT i.* FROM reading_map_items i
+     INNER JOIN reading_map_sections s ON s.id = i.sectionId
+     WHERE s.mapId = ?
+     ORDER BY i.orderIndex ASC, datetime(i.createdAt) ASC`,
+  ).all(activeMap.id);
+  const itemsBySection = new Map<string, ReadingMapItem[]>();
+
+  for (const itemRow of itemRows) {
+    const items = itemsBySection.get(itemRow.sectionId) || [];
+    items.push(toReadingMapItem(itemRow));
+    itemsBySection.set(itemRow.sectionId, items);
+  }
+
+  const sections: ReadingMapSectionWithItems[] = sectionRows.map((row) => ({
+    ...toReadingMapSection(row),
+    items: itemsBySection.get(row.id) || [],
+  }));
+
+  return {
+    maps,
+    activeMap,
+    sections,
+  };
+}
+
+export function createReadingMap(title: string, description?: string | null): ReadingMapPayload {
+  const cleanTitle = title.trim();
+  if (!cleanTitle) throw new Error("Informe o nome do mapa");
+
+  const id = `map-${randomUUID()}`;
+  db.prepare(`
+    INSERT INTO reading_maps (id, title, description)
+    VALUES (?, ?, ?)
+  `).run(id, cleanTitle, description?.trim() || null);
+  insertDefaultSections(id);
+
+  return getReadingMapPayload(id);
+}
+
+function touchReadingMapBySection(sectionId: string): void {
+  db.prepare(`
+    UPDATE reading_maps
+    SET updatedAt = CURRENT_TIMESTAMP
+    WHERE id = (SELECT mapId FROM reading_map_sections WHERE id = ?)
+  `).run(sectionId);
+}
+
+export function createReadingMapSection(
+  mapId: string,
+  title: string,
+  description = "",
+): ReadingMapPayload {
+  const cleanTitle = title.trim();
+  if (!cleanTitle) throw new Error("Informe o nome da etapa");
+  if (!getReadingMapById(mapId)) throw new Error("Mapa nao encontrado");
+
+  const nextOrder = (db.prepare<[string], { value: number }>(
+    `SELECT COALESCE(MAX(orderIndex), -1) + 1 as value FROM reading_map_sections WHERE mapId = ?`,
+  ).get(mapId)?.value ?? 0);
+  db.prepare(`
+    INSERT INTO reading_map_sections (id, mapId, title, description, orderIndex)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(`section-${randomUUID()}`, mapId, cleanTitle, description.trim(), nextOrder);
+  db.prepare(`UPDATE reading_maps SET updatedAt = CURRENT_TIMESTAMP WHERE id = ?`).run(mapId);
+
+  return getReadingMapPayload(mapId);
+}
+
+export function updateReadingMapSection(
+  sectionId: string,
+  updates: { title?: string; description?: string },
+): ReadingMapPayload {
+  const section = db.prepare<[string], ReadingMapSectionRow>(
+    `SELECT * FROM reading_map_sections WHERE id = ?`,
+  ).get(sectionId);
+  if (!section) throw new Error("Etapa nao encontrada");
+
+  const nextTitle = updates.title !== undefined ? updates.title.trim() : section.title;
+  const nextDescription = updates.description !== undefined ? updates.description.trim() : section.description;
+  if (!nextTitle) throw new Error("Informe o nome da etapa");
+
+  db.prepare(`
+    UPDATE reading_map_sections
+    SET title = ?, description = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(nextTitle, nextDescription, sectionId);
+  touchReadingMapBySection(sectionId);
+
+  return getReadingMapPayload(section.mapId);
+}
+
+function nextItemOrder(sectionId: string): number {
+  return db.prepare<[string], { value: number }>(
+    `SELECT COALESCE(MAX(orderIndex), -1) + 1 as value FROM reading_map_items WHERE sectionId = ?`,
+  ).get(sectionId)?.value ?? 0;
+}
+
+function getSectionMapId(sectionId: string): string {
+  const section = db.prepare<[string], { mapId: string }>(
+    `SELECT mapId FROM reading_map_sections WHERE id = ?`,
+  ).get(sectionId);
+  if (!section) throw new Error("Etapa nao encontrada");
+  return section.mapId;
+}
+
+export function addLibraryBookToReadingMapSection(
+  sectionId: string,
+  fileHash: string,
+): ReadingMapPayload {
+  const mapId = getSectionMapId(sectionId);
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) throw new Error("Livro nao encontrado");
+
+  db.prepare(`
+    INSERT INTO reading_map_items (id, sectionId, bookId, title, author, coverPath, status, orderIndex)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    `item-${randomUUID()}`,
+    sectionId,
+    fileHash,
+    doc.title,
+    doc.author || null,
+    doc.thumbnailPath || null,
+    inferDocumentReadingStatus(doc),
+    nextItemOrder(sectionId),
+  );
+  touchReadingMapBySection(sectionId);
+
+  return getReadingMapPayload(mapId);
+}
+
+export function addManualBookToReadingMapSection(
+  sectionId: string,
+  data: { title: string; author?: string | null; status?: ReadingStatus },
+): ReadingMapPayload {
+  const mapId = getSectionMapId(sectionId);
+  const title = data.title.trim();
+  if (!title) throw new Error("Informe o titulo do livro");
+  const status = data.status || "want_to_read";
+  assertReadingStatus(status);
+
+  db.prepare(`
+    INSERT INTO reading_map_items (id, sectionId, bookId, title, author, coverPath, status, orderIndex)
+    VALUES (?, ?, NULL, ?, ?, NULL, ?, ?)
+  `).run(
+    `item-${randomUUID()}`,
+    sectionId,
+    title,
+    data.author?.trim() || null,
+    status,
+    nextItemOrder(sectionId),
+  );
+  touchReadingMapBySection(sectionId);
+
+  return getReadingMapPayload(mapId);
+}
+
+export function updateReadingMapItemStatus(
+  itemId: string,
+  status: ReadingStatus,
+): ReadingMapPayload {
+  assertReadingStatus(status);
+  const item = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  db.prepare(`
+    UPDATE reading_map_items
+    SET status = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(status, itemId);
+  if (item.bookId) {
+    updateReadingStatus(item.bookId, status);
+  }
+  touchReadingMapBySection(item.sectionId);
+
+  return getReadingMapPayload(getSectionMapId(item.sectionId));
+}
+
+function normalizeReadingMapItemOrder(sectionId: string): void {
+  const items = db.prepare<[string], { id: string }>(
+    `SELECT id FROM reading_map_items WHERE sectionId = ? ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(sectionId);
+  const update = db.prepare(`UPDATE reading_map_items SET orderIndex = ? WHERE id = ?`);
+  items.forEach((item, index) => update.run(index, item.id));
+}
+
+export function reorderReadingMapItem(
+  itemId: string,
+  direction: "up" | "down",
+): ReadingMapPayload {
+  const item = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const items = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE sectionId = ? ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(item.sectionId);
+  const index = items.findIndex((candidate) => candidate.id === itemId);
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) {
+    return getReadingMapPayload(getSectionMapId(item.sectionId));
+  }
+
+  const update = db.prepare(`UPDATE reading_map_items SET orderIndex = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`);
+  update.run(items[targetIndex].orderIndex, item.id);
+  update.run(item.orderIndex, items[targetIndex].id);
+  normalizeReadingMapItemOrder(item.sectionId);
+  touchReadingMapBySection(item.sectionId);
+
+  return getReadingMapPayload(getSectionMapId(item.sectionId));
+}
+
+export function moveReadingMapItem(
+  itemId: string,
+  targetSectionId: string,
+): ReadingMapPayload {
+  const item = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+  const mapId = getSectionMapId(targetSectionId);
+
+  db.prepare(`
+    UPDATE reading_map_items
+    SET sectionId = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(targetSectionId, nextItemOrder(targetSectionId), itemId);
+  normalizeReadingMapItemOrder(item.sectionId);
+  normalizeReadingMapItemOrder(targetSectionId);
+  touchReadingMapBySection(targetSectionId);
+
+  return getReadingMapPayload(mapId);
+}
+
+export function positionReadingMapItem(
+  itemId: string,
+  targetSectionId: string,
+  targetIndex: number,
+): ReadingMapPayload {
+  const item = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const mapId = getSectionMapId(targetSectionId);
+  const targetItems = db.prepare<[string, string], { id: string }>(
+    `SELECT id FROM reading_map_items
+     WHERE sectionId = ? AND id <> ?
+     ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(targetSectionId, itemId);
+  const boundedIndex = Math.max(0, Math.min(Math.floor(targetIndex), targetItems.length));
+  const orderedIds = targetItems.map((candidate) => candidate.id);
+  orderedIds.splice(boundedIndex, 0, itemId);
+
+  const updateItem = db.prepare(`
+    UPDATE reading_map_items
+    SET sectionId = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+  const transaction = db.transaction(() => {
+    orderedIds.forEach((id, index) => {
+      updateItem.run(targetSectionId, index, id);
+    });
+    if (item.sectionId !== targetSectionId) {
+      normalizeReadingMapItemOrder(item.sectionId);
+    }
+    touchReadingMapBySection(targetSectionId);
+  });
+  transaction();
+
+  return getReadingMapPayload(mapId);
+}
+
+export function deleteReadingMapItem(itemId: string): ReadingMapPayload {
+  const item = db.prepare<[string], ReadingMapItemRow>(
+    `SELECT * FROM reading_map_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+  const mapId = getSectionMapId(item.sectionId);
+
+  db.prepare(`DELETE FROM reading_map_items WHERE id = ?`).run(itemId);
+  normalizeReadingMapItemOrder(item.sectionId);
+  touchReadingMapBySection(item.sectionId);
+
+  return getReadingMapPayload(mapId);
+}
+
+function normalizeReadingStatus(status: ReadingStatus): ReadingStatus {
+  assertReadingStatus(status);
+  return status;
+}
+
+function getReadingStatusLocalProgressPages(itemId: string): number {
+  return db.prepare<[string], { pages: number }>(
+    `SELECT COALESCE(SUM(pages), 0) as pages
+     FROM reading_status_progress_events
+     WHERE statusItemId = ?`,
+  ).get(itemId)?.pages ?? 0;
+}
+
+function toReadingStatusItem(row: ReadingStatusItemRow): ReadingStatusItem {
+  const book = row.bookId ? getDocumentByHash(row.bookId) : null;
+  const status = row.status && (row.status === "want_to_read" || row.status === "reading" || row.status === "read")
+    ? row.status
+    : "want_to_read";
+
+  return {
+    id: row.id,
+    bookId: row.bookId,
+    title: row.title,
+    author: row.author,
+    coverPath: row.coverPath,
+    status,
+    order: row.orderIndex,
+    manualCurrentPage: Math.max(0, Number(row.manualCurrentPage) || 0),
+    manualTotalPages: row.manualTotalPages ?? null,
+    localProgressPages: getReadingStatusLocalProgressPages(row.id),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    book: book || null,
+    missingDocument: Boolean(row.bookId && !book),
+  };
+}
+
+function nextReadingStatusItemOrder(status: ReadingStatus): number {
+  return db.prepare<[string], { value: number }>(
+    `SELECT COALESCE(MAX(orderIndex), -1) + 1 as value
+     FROM reading_status_items
+     WHERE status = ?`,
+  ).get(status)?.value ?? 0;
+}
+
+function normalizeReadingStatusItemOrder(status: ReadingStatus): void {
+  const items = db.prepare<[string], { id: string }>(
+    `SELECT id FROM reading_status_items
+     WHERE status = ?
+     ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(status);
+  const update = db.prepare(`UPDATE reading_status_items SET orderIndex = ? WHERE id = ?`);
+  items.forEach((item, index) => update.run(index, item.id));
+}
+
+export function getReadingStatusPayload(): ReadingStatusPayload {
+  const rows = db.prepare<[], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items
+     ORDER BY
+       CASE status
+         WHEN 'want_to_read' THEN 0
+         WHEN 'reading' THEN 1
+         WHEN 'read' THEN 2
+         ELSE 3
+       END,
+       orderIndex ASC,
+       datetime(createdAt) ASC`,
+  ).all();
+
+  return { items: rows.map(toReadingStatusItem) };
+}
+
+export function addLibraryBookToReadingStatus(
+  status: ReadingStatus,
+  fileHash: string,
+): ReadingStatusPayload {
+  const cleanStatus = normalizeReadingStatus(status);
+  const doc = getDocumentByHash(fileHash);
+  if (!doc) throw new Error("Livro nao encontrado");
+
+  const existing = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE bookId = ? ORDER BY datetime(createdAt) ASC LIMIT 1`,
+  ).get(fileHash);
+
+  if (existing) {
+    db.prepare(`
+      UPDATE reading_status_items
+      SET status = ?,
+          title = ?,
+          author = ?,
+          coverPath = ?,
+          manualTotalPages = COALESCE(manualTotalPages, ?),
+          orderIndex = ?,
+          updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      cleanStatus,
+      doc.title,
+      doc.author || null,
+      doc.thumbnailPath || null,
+      doc.numPages || null,
+      nextReadingStatusItemOrder(cleanStatus),
+      existing.id,
+    );
+    if (existing.status !== cleanStatus) {
+      normalizeReadingStatusItemOrder(existing.status);
+    }
+  } else {
+    db.prepare(`
+      INSERT INTO reading_status_items (
+        id, bookId, title, author, coverPath, status, orderIndex, manualCurrentPage, manualTotalPages
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+    `).run(
+      `status-item-${randomUUID()}`,
+      fileHash,
+      doc.title,
+      doc.author || null,
+      doc.thumbnailPath || null,
+      cleanStatus,
+      nextReadingStatusItemOrder(cleanStatus),
+      doc.numPages || null,
+    );
+  }
+
+  updateReadingStatus(fileHash, cleanStatus);
+
+  return getReadingStatusPayload();
+}
+
+export function addManualBookToReadingStatus(
+  data: { title: string; author?: string | null; status: ReadingStatus },
+): ReadingStatusPayload {
+  const title = data.title.trim();
+  if (!title) throw new Error("Informe o titulo do livro");
+  const status = normalizeReadingStatus(data.status || "want_to_read");
+
+  db.prepare(`
+    INSERT INTO reading_status_items (
+      id, bookId, title, author, coverPath, status, orderIndex, manualCurrentPage, manualTotalPages
+    )
+    VALUES (?, NULL, ?, ?, NULL, ?, ?, 0, NULL)
+  `).run(
+    `status-item-${randomUUID()}`,
+    title,
+    data.author?.trim() || null,
+    status,
+    nextReadingStatusItemOrder(status),
+  );
+
+  return getReadingStatusPayload();
+}
+
+export function updateReadingStatusItemStatus(
+  itemId: string,
+  status: ReadingStatus,
+): ReadingStatusPayload {
+  const cleanStatus = normalizeReadingStatus(status);
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  db.prepare(`
+    UPDATE reading_status_items
+    SET status = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(cleanStatus, nextReadingStatusItemOrder(cleanStatus), itemId);
+
+  normalizeReadingStatusItemOrder(item.status);
+  normalizeReadingStatusItemOrder(cleanStatus);
+  if (item.bookId) updateReadingStatus(item.bookId, cleanStatus);
+
+  return getReadingStatusPayload();
+}
+
+export function positionReadingStatusItem(
+  itemId: string,
+  status: ReadingStatus,
+  targetIndex: number,
+): ReadingStatusPayload {
+  const cleanStatus = normalizeReadingStatus(status);
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const targetItems = db.prepare<[string, string], { id: string }>(
+    `SELECT id FROM reading_status_items
+     WHERE status = ? AND id <> ?
+     ORDER BY orderIndex ASC, datetime(createdAt) ASC`,
+  ).all(cleanStatus, itemId);
+  const boundedIndex = Math.max(0, Math.min(Math.floor(targetIndex), targetItems.length));
+  const orderedIds = targetItems.map((candidate) => candidate.id);
+  orderedIds.splice(boundedIndex, 0, itemId);
+
+  const update = db.prepare(`
+    UPDATE reading_status_items
+    SET status = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+  const transaction = db.transaction(() => {
+    orderedIds.forEach((id, index) => update.run(cleanStatus, index, id));
+    if (item.status !== cleanStatus) normalizeReadingStatusItemOrder(item.status);
+    if (item.bookId) updateReadingStatus(item.bookId, cleanStatus);
+  });
+  transaction();
+
+  return getReadingStatusPayload();
+}
+
+export function updateReadingStatusItemProgress(
+  itemId: string,
+  updates: { manualCurrentPage?: number; manualTotalPages?: number | null },
+): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const nextCurrentPage = updates.manualCurrentPage === undefined
+    ? item.manualCurrentPage
+    : Math.max(0, Math.floor(Number(updates.manualCurrentPage) || 0));
+  const nextTotalPages = updates.manualTotalPages === undefined
+    ? item.manualTotalPages
+    : updates.manualTotalPages === null
+      ? null
+      : Math.max(1, Math.floor(Number(updates.manualTotalPages) || 1));
+
+  db.prepare(`
+    UPDATE reading_status_items
+    SET manualCurrentPage = ?, manualTotalPages = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(nextCurrentPage, nextTotalPages, itemId);
+
+  if (item.bookId && nextTotalPages) {
+    updateDocumentNumPages(item.bookId, nextTotalPages);
+  }
+
+  return getReadingStatusPayload();
+}
+
+export function addReadingStatusProgressEvent(
+  itemId: string,
+  pages: number,
+  note?: string | null,
+): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const cleanPages = Math.max(0, Math.floor(Number(pages) || 0));
+  if (cleanPages <= 0) throw new Error("Informe paginas lidas");
+
+  db.prepare(`
+    INSERT INTO reading_status_progress_events (id, statusItemId, pages, note)
+    VALUES (?, ?, ?, ?)
+  `).run(`status-progress-${randomUUID()}`, itemId, cleanPages, note?.trim() || null);
+  db.prepare(`UPDATE reading_status_items SET updatedAt = CURRENT_TIMESTAMP WHERE id = ?`).run(itemId);
+
+  return getReadingStatusPayload();
+}
+
+export function deleteReadingStatusItem(itemId: string): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  db.prepare(`DELETE FROM reading_status_items WHERE id = ?`).run(itemId);
+  normalizeReadingStatusItemOrder(item.status);
+
+  return getReadingStatusPayload();
 }
 
 export function addDocument(
