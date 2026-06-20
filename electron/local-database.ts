@@ -58,6 +58,7 @@ interface ReadingStatusItemRow extends Omit<ReadingStatusItem, "order" | "book" 
 }
 
 const DEFAULT_READING_MAP_ID = "default-reading-map";
+const ATLAS_NOTES_VAULT_SETTING_KEY = "notesVaultPath";
 const DEFAULT_READING_MAP_SECTIONS = [
   {
     title: "Preambulo",
@@ -375,14 +376,42 @@ export function initDatabase() {
       title TEXT NOT NULL,
       author TEXT,
       coverPath TEXT,
+      description TEXT,
+      isbn TEXT,
+      publisher TEXT,
+      publishDate TEXT,
+      subject TEXT,
       status TEXT NOT NULL DEFAULT 'want_to_read',
       orderIndex INTEGER NOT NULL DEFAULT 0,
+      isPrimary INTEGER NOT NULL DEFAULT 0,
+      manualBasePage INTEGER NOT NULL DEFAULT 0,
       manualCurrentPage INTEGER NOT NULL DEFAULT 0,
       manualTotalPages INTEGER,
+      notePath TEXT,
+      notesMarkdown TEXT,
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
       updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  const readingStatusItemColumns: Array<[string, string]> = [
+    ["description", "TEXT"],
+    ["isbn", "TEXT"],
+    ["publisher", "TEXT"],
+    ["publishDate", "TEXT"],
+    ["subject", "TEXT"],
+    ["isPrimary", "INTEGER NOT NULL DEFAULT 0"],
+    ["manualBasePage", "INTEGER NOT NULL DEFAULT 0"],
+    ["notePath", "TEXT"],
+    ["notesMarkdown", "TEXT"],
+  ];
+  for (const [column, definition] of readingStatusItemColumns) {
+    try {
+      db.exec(`ALTER TABLE reading_status_items ADD COLUMN ${column} ${definition}`);
+    } catch {
+      // Column already exists
+    }
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS reading_status_progress_events (
@@ -398,6 +427,14 @@ export function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_status ON reading_status_items(status, orderIndex)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_book ON reading_status_items(bookId)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_events_item ON reading_status_progress_events(statusItemId, createdAt)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS atlas_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS local_books (
@@ -795,7 +832,7 @@ export function updateReadingState(
 }
 
 function assertReadingStatus(status: ReadingStatus): void {
-  if (status !== "want_to_read" && status !== "reading" && status !== "read") {
+  if (status !== "want_to_read" && status !== "reading" && status !== "paused" && status !== "read") {
     throw new Error("Invalid reading status");
   }
 }
@@ -843,7 +880,12 @@ function inferDocumentReadingStatus(doc: DocumentRecord): ReadingStatus {
 
 function toReadingMapItem(row: ReadingMapItemRow): ReadingMapItem {
   const book = row.bookId ? getDocumentByHash(row.bookId) : null;
-  const storedStatus = row.status && (row.status === "want_to_read" || row.status === "reading" || row.status === "read")
+  const storedStatus = row.status && (
+    row.status === "want_to_read" ||
+    row.status === "reading" ||
+    row.status === "paused" ||
+    row.status === "read"
+  )
     ? row.status
     : "want_to_read";
   const status = book ? inferDocumentReadingStatus(book) : storedStatus;
@@ -1233,6 +1275,29 @@ function normalizeReadingStatus(status: ReadingStatus): ReadingStatus {
   return status;
 }
 
+function getAtlasSetting(key: string): string | null {
+  return db.prepare<[string], { value: string | null }>(
+    `SELECT value FROM atlas_settings WHERE key = ?`,
+  ).get(key)?.value ?? null;
+}
+
+function setAtlasSetting(key: string, value: string | null): void {
+  db.prepare(`
+    INSERT INTO atlas_settings (key, value, updatedAt)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = CURRENT_TIMESTAMP
+  `).run(key, value);
+}
+
+export function getAtlasNotesVaultPath(): string | null {
+  return getAtlasSetting(ATLAS_NOTES_VAULT_SETTING_KEY);
+}
+
+export function setAtlasNotesVaultPath(vaultPath: string | null): ReadingStatusPayload {
+  setAtlasSetting(ATLAS_NOTES_VAULT_SETTING_KEY, vaultPath?.trim() || null);
+  return getReadingStatusPayload();
+}
+
 function getReadingStatusLocalProgressPages(itemId: string): number {
   return db.prepare<[string], { pages: number }>(
     `SELECT COALESCE(SUM(pages), 0) as pages
@@ -1243,7 +1308,12 @@ function getReadingStatusLocalProgressPages(itemId: string): number {
 
 function toReadingStatusItem(row: ReadingStatusItemRow): ReadingStatusItem {
   const book = row.bookId ? getDocumentByHash(row.bookId) : null;
-  const status = row.status && (row.status === "want_to_read" || row.status === "reading" || row.status === "read")
+  const status = row.status && (
+    row.status === "want_to_read" ||
+    row.status === "reading" ||
+    row.status === "paused" ||
+    row.status === "read"
+  )
     ? row.status
     : "want_to_read";
 
@@ -1253,11 +1323,20 @@ function toReadingStatusItem(row: ReadingStatusItemRow): ReadingStatusItem {
     title: row.title,
     author: row.author,
     coverPath: row.coverPath,
+    description: row.description ?? book?.description ?? null,
+    isbn: row.isbn ?? book?.isbn ?? null,
+    publisher: row.publisher ?? book?.publisher ?? null,
+    publishDate: row.publishDate ?? book?.publishDate ?? null,
+    subject: row.subject ?? book?.subject ?? null,
     status,
     order: row.orderIndex,
+    isPrimary: Boolean(row.isPrimary),
+    manualBasePage: Math.max(0, Number(row.manualBasePage) || 0),
     manualCurrentPage: Math.max(0, Number(row.manualCurrentPage) || 0),
     manualTotalPages: row.manualTotalPages ?? null,
     localProgressPages: getReadingStatusLocalProgressPages(row.id),
+    notePath: row.notePath,
+    notesMarkdown: row.notesMarkdown,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     book: book || null,
@@ -1290,14 +1369,19 @@ export function getReadingStatusPayload(): ReadingStatusPayload {
        CASE status
          WHEN 'want_to_read' THEN 0
          WHEN 'reading' THEN 1
-         WHEN 'read' THEN 2
-         ELSE 3
+         WHEN 'paused' THEN 2
+         WHEN 'read' THEN 3
+         ELSE 4
        END,
+       isPrimary DESC,
        orderIndex ASC,
        datetime(createdAt) ASC`,
   ).all();
 
-  return { items: rows.map(toReadingStatusItem) };
+  return {
+    items: rows.map(toReadingStatusItem),
+    vaultPath: getAtlasNotesVaultPath(),
+  };
 }
 
 export function addLibraryBookToReadingStatus(
@@ -1319,6 +1403,11 @@ export function addLibraryBookToReadingStatus(
           title = ?,
           author = ?,
           coverPath = ?,
+          description = ?,
+          isbn = ?,
+          publisher = ?,
+          publishDate = ?,
+          subject = ?,
           manualTotalPages = COALESCE(manualTotalPages, ?),
           orderIndex = ?,
           updatedAt = CURRENT_TIMESTAMP
@@ -1328,6 +1417,11 @@ export function addLibraryBookToReadingStatus(
       doc.title,
       doc.author || null,
       doc.thumbnailPath || null,
+      doc.description || null,
+      doc.isbn || null,
+      doc.publisher || null,
+      doc.publishDate || null,
+      doc.subject || null,
       doc.numPages || null,
       nextReadingStatusItemOrder(cleanStatus),
       existing.id,
@@ -1338,15 +1432,21 @@ export function addLibraryBookToReadingStatus(
   } else {
     db.prepare(`
       INSERT INTO reading_status_items (
-        id, bookId, title, author, coverPath, status, orderIndex, manualCurrentPage, manualTotalPages
+        id, bookId, title, author, coverPath, description, isbn, publisher, publishDate, subject,
+        status, orderIndex, isPrimary, manualBasePage, manualCurrentPage, manualTotalPages
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)
     `).run(
       `status-item-${randomUUID()}`,
       fileHash,
       doc.title,
       doc.author || null,
       doc.thumbnailPath || null,
+      doc.description || null,
+      doc.isbn || null,
+      doc.publisher || null,
+      doc.publishDate || null,
+      doc.subject || null,
       cleanStatus,
       nextReadingStatusItemOrder(cleanStatus),
       doc.numPages || null,
@@ -1367,9 +1467,9 @@ export function addManualBookToReadingStatus(
 
   db.prepare(`
     INSERT INTO reading_status_items (
-      id, bookId, title, author, coverPath, status, orderIndex, manualCurrentPage, manualTotalPages
+      id, bookId, title, author, coverPath, status, orderIndex, isPrimary, manualBasePage, manualCurrentPage, manualTotalPages
     )
-    VALUES (?, NULL, ?, ?, NULL, ?, ?, 0, NULL)
+    VALUES (?, NULL, ?, ?, NULL, ?, ?, 0, 0, 0, NULL)
   `).run(
     `status-item-${randomUUID()}`,
     title,
@@ -1393,9 +1493,9 @@ export function updateReadingStatusItemStatus(
 
   db.prepare(`
     UPDATE reading_status_items
-    SET status = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    SET status = ?, orderIndex = ?, isPrimary = CASE WHEN ? = 'reading' THEN isPrimary ELSE 0 END, updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(cleanStatus, nextReadingStatusItemOrder(cleanStatus), itemId);
+  `).run(cleanStatus, nextReadingStatusItemOrder(cleanStatus), cleanStatus, itemId);
 
   normalizeReadingStatusItemOrder(item.status);
   normalizeReadingStatusItemOrder(cleanStatus);
@@ -1426,11 +1526,11 @@ export function positionReadingStatusItem(
 
   const update = db.prepare(`
     UPDATE reading_status_items
-    SET status = ?, orderIndex = ?, updatedAt = CURRENT_TIMESTAMP
+    SET status = ?, orderIndex = ?, isPrimary = CASE WHEN ? = 'reading' THEN isPrimary ELSE 0 END, updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
   `);
   const transaction = db.transaction(() => {
-    orderedIds.forEach((id, index) => update.run(cleanStatus, index, id));
+    orderedIds.forEach((id, index) => update.run(cleanStatus, index, cleanStatus, id));
     if (item.status !== cleanStatus) normalizeReadingStatusItemOrder(item.status);
     if (item.bookId) updateReadingStatus(item.bookId, cleanStatus);
   });
@@ -1441,13 +1541,16 @@ export function positionReadingStatusItem(
 
 export function updateReadingStatusItemProgress(
   itemId: string,
-  updates: { manualCurrentPage?: number; manualTotalPages?: number | null },
+  updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null },
 ): ReadingStatusPayload {
   const item = db.prepare<[string], ReadingStatusItemRow>(
     `SELECT * FROM reading_status_items WHERE id = ?`,
   ).get(itemId);
   if (!item) throw new Error("Item nao encontrado");
 
+  const nextBasePage = updates.manualBasePage === undefined
+    ? item.manualBasePage
+    : Math.max(0, Math.floor(Number(updates.manualBasePage) || 0));
   const nextCurrentPage = updates.manualCurrentPage === undefined
     ? item.manualCurrentPage
     : Math.max(0, Math.floor(Number(updates.manualCurrentPage) || 0));
@@ -1459,15 +1562,142 @@ export function updateReadingStatusItemProgress(
 
   db.prepare(`
     UPDATE reading_status_items
-    SET manualCurrentPage = ?, manualTotalPages = ?, updatedAt = CURRENT_TIMESTAMP
+    SET manualBasePage = ?, manualCurrentPage = ?, manualTotalPages = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(nextCurrentPage, nextTotalPages, itemId);
+  `).run(nextBasePage, nextCurrentPage, nextTotalPages, itemId);
 
   if (item.bookId && nextTotalPages) {
     updateDocumentNumPages(item.bookId, nextTotalPages);
   }
 
   return getReadingStatusPayload();
+}
+
+export function setPrimaryReadingStatusItem(itemId: string): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const transaction = db.transaction(() => {
+    db.prepare(`UPDATE reading_status_items SET isPrimary = 0 WHERE status = 'reading'`).run();
+    db.prepare(`
+      UPDATE reading_status_items
+      SET status = 'reading',
+          isPrimary = 1,
+          orderIndex = CASE WHEN status = 'reading' THEN orderIndex ELSE ? END,
+          updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(nextReadingStatusItemOrder("reading"), itemId);
+    if (item.status !== "reading") normalizeReadingStatusItemOrder(item.status);
+    normalizeReadingStatusItemOrder("reading");
+    if (item.bookId) updateReadingStatus(item.bookId, "reading");
+  });
+  transaction();
+
+  return getReadingStatusPayload();
+}
+
+export function updateReadingStatusItemCover(itemId: string, coverPath: string | null): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  db.prepare(`
+    UPDATE reading_status_items
+    SET coverPath = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(coverPath?.trim() || null, itemId);
+
+  return getReadingStatusPayload();
+}
+
+export function updateReadingStatusItemMetadata(
+  itemId: string,
+  updates: {
+    title?: string;
+    author?: string | null;
+    description?: string | null;
+    isbn?: string | null;
+    publisher?: string | null;
+    publishDate?: string | null;
+    subject?: string | null;
+    manualTotalPages?: number | null;
+    coverPath?: string | null;
+  },
+): ReadingStatusPayload {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  const nextTitle = updates.title === undefined ? item.title : updates.title.trim();
+  if (!nextTitle) throw new Error("Informe o titulo do livro");
+  const nextTotalPages = updates.manualTotalPages === undefined
+    ? item.manualTotalPages
+    : updates.manualTotalPages === null
+      ? null
+      : Math.max(1, Math.floor(Number(updates.manualTotalPages) || 1));
+
+  db.prepare(`
+    UPDATE reading_status_items
+    SET title = ?,
+        author = ?,
+        description = ?,
+        isbn = ?,
+        publisher = ?,
+        publishDate = ?,
+        subject = ?,
+        manualTotalPages = ?,
+        coverPath = ?,
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    nextTitle,
+    updates.author === undefined ? item.author : updates.author?.trim() || null,
+    updates.description === undefined ? item.description : updates.description?.trim() || null,
+    updates.isbn === undefined ? item.isbn : updates.isbn?.trim() || null,
+    updates.publisher === undefined ? item.publisher : updates.publisher?.trim() || null,
+    updates.publishDate === undefined ? item.publishDate : updates.publishDate?.trim() || null,
+    updates.subject === undefined ? item.subject : updates.subject?.trim() || null,
+    nextTotalPages,
+    updates.coverPath === undefined ? item.coverPath : updates.coverPath?.trim() || null,
+    itemId,
+  );
+
+  if (item.bookId && nextTotalPages) {
+    updateDocumentNumPages(item.bookId, nextTotalPages);
+  }
+
+  return getReadingStatusPayload();
+}
+
+export function getReadingStatusItem(itemId: string): ReadingStatusItem {
+  const row = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!row) throw new Error("Item nao encontrado");
+  return toReadingStatusItem(row);
+}
+
+export function updateReadingStatusItemNotes(
+  itemId: string,
+  notesMarkdown: string,
+  notePath?: string | null,
+): ReadingStatusItem {
+  const item = db.prepare<[string], ReadingStatusItemRow>(
+    `SELECT * FROM reading_status_items WHERE id = ?`,
+  ).get(itemId);
+  if (!item) throw new Error("Item nao encontrado");
+
+  db.prepare(`
+    UPDATE reading_status_items
+    SET notesMarkdown = ?, notePath = COALESCE(?, notePath), updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(notesMarkdown, notePath || null, itemId);
+
+  return getReadingStatusItem(itemId);
 }
 
 export function addReadingStatusProgressEvent(

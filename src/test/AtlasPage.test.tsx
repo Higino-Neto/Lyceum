@@ -112,6 +112,7 @@ function createStatusPayload(
   doneBook: BookWithThumbnail,
 ): ReadingStatusPayload {
   return {
+    vaultPath: "C:\\vault",
     items: [
       {
         id: "status-1",
@@ -119,11 +120,20 @@ function createStatusPayload(
         title: activeBook.title,
         author: activeBook.author,
         coverPath: null,
+        description: null,
+        isbn: null,
+        publisher: null,
+        publishDate: null,
+        subject: null,
         status: "reading",
         order: 0,
+        isPrimary: true,
+        manualBasePage: 0,
         manualCurrentPage: 10,
         manualTotalPages: 200,
         localProgressPages: 5,
+        notePath: null,
+        notesMarkdown: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         book: activeBook,
@@ -135,11 +145,20 @@ function createStatusPayload(
         title: "Reading Next",
         author: "Manual Author",
         coverPath: null,
+        description: null,
+        isbn: null,
+        publisher: null,
+        publishDate: null,
+        subject: null,
         status: "reading",
         order: 1,
+        isPrimary: false,
+        manualBasePage: 0,
         manualCurrentPage: 0,
         manualTotalPages: null,
         localProgressPages: 0,
+        notePath: null,
+        notesMarkdown: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         book: null,
@@ -151,11 +170,45 @@ function createStatusPayload(
         title: "Future Manual",
         author: null,
         coverPath: null,
+        description: null,
+        isbn: null,
+        publisher: null,
+        publishDate: null,
+        subject: null,
         status: "want_to_read",
         order: 0,
+        isPrimary: false,
+        manualBasePage: 0,
         manualCurrentPage: 0,
         manualTotalPages: null,
         localProgressPages: 0,
+        notePath: null,
+        notesMarkdown: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        book: null,
+        missingDocument: false,
+      },
+      {
+        id: "status-5",
+        bookId: null,
+        title: "Paused Manual",
+        author: null,
+        coverPath: null,
+        description: null,
+        isbn: null,
+        publisher: null,
+        publishDate: null,
+        subject: null,
+        status: "paused",
+        order: 0,
+        isPrimary: false,
+        manualBasePage: 0,
+        manualCurrentPage: 40,
+        manualTotalPages: 120,
+        localProgressPages: 0,
+        notePath: null,
+        notesMarkdown: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         book: null,
@@ -167,11 +220,20 @@ function createStatusPayload(
         title: doneBook.title,
         author: doneBook.author,
         coverPath: null,
+        description: null,
+        isbn: null,
+        publisher: null,
+        publishDate: null,
+        subject: null,
         status: "read",
         order: 0,
+        isPrimary: false,
+        manualBasePage: 0,
         manualCurrentPage: 100,
         manualTotalPages: 100,
         localProgressPages: 0,
+        notePath: null,
+        notesMarkdown: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         book: doneBook,
@@ -195,6 +257,12 @@ describe("AtlasPage", () => {
   const updateReadingStatusItemProgress = vi.fn();
   const addReadingStatusProgressEvent = vi.fn();
   const deleteReadingStatusItem = vi.fn();
+  const setPrimaryReadingStatusItem = vi.fn();
+  const updateReadingStatusItemCover = vi.fn();
+  const updateReadingStatusItemMetadata = vi.fn();
+  const setAtlasNotesVault = vi.fn();
+  const getReadingStatusItemNote = vi.fn();
+  const saveReadingStatusItemNote = vi.fn();
 
   const backlogBook = createBook({ id: 1, title: "Backlog.epub", fileHash: "backlog" });
   const activeBook = createBook({
@@ -238,6 +306,28 @@ describe("AtlasPage", () => {
     updateReadingStatusItemProgress.mockResolvedValue({ success: true, payload: statusPayload });
     addReadingStatusProgressEvent.mockResolvedValue({ success: true, payload: statusPayload });
     deleteReadingStatusItem.mockResolvedValue({ success: true, payload: statusPayload });
+    setPrimaryReadingStatusItem.mockResolvedValue({ success: true, payload: statusPayload });
+    updateReadingStatusItemCover.mockResolvedValue({ success: true, payload: statusPayload });
+    updateReadingStatusItemMetadata.mockResolvedValue({ success: true, payload: statusPayload });
+    setAtlasNotesVault.mockResolvedValue({ success: true, payload: statusPayload });
+    getReadingStatusItemNote.mockResolvedValue({
+      success: true,
+      payload: {
+        itemId: "status-1",
+        content: "# Active\n\nNotas",
+        notePath: "C:\\vault\\Active.md",
+        vaultPath: "C:\\vault",
+      },
+    });
+    saveReadingStatusItemNote.mockResolvedValue({
+      success: true,
+      payload: {
+        itemId: "status-1",
+        content: "# Active\n\nNotas atualizadas",
+        notePath: "C:\\vault\\Active.md",
+        vaultPath: "C:\\vault",
+      },
+    });
 
     Object.defineProperty(window, "api", {
       configurable: true,
@@ -264,6 +354,18 @@ describe("AtlasPage", () => {
         updateReadingStatusItemProgress,
         addReadingStatusProgressEvent,
         deleteReadingStatusItem,
+        setPrimaryReadingStatusItem,
+        updateReadingStatusItemCover,
+        updateReadingStatusItemMetadata,
+        setAtlasNotesVault,
+        getReadingStatusItemNote,
+        saveReadingStatusItemNote,
+        selectFolder: vi.fn().mockResolvedValue({ canceled: false, filePaths: ["C:\\vault"] }),
+        openImageDialog: vi.fn().mockResolvedValue("C:\\covers\\cover.jpg"),
+        setThumbnail: vi.fn().mockResolvedValue({ success: true }),
+        searchBookMetadata: vi.fn().mockResolvedValue({ success: true, results: [] }),
+        updateMetadata: vi.fn().mockResolvedValue({ success: true }),
+        setThumbnailFromUrl: vi.fn().mockResolvedValue({ success: true }),
         onLibraryUpdated: vi.fn(() => vi.fn()),
         openDocumentByHash: vi.fn(),
       },
@@ -354,8 +456,12 @@ describe("AtlasPage", () => {
     expect(screen.queryByText("Done")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ver Fila" }));
-    expect(await screen.findByText("Future Manual")).toBeInTheDocument();
+    expect((await screen.findAllByText("Future Manual")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver Pausado" }));
+    expect((await screen.findAllByText("Paused Manual")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Future Manual")).not.toBeInTheDocument();
   });
 
   it("adds an existing library book to the selected status lane", async () => {
@@ -376,18 +482,22 @@ describe("AtlasPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Estados" }));
     await screen.findByText("Active");
+    const activeCard = screen.getByText("Active").closest("article");
+    expect(activeCard).toBeTruthy();
+    fireEvent.click(within(activeCard!).getByTitle("Acoes"));
+    fireEvent.click(await screen.findByText("Ajustar paginas e progresso"));
     fireEvent.change(screen.getByLabelText("Pagina atual de Active.epub"), {
       target: { value: "30" },
     });
     fireEvent.change(screen.getByLabelText("Total de paginas de Active.epub"), {
       target: { value: "250" },
     });
-    const activeCard = screen.getByText("Active").closest("article");
-    expect(activeCard).toBeTruthy();
-    fireEvent.click(within(activeCard!).getByRole("button", { name: "Salvar" }));
+    const saveButtons = screen.getAllByRole("button", { name: "Salvar" });
+    fireEvent.click(saveButtons[saveButtons.length - 1]);
 
     await waitFor(() => {
       expect(updateReadingStatusItemProgress).toHaveBeenCalledWith("status-1", {
+        manualBasePage: 0,
         manualCurrentPage: 30,
         manualTotalPages: 250,
       });
@@ -400,7 +510,7 @@ describe("AtlasPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Estados" }));
     const title = await screen.findByText("Active");
     const card = title.closest("article");
-    const lane = card?.closest("section");
+    const lane = card?.parentElement?.parentElement;
     expect(card).toBeTruthy();
     expect(lane).toBeTruthy();
 
@@ -410,6 +520,9 @@ describe("AtlasPage", () => {
         setData: vi.fn(),
         getData: vi.fn((key: string) => (key.includes("status") ? "status-1" : "")),
       },
+    });
+    await waitFor(() => {
+      expect(card!.className).toContain("opacity-45");
     });
     fireEvent.dragOver(lane!, {
       dataTransfer: { dropEffect: "" },

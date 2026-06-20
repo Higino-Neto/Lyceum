@@ -16,7 +16,7 @@ export type BookFileType =
 export type LibraryBookFileType = BookFileType;
 export type ReadingDocumentFileType = BookFileType;
 export type BookFormat = BookFileType;
-export type ReadingStatus = "want_to_read" | "reading" | "read";
+export type ReadingStatus = "want_to_read" | "reading" | "paused" | "read";
 
 export interface DocumentRecord {
   id: number;
@@ -111,11 +111,20 @@ export interface ReadingStatusItem {
   title: string;
   author: string | null;
   coverPath: string | null;
+  description: string | null;
+  isbn: string | null;
+  publisher: string | null;
+  publishDate: string | null;
+  subject: string | null;
   status: ReadingStatus;
   order: number;
+  isPrimary: boolean;
+  manualBasePage: number;
   manualCurrentPage: number;
   manualTotalPages: number | null;
   localProgressPages: number;
+  notePath: string | null;
+  notesMarkdown: string | null;
   createdAt: string;
   updatedAt: string;
   book?: BookWithThumbnail | null;
@@ -124,6 +133,14 @@ export interface ReadingStatusItem {
 
 export interface ReadingStatusPayload {
   items: ReadingStatusItem[];
+  vaultPath?: string | null;
+}
+
+export interface ReadingStatusNotePayload {
+  itemId: string;
+  content: string;
+  notePath: string | null;
+  vaultPath: string | null;
 }
 
 export interface BookWithThumbnail

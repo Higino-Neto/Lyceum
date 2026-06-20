@@ -10,6 +10,7 @@ import {
   addManualBookToReadingStatus,
   addReadingStatusProgressEvent,
   updateThumbnailPath,
+  getAtlasNotesVaultPath,
   updateTitle,
   updateAuthor,
   toggleFavorite,
@@ -24,12 +25,18 @@ import {
   deleteReadingStatusItem,
   getReadingMapPayload,
   getReadingStatusPayload,
+  getReadingStatusItem,
   moveReadingMapItem,
   positionReadingMapItem,
   positionReadingStatusItem,
   reorderReadingMapItem,
+  setAtlasNotesVaultPath,
+  setPrimaryReadingStatusItem,
   updateReadingMapItemStatus,
   updateReadingMapSection,
+  updateReadingStatusItemCover,
+  updateReadingStatusItemMetadata,
+  updateReadingStatusItemNotes,
   updateReadingStatusItemProgress,
   updateReadingStatusItemStatus,
   updateMetadata,
@@ -197,6 +204,63 @@ export function registerBookHandlers() {
     await fs.promises.writeFile(rawPath, buffer);
     await writeCoverImageFile(rawPath, coverPath);
     return { workspace, coverPath };
+  }
+
+  function safeMarkdownFileName(value: string) {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 96) || "nota-de-leitura";
+  }
+
+  function escapeYaml(value: string | null | undefined) {
+    return String(value || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"');
+  }
+
+  function buildAtlasNoteHeader(item: ReturnType<typeof getReadingStatusItem>) {
+    const lines = [
+      "---",
+      `title: "${escapeYaml(item.title)}"`,
+      `author: "${escapeYaml(item.author || item.book?.author || "")}"`,
+      `status: "${item.status}"`,
+      `source: "lyceum-atlas"`,
+      item.bookId ? `library_hash: "${escapeYaml(item.bookId)}"` : `atlas_item_id: "${escapeYaml(item.id)}"`,
+      item.isbn ? `isbn: "${escapeYaml(item.isbn)}"` : "",
+      item.publisher ? `publisher: "${escapeYaml(item.publisher)}"` : "",
+      item.publishDate ? `publish_date: "${escapeYaml(item.publishDate)}"` : "",
+      "---",
+      "",
+      `# ${item.title}`,
+      "",
+    ];
+    return lines.filter((line) => line !== "").join("\n");
+  }
+
+  function ensureAtlasNotePath(item: ReturnType<typeof getReadingStatusItem>, vaultPath: string | null) {
+    if (!vaultPath) return null;
+    const cleanVault = path.resolve(vaultPath);
+    if (!fs.existsSync(cleanVault)) fs.mkdirSync(cleanVault, { recursive: true });
+    const existingPath = item.notePath ? path.resolve(item.notePath) : null;
+    if (existingPath && existingPath.startsWith(cleanVault)) return existingPath;
+
+    const fileName = `${safeMarkdownFileName(item.title)}.md`;
+    let candidate = path.join(cleanVault, fileName);
+    if (fs.existsSync(candidate)) {
+      candidate = path.join(cleanVault, `${safeMarkdownFileName(item.title)}-${item.id.slice(-8)}.md`);
+    }
+    return candidate;
+  }
+
+  function readAtlasNoteContent(item: ReturnType<typeof getReadingStatusItem>) {
+    if (item.notePath && fs.existsSync(item.notePath)) {
+      return fs.readFileSync(item.notePath, "utf8");
+    }
+    return item.notesMarkdown || buildAtlasNoteHeader(item);
   }
 
   ipcMain.handle("book:toggle-favorite", (_, fileHash: string) => {
@@ -368,6 +432,85 @@ export function registerBookHandlers() {
   ipcMain.handle("atlas:delete-status-item", (_, itemId: string) => {
     try {
       return { success: true, payload: deleteReadingStatusItem(itemId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:set-primary-status-item", (_, itemId: string) => {
+    try {
+      return { success: true, payload: setPrimaryReadingStatusItem(itemId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-status-item-cover", (_, itemId: string, coverPath: string | null) => {
+    try {
+      return { success: true, payload: updateReadingStatusItemCover(itemId, coverPath) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:update-status-item-metadata", (_, itemId: string, updates: Parameters<typeof updateReadingStatusItemMetadata>[1]) => {
+    try {
+      return { success: true, payload: updateReadingStatusItemMetadata(itemId, updates) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:set-notes-vault", (_, vaultPath: string | null) => {
+    try {
+      if (vaultPath && !fs.existsSync(vaultPath)) {
+        fs.mkdirSync(vaultPath, { recursive: true });
+      }
+      return { success: true, payload: setAtlasNotesVaultPath(vaultPath) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:get-status-note", (_, itemId: string) => {
+    try {
+      const item = getReadingStatusItem(itemId);
+      const vaultPath = getAtlasNotesVaultPath();
+      const notePath = ensureAtlasNotePath(item, vaultPath);
+      const content = readAtlasNoteContent({ ...item, notePath });
+      return {
+        success: true,
+        payload: {
+          itemId,
+          content,
+          notePath,
+          vaultPath,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("atlas:save-status-note", (_, itemId: string, content: string) => {
+    try {
+      const item = getReadingStatusItem(itemId);
+      const vaultPath = getAtlasNotesVaultPath();
+      const notePath = ensureAtlasNotePath(item, vaultPath);
+      if (notePath) {
+        fs.mkdirSync(path.dirname(notePath), { recursive: true });
+        fs.writeFileSync(notePath, content, "utf8");
+      }
+      updateReadingStatusItemNotes(itemId, content, notePath);
+      return {
+        success: true,
+        payload: {
+          itemId,
+          content,
+          notePath,
+          vaultPath,
+        },
+      };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

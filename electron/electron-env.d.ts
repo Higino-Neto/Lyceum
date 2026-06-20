@@ -6,6 +6,7 @@ type LibraryListResult = import("../src/types/LibraryTypes").LibraryListResult;
 type ReadingStatus = import("../src/types/LibraryTypes").ReadingStatus;
 type ReadingMapPayload = import("../src/types/LibraryTypes").ReadingMapPayload;
 type ReadingStatusPayload = import("../src/types/LibraryTypes").ReadingStatusPayload;
+type ReadingStatusNotePayload = import("../src/types/LibraryTypes").ReadingStatusNotePayload;
 
 interface BookCategory {
   id: number;
@@ -81,6 +82,12 @@ interface AtlasMapResult {
 interface AtlasStatusResult {
   success: boolean;
   payload?: ReadingStatusPayload;
+  error?: string;
+}
+
+interface AtlasStatusNoteResult {
+  success: boolean;
+  payload?: ReadingStatusNotePayload;
   error?: string;
 }
 
@@ -212,9 +219,25 @@ interface Window {
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
     updateReadingStatusItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasStatusResult>;
     positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) => Promise<AtlasStatusResult>;
-    updateReadingStatusItemProgress: (itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemProgress: (itemId: string, updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
     addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) => Promise<AtlasStatusResult>;
     deleteReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
+    setPrimaryReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemCover: (itemId: string, coverPath: string | null) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemMetadata: (itemId: string, updates: {
+      title?: string;
+      author?: string | null;
+      description?: string | null;
+      isbn?: string | null;
+      publisher?: string | null;
+      publishDate?: string | null;
+      subject?: string | null;
+      manualTotalPages?: number | null;
+      coverPath?: string | null;
+    }) => Promise<AtlasStatusResult>;
+    setAtlasNotesVault: (vaultPath: string | null) => Promise<AtlasStatusResult>;
+    getReadingStatusItemNote: (itemId: string) => Promise<AtlasStatusNoteResult>;
+    saveReadingStatusItemNote: (itemId: string, content: string) => Promise<AtlasStatusNoteResult>;
     searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) => Promise<{
       success: boolean;
       results: BookMetadataCandidate[];
@@ -454,9 +477,25 @@ interface Window {
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
     updateReadingStatusItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasStatusResult>;
     positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) => Promise<AtlasStatusResult>;
-    updateReadingStatusItemProgress: (itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemProgress: (itemId: string, updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null }) => Promise<AtlasStatusResult>;
     addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) => Promise<AtlasStatusResult>;
     deleteReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
+    setPrimaryReadingStatusItem: (itemId: string) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemCover: (itemId: string, coverPath: string | null) => Promise<AtlasStatusResult>;
+    updateReadingStatusItemMetadata: (itemId: string, updates: {
+      title?: string;
+      author?: string | null;
+      description?: string | null;
+      isbn?: string | null;
+      publisher?: string | null;
+      publishDate?: string | null;
+      subject?: string | null;
+      manualTotalPages?: number | null;
+      coverPath?: string | null;
+    }) => Promise<AtlasStatusResult>;
+    setAtlasNotesVault: (vaultPath: string | null) => Promise<AtlasStatusResult>;
+    getReadingStatusItemNote: (itemId: string) => Promise<AtlasStatusNoteResult>;
+    saveReadingStatusItemNote: (itemId: string, content: string) => Promise<AtlasStatusNoteResult>;
 
     backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
     backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;

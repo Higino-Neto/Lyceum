@@ -12,6 +12,7 @@ interface AtlasColumnProps {
 const COLUMN_ACCENTS: Record<ReadingStatus, string> = {
   want_to_read: "border-zinc-800",
   reading: "border-sky-500/35",
+  paused: "border-amber-500/35",
   read: "border-green-500/35",
 };
 

@@ -42,12 +42,17 @@ type EditableMetadataForm = {
   coverUrl: string;
 };
 
+export type BookMetadataSavePayload = ReturnType<typeof normalizeForSave> & {
+  coverUrl?: string;
+};
+
 interface BookMetadataSearchDialogProps {
   book: BookWithThumbnail;
   thumbnail?: string;
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  onSaveMetadata?: (metadata: BookMetadataSavePayload) => Promise<void> | void;
 }
 
 const sourceOptions: Array<{ value: MetadataSearchScope; label: string }> = [
@@ -194,6 +199,7 @@ export default function BookMetadataSearchDialog({
   isOpen,
   onClose,
   onSaved,
+  onSaveMetadata,
 }: BookMetadataSearchDialogProps) {
   const originalForm = useMemo(() => toInitialForm(book, thumbnail), [book, thumbnail]);
   const [form, setForm] = useState(originalForm);
@@ -282,6 +288,17 @@ export default function BookMetadataSearchDialog({
     setIsSaving(true);
     const loadingToast = toast.loading("Salvando metadados...");
     try {
+      if (onSaveMetadata) {
+        await onSaveMetadata({
+          ...normalizeForSave(form),
+          coverUrl: saveCover ? form.coverUrl.trim() || undefined : undefined,
+        });
+        toast.success("Metadados salvos.", { id: loadingToast });
+        onSaved();
+        onClose();
+        return;
+      }
+
       let currentHash = book.fileHash;
       const metadataResult = await window.api.updateMetadata(book.fileHash, normalizeForSave(form));
       if (!metadataResult.success) {

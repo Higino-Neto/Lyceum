@@ -6,7 +6,9 @@ import type {
   LibrarySection,
   LibrarySortOption,
   ReadingMapPayload,
+  ReadingStatusNotePayload,
   ReadingStatus,
+  ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
 
 const { ipcRenderer, contextBridge } = electron;
@@ -330,7 +332,7 @@ contextBridge.exposeInMainWorld("api", {
   positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) =>
     ipcRenderer.invoke("atlas:position-status-item", itemId, status, targetIndex),
 
-  updateReadingStatusItemProgress: (itemId: string, updates: { manualCurrentPage?: number; manualTotalPages?: number | null }) =>
+  updateReadingStatusItemProgress: (itemId: string, updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null }) =>
     ipcRenderer.invoke("atlas:update-status-item-progress", itemId, updates),
 
   addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) =>
@@ -338,6 +340,34 @@ contextBridge.exposeInMainWorld("api", {
 
   deleteReadingStatusItem: (itemId: string) =>
     ipcRenderer.invoke("atlas:delete-status-item", itemId),
+
+  setPrimaryReadingStatusItem: (itemId: string) =>
+    ipcRenderer.invoke("atlas:set-primary-status-item", itemId),
+
+  updateReadingStatusItemCover: (itemId: string, coverPath: string | null) =>
+    ipcRenderer.invoke("atlas:update-status-item-cover", itemId, coverPath),
+
+  updateReadingStatusItemMetadata: (itemId: string, updates: Partial<{
+    title: string;
+    author: string | null;
+    description: string | null;
+    isbn: string | null;
+    publisher: string | null;
+    publishDate: string | null;
+    subject: string | null;
+    manualTotalPages: number | null;
+    coverPath: string | null;
+  }>) =>
+    ipcRenderer.invoke("atlas:update-status-item-metadata", itemId, updates),
+
+  setAtlasNotesVault: (vaultPath: string | null) =>
+    ipcRenderer.invoke("atlas:set-notes-vault", vaultPath),
+
+  getReadingStatusItemNote: (itemId: string) =>
+    ipcRenderer.invoke("atlas:get-status-note", itemId),
+
+  saveReadingStatusItemNote: (itemId: string, content: string) =>
+    ipcRenderer.invoke("atlas:save-status-note", itemId, content),
 
   searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) =>
     ipcRenderer.invoke("book:search-metadata", source, query, field, limit),
