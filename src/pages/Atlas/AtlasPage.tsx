@@ -3,7 +3,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
   type DragEvent as ReactDragEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +29,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import {
+  NoteProperties,
+  emptyNotePropertiesDraft,
+  notePropertiesDraftChanged,
+  notePropertiesDraftToItemId,
+  type NotePropertiesDraft,
+} from "./components/NoteProperties";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import useGetReadings from "../../hooks/useGetReadings";
@@ -157,6 +163,29 @@ async function fetchReadingMap(mapId?: string | null): Promise<ReadingMapPayload
     throw new Error(result.error || "Erro ao carregar mapa de leitura");
   }
   return result.payload;
+}
+
+function stripFrontmatter(content: string): string {
+  const match = content.match(/^---[\s\S]*?---\n*/);
+  if (!match) return content;
+  return content.slice(match[0].length);
+}
+
+function buildFrontmatter(props: NotePropertiesDraft): string {
+  const esc = (v: string) => v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const lines = [
+    "---",
+    `title: "${esc(props.title)}"`,
+    `author: "${esc(props.author)}"`,
+    `status: "${props.status}"`,
+    `source: "lyceum-atlas"`,
+    props.isbn ? `isbn: "${esc(props.isbn)}"` : "",
+    props.publisher ? `publisher: "${esc(props.publisher)}"` : "",
+    props.publishDate ? `publish_date: "${esc(props.publishDate)}"` : "",
+    "---",
+    "",
+  ];
+  return lines.filter((l) => l !== "").join("\n");
 }
 
 async function fetchReadingStatusItems(): Promise<ReadingStatusPayload> {
@@ -1275,7 +1304,7 @@ interface StatusBoardV2Props {
   onAddLibrary: () => void;
   onAddManual: () => void;
   onChooseVault: () => void;
-  onSaveNote: (content: string) => void;
+  onSaveNote: (markdown: string, properties: NotePropertiesDraft) => void;
   onOpen: (book: BookWithThumbnail) => void;
   onStatusChange: (itemId: string, status: ReadingStatus) => void;
   onSetPrimary: (itemId: string) => void;
@@ -1658,13 +1687,20 @@ function AtomicEditor({
   loading: boolean;
   saving: boolean;
   onChooseVault: () => void;
-  onSave: (content: string) => void;
+  onSave: (content: string, properties: NotePropertiesDraft) => void;
 }) {
-  const [draft, setDraft] = useState(content);
+  const [draft, setDraft] = useState(() => stripFrontmatter(content));
+  const [propDraft, setPropDraft] = useState<NotePropertiesDraft>(
+    () => emptyNotePropertiesDraft(selectedItem),
+  );
 
   useEffect(() => {
-    setDraft(content);
+    setDraft(stripFrontmatter(content));
   }, [content, selectedItem?.id]);
+
+  useEffect(() => {
+    setPropDraft(emptyNotePropertiesDraft(selectedItem));
+  }, [selectedItem?.id]);
 
   return (
     <aside className="flex min-h-0 flex-col rounded-sm border border-zinc-800 bg-zinc-900">
@@ -1692,32 +1728,18 @@ function AtomicEditor({
           <span className="min-w-0 truncate text-zinc-300">{notePath || vaultPath || "Notas ficam no SQLite ate escolher uma pasta"}</span>
         </div>
       </div>
+      {selectedItem && (
+        <NoteProperties item={selectedItem} draft={propDraft} onChange={setPropDraft} />
+      )}
       <div className="min-h-0 flex-1 p-3">
         {loading ? (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">Carregando nota...</div>
         ) : !selectedItem ? (
-          <div className="flex h-full min-h-[420px] items-center justify-center rounded-sm border border-dashed border-zinc-800 bg-zinc-950 px-4 text-center text-sm text-zinc-500">
+          <div className="flex h-full items-center justify-center rounded-sm border border-dashed border-zinc-800 bg-zinc-950 px-4 text-center text-sm text-zinc-500">
             Selecione um livro para escrever notas de leitura.
           </div>
         ) : (
-          <div
-            className="h-full min-h-[420px] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500"
-            style={{
-              "--atomic-editor-bg": "#09090b",
-              "--atomic-editor-bg-panel": "#18181b",
-              "--atomic-editor-bg-surface": "#27272a",
-              "--atomic-editor-border": "#27272a",
-              "--atomic-editor-accent": "#22c55e",
-              "--atomic-editor-accent-bright": "#4ade80",
-              "--atomic-editor-link": "#86efac",
-              "--atomic-editor-link-hover": "#bbf7d0",
-              "--atomic-editor-font": "Inter, ui-sans-serif, system-ui, sans-serif",
-              "--atomic-editor-font-mono": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              "--atomic-editor-body-size": "0.875rem",
-              "--atomic-editor-body-leading": "1.65",
-              "--atomic-editor-measure": "100%",
-            } as CSSProperties}
-          >
+          <div className="h-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500">
             <AtomicCodeMirrorEditor
               key={selectedItem.id}
               documentId={selectedItem.id}
@@ -1732,7 +1754,7 @@ function AtomicEditor({
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500">
         <span className="min-w-0 truncate">{notePath ? `Arquivo: ${notePath.split(/[/\\]/).pop()}` : "Arquivo markdown criado ao salvar com Vault definido"}</span>
-        <button type="button" onClick={() => onSave(draft)} disabled={!selectedItem || saving} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="button" onClick={() => onSave(draft, propDraft)} disabled={!selectedItem || saving} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60">
           {saving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
           Salvar
         </button>
@@ -2104,7 +2126,7 @@ export default function AtlasPage() {
     }
   }, [handleStatusMutation, queryClient, selectedStatusItemId]);
 
-  const handleSaveNote = useCallback(async (content: string) => {
+  const handleSaveNote = useCallback(async (markdown: string, properties: NotePropertiesDraft) => {
     if (!selectedStatusItemId) {
       toast.error("Selecione um livro");
       return;
@@ -2112,7 +2134,19 @@ export default function AtlasPage() {
 
     setNoteSaving(true);
     try {
-      const result = await window.api.saveReadingStatusItemNote(selectedStatusItemId, content);
+      const currentItem = statusItems.find((i) => i.id === selectedStatusItemId);
+      if (currentItem && notePropertiesDraftChanged(emptyNotePropertiesDraft(currentItem), properties)) {
+        const metaResult = await window.api.updateReadingStatusItemMetadata(
+          selectedStatusItemId,
+          notePropertiesDraftToItemId(selectedStatusItemId, properties),
+        );
+        if (!metaResult.success) {
+          throw new Error(metaResult.error || "Erro ao salvar metadados");
+        }
+      }
+
+      const fullContent = buildFrontmatter(properties) + markdown;
+      const result = await window.api.saveReadingStatusItemNote(selectedStatusItemId, fullContent);
       if (!result.success || !result.payload) {
         throw new Error(result.error || "Erro ao salvar nota");
       }
@@ -2124,7 +2158,7 @@ export default function AtlasPage() {
     } finally {
       setNoteSaving(false);
     }
-  }, [queryClient, selectedStatusItemId]);
+  }, [queryClient, selectedStatusItemId, statusItems]);
 
   const handleCoverChange = useCallback(async (item: ReadingStatusItem) => {
     try {
