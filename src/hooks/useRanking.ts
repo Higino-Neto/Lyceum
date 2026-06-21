@@ -11,9 +11,61 @@ export interface RankingUser {
   month_pages?: number;
 }
 
-function getPeriodStartDate(period: string): Date | null {
-  if (period === "all_time") return null;
+async function fetchCategoryRankingFromRpc(
+  categoryId: string,
+  period: string,
+): Promise<RankingUser[] | null> {
+  const { data: rankingData, error } = await supabase.rpc(
+    "get_category_ranking",
+    {
+      p_category_id: categoryId,
+      p_period: period,
+    },
+  );
 
+  if (error) {
+    if (
+      error.code === "PGRST202" ||
+      error.message?.includes("Could not find the function")
+    ) {
+      return null;
+    }
+    console.error("Error fetching category ranking:", error);
+    return null;
+  }
+
+  const rows = rankingData as { user_id: string; total_pages: number }[] | null;
+  if (!rows || rows.length === 0) return [];
+
+  const userIds = rows.map((r) => r.user_id);
+
+  const { data: usersData } = await supabase
+    .from("profiles")
+    .select("id, name, avatar_url")
+    .in("id", userIds);
+
+  const usersMap = new Map<string, { name: string; avatar_url: string }>();
+  if (usersData) {
+    for (const u of usersData) {
+      usersMap.set(u.id, {
+        name: u.name || "Usuário",
+        avatar_url: u.avatar_url || "",
+      });
+    }
+  }
+
+  return rows.map((item) => ({
+    user_id: item.user_id,
+    username: usersMap.get(item.user_id)?.name || "Usuário",
+    avatar_url: usersMap.get(item.user_id)?.avatar_url || "",
+    total_pages: Number(item.total_pages),
+  }));
+}
+
+async function fetchCategoryRankingFromReadings(
+  categoryId: string,
+  period: string,
+): Promise<RankingUser[]> {
   const now = new Date();
   const brazilOffset = -3 * 60;
   const localOffset = now.getTimezoneOffset();
@@ -21,38 +73,27 @@ function getPeriodStartDate(period: string): Date | null {
   const brazilNow = new Date(now.getTime() + diffMs);
 
   const brazilDate = new Date(
-    Date.UTC(brazilNow.getFullYear(), brazilNow.getMonth(), brazilNow.getDate()),
+    Date.UTC(
+      brazilNow.getFullYear(),
+      brazilNow.getMonth(),
+      brazilNow.getDate(),
+    ),
   );
 
-  if (period === "today") return brazilDate;
-
-  if (period === "this_week") {
+  let startDate: Date | null = null;
+  if (period === "today") {
+    startDate = brazilDate;
+  } else if (period === "this_week") {
     const dayOfWeek = brazilDate.getUTCDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(brazilDate);
     monday.setUTCDate(monday.getUTCDate() + diffToMonday);
-    return monday;
+    startDate = monday;
+  } else if (period === "this_month") {
+    startDate = new Date(
+      Date.UTC(brazilDate.getUTCFullYear(), brazilDate.getUTCMonth(), 1),
+    );
   }
-
-  if (period === "this_month") {
-    return new Date(Date.UTC(brazilDate.getUTCFullYear(), brazilDate.getUTCMonth(), 1));
-  }
-
-  return null;
-}
-
-function toISODate(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-async function fetchCategoryRanking(
-  categoryId: string,
-  period: string,
-): Promise<RankingUser[]> {
-  const startDate = getPeriodStartDate(period);
 
   let query = supabase
     .from("readings")
@@ -60,13 +101,19 @@ async function fetchCategoryRanking(
     .eq("category_id", categoryId);
 
   if (startDate) {
+    const toISODate = (d: Date) => {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
     query = query.gte("reading_date", toISODate(startDate));
   }
 
   const { data: readingsData, error } = await query;
 
   if (error) {
-    console.error("Error fetching category ranking:", error);
+    console.error("Error fetching category readings:", error);
     return [];
   }
 
@@ -74,7 +121,10 @@ async function fetchCategoryRanking(
 
   const pagesByUser = new Map<string, number>();
   for (const r of readingsData) {
-    pagesByUser.set(r.user_id, (pagesByUser.get(r.user_id) || 0) + r.pages);
+    pagesByUser.set(
+      r.user_id,
+      (pagesByUser.get(r.user_id) || 0) + r.pages,
+    );
   }
 
   const sorted = [...pagesByUser.entries()]
@@ -91,7 +141,10 @@ async function fetchCategoryRanking(
   const usersMap = new Map<string, { name: string; avatar_url: string }>();
   if (usersData) {
     for (const u of usersData) {
-      usersMap.set(u.id, { name: u.name || "Usuário", avatar_url: u.avatar_url || "" });
+      usersMap.set(u.id, {
+        name: u.name || "Usuário",
+        avatar_url: u.avatar_url || "",
+      });
     }
   }
 
@@ -103,10 +156,22 @@ async function fetchCategoryRanking(
   }));
 }
 
+async function fetchCategoryRanking(
+  categoryId: string,
+  period: string,
+): Promise<RankingUser[]> {
+  const rpcResult = await fetchCategoryRankingFromRpc(categoryId, period);
+  if (rpcResult !== null) return rpcResult;
+
+  return fetchCategoryRankingFromReadings(categoryId, period);
+}
+
 async function fetchFullRanking(): Promise<RankingUser[]> {
   const { data: statsData, error } = await supabase
     .from("reading_stats")
-    .select("user_id, total_pages, today_pages, this_week_pages, month_pages, avatar_url")
+    .select(
+      "user_id, total_pages, today_pages, this_week_pages, month_pages, avatar_url",
+    )
     .order("total_pages", { ascending: false })
     .limit(10);
 
@@ -125,7 +190,10 @@ async function fetchFullRanking(): Promise<RankingUser[]> {
     .in("id", userIds);
 
   if (profilesError) {
-    console.warn("Profiles are not available for ranking names:", profilesError.message);
+    console.warn(
+      "Profiles are not available for ranking names:",
+      profilesError.message,
+    );
   }
 
   const usersMap = new Map<string, string>();

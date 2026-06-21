@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import useRanking from "../../../../hooks/useRanking";
 import { getCategories } from "../../../../api/database";
 import { RankingTableSkeleton } from "../../../../components/skeletons";
-import { User, Crown, Plus, Minus, Filter } from "lucide-react";
+import { User, Crown, Plus, Minus, Filter, ChevronDown } from "lucide-react";
 import { useSelectedUsers } from "../../../../contexts/SelectedUsersContext";
 import SelectPeriodButton from "./SelectPeriodButton";
 import { useLocalStorage } from "../../../../hooks/useLocalStorage";
@@ -20,6 +20,18 @@ export default function RankingTable() {
 
   const [period, setPeriod] = useLocalStorage<Period>("ranking_type", "all_time");
   const [selectedCategoryId, setSelectedCategoryId] = useLocalStorage<string | null>("ranking_category", null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -32,22 +44,22 @@ export default function RankingTable() {
     period,
   );
 
-const isCategoryActive = !!selectedCategoryId;
+  const isCategoryActive = !!selectedCategoryId;
 
-const displayRanking = isCategoryActive ? categoryRanking : ranking;
-const isRankingLoading = isCategoryActive ? isCategoryLoading : isLoading;
+  const displayRanking = isCategoryActive ? categoryRanking : ranking;
+  const isRankingLoading = isCategoryActive ? isCategoryLoading : isLoading;
 
-const pageField = useMemo(() => {
-  if (isCategoryActive) return "total_pages" as const;
-  switch (period) {
-    case "today": return "today_pages" as const;
-    case "this_week": return "this_week_pages" as const;
-    case "this_month": return "month_pages" as const;
-    default: return "total_pages" as const;
-  }
-}, [isCategoryActive, period]);
+  const pageField = useMemo(() => {
+    if (isCategoryActive) return "total_pages" as const;
+    switch (period) {
+      case "today": return "today_pages" as const;
+      case "this_week": return "this_week_pages" as const;
+      case "this_month": return "month_pages" as const;
+      default: return "total_pages" as const;
+    }
+  }, [isCategoryActive, period]);
 
-const sortedRanking = displayRanking
+  const sortedRanking = displayRanking
     ? [...displayRanking].sort((a, b) => b[pageField] - a[pageField])
     : [];
 
@@ -59,6 +71,11 @@ const sortedRanking = displayRanking
     return "none";
   };
 
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategoryId || !categories) return null;
+    return categories.find((c) => c.id === selectedCategoryId)?.name || null;
+  }, [selectedCategoryId, categories]);
+
   if (isRankingLoading) {
     return <RankingTableSkeleton />;
   }
@@ -67,33 +84,57 @@ const sortedRanking = displayRanking
     <div className="overflow-hidden rounded-sm">
       <div className="flex border-b border-zinc-800">
         <SelectPeriodButton onChange={setPeriod} />
-      </div>
-
-      <div className="flex items-center gap-1.5 border-b border-zinc-800 bg-zinc-850 px-2 py-1.5 overflow-x-auto">
-        <Filter size={12} className="shrink-0 text-zinc-600" strokeWidth={1.5} />
-        <button
-          onClick={() => setSelectedCategoryId(null)}
-          className={`shrink-0 whitespace-nowrap rounded-sm px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-            !selectedCategoryId
-              ? "bg-green-600/20 text-green-400"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-          }`}
-        >
-          Todas
-        </button>
-        {(categories || []).map((cat) => (
+        <div ref={dropdownRef} className="relative">
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategoryId(isCategoryActive && selectedCategoryId === cat.id ? null : cat.id)}
-            className={`shrink-0 whitespace-nowrap rounded-sm px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
-              selectedCategoryId === cat.id
-                ? "bg-green-600/20 text-green-400"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+            onClick={() => setDropdownOpen((v) => !v)}
+            className={`flex cursor-pointer items-center gap-1.5 px-3 py-3 text-xs font-medium transition ${
+              isCategoryActive
+                ? "bg-green-600/15 text-green-400"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40"
             }`}
+            title="Filtrar por categoria"
           >
-            {cat.name}
+            <Filter size={13} strokeWidth={1.5} />
+            {isCategoryActive ? selectedCategoryName : "Categoria"}
+            <ChevronDown size={12} strokeWidth={1.5} />
           </button>
-        ))}
+
+          {dropdownOpen && (
+            <div className="absolute right-0 top-full z-20 mt-0.5 w-44 rounded-sm border border-zinc-700 bg-zinc-950 py-1 shadow-xl">
+              <button
+                onClick={() => {
+                  setSelectedCategoryId(null);
+                  setDropdownOpen(false);
+                }}
+                className={`flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-xs transition ${
+                  !isCategoryActive
+                    ? "bg-green-600/15 text-green-400"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                Todas as categorias
+              </button>
+              {(categories || []).map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCategoryId(
+                      selectedCategoryId === cat.id ? null : cat.id,
+                    );
+                    setDropdownOpen(false);
+                  }}
+                  className={`flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-xs transition ${
+                    selectedCategoryId === cat.id
+                      ? "bg-green-600/15 text-green-400"
+                      : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <table className="w-full text-base">
