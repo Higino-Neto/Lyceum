@@ -32,11 +32,23 @@ export default function RankingTable() {
     period,
   );
 
-  const displayRanking = selectedCategoryId ? categoryRanking : ranking;
-  const isRankingLoading = selectedCategoryId ? isCategoryLoading : isLoading;
+const isCategoryActive = !!selectedCategoryId;
 
-  const sortedRanking = displayRanking
-    ? [...displayRanking].sort((a, b) => b.total_pages - a.total_pages)
+const displayRanking = isCategoryActive ? categoryRanking : ranking;
+const isRankingLoading = isCategoryActive ? isCategoryLoading : isLoading;
+
+const pageField = useMemo(() => {
+  if (isCategoryActive) return "total_pages" as const;
+  switch (period) {
+    case "today": return "today_pages" as const;
+    case "this_week": return "this_week_pages" as const;
+    case "this_month": return "month_pages" as const;
+    default: return "total_pages" as const;
+  }
+}, [isCategoryActive, period]);
+
+const sortedRanking = displayRanking
+    ? [...displayRanking].sort((a, b) => b[pageField] - a[pageField])
     : [];
 
   const canSelectMore = selectedUsers.length < 2;
@@ -72,7 +84,7 @@ export default function RankingTable() {
         {(categories || []).map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setSelectedCategoryId(selectedCategoryId === cat.id ? null : cat.id)}
+            onClick={() => setSelectedCategoryId(isCategoryActive && selectedCategoryId === cat.id ? null : cat.id)}
             className={`shrink-0 whitespace-nowrap rounded-sm px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
               selectedCategoryId === cat.id
                 ? "bg-green-600/20 text-green-400"
@@ -90,7 +102,7 @@ export default function RankingTable() {
           {sortedRanking.length === 0 ? (
             <tr>
               <td colSpan={5} className="px-4 py-8 text-center text-sm text-zinc-500">
-                {selectedCategoryId
+                {isCategoryActive
                   ? "Nenhuma leitura nesta categoria"
                   : "Nenhum dado disponível"}
               </td>
@@ -130,7 +142,7 @@ export default function RankingTable() {
                   <div className="flex items-center gap-2">{user.username}</div>
                 </td>
                 <td className="px-4 py-4 text-right font-semibold text-zinc-300">
-                  {user.total_pages}p
+                  {user[pageField]}p
                 </td>
                 <td className="px-2 py-4 w-10">
                   {currentUserId && user.user_id !== currentUserId && (
