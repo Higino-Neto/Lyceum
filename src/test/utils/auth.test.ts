@@ -2,16 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
   mockCreateUserProfile,
+  mockExchangeCodeForSession,
   mockResend,
   mockResetPasswordForEmail,
+  mockSetSession,
   mockSignInWithPassword,
   mockSignOut,
   mockSignUp,
   mockUpdateUser,
 } = vi.hoisted(() => ({
   mockCreateUserProfile: vi.fn(),
+  mockExchangeCodeForSession: vi.fn(),
   mockResend: vi.fn(),
   mockResetPasswordForEmail: vi.fn(),
+  mockSetSession: vi.fn(),
   mockSignInWithPassword: vi.fn(),
   mockSignOut: vi.fn(),
   mockSignUp: vi.fn(),
@@ -21,8 +25,10 @@ const {
 vi.mock("../../lib/supabase", () => ({
   supabase: {
     auth: {
+      exchangeCodeForSession: mockExchangeCodeForSession,
       resend: mockResend,
       resetPasswordForEmail: mockResetPasswordForEmail,
+      setSession: mockSetSession,
       signInWithPassword: mockSignInWithPassword,
       signOut: mockSignOut,
       signUp: mockSignUp,
@@ -36,6 +42,8 @@ vi.mock("../../api/database", () => ({
 }));
 
 import {
+  consumeAuthRedirectSession,
+  parseAuthRedirectParams,
   requestPasswordReset,
   resendSignupConfirmation,
   signIn,
@@ -48,6 +56,7 @@ import {
 describe("auth utilities", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", "/");
   });
 
   describe("validatePasswordStrength", () => {
@@ -134,6 +143,49 @@ describe("auth utilities", () => {
     expect(mockResetPasswordForEmail).toHaveBeenCalledWith("test@example.com", {
       redirectTo: expect.any(String),
     });
+  });
+
+  it("parses recovery params from a production hash route", () => {
+    const params = parseAuthRedirectParams(
+      "",
+      "#/reset-password?code=recovery-code&type=recovery",
+    );
+
+    expect(params.get("code")).toBe("recovery-code");
+    expect(params.get("type")).toBe("recovery");
+  });
+
+  it("exchanges a recovery code for a session and clears auth params", async () => {
+    const session = { user: { id: "user-123" } };
+    mockExchangeCodeForSession.mockResolvedValue({ data: { session }, error: null });
+    window.history.replaceState(
+      null,
+      "",
+      "/#/reset-password?code=recovery-code&type=recovery",
+    );
+
+    await expect(consumeAuthRedirectSession()).resolves.toBe(session);
+
+    expect(mockExchangeCodeForSession).toHaveBeenCalledWith("recovery-code");
+    expect(window.location.hash).toBe("#/reset-password");
+  });
+
+  it("sets the session from legacy recovery tokens and clears auth params", async () => {
+    const session = { user: { id: "user-123" } };
+    mockSetSession.mockResolvedValue({ data: { session }, error: null });
+    window.history.replaceState(
+      null,
+      "",
+      "/#/reset-password?access_token=access-token&refresh_token=refresh-token&type=recovery",
+    );
+
+    await expect(consumeAuthRedirectSession()).resolves.toBe(session);
+
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: "access-token",
+      refresh_token: "refresh-token",
+    });
+    expect(window.location.hash).toBe("#/reset-password");
   });
 
   it("resends signup confirmation", async () => {

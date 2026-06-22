@@ -7,6 +7,12 @@
   "compression": "maximum",
   "electronLanguages": ["pt-BR", "en-US"],
   "afterPack": "scripts/electron-after-pack.cjs",
+  "protocols": [
+    {
+      "name": "Lyceum",
+      "schemes": ["lyceum"]
+    }
+  ],
   "asarUnpack": [
     "node_modules/better-sqlite3/build/Release/*.node",
     "node_modules/sharp/**/*.{node,dll}",

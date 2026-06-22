@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import { consumeAuthRedirectSession } from "../utils/auth";
 
 interface AuthContextValue {
   user: User | null;
@@ -46,11 +47,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) return;
-      applySession(data.session);
-      setIsLoading(false);
-    });
+    async function bootstrapSession() {
+      try {
+        const recoveredSession = await consumeAuthRedirectSession();
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+        applySession(recoveredSession ?? currentSession);
+      } catch (error) {
+        console.error("Error restoring auth session:", error);
+
+        if (!isMounted) return;
+        applySession(null);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void bootstrapSession();
 
     const {
       data: { subscription },

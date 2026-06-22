@@ -1,7 +1,9 @@
 import { supabase } from "../lib/supabase";
 import { createUserProfile } from "../api/database";
+import type { Session } from "@supabase/supabase-js";
 
 export const MIN_PASSWORD_LENGTH = 8;
+export const DESKTOP_PASSWORD_RESET_REDIRECT_URL = "lyceum://auth/reset-password";
 
 export interface PasswordRequirement {
   id: "length";
@@ -37,9 +39,21 @@ function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, "");
 }
 
+function isElectronRenderer() {
+  return typeof window !== "undefined" && Boolean(window.api?.windowMinimize);
+}
+
 export function getAuthRedirectUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const configuredBaseUrl = import.meta.env.VITE_AUTH_REDIRECT_BASE_URL?.trim();
+
+  if (
+    normalizedPath === "/reset-password" &&
+    isElectronRenderer() &&
+    !import.meta.env.DEV
+  ) {
+    return DESKTOP_PASSWORD_RESET_REDIRECT_URL;
+  }
 
   if (configuredBaseUrl) {
     return `${normalizeBaseUrl(configuredBaseUrl)}${normalizedPath}`;
@@ -58,6 +72,64 @@ export function getAuthRedirectUrl(path: string) {
   }
 
   return `${origin}${normalizedPath}`;
+}
+
+export function parseAuthRedirectParams(search = "", hash = "") {
+  const params = new URLSearchParams(search.replace(/^\?/, ""));
+  const normalizedHash = hash.replace(/^#/, "");
+
+  if (normalizedHash) {
+    const hashQuery = normalizedHash.includes("?")
+      ? normalizedHash.slice(normalizedHash.indexOf("?") + 1)
+      : normalizedHash;
+
+    if (hashQuery.includes("=")) {
+      new URLSearchParams(hashQuery).forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
+  }
+
+  return params;
+}
+
+function clearAuthRedirectParamsFromUrl() {
+  if (typeof window === "undefined" || !window.history?.replaceState) return;
+
+  const resetRoute = window.location.hash.startsWith("#/")
+    ? "#/reset-password"
+    : import.meta.env.DEV
+      ? "/reset-password"
+      : "#/reset-password";
+  window.history.replaceState(null, document.title, resetRoute);
+}
+
+export async function consumeAuthRedirectSession(): Promise<Session | null> {
+  if (typeof window === "undefined") return null;
+
+  const params = parseAuthRedirectParams(window.location.search, window.location.hash);
+  const code = params.get("code");
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    clearAuthRedirectParamsFromUrl();
+    return data.session ?? null;
+  }
+
+  if (accessToken && refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) throw error;
+    clearAuthRedirectParamsFromUrl();
+    return data.session ?? null;
+  }
+
+  return null;
 }
 
 async function ensureUserProfile(userId?: string, email?: string | null) {

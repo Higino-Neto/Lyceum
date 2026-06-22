@@ -116,6 +116,8 @@ const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 const PRELOAD_ENTRY = path.join(MAIN_DIST, "preload.cjs");
+const APP_PROTOCOL = "lyceum";
+const PASSWORD_RESET_DEEP_LINK_ROUTE = "/reset-password";
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -123,6 +125,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
+let pendingAuthDeepLink: string | null = null;
 
 type LyceumConversionModule = typeof import("../src/lib/lyceum");
 type PdfToEpubModule = typeof import("../src/lib/pdf-to-epub");
@@ -2543,6 +2546,69 @@ function isReadingRouteUrl(currentUrl: string): boolean {
   }
 }
 
+function appendUrlSearchParams(target: URLSearchParams, source: string) {
+  if (!source.includes("=")) return;
+
+  new URLSearchParams(source.replace(/^\?/, "")).forEach((value, key) => {
+    target.set(key, value);
+  });
+}
+
+function parseAuthDeepLink(rawUrl: string) {
+  try {
+    const parsedUrl = new URL(rawUrl);
+
+    if (parsedUrl.protocol !== `${APP_PROTOCOL}:`) {
+      return null;
+    }
+
+    const normalizedHost = parsedUrl.hostname.toLowerCase();
+    const normalizedPath = parsedUrl.pathname.replace(/^\/+/, "").toLowerCase();
+    const isPasswordResetLink =
+      (normalizedHost === "auth" && normalizedPath === "reset-password") ||
+      normalizedHost === "reset-password" ||
+      normalizedPath === "reset-password";
+
+    if (!isPasswordResetLink) {
+      return null;
+    }
+
+    const params = new URLSearchParams(parsedUrl.search);
+    const hash = parsedUrl.hash.replace(/^#/, "");
+
+    if (hash) {
+      const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : hash;
+      appendUrlSearchParams(params, hashQuery);
+    }
+
+    return {
+      route: PASSWORD_RESET_DEEP_LINK_ROUTE,
+      params: Object.fromEntries(params.entries()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isAuthDeepLink(candidate: string) {
+  return parseAuthDeepLink(candidate) !== null;
+}
+
+function registerDefaultAppProtocol() {
+  try {
+    if ((process as any).defaultApp && process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath, [
+        path.resolve(process.argv[1]),
+      ]);
+      return;
+    }
+
+    app.setAsDefaultProtocolClient(APP_PROTOCOL);
+  } catch (error) {
+    console.error("[Main] Failed to register app protocol:", error);
+  }
+}
+
 function loadRendererRoute(
   targetWindow: ElectronBrowserWindow,
   route = "/",
@@ -2569,10 +2635,33 @@ function loadRendererRoute(
   }
 }
 
-function createWindow() {
+function createWindow(route = "/", params?: Record<string, string | undefined>) {
   win = createAppWindow();
   win.maximize();
-  loadRendererRoute(win);
+  loadRendererRoute(win, route, params);
+}
+
+function handleAuthDeepLink(rawUrl: string) {
+  const deepLink = parseAuthDeepLink(rawUrl);
+
+  if (!deepLink) {
+    return false;
+  }
+
+  if (!app.isReady()) {
+    pendingAuthDeepLink = rawUrl;
+    return true;
+  }
+
+  if (!win) {
+    createWindow(deepLink.route, deepLink.params);
+    return true;
+  }
+
+  if (win.isMinimized()) win.restore();
+  win.focus();
+  loadRendererRoute(win, deepLink.route, deepLink.params);
+  return true;
 }
 
 function getTargetWindow(event: IpcMainInvokeEvent): ElectronBrowserWindow | null {
@@ -3527,6 +3616,12 @@ if (!gotTheLock) {
 } else {
   app.on("second-instance", async (_, commandLine) => {
     console.log("[Main] second-instance event triggered", { commandLine });
+
+    const authDeepLink = commandLine.find(isAuthDeepLink);
+    if (authDeepLink && handleAuthDeepLink(authDeepLink)) {
+      console.log("[Main] Handled auth deep link from second instance");
+      return;
+    }
     
     if (win) {
       if (win.isMinimized()) win.restore();
@@ -3552,6 +3647,13 @@ if (!gotTheLock) {
     }
   });
 }
+
+registerDefaultAppProtocol();
+
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  handleAuthDeepLink(url);
+});
 
 async function handleFileArg(filePath: string) {
   console.log("[Main] handleFileArg called with:", filePath);
@@ -3589,6 +3691,7 @@ async function handleFileArg(filePath: string) {
 }
 
 const startArgs = process.argv.slice(1);
+const startupAuthDeepLink = startArgs.find(isAuthDeepLink);
 const startupFile = startArgs.find(
   (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
 );
@@ -3672,7 +3775,11 @@ app.whenReady().then(async () => {
   setupUsbDeviceWatcher();
 
   importCategoriesFromFolders();
-  createWindow();
+
+  const initialAuthDeepLink = pendingAuthDeepLink ?? startupAuthDeepLink;
+  const initialAuthRoute = initialAuthDeepLink ? parseAuthDeepLink(initialAuthDeepLink) : null;
+  createWindow(initialAuthRoute?.route ?? "/", initialAuthRoute?.params);
+  pendingAuthDeepLink = null;
 
   setBooksWindow(win);
   setLibraryWindow(win);
@@ -3686,7 +3793,7 @@ app.whenReady().then(async () => {
     console.error("[Main] Background library scan failed:", error);
   });
 
-  if (startupFile) {
+  if (!initialAuthRoute && startupFile) {
     console.log("[Main] Startup file detected, waiting for window to load...");
     win?.webContents.once("did-finish-load", () => {
       console.log("[Main] Window loaded, now calling handleFileArg...");
