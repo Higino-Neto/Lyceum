@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
   type DragEvent as ReactDragEvent,
 } from "react";
@@ -8,10 +9,13 @@ import "@atomic-editor/editor/styles.css";
 import {
   BookMarked,
   BookOpen,
+  Clock,
   Edit3,
   FileText,
   FolderOpen,
   GripVertical,
+  Hourglass,
+  ListChecks,
   MoreVertical,
   NotebookText,
   Plus,
@@ -197,6 +201,163 @@ function StatusActionMenu({
   );
 }
 
+// function StatusBookRow({
+//   item,
+//   index,
+//   readings,
+//   externalPages,
+//   isSelected,
+//   openMenu,
+//   isDragging,
+//   showDropBefore,
+//   showDropAfter,
+//   onOpen,
+//   onSelect,
+//   onStatusChange,
+//   onSetPrimary,
+//   onCoverChange,
+//   onMetadataSearch,
+//   onDelete,
+//   onEditPages,
+//   onDragStart,
+//   onDragEnd,
+//   onDragOver,
+//   onDrop,
+//   onToggleMenu,
+// }: {
+//   item: ReadingStatusItem;
+//   index: number;
+//   readings: TableReading[];
+//   externalPages: number;
+//   isSelected: boolean;
+//   openMenu: boolean;
+//   isDragging: boolean;
+//   showDropBefore: boolean;
+//   showDropAfter: boolean;
+//   onOpen: (book: BookWithThumbnail) => void;
+//   onSelect: (itemId: string) => void;
+//   onStatusChange: (itemId: string, status: ReadingStatus) => void;
+//   onSetPrimary: (itemId: string) => void;
+//   onCoverChange: (item: ReadingStatusItem) => void;
+//   onMetadataSearch: (item: ReadingStatusItem) => void;
+//   onDelete: (itemId: string) => void;
+//   onEditPages: (item: ReadingStatusItem) => void;
+//   onDragStart: (event: ReactDragEvent<HTMLElement>, itemId: string) => void;
+//   onDragEnd: () => void;
+//   onDragOver: (event: ReactDragEvent<HTMLElement>, item: ReadingStatusItem, index: number) => void;
+//   onDrop: (event: ReactDragEvent<HTMLElement>) => void;
+//   onToggleMenu: (itemId: string) => void;
+// }) {
+//   const title = getTitleWithoutExtension(item.title, item.book?.fileType);
+//   const meta = STATUS_VISUAL[item.status];
+//   const totalPages = getStatusItemTotalPages(item);
+//   const readPages = getStatusItemReadPages(item, externalPages);
+//   const progress = totalPages > 0 ? Math.min(100, Math.round((readPages / totalPages) * 100)) : 0;
+//   const remaining = totalPages > 0 ? Math.max(0, totalPages - Math.min(readPages, totalPages)) : null;
+
+//   return (
+//     <article
+//       draggable
+//       onClick={() => onSelect(item.id)}
+//       onDragStart={(event) => onDragStart(event, item.id)}
+//       onDragEnd={onDragEnd}
+//       onDragOver={(event) => onDragOver(event, item, index)}
+//       onDrop={onDrop}
+//       className={`group relative grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-sm border bg-zinc-900/80 p-3 transition ${
+//         isDragging ? "border-green-500/60 opacity-45" : isSelected ? "border-green-500/60 bg-green-500/[0.04]" : "border-zinc-800 hover:border-zinc-700"
+//       }`}
+//     >
+//       {showDropBefore && <div className="absolute -top-2 left-2 right-2 h-1 rounded-sm bg-green-400" />}
+//       {showDropAfter && <div className="absolute -bottom-2 left-2 right-2 h-1 rounded-sm bg-green-400" />}
+//       <div className="relative">
+//         <StatusCoverButton item={item} onCoverChange={onCoverChange} />
+//         <div className="absolute left-2 top-2 flex h-6 w-6 cursor-grab items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/80 text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100">
+//           <GripVertical size={13} />
+//         </div>
+//       </div>
+
+//       <div className="min-w-0 space-y-3">
+//         <div className="min-w-0">
+//           <div className="flex flex-wrap items-center gap-2">
+//             {item.isPrimary && (
+//               <span className="inline-flex items-center gap-1 rounded-sm bg-green-500/15 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-green-300">
+//                 <Star size={11} fill="currentColor" />
+//                 Leitura principal
+//               </span>
+//             )}
+//             <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] ${meta.border} ${meta.bg} ${meta.text}`}>
+//               <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+//               {meta.label}
+//             </span>
+//           </div>
+//           <h3 className="mt-2 line-clamp-1 text-base font-semibold leading-5 text-zinc-100">{title}</h3>
+//           <p className="mt-1 truncate text-xs text-zinc-500">
+//             {item.author || item.book?.author || (item.book ? getBookFolderLabel(item.book.filePath) : "Livro manual")}
+//           </p>
+//         </div>
+
+//         <div>
+//           <div className="mb-1 flex items-center justify-between text-xs">
+//             <span className="text-zinc-500">Progresso</span>
+//             <span className="font-medium text-zinc-200">
+//               {totalPages > 0 ? `${progress}% - ${Math.min(readPages, totalPages)} / ${totalPages} pags.` : `${readPages} pags.`}
+//             </span>
+//           </div>
+//           <div className="h-2 overflow-hidden rounded-sm bg-zinc-800">
+//             <div className={`h-full rounded-sm ${item.status === "paused" ? "bg-amber-500" : "bg-green-500"}`} style={{ width: `${progress}%` }} />
+//           </div>
+//         </div>
+
+//         <div className="grid gap-2 text-xs text-zinc-500 md:grid-cols-4">
+//           <div>
+//             <p className="uppercase tracking-wide text-zinc-600">Pagina atual</p>
+//             <p className="mt-1 text-zinc-200">{item.manualCurrentPage || 0}</p>
+//           </div>
+//           <div>
+//             <p className="uppercase tracking-wide text-zinc-600">Restantes</p>
+//             <p className="mt-1 text-zinc-200">{remaining === null ? "-" : remaining}</p>
+//           </div>
+//           <div>
+//             <p className="uppercase tracking-wide text-zinc-600">Ultima leitura</p>
+//             <p className="mt-1 truncate text-zinc-200">{formatLastReading(item, readings)}</p>
+//           </div>
+//           <div>
+//             <p className="uppercase tracking-wide text-zinc-600">Registros</p>
+//             <p className="mt-1 text-zinc-200">{readPages}</p>
+//           </div>
+//         </div>
+//       </div>
+
+//       <div className="flex items-start gap-2">
+//         {item.book && (
+//           <button
+//             type="button"
+//             onClick={(event) => {
+//               event.stopPropagation();
+//               onOpen(item.book!);
+//             }}
+//             className="flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+//             title="Abrir livro"
+//           >
+//             <BookOpen size={14} />
+//             Abrir
+//           </button>
+//         )}
+//         <StatusActionMenu
+//           item={item}
+//           open={openMenu}
+//           onToggle={() => onToggleMenu(item.id)}
+//           onSetPrimary={() => onSetPrimary(item.id)}
+//           onEditPages={() => onEditPages(item)}
+//           onMetadataSearch={() => onMetadataSearch(item)}
+//           onDelete={() => onDelete(item.id)}
+//           onStatusChange={(status) => onStatusChange(item.id, status)}
+//         />
+//       </div>
+//     </article>
+//   );
+// }
+
 function StatusBookRow({
   item,
   index,
@@ -250,6 +411,7 @@ function StatusBookRow({
   const readPages = getStatusItemReadPages(item, externalPages);
   const progress = totalPages > 0 ? Math.min(100, Math.round((readPages / totalPages) * 100)) : 0;
   const remaining = totalPages > 0 ? Math.max(0, totalPages - Math.min(readPages, totalPages)) : null;
+  const lastReading = formatLastReading(item, readings);
 
   return (
     <article
@@ -259,72 +421,90 @@ function StatusBookRow({
       onDragEnd={onDragEnd}
       onDragOver={(event) => onDragOver(event, item, index)}
       onDrop={onDrop}
-      className={`group relative grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-sm border bg-zinc-900/80 p-3 transition ${
-        isDragging ? "border-green-500/60 opacity-45" : isSelected ? "border-green-500/60 bg-green-500/[0.04]" : "border-zinc-800 hover:border-zinc-700"
+      className={`group relative flex select-none cursor-pointer items-center gap-3 rounded-sm border px-3 py-2.5 transition-colors duration-150 ${
+        isDragging
+          ? "border-green-500/50 bg-zinc-900/40 opacity-40"
+          : isSelected
+          ? "border-green-500/40 bg-green-500/[0.05]"
+          : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
       }`}
     >
-      {showDropBefore && <div className="absolute -top-2 left-2 right-2 h-1 rounded-sm bg-green-400" />}
-      {showDropAfter && <div className="absolute -bottom-2 left-2 right-2 h-1 rounded-sm bg-green-400" />}
-      <div className="relative">
+      {showDropBefore && <div className="absolute -top-[5px] left-3 right-3 h-0.5 rounded-sm bg-green-400" />}
+      {showDropAfter && <div className="absolute -bottom-[5px] left-3 right-3 h-0.5 rounded-sm bg-green-400" />}
+
+      {/* Drag handle — own hit area, not stacked on the cover */}
+      <div className="flex h-9 w-3.5 shrink-0 cursor-grab items-center justify-center text-zinc-700 opacity-0 transition-opacity group-hover:opacity-100">
+        <GripVertical size={14} />
+      </div>
+
+      {/* Cover */}
+      <div className="shrink-0">
         <StatusCoverButton item={item} onCoverChange={onCoverChange} />
-        <div className="absolute left-2 top-2 flex h-6 w-6 cursor-grab items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/80 text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100">
-          <GripVertical size={13} />
+      </div>
+
+      {/* Main content */}
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              {item.isPrimary && (
+                <Star size={12} className="shrink-0 fill-green-400 text-green-400" aria-label="Leitura principal" />
+              )}
+              <h3 className="truncate text-[13.5px] font-semibold leading-tight text-zinc-100">{title}</h3>
+            </div>
+            <p className="mt-0.5 truncate text-[11.5px] text-zinc-500">
+              {item.author || item.book?.author || (item.book ? getBookFolderLabel(item.book.filePath) : "Livro manual")}
+            </p>
+          </div>
+
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm border px-2 py-0.5 text-[11px] ${meta.border} ${meta.bg} ${meta.text}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+          </span>
+        </div>
+
+        {/* Progress */}
+        <div className="flex items-center gap-2.5">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-zinc-800">
+            <div
+              className={`h-full rounded-sm transition-[width] duration-300 ${
+                item.status === "paused" ? "bg-amber-500" : "bg-green-500"
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+            {totalPages > 0 ? `${progress}% · ${Math.min(readPages, totalPages)}/${totalPages}` : `${readPages} pags.`}
+          </span>
+        </div>
+
+        {/* Secondary metadata — single line, was a 4-cell grid */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
+          <span className="inline-flex items-center gap-1" title="Página atual">
+            <BookMarked size={11} />
+            pág. {item.manualCurrentPage || 0}
+          </span>
+          {remaining !== null && (
+            <span className="inline-flex items-center gap-1" title="Páginas restantes">
+              <Hourglass size={11} />
+              {remaining} restantes
+            </span>
+          )}
+          <span className="inline-flex min-w-0 items-center gap-1" title="Última leitura">
+            <Clock size={11} />
+            <span className="truncate">{lastReading}</span>
+          </span>
+          <span className="inline-flex items-center gap-1" title="Páginas registradas">
+            <ListChecks size={11} />
+            {readPages} registrados
+          </span>
         </div>
       </div>
 
-      <div className="min-w-0 space-y-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {item.isPrimary && (
-              <span className="inline-flex items-center gap-1 rounded-sm bg-green-500/15 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-green-300">
-                <Star size={11} fill="currentColor" />
-                Leitura principal
-              </span>
-            )}
-            <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] ${meta.border} ${meta.bg} ${meta.text}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-              {meta.label}
-            </span>
-          </div>
-          <h3 className="mt-2 line-clamp-1 text-base font-semibold leading-5 text-zinc-100">{title}</h3>
-          <p className="mt-1 truncate text-xs text-zinc-500">
-            {item.author || item.book?.author || (item.book ? getBookFolderLabel(item.book.filePath) : "Livro manual")}
-          </p>
-        </div>
-
-        <div>
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Progresso</span>
-            <span className="font-medium text-zinc-200">
-              {totalPages > 0 ? `${progress}% - ${Math.min(readPages, totalPages)} / ${totalPages} pags.` : `${readPages} pags.`}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-sm bg-zinc-800">
-            <div className={`h-full rounded-sm ${item.status === "paused" ? "bg-amber-500" : "bg-green-500"}`} style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-
-        <div className="grid gap-2 text-xs text-zinc-500 md:grid-cols-4">
-          <div>
-            <p className="uppercase tracking-wide text-zinc-600">Pagina atual</p>
-            <p className="mt-1 text-zinc-200">{item.manualCurrentPage || 0}</p>
-          </div>
-          <div>
-            <p className="uppercase tracking-wide text-zinc-600">Restantes</p>
-            <p className="mt-1 text-zinc-200">{remaining === null ? "-" : remaining}</p>
-          </div>
-          <div>
-            <p className="uppercase tracking-wide text-zinc-600">Ultima leitura</p>
-            <p className="mt-1 truncate text-zinc-200">{formatLastReading(item, readings)}</p>
-          </div>
-          <div>
-            <p className="uppercase tracking-wide text-zinc-600">Registros</p>
-            <p className="mt-1 text-zinc-200">{readPages}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-start gap-2">
+      {/* Actions */}
+      <div className="flex shrink-0 items-center gap-1.5">
         {item.book && (
           <button
             type="button"
@@ -332,11 +512,11 @@ function StatusBookRow({
               event.stopPropagation();
               onOpen(item.book!);
             }}
-            className="flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100"
             title="Abrir livro"
+            aria-label="Abrir livro"
           >
             <BookOpen size={14} />
-            Abrir
           </button>
         )}
         <StatusActionMenu
@@ -440,6 +620,99 @@ function PageSettingsDialog({
   );
 }
 
+// function AtomicEditor({
+//   selectedItem,
+//   vaultPath,
+//   notePath,
+//   content,
+//   loading,
+//   saving,
+//   onChooseVault,
+//   onSave,
+// }: {
+//   selectedItem: ReadingStatusItem | null;
+//   vaultPath: string | null;
+//   notePath: string | null;
+//   content: string;
+//   loading: boolean;
+//   saving: boolean;
+//   onChooseVault: () => void;
+//   onSave: (content: string, properties: NotePropertiesDraft) => void;
+// }) {
+//   const [draft, setDraft] = useState(() => stripFrontmatter(content));
+//   const [propDraft, setPropDraft] = useState<NotePropertiesDraft>(
+//     () => emptyNotePropertiesDraft(selectedItem),
+//   );
+
+//   useEffect(() => {
+//     setDraft(stripFrontmatter(content));
+//   }, [content, selectedItem?.id]);
+
+//   useEffect(() => {
+//     setPropDraft(emptyNotePropertiesDraft(selectedItem));
+//   }, [selectedItem?.id]);
+
+//   return (
+//     <aside className="flex min-h-0 flex-col rounded-sm border border-zinc-800 bg-zinc-900">
+//       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-800 p-4">
+//         <div className="min-w-0">
+//           <div className="flex items-center gap-2">
+//             <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-green-500/40 bg-green-500/10 text-green-300">
+//               <NotebookText size={16} />
+//             </div>
+//             <div>
+//               <h2 className="text-sm font-semibold text-zinc-100">Atomic Editor</h2>
+//               <p className="mt-0.5 truncate text-xs text-zinc-500">{selectedItem ? selectedItem.title : "Selecione um livro"}</p>
+//             </div>
+//           </div>
+//         </div>
+//         <button type="button" onClick={onChooseVault} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-300 hover:bg-zinc-800">
+//           <FolderOpen size={13} />
+//           {vaultPath ? "Trocar vault" : "Definir vault"}
+//         </button>
+//       </div>
+//       <div className="border-b border-zinc-800 p-3">
+//         <div className="flex min-w-0 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs">
+//           <span className={`h-1.5 w-1.5 rounded-full ${vaultPath ? "bg-green-400" : "bg-amber-400"}`} />
+//           <span className="text-zinc-500">{vaultPath ? "Vault conectado" : "Sem Vault definido"}</span>
+//           <span className="min-w-0 truncate text-zinc-300">{notePath || vaultPath || "Notas ficam no SQLite ate escolher uma pasta"}</span>
+//         </div>
+//       </div>
+//       {selectedItem && (
+//         <NoteProperties item={selectedItem} draft={propDraft} onChange={setPropDraft} />
+//       )}
+//       <div className="min-h-0 flex-1 p-3">
+//         {loading ? (
+//           <div className="flex h-full items-center justify-center text-sm text-zinc-500">Carregando nota...</div>
+//         ) : !selectedItem ? (
+//           <div className="flex h-full items-center justify-center rounded-sm border border-dashed border-zinc-800 bg-zinc-950 px-4 text-center text-sm text-zinc-500">
+//             Selecione um livro para escrever notas de leitura.
+//           </div>
+//         ) : (
+//           <div className="h-full rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500">
+//             <AtomicCodeMirrorEditor
+//               key={selectedItem.id}
+//               documentId={selectedItem.id}
+//               markdownSource={draft}
+//               onMarkdownChange={setDraft}
+//               onLinkClick={(url) => {
+//                 window.open(url, "_blank", "noopener,noreferrer");
+//               }}
+//             />
+//           </div>
+//         )}
+//       </div>
+//       <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500">
+//         <span className="min-w-0 truncate">{notePath ? `Arquivo: ${notePath.split(/[/\\]/).pop()}` : "Arquivo markdown criado ao salvar com Vault definido"}</span>
+//         <button type="button" onClick={() => onSave(draft, propDraft)} disabled={!selectedItem || saving} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60">
+//           {saving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
+//           Salvar
+//         </button>
+//       </div>
+//     </aside>
+//   );
+// }
+
 function AtomicEditor({
   selectedItem,
   vaultPath,
@@ -472,44 +745,64 @@ function AtomicEditor({
     setPropDraft(emptyNotePropertiesDraft(selectedItem));
   }, [selectedItem?.id]);
 
+  const originalDraft = useMemo(() => stripFrontmatter(content), [content]);
+  const isDirty = !loading && !!selectedItem && draft !== originalDraft;
+  const wordCount = useMemo(() => {
+    const trimmed = draft.trim();
+    return trimmed ? trimmed.split(/\s+/).length : 0;
+  }, [draft]);
+
   return (
     <aside className="flex min-h-0 flex-col rounded-sm border border-zinc-800 bg-zinc-900">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-800 p-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-green-500/40 bg-green-500/10 text-green-300">
-              <NotebookText size={16} />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-100">Atomic Editor</h2>
-              <p className="mt-0.5 truncate text-xs text-zinc-500">{selectedItem ? selectedItem.title : "Selecione um livro"}</p>
-            </div>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 border-b border-zinc-800 p-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-green-500/40 bg-green-500/10 text-green-300">
+            <NotebookText size={16} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-zinc-100">Atomic Editor</h2>
+            <p className="mt-0.5 truncate text-xs text-zinc-500">
+              {selectedItem ? selectedItem.title : "Selecione um livro"}
+            </p>
           </div>
         </div>
-        <button type="button" onClick={onChooseVault} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-300 hover:bg-zinc-800">
+        <button
+          type="button"
+          onClick={onChooseVault}
+          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-300 transition-colors hover:bg-zinc-800"
+        >
           <FolderOpen size={13} />
           {vaultPath ? "Trocar vault" : "Definir vault"}
         </button>
       </div>
-      <div className="border-b border-zinc-800 p-3">
-        <div className="flex min-w-0 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs">
-          <span className={`h-1.5 w-1.5 rounded-full ${vaultPath ? "bg-green-400" : "bg-amber-400"}`} />
-          <span className="text-zinc-500">{vaultPath ? "Vault conectado" : "Sem Vault definido"}</span>
-          <span className="min-w-0 truncate text-zinc-300">{notePath || vaultPath || "Notas ficam no SQLite ate escolher uma pasta"}</span>
-        </div>
+
+      {/* Status do vault */}
+      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2.5 text-xs">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${vaultPath ? "bg-green-400" : "bg-amber-400"}`} />
+        <span className="shrink-0 text-zinc-500">{vaultPath ? "Vault conectado" : "Sem vault definido"}</span>
+        <span className="min-w-0 flex-1 truncate text-zinc-300" title={notePath || vaultPath || undefined}>
+          {notePath || vaultPath || "Notas ficam no SQLite até escolher uma pasta"}
+        </span>
       </div>
-      {selectedItem && (
-        <NoteProperties item={selectedItem} draft={propDraft} onChange={setPropDraft} />
-      )}
-      <div className="min-h-0 flex-1 p-3">
+
+      {selectedItem && <NoteProperties item={selectedItem} draft={propDraft} onChange={setPropDraft} />}
+
+      {/* Corpo do editor */}
+      <div className="min-h-0 flex-1 px-3 pb-3 pt-2.5">
         {loading ? (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500">Carregando nota...</div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-zinc-500">
+            <RefreshCw size={16} className="animate-spin text-zinc-600" />
+            Carregando nota...
+          </div>
         ) : !selectedItem ? (
-          <div className="flex h-full items-center justify-center rounded-sm border border-dashed border-zinc-800 bg-zinc-950 px-4 text-center text-sm text-zinc-500">
-            Selecione um livro para escrever notas de leitura.
+          <div className="flex h-full flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-zinc-800 px-6 text-center">
+            <NotebookText size={18} className="mb-1 text-zinc-700" />
+            <p className="text-sm text-zinc-400">Nenhum livro selecionado</p>
+            <p className="text-xs text-zinc-600">Escolha um livro na lista para abrir ou criar suas notas de leitura.</p>
           </div>
         ) : (
-          <div className="h-full rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 focus-within:border-green-500">
+          <div className="h-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-200 transition-colors focus-within:border-green-500/60">
             <AtomicCodeMirrorEditor
               key={selectedItem.id}
               documentId={selectedItem.id}
@@ -522,16 +815,37 @@ function AtomicEditor({
           </div>
         )}
       </div>
+
+      {/* Rodapé */}
       <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500">
-        <span className="min-w-0 truncate">{notePath ? `Arquivo: ${notePath.split(/[/\\]/).pop()}` : "Arquivo markdown criado ao salvar com Vault definido"}</span>
-        <button type="button" onClick={() => onSave(draft, propDraft)} disabled={!selectedItem || saving} className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 truncate">
+            {notePath ? notePath.split(/[/\\]/).pop() : "Criado ao salvar, com vault definido"}
+          </span>
+          {selectedItem && !loading && (
+            <span className="hidden shrink-0 text-zinc-700 sm:inline">{wordCount} palavras</span>
+          )}
+          {isDirty && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-amber-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              Não salvo
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onSave(draft, propDraft)}
+          disabled={!selectedItem || saving}
+          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 font-medium text-zinc-950 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
           {saving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
-          Salvar
+          {saving ? "Salvando..." : "Salvar"}
         </button>
       </div>
     </aside>
   );
 }
+
 
 export default function StatusBoard({
   items,

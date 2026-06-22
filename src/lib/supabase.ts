@@ -49,6 +49,7 @@ function createDisabledSupabaseClient(): SupabaseClient {
       signInWithPassword: authResult,
       resetPasswordForEmail: authResult,
       exchangeCodeForSession: authResult,
+      verifyOtp: authResult,
       setSession: authResult,
       resend: authResult,
       updateUser: authResult,

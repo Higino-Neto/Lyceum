@@ -10,6 +10,7 @@ const {
   mockSignOut,
   mockSignUp,
   mockUpdateUser,
+  mockVerifyOtp,
 } = vi.hoisted(() => ({
   mockCreateUserProfile: vi.fn(),
   mockExchangeCodeForSession: vi.fn(),
@@ -20,6 +21,7 @@ const {
   mockSignOut: vi.fn(),
   mockSignUp: vi.fn(),
   mockUpdateUser: vi.fn(),
+  mockVerifyOtp: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -33,6 +35,7 @@ vi.mock("../../lib/supabase", () => ({
       signOut: mockSignOut,
       signUp: mockSignUp,
       updateUser: mockUpdateUser,
+      verifyOtp: mockVerifyOtp,
     },
   },
 }));
@@ -167,6 +170,24 @@ describe("auth utilities", () => {
     await expect(consumeAuthRedirectSession()).resolves.toBe(session);
 
     expect(mockExchangeCodeForSession).toHaveBeenCalledWith("recovery-code");
+    expect(window.location.hash).toBe("#/reset-password");
+  });
+
+  it("verifies a recovery token hash for a session and clears auth params", async () => {
+    const session = { user: { id: "user-123" } };
+    mockVerifyOtp.mockResolvedValue({ data: { session }, error: null });
+    window.history.replaceState(
+      null,
+      "",
+      "/#/reset-password?token_hash=recovery-token-hash&type=recovery",
+    );
+
+    await expect(consumeAuthRedirectSession()).resolves.toBe(session);
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      token_hash: "recovery-token-hash",
+      type: "recovery",
+    });
     expect(window.location.hash).toBe("#/reset-password");
   });
 

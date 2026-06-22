@@ -109,8 +109,19 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
 
   const params = parseAuthRedirectParams(window.location.search, window.location.hash);
   const code = params.get("code");
+  const tokenHash = params.get("token_hash");
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
+
+  if (tokenHash) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "recovery",
+    });
+    if (error) throw error;
+    clearAuthRedirectParamsFromUrl();
+    return data.session ?? null;
+  }
 
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);

@@ -527,11 +527,11 @@ export default function AtlasPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-zinc-100">Atlas</h1>
-            <p className="text-sm text-zinc-500">
+            {/* <p className="text-sm text-zinc-500">
               {view === "roadmap"
                 ? "Construa trilhas de leitura por etapas."
                 : "Organize a biblioteca por estado de leitura."}
-            </p>
+            </p> */}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
