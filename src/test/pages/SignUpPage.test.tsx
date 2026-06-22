@@ -4,11 +4,17 @@ import { BrowserRouter } from "react-router-dom";
 import SignUp from "../../pages/SignUpPage";
 
 const mockSignUp = vi.fn();
+const mockResendSignupConfirmation = vi.fn();
+const mockValidatePasswordStrength = vi.fn<[string], string | null>(() => null);
 
 vi.mock("../../utils/auth", () => ({
-  signUp: (...args: unknown[]) => mockSignUp(...args),
-  validatePasswordStrength: vi.fn(() => null),
-  MIN_PASSWORD_LENGTH: 10,
+  signUp: (email: string, password: string, name?: string) => mockSignUp(email, password, name),
+  resendSignupConfirmation: (email: string) => mockResendSignupConfirmation(email),
+  validatePasswordStrength: (password: string) => mockValidatePasswordStrength(password),
+  getPasswordRequirements: (password: string) => [
+    { id: "length", label: "Pelo menos 8 caracteres", met: password.length >= 8 },
+  ],
+  MIN_PASSWORD_LENGTH: 8,
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -22,13 +28,14 @@ vi.mock("react-hot-toast", () => ({
 describe("SignUpPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockValidatePasswordStrength.mockReturnValue(null);
   });
 
   const renderSignUp = () => {
     return render(
       <BrowserRouter>
         <SignUp />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
   };
 
@@ -37,62 +44,56 @@ describe("SignUpPage", () => {
     expect(screen.getByRole("heading", { name: /criar conta/i })).toBeInTheDocument();
   });
 
-  it("renders email, password and confirm password inputs", () => {
+  it("renders name, email, password and confirm password inputs", () => {
     renderSignUp();
-    expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Senha")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Confirmar senha")).toBeInTheDocument();
-  });
-
-  it("renders submit button", () => {
-    renderSignUp();
-    const buttons = screen.getAllByRole("button", { name: /criar conta/i });
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Nome")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Senha")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirmar senha")).toBeInTheDocument();
   });
 
   it("renders link to signin page", () => {
     renderSignUp();
-    expect(screen.getByText("Já tem conta?")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /entrar/i })).toHaveAttribute("href", "/signin");
   });
 
-  it("updates email state on input change", () => {
-    renderSignUp();
-    const emailInput = screen.getByPlaceholderText("Email");
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    expect(emailInput).toHaveValue("test@example.com");
-  });
-
-  it("updates password state on input change", () => {
-    renderSignUp();
-    const passwordInput = screen.getByPlaceholderText("Senha");
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
-    expect(passwordInput).toHaveValue("password123");
-  });
-
-  it("updates confirm password state on input change", () => {
-    renderSignUp();
-    const confirmPasswordInput = screen.getByPlaceholderText("Confirmar senha");
-    fireEvent.change(confirmPasswordInput, { target: { value: "password123" } });
-    expect(confirmPasswordInput).toHaveValue("password123");
-  });
-
-  it("shows error message when passwords don't match", async () => {
+  it("shows error message when passwords do not match", async () => {
     const toast = await import("react-hot-toast");
     renderSignUp();
 
-    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByPlaceholderText("Senha"), { target: { value: "password123" } });
-    fireEvent.change(screen.getByPlaceholderText("Confirmar senha"), { target: { value: "differentpassword" } });
-    
-    const form = document.querySelector("form");
-    fireEvent.submit(form!);
-    
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "Password123" } });
+    fireEvent.change(screen.getByLabelText("Confirmar senha"), { target: { value: "Different123" } });
+    fireEvent.submit(document.querySelector("form")!);
+
     expect(toast.default.error).toHaveBeenCalledWith("As senhas não coincidem");
   });
 
-  it("has correct styling classes", () => {
-    const { container } = renderSignUp();
-    const form = container.querySelector("form");
-    expect(form).toHaveClass("space-y-4");
+  it("calls signUp with name, email and password", async () => {
+    mockSignUp.mockResolvedValue({ error: null, needsEmailConfirmation: false });
+    renderSignUp();
+
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ada" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "Password123" } });
+    fireEvent.change(screen.getByLabelText("Confirmar senha"), { target: { value: "Password123" } });
+    fireEvent.submit(document.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledWith("ada@example.com", "Password123", "Ada");
+    });
+  });
+
+  it("shows confirmation state when email confirmation is required", async () => {
+    mockSignUp.mockResolvedValue({ error: null, needsEmailConfirmation: true });
+    renderSignUp();
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "Password123" } });
+    fireEvent.change(screen.getByLabelText("Confirmar senha"), { target: { value: "Password123" } });
+    fireEvent.submit(document.querySelector("form")!);
+
+    expect(await screen.findByRole("heading", { name: /confirme seu email/i })).toBeInTheDocument();
+    expect(screen.getByText(/ada@example.com/i)).toBeInTheDocument();
   });
 });

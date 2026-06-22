@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "../../components/ProtectedRoute";
 
 describe("ProtectedRoute", () => {
@@ -8,9 +8,11 @@ describe("ProtectedRoute", () => {
 
   it("shows loading spinner when isLoggedIn is null", () => {
     render(
-      <ProtectedRoute isLoggedIn={null}>
-        {testChild}
-      </ProtectedRoute>
+      <MemoryRouter>
+        <ProtectedRoute isLoggedIn={null}>
+          {testChild}
+        </ProtectedRoute>
+      </MemoryRouter>,
     );
     
     const spinner = document.querySelector(".animate-spin");
@@ -18,23 +20,34 @@ describe("ProtectedRoute", () => {
     expect(screen.queryByTestId("child-content")).not.toBeInTheDocument();
   });
 
-  it("redirects to signup when not logged in", () => {
-    const { container } = render(
+  it("redirects to signin when not logged in", () => {
+    render(
       <MemoryRouter initialEntries={["/protected"]}>
-        <ProtectedRoute isLoggedIn={false}>
-          {testChild}
-        </ProtectedRoute>
-      </MemoryRouter>
+        <Routes>
+          <Route
+            path="/protected"
+            element={
+              <ProtectedRoute isLoggedIn={false}>
+                {testChild}
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/signin" element={<div>Signin page</div>} />
+        </Routes>
+      </MemoryRouter>,
     );
-    
-    expect(container.querySelector("[data-testid='child-content']")).not.toBeInTheDocument();
+
+    expect(screen.getByText("Signin page")).toBeInTheDocument();
+    expect(screen.queryByTestId("child-content")).not.toBeInTheDocument();
   });
 
   it("renders children when logged in", () => {
     render(
-      <ProtectedRoute isLoggedIn={true}>
-        {testChild}
-      </ProtectedRoute>
+      <MemoryRouter>
+        <ProtectedRoute isLoggedIn={true}>
+          {testChild}
+        </ProtectedRoute>
+      </MemoryRouter>,
     );
     
     expect(screen.getByTestId("child-content")).toBeInTheDocument();
@@ -43,9 +56,11 @@ describe("ProtectedRoute", () => {
 
   it("has correct loading styling", () => {
     const { container } = render(
-      <ProtectedRoute isLoggedIn={null}>
-        {testChild}
-      </ProtectedRoute>
+      <MemoryRouter>
+        <ProtectedRoute isLoggedIn={null}>
+          {testChild}
+        </ProtectedRoute>
+      </MemoryRouter>,
     );
     
     const loader = container.firstChild as HTMLElement;

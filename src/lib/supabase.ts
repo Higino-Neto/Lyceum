@@ -47,6 +47,8 @@ function createDisabledSupabaseClient(): SupabaseClient {
       getUser: authResult,
       signUp: authResult,
       signInWithPassword: authResult,
+      resetPasswordForEmail: authResult,
+      resend: authResult,
       updateUser: authResult,
       signOut: authResult,
       getSession: async () => ({ data: { session: null }, error: null }),

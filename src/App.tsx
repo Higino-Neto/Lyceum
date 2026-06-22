@@ -1,25 +1,28 @@
-import { Route, Routes, useNavigate } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
 import Sidebar from "./components/Sidebar";
 import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
 import AtlasPage from "./pages/Atlas/AtlasPage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import ConversionPage from "./pages/Conversion/ConversionPage";
-import getUser from "./utils/getUser";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
 import SettingsDialog from "./components/settings/SettingsDialog";
+import type { SettingsTabId } from "./components/settings/SettingsDialog";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
 import { getSupabaseConfig, supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
@@ -41,14 +44,22 @@ const AUTO_HIDE_TRIGGER_SIZE = 18;
 const TITLE_BAR_HEIGHT = 40;
 const SIDEBAR_COLLAPSED_WIDTH = 52;
 const SIDEBAR_EXPANDED_WIDTH = 168;
+const AUTH_ROUTES = new Set([
+  "/signin",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+]);
 
-function App() {
+function AppShell() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoggedIn, signOut: authSignOut, user } = useAuth();
   const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } = useAppSettings();
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage("sidebarCollapsed", true);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>("general");
   const hideTimerRef = useRef<number | null>(null);
   const showDelayTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -107,25 +118,14 @@ function App() {
   const backupInitializedRef = useRef(false);
   const backupScheduledRef = useRef(false);
   const backupTimeoutsRef = useRef<number[]>([]);
-
-  useEffect(() => {
-    async function checkUser() {
-      try {
-        const user = await getUser();
-        setIsLoggedIn(user !== null);
-      } catch {
-        setIsLoggedIn(false);
-      }
-    }
-
-    checkUser();
-  }, []);
+  const isAuthRoute = AUTH_ROUTES.has(location.pathname);
+  const showAppNavigation = isLoggedIn !== false && !isAuthRoute;
 
   useEffect(() => {
     if (isLoggedIn === true && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
       const lastRoute = getLastRoute();
-      if (lastRoute && lastRoute !== "/signin" && lastRoute !== "/signup") {
+      if (lastRoute && !AUTH_ROUTES.has(lastRoute)) {
         navigate(lastRoute, { replace: true });
       }
     }
@@ -362,6 +362,17 @@ function App() {
      setAutoHideOverlay(enabled);
    };
 
+   const openSettings = (tab: SettingsTabId = "general") => {
+     setSettingsInitialTab(tab);
+     setSettingsOpen(true);
+   };
+
+   const handleSidebarSignOut = async () => {
+     await authSignOut();
+     setSettingsOpen(false);
+     navigate("/signin", { replace: true });
+   };
+
   const toasterStyle = effectiveTheme === "light"
     ? {
         background: "#f4f4f5",
@@ -446,16 +457,22 @@ function App() {
          )}
          <ConversionQueueProvider>
          <div className="relative flex flex-1 overflow-hidden">
-           <Sidebar
-             collapsed={sidebarCollapsed}
-             autoHideEnabled={settings.autoHideEnabled}
-             autoHideOverlay={settings.autoHideOverlay}
-             panelsVisible={panelsVisible}
-             onShowPanels={showPanels}
-             onHidePanels={() => hidePanels()}
-             settingsOpen={settingsOpen}
-             onOpenSettings={() => setSettingsOpen(true)}
-           />
+           {showAppNavigation && (
+             <Sidebar
+               collapsed={sidebarCollapsed}
+               autoHideEnabled={settings.autoHideEnabled}
+               autoHideOverlay={settings.autoHideOverlay}
+               panelsVisible={panelsVisible}
+               onShowPanels={showPanels}
+               onHidePanels={() => hidePanels()}
+               settingsOpen={settingsOpen}
+               onOpenSettings={() => openSettings("general")}
+               onOpenAccountSettings={() => openSettings("account")}
+               onSignOut={handleSidebarSignOut}
+               isLoggedIn
+               userEmail={user?.email ?? null}
+             />
+           )}
            <main
              className="flex-1 overflow-y-auto"
              onMouseEnter={() => settings.autoHideEnabled && hidePanels(250)}
@@ -533,16 +550,29 @@ function App() {
 
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Routes>
           </main>
-          <SettingsDialog
-            isOpen={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-          />
+          {showAppNavigation && (
+            <SettingsDialog
+              isOpen={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              initialTab={settingsInitialTab}
+            />
+          )}
         </div>
         </ConversionQueueProvider>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
 

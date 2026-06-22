@@ -3,7 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
-const renderSidebar = (collapsed = false, autoHideEnabled = false, autoHideOverlay = false, panelsVisible = true) => {
+const renderSidebar = (
+  collapsed = false,
+  autoHideEnabled = false,
+  autoHideOverlay = false,
+  panelsVisible = true,
+  isLoggedIn = true,
+) => {
   return render(
     <BrowserRouter>
       <Sidebar
@@ -13,8 +19,10 @@ const renderSidebar = (collapsed = false, autoHideEnabled = false, autoHideOverl
         panelsVisible={panelsVisible}
         onShowPanels={() => {}}
         onHidePanels={() => {}}
+        isLoggedIn={isLoggedIn}
+        userEmail="test@example.com"
       />
-    </BrowserRouter>
+    </BrowserRouter>,
   );
 };
 
@@ -23,7 +31,7 @@ describe("Sidebar", () => {
     vi.mock(import.meta.env.VITE_APP_VERSION, () => "1.0.0");
   });
 
-  it("renders navigation items", () => {
+  it("renders navigation items for a logged user", () => {
     renderSidebar();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByText("Registrar")).toBeInTheDocument();
@@ -31,7 +39,15 @@ describe("Sidebar", () => {
     expect(screen.getByText("Atlas")).toBeInTheDocument();
     expect(screen.getByText("Hábitos")).toBeInTheDocument();
     expect(screen.getByText("Configurações")).toBeInTheDocument();
+    expect(screen.getByText("Conta")).toBeInTheDocument();
+    expect(screen.getByText("Sair")).toBeInTheDocument();
+    expect(screen.queryByText("Login")).not.toBeInTheDocument();
+  });
+
+  it("renders login action for a logged out user", () => {
+    renderSidebar(false, false, false, true, false);
     expect(screen.getByText("Login")).toBeInTheDocument();
+    expect(screen.queryByText("Sair")).not.toBeInTheDocument();
   });
 
   it("renders with collapsed state", () => {

@@ -5,8 +5,10 @@ import {
   Home,
   LibraryBig,
   LogIn,
+  LogOut,
   Map,
   Settings,
+  UserCircle,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
@@ -21,6 +23,10 @@ interface SidebarProps {
   onHidePanels: () => void;
   settingsOpen?: boolean;
   onOpenSettings?: () => void;
+  onOpenAccountSettings?: () => void;
+  onSignOut?: () => void;
+  isLoggedIn?: boolean;
+  userEmail?: string | null;
 }
 
 export default function Sidebar({
@@ -32,6 +38,10 @@ export default function Sidebar({
   onHidePanels,
   settingsOpen = false,
   onOpenSettings,
+  onOpenAccountSettings,
+  onSignOut,
+  isLoggedIn = true,
+  userEmail,
 }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -110,13 +120,37 @@ export default function Sidebar({
           onClick={() => onOpenSettings?.()}
           collapsed={collapsed}
         />
-        <SidebarItem
-          Icon={LogIn}
-          label="Login"
-          active={pathname === "/signin"}
-          onClick={() => navigate("/signin")}
-          collapsed={collapsed}
-        />
+        {isLoggedIn ? (
+          <>
+            <SidebarItem
+              Icon={UserCircle}
+              label="Conta"
+              active={false}
+              onClick={() => onOpenAccountSettings?.()}
+              collapsed={collapsed}
+            />
+            <SidebarItem
+              Icon={LogOut}
+              label="Sair"
+              active={false}
+              onClick={() => onSignOut?.()}
+              collapsed={collapsed}
+            />
+            {!collapsed && userEmail && (
+              <div className="mx-3 mt-1 truncate text-left text-[11px] text-zinc-600">
+                {userEmail}
+              </div>
+            )}
+          </>
+        ) : (
+          <SidebarItem
+            Icon={LogIn}
+            label="Login"
+            active={pathname === "/signin"}
+            onClick={() => navigate("/signin")}
+            collapsed={collapsed}
+          />
+        )}
         <div className="mt-2 text-xs">
           <span>v{import.meta.env.VITE_APP_VERSION}</span>
         </div>

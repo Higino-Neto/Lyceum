@@ -11,7 +11,7 @@ import {
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-type SettingsTabId = "general" | "library" | "account" | "appearance" | "zoom" | "dictionaries";
+export type SettingsTabId = "general" | "library" | "account" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -24,13 +24,20 @@ interface SettingsTab {
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: SettingsTabId;
 }
 
-export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+export default function SettingsDialog({
+  isOpen,
+  onClose,
+  initialTab = "general",
+}: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
 
   useEffect(() => {
     if (!isOpen) return;
+
+    setActiveTab(initialTab);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -40,7 +47,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [initialTab, isOpen, onClose]);
 
   const tabs = useMemo<SettingsTab[]>(
     () => [

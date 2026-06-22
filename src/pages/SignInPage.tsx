@@ -1,23 +1,36 @@
-import { useNavigate, Link } from "react-router-dom";
-import { LogIn } from "lucide-react";
-import { useState } from "react";
-import { signIn } from "../utils/auth";
+import { FormEvent, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight, LogIn, Mail } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  AuthField,
+  AuthShell,
+  authButtonClasses,
+  authInputClasses,
+} from "../components/auth/AuthShell";
+import { PasswordField } from "../components/auth/PasswordField";
+import { signIn } from "../utils/auth";
+
+interface LocationState {
+  from?: string;
+}
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
 
     setLoading(true);
     try {
       await signIn(email, password);
-      toast.success("Login realizado com sucesso!");
-      navigate("/");
+      toast.success("Login realizado com sucesso.");
+      const redirectTo = (location.state as LocationState | null)?.from || "/";
+      navigate(redirectTo, { replace: true });
     } catch (error: any) {
       toast.error(error.message || "Falha ao fazer login");
     } finally {
@@ -26,48 +39,60 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-sm p-8 shadow-xl space-y-6">
-        <div className="flex items-center gap-2">
-          <LogIn className="text-green-500" size={22} />
-          <h1 className="text-xl font-semibold">Entrar</h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
-          />
-
-          <input
-            type="password"
-            placeholder="Senha"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 outline-none focus:border-green-500"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 transition py-2.5 rounded-sm font-medium text-black cursor-pointer"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-
-        <p className="text-sm text-zinc-400 text-center">
+    <AuthShell
+      icon={LogIn}
+      title="Entrar"
+      subtitle="Acesse sua biblioteca, backups e estatísticas de leitura."
+      footer={
+        <>
           Não tem conta?{" "}
-          <Link to="/signup" className="text-green-500 hover:underline">
+          <Link to="/signup" className="text-green-500 transition hover:text-green-400">
             Criar conta
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <AuthField label="Email">
+          <div className="relative">
+            <Mail
+              size={17}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+            />
+            <input
+              type="email"
+              placeholder="voce@exemplo.com"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className={`${authInputClasses} pl-10`}
+            />
+          </div>
+        </AuthField>
+
+        <div className="space-y-2">
+          <PasswordField
+            label="Senha"
+            autoComplete="current-password"
+            value={password}
+            onChange={setPassword}
+          />
+          <div className="flex justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-green-500 transition hover:text-green-400"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
+        </div>
+
+        <button type="submit" disabled={loading} className={authButtonClasses}>
+          {loading ? "Entrando..." : "Entrar"}
+          <ArrowRight size={17} />
+        </button>
+      </form>
+    </AuthShell>
   );
 }

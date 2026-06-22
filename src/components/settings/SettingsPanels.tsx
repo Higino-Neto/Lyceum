@@ -25,7 +25,12 @@ import { getUserProfile, updateUserProfile } from "../../api/database";
 import Skeleton from "../Skeleton";
 import { useDictionary } from "../../hooks/useDictionary";
 import { supabase } from "../../lib/supabase";
-import { MIN_PASSWORD_LENGTH, validatePasswordStrength } from "../../utils/auth";
+import {
+  MIN_PASSWORD_LENGTH,
+  updateAccountPassword,
+  validatePasswordStrength,
+} from "../../utils/auth";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   ACCENT_COLORS,
   useAppSettings,
@@ -75,14 +80,6 @@ async function updateUserMetadata(metadata: UserMetadata) {
   await updateUserProfile(metadata.full_name, metadata.avatar_url);
 
   return data.user;
-}
-
-async function updatePassword(newPassword: string) {
-  const { error } = await supabase.auth.updateUser({
-    password: newPassword,
-  });
-
-  if (error) throw error;
 }
 
 function SettingsSection({
@@ -299,6 +296,7 @@ export function AccountSettingsPanel({
   onRequestClose?: () => void;
 }) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -378,7 +376,7 @@ export function AccountSettingsPanel({
   });
 
   const passwordMutation = useMutation({
-    mutationFn: () => updatePassword(newPassword),
+    mutationFn: () => updateAccountPassword(newPassword),
     onSuccess: () => {
       toast.success("Senha atualizada com sucesso!");
       setNewPassword("");
@@ -410,7 +408,7 @@ export function AccountSettingsPanel({
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     onRequestClose?.();
     navigate("/signin");
   };
