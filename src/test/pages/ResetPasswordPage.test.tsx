@@ -6,11 +6,13 @@ import ResetPasswordPage from "../../pages/ResetPasswordPage";
 const mockUpdateAccountPassword = vi.fn();
 const mockValidatePasswordStrength = vi.fn<[string], string | null>(() => null);
 const authState = vi.hoisted(() => ({
+  authErrorMessage: null as string | null,
   session: { user: { id: "user-123" } } as unknown,
 }));
 
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({
+    authErrorMessage: authState.authErrorMessage,
     isLoading: false,
     session: authState.session,
   }),
@@ -36,6 +38,7 @@ vi.mock("react-hot-toast", () => ({
 describe("ResetPasswordPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.authErrorMessage = null;
     authState.session = { user: { id: "user-123" } };
     mockValidatePasswordStrength.mockReturnValue(null);
   });
@@ -74,5 +77,17 @@ describe("ResetPasswordPage", () => {
       "href",
       "/forgot-password",
     );
+  });
+
+  it("shows the auth recovery failure reason when available", () => {
+    authState.session = null;
+    authState.authErrorMessage = "Supabase recusou o token de recuperacao: invalid token";
+    render(
+      <BrowserRouter>
+        <ResetPasswordPage />
+      </BrowserRouter>,
+    );
+
+    expect(screen.getByText(/Supabase recusou o token de recuperacao/i)).toBeInTheDocument();
   });
 });

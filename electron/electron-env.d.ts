@@ -103,6 +103,7 @@ interface Window {
     getFilePath: () => Promise<string>;
   };
   api: {
+    consumeAuthDeepLinkParams: () => Promise<Record<string, string> | null>;
     addDocument: (data: any) => Promise<any>;
     getDocuments: () => Promise<DocumentRecord[]>;
     listBooks: (query: LibraryListQuery) => Promise<LibraryListResult>;
@@ -367,6 +368,7 @@ interface Window {
     getFilePath: () => Promise<string>;
   };
   api: {
+    consumeAuthDeepLinkParams: () => Promise<Record<string, string> | null>;
     // addDocument: (data: any) => Promise<any>;
     // getDocuments: () => Promise<any>;
     // saveReadingState: (payload: any) => Promise<void>;

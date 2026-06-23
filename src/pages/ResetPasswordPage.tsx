@@ -14,7 +14,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const { isLoading, session } = useAuth();
+  const { authErrorMessage, isLoading, session } = useAuth();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,8 +65,8 @@ export default function ResetPasswordPage() {
       ) : !session ? (
         <div className="space-y-4">
           <div className="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
-            O link de recuperação está ausente ou expirou. Solicite um novo
-            email para redefinir a senha.
+            {authErrorMessage ||
+              "O link de recuperação está ausente ou expirou. Solicite um novo email para redefinir a senha."}
           </div>
           <Link
             to="/forgot-password"

@@ -41,6 +41,7 @@ declare global {
   interface Window {
     api: {
       [key: string]: any;
+      consumeAuthDeepLinkParams?: () => Promise<Record<string, string> | null>;
     };
   }
 }

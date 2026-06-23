@@ -93,6 +93,36 @@ export function parseAuthRedirectParams(search = "", hash = "") {
   return params;
 }
 
+async function getElectronAuthDeepLinkParams() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const consumeParams = window.api?.consumeAuthDeepLinkParams;
+    if (typeof consumeParams !== "function") return null;
+
+    const params = await consumeParams();
+    if (!params || typeof params !== "object") return null;
+
+    return params as Record<string, string>;
+  } catch (error) {
+    console.error("Error reading auth deep link params:", error);
+    return null;
+  }
+}
+
+function mergeAuthRedirectParams(
+  params: URLSearchParams,
+  fallbackParams: Record<string, string> | null,
+) {
+  Object.entries(fallbackParams ?? {}).forEach(([key, value]) => {
+    if (value && !params.has(key)) {
+      params.set(key, value);
+    }
+  });
+
+  return params;
+}
+
 function clearAuthRedirectParamsFromUrl() {
   if (typeof window === "undefined" || !window.history?.replaceState) return;
 
@@ -104,40 +134,93 @@ function clearAuthRedirectParamsFromUrl() {
   window.history.replaceState(null, document.title, resetRoute);
 }
 
+function isResetPasswordRoute() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.location.pathname === "/reset-password" ||
+    window.location.hash.startsWith("#/reset-password")
+  );
+}
+
+function getAuthErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) {
+      return message;
+    }
+  }
+
+  return "Erro desconhecido";
+}
+
 export async function consumeAuthRedirectSession(): Promise<Session | null> {
   if (typeof window === "undefined") return null;
 
-  const params = parseAuthRedirectParams(window.location.search, window.location.hash);
+  const params = mergeAuthRedirectParams(
+    parseAuthRedirectParams(window.location.search, window.location.hash),
+    await getElectronAuthDeepLinkParams(),
+  );
   const code = params.get("code");
   const tokenHash = params.get("token_hash");
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
+  const hasAnyRecoveryParam = Boolean(code || tokenHash || accessToken || refreshToken);
+
+  if (isResetPasswordRoute() && !hasAnyRecoveryParam) {
+    throw new Error(
+      "O Lyceum abriu a tela de recuperacao, mas o link nao trouxe token_hash, code ou tokens de sessao.",
+    );
+  }
 
   if (tokenHash) {
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: "recovery",
     });
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Supabase recusou o token de recuperacao: ${getAuthErrorMessage(error)}`);
+    }
+    if (!data.session) {
+      throw new Error("Supabase validou o token de recuperacao, mas nao retornou sessao.");
+    }
     clearAuthRedirectParamsFromUrl();
-    return data.session ?? null;
+    return data.session;
   }
 
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Supabase recusou o codigo de recuperacao: ${getAuthErrorMessage(error)}`);
+    }
+    if (!data.session) {
+      throw new Error("Supabase validou o codigo de recuperacao, mas nao retornou sessao.");
+    }
     clearAuthRedirectParamsFromUrl();
-    return data.session ?? null;
+    return data.session;
   }
 
-  if (accessToken && refreshToken) {
+  if (accessToken || refreshToken) {
+    if (!accessToken || !refreshToken) {
+      throw new Error("O link de recuperacao trouxe tokens incompletos.");
+    }
+
     const { data, error } = await supabase.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken,
     });
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Supabase recusou os tokens de recuperacao: ${getAuthErrorMessage(error)}`);
+    }
+    if (!data.session) {
+      throw new Error("Supabase aceitou os tokens de recuperacao, mas nao retornou sessao.");
+    }
     clearAuthRedirectParamsFromUrl();
-    return data.session ?? null;
+    return data.session;
   }
 
   return null;

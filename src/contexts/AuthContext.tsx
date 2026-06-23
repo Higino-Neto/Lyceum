@@ -16,6 +16,7 @@ interface AuthContextValue {
   session: Session | null;
   isLoggedIn: boolean | null;
   isLoading: boolean;
+  authErrorMessage: string | null;
   refreshSession: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
 
   const applySession = useCallback((nextSession: Session | null) => {
     setSession(nextSession);
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const {
         data: { session: nextSession },
       } = await supabase.auth.getSession();
+      setAuthErrorMessage(null);
       applySession(nextSession);
     } finally {
       setIsLoading(false);
@@ -55,11 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } = await supabase.auth.getSession();
 
         if (!isMounted) return;
+        setAuthErrorMessage(null);
         applySession(recoveredSession ?? currentSession);
       } catch (error) {
         console.error("Error restoring auth session:", error);
 
         if (!isMounted) return;
+        setAuthErrorMessage(error instanceof Error ? error.message : "Nao foi possivel restaurar a sessao.");
         applySession(null);
       } finally {
         if (isMounted) {
@@ -73,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setAuthErrorMessage(null);
       applySession(nextSession);
       setIsLoading(false);
     });
@@ -94,10 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoggedIn: isLoading ? null : Boolean(user),
       isLoading,
+      authErrorMessage,
       refreshSession,
       signOut: handleSignOut,
     }),
-    [handleSignOut, isLoading, refreshSession, session, user],
+    [authErrorMessage, handleSignOut, isLoading, refreshSession, session, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

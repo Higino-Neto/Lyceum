@@ -59,6 +59,7 @@ import {
 describe("auth utilities", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.api = undefined as any;
     window.history.replaceState(null, "", "/");
   });
 
@@ -189,6 +190,51 @@ describe("auth utilities", () => {
       type: "recovery",
     });
     expect(window.location.hash).toBe("#/reset-password");
+  });
+
+  it("uses Electron deep link params when the hash route lost its query", async () => {
+    const session = { user: { id: "user-123" } };
+    mockVerifyOtp.mockResolvedValue({ data: { session }, error: null });
+    window.api = {
+      consumeAuthDeepLinkParams: vi.fn().mockResolvedValue({
+        token_hash: "ipc-recovery-token-hash",
+        type: "recovery",
+      }),
+    } as any;
+    window.history.replaceState(null, "", "/#/reset-password");
+
+    await expect(consumeAuthRedirectSession()).resolves.toBe(session);
+
+    expect(window.api.consumeAuthDeepLinkParams).toHaveBeenCalledTimes(1);
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      token_hash: "ipc-recovery-token-hash",
+      type: "recovery",
+    });
+    expect(window.location.hash).toBe("#/reset-password");
+  });
+
+  it("explains when Supabase rejects a recovery token hash", async () => {
+    mockVerifyOtp.mockResolvedValue({
+      data: { session: null },
+      error: new Error("invalid token"),
+    });
+    window.history.replaceState(
+      null,
+      "",
+      "/#/reset-password?token_hash=recovery-token-hash&type=recovery",
+    );
+
+    await expect(consumeAuthRedirectSession()).rejects.toThrow(
+      /Supabase recusou o token de recuperacao: invalid token/i,
+    );
+  });
+
+  it("explains when the reset route opens without recovery params", async () => {
+    window.history.replaceState(null, "", "/#/reset-password");
+
+    await expect(consumeAuthRedirectSession()).rejects.toThrow(
+      /link nao trouxe token_hash, code ou tokens/i,
+    );
   });
 
   it("sets the session from legacy recovery tokens and clears auth params", async () => {

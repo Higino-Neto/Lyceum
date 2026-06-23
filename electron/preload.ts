@@ -124,6 +124,7 @@ contextBridge.exposeInMainWorld("api", {
   },
 
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
+  consumeAuthDeepLinkParams: () => ipcRenderer.invoke("auth:consume-deep-link-params"),
 
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 

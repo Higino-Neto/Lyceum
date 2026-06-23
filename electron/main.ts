@@ -126,6 +126,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
 let pendingAuthDeepLink: string | null = null;
+let pendingAuthDeepLinkParams: Record<string, string> | null = null;
 
 type LyceumConversionModule = typeof import("../src/lib/lyceum");
 type PdfToEpubModule = typeof import("../src/lib/pdf-to-epub");
@@ -2648,6 +2649,8 @@ function handleAuthDeepLink(rawUrl: string) {
     return false;
   }
 
+  pendingAuthDeepLinkParams = deepLink.params;
+
   if (!app.isReady()) {
     pendingAuthDeepLink = rawUrl;
     return true;
@@ -3609,6 +3612,12 @@ ipcMain.handle("zoom:set-factor", (_, factor: number) => {
   win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
 });
 
+ipcMain.handle("auth:consume-deep-link-params", () => {
+  const params = pendingAuthDeepLinkParams;
+  pendingAuthDeepLinkParams = null;
+  return params;
+});
+
 const gotTheLock = (app as any).requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -3778,6 +3787,9 @@ app.whenReady().then(async () => {
 
   const initialAuthDeepLink = pendingAuthDeepLink ?? startupAuthDeepLink;
   const initialAuthRoute = initialAuthDeepLink ? parseAuthDeepLink(initialAuthDeepLink) : null;
+  if (initialAuthRoute) {
+    pendingAuthDeepLinkParams = initialAuthRoute.params;
+  }
   createWindow(initialAuthRoute?.route ?? "/", initialAuthRoute?.params);
   pendingAuthDeepLink = null;
 
