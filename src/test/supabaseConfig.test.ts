@@ -49,7 +49,11 @@ describe("supabase configuration", () => {
       url: "https://example.supabase.co",
       anonKey: "anon-key",
     });
-    expect(createClientMock).toHaveBeenCalledWith("https://example.supabase.co", "anon-key");
+    expect(createClientMock).toHaveBeenCalledWith("https://example.supabase.co", "anon-key", {
+      auth: {
+        detectSessionInUrl: false,
+      },
+    });
     expect(supabase).toBe(configuredClient);
   });
 });

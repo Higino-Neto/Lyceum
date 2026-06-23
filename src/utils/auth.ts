@@ -78,16 +78,22 @@ export function parseAuthRedirectParams(search = "", hash = "") {
   const params = new URLSearchParams(search.replace(/^\?/, ""));
   const normalizedHash = hash.replace(/^#/, "");
 
-  if (normalizedHash) {
-    const hashQuery = normalizedHash.includes("?")
-      ? normalizedHash.slice(normalizedHash.indexOf("?") + 1)
-      : normalizedHash;
+  function appendParams(query: string) {
+    if (!query.includes("=")) return;
 
-    if (hashQuery.includes("=")) {
-      new URLSearchParams(hashQuery).forEach((value, key) => {
-        params.set(key, value);
-      });
-    }
+    new URLSearchParams(query).forEach((value, key) => {
+      params.set(key, value);
+    });
+  }
+
+  if (normalizedHash.includes("?")) {
+    appendParams(normalizedHash.slice(normalizedHash.indexOf("?") + 1));
+  }
+
+  if (normalizedHash.includes("#")) {
+    appendParams(normalizedHash.slice(normalizedHash.indexOf("#") + 1));
+  } else if (normalizedHash && !normalizedHash.includes("/")) {
+    appendParams(normalizedHash);
   }
 
   return params;

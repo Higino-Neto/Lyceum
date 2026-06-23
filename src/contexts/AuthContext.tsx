@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let bootstrapped = false;
 
     async function bootstrapSession() {
       try {
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthErrorMessage(error instanceof Error ? error.message : "Nao foi possivel restaurar a sessao.");
         applySession(null);
       } finally {
+        bootstrapped = true;
         if (isMounted) {
           setIsLoading(false);
         }
@@ -78,7 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setAuthErrorMessage(null);
+      if (_event === "INITIAL_SESSION" && bootstrapped) {
+        return;
+      }
+
+      if (nextSession || _event !== "INITIAL_SESSION") {
+        setAuthErrorMessage(null);
+      }
       applySession(nextSession);
       setIsLoading(false);
     });

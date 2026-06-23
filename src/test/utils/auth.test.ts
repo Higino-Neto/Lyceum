@@ -159,6 +159,17 @@ describe("auth utilities", () => {
     expect(params.get("type")).toBe("recovery");
   });
 
+  it("parses recovery params after a second hash in the hash route", () => {
+    const params = parseAuthRedirectParams(
+      "",
+      "#/reset-password#access_token=access-token&refresh_token=refresh-token&type=recovery",
+    );
+
+    expect(params.get("access_token")).toBe("access-token");
+    expect(params.get("refresh_token")).toBe("refresh-token");
+    expect(params.get("type")).toBe("recovery");
+  });
+
   it("exchanges a recovery code for a session and clears auth params", async () => {
     const session = { user: { id: "user-123" } };
     mockExchangeCodeForSession.mockResolvedValue({ data: { session }, error: null });

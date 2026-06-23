@@ -75,5 +75,9 @@ function createDisabledSupabaseClient(): SupabaseClient {
 }
 
 export const supabase = getSupabaseConfig()
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        detectSessionInUrl: false,
+      },
+    })
   : createDisabledSupabaseClient();
