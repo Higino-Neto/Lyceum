@@ -2642,6 +2642,13 @@ function createWindow(route = "/", params?: Record<string, string | undefined>) 
   loadRendererRoute(win, route, params);
 }
 
+function sendAuthDeepLinkToRenderer(
+  targetWindow: ElectronBrowserWindow,
+  deepLink: { route: string; params: Record<string, string> },
+) {
+  targetWindow.webContents.send("auth:deep-link", deepLink);
+}
+
 function handleAuthDeepLink(rawUrl: string) {
   const deepLink = parseAuthDeepLink(rawUrl);
 
@@ -2663,7 +2670,11 @@ function handleAuthDeepLink(rawUrl: string) {
 
   if (win.isMinimized()) win.restore();
   win.focus();
-  loadRendererRoute(win, deepLink.route, deepLink.params);
+  const targetWindow = win;
+  targetWindow.webContents.once("did-finish-load", () => {
+    sendAuthDeepLinkToRenderer(targetWindow, deepLink);
+  });
+  loadRendererRoute(targetWindow, deepLink.route, deepLink.params);
   return true;
 }
 

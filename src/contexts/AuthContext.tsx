@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     let bootstrapped = false;
 
-    async function bootstrapSession() {
+    async function restoreSessionFromRedirect() {
       try {
         const recoveredSession = await consumeAuthRedirectSession();
         const {
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void bootstrapSession();
+    void restoreSessionFromRedirect();
 
     const {
       data: { subscription },
@@ -91,8 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
+    const unsubscribeAuthDeepLink = window.api?.onAuthDeepLink?.(() => {
+      setIsLoading(true);
+      void restoreSessionFromRedirect();
+    });
+
     return () => {
       isMounted = false;
+      unsubscribeAuthDeepLink?.();
       subscription.unsubscribe();
     };
   }, [applySession]);

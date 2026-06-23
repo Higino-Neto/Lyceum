@@ -104,6 +104,9 @@ interface Window {
   };
   api: {
     consumeAuthDeepLinkParams: () => Promise<Record<string, string> | null>;
+    onAuthDeepLink: (
+      callback: (payload: { route: string; params: Record<string, string> }) => void,
+    ) => () => void;
     addDocument: (data: any) => Promise<any>;
     getDocuments: () => Promise<DocumentRecord[]>;
     listBooks: (query: LibraryListQuery) => Promise<LibraryListResult>;
@@ -369,6 +372,9 @@ interface Window {
   };
   api: {
     consumeAuthDeepLinkParams: () => Promise<Record<string, string> | null>;
+    onAuthDeepLink: (
+      callback: (payload: { route: string; params: Record<string, string> }) => void,
+    ) => () => void;
     // addDocument: (data: any) => Promise<any>;
     // getDocuments: () => Promise<any>;
     // saveReadingState: (payload: any) => Promise<void>;

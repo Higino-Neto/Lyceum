@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.8.10",
+  "version": "1.8.11",
   "author": "Higino-Neto",
   "type": "module",
   "scripts": {

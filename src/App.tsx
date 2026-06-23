@@ -124,12 +124,26 @@ function AppShell() {
   useEffect(() => {
     if (isLoggedIn === true && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
+      if (AUTH_ROUTES.has(location.pathname)) {
+        return;
+      }
+
       const lastRoute = getLastRoute();
       if (lastRoute && !AUTH_ROUTES.has(lastRoute)) {
         navigate(lastRoute, { replace: true });
       }
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, location.pathname, navigate]);
+
+  useEffect(() => {
+    const unsubscribe = window.api?.onAuthDeepLink?.((payload: { route?: string }) => {
+      navigate(payload.route || "/reset-password", { replace: true });
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [navigate]);
 
   useEffect(() => {
     if (!window.api?.backupInit || !window.api?.backupSetSession) return;

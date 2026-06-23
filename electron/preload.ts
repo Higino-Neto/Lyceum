@@ -125,6 +125,16 @@ contextBridge.exposeInMainWorld("api", {
 
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
   consumeAuthDeepLinkParams: () => ipcRenderer.invoke("auth:consume-deep-link-params"),
+  onAuthDeepLink: (
+    callback: (payload: { route: string; params: Record<string, string> }) => void,
+  ) => {
+    const listener = (
+      _: Electron.IpcRendererEvent,
+      payload: { route: string; params: Record<string, string> },
+    ) => callback(payload);
+    ipcRenderer.on("auth:deep-link", listener);
+    return () => ipcRenderer.removeListener("auth:deep-link", listener);
+  },
 
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 

@@ -42,6 +42,9 @@ declare global {
     api: {
       [key: string]: any;
       consumeAuthDeepLinkParams?: () => Promise<Record<string, string> | null>;
+      onAuthDeepLink?: (
+        callback: (payload: { route: string; params: Record<string, string> }) => void,
+      ) => () => void;
     };
   }
 }
