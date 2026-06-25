@@ -1,4 +1,10 @@
-export type MobileTab = "library" | "reader" | "recent" | "favorites" | "profile";
+export type MobileTab =
+  | "dashboard"
+  | "readings"
+  | "library"
+  | "reader"
+  | "leaderboard"
+  | "profile";
 export type MobileFileType = "pdf" | "epub" | "txt";
 export type MobileLibraryScope = "all" | "managed" | "source";
 export type MobileLibrarySort =

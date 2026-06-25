@@ -1,25 +1,26 @@
 import {
+  BarChart3,
   BookOpen,
   ChevronDown,
-  ChevronRight,
-  Clock3,
-  FilePlus2,
-  Folder,
   Heart,
   Library,
   Menu,
-  Plus,
+  NotebookPen,
   Search,
   Settings,
   SlidersHorizontal,
-  Star,
+  Trophy,
   UserCircle,
   X,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import EpubPane from "./EpubPane";
+import MobileDashboardScreen from "./MobileDashboardScreen";
+import MobileLeaderboardScreen from "./MobileLeaderboardScreen";
 import MobileLibraryScreenV2 from "./MobileLibraryScreen";
+import MobileReadingEntryScreen from "./MobileReadingEntryScreen";
 import PdfPane from "./PdfPane";
 import {
   deleteMobileBookFile,
@@ -66,13 +67,14 @@ import {
 } from "./sourceFolderBridge";
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
+import { createMobileUserProfile } from "./readingApi";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
 
 const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
+  { id: "dashboard", label: "Hoje", icon: BarChart3 },
+  { id: "readings", label: "Registrar", icon: NotebookPen },
   { id: "library", label: "Biblioteca", icon: Library },
-  { id: "reader", label: "Leitor", icon: Folder },
-  { id: "recent", label: "Recentes", icon: Clock3 },
-  { id: "favorites", label: "Favoritos", icon: Star },
+  { id: "leaderboard", label: "Ranking", icon: Trophy },
   { id: "profile", label: "Perfil", icon: UserCircle },
 ];
 
@@ -450,6 +452,7 @@ function MissingBookFile({
 }
 
 function MobileApp() {
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceFolderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -458,7 +461,8 @@ function MobileApp() {
   const [state, setState] = useState<MobileLibraryState>(() => loadMobileState());
   const stateRef = useRef(state);
   const [repositoryReady, setRepositoryReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<MobileTab>("library");
+  const [activeTab, setActiveTab] = useState<MobileTab>("dashboard");
+  const [readingSeedBookId, setReadingSeedBookId] = useState<string>();
   const [libraryQuery, setLibraryQuery] = useState<MobileLibraryQuery>({
     search: "",
     scope: "all",
@@ -557,6 +561,23 @@ function MobileApp() {
   useEffect(() => {
     getMobileSession().then((session) => setSessionEmail(session?.user?.email ?? null));
   }, []);
+
+  useEffect(() => {
+    const supabase = getMobileSupabase();
+    if (!supabase) return undefined;
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionEmail(session?.user?.email ?? null);
+      queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
+      queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
+      queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
+      queryClient.invalidateQueries({ queryKey: ["mobile-friend-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["mobile-user-profile"] });
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [queryClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1052,29 +1073,58 @@ function MobileApp() {
   const signIn = async (mode: "signin" | "signup") => {
     const supabase = getMobileSupabase();
     if (!supabase) {
-      toast.error("Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para login real");
+      toast.error("Supabase nao configurado no build mobile");
       return;
     }
 
     const email = authEmail.trim();
-    if (!email || !authPassword) return;
+    if (!email || !authPassword) {
+      toast.error("Informe email e senha");
+      return;
+    }
 
     const result = mode === "signin"
       ? await supabase.auth.signInWithPassword({ email, password: authPassword })
-      : await supabase.auth.signUp({ email, password: authPassword });
+      : await supabase.auth.signUp({
+          email,
+          password: authPassword,
+          options: {
+            data: {
+              name: email.split("@")[0],
+              full_name: email.split("@")[0],
+            },
+          },
+        });
 
     if (result.error) {
       toast.error(result.error.message);
       return;
     }
 
-    setSessionEmail(result.data.user?.email ?? email);
+    if (result.data.session?.user?.id) {
+      await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
+        console.warn("Could not create mobile profile:", error);
+      });
+    }
+
+    if (!result.data.session) {
+      setSessionEmail(null);
+      toast.success("Conta criada. Confirme o email antes de entrar.");
+      return;
+    }
+
+    setSessionEmail(result.data.session.user.email ?? email);
+    queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
+    queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
+    queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
     toast.success(mode === "signin" ? "Sessao iniciada" : "Conta criada");
   };
 
   const signOut = async () => {
     await getMobileSupabase()?.auth.signOut();
     setSessionEmail(null);
+    queryClient.clear();
   };
 
   return (
@@ -1151,7 +1201,7 @@ function MobileApp() {
                   <p className="text-xs font-medium uppercase tracking-wide text-green-400">Lyceum Mobile</p>
                 )}
                 <h1 className={activeTab === "reader" && isEbookReader ? "text-base font-semibold text-zinc-50" : "mt-1 text-xl font-semibold text-zinc-50"}>
-                  {tabs.find((tab) => tab.id === activeTab)?.label}
+                  {activeTab === "reader" ? "Leitor" : tabs.find((tab) => tab.id === activeTab)?.label}
                 </h1>
               </div>
               <button
@@ -1167,6 +1217,28 @@ function MobileApp() {
         )}
 
         <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
+          {activeTab === "dashboard" && (
+            <MobileDashboardScreen
+              sessionEmail={sessionEmail}
+              onOpenProfile={() => setActiveTab("profile")}
+              onOpenRegister={() => {
+                setReadingSeedBookId(undefined);
+                setActiveTab("readings");
+              }}
+              onOpenLeaderboard={() => setActiveTab("leaderboard")}
+            />
+          )}
+
+          {activeTab === "readings" && (
+            <MobileReadingEntryScreen
+              key={readingSeedBookId || "manual-reading"}
+              books={state.books}
+              sessionEmail={sessionEmail}
+              selectedBook={readingSeedBookId ? state.books.find((book) => book.id === readingSeedBookId) || null : null}
+              onOpenProfile={() => setActiveTab("profile")}
+            />
+          )}
+
           {activeTab === "library" && (
             <MobileLibraryScreenV2
               state={state}
@@ -1355,7 +1427,7 @@ function MobileApp() {
                         </div>
                       </div>}
 
-                      <div className={isEbookReader ? "overflow-hidden bg-zinc-900" : "overflow-hidden rounded border border-zinc-800 bg-zinc-900"}>
+                    <div className={isEbookReader ? "overflow-hidden bg-zinc-900" : "overflow-hidden rounded border border-zinc-800 bg-zinc-900"}>
                         {selectedBook.fileType === "pdf" && selectedBookDataUrl ? (
                           <PdfPane
                             dataUrl={selectedBookDataUrl}
@@ -1407,6 +1479,17 @@ function MobileApp() {
 
                       {!isEbookReader && (
                       <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+                        <button
+                          className="mb-4 flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white"
+                          onClick={() => {
+                            setReadingSeedBookId(selectedBook.id);
+                            setActiveTab("readings");
+                          }}
+                          type="button"
+                        >
+                          <NotebookPen size={17} />
+                          Registrar leitura deste livro
+                        </button>
                         <label className="text-sm font-medium text-zinc-100">Categoria</label>
                         <select
                           className="mt-2 h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
@@ -1433,45 +1516,11 @@ function MobileApp() {
             </>
           )}
 
-          {activeTab === "recent" && (
-            <section className="space-y-5 p-4">
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Sua biblioteca</p>
-                <p className="mt-2 text-2xl font-semibold text-zinc-50">{state.books.length} livros</p>
-                <p className="mt-1 text-sm text-zinc-500">Retome exatamente de onde parou.</p>
-              </div>
-
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <h2 className="text-base font-semibold text-zinc-100">Continuar lendo</h2>
-                <div className="mt-3 space-y-2">
-                  {state.books.filter((book) => book.lastOpenedAt).sort((left, right) => String(right.lastOpenedAt).localeCompare(String(left.lastOpenedAt))).slice(0, 6).map((book) => (
-                    <button key={book.id} className="flex w-full items-center gap-3 rounded-xl bg-zinc-950 p-3 text-left" onClick={() => selectBook(book.id)} type="button">
-                      <div className="h-12 w-9 overflow-hidden rounded bg-zinc-800">{book.thumbnailUrl ? <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" /> : null}</div>
-                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{book.title}</p><p className="mt-1 text-xs text-zinc-500">{book.fileType === "pdf" ? `Pagina ${book.currentPage}${book.totalPages > 1 ? ` de ${book.totalPages}` : ""}` : `${Math.round(book.progressPercent || book.textScrollPercent || 0)}% concluido`}</p></div>
-                      <ChevronRight size={17} className="text-zinc-600" />
-                    </button>
-                  ))}
-                  {!state.books.some((book) => book.lastOpenedAt) && <p className="text-sm text-zinc-500">Abra um livro para ele aparecer aqui.</p>}
-                </div>
-              </div>
-
-            </section>
-          )}
-
-          {activeTab === "favorites" && (
-            <section className="space-y-3 p-4">
-              {state.books.filter((book) => book.isFavorite).length === 0 ? (
-                <EmptyState title="Nenhum favorito" body="Marque livros com o coracao no leitor ou nos detalhes da biblioteca." />
-              ) : state.books.filter((book) => book.isFavorite).map((book) => (
-                <button key={book.id} className="flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-left" onClick={() => selectBook(book.id)} type="button">
-                  <div className="h-16 w-12 overflow-hidden rounded-lg bg-zinc-800">
-                    {book.thumbnailUrl ? <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" /> : <div className="grid h-full place-items-center text-xs uppercase text-emerald-400">{book.fileType}</div>}
-                  </div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.author || book.category}</p></div>
-                  <Heart className="fill-emerald-400 text-emerald-400" size={18} />
-                </button>
-              ))}
-            </section>
+          {activeTab === "leaderboard" && (
+            <MobileLeaderboardScreen
+              sessionEmail={sessionEmail}
+              onOpenProfile={() => setActiveTab("profile")}
+            />
           )}
 
           {activeTab === "profile" && (
@@ -1483,6 +1532,16 @@ function MobileApp() {
                   <p>Supabase: {hasSupabaseConfig() ? "configurado" : "nao configurado"}</p>
                   <p>Conta: {sessionEmail || "modo local"}</p>
                 </div>
+                {sessionEmail && (
+                  <button
+                    className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200"
+                    onClick={() => setActiveTab("leaderboard")}
+                    type="button"
+                  >
+                    <Trophy size={17} />
+                    Ranking e amigos
+                  </button>
+                )}
               </div>
 
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
@@ -1544,7 +1603,12 @@ function MobileApp() {
                     className={`flex h-12 flex-col items-center justify-center gap-1 rounded text-[10px] font-semibold transition active:scale-95 ${
                       active ? "text-emerald-500" : "text-zinc-500"
                     }`}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      if (tab.id === "readings") {
+                        setReadingSeedBookId(undefined);
+                      }
+                      setActiveTab(tab.id);
+                    }}
                     type="button"
                   >
                     <Icon size={20} />

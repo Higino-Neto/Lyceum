@@ -85,10 +85,6 @@ fs.writeFileSync(viewerHtmlPath, viewerHtml);
 
 const viewerScriptPath = path.join(targetDir, "web", "viewer.mjs");
 let viewerScript = fs.readFileSync(viewerScriptPath, "utf8");
-const validateFileUrlGuard = `      const fileOrigin = new URL(file, window.location.href).origin;
-      if (fileOrigin !== viewerOrigin) {
-        throw new Error("file origin does not match viewer's");
-      }`;
 const lyceumValidateFileUrlGuard = `      const fileUrl = new URL(file, window.location.href);
       if (fileUrl.protocol === "lyceum-pdf:") {
         return;
@@ -99,11 +95,27 @@ const lyceumValidateFileUrlGuard = `      const fileUrl = new URL(file, window.l
         throw new Error("file origin does not match viewer's");
       }`;
 
-if (!viewerScript.includes(validateFileUrlGuard)) {
-  throw new Error("Could not patch Mozilla PDF.js viewer URL validation for Lyceum.");
+const validateFileUrlGuardPattern =
+  /      const fileOrigin = new URL\(file, window\.location\.href\)\.origin;\r?\n      if \(fileOrigin !== viewerOrigin\) \{\r?\n        throw new Error\("file origin does not match viewer's"\);\r?\n      \}/;
+
+if (!viewerScript.includes(lyceumValidateFileUrlGuard)) {
+  if (!validateFileUrlGuardPattern.test(viewerScript)) {
+    const validationIndex = viewerScript.indexOf(`throw new Error("file origin does not match viewer's");`);
+    const validationSnippet = validationIndex >= 0
+      ? viewerScript.slice(Math.max(0, validationIndex - 240), validationIndex + 120)
+      : "validation guard not found";
+    throw new Error(
+      "Could not patch Mozilla PDF.js viewer URL validation for Lyceum.\n" +
+        `Nearby viewer.mjs snippet:\n${validationSnippet}`,
+    );
+  }
+
+  viewerScript = viewerScript.replace(validateFileUrlGuardPattern, lyceumValidateFileUrlGuard);
 }
 
-viewerScript = viewerScript.replace(validateFileUrlGuard, lyceumValidateFileUrlGuard);
+if (!viewerScript.includes(lyceumValidateFileUrlGuard)) {
+  throw new Error("Could not patch Mozilla PDF.js viewer URL validation for Lyceum.");
+}
 
 const crossFrameWebViewerLoadedDispatch = `  try {
     parent.document.dispatchEvent(event);

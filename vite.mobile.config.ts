@@ -5,6 +5,7 @@ import path from "node:path";
 
 export default defineConfig({
   root: path.resolve(__dirname, "src/mobile"),
+  envDir: __dirname,
   plugins: [react(), tailwindcss()],
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(process.env.MOBILE_RELEASE_VERSION || process.env.npm_package_version || "1.0.0"),
