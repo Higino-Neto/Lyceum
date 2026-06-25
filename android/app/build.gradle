@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.8.12"
-def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10812").toInteger()
+def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.8.13"
+def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10813").toInteger()
 
 def keystorePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
 def keystorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")

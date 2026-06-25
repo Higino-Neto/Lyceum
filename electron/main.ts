@@ -10,7 +10,6 @@ import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { autoUpdater } from "electron-updater";
 import chokidar, { FSWatcher } from "chokidar";
 import {
   addDocument,
@@ -89,6 +88,12 @@ import {
   scanLibrary as queueLibraryScan,
   setLibraryChangeEmitter,
 } from "./services/library-service";
+import {
+  checkForAppUpdates,
+  initializeUpdateService,
+  registerUpdateHandlers,
+  setUpdateWindow,
+} from "./services/update-service";
 
 const {
   app,
@@ -2647,6 +2652,7 @@ function loadRendererRoute(
 
 function createWindow(route = "/", params?: Record<string, string | undefined>) {
   win = createAppWindow();
+  setUpdateWindow(win);
   win.maximize();
   loadRendererRoute(win, route, params);
 }
@@ -2695,6 +2701,7 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
     win = null;
+    setUpdateWindow(null);
   }
 });
 
@@ -3638,6 +3645,8 @@ ipcMain.handle("auth:consume-deep-link-params", () => {
   return params;
 });
 
+registerUpdateHandlers(ipcMain);
+
 const gotTheLock = (app as any).requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -3813,13 +3822,15 @@ app.whenReady().then(async () => {
   createWindow(initialAuthRoute?.route ?? "/", initialAuthRoute?.params);
   pendingAuthDeepLink = null;
 
+  setUpdateWindow(win);
+  initializeUpdateService();
   setBooksWindow(win);
   setLibraryWindow(win);
   setLibraryChangeEmitter(() => win?.webContents.send("library:updated"));
   setFileWatcherRefresh(setupFileWatcher);
   registerBookHandlers();
   registerLibraryHandlers();
-  autoUpdater.checkForUpdatesAndNotify();
+  void checkForAppUpdates();
 
   void queueLibraryScan().catch((error) => {
     console.error("[Main] Background library scan failed:", error);

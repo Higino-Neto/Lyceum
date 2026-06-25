@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(SourceFoldersPlugin.class);
         registerPlugin(IncomingBooksPlugin.class);
+        registerPlugin(AppUpdaterPlugin.class);
         super.onCreate(savedInstanceState);
         IncomingBooksPlugin.queueIntent(getIntent());
     }

@@ -123,6 +123,16 @@ contextBridge.exposeInMainWorld("api", {
     return () => ipcRenderer.removeListener("zoom-factor-changed", listener);
   },
 
+  updatesGetStatus: () => ipcRenderer.invoke("updates:get-status"),
+  updatesCheck: () => ipcRenderer.invoke("updates:check"),
+  updatesDownload: () => ipcRenderer.invoke("updates:download"),
+  updatesInstallNow: () => ipcRenderer.invoke("updates:install-now"),
+  onUpdatesStatusChanged: (callback: (state: unknown) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, state: unknown) => callback(state);
+    ipcRenderer.on("updates:status-changed", listener);
+    return () => ipcRenderer.removeListener("updates:status-changed", listener);
+  },
+
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
   consumeAuthDeepLinkParams: () => ipcRenderer.invoke("auth:consume-deep-link-params"),
   onAuthDeepLink: (

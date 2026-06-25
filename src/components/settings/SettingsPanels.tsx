@@ -41,6 +41,49 @@ import {
 } from "../../contexts/AppSettingsContext";
 import type { AppTheme } from "../../contexts/AppSettingsContext";
 
+type DesktopUpdateStatus =
+  | "idle"
+  | "disabled"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+interface DesktopUpdateState {
+  status: DesktopUpdateStatus;
+  currentVersion: string;
+  source: "github";
+  canCheck: boolean;
+  canInstall: boolean;
+  updateAvailable: boolean;
+  checkedAt?: string;
+  downloadedAt?: string;
+  updateInfo?: {
+    version?: string;
+    releaseName?: string;
+    releaseDate?: string;
+    releaseNotes?: string | null;
+  };
+  progress?: {
+    percent: number;
+    bytesPerSecond: number;
+    transferred: number;
+    total: number;
+  };
+  error?: string;
+}
+
+const DEFAULT_UPDATE_STATE: DesktopUpdateState = {
+  status: "idle",
+  currentVersion: "0.0.0",
+  source: "github",
+  canCheck: false,
+  canInstall: false,
+  updateAvailable: false,
+};
+
 interface UserMetadata {
   full_name?: string;
   avatar_url?: string;
@@ -163,6 +206,49 @@ function DangerButton({
       {children}
     </button>
   );
+}
+
+function formatBytes(bytes?: number) {
+  if (!bytes || bytes <= 0) return "0 MB";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatUpdateDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function getUpdateStatusLabel(state: DesktopUpdateState) {
+  switch (state.status) {
+    case "disabled":
+      return "Atualizacoes disponiveis apenas no app instalado.";
+    case "checking":
+      return "Buscando atualizacoes...";
+    case "available":
+      return "Atualizacao encontrada. O download deve iniciar automaticamente.";
+    case "downloading":
+      return "Baixando atualizacao...";
+    case "downloaded":
+      return "Atualizacao pronta para instalar.";
+    case "not-available":
+      return "Voce esta usando a versao mais recente.";
+    case "error":
+      return "Nao foi possivel verificar atualizacoes.";
+    default:
+      return "Nenhuma verificacao feita nesta sessao.";
+  }
 }
 
 const themeOptions: Array<{
@@ -732,6 +818,186 @@ export function LibrarySettingsPanel() {
             />
           </button>
         </div>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
+export function UpdatesSettingsPanel() {
+  const [updateState, setUpdateState] = useState<DesktopUpdateState>(DEFAULT_UPDATE_STATE);
+  const [isRequesting, setIsRequesting] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+
+    window.api?.updatesGetStatus?.().then((state: DesktopUpdateState) => {
+      if (!disposed && state) setUpdateState(state);
+    });
+
+    const unsubscribe = window.api?.onUpdatesStatusChanged?.((state: DesktopUpdateState) => {
+      setUpdateState(state);
+    });
+
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, []);
+
+  const checkForUpdates = async () => {
+    if (!window.api?.updatesCheck) {
+      toast.error("Atualizacoes indisponiveis neste ambiente");
+      return;
+    }
+
+    try {
+      setIsRequesting(true);
+      const nextState = await window.api.updatesCheck();
+      setUpdateState(nextState);
+      if (nextState.status === "not-available") {
+        toast.success("Voce ja esta na versao mais recente");
+      } else if (nextState.status === "disabled") {
+        toast("Atualizacoes automaticas funcionam apenas no app instalado");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao buscar atualizacoes");
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const downloadUpdate = async () => {
+    if (!window.api?.updatesDownload) return;
+
+    try {
+      setIsRequesting(true);
+      setUpdateState(await window.api.updatesDownload());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao baixar atualizacao");
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const installNow = async () => {
+    if (!window.api?.updatesInstallNow) return;
+
+    const result = await window.api.updatesInstallNow();
+    if (!result.success) {
+      toast.error(result.error || "Nenhuma atualizacao pronta para instalar");
+    }
+  };
+
+  const progress = updateState.progress?.percent ?? 0;
+  const checkedAt = formatUpdateDate(updateState.checkedAt);
+  const downloadedAt = formatUpdateDate(updateState.downloadedAt);
+  const releaseDate = formatUpdateDate(updateState.updateInfo?.releaseDate);
+  const isChecking = updateState.status === "checking" || isRequesting;
+  const isDownloading = updateState.status === "downloading";
+  const canDownload = updateState.status === "available" && !isRequesting;
+
+  return (
+    <div>
+      <SettingsSection
+        title="Atualizacoes"
+        description="Busque novas versoes, acompanhe o download e instale sem fechar e abrir o Lyceum manualmente."
+      >
+        <div className="space-y-5">
+          <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Lyceum {updateState.currentVersion}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">
+                  {getUpdateStatusLabel(updateState)}
+                </p>
+                {updateState.updateInfo?.version && updateState.updateInfo.version !== updateState.currentVersion ? (
+                  <p className="mt-2 text-sm text-green-400">
+                    Versao disponivel: {updateState.updateInfo.version}
+                    {releaseDate ? ` - publicada em ${releaseDate}` : ""}
+                  </p>
+                ) : null}
+                {checkedAt ? (
+                  <p className="mt-2 text-xs text-zinc-600">Ultima verificacao: {checkedAt}</p>
+                ) : null}
+                {downloadedAt ? (
+                  <p className="mt-1 text-xs text-zinc-600">Download concluido: {downloadedAt}</p>
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={checkForUpdates}
+                  disabled={!updateState.canCheck || isChecking || isDownloading}
+                  className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={isChecking ? "animate-spin" : ""} />
+                  Buscar
+                </button>
+                {canDownload ? (
+                  <button
+                    type="button"
+                    onClick={downloadUpdate}
+                    className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
+                  >
+                    <Download size={14} />
+                    Baixar
+                  </button>
+                ) : null}
+                {updateState.canInstall ? (
+                  <button
+                    type="button"
+                    onClick={installNow}
+                    className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
+                  >
+                    <Download size={14} />
+                    Instalar agora
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {isDownloading || updateState.status === "downloaded" ? (
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                  <span>{Math.round(progress)}%</span>
+                  <span>
+                    {formatBytes(updateState.progress?.transferred)} / {formatBytes(updateState.progress?.total)}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-green-500 transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {updateState.status === "downloaded" ? (
+              <p className="mt-4 text-xs leading-5 text-zinc-500">
+                Se voce nao instalar agora, a atualizacao sera aplicada automaticamente quando o aplicativo for fechado.
+              </p>
+            ) : null}
+
+            {updateState.error ? (
+              <p className="mt-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {updateState.error}
+              </p>
+            ) : null}
+          </div>
+
+          {updateState.updateInfo?.releaseNotes ? (
+            <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
+              <p className="text-sm font-semibold text-zinc-100">Notas da versao</p>
+              <div className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-zinc-400">
+                {updateState.updateInfo.releaseNotes}
+              </div>
+            </div>
+          ) : null}
         </div>
       </SettingsSection>
     </div>

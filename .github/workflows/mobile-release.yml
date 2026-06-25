@@ -39,8 +39,14 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION="${GITHUB_REF_NAME#mobile-v}"
           fi
+          IFS='.' read -r MAJOR MINOR PATCH REST <<< "$VERSION"
+          MAJOR="${MAJOR:-0}"
+          MINOR="${MINOR:-0}"
+          PATCH="${PATCH%%[^0-9]*}"
+          PATCH="${PATCH:-0}"
+          VERSION_CODE=$((10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH))
           echo "MOBILE_RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "MOBILE_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - run: npm ci
 
@@ -53,24 +59,23 @@ jobs:
       - name: Prepare native Android assets
         run: npm run mobile:native-assets
 
-      - name: Generate signing keystore for release APK
+      - name: Restore signing keystore for release APK
         shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
         run: |
-          STORE_PASS=$(openssl rand -hex 16)
-          KEY_PASS=$(openssl rand -hex 16)
-          keytool -genkey -v \
-            -keystore "${{ runner.temp }}/release.keystore" \
-            -alias release \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass "$STORE_PASS" \
-            -keypass "$KEY_PASS" \
-            -dname "CN=Lyceum Mobile, OU=, O=Higino-Neto, L=, S=, C="
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_SIGNING_STORE_PASSWORD" ] || [ -z "$ANDROID_SIGNING_KEY_ALIAS" ] || [ -z "$ANDROID_SIGNING_KEY_PASSWORD" ]; then
+            echo "Missing Android signing secrets. Configure ANDROID_KEYSTORE_BASE64, ANDROID_SIGNING_STORE_PASSWORD, ANDROID_SIGNING_KEY_ALIAS and ANDROID_SIGNING_KEY_PASSWORD."
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/release.keystore"
           echo "ANDROID_SIGNING_STORE_FILE=${{ runner.temp }}/release.keystore" >> "$GITHUB_ENV"
-          echo "ANDROID_SIGNING_STORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
-          echo "ANDROID_SIGNING_KEY_ALIAS=release" >> "$GITHUB_ENV"
-          echo "ANDROID_SIGNING_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_STORE_PASSWORD=$ANDROID_SIGNING_STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_ALIAS=$ANDROID_SIGNING_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_PASSWORD=$ANDROID_SIGNING_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Build Android APKs
         working-directory: android
@@ -81,14 +86,18 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir -p release-mobile/android
-          cp android/app/build/outputs/apk/debug/*.apk release-mobile/android/
-          cp android/app/build/outputs/apk/release/*.apk release-mobile/android/ || true
+          cp "$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)" "release-mobile/android/lyceum-mobile-${MOBILE_RELEASE_VERSION}-debug.apk"
+          cp "$(ls android/app/build/outputs/apk/release/*.apk | head -n 1)" "release-mobile/android/lyceum-mobile-${MOBILE_RELEASE_VERSION}.apk"
           cat > release-mobile/RELEASE_NOTES.md <<'EOF'
-          Lyceum Mobile release with GitHub-hosted OTA updates.
+          Lyceum Mobile release with GitHub-hosted OTA and APK updates.
 
-          OTA scope: HTML/CSS/JS bundle updates only. Native changes still require installing a new Android/iOS build.
-          Android APKs are attached below. iOS distribution requires Apple signing/TestFlight/App Store credentials.
+          OTA scope: HTML/CSS/JS bundle updates only.
+          APK scope: native Android app updates through the in-app updater.
+          iOS distribution requires Apple signing/TestFlight/App Store credentials.
           EOF
+
+      - name: Prepare APK update manifest
+        run: node scripts/prepare-mobile-apk-manifest.mjs
 
       - name: Publish GitHub Release
         env:
@@ -96,7 +105,7 @@ jobs:
         run: |
           TAG="mobile-v${MOBILE_RELEASE_VERSION}"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Lyceum Mobile ${MOBILE_RELEASE_VERSION}" --notes-file release-mobile/RELEASE_NOTES.md
-          gh release upload "$TAG" release-mobile/lyceum-mobile-ota.json release-mobile/lyceum-mobile-ota-${MOBILE_RELEASE_VERSION}.zip release-mobile/android/*.apk --clobber
+          gh release upload "$TAG" release-mobile/lyceum-mobile-ota.json release-mobile/lyceum-mobile-ota-${MOBILE_RELEASE_VERSION}.zip release-mobile/lyceum-mobile-latest.json release-mobile/android/*.apk --clobber
 
   ios-native-check:
     name: iOS native project check
@@ -118,8 +127,14 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION="${GITHUB_REF_NAME#mobile-v}"
           fi
+          IFS='.' read -r MAJOR MINOR PATCH REST <<< "$VERSION"
+          MAJOR="${MAJOR:-0}"
+          MINOR="${MINOR:-0}"
+          PATCH="${PATCH%%[^0-9]*}"
+          PATCH="${PATCH:-0}"
+          VERSION_CODE=$((10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH))
           echo "MOBILE_RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "MOBILE_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - run: npm ci
       - run: npm run build:mobile

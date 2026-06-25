@@ -91,6 +91,46 @@ interface AtlasStatusNoteResult {
   error?: string;
 }
 
+type LyceumUpdateStatus =
+  | "idle"
+  | "disabled"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+interface LyceumUpdateState {
+  status: LyceumUpdateStatus;
+  currentVersion: string;
+  source: "github";
+  canCheck: boolean;
+  canInstall: boolean;
+  updateAvailable: boolean;
+  checkedAt?: string;
+  downloadedAt?: string;
+  updateInfo?: {
+    version?: string;
+    releaseName?: string;
+    releaseDate?: string;
+    releaseNotes?: string | null;
+  };
+  progress?: {
+    percent: number;
+    bytesPerSecond: number;
+    transferred: number;
+    total: number;
+  };
+  error?: string;
+}
+
+interface LyceumUpdateInstallResult {
+  success: boolean;
+  error?: string;
+  state: LyceumUpdateState;
+}
+
 declare namespace NodeJS {
   interface ProcessEnv {
     APP_ROOT: string;
@@ -362,6 +402,11 @@ openExternalFile: (filePath: string) => Promise<{ success: boolean; error?: stri
     getZoomFactor: () => Promise<number>;
     setZoomFactor: (factor: number) => Promise<void>;
     onZoomFactorChanged: (callback: (factor: number) => void) => () => void;
+    updatesGetStatus: () => Promise<LyceumUpdateState>;
+    updatesCheck: () => Promise<LyceumUpdateState>;
+    updatesDownload: () => Promise<LyceumUpdateState>;
+    updatesInstallNow: () => Promise<LyceumUpdateInstallResult>;
+    onUpdatesStatusChanged: (callback: (state: LyceumUpdateState) => void) => () => void;
   };
 }
 
@@ -532,5 +577,10 @@ interface Window {
     getZoomFactor: () => Promise<number>;
     setZoomFactor: (factor: number) => Promise<void>;
     onZoomFactorChanged: (callback: (factor: number) => void) => () => void;
+    updatesGetStatus: () => Promise<LyceumUpdateState>;
+    updatesCheck: () => Promise<LyceumUpdateState>;
+    updatesDownload: () => Promise<LyceumUpdateState>;
+    updatesInstallNow: () => Promise<LyceumUpdateInstallResult>;
+    onUpdatesStatusChanged: (callback: (state: LyceumUpdateState) => void) => () => void;
   };
 }

@@ -2,10 +2,12 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  Download,
   Heart,
   Library,
   Menu,
   NotebookPen,
+  RefreshCw,
   Search,
   Settings,
   SlidersHorizontal,
@@ -56,6 +58,12 @@ import {
   sanitizeFolderName,
   type MobileLibraryQuery,
 } from "./libraryModel";
+import {
+  checkNativeApkUpdate,
+  installNativeApkUpdate,
+  openInstallPermissionSettings,
+  type NativeApkUpdateState,
+} from "./nativeApkUpdater";
 import { getMobileSession, getMobileSupabase, hasSupabaseConfig } from "./supabaseMobile";
 import {
   loadPersistentSourceFile,
@@ -100,8 +108,49 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
   );
 }
 
+function formatMobileBytes(bytes?: number) {
+  if (!bytes || bytes <= 0) return "0 MB";
+  const value = bytes / (1024 * 1024);
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`;
+  return `${value.toFixed(1)} MB`;
+}
+
+function formatMobileDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("pt-BR");
+}
+
+function getNativeApkUpdateText(state: NativeApkUpdateState) {
+  switch (state.status) {
+    case "checking":
+      return "Buscando atualizacao...";
+    case "available":
+      return "Atualizacao disponivel para instalar.";
+    case "not-available":
+      return "Voce esta na versao mais recente.";
+    case "permission-required":
+      return "Permita que o Lyceum solicite instalacao de APKs.";
+    case "downloading":
+      return "Baixando APK...";
+    case "installing":
+      return "Instalador do Android aberto. Confirme para concluir.";
+    case "error":
+      return state.error || "Falha ao verificar atualizacao.";
+    case "unsupported":
+      return "Atualizacao por APK esta disponivel apenas no Android.";
+    default:
+      return "Nenhuma verificacao feita.";
+  }
+}
+
 type LibraryFilter = "all" | "pdf" | "epub";
 type LibraryView = "grid" | "list";
+
+const INITIAL_NATIVE_APK_UPDATE_STATE: NativeApkUpdateState = {
+  status: "idle",
+};
 
 interface SourceImportEntry {
   name: string;
@@ -477,6 +526,8 @@ function MobileApp() {
   const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
   const [readerFileLoading, setReaderFileLoading] = useState(false);
   const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
+  const [nativeApkUpdate, setNativeApkUpdate] = useState<NativeApkUpdateState>(INITIAL_NATIVE_APK_UPDATE_STATE);
+  const [nativeApkUpdateBusy, setNativeApkUpdateBusy] = useState(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -487,10 +538,76 @@ function MobileApp() {
   const isPdfBook = selectedBook?.fileType === "pdf";
   const isEbookReader = selectedBook?.fileType === "pdf" || selectedBook?.fileType === "epub";
 
+  const refreshNativeApkUpdate = useCallback(async (silent = false) => {
+    setNativeApkUpdate((current) => ({ ...current, status: "checking", error: undefined }));
+    const result = await checkNativeApkUpdate();
+    setNativeApkUpdate(result);
+
+    if (!silent) {
+      if (result.status === "available") {
+        toast.success("Atualizacao disponivel");
+      } else if (result.status === "not-available") {
+        toast.success("Voce ja esta na versao mais recente");
+      } else if (result.status === "error") {
+        toast.error(result.error || "Falha ao verificar atualizacao");
+      }
+    }
+
+    return result;
+  }, []);
+
+  const installNativeUpdate = useCallback(async () => {
+    const manifest = nativeApkUpdate.manifest;
+    if (!manifest) {
+      toast.error("Nenhuma atualizacao disponivel");
+      return;
+    }
+
+    setNativeApkUpdateBusy(true);
+    setNativeApkUpdate((current) => ({
+      ...current,
+      status: "downloading",
+      progress: { loaded: 0, total: manifest.sizeBytes || 0, percent: 0 },
+      error: undefined,
+    }));
+
+    const result = await installNativeApkUpdate(manifest, (progress) => {
+      setNativeApkUpdate((current) => ({
+        ...current,
+        status: "downloading",
+        progress,
+      }));
+    });
+
+    setNativeApkUpdate((current) => ({ ...current, ...result }));
+    setNativeApkUpdateBusy(false);
+
+    if (result.status === "permission-required") {
+      toast("Permissao de instalacao necessaria");
+    } else if (result.status === "installing") {
+      toast.success("Confirme a instalacao no Android");
+    } else if (result.status === "error") {
+      toast.error(result.error || "Falha ao instalar atualizacao");
+    }
+  }, [nativeApkUpdate.manifest]);
+
+  const openNativeInstallSettings = useCallback(async () => {
+    try {
+      await openInstallPermissionSettings();
+      toast("Ative a permissao e volte ao Lyceum para atualizar");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao abrir permissoes");
+    }
+  }, []);
+
   useEffect(() => {
     if (!repositoryReady) return;
     saveMobileState(state);
   }, [repositoryReady, state]);
+
+  useEffect(() => {
+    void refreshNativeApkUpdate(true);
+  }, [refreshNativeApkUpdate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1127,6 +1244,10 @@ function MobileApp() {
     queryClient.clear();
   };
 
+  const nativeUpdateProgress = nativeApkUpdate.progress?.percent ?? 0;
+  const nativeUpdatePublishedAt = formatMobileDate(nativeApkUpdate.manifest?.publishedAt);
+  const nativeUpdateSize = formatMobileBytes(nativeApkUpdate.manifest?.sizeBytes);
+
   return (
     <div className="lyceum-app min-h-screen bg-zinc-950 text-zinc-100">
       <Toaster
@@ -1542,6 +1663,92 @@ function MobileApp() {
                     Ranking e amigos
                   </button>
                 )}
+              </div>
+
+              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold text-zinc-100">Atualizacoes</p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      {getNativeApkUpdateText(nativeApkUpdate)}
+                    </p>
+                  </div>
+                  {nativeApkUpdate.status === "checking" ? (
+                    <RefreshCw className="mt-1 animate-spin text-emerald-400" size={18} />
+                  ) : null}
+                </div>
+
+                <div className="mt-4 space-y-2 text-xs text-zinc-500">
+                  {nativeApkUpdate.installed ? (
+                    <p>
+                      Instalado: {nativeApkUpdate.installed.versionName} ({nativeApkUpdate.installed.versionCode})
+                    </p>
+                  ) : null}
+                  {nativeApkUpdate.manifest ? (
+                    <p>
+                      Disponivel: {nativeApkUpdate.manifest.version} ({nativeApkUpdate.manifest.versionCode})
+                      {nativeUpdatePublishedAt ? ` - ${nativeUpdatePublishedAt}` : ""}
+                    </p>
+                  ) : null}
+                  {nativeApkUpdate.manifest?.sizeBytes ? (
+                    <p>Tamanho: {nativeUpdateSize}</p>
+                  ) : null}
+                </div>
+
+                {nativeApkUpdate.status === "downloading" ? (
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                      <span>{Math.round(nativeUpdateProgress)}%</span>
+                      <span>
+                        {formatMobileBytes(nativeApkUpdate.progress?.loaded)} / {formatMobileBytes(nativeApkUpdate.progress?.total)}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${Math.max(0, Math.min(100, nativeUpdateProgress))}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {nativeApkUpdate.manifest?.notes ? (
+                  <p className="mt-4 whitespace-pre-wrap rounded border border-zinc-800 bg-zinc-950 p-3 text-sm leading-6 text-zinc-400">
+                    {nativeApkUpdate.manifest.notes}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 grid gap-2">
+                  {nativeApkUpdate.status === "permission-required" ? (
+                    <button
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white"
+                      onClick={openNativeInstallSettings}
+                      type="button"
+                    >
+                      Abrir permissao de instalacao
+                    </button>
+                  ) : null}
+                  {nativeApkUpdate.status === "available" || nativeApkUpdate.status === "permission-required" ? (
+                    <button
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60"
+                      onClick={installNativeUpdate}
+                      disabled={nativeApkUpdateBusy}
+                      type="button"
+                    >
+                      <Download size={17} />
+                      {nativeApkUpdateBusy ? "Preparando..." : "Atualizar"}
+                    </button>
+                  ) : null}
+                  <button
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200 disabled:opacity-60"
+                    onClick={() => { void refreshNativeApkUpdate(false); }}
+                    disabled={nativeApkUpdate.status === "checking" || nativeApkUpdateBusy}
+                    type="button"
+                  >
+                    <RefreshCw size={17} />
+                    Buscar atualizacoes
+                  </button>
+                </div>
               </div>
 
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">

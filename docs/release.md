@@ -34,6 +34,14 @@ VITE_SUPABASE_ANON_KEY
 Vite embeds those values into the renderer bundle at build time. If they are missing,
 the workflow fails before Electron Builder publishes an installer.
 
+## Desktop Updates
+
+Desktop builds use Electron Builder auto-update metadata from GitHub Releases.
+Lyceum checks for updates on startup, downloads available updates in the background,
+and applies a downloaded update when the app exits. Users can also open
+Configuracoes > Atualizacoes to check manually, watch download progress, and install
+the downloaded update immediately.
+
 ## Versioning
 
 The app version is read from `package.json`.

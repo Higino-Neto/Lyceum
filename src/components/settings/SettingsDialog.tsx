@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
+import { BookOpen, Download, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
 import FriendsSettingsPanel from "./FriendsSettingsPanel";
@@ -10,10 +10,11 @@ import {
   DictionarySettingsPanel,
   GeneralSettingsPanel,
   LibrarySettingsPanel,
+  UpdatesSettingsPanel,
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-export type SettingsTabId = "general" | "library" | "account" | "friends" | "appearance" | "zoom" | "dictionaries";
+export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -71,6 +72,13 @@ export default function SettingsDialog({
         description: "Comportamento de pastas e livros na biblioteca.",
         icon: Library,
         panel: <LibrarySettingsPanel />,
+      },
+      {
+        id: "updates",
+        label: "Atualizacoes",
+        description: "Busque, baixe e instale novas versoes do Lyceum.",
+        icon: Download,
+        panel: <UpdatesSettingsPanel />,
       },
       {
         id: "account",
