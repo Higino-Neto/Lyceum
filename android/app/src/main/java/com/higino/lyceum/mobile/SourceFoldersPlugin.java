@@ -87,6 +87,7 @@ public class SourceFoldersPlugin extends Plugin {
     @PluginMethod
     public void readFile(PluginCall call) {
         String uriValue = call.getString("uri");
+        String requestId = call.getString("requestId", uriValue);
         if (uriValue == null || uriValue.isEmpty()) {
             call.reject("URI do arquivo ausente");
             return;
