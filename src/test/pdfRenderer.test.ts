@@ -23,8 +23,9 @@ describe("pdfRenderer utilities", () => {
     });
 
     expect(urls?.sourceUrl).toBe(`lyceum-pdf://document/${fileHash}.pdf`);
-    expect(urls?.viewerUrl).toContain("lyceum-pdfjs://viewer/viewer.html");
+    expect(urls?.viewerUrl).toContain("lyceum-pdfjs://viewer/web/viewer.html");
     expect(urls?.viewerUrl).toContain(encodeURIComponent(`lyceum-pdf://document/${fileHash}.pdf`));
+    expect(urls?.viewerUrl).toContain("disablehistory=true");
   });
 
   it("rejects non-hash source identifiers", () => {

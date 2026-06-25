@@ -21,7 +21,11 @@ import {
   User,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getUserProfile, updateUserProfile } from "../../api/database";
+import {
+  getUserProfile,
+  updateProfileNickname,
+  updateUserProfile,
+} from "../../api/database";
 import Skeleton from "../Skeleton";
 import { useDictionary } from "../../hooks/useDictionary";
 import { supabase } from "../../lib/supabase";
@@ -47,6 +51,7 @@ async function fetchCurrentUser(): Promise<{
   email: string;
   metadata: UserMetadata;
   name?: string;
+  nickname?: string | null;
   level?: number;
   avatar_url?: string;
 }> {
@@ -64,6 +69,7 @@ async function fetchCurrentUser(): Promise<{
     email: user.email || "",
     metadata: (user.user_metadata as UserMetadata) || {},
     name: profile?.name || "",
+    nickname: profile?.nickname || "",
     level: 1,
     avatar_url: profile?.avatar_url || "",
   };
@@ -300,6 +306,7 @@ export function AccountSettingsPanel({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarPreview, setAvatarPreview] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -314,6 +321,7 @@ export function AccountSettingsPanel({
   useEffect(() => {
     if (user) {
       setName(user.name || "");
+      setNickname(user.nickname || "");
       setAvatarUrl(user.avatar_url || "");
     }
   }, [user]);
@@ -362,13 +370,20 @@ export function AccountSettingsPanel({
     }
   };
 
-  const nameMutation = useMutation({
-    mutationFn: () =>
-      updateUserMetadata({ full_name: name, avatar_url: avatarUrl }),
+  const accountMutation = useMutation({
+    mutationFn: async () => {
+      await updateUserMetadata({ full_name: name, avatar_url: avatarUrl });
+
+      const nextNickname = nickname.trim().replace(/^@/, "").toLowerCase();
+      if (nextNickname && nextNickname !== user?.nickname) {
+        await updateProfileNickname(nextNickname);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      toast.success("Nome atualizado com sucesso!");
+      toast.success("Conta atualizada com sucesso!");
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -389,7 +404,7 @@ export function AccountSettingsPanel({
 
   const handleNameSubmit = (e: FormEvent) => {
     e.preventDefault();
-    nameMutation.mutate();
+    accountMutation.mutate();
   };
 
   const handlePasswordSubmit = (e: FormEvent) => {
@@ -481,12 +496,30 @@ export function AccountSettingsPanel({
                   className={inputClasses(true)}
                 />
               </div>
+              <div>
+                <FieldLabel>Nickname</FieldLabel>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-2 text-sm text-zinc-600">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    className={`${inputClasses()} pl-7`}
+                    placeholder="seu_nickname"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Usado para encontrar amigos no Lyceum.
+                </p>
+              </div>
             </div>
           </div>
 
-          <PrimaryButton type="submit" disabled={nameMutation.isPending}>
+          <PrimaryButton type="submit" disabled={accountMutation.isPending}>
             <Save size={16} />
-            {nameMutation.isPending ? "Salvando..." : "Salvar conta"}
+            {accountMutation.isPending ? "Salvando..." : "Salvar conta"}
           </PrimaryButton>
         </form>
       </SettingsSection>

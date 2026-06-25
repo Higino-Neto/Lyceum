@@ -25,6 +25,7 @@ import { useAppSettings } from "./contexts/AppSettingsContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { usePendingFriendRequestCount } from "./hooks/useFriends";
 
 // import React from "react";
 // import ReactDOMClient from "react-dom/client";
@@ -60,6 +61,9 @@ function AppShell() {
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>("general");
+  const [settingsFriendId, setSettingsFriendId] = useState<string | null>(null);
+  const { data: pendingFriendRequestCount = 0 } =
+    usePendingFriendRequestCount(isLoggedIn === true);
   const hideTimerRef = useRef<number | null>(null);
   const showDelayTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -376,10 +380,21 @@ function AppShell() {
      setAutoHideOverlay(enabled);
    };
 
-   const openSettings = (tab: SettingsTabId = "general") => {
+   const openSettings = (tab: SettingsTabId = "general", friendId: string | null = null) => {
      setSettingsInitialTab(tab);
+     setSettingsFriendId(friendId);
      setSettingsOpen(true);
    };
+
+   useEffect(() => {
+     const handleOpenSettings = (event: Event) => {
+       const detail = (event as CustomEvent<{ tab?: SettingsTabId; friendId?: string }>).detail;
+       openSettings(detail?.tab || "general", detail?.friendId || null);
+     };
+
+     window.addEventListener("lyceum:open-settings", handleOpenSettings);
+     return () => window.removeEventListener("lyceum:open-settings", handleOpenSettings);
+   }, []);
 
    const handleSidebarSignOut = async () => {
      await authSignOut();
@@ -485,6 +500,7 @@ function AppShell() {
                onSignOut={handleSidebarSignOut}
                isLoggedIn
                userEmail={user?.email ?? null}
+               friendRequestCount={pendingFriendRequestCount}
              />
            )}
            <main
@@ -573,6 +589,7 @@ function AppShell() {
               isOpen={settingsOpen}
               onClose={() => setSettingsOpen(false)}
               initialTab={settingsInitialTab}
+              initialFriendId={settingsFriendId}
             />
           )}
         </div>

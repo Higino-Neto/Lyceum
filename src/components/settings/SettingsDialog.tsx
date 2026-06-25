@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Library, Palette, SlidersHorizontal, UserCircle, X, ZoomIn } from "lucide-react";
+import { BookOpen, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { usePendingFriendRequestCount } from "../../hooks/useFriends";
+import FriendsSettingsPanel from "./FriendsSettingsPanel";
 import {
   AccountSettingsPanel,
   AppearanceSettingsPanel,
@@ -11,7 +13,7 @@ import {
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-export type SettingsTabId = "general" | "library" | "account" | "appearance" | "zoom" | "dictionaries";
+export type SettingsTabId = "general" | "library" | "account" | "friends" | "appearance" | "zoom" | "dictionaries";
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -19,20 +21,25 @@ interface SettingsTab {
   description: string;
   icon: LucideIcon;
   panel: ReactNode;
+  badgeCount?: number;
 }
 
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SettingsTabId;
+  initialFriendId?: string | null;
 }
 
 export default function SettingsDialog({
   isOpen,
   onClose,
   initialTab = "general",
+  initialFriendId = null,
 }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+  const { data: pendingFriendRequests = 0 } =
+    usePendingFriendRequestCount(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -73,6 +80,14 @@ export default function SettingsDialog({
         panel: <AccountSettingsPanel onRequestClose={onClose} />,
       },
       {
+        id: "friends",
+        label: "Amigos",
+        description: "Nicknames, solicitacoes e competicao com amigos.",
+        icon: Users,
+        badgeCount: pendingFriendRequests,
+        panel: <FriendsSettingsPanel focusedFriendId={initialFriendId} />,
+      },
+      {
         id: "appearance",
         label: "Aparência",
         description: "Tema e cor de destaque da interface.",
@@ -94,7 +109,7 @@ export default function SettingsDialog({
         panel: <DictionarySettingsPanel />,
       },
     ],
-    [onClose],
+    [initialFriendId, onClose, pendingFriendRequests],
   );
 
   const activeSettingsTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
@@ -138,6 +153,11 @@ export default function SettingsDialog({
                 >
                   <Icon size={16} />
                   <span>{tab.label}</span>
+                  {tab.badgeCount ? (
+                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-green-500 px-1.5 text-[11px] font-semibold text-black">
+                      {tab.badgeCount}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -166,7 +186,9 @@ export default function SettingsDialog({
               >
                 {tabs.map((tab) => (
                   <option key={tab.id} value={tab.id}>
-                    {tab.label}
+                    {tab.badgeCount
+                      ? `${tab.label} (${tab.badgeCount})`
+                      : tab.label}
                   </option>
                 ))}
               </select>

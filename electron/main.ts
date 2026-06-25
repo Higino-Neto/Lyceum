@@ -194,6 +194,7 @@ const PDFJS_ASSET_MIME_TYPES: Record<string, string> = {
   ".jpeg": "image/jpeg",
   ".gif": "image/gif",
   ".bcmap": "application/octet-stream",
+  ".ftl": "text/plain; charset=utf-8",
   ".pfb": "application/octet-stream",
   ".ttf": "font/ttf",
   ".otf": "font/otf",
@@ -2225,6 +2226,10 @@ async function getNativePdfViewerState(
     const result = (await frame.executeJavaScript(
       `
         (async () => {
+          if (globalThis.LyceumPdfJs?.getState) {
+            return await globalThis.LyceumPdfJs.getState();
+          }
+
           const app = globalThis.PDFViewerApplication;
           if (!app) {
             return null;
@@ -2278,6 +2283,10 @@ async function applyNativePdfViewerState(
     const result = (await frame.executeJavaScript(
       `
         (async () => {
+          if (globalThis.LyceumPdfJs?.applyState) {
+            return await globalThis.LyceumPdfJs.applyState(${payload});
+          }
+
           const app = globalThis.PDFViewerApplication;
           if (!app) {
             return null;

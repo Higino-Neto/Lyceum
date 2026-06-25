@@ -6,63 +6,53 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { SelectedUsersProvider } from "../contexts/SelectedUsersContext";
 
-const mockRankingData = [
+const mockRankingData = vi.hoisted(() => [
   {
     user_id: "user-1",
     username: "Alice",
+    nickname: "alice",
     total_pages: 150,
     today_pages: 15,
     this_week_pages: 80,
     month_pages: 120,
     avatar_url: null,
+    is_current_user: false,
   },
   {
     user_id: "user-2",
     username: "Bob",
+    nickname: "bob",
     total_pages: 100,
     today_pages: 10,
     this_week_pages: 50,
     month_pages: 90,
     avatar_url: null,
+    is_current_user: false,
   },
   {
     user_id: "user-3",
     username: "Charlie",
+    nickname: "charlie",
     total_pages: 80,
     today_pages: 5,
     this_week_pages: 30,
     month_pages: 60,
     avatar_url: null,
+    is_current_user: false,
   },
-];
+]);
 
 vi.mock("../lib/supabase", () => ({
   supabase: {
-    from: vi.fn().mockImplementation((table: string) => {
-      if (table === "reading_stats") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          order: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue({
-            data: mockRankingData,
-            error: null,
-          }),
-          eq: vi.fn().mockReturnThis(),
-        };
+    rpc: vi.fn().mockImplementation((fn: string) => {
+      if (fn === "get_categories") {
+        return Promise.resolve({ data: [], error: null });
       }
-      if (table === "profiles") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          in: vi.fn().mockResolvedValue({
-            data: mockRankingData.map((u) => ({ id: u.user_id, name: u.username })),
-            error: null,
-          }),
-        };
-      }
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-      };
+
+      return Promise.resolve({
+        data: mockRankingData,
+        error: null,
+      });
     }),
     auth: {
       getUser: vi.fn().mockResolvedValue({
@@ -72,31 +62,15 @@ vi.mock("../lib/supabase", () => ({
     },
   },
   default: {
-    from: vi.fn().mockImplementation((table: string) => {
-      if (table === "reading_stats") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          order: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue({
-            data: mockRankingData,
-            error: null,
-          }),
-          eq: vi.fn().mockReturnThis(),
-        };
+    rpc: vi.fn().mockImplementation((fn: string) => {
+      if (fn === "get_categories") {
+        return Promise.resolve({ data: [], error: null });
       }
-      if (table === "profiles") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          in: vi.fn().mockResolvedValue({
-            data: mockRankingData.map((u) => ({ id: u.user_id, name: u.username })),
-            error: null,
-          }),
-        };
-      }
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-      };
+
+      return Promise.resolve({
+        data: mockRankingData,
+        error: null,
+      });
     }),
     auth: {
       getUser: vi.fn().mockResolvedValue({
@@ -114,7 +88,7 @@ const renderWithProviders = (component: React.ReactElement) => {
       <SelectedUsersProvider>
         <BrowserRouter>{component}</BrowserRouter>
       </SelectedUsersProvider>
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 };
 

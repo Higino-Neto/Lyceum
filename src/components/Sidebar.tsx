@@ -27,6 +27,7 @@ interface SidebarProps {
   onSignOut?: () => void;
   isLoggedIn?: boolean;
   userEmail?: string | null;
+  friendRequestCount?: number;
 }
 
 export default function Sidebar({
@@ -42,6 +43,7 @@ export default function Sidebar({
   onSignOut,
   isLoggedIn = true,
   userEmail,
+  friendRequestCount = 0,
 }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -119,6 +121,7 @@ export default function Sidebar({
           active={settingsOpen}
           onClick={() => onOpenSettings?.()}
           collapsed={collapsed}
+          badgeCount={friendRequestCount}
         />
         {isLoggedIn ? (
           <>

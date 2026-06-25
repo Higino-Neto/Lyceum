@@ -42,8 +42,9 @@ export function createPdfJsViewerUrl(options: {
     return null;
   }
 
-  const viewerUrl = new URL("lyceum-pdfjs://viewer/viewer.html");
+  const viewerUrl = new URL("lyceum-pdfjs://viewer/web/viewer.html");
   viewerUrl.searchParams.set("file", sourceUrl);
+  viewerUrl.searchParams.set("disablehistory", "true");
 
   if (options.fileName) {
     viewerUrl.searchParams.set("title", options.fileName);

@@ -12,6 +12,7 @@ export const mockSupabaseUser = {
 export const mockSupabaseProfile = {
   id: "test-user-id",
   name: "Test User",
+  nickname: "test_user",
   avatar_url: null,
   created_at: "2024-01-01T00:00:00.000Z",
 };

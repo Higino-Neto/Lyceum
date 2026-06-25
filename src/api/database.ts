@@ -20,8 +20,61 @@ export interface Category {
 export interface Profile {
   id: string;
   name: string;
+  nickname?: string | null;
   avatar_url: string;
   created_at: Date;
+}
+
+export interface FriendSummary {
+  user_id: string;
+  name: string | null;
+  nickname: string;
+  avatar_url: string | null;
+  friends_since: string;
+  total_pages: number;
+  today_pages: number;
+  this_week_pages: number;
+  month_pages: number;
+}
+
+export interface FriendRequest {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  other_user_id: string;
+  other_name: string | null;
+  other_nickname: string;
+  other_avatar_url: string | null;
+  status: "pending" | "accepted" | "declined" | "canceled";
+  direction: "incoming" | "outgoing";
+  created_at: string;
+  responded_at: string | null;
+}
+
+export interface FriendSearchResult {
+  user_id: string;
+  name: string | null;
+  nickname: string;
+  avatar_url: string | null;
+  friend_status:
+    | "none"
+    | "self"
+    | "friends"
+    | "request_sent"
+    | "request_received";
+  request_id: string | null;
+}
+
+export interface FriendProfile {
+  user_id: string;
+  name: string | null;
+  nickname: string;
+  avatar_url: string | null;
+  friends_since: string | null;
+  total_pages: number;
+  today_pages: number;
+  this_week_pages: number;
+  month_pages: number;
 }
 
 export async function getUserReadings(): Promise<ReadingEntry[]> {
@@ -141,6 +194,14 @@ export async function updateUserProfile(
   if (error) throw error;
 }
 
+export async function updateProfileNickname(nickname: string): Promise<string> {
+  const { data, error } = await supabase.rpc("update_profile_nickname", {
+    p_nickname: nickname,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function createUserProfile(
   userId: string,
   email: string
@@ -150,6 +211,74 @@ export async function createUserProfile(
     p_email: email,
   });
   if (error) throw error;
+}
+
+export async function findUserByNickname(
+  nickname: string
+): Promise<FriendSearchResult | null> {
+  const { data, error } = await supabase.rpc("find_user_by_nickname", {
+    p_nickname: nickname,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+export async function sendFriendRequest(nickname: string): Promise<string> {
+  const { data, error } = await supabase.rpc("send_friend_request", {
+    p_nickname: nickname,
+  });
+  if (error) throw error;
+  return data?.[0]?.status || "request_sent";
+}
+
+export async function acceptFriendRequest(requestId: string): Promise<void> {
+  const { error } = await supabase.rpc("accept_friend_request", {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+}
+
+export async function declineFriendRequest(requestId: string): Promise<void> {
+  const { error } = await supabase.rpc("decline_friend_request", {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+}
+
+export async function cancelFriendRequest(requestId: string): Promise<void> {
+  const { error } = await supabase.rpc("cancel_friend_request", {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+}
+
+export async function removeFriend(friendId: string): Promise<void> {
+  const { error } = await supabase.rpc("remove_friend", {
+    p_friend_id: friendId,
+  });
+  if (error) throw error;
+}
+
+export async function getFriendRequests(): Promise<FriendRequest[]> {
+  const { data, error } = await supabase.rpc("get_friend_requests");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getFriends(): Promise<FriendSummary[]> {
+  const { data, error } = await supabase.rpc("get_friends");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getFriendProfile(
+  friendId: string
+): Promise<FriendProfile | null> {
+  const { data, error } = await supabase.rpc("get_friend_profile", {
+    p_user_id: friendId,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
 export interface SupabaseBook {

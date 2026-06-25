@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../lib/supabase", () => ({
   supabase: {
@@ -33,7 +33,7 @@ describe("getUserReadings", () => {
 
     const result = await getUserReadings("user-123");
 
-    expect(supabase.rpc).toHaveBeenCalledWith("get_user_readings", {
+    expect(supabase.rpc).toHaveBeenCalledWith("get_friend_readings", {
       p_user_id: "user-123",
     });
     expect(result).toEqual(mockReadings);

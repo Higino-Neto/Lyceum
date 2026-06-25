@@ -10,7 +10,7 @@ interface ReadingData {
 }
 
 export default async function getUserReadings(userId: string): Promise<ReadingData[]> {
-  const { data: readingsData, error: readingsError } = await supabase.rpc("get_user_readings", {
+  const { data: readingsData, error: readingsError } = await supabase.rpc("get_friend_readings", {
     p_user_id: userId,
   });
 

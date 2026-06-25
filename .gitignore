@@ -23,6 +23,8 @@ coverage
 AGENTS.md
 .tmp/
 /public/pdfjs/
+/vendor/pdfjs-*-dist/**/*.map
+/vendor/pdfjs-*-dist/web/compressed.tracemonkey-pldi-09.pdf
 
 
 # Editor directories and files
