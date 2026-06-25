@@ -3,11 +3,11 @@ apply plugin: 'com.android.application'
 def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.8.13"
 def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10813").toInteger()
 
-def keystorePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
-def keystorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")
-def keyAlias = System.getenv("ANDROID_SIGNING_KEY_ALIAS")
-def keyPassword = System.getenv("ANDROID_SIGNING_KEY_PASSWORD")
-def hasSigningConfig = keystorePath != null && !keystorePath.isEmpty()
+def releaseKeystorePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
+def releaseKeystorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")
+def releaseKeyAlias = System.getenv("ANDROID_SIGNING_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("ANDROID_SIGNING_KEY_PASSWORD")
+def hasSigningConfig = releaseKeystorePath != null && !releaseKeystorePath.isEmpty()
 
 android {
     namespace = "com.higino.lyceum.mobile"
@@ -27,11 +27,11 @@ android {
     }
     signingConfigs {
         release {
-            if (keystorePath != null && !keystorePath.isEmpty()) {
-                storeFile file(keystorePath)
-                storePassword keystorePassword
-                keyAlias keyAlias
-                keyPassword keyPassword
+            if (releaseKeystorePath != null && !releaseKeystorePath.isEmpty()) {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
