@@ -124,15 +124,26 @@ const crossFrameWebViewerLoadedDispatch = `  try {
     document.dispatchEvent(event);
   }`;
 const localWebViewerLoadedDispatch = `  document.dispatchEvent(event);`;
+const crossFrameWebViewerLoadedDispatchPattern =
+  /  try \{\r?\n    parent\.document\.dispatchEvent\(event\);\r?\n  \} catch \(ex\) \{\r?\n    console\.error\("webviewerloaded:", ex\);\r?\n    document\.dispatchEvent\(event\);\r?\n  \}/;
 
-if (!viewerScript.includes(crossFrameWebViewerLoadedDispatch)) {
-  throw new Error("Could not patch Mozilla PDF.js webviewerloaded dispatch for Lyceum.");
+if (crossFrameWebViewerLoadedDispatchPattern.test(viewerScript)) {
+  viewerScript = viewerScript.replace(
+    crossFrameWebViewerLoadedDispatchPattern,
+    localWebViewerLoadedDispatch,
+  );
 }
 
-viewerScript = viewerScript.replace(
-  crossFrameWebViewerLoadedDispatch,
-  localWebViewerLoadedDispatch,
-);
+if (crossFrameWebViewerLoadedDispatchPattern.test(viewerScript) || !viewerScript.includes(localWebViewerLoadedDispatch)) {
+  const webViewerLoadedIndex = viewerScript.indexOf(`webviewerloaded`);
+  const webViewerLoadedSnippet = webViewerLoadedIndex >= 0
+    ? viewerScript.slice(Math.max(0, webViewerLoadedIndex - 240), webViewerLoadedIndex + 360)
+    : "webviewerloaded dispatch not found";
+  throw new Error(
+    "Could not patch Mozilla PDF.js webviewerloaded dispatch for Lyceum.\n" +
+      `Nearby viewer.mjs snippet:\n${webViewerLoadedSnippet}`,
+  );
+}
 fs.writeFileSync(viewerScriptPath, viewerScript);
 
 console.log(`[prepare-pdfjs] PDF.js viewer assets written to ${path.relative(rootDir, targetDir)}`);
