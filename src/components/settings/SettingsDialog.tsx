@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { BookOpen, Download, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
 import FriendsSettingsPanel from "./FriendsSettingsPanel";
 import {
   AccountSettingsPanel,
@@ -15,6 +16,21 @@ import {
 } from "./SettingsPanels";
 
 export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries";
+
+const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
+  "general",
+  "library",
+  "updates",
+  "account",
+  "friends",
+  "appearance",
+  "zoom",
+  "dictionaries",
+]);
+
+function isSettingsTabId(value: unknown): value is SettingsTabId {
+  return typeof value === "string" && SETTINGS_TAB_IDS.has(value as SettingsTabId);
+}
 
 interface SettingsTab {
   id: SettingsTabId;
@@ -35,17 +51,30 @@ interface SettingsDialogProps {
 export default function SettingsDialog({
   isOpen,
   onClose,
-  initialTab = "general",
+  initialTab,
   initialFriendId = null,
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+  const [storedActiveTab, setStoredActiveTab] = useLocalStorage<SettingsTabId>(
+    "settings_active_tab",
+    "general",
+  );
+  const [activeTab, setActiveTabState] = useState<SettingsTabId>(() =>
+    isSettingsTabId(initialTab) ? initialTab : storedActiveTab,
+  );
   const { data: pendingFriendRequests = 0 } =
     usePendingFriendRequestCount(isOpen);
+
+  const setActiveTab = (tab: SettingsTabId) => {
+    setActiveTabState(tab);
+    setStoredActiveTab(tab);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setActiveTab(initialTab);
+    const nextTab = isSettingsTabId(initialTab) ? initialTab : storedActiveTab;
+    setActiveTabState(nextTab);
+    setStoredActiveTab(nextTab);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -55,7 +84,7 @@ export default function SettingsDialog({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [initialTab, isOpen, onClose]);
+  }, [initialTab, isOpen, onClose, setStoredActiveTab, storedActiveTab]);
 
   const tabs = useMemo<SettingsTab[]>(
     () => [

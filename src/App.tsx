@@ -60,7 +60,7 @@ function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage("sidebarCollapsed", true);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>("general");
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | undefined>();
   const [settingsFriendId, setSettingsFriendId] = useState<string | null>(null);
   const { data: pendingFriendRequestCount = 0 } =
     usePendingFriendRequestCount(isLoggedIn === true);
@@ -380,7 +380,7 @@ function AppShell() {
      setAutoHideOverlay(enabled);
    };
 
-   const openSettings = (tab: SettingsTabId = "general", friendId: string | null = null) => {
+   const openSettings = (tab?: SettingsTabId, friendId: string | null = null) => {
      setSettingsInitialTab(tab);
      setSettingsFriendId(friendId);
      setSettingsOpen(true);
@@ -389,7 +389,7 @@ function AppShell() {
    useEffect(() => {
      const handleOpenSettings = (event: Event) => {
        const detail = (event as CustomEvent<{ tab?: SettingsTabId; friendId?: string }>).detail;
-       openSettings(detail?.tab || "general", detail?.friendId || null);
+       openSettings(detail?.tab, detail?.friendId || null);
      };
 
      window.addEventListener("lyceum:open-settings", handleOpenSettings);
@@ -495,7 +495,7 @@ function AppShell() {
                onShowPanels={showPanels}
                onHidePanels={() => hidePanels()}
                settingsOpen={settingsOpen}
-               onOpenSettings={() => openSettings("general")}
+               onOpenSettings={() => openSettings()}
                onOpenAccountSettings={() => openSettings("account")}
                onSignOut={handleSidebarSignOut}
                isLoggedIn

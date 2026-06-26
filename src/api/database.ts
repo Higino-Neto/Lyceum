@@ -291,6 +291,7 @@ export interface SupabaseBook {
   description: string | null;
   published_date: string | null;
   external_id: string | null;
+  category_id?: string | null;
 }
 
 export async function getAllBooks(): Promise<SupabaseBook[]> {
