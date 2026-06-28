@@ -321,12 +321,8 @@ function chapterTitle(chapter: LyceumTextualContent["chapters"][number], index: 
   return isPlaceholderTitle(heading) ? `Capitulo ${index + 1}` : heading!;
 }
 
-function removeDuplicateLeadingHeading(bodyHtml: string, title: string): string {
-  const match = bodyHtml.match(/^\s*<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
-  if (!match) return bodyHtml;
-  return stripHtml(match[1]).trim() === title.trim()
-    ? bodyHtml.slice(match[0].length)
-    : bodyHtml;
+function removeDuplicateLeadingHeading(bodyHtml: string, _title: string): string {
+  return bodyHtml.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i, "");
 }
 
 function hrefPath(value: string): string {

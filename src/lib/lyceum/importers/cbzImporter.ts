@@ -148,12 +148,8 @@ function hasImageSignature(data: Uint8Array, mediaType: string) {
   return false;
 }
 
-function pageTitle(index: number, zipPath: string) {
-  return `Pagina ${index}: ${path.posix.basename(zipPath)}`;
-}
-
 function renderComicPageXhtml(args: {
-  title: string;
+  pageNumber: number;
   resourceHref: string;
   sourceHref: string;
 }) {
@@ -162,7 +158,7 @@ function renderComicPageXhtml(args: {
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeXml(args.title)}</title>
+  <title>Pagina ${args.pageNumber}</title>
   <style>
     body { margin: 0; padding: 0; text-align: center; background: #fff; }
     img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
@@ -170,7 +166,7 @@ function renderComicPageXhtml(args: {
 </head>
 <body>
   <figure id="page">
-    <img src="${escapeXml(args.sourceHref)}" alt="${escapeXml(args.title)}" />
+    <img src="${escapeXml(args.sourceHref)}" alt="" />
   </figure>
 </body>
 </html>`;
@@ -268,7 +264,6 @@ export async function parseCbzBuffer(
     }
 
     const extension = path.posix.extname(page.zipPath).toLowerCase() || ".bin";
-    const title = pageTitle(pageNumber, page.zipPath);
     const resourceHref = uniqueHref(
       `images/${fallbackId}${extension}`,
       usedHrefs,
@@ -289,13 +284,14 @@ export async function parseCbzBuffer(
       properties,
       data: bytes,
     });
+    const pageTitle = `Pagina ${pageNumber}`;
     chapters.push({
       id: fallbackId,
       href: chapterHref,
-      title,
+      title: pageTitle,
       mediaType: "application/xhtml+xml",
       xhtml: renderComicPageXhtml({
-        title,
+        pageNumber,
         resourceHref,
         sourceHref: relativeImageHref,
       }),
@@ -303,7 +299,7 @@ export async function parseCbzBuffer(
     comicPages.push({
       id: fallbackId,
       href: chapterHref,
-      title,
+      title: pageTitle,
       mediaType: page.mediaType,
       byteLength: bytes.byteLength,
       width: metadata.width,
