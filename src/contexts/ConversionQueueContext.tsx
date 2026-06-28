@@ -78,6 +78,8 @@ interface ConversionQueueContextValue {
   queue: ConversionQueueItem[];
   isRunning: boolean;
   prepareBooks: (books: BookWithThumbnail[]) => void;
+  addDraftBooks: (books: BookWithThumbnail[]) => void;
+  removeDraftBook: (fileHash: string) => void;
   clearDraft: () => void;
   startConversion: (options: ConversionRunOptions) => void;
   startConversionWithConfigs: (configs: BookConversionConfig[]) => void;
@@ -220,6 +222,18 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
     setDraftBooks(books);
   }, []);
 
+  const addDraftBooks = useCallback((books: BookWithThumbnail[]) => {
+    setDraftBooks((current) => {
+      const next = new Map(current.map((book) => [book.fileHash, book]));
+      books.forEach((book) => next.set(book.fileHash, book));
+      return Array.from(next.values());
+    });
+  }, []);
+
+  const removeDraftBook = useCallback((fileHash: string) => {
+    setDraftBooks((current) => current.filter((book) => book.fileHash !== fileHash));
+  }, []);
+
   const clearDraft = useCallback(() => {
     setDraftBooks([]);
   }, []);
@@ -284,11 +298,23 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
       queue,
       isRunning,
       prepareBooks,
+      addDraftBooks,
+      removeDraftBook,
       clearDraft,
       startConversion,
       startConversionWithConfigs,
     }),
-    [clearDraft, draftBooks, isRunning, prepareBooks, queue, startConversion, startConversionWithConfigs],
+    [
+      addDraftBooks,
+      clearDraft,
+      draftBooks,
+      isRunning,
+      prepareBooks,
+      queue,
+      removeDraftBook,
+      startConversion,
+      startConversionWithConfigs,
+    ],
   );
 
   return (

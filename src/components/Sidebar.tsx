@@ -7,6 +7,7 @@ import {
   LogIn,
   LogOut,
   Map,
+  RefreshCw,
   Settings,
   UserCircle,
 } from "lucide-react";
@@ -22,7 +23,9 @@ interface SidebarProps {
   onShowPanels: () => void;
   onHidePanels: () => void;
   settingsOpen?: boolean;
+  conversionOpen?: boolean;
   onOpenSettings?: () => void;
+  onOpenConversion?: () => void;
   onOpenAccountSettings?: () => void;
   onSignOut?: () => void;
   isLoggedIn?: boolean;
@@ -38,7 +41,9 @@ export default function Sidebar({
   onShowPanels,
   onHidePanels,
   settingsOpen = false,
+  conversionOpen = false,
   onOpenSettings,
+  onOpenConversion,
   onOpenAccountSettings,
   onSignOut,
   isLoggedIn = true,
@@ -103,6 +108,13 @@ export default function Sidebar({
           label="Ler"
           active={pathname === "/reading"}
           onClick={() => navigate("/reading")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={RefreshCw}
+          label="Conversao"
+          active={conversionOpen}
+          onClick={() => onOpenConversion?.()}
           collapsed={collapsed}
         />
         <SidebarItem

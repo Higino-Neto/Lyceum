@@ -8,6 +8,7 @@ const MOBI_VERSION_KF8 = 8;
 const EXTH_PRESENT_FLAG = 0x40;
 const MIN_AZW3_SIZE = 1024;
 const EOF_MARKER = Buffer.from([0xe9, 0x8e, 0x0d, 0x0a]);
+const NULL_INDEX = 0xffffffff;
 
 export interface Azw3ValidationMetadata {
   fileSize: number;
@@ -20,10 +21,17 @@ export interface Azw3ValidationMetadata {
   mobiVersion?: number;
   firstNonTextRecord?: number;
   firstResourceRecord?: number;
+  fdstRecord?: number;
+  fdstCount?: number;
+  fcisRecord?: number;
+  fcisCount?: number;
+  flisRecord?: number;
+  flisCount?: number;
   fullName?: string;
   hasExth?: boolean;
   exthRecordCount?: number;
   extraDataFlags?: number;
+  estimatedLocationCount?: number;
   ncxIndexRecord?: number;
   fragmentIndexRecord?: number;
   skeletonIndexRecord?: number;
@@ -35,6 +43,9 @@ export interface Azw3ValidationMetadata {
   hasIndx?: boolean;
   hasSrcs?: boolean;
   hasEof?: boolean;
+  decompressedTextLength?: number;
+  rawInternalHrefCount?: number;
+  kindlePositionLinkCount?: number;
 }
 
 export interface Azw3ValidationResult {
@@ -170,6 +181,24 @@ function decodeTextPreviewFromRecords(
   return Buffer.concat(records).subarray(0, 32768).toString("utf8");
 }
 
+function decodeTextRecords(
+  buffer: Buffer,
+  offsets: number[],
+  textRecordCount: number,
+  compression: number,
+  extraDataFlags: number,
+): Buffer {
+  const records: Buffer[] = [];
+  const count = Math.min(textRecordCount, Math.max(0, offsets.length - 1));
+
+  for (let index = 1; index <= count; index += 1) {
+    const trimmed = trimExtraData(recordSlice(buffer, offsets, index), extraDataFlags);
+    records.push(compression === 2 ? decompressPalmDoc(trimmed) : trimmed);
+  }
+
+  return Buffer.concat(records);
+}
+
 export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Azw3ValidationResult {
   const buffer = asBuffer(input);
   const errors: string[] = [];
@@ -251,6 +280,12 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   const fullNameLength = readUInt32BE(buffer, mobiOffset + 72);
   const exthFlags = readUInt32BE(buffer, recordZeroOffset + 128);
   metadata.firstResourceRecord = readUInt32BE(buffer, mobiOffset + 92);
+  metadata.fdstRecord = readUInt32BE(buffer, mobiOffset + 176);
+  metadata.fdstCount = readUInt32BE(buffer, mobiOffset + 180);
+  metadata.fcisRecord = readUInt32BE(buffer, mobiOffset + 184);
+  metadata.fcisCount = readUInt32BE(buffer, mobiOffset + 188);
+  metadata.flisRecord = readUInt32BE(buffer, mobiOffset + 192);
+  metadata.flisCount = readUInt32BE(buffer, mobiOffset + 196);
   metadata.extraDataFlags = readUInt32BE(buffer, mobiOffset + 224);
   metadata.ncxIndexRecord = readUInt32BE(buffer, mobiOffset + 228);
   metadata.fragmentIndexRecord = readUInt32BE(buffer, mobiOffset + 232);
@@ -268,6 +303,9 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   if (!metadata.textRecordCount || metadata.textRecordCount < 1) {
     errors.push("AZW3 sem registros de texto.");
   }
+  metadata.estimatedLocationCount = metadata.textLength
+    ? Math.max(1, Math.ceil(metadata.textLength / 128))
+    : 0;
 
   if (metadata.firstNonTextRecord && metadata.textRecordCount && metadata.firstNonTextRecord <= metadata.textRecordCount) {
     errors.push("Primeiro registro nao textual aponta para dentro do fluxo de texto.");
@@ -285,8 +323,10 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
     errors.push("Primeiro registro nao textual precisa apontar para o indice de fragmentos KF8.");
   }
 
-  if (!metadata.firstResourceRecord || metadata.firstResourceRecord === 0xffffffff) {
-    warnings.push("Primeiro registro de recurso nao declarado; Kindles reais podem classificar indices KF8 como recursos.");
+  if (!metadata.firstResourceRecord) {
+    warnings.push("Primeiro registro de recurso aponta para zero; Kindles reais podem classificar indices KF8 como recursos.");
+  } else if (metadata.firstResourceRecord === NULL_INDEX) {
+    // Valid for KF8 files without image/font resources.
   } else if (metadata.firstResourceRecord < (metadata.firstNonTextRecord || 0) || metadata.firstResourceRecord >= recordCount) {
     errors.push("Primeiro registro de recurso fora da faixa PalmDB.");
   }
@@ -322,12 +362,36 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   }
   metadata.hasEof = hasEofMarker(buffer, offsets);
 
+  const requireRecord = (label: string, index: number | undefined, count: number | undefined, magic: string) => {
+    if (index === undefined || index === NULL_INDEX) {
+      errors.push(`${label} nao declarado no cabecalho MOBI.`);
+      return;
+    }
+    if (!count || count < 1) {
+      errors.push(`${label} declarado com contagem invalida (${count || 0}).`);
+    }
+    if (index >= recordCount) {
+      errors.push(`${label} aponta para registro fora da tabela PalmDB (${index}).`);
+      return;
+    }
+    if (!startsWith(recordSlice(buffer, offsets, index), magic)) {
+      errors.push(`${label} aponta para registro ${index}, mas ele nao comeca com ${magic}.`);
+    }
+  };
+
+  requireRecord("FDST", metadata.fdstRecord, metadata.fdstCount, "FDST");
+  requireRecord("FLIS", metadata.flisRecord, metadata.flisCount, "FLIS");
+  requireRecord("FCIS", metadata.fcisRecord, metadata.fcisCount, "FCIS");
+
   if (!metadata.hasFdst) errors.push("Registro FDST ausente; fluxos KF8 nao foram declarados.");
   if (!metadata.hasFlis) errors.push("Registro FLIS ausente.");
   if (!metadata.hasFcis) errors.push("Registro FCIS ausente.");
   if (!metadata.hasDatp) warnings.push("Registro DATP ausente; alguns geradores AZW3 reais tambem omitem esse registro.");
   if (!metadata.hasIndx) errors.push("Registros INDX ausentes; indice KF8/NCX nao foi gravado.");
   if (!metadata.hasEof) errors.push("Marcador EOF MOBI ausente.");
+  if (metadata.ncxIndexRecord !== undefined && metadata.ncxIndexRecord !== NULL_INDEX && ((metadata.extraDataFlags || 0) & 2) === 0) {
+    warnings.push("Fluxo KF8 sem TBS nos registros de texto; Kindles reais podem calcular poucas locations ou progresso incorreto.");
+  }
   const textPreview = decodeTextPreviewFromRecords(
     buffer,
     offsets,
@@ -337,6 +401,27 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   ).toLowerCase() || decodeTextPreview(buffer, offsets, metadata.firstNonTextRecord || 0).toLowerCase();
   if (!textPreview.includes("<html") || !textPreview.includes("<body")) {
     errors.push("Fluxo de texto KF8 nao contem XHTML legivel no inicio do livro.");
+  }
+  const decompressedText = decodeTextRecords(
+    buffer,
+    offsets,
+    metadata.textRecordCount || 0,
+    metadata.compression || 1,
+    metadata.extraDataFlags || 0,
+  );
+  metadata.decompressedTextLength = decompressedText.length;
+  if (metadata.textLength !== undefined && decompressedText.length !== metadata.textLength) {
+    errors.push(`Fluxo de texto descomprimido tem ${decompressedText.length} bytes; cabecalho declara ${metadata.textLength}.`);
+  }
+  const decompressedTextString = decompressedText.toString("utf8");
+  metadata.rawInternalHrefCount = (
+    decompressedTextString.match(/\bhref\s*=\s*["'](?:#|[^"']+\.(?:xhtml|html?)(?:#|["']))/gi) || []
+  ).length;
+  metadata.kindlePositionLinkCount = (
+    decompressedTextString.match(/\bhref\s*=\s*["']kindle:pos:fid:/gi) || []
+  ).length;
+  if (metadata.rawInternalHrefCount > 0) {
+    warnings.push(`${metadata.rawInternalHrefCount} link(s) interno(s) XHTML permaneceram sem conversao para kindle:pos:fid.`);
   }
 
   return {

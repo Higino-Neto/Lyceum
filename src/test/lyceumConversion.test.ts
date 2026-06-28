@@ -49,6 +49,13 @@ function buildMinimalLyceumPackage(tempDir: string): LyceumPackage {
   };
 }
 
+function readPdbRecord(buffer: Buffer, index: number, recordCount: number) {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const start = view.getUint32(78 + index * 8, false);
+  const end = index + 1 < recordCount ? view.getUint32(78 + (index + 1) * 8, false) : buffer.byteLength;
+  return buffer.subarray(start, end);
+}
+
 async function buildEpub() {
   const zip = new JSZip();
   zip.file("mimetype", "application/epub+zip");
@@ -174,6 +181,60 @@ async function buildRichEpub() {
     "OEBPS/text/ch2.xhtml",
     `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Subcapitulo Visual</title></head>
     <body><ul><li>Item preservado</li></ul><table><tr><td>Celula preservada</td></tr></table></body></html>`,
+  );
+
+  return zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" });
+}
+
+async function buildInternalLinksEpub() {
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip");
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles>
+        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+      </rootfiles>
+    </container>`,
+  );
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
+      <package version="3.0" xmlns="http://www.idpf.org/2007/opf">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>Livro com Links</dc:title>
+          <dc:creator>Autora Link</dc:creator>
+          <dc:language>pt-BR</dc:language>
+        </metadata>
+        <manifest>
+          <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+          <item id="chap1" href="text/ch1.xhtml" media-type="application/xhtml+xml"/>
+          <item id="chap2" href="text/ch2.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="chap1"/>
+          <itemref idref="chap2"/>
+        </spine>
+      </package>`,
+  );
+  zip.file(
+    "OEBPS/nav.xhtml",
+    `<html><body><nav epub:type="toc"><ol>
+      <li><a href="text/ch1.xhtml">Inicio</a></li>
+      <li><a href="text/ch2.xhtml#destino">Destino</a></li>
+    </ol></nav></body></html>`,
+  );
+  zip.file(
+    "OEBPS/text/ch1.xhtml",
+    `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Inicio</title></head>
+    <body><h1>Inicio</h1><p>Texto com <a href="#nota-local">nota local</a> e <a href="ch2.xhtml#destino">link interno</a>.</p>
+    <aside id="nota-local"><p>Nota local preservada.</p></aside></body></html>`,
+  );
+  zip.file(
+    "OEBPS/text/ch2.xhtml",
+    `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Destino</title></head>
+    <body><h1 id="destino">Destino</h1><p>Capitulo de destino.</p></body></html>`,
   );
 
   return zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" });
@@ -392,6 +453,79 @@ describe("lyceum conversion core", () => {
     expect(result.exportReport.stats.resourceCount).toBe(2);
   });
 
+  it("produces correct rawTextLength and textRecordCount for a long book", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-long-"));
+    const sourcePath = path.join(tempDir, "long.epub");
+    const packageRoot = path.join(tempDir, "long.lyceum");
+    const outputPath = path.join(tempDir, "long.azw3");
+
+    const zip = new JSZip();
+    zip.file("mimetype", "application/epub+zip");
+    zip.file(
+      "META-INF/container.xml",
+      `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+    );
+    const chapterCount = 6;
+    const paragraphsPerChapter = 180;
+    const manifestLines: string[] = [];
+    const spineLines: string[] = [];
+    for (let i = 1; i <= chapterCount; i += 1) {
+      const id = `chap${String(i).padStart(3, "0")}`;
+      manifestLines.push(`<item id="${id}" href="text/${id}.xhtml" media-type="application/xhtml+xml"/>`);
+      spineLines.push(`<itemref idref="${id}"/>`);
+    }
+    zip.file(
+      "OEBPS/content.opf",
+      `<?xml version="1.0" encoding="UTF-8"?>
+      <package version="3.0" xmlns="http://www.idpf.org/2007/opf">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>Livro Longo</dc:title>
+          <dc:creator>Teste</dc:creator>
+          <dc:language>pt-BR</dc:language>
+        </metadata>
+        <manifest>${manifestLines.join("\n")}</manifest>
+        <spine>${spineLines.join("\n")}</spine>
+      </package>`,
+    );
+    for (let i = 1; i <= chapterCount; i += 1) {
+      const id = `chap${String(i).padStart(3, "0")}`;
+      const paragraphs: string[] = [];
+      for (let p = 1; p <= paragraphsPerChapter; p += 1) {
+        paragraphs.push(`<p>Paragrafo ${p} do capitulo ${i}. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>`);
+      }
+      zip.file(
+        `OEBPS/text/${id}.xhtml`,
+        `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Capitulo ${i}</title></head><body><h1>Capitulo ${i}</h1>${paragraphs.join("\n")}</body></html>`,
+      );
+    }
+    fs.writeFileSync(sourcePath, Buffer.from(await zip.generateAsync({ type: "uint8array", mimeType: "application/epub+zip" })));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot,
+      outputPath,
+    });
+    const validation = validateAzw3File(outputPath);
+    const azw3Buffer = fs.readFileSync(outputPath);
+    const view = new DataView(azw3Buffer.buffer, azw3Buffer.byteOffset, azw3Buffer.byteLength);
+    const recordZeroOffset = view.getUint32(78, false);
+    const palmDocTextLength = view.getUint32(recordZeroOffset + 4, false);
+    const palmDocRecordCount = view.getUint16(recordZeroOffset + 8, false);
+
+    expect(validation.valid).toBe(true);
+    expect(palmDocTextLength).toBeGreaterThan(10000);
+    expect(palmDocRecordCount).toBeGreaterThan(1);
+    expect(palmDocRecordCount).toBe(result.exportReport.stats.textRecordCount);
+    expect(validation.metadata.decompressedTextLength).toBe(palmDocTextLength);
+    expect(result.exportReport.stats.fragmentCount).toBeGreaterThan(chapterCount);
+    expect(result.exportReport.stats.maxFragmentLength).toBeLessThanOrEqual(8192);
+    expect(result.exportReport.stats.extraDataFlags).toBe(3);
+    expect(result.exportReport.stats.tbsRecordCount).toBeGreaterThan(0);
+    expect(result.exportReport.stats.estimatedLocationCount).toBeGreaterThan(4);
+  });
+
   it("exports textual packages only through a validated real AZW3 backend", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-test-"));
     const sourcePath = path.join(tempDir, "source.epub");
@@ -411,12 +545,18 @@ describe("lyceum conversion core", () => {
     const view = new DataView(azw3Buffer.buffer, azw3Buffer.byteOffset, azw3Buffer.byteLength);
     const recordZeroOffset = view.getUint32(78, false);
     const mobiOffset = recordZeroOffset + 16;
+    const recordOffset = (index: number) => view.getUint32(78 + index * 8, false);
+    const recordView = (index: number) => new DataView(
+      azw3Buffer.buffer,
+      azw3Buffer.byteOffset + recordOffset(index),
+      (index + 1 < (validation.metadata.recordCount || 0) ? recordOffset(index + 1) : azw3Buffer.byteLength) - recordOffset(index),
+    );
 
     expect(validation.valid).toBe(true);
     expect(validation.metadata.compression).toBe(2);
     expect(validation.metadata.mobiVersion).toBe(8);
     expect(validation.metadata.firstNonTextRecord).toBe(result.exportReport.stats.fragmentIndexRecord);
-    expect(validation.metadata.firstResourceRecord).toBe(result.exportReport.stats.fdstRecord);
+    expect(validation.metadata.firstResourceRecord).toBe(0xffffffff);
     expect(validation.metadata.hasExth).toBe(true);
     expect(validation.metadata.hasFdst).toBe(true);
     expect(validation.metadata.hasFlis).toBe(true);
@@ -425,7 +565,33 @@ describe("lyceum conversion core", () => {
     expect(validation.metadata.hasIndx).toBe(true);
     expect(validation.metadata.hasEof).toBe(true);
     expect(view.getUint32(recordZeroOffset + 128, false) & 0x40).toBe(0x40);
-    expect(view.getUint32(mobiOffset + 224, false)).toBe(2);
+    expect(view.getUint32(mobiOffset + 224, false)).toBe(3);
+    expect(view.getUint32(mobiOffset + 176, false)).toBe(result.exportReport.stats.fdstRecord);
+    expect(view.getUint32(mobiOffset + 180, false)).toBe(1);
+    expect(validation.metadata.fdstRecord).toBe(result.exportReport.stats.fdstRecord);
+    expect(validation.metadata.fdstCount).toBe(1);
+    expect(validation.metadata.fcisRecord).toBe(result.exportReport.stats.fcisRecord);
+    expect(validation.metadata.flisRecord).toBe(result.exportReport.stats.flisRecord);
+    expect(validation.metadata.decompressedTextLength).toBe(validation.metadata.textLength);
+    expect(result.exportReport.stats.tbsRecordCount).toBeGreaterThan(0);
+    expect(recordView(validation.metadata.flisRecord!).getUint32(4, false)).toBe(8);
+    expect(recordView(validation.metadata.fcisRecord!).getUint32(4, false)).toBe(20);
+    expect(recordView(validation.metadata.fcisRecord!).getUint32(12, false)).toBe(2);
+    // EXTH 121 (KF8 boundary) should be 0 for KF8-only output
+    const exthOffset = mobiOffset + view.getUint32(mobiOffset + 4, false);
+    const exthRecordCount = view.getUint32(exthOffset + 8, false);
+    let foundExth121 = false;
+    let exthCursor = exthOffset + 12;
+    for (let recordIndex = 0; recordIndex < exthRecordCount; recordIndex += 1) {
+      const exthType = view.getUint32(exthCursor, false);
+      const exthSize = view.getUint32(exthCursor + 4, false);
+      if (exthType === 121) {
+        expect(view.getUint32(exthCursor + 8, false)).toBe(0);
+        foundExth121 = true;
+      }
+      exthCursor += exthSize;
+    }
+    expect(foundExth121).toBe(true);
     expect(result.exportReport.stats.chapterCount).toBe(2);
     expect(result.exportReport.stats.fragmentCount).toBe(2);
     expect(result.exportReport.stats.backend).toBe("lyceum-manual");
@@ -453,5 +619,71 @@ describe("lyceum conversion core", () => {
     expect(validation.valid).toBe(true);
     expect(validation.metadata.compression).toBe(2);
     expect(result.exportReport.stats.backend).toBe("lyceum-manual");
+  });
+
+  it("writes Calibre-like NCX hierarchy tags for nested AZW3 navigation", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-ncx-"));
+    const sourcePath = path.join(tempDir, "rich.epub");
+    const packageRoot = path.join(tempDir, "rich.lyceum");
+    const outputPath = path.join(tempDir, "rich.azw3");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildRichEpub()));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot,
+      outputPath,
+    });
+    const validation = validateAzw3File(outputPath);
+    const azw3Buffer = fs.readFileSync(outputPath);
+    const ncxPrimary = readPdbRecord(
+      azw3Buffer,
+      validation.metadata.ncxIndexRecord!,
+      validation.metadata.recordCount!,
+    );
+    const tagxOffset = ncxPrimary.readUInt32BE(180);
+    const tagxLength = ncxPrimary.readUInt32BE(tagxOffset + 4);
+    const tagxBody = ncxPrimary.subarray(tagxOffset + 12, tagxOffset + tagxLength);
+
+    expect(validation.valid).toBe(true);
+    expect(result.exportReport.stats.maxTocDepth).toBe(2);
+    expect(result.exportReport.stats.extraDataFlags).toBe(3);
+    expect(result.exportReport.stats.tbsRecordCount).toBeGreaterThan(0);
+    expect(Array.from(tagxBody)).toEqual([
+      1, 1, 1, 0,
+      2, 1, 2, 0,
+      3, 1, 4, 0,
+      4, 1, 8, 0,
+      21, 1, 16, 0,
+      22, 1, 32, 0,
+      23, 1, 64, 0,
+      6, 2, 128, 0,
+      0, 0, 0, 1,
+    ]);
+  });
+
+  it("rewrites EPUB internal links to Kindle position links before AZW3 export", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-links-"));
+    const sourcePath = path.join(tempDir, "links.epub");
+    const packageRoot = path.join(tempDir, "links.lyceum");
+    const outputPath = path.join(tempDir, "links.azw3");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildInternalLinksEpub()));
+
+    const result = await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot,
+      outputPath,
+    });
+    const validation = validateAzw3File(outputPath);
+
+    expect(validation.valid).toBe(true);
+    expect(validation.metadata.rawInternalHrefCount).toBe(0);
+    expect(validation.metadata.kindlePositionLinkCount).toBeGreaterThanOrEqual(2);
+    expect(result.exportReport.stats.rawInternalHrefCount).toBe(0);
+    expect(result.exportReport.stats.kindlePositionLinkCount).toBeGreaterThanOrEqual(2);
+    expect(result.exportReport.stats.unresolvedInternalLinkCount).toBe(0);
   });
 });

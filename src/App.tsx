@@ -11,7 +11,7 @@ import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
 import AtlasPage from "./pages/Atlas/AtlasPage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
-import ConversionPage from "./pages/Conversion/ConversionPage";
+import { ConversionDialog } from "./pages/Conversion/ConversionPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
 import SettingsDialog from "./components/settings/SettingsDialog";
@@ -60,6 +60,7 @@ function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage("sidebarCollapsed", true);
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [conversionOpen, setConversionOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | undefined>();
   const [settingsFriendId, setSettingsFriendId] = useState<string | null>(null);
   const { data: pendingFriendRequestCount = 0 } =
@@ -396,6 +397,21 @@ function AppShell() {
      return () => window.removeEventListener("lyceum:open-settings", handleOpenSettings);
    }, []);
 
+   useEffect(() => {
+     const handleOpenConversion = () => {
+       setConversionOpen(true);
+     };
+
+     window.addEventListener("lyceum:open-conversion", handleOpenConversion);
+     return () => window.removeEventListener("lyceum:open-conversion", handleOpenConversion);
+   }, []);
+
+   useEffect(() => {
+     if (location.pathname === "/conversion") {
+       setConversionOpen(true);
+     }
+   }, [location.pathname]);
+
    const handleSidebarSignOut = async () => {
      await authSignOut();
      setSettingsOpen(false);
@@ -495,7 +511,9 @@ function AppShell() {
                onShowPanels={showPanels}
                onHidePanels={() => hidePanels()}
                settingsOpen={settingsOpen}
+               conversionOpen={conversionOpen}
                onOpenSettings={() => openSettings()}
+               onOpenConversion={() => setConversionOpen(true)}
                onOpenAccountSettings={() => openSettings("account")}
                onSignOut={handleSidebarSignOut}
                isLoggedIn
@@ -563,7 +581,7 @@ function AppShell() {
                 element={
                   <ProtectedRoute
                     isLoggedIn={isLoggedIn}
-                    children={<ConversionPage />}
+                    children={<Dashboard />}
                   />
                 }
               />
@@ -585,12 +603,18 @@ function AppShell() {
             </Routes>
           </main>
           {showAppNavigation && (
-            <SettingsDialog
-              isOpen={settingsOpen}
-              onClose={() => setSettingsOpen(false)}
-              initialTab={settingsInitialTab}
-              initialFriendId={settingsFriendId}
-            />
+            <>
+              <ConversionDialog
+                isOpen={conversionOpen}
+                onClose={() => setConversionOpen(false)}
+              />
+              <SettingsDialog
+                isOpen={settingsOpen}
+                onClose={() => setSettingsOpen(false)}
+                initialTab={settingsInitialTab}
+                initialFriendId={settingsFriendId}
+              />
+            </>
           )}
         </div>
         </ConversionQueueProvider>

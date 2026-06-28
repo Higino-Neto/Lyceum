@@ -554,7 +554,7 @@ export default function ReadingStatsCard() {
             <form
               key={book.key}
               onSubmit={(event) => handleSubmit(event, book)}
-              className="relative grid grid-cols-[minmax(0,1fr)_4rem_4rem_auto_auto_0rem] items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-850 p-2"
+              className="relative grid grid-cols-[minmax(100px,1fr)_minmax(3rem,4rem)_minmax(3rem,4rem)_auto_auto] items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-850 p-2"
             >
               <div className="min-w-0 flex">
                 <div>
@@ -589,7 +589,7 @@ export default function ReadingStatsCard() {
                     </div>
                   ) : null}
                 </div>
-                <div className="ml-2">
+                <div className="min-w-0 ml-2">
                   <div className="truncate text-sm font-medium text-zinc-100">
                     {book.title}
                   </div>
@@ -661,7 +661,7 @@ export default function ReadingStatsCard() {
                 type="submit"
                 disabled={!canSubmit}
                 onKeyDown={handleFastKeyDown}
-                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-sm px-2 text-xs font-semibold transition ${
+                className={`flex h-9 w-9 cursor-pointer items-center justify-center gap-1.5 rounded-sm text-xs font-semibold transition ${
                   canSubmit
                     ? "bg-green-600 text-black hover:bg-green-500"
                     : "cursor-not-allowed bg-zinc-800 text-zinc-600"
@@ -673,7 +673,7 @@ export default function ReadingStatsCard() {
                 ) : (
                   <Send size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
                 )}
-                Enviar
+                
               </button>
             </form>
           );

@@ -30,11 +30,27 @@ interface FragmentEntry {
   length: number;
 }
 
+interface InternalLinkTarget {
+  chapterHref: string;
+  fragment: string;
+}
+
+interface InternalLinkReference {
+  placeholder: string;
+  target: InternalLinkTarget;
+}
+
+interface KindlePosition {
+  sequenceNumber: number;
+  offset: number;
+}
+
 interface Kf8BuildResult {
   textRecords: PdbRecord[];
   textLength: number;
   htmlLength: number;
   totalTextLength: number;
+  extraDataFlags: number;
   fdst: Uint8Array;
   fragmentIndx: Uint8Array[];
   fragmentCncx: Uint8Array[];
@@ -45,6 +61,9 @@ interface Kf8BuildResult {
   sourceEpub: Uint8Array;
   skeletonCount: number;
   fragmentCount: number;
+  maxFragmentLength: number;
+  tbsRecordCount: number;
+  tbsByteCount: number;
   unsupportedResourceCount: number;
   unresolvedInternalLinkCount: number;
 }
@@ -53,6 +72,35 @@ interface ImageResourceRecord {
   resource: LyceumTextualResource;
   data: Uint8Array;
   embedIndex: number;
+}
+
+interface TextRecordPayload {
+  raw: Uint8Array;
+}
+
+interface NcxTbsEntry {
+  index: number;
+  start: number;
+  length: number;
+  depth: number;
+  label: string;
+  parent?: number;
+  firstChild?: number;
+  lastChild?: number;
+}
+
+interface NcxIndexEntry extends NcxTbsEntry {
+  title: string;
+  labelBytes: Uint8Array;
+  labelOffset: number;
+  posFid: [number, number];
+}
+
+interface FilledTbsEntry extends NcxTbsEntry {
+  action: "starts" | "spans" | "ends" | "completes";
+  startOffset: number;
+  lengthOffset: number;
+  textRecordLength: number;
 }
 
 export interface Azw3BuildOptions {
@@ -74,8 +122,13 @@ export interface Azw3BuildResult {
     rawTextBytes: number;
     htmlLength: number;
     totalTextLength: number;
+    extraDataFlags?: number;
     skeletonCount: number;
     fragmentCount: number;
+    maxFragmentLength?: number;
+    tbsRecordCount?: number;
+    tbsByteCount?: number;
+    textPaddingBytes?: number;
     fdstRecord: number;
     fragmentIndexRecord: number;
     skeletonIndexRecord: number;
@@ -94,6 +147,7 @@ export interface Azw3BuildResult {
 }
 
 const TEXT_RECORD_SIZE = 4096;
+const KF8_CHUNK_SIZE = 8192;
 const PALMDOC_HEADER_LENGTH = 16;
 const MOBI_HEADER_LENGTH = 264;
 const MOBI_HEADER_OFFSET = PALMDOC_HEADER_LENGTH;
@@ -234,6 +288,27 @@ function buildChapterId(index: number): string {
   return `chapter-${String(index + 1).padStart(4, "0")}`;
 }
 
+function encodeBase32(value: number, minDigits = 0): string {
+  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
+  let output = "";
+  let current = Math.max(0, value >>> 0);
+
+  do {
+    output = chars[current & 0x1f] + output;
+    current >>>= 5;
+  } while (current > 0);
+
+  return output.padStart(minDigits, "0");
+}
+
+function kindlePosHref(position: KindlePosition): string {
+  return `kindle:pos:fid:${encodeBase32(position.sequenceNumber, 4)}:off:${encodeBase32(position.offset, 10)}`;
+}
+
+function internalLinkPlaceholder(index: number): string {
+  return `kindle:pos:fid:0000:off:${encodeBase32(index, 10)}`;
+}
+
 function firstHeadingText(value: string): string | undefined {
   const heading = value.match(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i)?.[1];
   const text = heading ? stripHtml(heading) : "";
@@ -284,6 +359,15 @@ function resolveContentHref(baseHref: string, href: string): string {
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#")) return href;
   const base = dirname(baseHref);
   return normalizeContentPath(base ? `${base}/${href}` : href);
+}
+
+function normalizeLinkFragment(value: string): string {
+  if (!value) return "";
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function resourceBytes(resource: LyceumTextualResource): Uint8Array | null {
@@ -360,6 +444,7 @@ function rewriteResourceReferences(
   chapterHref: string,
   embeds: Map<string, number>,
   chapterPaths: Set<string>,
+  internalLinks: InternalLinkReference[],
 ): { html: string; unresolved: number } {
   let unresolved = 0;
   const rewrite = (value: string) => {
@@ -376,15 +461,34 @@ function rewriteResourceReferences(
   const withAnchors = html.replace(
     /<a\b([^>]*?)\bhref\s*=\s*(["'])([^"']*)\2([^>]*)>/gi,
     (_match, before: string, quote: string, value: string, after: string) => {
-      if (!value || value.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(value)) {
+      if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value)) {
         return `<a${before}href=${quote}${value}${quote}${after}>`;
       }
+
+      if (value.startsWith("#")) {
+        const placeholder = internalLinkPlaceholder(internalLinks.length + 1);
+        internalLinks.push({
+          placeholder,
+          target: {
+            chapterHref: normalizeContentPath(chapterHref).toLowerCase(),
+            fragment: normalizeLinkFragment(value.slice(1)),
+          },
+        });
+        return `<a${before}href=${quote}${placeholder}${quote}${after}>`;
+      }
+
       const [targetPath, fragment = ""] = value.split("#");
       const resolved = resolveContentHref(chapterHref, targetPath).toLowerCase();
       if (chapterPaths.has(resolved)) {
-        return fragment
-          ? `<a${before}href=${quote}#${fragment}${quote}${after}>`
-          : `<a${before}${after}>`;
+        const placeholder = internalLinkPlaceholder(internalLinks.length + 1);
+        internalLinks.push({
+          placeholder,
+          target: {
+            chapterHref: resolved,
+            fragment: normalizeLinkFragment(fragment),
+          },
+        });
+        return `<a${before}href=${quote}${placeholder}${quote}${after}>`;
       }
       unresolved += 1;
       return `<a${before}${after}>`;
@@ -498,10 +602,85 @@ function splitSkeletonAndBody(html: string): BodySplit {
   };
 }
 
+function safeUtf8ChunkEnd(input: Uint8Array, start: number, maxLength: number): number {
+  let end = Math.min(start + maxLength, input.length);
+  if (end >= input.length) return input.length;
+
+  while (end > start && (input[end] & 0xc0) === 0x80) {
+    end -= 1;
+  }
+
+  return end > start ? end : Math.min(start + maxLength, input.length);
+}
+
+function splitKf8Chunks(input: Uint8Array): Uint8Array[] {
+  const chunks: Uint8Array[] = [];
+
+  for (let offset = 0; offset < input.length;) {
+    const end = safeUtf8ChunkEnd(input, offset, KF8_CHUNK_SIZE);
+    chunks.push(input.slice(offset, end));
+    offset = end;
+  }
+
+  return chunks;
+}
+
+function internalTargetKey(chapterHref: string, fragment: string): string {
+  return `${normalizeContentPath(chapterHref).toLowerCase()}#${normalizeLinkFragment(fragment)}`;
+}
+
+function collectInternalTargetsFromChunk(
+  chapterHref: string,
+  chunk: Uint8Array,
+  sequenceNumber: number,
+  targets: Map<string, KindlePosition>,
+): void {
+  const html = decodeUtf8(chunk);
+  const tagPattern = /<([a-z][a-z0-9:-]*)(\s[^<>]*?)?>/gi;
+
+  for (const match of html.matchAll(tagPattern)) {
+    const attrs = match[2] || "";
+    const idMatch = /\sid\s*=\s*(["'])(.*?)\1/i.exec(attrs);
+    const nameMatch = /\sname\s*=\s*(["'])(.*?)\1/i.exec(attrs);
+    const target = idMatch?.[2] || nameMatch?.[2];
+    if (!target) continue;
+
+    targets.set(internalTargetKey(chapterHref, target), {
+      sequenceNumber,
+      offset: encodeUtf8(html.slice(0, match.index || 0)).length,
+    });
+  }
+}
+
+function resolveInternalLinksInText(
+  text: Uint8Array,
+  internalLinks: InternalLinkReference[],
+  targets: Map<string, KindlePosition>,
+): { text: Uint8Array; unresolved: number } {
+  if (internalLinks.length === 0) return { text, unresolved: 0 };
+
+  let html = decodeUtf8(text);
+  let unresolved = 0;
+
+  for (const link of internalLinks) {
+    const exact = targets.get(internalTargetKey(link.target.chapterHref, link.target.fragment));
+    const chapterStart = targets.get(internalTargetKey(link.target.chapterHref, ""));
+    let position = exact || chapterStart;
+    if (!position) {
+      unresolved += 1;
+      position = { sequenceNumber: 0, offset: 0 };
+    }
+    html = html.split(link.placeholder).join(kindlePosHref(position));
+  }
+
+  return { text: encodeUtf8(html), unresolved };
+}
+
 function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualContent): {
   combinedHtml: Uint8Array;
   skeletons: SkeletonEntry[];
   fragments: FragmentEntry[];
+  maxFragmentLength: number;
   unresolvedInternalLinkCount: number;
 } {
   const skeletons: SkeletonEntry[] = [];
@@ -512,48 +691,69 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   const aidCounter = { value: 0 };
   const embeds = imageEmbedMap(buildImageResources(textual));
   const chapterPaths = new Set(textual.chapters.map((chapter) => normalizeContentPath(chapter.href).toLowerCase()));
+  const internalLinks: InternalLinkReference[] = [];
+  const internalTargets = new Map<string, KindlePosition>();
   let unresolvedInternalLinkCount = 0;
+  let maxFragmentLength = 0;
 
   textual.chapters.forEach((chapter, index) => {
     const body = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
-    const rewritten = rewriteResourceReferences(body, chapter.href, embeds, chapterPaths);
+    const chapterPath = normalizeContentPath(chapter.href).toLowerCase();
+    const rewritten = rewriteResourceReferences(body, chapter.href, embeds, chapterPaths, internalLinks);
     unresolvedInternalLinkCount += rewritten.unresolved;
     const aided = addAidAttributes(buildChapterDocument(metadata, chapter, index, rewritten.html), aidCounter);
     const split = splitSkeletonAndBody(aided);
     const skelBytes = encodeUtf8(split.skeleton);
     const fragBytes = encodeUtf8(split.bodyInner);
+    const fragChunks = splitKf8Chunks(fragBytes);
     const skelStart = absoluteOffset;
-    const insertPos = skelStart + split.bodyInnerOffset;
 
     parts.push(skelBytes);
     absoluteOffset += skelBytes.length;
 
-    parts.push(fragBytes);
-    absoluteOffset += fragBytes.length;
+    let chunkOffset = 0;
+    for (const chunk of fragChunks) {
+      const chunkSequence = sequence;
+      const insertPos = skelStart + split.bodyInnerOffset + chunkOffset;
+      parts.push(chunk);
+      absoluteOffset += chunk.length;
+      maxFragmentLength = Math.max(maxFragmentLength, chunk.length);
+
+      fragments.push({
+        insertPos,
+        selector: `P-//*[@aid='${split.bodyAid}']`,
+        fileNumber: index,
+        sequenceNumber: chunkSequence,
+        startPos: chunkOffset,
+        length: chunk.length,
+      });
+      if (chunkOffset === 0) {
+        internalTargets.set(internalTargetKey(chapterPath, ""), {
+          sequenceNumber: chunkSequence,
+          offset: 0,
+        });
+      }
+      collectInternalTargetsFromChunk(chapterPath, chunk, chunkSequence, internalTargets);
+
+      chunkOffset += chunk.length;
+      sequence += 1;
+    }
 
     skeletons.push({
       label: `SKEL${String(index).padStart(10, "0")}`,
       startPos: skelStart,
       length: skelBytes.length,
-      chunkCount: 1,
+      chunkCount: fragChunks.length,
     });
-
-    fragments.push({
-      insertPos,
-      selector: `P-//*[@aid='${split.bodyAid}']`,
-      fileNumber: index,
-      sequenceNumber: sequence,
-      startPos: 0,
-      length: fragBytes.length,
-    });
-
-    sequence += 1;
   });
+  const resolvedText = resolveInternalLinksInText(concatBytes(parts), internalLinks, internalTargets);
+  unresolvedInternalLinkCount += resolvedText.unresolved;
 
   return {
-    combinedHtml: concatBytes(parts),
+    combinedHtml: resolvedText.text,
     skeletons,
     fragments,
+    maxFragmentLength,
     unresolvedInternalLinkCount,
   };
 }
@@ -587,6 +787,54 @@ function encodeVwiInv(value: number): Uint8Array {
   bytes.reverse();
   bytes[bytes.length - 1] |= 0x80;
   return new Uint8Array(bytes);
+}
+
+function encodeBackwardVwi(value: number): Uint8Array {
+  const bytes: number[] = [];
+  let current = value >>> 0;
+
+  bytes.push(current & 0x7f);
+  current >>>= 7;
+
+  while (current > 0) {
+    bytes.push(current & 0x7f);
+    current >>>= 7;
+  }
+
+  bytes[bytes.length - 1] |= 0x80;
+  bytes.reverse();
+  return new Uint8Array(bytes);
+}
+
+function encodeTrailingData(raw: Uint8Array): Uint8Array {
+  let sizeByteLength = 1;
+
+  while (true) {
+    const encodedSize = encodeBackwardVwi(raw.length + sizeByteLength);
+    if (encodedSize.length === sizeByteLength) {
+      return concatBytes([raw, encodedSize]);
+    }
+    sizeByteLength += 1;
+  }
+}
+
+function encodeTbsValue(value: number, extra: Record<number, number | true>, flagSize: number): Uint8Array {
+  let flags = 0;
+  for (const bit of Object.keys(extra)) flags |= Number(bit);
+
+  const parts = [encodeVwiInv(((value >>> 0) << flagSize) | flags)];
+  for (const bit of [0b0010, 0b0001]) {
+    const extraValue = extra[bit];
+    if (typeof extraValue === "number") {
+      parts.push(encodeVwiInv(extraValue >>> 0));
+    }
+  }
+  const siblingCount = extra[0b0100];
+  if (typeof siblingCount === "number") {
+    parts.splice(extra[0b0010] ? 2 : 1, 0, new Uint8Array([Math.max(0, Math.min(255, siblingCount))]));
+  }
+
+  return concatBytes(parts);
 }
 
 function isPalmDocDirectByte(byte: number): boolean {
@@ -700,14 +948,236 @@ function compressPalmDocRecord(input: Uint8Array): Uint8Array {
   return new Uint8Array(output);
 }
 
-function splitTextRecordsKf8(rawText: Uint8Array): PdbRecord[] {
-  const records: PdbRecord[] = [];
+function safeUtf8RecordEnd(input: Uint8Array, start: number): number {
+  let end = Math.min(start + TEXT_RECORD_SIZE, input.length);
+  if (end >= input.length) return input.length;
 
-  for (let offset = 0; offset < rawText.length; offset += TEXT_RECORD_SIZE) {
-    records.push({ data: concatBytes([compressPalmDocRecord(rawText.slice(offset, offset + TEXT_RECORD_SIZE)), new Uint8Array([0x01])]) });
+  while (end > start && (input[end] & 0xc0) === 0x80) {
+    end -= 1;
   }
 
-  return records.length > 0 ? records : [{ data: new Uint8Array([0x00, 0x01]) }];
+  return end > start ? end : Math.min(start + TEXT_RECORD_SIZE, input.length);
+}
+
+function splitTextRecordPayloads(rawText: Uint8Array): TextRecordPayload[] {
+  const records: TextRecordPayload[] = [];
+
+  for (let offset = 0; offset < rawText.length;) {
+    const end = safeUtf8RecordEnd(rawText, offset);
+    records.push({ raw: rawText.slice(offset, end) });
+    offset = end;
+  }
+
+  return records.length > 0 ? records : [{ raw: new Uint8Array() }];
+}
+
+function buildTextRecordsKf8(
+  payloads: TextRecordPayload[],
+  tbsByRecord: Map<number, Uint8Array>,
+  includeTbs: boolean,
+): PdbRecord[] {
+  return payloads.map((payload, index) => {
+    const multibyteTrailer = new Uint8Array([0x00]);
+    const tbs = tbsByRecord.get(index + 1) || new Uint8Array();
+    const trailing = includeTbs ? encodeTrailingData(tbs) : new Uint8Array();
+    return {
+      data: concatBytes([compressPalmDocRecord(payload.raw), multibyteTrailer, trailing]),
+    };
+  });
+}
+
+function fillTbsEntry(entry: NcxTbsEntry, startOffset: number, textRecordLength: number): FilledTbsEntry {
+  const lengthOffset = startOffset + entry.length;
+  let action: FilledTbsEntry["action"];
+  if (startOffset < 0) {
+    action = lengthOffset > textRecordLength ? "spans" : "ends";
+  } else {
+    action = lengthOffset > textRecordLength ? "starts" : "completes";
+  }
+
+  return {
+    ...entry,
+    action,
+    startOffset,
+    lengthOffset,
+    textRecordLength,
+  };
+}
+
+function populateTbsStrand(parent: FilledTbsEntry, entries: FilledTbsEntry[]): FilledTbsEntry[] {
+  const strand = [parent];
+  const childIndex = entries.findIndex((entry) => entry.parent === parent.index);
+
+  if (childIndex >= 0) {
+    const [child] = entries.splice(childIndex, 1);
+    strand.push(...populateTbsStrand(child, entries));
+    return strand;
+  }
+
+  let currentIndex = parent.index;
+  for (let index = 0; index < entries.length;) {
+    const entry = entries[index];
+    if (entry.depth === parent.depth && entry.parent === parent.parent && entry.index === currentIndex + 1) {
+      currentIndex += 1;
+      entries.splice(index, 1);
+      const siblingHasChildren = entries.some((candidate) => candidate.parent === entry.index);
+      if (siblingHasChildren) {
+        strand.push(...populateTbsStrand(entry, entries));
+        break;
+      }
+      strand.push(entry);
+      continue;
+    }
+    index += 1;
+  }
+
+  return strand;
+}
+
+function separateTbsStrands(entries: FilledTbsEntry[]): FilledTbsEntry[][][] {
+  const remaining = entries.slice();
+  const strands: FilledTbsEntry[][][] = [];
+
+  while (remaining.length > 0) {
+    const parent = remaining.shift()!;
+    const strand = populateTbsStrand(parent, remaining);
+    const layers: FilledTbsEntry[][] = [];
+
+    for (const entry of strand) {
+      const existing = layers.find((layer) => layer[0]?.depth === entry.depth);
+      if (existing) existing.push(entry);
+      else layers.push([entry]);
+    }
+
+    strands.push(layers);
+  }
+
+  return strands;
+}
+
+function collectTbsIndexingData(entries: NcxTbsEntry[], textRecordLengths: number[]): FilledTbsEntry[][][][] {
+  const ordered = entries.slice().sort((a, b) => a.start - b.start || a.index - b.index);
+  const records: FilledTbsEntry[][][][] = [];
+  let recordStart = 0;
+
+  for (const recordLength of textRecordLengths) {
+    const recordEnd = recordStart + recordLength;
+    const localEntries: FilledTbsEntry[] = [];
+
+    for (const entry of ordered) {
+      if (entry.start >= recordEnd) break;
+      if (entry.start + entry.length <= recordStart) continue;
+      localEntries.push(fillTbsEntry(entry, entry.start - recordStart, recordLength));
+    }
+
+    records.push(separateTbsStrands(localEntries));
+    recordStart = recordEnd;
+  }
+
+  return records;
+}
+
+function encodeTbsStrandsAsSequences(strands: FilledTbsEntry[][][], tbsType: 8 | 5 = 8): [number, Record<number, number | true>][] {
+  const sequences: [number, Record<number, number | true>][] = [];
+  let lastIndex: number | null = null;
+  let maxLengthOffset = 0;
+  let firstEntry: FilledTbsEntry | null = null;
+
+  for (const strand of strands) {
+    for (const entries of strand) {
+      for (const entry of entries) {
+        if (!firstEntry) firstEntry = entry;
+        maxLengthOffset = Math.max(maxLengthOffset, entry.lengthOffset);
+      }
+    }
+  }
+
+  for (const strand of strands) {
+    const strandSequences: [number, Record<number, number | true>][] = [];
+
+    for (const entries of strand) {
+      const extra: Record<number, number | true> = {};
+      const lastEntry = entries[entries.length - 1];
+      const firstLayerEntry = entries[0];
+
+      if (lastEntry.action === "spans") {
+        extra[0b1] = 0;
+      } else if (
+        false
+        && lastEntry.lengthOffset < lastEntry.textRecordLength
+        && lastEntry.action === "completes"
+        && lastEntry.lengthOffset !== maxLengthOffset
+      ) {
+        extra[0b1] = lastEntry.lengthOffset;
+      }
+
+      if (firstLayerEntry === firstEntry) {
+        extra[0b10] = tbsType;
+      }
+
+      if (entries.length > 1) {
+        extra[0b100] = entries.length;
+      }
+
+      let indexValue = firstLayerEntry.index - (firstLayerEntry.parent || 0);
+      if (sequences.length > 0 && strandSequences.length === 0 && lastIndex !== null) {
+        indexValue = lastIndex - firstLayerEntry.index;
+        if (indexValue < 0) {
+          if (tbsType === 5) indexValue = -indexValue;
+          else throw new Error("negative-tbs-strand-index");
+        } else {
+          extra[0b1000] = true;
+        }
+      }
+
+      lastIndex = lastEntry.index;
+      strandSequences.push([indexValue, extra]);
+    }
+
+    for (let index = 0; index < strandSequences.length - 1; index += 1) {
+      if (0b1 in strandSequences[index][1] && 0b1 in strandSequences[index + 1][1]) {
+        delete strandSequences[index][1][0b1];
+      }
+    }
+
+    sequences.push(...strandSequences);
+  }
+
+  return sequences;
+}
+
+function tbsSequencesToBytes(sequences: [number, Record<number, number | true>][]): Uint8Array {
+  const parts: Uint8Array[] = [];
+  let flagSize = 3;
+
+  for (const [value, extra] of sequences) {
+    parts.push(encodeTbsValue(value, extra, flagSize));
+    flagSize = 4;
+  }
+
+  return concatBytes(parts);
+}
+
+function calculateTbsRecords(indexingData: FilledTbsEntry[][][][], tbsType: 8 | 5 = 8): Map<number, Uint8Array> {
+  const output = new Map<number, Uint8Array>();
+  indexingData.forEach((strands, index) => {
+    output.set(index + 1, tbsSequencesToBytes(encodeTbsStrandsAsSequences(strands, tbsType)));
+  });
+  return output;
+}
+
+function buildTbsForTextRecords(entries: NcxTbsEntry[], textRecordLengths: number[]): Map<number, Uint8Array> {
+  if (entries.length === 0 || textRecordLengths.length === 0) return new Map();
+  const indexingData = collectTbsIndexingData(entries, textRecordLengths);
+
+  try {
+    return calculateTbsRecords(indexingData, 8);
+  } catch (error) {
+    if (error instanceof Error && error.message === "negative-tbs-strand-index") {
+      return calculateTbsRecords(indexingData, 5);
+    }
+    throw error;
+  }
 }
 
 function buildFdstRecord(htmlLength: number, totalLength: number): Uint8Array {
@@ -761,7 +1231,7 @@ class CncxBuilder {
 
     const records: Uint8Array[] = [];
     for (let offset = 0; offset < data.length; offset += TEXT_RECORD_SIZE) {
-      records.push(data.slice(offset, offset + TEXT_RECORD_SIZE));
+      records.push(padToFour(data.slice(offset, offset + TEXT_RECORD_SIZE)));
     }
     return records;
   }
@@ -985,60 +1455,164 @@ function buildFragmentIndxWithCncx(fragments: FragmentEntry[]): { indx: Uint8Arr
   return { indx: [primary, dataRecord], cncx: cncxRecords };
 }
 
+function resolveTocChapterIndex(itemHref: string, textual: LyceumTextualContent, fallbackIndex: number): number {
+  const [hrefWithoutFragment] = itemHref.split("#");
+  const normalized = normalizeContentPath(hrefWithoutFragment).toLowerCase();
+  const exactIndex = textual.chapters.findIndex((chapter) => normalizeContentPath(chapter.href).toLowerCase() === normalized);
+  if (exactIndex >= 0) return exactIndex;
+  return Math.max(0, Math.min(fallbackIndex, textual.chapters.length - 1));
+}
+
+function buildNcxTreeEntries(
+  metadata: LyceumBookMetadata,
+  textual: LyceumTextualContent,
+  skeletons: SkeletonEntry[],
+  fragments: FragmentEntry[],
+  textLength: number,
+): NcxIndexEntry[] {
+  const firstFragmentByChapter = new Map<number, FragmentEntry>();
+  for (const fragment of fragments) {
+    const current = firstFragmentByChapter.get(fragment.fileNumber);
+    if (!current || fragment.sequenceNumber < current.sequenceNumber) {
+      firstFragmentByChapter.set(fragment.fileNumber, fragment);
+    }
+  }
+
+  const rawEntries = (textual.toc.length > 0
+    ? textual.toc.map((item, fallbackIndex) => {
+      const chapterIndex = resolveTocChapterIndex(item.href, textual, fallbackIndex);
+      const chapter = textual.chapters[chapterIndex];
+      return {
+        originalId: `toc-${fallbackIndex}`,
+        title: isPlaceholderTitle(item.title) && chapter ? chapterTitle(chapter, chapterIndex) : item.title,
+        chapterIndex,
+        depth: Math.max(0, Math.floor((item.level || 1) - 1)),
+      };
+    })
+    : textual.chapters.map((chapter, index) => ({
+      originalId: `chapter-${index}`,
+      title: chapterTitle(chapter, index),
+      chapterIndex: index,
+      depth: 0,
+    })));
+
+  const safeRawEntries = rawEntries.length > 0
+    ? rawEntries
+    : [{ originalId: "book", title: metadata.title || "Untitled", chapterIndex: 0, depth: 0 }];
+
+  const stack: { depth: number; originalId: string }[] = [];
+  const childrenById = new Map<string, string[]>();
+  const parentById = new Map<string, string>();
+
+  safeRawEntries.forEach((entry) => {
+    while (stack.length > 0 && stack[stack.length - 1].depth >= entry.depth) stack.pop();
+    const parent = stack[stack.length - 1];
+    if (parent) {
+      parentById.set(entry.originalId, parent.originalId);
+      const children = childrenById.get(parent.originalId) || [];
+      children.push(entry.originalId);
+      childrenById.set(parent.originalId, children);
+    }
+    stack.push({ depth: entry.depth, originalId: entry.originalId });
+  });
+
+  const entries = safeRawEntries
+    .map((entry, playOrder) => {
+      const skeleton = skeletons[Math.max(0, Math.min(entry.chapterIndex, skeletons.length - 1))];
+      const fragment = firstFragmentByChapter.get(entry.chapterIndex);
+      const offset = fragment?.insertPos ?? skeleton?.startPos ?? 0;
+      return {
+        ...entry,
+        playOrder,
+        offset,
+        posFid: (fragment ? [fragment.sequenceNumber, 0] : [0, 0]) as [number, number],
+      };
+    })
+    .sort((a, b) => a.depth - b.depth || a.offset - b.offset || a.playOrder - b.playOrder)
+    .map((entry, index) => ({ ...entry, index }));
+
+  const indexById = new Map(entries.map((entry) => [entry.originalId, entry.index]));
+  const largestIndex = Math.max(0, ...entries.map((entry) => entry.index));
+  const labelWidth = Math.max(2, largestIndex.toString(16).length);
+  const cncx = new CncxBuilder();
+
+  return entries.map((entry): NcxIndexEntry => {
+    const childIndexes = (childrenById.get(entry.originalId) || [])
+      .map((childId) => indexById.get(childId))
+      .filter((index): index is number => typeof index === "number")
+      .sort((a, b) => a - b);
+    const parentIndex = parentById.has(entry.originalId) ? indexById.get(parentById.get(entry.originalId)!) : undefined;
+    const nextStart = entries
+      .filter((candidate) => candidate.depth <= entry.depth && candidate.offset > entry.offset)
+      .map((candidate) => candidate.offset)
+      .sort((a, b) => a - b)[0] ?? textLength;
+    const title = entry.title || metadata.title || "Untitled";
+
+    return {
+      index: entry.index,
+      start: entry.offset,
+      length: Math.max(0, nextStart - entry.offset),
+      depth: entry.depth,
+      label: title,
+      title,
+      labelBytes: encodeUtf8(entry.index.toString(16).toUpperCase().padStart(labelWidth, "0")),
+      labelOffset: cncx.add(title),
+      posFid: entry.posFid,
+      parent: parentIndex,
+      firstChild: childIndexes[0],
+      lastChild: childIndexes[childIndexes.length - 1],
+    };
+  });
+}
+
 function buildNcxIndx(
   metadata: LyceumBookMetadata,
   textual: LyceumTextualContent,
   skeletons: SkeletonEntry[],
+  fragments: FragmentEntry[],
   textLength: number,
-): { indx: Uint8Array[]; cncx: Uint8Array[] } {
+): { indx: Uint8Array[]; cncx: Uint8Array[]; tbsEntries: NcxTbsEntry[] } {
   const tagDefs: TagMeta[] = [
     { number: 1, valuesPerEntry: 1, mask: 0x01 },
     { number: 2, valuesPerEntry: 1, mask: 0x02 },
     { number: 3, valuesPerEntry: 1, mask: 0x04 },
     { number: 4, valuesPerEntry: 1, mask: 0x08 },
-    { number: 6, valuesPerEntry: 2, mask: 0x10 },
+    { number: 21, valuesPerEntry: 1, mask: 0x10 },
+    { number: 22, valuesPerEntry: 1, mask: 0x20 },
+    { number: 23, valuesPerEntry: 1, mask: 0x40 },
+    { number: 6, valuesPerEntry: 2, mask: 0x80 },
   ];
-  const tagx = buildTagx([[1, 1, 0x01], [2, 1, 0x02], [3, 1, 0x04], [4, 1, 0x08], [6, 2, 0x10]]);
-  const cncx = new CncxBuilder();
-
-  const tocEntries = textual.toc.length > 0
-    ? textual.toc.map((item, index) => {
-      const chapterIndex = Math.min(index, skeletons.length - 1);
-      const chapter = textual.chapters[chapterIndex];
-      return {
-        title: isPlaceholderTitle(item.title) && chapter ? chapterTitle(chapter, chapterIndex) : item.title,
-        chapterIndex,
-        depth: 0,
-      };
-    })
-    : textual.chapters.map((chapter, index) => ({ title: chapterTitle(chapter, index), chapterIndex: index, depth: 0 }));
-
-  const safeEntries = tocEntries.length > 0 ? tocEntries : [{ title: metadata.title || "Untitled", chapterIndex: 0, depth: 0 }];
-
-  const entries = safeEntries.map((entry, index) => {
-    const skeleton = skeletons[Math.max(0, Math.min(entry.chapterIndex, skeletons.length - 1))];
-    const offset = skeleton?.startPos || 0;
-    const nextSkeleton = skeletons[Math.max(0, Math.min(entry.chapterIndex + 1, skeletons.length - 1))];
-    const end = nextSkeleton && nextSkeleton.startPos > offset ? nextSkeleton.startPos : textLength;
-    const length = Math.max(0, end - offset);
-    const labelOffset = cncx.add(entry.title || metadata.title || "Untitled");
-    const label = encodeUtf8(String(index));
-
-    return encodeIndxEntry(label, tagDefs, [
-      [offset],
-      [length],
-      [labelOffset],
-      [entry.depth],
-      [0, 0],
-    ]);
-  });
+  const tagx = buildTagx([[1, 1, 0x01], [2, 1, 0x02], [3, 1, 0x04], [4, 1, 0x08], [21, 1, 0x10], [22, 1, 0x20], [23, 1, 0x40], [6, 2, 0x80]]);
+  const resolvedEntries = buildNcxTreeEntries(metadata, textual, skeletons, fragments, textLength);
+  const entries = resolvedEntries.map((entry) => encodeIndxEntry(entry.labelBytes, tagDefs, [
+    [entry.start],
+    [entry.length],
+    [entry.labelOffset],
+    [entry.depth],
+    typeof entry.parent === "number" ? [entry.parent] : [],
+    typeof entry.firstChild === "number" ? [entry.firstChild] : [],
+    typeof entry.lastChild === "number" ? [entry.lastChild] : [],
+    entry.posFid,
+  ]));
 
   const dataRecord = buildIndxDataRecord(entries);
-  const lastLabel = encodeUtf8(String(entries.length - 1));
-  const cncxRecords = cncx.intoRecords();
-  const primary = buildIndxPrimary(tagx, 1, entries.length, cncxRecords.length, [[lastLabel, entries.length]]);
+  const lastLabel = resolvedEntries[resolvedEntries.length - 1]?.labelBytes || encodeUtf8("00");
+  const cncxRecords = new CncxBuilder();
+  for (const entry of resolvedEntries) cncxRecords.add(entry.title);
+  const cncxRecordBytes = cncxRecords.intoRecords();
+  const primary = buildIndxPrimary(tagx, 1, entries.length, cncxRecordBytes.length, [[lastLabel, entries.length]]);
+  const tbsEntries = resolvedEntries.map((entry) => ({
+    index: entry.index,
+    start: entry.start,
+    length: entry.length,
+    depth: entry.depth,
+    label: entry.label,
+    parent: entry.parent,
+    firstChild: entry.firstChild,
+    lastChild: entry.lastChild,
+  }));
 
-  return { indx: [primary, dataRecord], cncx: cncxRecords };
+  return { indx: [primary, dataRecord], cncx: cncxRecordBytes, tbsEntries };
 }
 
 function buildDatpRecord(): Uint8Array {
@@ -1055,37 +1629,36 @@ function buildDatpRecord(): Uint8Array {
 }
 
 function buildFlisRecord(): Uint8Array {
-  const record = new Uint8Array(36);
-  const view = new DataView(record.buffer);
-
-  writeAscii(record, 0, "FLIS");
-  view.setUint32(4, record.length, false);
-  view.setUint32(8, 0x41, false);
-  view.setUint32(12, 0, false);
-  view.setUint32(16, 0, false);
-  view.setUint32(20, NULL_INDEX, false);
-  view.setUint32(24, 1, false);
-  view.setUint32(28, 3, false);
-  view.setUint32(32, 3, false);
-
-  return record;
+  return new Uint8Array([
+    0x46, 0x4c, 0x49, 0x53,
+    0x00, 0x00, 0x00, 0x08,
+    0x00, 0x41, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x01,
+    0xff, 0xff, 0xff, 0xff,
+  ]);
 }
 
 function buildFcisRecord(rawTextLength: number): Uint8Array {
-  const record = new Uint8Array(44);
+  const record = new Uint8Array(52);
   const view = new DataView(record.buffer);
 
   writeAscii(record, 0, "FCIS");
   view.setUint32(4, 20, false);
   view.setUint32(8, 16, false);
-  view.setUint32(12, 1, false);
+  view.setUint32(12, 2, false);
   view.setUint32(16, 0, false);
   view.setUint32(20, rawTextLength, false);
   view.setUint32(24, 0, false);
-  view.setUint32(28, 32, false);
-  view.setUint32(32, 8, false);
-  view.setUint32(36, 1, false);
-  view.setUint32(40, 1, false);
+  view.setUint32(28, 40, false);
+  view.setUint32(32, 0, false);
+  view.setUint32(36, 40, false);
+  view.setUint32(40, 8, false);
+  view.setUint32(44, 0x00010001, false);
+  view.setUint32(48, 0, false);
 
   return record;
 }
@@ -1110,6 +1683,7 @@ function buildExth(
   options: {
     coverImageOffset?: number | null;
     thumbnailImageOffset?: number | null;
+    kf8Boundary?: number;
   } = {},
 ): Uint8Array {
   const records: Uint8Array[] = [];
@@ -1156,8 +1730,7 @@ function buildExth(
     pushUInt32(202, options.thumbnailImageOffset);
   }
 
-  // Important: no EXTH 121 in KF8-only output. In hybrid MOBI7+KF8 it points
-  // to the KF8 record-0 boundary. Pointing it to SRCS breaks strict readers.
+  pushUInt32(121, options.kf8Boundary ?? 0);
 
   const recordsPayload = concatBytes(records);
   const header = new Uint8Array(12);
@@ -1174,8 +1747,10 @@ function buildRecordZero(args: {
   metadata: LyceumBookMetadata;
   rawTextLength: number;
   textRecordCount: number;
+  extraDataFlags: number;
   firstNonTextRecord: number;
   firstResourceRecord: number;
+  fdstRecord: number;
   coverImageOffset: number | null;
   thumbnailImageOffset: number | null;
   fcisRecord: number;
@@ -1191,6 +1766,7 @@ function buildRecordZero(args: {
   const exth = buildExth(args.metadata, {
     coverImageOffset: args.coverImageOffset,
     thumbnailImageOffset: args.thumbnailImageOffset,
+    kf8Boundary: 0,
   });
   const fullNameOffset = PALMDOC_HEADER_LENGTH + MOBI_HEADER_LENGTH + exth.length;
   const recordLength = fullNameOffset + fullName.length + 2;
@@ -1240,8 +1816,7 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 160, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 164, 0, false);
 
-  view.setUint16(MOBI_HEADER_OFFSET + 176, 1, false);
-  view.setUint16(MOBI_HEADER_OFFSET + 178, args.textRecordCount, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 176, args.fdstRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 180, 1, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 184, args.fcisRecord, false);
@@ -1256,8 +1831,7 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 216, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 220, NULL_INDEX, false);
 
-  // KF8 trailing-data size marker appended to each text record.
-  view.setUint32(MOBI_HEADER_OFFSET + 224, 2, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 224, args.extraDataFlags, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 228, args.ncxIndexRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 232, args.fragmentIndexRecord, false);
@@ -1385,21 +1959,25 @@ function buildKf8Section(
   textual: LyceumTextualContent,
   sourceEpub: Uint8Array = new Uint8Array(),
 ): Kf8BuildResult {
-  const { combinedHtml, skeletons, fragments, unresolvedInternalLinkCount } = buildKf8HtmlParts(metadata, textual);
+  const { combinedHtml, skeletons, fragments, maxFragmentLength, unresolvedInternalLinkCount } = buildKf8HtmlParts(metadata, textual);
   const cssBytes = encodeUtf8(buildKf8Css(textual));
   const htmlLength = combinedHtml.length;
   const combinedText = concatBytes([combinedHtml, cssBytes]);
-  const textRecords = splitTextRecordsKf8(combinedText);
+  const textRecordPayloads = splitTextRecordPayloads(combinedText);
   const fdst = buildFdstRecord(htmlLength, combinedText.length);
   const { indx: fragmentIndx, cncx: fragmentCncx } = buildFragmentIndxWithCncx(fragments);
   const skeletonIndx = buildSkeletonIndx(skeletons);
-  const { indx: ncxIndx, cncx: ncxCncx } = buildNcxIndx(metadata, textual, skeletons, htmlLength);
+  const { indx: ncxIndx, cncx: ncxCncx, tbsEntries } = buildNcxIndx(metadata, textual, skeletons, fragments, htmlLength);
+  const tbsByRecord = buildTbsForTextRecords(tbsEntries, textRecordPayloads.map((record) => record.raw.length));
+  const includeTbs = tbsEntries.length > 0;
+  const textRecords = buildTextRecordsKf8(textRecordPayloads, tbsByRecord, includeTbs);
   const datp = buildDatpRecord();
   return {
     textRecords,
     textLength: combinedText.length,
     htmlLength,
     totalTextLength: combinedText.length,
+    extraDataFlags: includeTbs ? 3 : 1,
     fdst,
     fragmentIndx,
     fragmentCncx,
@@ -1410,6 +1988,9 @@ function buildKf8Section(
     sourceEpub,
     skeletonCount: skeletons.length,
     fragmentCount: fragments.length,
+    maxFragmentLength,
+    tbsRecordCount: includeTbs ? textRecordPayloads.length : 0,
+    tbsByteCount: Array.from(tbsByRecord.values()).reduce((sum, bytes) => sum + bytes.length, 0),
     unsupportedResourceCount: 0,
     unresolvedInternalLinkCount,
   };
@@ -1477,23 +2058,29 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
   const imageResourceCount = imageRecords.length;
   const coverImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "cover-image"));
   const thumbnailImageOffset = imageResources.findIndex((image) => hasResourceProperty(image.resource, "kindle-thumbnail"));
+  const textRecordsByteLength = kf8.textRecords.reduce((sum, record) => sum + record.data.length, 0);
+  const textPaddingBytes = (4 - (textRecordsByteLength % 4)) % 4;
+  const textPaddingRecords: PdbRecord[] = textPaddingBytes > 0
+    ? [{ data: new Uint8Array(textPaddingBytes) }]
+    : [];
+  const firstKf8IndexRecord = textRecordCount + 1 + textPaddingRecords.length;
 
-  const fragmentIndexRecord = textRecordCount + 1;
+  const fragmentIndexRecord = firstKf8IndexRecord;
   const fragmentCncxRecord = fragmentIndexRecord + kf8.fragmentIndx.length;
   const skeletonIndexRecord = fragmentCncxRecord + kf8.fragmentCncx.length;
   const ncxIndexRecord = skeletonIndexRecord + kf8.skeletonIndx.length;
   const ncxCncxRecord = ncxIndexRecord + kf8.ncxIndx.length;
-  const fdstRecord = ncxCncxRecord + kf8.ncxCncx.length;
+  const firstImageRecord = imageResourceCount > 0
+    ? ncxCncxRecord + kf8.ncxCncx.length
+    : null;
+  const fdstRecord = ncxCncxRecord + kf8.ncxCncx.length + imageResourceCount;
   const datpRecord = fdstRecord + 1;
   const flisRecord = datpRecord + 1;
   const fcisRecord = flisRecord + 1;
   const srcsRecord = embedSource ? fcisRecord + 1 : null;
-  const firstImageRecord = imageResourceCount > 0
-    ? (srcsRecord !== null ? srcsRecord + 1 : fcisRecord + 1)
-    : null;
-  const eofRecord = (firstImageRecord ?? (srcsRecord !== null ? srcsRecord + 1 : fcisRecord + 1)) + imageResourceCount;
+  const eofRecord = srcsRecord !== null ? srcsRecord + 1 : fcisRecord + 1;
   const firstNonTextRecord = fragmentIndexRecord;
-  const firstResourceRecord = firstImageRecord ?? fdstRecord;
+  const firstResourceRecord = firstImageRecord ?? NULL_INDEX;
 
   const nonBookRecords: PdbRecord[] = [
     ...kf8.fragmentIndx.map((data) => ({ data })),
@@ -1501,6 +2088,7 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     ...kf8.skeletonIndx.map((data) => ({ data })),
     ...kf8.ncxIndx.map((data) => ({ data })),
     ...kf8.ncxCncx.map((data) => ({ data })),
+    ...imageRecords,
     { data: kf8.fdst },
     { data: kf8.datp },
     { data: buildFlisRecord() },
@@ -1511,15 +2099,16 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     nonBookRecords.push({ data: buildSrcsRecord(kf8.sourceEpub) });
   }
 
-  nonBookRecords.push(...imageRecords);
   nonBookRecords.push({ data: buildEofRecord() });
 
   const recordZero = buildRecordZero({
     metadata: options.metadata,
     rawTextLength: kf8.textLength,
     textRecordCount,
+    extraDataFlags: kf8.extraDataFlags,
     firstNonTextRecord,
     firstResourceRecord,
+    fdstRecord,
     coverImageOffset: coverImageOffset >= 0 ? coverImageOffset : null,
     thumbnailImageOffset: thumbnailImageOffset >= 0 ? thumbnailImageOffset : null,
     fcisRecord,
@@ -1534,6 +2123,7 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
   const records: PdbRecord[] = [
     { data: recordZero },
     ...kf8.textRecords,
+    ...textPaddingRecords,
     ...nonBookRecords,
   ];
 
@@ -1558,7 +2148,9 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
       textRecordCount,
       recordCount: records.length,
       rawTextBytes: kf8.textLength,
+      extraDataFlags: kf8.extraDataFlags,
       compressedTextBytes: kf8.textRecords.reduce((sum, record) => sum + record.data.length, 0),
+      textPaddingBytes,
       compressionRatio: kf8.textLength > 0
         ? Number((kf8.textRecords.reduce((sum, record) => sum + record.data.length, 0) / kf8.textLength).toFixed(4))
         : 1,
@@ -1566,6 +2158,9 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
       totalTextLength: kf8.totalTextLength,
       skeletonCount: kf8.skeletonCount,
       fragmentCount: kf8.fragmentCount,
+      maxFragmentLength: kf8.maxFragmentLength,
+      tbsRecordCount: kf8.tbsRecordCount,
+      tbsByteCount: kf8.tbsByteCount,
       anchorOffsetCount: 0,
       tocItemCount: options.textual.toc.length,
       maxTocDepth: options.textual.toc.reduce((max, item) => Math.max(max, item.level || 1), 0),

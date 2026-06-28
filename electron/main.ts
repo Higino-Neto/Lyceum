@@ -114,6 +114,7 @@ import { PDFDocument } from "pdf-lib";
 import type { EpubAsset, ImageCandidate } from "../src/lib/pdf-to-epub";
 import type { BookFormat } from "../src/lib/lyceum";
 
+const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
 const bundledFromChunksDir = path.basename(__dirname) === "chunks";
 process.env.APP_ROOT = path.resolve(__dirname, bundledFromChunksDir ? "../.." : "..");
 
@@ -1139,6 +1140,12 @@ function createKindleOutputName(book: KindleSendBookInput, targetFormat: BookFor
   return `${sanitizeKindleFileName(stem)}.${targetFormat}`;
 }
 
+function appendKindleOutputSuffix(fileName: string, suffix: string): string {
+  const ext = path.extname(fileName);
+  const baseName = path.basename(fileName, ext);
+  return sanitizeKindleFileName(`${baseName} ${suffix}`) + ext;
+}
+
 function getUniquePathInDir(targetDir: string, fileName: string): string {
   const ext = path.extname(fileName);
   const baseName = path.basename(fileName, ext);
@@ -1227,7 +1234,11 @@ async function prepareKindleTransferFile(
   const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-send", sourceHash);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  const outputName = createKindleOutputName(book, "azw3");
+  const kindleIdentity = `LYCEUM-${sourceHash.slice(0, 12)}-${LYCEUM_KINDLE_AZW3_PROFILE}`;
+  const outputName = appendKindleOutputSuffix(
+    createKindleOutputName(book, "azw3"),
+    `[${LYCEUM_KINDLE_AZW3_PROFILE}-${sourceHash.slice(0, 8)}]`,
+  );
   const outputPath = getUniquePathInDir(tempDir, outputName);
   const title = path.basename(book.title || book.fileName || localPath, path.extname(book.title || book.fileName || localPath));
 
@@ -1241,7 +1252,8 @@ async function prepareKindleTransferFile(
       ? {
           title,
           language: "pt-BR",
-          identifier: `LYCEUM-${sourceHash.slice(0, 8)}`,
+          identifier: kindleIdentity,
+          asin: kindleIdentity,
         }
       : {
           title,
@@ -1250,8 +1262,8 @@ async function prepareKindleTransferFile(
           publisher: book.publisher || undefined,
           description: book.description || undefined,
           publishDate: book.publishDate || undefined,
-          identifier: book.identifier || `LYCEUM-${sourceHash.slice(0, 8)}`,
-          asin: book.asin || undefined,
+          identifier: book.identifier || kindleIdentity,
+          asin: kindleIdentity,
           subject: book.subject || undefined,
           series: book.series || undefined,
           seriesIndex: book.seriesIndex || undefined,
