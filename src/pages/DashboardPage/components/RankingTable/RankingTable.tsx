@@ -46,8 +46,6 @@ export default function RankingTable() {
   const isRankingLoading = isCategoryActive ? isCategoryLoading : isLoading;
 
   const pageField = useMemo(() => {
-    if (isCategoryActive) return "total_pages" as const;
-
     switch (period) {
       case "today":
         return "today_pages" as const;
@@ -58,7 +56,7 @@ export default function RankingTable() {
       default:
         return "total_pages" as const;
     }
-  }, [isCategoryActive, period]);
+  }, [period]);
 
   const sortedRanking = displayRanking
     ? [...displayRanking].sort(
