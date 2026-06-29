@@ -294,6 +294,28 @@ function WeeklyStreakPanel({
   goalControls?: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
+  const [pulse, setPulse] = useState(false);
+  const [floatText, setFloatText] = useState<{
+    pages: number;
+    metaBatida: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!person.isCurrentUser) return;
+    const handler = (event: Event) => {
+      setPulse(true);
+      setTimeout(() => setPulse(false), 500);
+
+      const detail = (event as CustomEvent).detail;
+      if (detail?.pages) {
+        setFloatText({ pages: detail.pages, metaBatida: detail.metaBatida ?? false });
+        setTimeout(() => setFloatText(null), 3500);
+      }
+    };
+    window.addEventListener("lyceum:reading-submitted", handler);
+    return () => window.removeEventListener("lyceum:reading-submitted", handler);
+  }, [person.isCurrentUser]);
+
   const weekDays = useMemo(
     () => getWeekDays(person.readings, dailyGoal),
     [dailyGoal, person.readings],
@@ -332,57 +354,88 @@ function WeeklyStreakPanel({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-1 pt-1">
-        {weekDays.map((day, dayIndex) => {
-          const isToday = dayIndex === currentDayIndex;
-          const isFuture = day.date > todayStr;
+      <div className="relative">
+        <div className="flex items-center justify-between gap-1 pt-1">
+          {weekDays.map((day, dayIndex) => {
+            const isToday = dayIndex === currentDayIndex;
+            const isFuture = day.date > todayStr;
 
-          return (
-            <motion.div
-              key={day.date}
-              className="flex flex-1 flex-col h-full items-center gap-1.5"
-              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: reduceMotion ? 0 : dayIndex * 0.03, duration: 0.18 }}
-            >
-              <div className="group relative">
-                <motion.div whileHover={reduceMotion ? undefined : { y: -1 }}>
-                  <DayIcon
-                    day={day}
-                    dailyGoal={dailyGoal}
-                    isToday={isToday}
-                    isFuture={isFuture}
-                    isWinningDay={winningDates.has(day.date)}
-                    reduceMotion={Boolean(reduceMotion)}
-                  />
-                </motion.div>
-                {day.hasRead && (
-                  <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100">
-                    {day.pagesRead} pags
-                  </div>
-                )}
-              </div>
-              <span
-                className={`text-[11px] font-medium ${
-                  isFuture
-                    ? "text-zinc-600"
-                    : day.goalComplete
-                      ? "text-green-500"
-                      : isToday
-                        ? "text-green-800"
-                        : "text-zinc-500"
-                }`}
+            return (
+              <motion.div
+                key={day.date}
+                className="flex flex-1 flex-col h-full items-center gap-1.5"
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduceMotion ? 0 : dayIndex * 0.03, duration: 0.18 }}
               >
-                {day.dayName}
-              </span>
-            </motion.div>
-          );
-        })}
+                <div className="group relative">
+                  <motion.div whileHover={reduceMotion ? undefined : { y: -1 }}>
+                    <DayIcon
+                      day={day}
+                      dailyGoal={dailyGoal}
+                      isToday={isToday}
+                      isFuture={isFuture}
+                      isWinningDay={winningDates.has(day.date)}
+                      reduceMotion={Boolean(reduceMotion)}
+                    />
+                  </motion.div>
+                  {day.hasRead && (
+                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100">
+                      {day.pagesRead} pags
+                    </div>
+                  )}
+                </div>
+                <span
+                  className={`text-[11px] font-medium ${
+                    isFuture
+                      ? "text-zinc-600"
+                      : day.goalComplete
+                        ? "text-green-500"
+                        : isToday
+                          ? "text-green-800"
+                          : "text-zinc-500"
+                  }`}
+                >
+                  {day.dayName}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {floatText && currentDayIndex >= 0 && (
+          <motion.div
+            key={floatText.pages}
+            initial={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 0, y: -120 }}
+            transition={{
+              duration: reduceMotion ? 0 : 3,
+              ease: "easeOut",
+            }}
+            className="pointer-events-none absolute z-10 whitespace-nowrap text-sm font-bold"
+            style={{
+              left: `${((currentDayIndex + 0.5) / 7) * 100}%`,
+              top: "-0.25rem",
+              transform: "translateX(-50%)",
+            }}
+          >
+            {floatText.metaBatida ? (
+              <span className="text-amber-400">{'\u{1F525} Meta batida!'}</span>
+            ) : (
+              <span className="text-green-400">+{floatText.pages}p</span>
+            )}
+          </motion.div>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          <motion.div
+            animate={pulse ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          </motion.div>
           <span className="text-sm font-bold text-zinc-400">{currentStreak} dias</span>
         </div>
 

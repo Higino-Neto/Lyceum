@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   CalendarDays,
+  Check,
   Loader2,
   MoreVertical,
   Plus,
@@ -11,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { motion, useReducedMotion } from "motion/react";
 import { createReadingEntry, getAllBooks } from "../../../api/database";
 import type { SupabaseBook } from "../../../api/database";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
@@ -211,6 +213,7 @@ function handleFastKeyDown(event: KeyboardEvent<HTMLElement>) {
 export default function ReadingStatsCard() {
   const queryClient = useQueryClient();
   const { selectedUsers } = useSelectedUsers();
+  const reduceMotion = useReducedMotion();
   const { data: readingsData, isLoading } = useQuery({
     queryKey: ["readings"],
     queryFn: getReadings,
@@ -223,7 +226,6 @@ export default function ReadingStatsCard() {
   const readings = readingsData ?? EMPTY_READINGS;
   const registeredBooks = registeredBooksData ?? EMPTY_REGISTERED_BOOKS;
   const [drafts, setDrafts] = useState<Record<string, QuickReadingDraft>>({});
-  const [submittingKey, setSubmittingKey] = useState<string | null>(null);
   const [hiddenBookKeys, setHiddenBookKeys] = useLocalStorage<string[]>(
     "quick_reading_hidden_books",
     [],
@@ -238,6 +240,10 @@ export default function ReadingStatsCard() {
   const [actionMenuBookKey, setActionMenuBookKey] = useState<string | null>(
     null,
   );
+  const [feedbackPhase, setFeedbackPhase] = useState<
+    Record<string, "idle" | "sending" | "success" | "error">
+  >({});
+  const [dailyGoal] = useLocalStorage<number>("daily_reading_goal_pages", 0);
 
   const frequentBooks = useMemo(
     () => getFrequentRecentBooks(readings),
@@ -286,6 +292,13 @@ export default function ReadingStatsCard() {
   }, [addBookSearch, availableBooksToAdd]);
 
   const isExpandedByLeaderboard = selectedUsers.length > 0;
+
+  const todayPages = useMemo(() => {
+    const todayIso = toLocalIsoDate(new Date());
+    return readings
+      .filter((r) => r.reading_date === todayIso)
+      .reduce((sum, r) => sum + r.pages, 0);
+  }, [readings]);
 
   useEffect(() => {
     setDrafts((current) => {
@@ -350,7 +363,8 @@ export default function ReadingStatsCard() {
     }
 
     try {
-      setSubmittingKey(book.key);
+      setFeedbackPhase((prev) => ({ ...prev, [book.key]: "sending" }));
+
       await createReadingEntry(
         book.title,
         pages,
@@ -374,12 +388,27 @@ export default function ReadingStatsCard() {
           dateMode: current[book.key]?.dateMode ?? "today",
         },
       }));
+
+      setFeedbackPhase((prev) => ({ ...prev, [book.key]: "success" }));
+      setTimeout(() => {
+        setFeedbackPhase((prev) => ({ ...prev, [book.key]: "idle" }));
+      }, 800);
+
+      const metaBatida = dailyGoal > 0 && todayPages + pages >= dailyGoal;
+      window.dispatchEvent(
+        new CustomEvent("lyceum:reading-submitted", {
+          detail: { pages, metaBatida },
+        }),
+      );
+
       toast.success("Leitura registrada!");
     } catch (error) {
       console.error("Error saving quick reading:", error);
+      setFeedbackPhase((prev) => ({ ...prev, [book.key]: "error" }));
+      setTimeout(() => {
+        setFeedbackPhase((prev) => ({ ...prev, [book.key]: "idle" }));
+      }, 600);
       toast.error("Erro ao registrar leitura");
-    } finally {
-      setSubmittingKey(null);
     }
   };
 
@@ -547,8 +576,9 @@ export default function ReadingStatsCard() {
             dateMode: "today",
           };
           const tabStart = index * 4 + 1;
-          const isSubmitting = submittingKey === book.key;
-          const canSubmit = Boolean(book.categoryId) && !isSubmitting;
+          const phase = feedbackPhase[book.key] ?? "idle";
+          const isSubmitting = phase === "sending";
+          const canSubmit = Boolean(book.categoryId) && phase === "idle";
 
           return (
             <form
@@ -646,7 +676,21 @@ export default function ReadingStatsCard() {
                       draft.dateMode === "today" ? "yesterday" : "today",
                   })
                 }
-                onKeyDown={handleFastKeyDown}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                    event.preventDefault();
+                    updateDraft(book.key, {
+                      dateMode:
+                        draft.dateMode === "today" ? "yesterday" : "today",
+                    });
+                    return;
+                  }
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    const target = event.currentTarget;
+                    scheduleFocus(() => focusNextQuickControl(target));
+                  }
+                }}
                 className="flex h-9 cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-2 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
                 aria-label={`Data de ${book.title}`}
                 title={draft.dateMode === "today" ? "Hoje" : "Ontem"}
@@ -655,26 +699,46 @@ export default function ReadingStatsCard() {
                 {draft.dateMode === "today" ? "Hoje" : "Ontem"}
               </button>
 
-              <button
-                data-quick-reading-control
-                tabIndex={tabStart + 3}
-                type="submit"
-                disabled={!canSubmit}
-                onKeyDown={handleFastKeyDown}
-                className={`flex h-9 w-9 cursor-pointer items-center justify-center gap-1.5 rounded-sm text-xs font-semibold transition ${
-                  canSubmit
-                    ? "bg-green-600 text-black hover:bg-green-500"
-                    : "cursor-not-allowed bg-zinc-800 text-zinc-600"
-                }`}
-                title={book.categoryId ? "Registrar leitura" : "Sem categoria"}
-              >
-                {isSubmitting ? (
-                  <Loader2 size={ICON_SIZE} className="animate-spin" />
-                ) : (
-                  <Send size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
-                )}
-                
-              </button>
+              <div className="relative flex items-center justify-center">
+                <button
+                  data-quick-reading-control
+                  tabIndex={tabStart + 3}
+                  type="submit"
+                  disabled={!canSubmit}
+                  onKeyDown={handleFastKeyDown}
+                  className={`flex h-9 w-9 cursor-pointer items-center justify-center gap-1.5 rounded-sm text-xs font-semibold transition ${
+                    phase === "error"
+                      ? "bg-red-600 text-white"
+                      : canSubmit
+                        ? "bg-green-600 text-black hover:bg-green-500"
+                        : "cursor-not-allowed bg-zinc-800 text-zinc-600"
+                  }`}
+                  title={book.categoryId ? "Registrar leitura" : "Sem categoria"}
+                >
+                  {phase === "sending" ? (
+                    <Loader2 size={ICON_SIZE} className="animate-spin" />
+                  ) : phase === "success" ? (
+                    <motion.div
+                      animate={
+                        reduceMotion
+                          ? { scale: 1 }
+                          : { scale: [1, 1.3, 1] }
+                      }
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Check size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+                    </motion.div>
+                  ) : phase === "error" ? (
+                    <X
+                      size={ICON_SIZE}
+                      strokeWidth={STROKE_WIDTH}
+                      className="text-red-300"
+                    />
+                  ) : (
+                    <Send size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+                  )}
+                </button>
+              </div>
             </form>
           );
         })}
