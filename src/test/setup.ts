@@ -3,21 +3,6 @@ import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import React from "react";
 
-vi.mock("@atomic-editor/editor", () => ({
-  AtomicCodeMirrorEditor: ({
-    markdownSource,
-    onMarkdownChange,
-  }: {
-    markdownSource: string;
-    onMarkdownChange?: (value: string) => void;
-  }) => React.createElement("textarea", {
-    "aria-label": "Atomic markdown editor",
-    value: markdownSource,
-    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
-      onMarkdownChange?.(event.target.value),
-  }),
-}));
-
 afterEach(() => {
   if (typeof window !== "undefined") {
     cleanup();

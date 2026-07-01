@@ -1,24 +1,16 @@
 import type { ReadingStatus } from "../../types/LibraryTypes";
 
-export type AtlasView = "roadmap" | "status";
-export type StatusFilter = "all" | ReadingStatus;
-
-export type DropTarget = {
-  sectionId: string;
-  index: number;
-} | null;
-
 export type StatusDropTarget = {
   status: ReadingStatus;
   index: number;
 } | null;
 
-export type AddTarget =
-  | { kind: "roadmap"; sectionId: string }
-  | { kind: "status"; status: ReadingStatus };
+export type AddTarget = {
+  kind: "status";
+  status: ReadingStatus;
+};
 
 export const ATLAS_BOOKS_QUERY_KEY = ["atlas-books"] as const;
-export const ATLAS_MAP_QUERY_KEY = "atlas-reading-map";
 export const ATLAS_STATUS_QUERY_KEY = ["atlas-status-items"] as const;
 
 export const STATUS_VISUAL: Record<ReadingStatus, {

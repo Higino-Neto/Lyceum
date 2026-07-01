@@ -125,6 +125,7 @@ export interface ReadingStatusItem {
   localProgressPages: number;
   notePath: string | null;
   notesMarkdown: string | null;
+  rating: number;
   createdAt: string;
   updatedAt: string;
   book?: BookWithThumbnail | null;

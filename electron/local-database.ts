@@ -404,6 +404,7 @@ export function initDatabase() {
     ["manualBasePage", "INTEGER NOT NULL DEFAULT 0"],
     ["notePath", "TEXT"],
     ["notesMarkdown", "TEXT"],
+    ["rating", "INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [column, definition] of readingStatusItemColumns) {
     try {
@@ -1337,6 +1338,7 @@ function toReadingStatusItem(row: ReadingStatusItemRow): ReadingStatusItem {
     localProgressPages: getReadingStatusLocalProgressPages(row.id),
     notePath: row.notePath,
     notesMarkdown: row.notesMarkdown,
+    rating: Math.max(0, Math.min(10, Number(row.rating) || 0)),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     book: book || null,
@@ -1604,11 +1606,22 @@ export function updateReadingStatusItemCover(itemId: string, coverPath: string |
   ).get(itemId);
   if (!item) throw new Error("Item nao encontrado");
 
+  let savedPath: string | null = null;
+  if (coverPath && fs.existsSync(coverPath)) {
+    const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+    if (!fs.existsSync(thumbnailsDir)) fs.mkdirSync(thumbnailsDir, { recursive: true });
+    const ext = path.extname(coverPath).toLowerCase() || ".jpg";
+    const destName = `${itemId}-cover${ext}`;
+    const destPath = path.join(thumbnailsDir, destName);
+    fs.copyFileSync(coverPath, destPath);
+    savedPath = destPath;
+  }
+
   db.prepare(`
     UPDATE reading_status_items
     SET coverPath = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(coverPath?.trim() || null, itemId);
+  `).run(savedPath, itemId);
 
   return getReadingStatusPayload();
 }
@@ -1625,6 +1638,7 @@ export function updateReadingStatusItemMetadata(
     subject?: string | null;
     manualTotalPages?: number | null;
     coverPath?: string | null;
+    rating?: number;
   },
 ): ReadingStatusPayload {
   const item = db.prepare<[string], ReadingStatusItemRow>(
@@ -1640,6 +1654,10 @@ export function updateReadingStatusItemMetadata(
       ? null
       : Math.max(1, Math.floor(Number(updates.manualTotalPages) || 1));
 
+  const nextRating = updates.rating === undefined
+    ? item.rating
+    : Math.max(0, Math.min(10, Number(updates.rating) || 0));
+
   db.prepare(`
     UPDATE reading_status_items
     SET title = ?,
@@ -1651,6 +1669,7 @@ export function updateReadingStatusItemMetadata(
         subject = ?,
         manualTotalPages = ?,
         coverPath = ?,
+        rating = ?,
         updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
@@ -1663,6 +1682,7 @@ export function updateReadingStatusItemMetadata(
     updates.subject === undefined ? item.subject : updates.subject?.trim() || null,
     nextTotalPages,
     updates.coverPath === undefined ? item.coverPath : updates.coverPath?.trim() || null,
+    nextRating,
     itemId,
   );
 

@@ -199,6 +199,7 @@ interface Window {
     convertBook: (fileHash: string, targetFormat: BookFormat) => Promise<GenericConversionResult>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
+    readImageDataUrl: (filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
     getLastDocument: () => Promise<DocumentRecord | null>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<{
       fileBuffer: ArrayBuffer;
@@ -247,17 +248,6 @@ interface Window {
     updateRating: (fileHash: string, rating: number) => Promise<boolean>;
     updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
     updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
-    getReadingMap: (mapId?: string | null) => Promise<AtlasMapResult>;
-    createReadingMap: (title: string, description?: string | null) => Promise<AtlasMapResult>;
-    createReadingMapSection: (mapId: string, title: string, description?: string) => Promise<AtlasMapResult>;
-    updateReadingMapSection: (sectionId: string, updates: { title?: string; description?: string }) => Promise<AtlasMapResult>;
-    addLibraryBookToReadingMap: (sectionId: string, fileHash: string) => Promise<AtlasMapResult>;
-    addManualBookToReadingMap: (sectionId: string, data: { title: string; author?: string | null; status?: ReadingStatus }) => Promise<AtlasMapResult>;
-    updateReadingMapItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasMapResult>;
-    reorderReadingMapItem: (itemId: string, direction: "up" | "down") => Promise<AtlasMapResult>;
-    moveReadingMapItem: (itemId: string, targetSectionId: string) => Promise<AtlasMapResult>;
-    positionReadingMapItem: (itemId: string, targetSectionId: string, targetIndex: number) => Promise<AtlasMapResult>;
-    deleteReadingMapItem: (itemId: string) => Promise<AtlasMapResult>;
     getReadingStatusItems: () => Promise<AtlasStatusResult>;
     addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
@@ -278,10 +268,8 @@ interface Window {
       subject?: string | null;
       manualTotalPages?: number | null;
       coverPath?: string | null;
+      rating?: number;
     }) => Promise<AtlasStatusResult>;
-    setAtlasNotesVault: (vaultPath: string | null) => Promise<AtlasStatusResult>;
-    getReadingStatusItemNote: (itemId: string) => Promise<AtlasStatusNoteResult>;
-    saveReadingStatusItemNote: (itemId: string, content: string) => Promise<AtlasStatusNoteResult>;
     searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) => Promise<{
       success: boolean;
       results: BookMetadataCandidate[];
@@ -514,17 +502,6 @@ interface Window {
     windowClose: () => Promise<void>;
     windowIsMaximized: () => Promise<boolean>;
     updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
-    getReadingMap: (mapId?: string | null) => Promise<AtlasMapResult>;
-    createReadingMap: (title: string, description?: string | null) => Promise<AtlasMapResult>;
-    createReadingMapSection: (mapId: string, title: string, description?: string) => Promise<AtlasMapResult>;
-    updateReadingMapSection: (sectionId: string, updates: { title?: string; description?: string }) => Promise<AtlasMapResult>;
-    addLibraryBookToReadingMap: (sectionId: string, fileHash: string) => Promise<AtlasMapResult>;
-    addManualBookToReadingMap: (sectionId: string, data: { title: string; author?: string | null; status?: ReadingStatus }) => Promise<AtlasMapResult>;
-    updateReadingMapItemStatus: (itemId: string, status: ReadingStatus) => Promise<AtlasMapResult>;
-    reorderReadingMapItem: (itemId: string, direction: "up" | "down") => Promise<AtlasMapResult>;
-    moveReadingMapItem: (itemId: string, targetSectionId: string) => Promise<AtlasMapResult>;
-    positionReadingMapItem: (itemId: string, targetSectionId: string, targetIndex: number) => Promise<AtlasMapResult>;
-    deleteReadingMapItem: (itemId: string) => Promise<AtlasMapResult>;
     getReadingStatusItems: () => Promise<AtlasStatusResult>;
     addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
@@ -545,10 +522,8 @@ interface Window {
       subject?: string | null;
       manualTotalPages?: number | null;
       coverPath?: string | null;
+      rating?: number;
     }) => Promise<AtlasStatusResult>;
-    setAtlasNotesVault: (vaultPath: string | null) => Promise<AtlasStatusResult>;
-    getReadingStatusItemNote: (itemId: string) => Promise<AtlasStatusNoteResult>;
-    saveReadingStatusItemNote: (itemId: string, content: string) => Promise<AtlasStatusNoteResult>;
 
     backupInit: (supabaseUrl: string, supabaseAnonKey: string) => Promise<{ success: boolean; error?: string }>;
     backupSetSession: (accessToken: string, refreshToken: string) => Promise<{ success: boolean; error?: string }>;

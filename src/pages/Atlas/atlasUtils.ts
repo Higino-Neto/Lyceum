@@ -1,8 +1,6 @@
 import type {
   BookWithThumbnail,
   LibraryListResult,
-  ReadingMapPayload,
-  ReadingMapSectionWithItems,
   ReadingStatusItem,
   ReadingStatusPayload,
 } from "../../types/LibraryTypes";
@@ -16,7 +14,6 @@ import type {
   FileTypeFilter,
   SortOption,
 } from "../Library/components/FilterBar";
-import type { NotePropertiesDraft } from "./components/NoteProperties";
 
 export async function fetchAtlasBooks(): Promise<BookWithThumbnail[]> {
   const books: BookWithThumbnail[] = [];
@@ -42,14 +39,6 @@ export async function fetchAtlasBooks(): Promise<BookWithThumbnail[]> {
   return books;
 }
 
-export async function fetchReadingMap(mapId?: string | null): Promise<ReadingMapPayload> {
-  const result = await window.api.getReadingMap(mapId ?? null);
-  if (!result.success || !result.payload) {
-    throw new Error(result.error || "Erro ao carregar mapa de leitura");
-  }
-  return result.payload;
-}
-
 export async function fetchReadingStatusItems(): Promise<ReadingStatusPayload> {
   const result = await window.api.getReadingStatusItems();
   if (!result.success || !result.payload) {
@@ -58,48 +47,8 @@ export async function fetchReadingStatusItems(): Promise<ReadingStatusPayload> {
   return result.payload;
 }
 
-export function stripFrontmatter(content: string): string {
-  const match = content.match(/^---[\s\S]*?---\n*/);
-  if (!match) return content;
-  return content.slice(match[0].length);
-}
-
-export function buildFrontmatter(props: NotePropertiesDraft): string {
-  const esc = (value: string) => value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const lines = [
-    "---",
-    `title: "${esc(props.title)}"`,
-    `author: "${esc(props.author)}"`,
-    `status: "${props.status}"`,
-    `source: "lyceum-atlas"`,
-    props.isbn ? `isbn: "${esc(props.isbn)}"` : "",
-    props.publisher ? `publisher: "${esc(props.publisher)}"` : "",
-    props.publishDate ? `publish_date: "${esc(props.publishDate)}"` : "",
-    "---",
-    "",
-  ];
-  return lines.filter((line) => line !== "").join("\n");
-}
-
 export function getNavigationId(): string {
   return globalThis.crypto?.randomUUID?.() || String(Date.now());
-}
-
-export function getMapStats(sections: ReadingMapSectionWithItems[]) {
-  const items = sections.flatMap((section) => section.items);
-  const read = items.filter((item) => item.status === "read").length;
-  const reading = items.filter((item) => item.status === "reading").length;
-  const want = items.filter((item) => item.status === "want_to_read").length;
-  const pages = items.reduce((sum, item) => sum + (item.book?.numPages || 0), 0);
-
-  return {
-    sections: sections.length,
-    total: items.length,
-    read,
-    reading,
-    want,
-    pages,
-  };
 }
 
 export function matchesLibraryBookSearch(book: BookWithThumbnail, query: string): boolean {
@@ -244,8 +193,8 @@ export function formatLastReading(item: ReadingStatusItem, readings: TableReadin
 
 export function getManualCoverSrc(pathValue: string | null): string | null {
   if (!pathValue) return null;
-  if (/^(https?:|data:|file:)/i.test(pathValue)) return pathValue;
-  return `file://${pathValue}`;
+  if (/^(https?:|data:)/i.test(pathValue)) return pathValue;
+  return null;
 }
 
 export function createSyntheticBook(item: ReadingStatusItem): BookWithThumbnail {
@@ -265,7 +214,7 @@ export function createSyntheticBook(item: ReadingStatusItem): BookWithThumbnail 
     isSynced: 0,
     category: null,
     isFavorite: 0,
-    rating: 0,
+    rating: item.rating || 0,
     notes: null,
     author: item.author,
     description: item.description,

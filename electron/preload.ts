@@ -246,6 +246,7 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),
 
   openImageDialog: () => ipcRenderer.invoke("dialog:open-image"),
+  readImageDataUrl: (filePath: string) => ipcRenderer.invoke("read-image-data-url", filePath),
   selectFolder: () => ipcRenderer.invoke("dialog:select-folder"),
 
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
@@ -305,39 +306,6 @@ contextBridge.exposeInMainWorld("api", {
   updateReadingStatus: (fileHash: string, status: ReadingStatus) =>
     ipcRenderer.invoke("book:update-reading-status", fileHash, status),
 
-  getReadingMap: (mapId?: string | null) =>
-    ipcRenderer.invoke("atlas:get-map", mapId ?? null),
-
-  createReadingMap: (title: string, description?: string | null) =>
-    ipcRenderer.invoke("atlas:create-map", title, description ?? null),
-
-  createReadingMapSection: (mapId: string, title: string, description?: string) =>
-    ipcRenderer.invoke("atlas:create-section", mapId, title, description ?? ""),
-
-  updateReadingMapSection: (sectionId: string, updates: { title?: string; description?: string }) =>
-    ipcRenderer.invoke("atlas:update-section", sectionId, updates),
-
-  addLibraryBookToReadingMap: (sectionId: string, fileHash: string) =>
-    ipcRenderer.invoke("atlas:add-library-book", sectionId, fileHash),
-
-  addManualBookToReadingMap: (sectionId: string, data: { title: string; author?: string | null; status?: ReadingStatus }) =>
-    ipcRenderer.invoke("atlas:add-manual-book", sectionId, data),
-
-  updateReadingMapItemStatus: (itemId: string, status: ReadingStatus) =>
-    ipcRenderer.invoke("atlas:update-item-status", itemId, status),
-
-  reorderReadingMapItem: (itemId: string, direction: "up" | "down") =>
-    ipcRenderer.invoke("atlas:reorder-item", itemId, direction),
-
-  moveReadingMapItem: (itemId: string, targetSectionId: string) =>
-    ipcRenderer.invoke("atlas:move-item", itemId, targetSectionId),
-
-  positionReadingMapItem: (itemId: string, targetSectionId: string, targetIndex: number) =>
-    ipcRenderer.invoke("atlas:position-item", itemId, targetSectionId, targetIndex),
-
-  deleteReadingMapItem: (itemId: string) =>
-    ipcRenderer.invoke("atlas:delete-item", itemId),
-
   getReadingStatusItems: () =>
     ipcRenderer.invoke("atlas:get-status-items"),
 
@@ -378,17 +346,9 @@ contextBridge.exposeInMainWorld("api", {
     subject: string | null;
     manualTotalPages: number | null;
     coverPath: string | null;
+    rating: number;
   }>) =>
     ipcRenderer.invoke("atlas:update-status-item-metadata", itemId, updates),
-
-  setAtlasNotesVault: (vaultPath: string | null) =>
-    ipcRenderer.invoke("atlas:set-notes-vault", vaultPath),
-
-  getReadingStatusItemNote: (itemId: string) =>
-    ipcRenderer.invoke("atlas:get-status-note", itemId),
-
-  saveReadingStatusItemNote: (itemId: string, content: string) =>
-    ipcRenderer.invoke("atlas:save-status-note", itemId, content),
 
   searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) =>
     ipcRenderer.invoke("book:search-metadata", source, query, field, limit),

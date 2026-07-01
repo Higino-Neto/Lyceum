@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Image, ArrowRight, Layers, Plus } from "lucide-react";
+import { X, Image, ArrowRight } from "lucide-react";
 
 interface SetThumbnailDialogProps {
   isOpen: boolean;
@@ -14,10 +14,17 @@ export default function SetThumbnailDialog({
   onSetThumbnail,
   onClose,
 }: SetThumbnailDialogProps) {
-  const [previewError, setPreviewError] = useState(false);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
-    setPreviewError(false);
+    if (!imagePath) return;
+    setPreviewDataUrl(null);
+    setLoadingPreview(true);
+    window.api.readImageDataUrl(imagePath).then((result) => {
+      if (result.success) setPreviewDataUrl(result.data);
+      setLoadingPreview(false);
+    });
   }, [imagePath]);
 
   if (!isOpen) return null;
@@ -45,12 +52,13 @@ export default function SetThumbnailDialog({
             <p className="text-sm text-zinc-400 mb-2">Imagem selecionada:</p>
             <div className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-md border border-zinc-700">
               <div className="w-16 h-16 bg-zinc-800 rounded overflow-hidden flex items-center justify-center flex-shrink-0">
-                {!previewError ? (
+                {loadingPreview ? (
+                  <span className="text-xs text-zinc-500">Carregando...</span>
+                ) : previewDataUrl ? (
                   <img 
-                    src={`file://${imagePath}`} 
+                    src={previewDataUrl}
                     alt="Preview" 
                     className="w-full h-full object-cover"
-                    onError={() => setPreviewError(true)}
                   />
                 ) : (
                   <Image size={24} className="text-zinc-600" />

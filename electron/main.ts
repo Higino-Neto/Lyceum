@@ -3228,6 +3228,18 @@ ipcMain.handle("dialog:open-image", async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle("read-image-data-url", async (_, filePath: string) => {
+  try {
+    const buffer = fs.readFileSync(filePath);
+    if (!buffer || buffer.length === 0) return { success: false, error: "Empty file" };
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeType = ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : "image/jpeg";
+    return { success: true, data: `data:${mimeType};base64,${buffer.toString("base64")}` };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle("dialog:select-folder", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory"],
@@ -3748,6 +3760,7 @@ const startupFile = startArgs.find(
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "thumb", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+  { scheme: "img-preview", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
   { scheme: "lyceum-pdfjs", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
   { scheme: "lyceum-pdf", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
   { scheme: "pdf-resource", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
@@ -3773,6 +3786,18 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(thumbPath).toString());
   });
 
+  protocol.handle("img-preview", (request) => {
+    try {
+      const filePath = decodeURIComponent(request.url.replace(/^img-preview:/, ""));
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeType = ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : "image/jpeg";
+      return new Response(buffer, { headers: { "Content-Type": mimeType } });
+    } catch {
+      return new Response(null, { status: 404 });
+    }
+  });
+
   protocol.handle("lyceum-pdfjs", (request) => {
     return handlePdfjsAssetRequest(request);
   });
@@ -3793,8 +3818,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
+  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: img-preview: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
+  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: img-preview: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url;
