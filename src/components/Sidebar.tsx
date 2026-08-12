@@ -57,15 +57,19 @@ export default function Sidebar({
 
   const isOverlayMode = autoHideEnabled && autoHideOverlay;
   const isHidden = autoHideEnabled && !panelsVisible;
-  const sidebarWidth = isHidden && !autoHideOverlay
-    ? "w-0 overflow-hidden"
-    : (collapsed ? "w-13" : "w-42");
+  const sidebarWidth =
+    isHidden && !autoHideOverlay
+      ? "w-0 overflow-hidden"
+      : collapsed
+        ? "w-13"
+        : "w-42";
   const sidebarPosition = isOverlayMode
     ? "absolute bottom-0 left-0 top-10 z-40 border-r border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/40 backdrop-blur"
     : "bg-zinc-900";
-  const sidebarVisibility = isOverlayMode && isHidden
-    ? "pointer-events-none -translate-x-full opacity-0"
-    : "translate-x-0 opacity-100";
+  const sidebarVisibility =
+    isOverlayMode && isHidden
+      ? "pointer-events-none -translate-x-full opacity-0"
+      : "translate-x-0 opacity-100";
   const sidebarClasses = `lyceum-sidebar flex flex-col transition-[width,opacity,transform] duration-200 ease-out ${sidebarWidth} ${sidebarPosition} ${sidebarVisibility}`;
 
   return (
@@ -97,17 +101,17 @@ export default function Sidebar({
           collapsed={collapsed}
         />
         <SidebarItem
-          Icon={Map}
-          label="Atlas"
-          active={pathname === "/atlas"}
-          onClick={() => navigate("/atlas")}
-          collapsed={collapsed}
-        />
-        <SidebarItem
           Icon={BookOpenText}
           label="Ler"
           active={pathname === "/reading"}
           onClick={() => navigate("/reading")}
+          collapsed={collapsed}
+        />
+        <SidebarItem
+          Icon={Map}
+          label="Atlas"
+          active={pathname === "/atlas"}
+          onClick={() => navigate("/atlas")}
           collapsed={collapsed}
         />
         <SidebarItem
