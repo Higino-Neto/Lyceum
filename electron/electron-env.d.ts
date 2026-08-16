@@ -34,6 +34,13 @@ interface NativePdfViewerState {
   canAccess: boolean;
 }
 
+interface NativePdfViewerApplyState {
+  page: number;
+  currentScale?: number;
+  scrollTop?: number;
+  restore?: boolean;
+}
+
 type BookFormat = import("../src/types/LibraryTypes").BookFormat;
 
 type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
@@ -156,7 +163,7 @@ interface Window {
     getNativePdfViewerState: (sourceUrl: string) => Promise<NativePdfViewerState | null>;
     applyNativePdfViewerState: (
       sourceUrl: string,
-      state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+      state: NativePdfViewerApplyState,
     ) => Promise<NativePdfViewerState | null>;
 
     getPdfOutline: (sourceUrl: string) => Promise<
@@ -430,7 +437,7 @@ interface Window {
     getNativePdfViewerState: (sourceUrl: string) => Promise<NativePdfViewerState | null>;
     applyNativePdfViewerState: (
       sourceUrl: string,
-      state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+      state: NativePdfViewerApplyState,
     ) => Promise<NativePdfViewerState | null>;
 
     getPdfOutline: (sourceUrl: string) => Promise<

@@ -2185,8 +2185,9 @@ interface NativePdfViewerState {
 
 interface NativePdfViewerRestoreState {
   page: number;
-  currentScale: number;
-  scrollTop: number;
+  currentScale?: number;
+  scrollTop?: number;
+  restore?: boolean;
 }
 
 function findNativePdfViewerFrame(
@@ -2353,6 +2354,7 @@ async function applyNativePdfViewerState(
   sourceUrl: string,
   state: NativePdfViewerRestoreState,
   targetWindow: ElectronBrowserWindow | null = win,
+  restore = false,
 ): Promise<NativePdfViewerState | null> {
   const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
@@ -2362,13 +2364,14 @@ async function applyNativePdfViewerState(
       page: state.page,
       currentScale: state.currentScale,
       scrollTop: state.scrollTop,
+      restore,
     });
 
     const result = (await frame.executeJavaScript(
       `
         (async () => {
           if (globalThis.LyceumPdfJs?.applyState) {
-            return await globalThis.LyceumPdfJs.applyState(${payload});
+            return await globalThis.LyceumPdfJs.applyState(${payload}, { restore });
           }
 
           const app = globalThis.PDFViewerApplication;
@@ -2901,7 +2904,7 @@ ipcMain.handle(
         page: state.page ?? 1,
         currentScale: state.currentScale ?? 1,
         scrollTop: state.scrollTop ?? 0,
-      }, getTargetWindow(event));
+      }, getTargetWindow(event), state.restore ?? false);
     } catch (error) {
       console.error("[native-pdf-viewer:apply-state] IPC Error:", error);
       return null;

@@ -50,6 +50,7 @@ export default function PdfJsViewer({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<NativePdfViewerState | null>(null);
   const restoreStartedRef = useRef(false);
+  const restoreGenRef = useRef(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
@@ -61,7 +62,11 @@ export default function PdfJsViewer({
 
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
 
-  const chapterTracker = useChapterTracker(sourceUrl, fileHash);
+  const handleChapterNavigate = useCallback(() => {
+    restoreGenRef.current += 1;
+  }, []);
+
+  const chapterTracker = useChapterTracker(sourceUrl, fileHash, handleChapterNavigate);
 
   const readViewerState = useCallback(async () => {
     if (!sourceUrl || !window.api?.getNativePdfViewerState) {
@@ -93,13 +98,18 @@ export default function PdfJsViewer({
     }
 
     restoreStartedRef.current = true;
+    const gen = restoreGenRef.current;
 
     try {
       const saved = await loadState();
+      if (gen !== restoreGenRef.current) {
+        return;
+      }
       await window.api.applyNativePdfViewerState(sourceUrl, {
         page: saved.currentPage,
         currentScale: saved.currentZoom,
         scrollTop: saved.currentScroll,
+        restore: true,
       });
     } catch (error) {
       if (import.meta.env.DEV) {

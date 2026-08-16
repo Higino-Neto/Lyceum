@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadChapterState, saveChapterState } from "./ChapterStorage";
 
 export interface ChapterNode {
@@ -45,6 +45,26 @@ function countRead(nodes: ChapterNode[], readMap: Record<string, boolean>): numb
   );
 }
 
+function collectNodeAndDescendantIds(node: ChapterNode, target: string[]): void {
+  target.push(node.id);
+  node.children.forEach((child) => collectNodeAndDescendantIds(child, target));
+}
+
+function findSubtreeIds(nodes: ChapterNode[], targetId: string): string[] | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      const ids: string[] = [];
+      collectNodeAndDescendantIds(node, ids);
+      return ids;
+    }
+    const found = findSubtreeIds(node.children, targetId);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
 const MAX_OUTLINE_ATTEMPTS = 80;
 const OUTLINE_POLL_INTERVAL_MS = 500;
 
@@ -64,12 +84,25 @@ export interface ChapterTracker {
   progress: number;
 }
 
-export function useChapterTracker(sourceUrl: string, fileHash: string): ChapterTracker {
+export function useChapterTracker(
+  sourceUrl: string,
+  fileHash: string,
+  onBeforeNavigate?: () => void,
+): ChapterTracker {
   const [outline, setOutline] = useState<ChapterNode[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [readMap, setReadMap] = useState<Record<string, boolean>>({});
-  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+  const [readMap, setReadMap] = useState<Record<string, boolean>>(() =>
+    fileHash ? loadChapterState(fileHash).read : {},
+  );
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(() =>
+    fileHash ? loadChapterState(fileHash).expanded : {},
+  );
+  const outlineRef = useRef<ChapterNode[] | null>(null);
+
+  useEffect(() => {
+    outlineRef.current = outline;
+  }, [outline]);
   useEffect(() => {
     if (!fileHash) {
       return;
@@ -136,7 +169,15 @@ export function useChapterTracker(sourceUrl: string, fileHash: string): ChapterT
   }, [readMap, expandedMap, fileHash]);
 
   const toggleRead = useCallback((id: string) => {
-    setReadMap((prev) => ({ ...prev, [id]: !prev[id] }));
+    setReadMap((prev) => {
+      const subtreeIds = findSubtreeIds(outlineRef.current ?? [], id) ?? [id];
+      const nextValue = !prev[id];
+      const updated = { ...prev };
+      subtreeIds.forEach((targetId) => {
+        updated[targetId] = nextValue;
+      });
+      return updated;
+    });
   }, []);
 
   const toggleExpanded = useCallback((id: string) => {
@@ -152,16 +193,10 @@ export function useChapterTracker(sourceUrl: string, fileHash: string): ChapterT
       if (!page || !sourceUrl || !window.api?.applyNativePdfViewerState) {
         return;
       }
-      const current = await window.api
-        .getNativePdfViewerState?.(sourceUrl)
-        .catch(() => null);
-      void window.api.applyNativePdfViewerState(sourceUrl, {
-        page,
-        currentScale: current?.currentScale ?? 1,
-        scrollTop: current?.scrollTop ?? 0,
-      });
+      onBeforeNavigate?.();
+      void window.api.applyNativePdfViewerState(sourceUrl, { page });
     },
-    [sourceUrl],
+    [sourceUrl, onBeforeNavigate],
   );
 
   const totalCount = useMemo(() => (outline ? countNodes(outline) : 0), [outline]);

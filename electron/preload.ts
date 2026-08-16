@@ -46,6 +46,13 @@ interface NativePdfViewerState {
   canAccess: boolean;
 }
 
+interface NativePdfViewerApplyState {
+  page: number;
+  currentScale?: number;
+  scrollTop?: number;
+  restore?: boolean;
+}
+
 interface MetadataUpdate {
   title?: string;
   author?: string;
@@ -215,7 +222,7 @@ contextBridge.exposeInMainWorld("api", {
 
   applyNativePdfViewerState: (
     sourceUrl: string,
-    state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
+    state: NativePdfViewerApplyState,
   ) => ipcRenderer.invoke("native-pdf-viewer:apply-state", sourceUrl, state),
 
   getPdfOutline: (sourceUrl: string) =>

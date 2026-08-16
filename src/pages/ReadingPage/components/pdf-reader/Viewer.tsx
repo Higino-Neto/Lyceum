@@ -7,6 +7,7 @@ import useSessionTracker from "../../hooks/useSessionTracker";
 import useScroll from "../../hooks/useScroll";
 import getWordCount from "../../../../utils/getWordCount";
 import useReadingPersistence from "../../hooks/useReadingPersistence";
+import { useLocalStorage } from "../../../../hooks/useLocalStorage";
 import {
   DEFAULT_PDF_RENDERER,
   PDF_RENDERER_OPTIONS,
@@ -87,7 +88,10 @@ export default function Viewer({
   ...props
 }: ViewerProps) {
   const activeRenderer = renderer === "pdfjs" ? "pdfjs" : DEFAULT_PDF_RENDERER;
-  const [showChapters, setShowChapters] = useState(false);
+  const [showChapters, setShowChapters] = useLocalStorage<boolean>(
+    "pdf-chapters-open",
+    false,
+  );
 
   return (
     <div className="flex h-full w-full flex-col bg-zinc-950">
