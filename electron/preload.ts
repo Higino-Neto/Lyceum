@@ -218,6 +218,9 @@ contextBridge.exposeInMainWorld("api", {
     state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
   ) => ipcRenderer.invoke("native-pdf-viewer:apply-state", sourceUrl, state),
 
+  getPdfOutline: (sourceUrl: string) =>
+    ipcRenderer.invoke("native-pdf-viewer:get-outline", sourceUrl),
+
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 
   openEpub: () => ipcRenderer.invoke("dialog:open-epub"),

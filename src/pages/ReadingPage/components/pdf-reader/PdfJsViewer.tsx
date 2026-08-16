@@ -3,6 +3,8 @@ import type { SessionPdfData } from "../../../../types/ReadingTypes";
 import useReadingStatePersistence from "../../hooks/useReadingStatePersistence";
 import useSessionTracker from "../../hooks/useSessionTracker";
 import { createPdfJsViewerUrl } from "./pdfRenderer";
+import { useChapterTracker } from "./chapters/useChapterTracker";
+import ChapterSidebar from "./chapters/ChapterSidebar";
 
 interface PdfJsViewerProps {
   pdfData: ArrayBuffer;
@@ -12,6 +14,8 @@ interface PdfJsViewerProps {
   hasSessionFinished: boolean;
   onTotalBookPages: (totalBookPages: number) => void;
   onReadingInfo: (data: SessionPdfData) => void;
+  showChapters?: boolean;
+  onCloseChapters?: () => void;
 }
 
 interface NativePdfViewerState {
@@ -40,6 +44,8 @@ export default function PdfJsViewer({
   hasSessionFinished,
   onTotalBookPages,
   onReadingInfo,
+  showChapters = false,
+  onCloseChapters,
 }: PdfJsViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<NativePdfViewerState | null>(null);
@@ -54,6 +60,8 @@ export default function PdfJsViewer({
   );
 
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
+
+  const chapterTracker = useChapterTracker(sourceUrl, fileHash);
 
   const readViewerState = useCallback(async () => {
     if (!sourceUrl || !window.api?.getNativePdfViewerState) {
@@ -183,30 +191,36 @@ export default function PdfJsViewer({
       </div>
     );
   }
-
+  
   return (
-    <div className="relative h-full w-full bg-zinc-950">
-      {loadError && (
-        <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-red-900/70 bg-red-950/90 px-3 py-2 text-sm text-red-100 shadow-lg">
-          {loadError}
-        </div>
+    <div className="relative flex h-full w-full bg-zinc-950">
+      {showChapters && (
+        <ChapterSidebar tracker={chapterTracker} onClose={() => onCloseChapters?.()} />
       )}
 
-      <iframe
-        ref={iframeRef}
-        key={viewerUrls.viewerUrl}
-        src={viewerUrls.viewerUrl}
-        title={fileName ? `${fileName} - PDF.js` : "Mozilla PDF.js Viewer"}
-        className="h-full w-full border-0 bg-zinc-950"
-        sandbox="allow-scripts allow-same-origin allow-downloads"
-        onLoad={() => {
-          void restoreViewerState();
-          void saveViewerState("schedule");
-        }}
-        onError={() => {
-          setLoadError("O Mozilla PDF.js Viewer nao conseguiu carregar.");
-        }}
-      />
+      <div className="relative min-w-0 flex-1">
+        {loadError && (
+          <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-red-900/70 bg-red-950/90 px-3 py-2 text-sm text-red-100 shadow-lg">
+            {loadError}
+          </div>
+        )}
+
+        <iframe
+          ref={iframeRef}
+          key={viewerUrls.viewerUrl}
+          src={viewerUrls.viewerUrl}
+          title={fileName ? `${fileName} - PDF.js` : "Mozilla PDF.js Viewer"}
+          className="h-full w-full border-0 bg-zinc-950"
+          sandbox="allow-scripts allow-same-origin allow-downloads"
+          onLoad={() => {
+            void restoreViewerState();
+            void saveViewerState("schedule");
+          }}
+          onError={() => {
+            setLoadError("O Mozilla PDF.js Viewer nao conseguiu carregar.");
+          }}
+        />
+      </div>
     </div>
   );
 }

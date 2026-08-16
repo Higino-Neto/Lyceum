@@ -159,6 +159,10 @@ interface Window {
       state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
     ) => Promise<NativePdfViewerState | null>;
 
+    getPdfOutline: (sourceUrl: string) => Promise<
+      Array<{ title: string; page: number | null; items: any[] }> | null
+    >;
+
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;
     openReadableFile: () => Promise<(OpenPdfResult & { fileType: "pdf" | "epub" }) | null>;
@@ -428,6 +432,10 @@ interface Window {
       sourceUrl: string,
       state: Omit<NativePdfViewerState, "totalPages" | "canAccess">,
     ) => Promise<NativePdfViewerState | null>;
+
+    getPdfOutline: (sourceUrl: string) => Promise<
+      Array<{ title: string; page: number | null; items: any[] }> | null
+    >;
 
     openPdf: () => Promise<OpenPdfResult | null>;
     openEpub: () => Promise<OpenPdfResult | null>;

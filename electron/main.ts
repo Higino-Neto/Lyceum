@@ -2282,6 +2282,73 @@ async function getNativePdfViewerState(
   }
 }
 
+interface PdfOutlineNode {
+  title: string;
+  page: number | null;
+  items: PdfOutlineNode[];
+}
+
+async function getNativePdfOutline(
+  sourceUrl: string,
+  targetWindow: ElectronBrowserWindow | null = win,
+): Promise<PdfOutlineNode[] | null> {
+  const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
+  if (!frame) return null;
+
+  try {
+    const result = (await frame.executeJavaScript(
+      `
+        (async () => {
+          const app = globalThis.PDFViewerApplication;
+          if (!app) return null;
+          try { await app.initializedPromise; } catch {}
+          if (!app.pdfDocument) return null;
+
+          const outline = await app.pdfDocument.getOutline().catch(() => null);
+          if (!outline) return [];
+
+          async function resolvePage(dest) {
+            if (!dest) return null;
+            try {
+              let explicit = dest;
+              if (typeof dest === "string") {
+                explicit = await app.pdfDocument.getDestination(dest);
+              }
+              if (!Array.isArray(explicit) || explicit.length === 0) return null;
+              const target = explicit[0];
+              if (typeof target === "number") {
+                return target + 1;
+              }
+              const pageIndex = await app.pdfDocument.getPageIndex(target);
+              return Number.isInteger(pageIndex) ? pageIndex + 1 : null;
+            } catch (e) { return null; }
+          }
+
+          async function walk(items) {
+            const out = [];
+            for (const item of items) {
+              out.push({
+                title: item.title || "(sem título)",
+                page: await resolvePage(item.dest),
+                items: item.items ? await walk(item.items) : [],
+              });
+            }
+            return out;
+          }
+
+          return await walk(outline);
+        })();
+      `,
+      true,
+    )) as PdfOutlineNode[] | null;
+
+    return result ?? null;
+  } catch (error) {
+    console.error("[native-pdf-viewer:get-outline] Error:", error);
+    return null;
+  }
+}
+
 async function applyNativePdfViewerState(
   sourceUrl: string,
   state: NativePdfViewerRestoreState,
@@ -2841,6 +2908,15 @@ ipcMain.handle(
     }
   },
 );
+
+ipcMain.handle("native-pdf-viewer:get-outline", async (event, sourceUrl: string) => {
+  try {
+    return await getNativePdfOutline(sourceUrl, getTargetWindow(event));
+  } catch (error) {
+    console.error("[native-pdf-viewer:get-outline] IPC Error:", error);
+    return null;
+  }
+});
 
 ipcMain.handle("dialog:open-pdf", async () => {
   const result = await dialog.showOpenDialog({

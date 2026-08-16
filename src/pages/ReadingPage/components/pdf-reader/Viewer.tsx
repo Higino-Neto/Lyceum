@@ -87,6 +87,7 @@ export default function Viewer({
   ...props
 }: ViewerProps) {
   const activeRenderer = renderer === "pdfjs" ? "pdfjs" : DEFAULT_PDF_RENDERER;
+  const [showChapters, setShowChapters] = useState(false);
 
   return (
     <div className="flex h-full w-full flex-col bg-zinc-950">
@@ -107,6 +108,22 @@ export default function Viewer({
               {option.label}
             </button>
           ))}
+
+          {activeRenderer === "pdfjs" && (
+            <button
+              type="button"
+              onClick={() => setShowChapters((value) => !value)}
+              aria-pressed={showChapters}
+              title="Mostrar/ocultar painel de capítulos"
+              className={`h-7 rounded-sm border px-2 text-xs font-medium transition-colors ${
+                showChapters
+                  ? "border-green-500/70 bg-green-500/15 text-green-100"
+                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+              }`}
+            >
+              Capítulos
+            </button>
+          )}
         </div>
         <span className="truncate text-[11px] text-zinc-500">
           {activeRenderer === "pdfjs" ? "Mozilla PDF.js Viewer" : "EmbedPDF"}
@@ -115,7 +132,11 @@ export default function Viewer({
 
       <div className="min-h-0 flex-1">
         {activeRenderer === "pdfjs" ? (
-          <PdfJsViewer {...props} />
+          <PdfJsViewer
+            {...props}
+            showChapters={showChapters}
+            onCloseChapters={() => setShowChapters(false)}
+          />
         ) : (
           <EmbedPdfViewer {...props} renderer={activeRenderer} onRendererChange={onRendererChange} />
         )}
