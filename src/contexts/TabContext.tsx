@@ -17,6 +17,78 @@ import {
 const STORAGE_KEY = "document_tabs";
 const DEFAULT_PDF_RENDERER: PdfRenderer = "embedpdf";
 
+// Keep at most this many decoded book buffers alive in React state at once.
+// The active tab is always kept; the remaining slots cover the most recently
+// used tabs so switching between a few books stays instant while memory stays
+// bounded regardless of how many tabs the user opens.
+const MAX_STATE_BUFFERS = 3;
+// Module-level cache of decoded buffers keyed by file hash. Unlike React state
+// this survives tab switches, so re-activating a book reuses its bytes instead
+// of re-reading the file from disk and re-cloning it over IPC.
+const MAX_CACHED_BUFFERS = 6;
+
+class BookBufferCache {
+  private entries = new Map<string, ArrayBuffer>();
+
+  constructor(private readonly capacity: number) {}
+
+  get(fileHash: string): ArrayBuffer | undefined {
+    const buffer = this.entries.get(fileHash);
+    if (buffer === undefined) {
+      return undefined;
+    }
+
+    this.entries.delete(fileHash);
+    this.entries.set(fileHash, buffer);
+    return buffer;
+  }
+
+  set(fileHash: string, buffer: ArrayBuffer): void {
+    if (this.entries.has(fileHash)) {
+      this.entries.delete(fileHash);
+    }
+
+    this.entries.set(fileHash, buffer);
+
+    while (this.entries.size > this.capacity) {
+      const oldest = this.entries.keys().next().value as string | undefined;
+      if (oldest === undefined) {
+        break;
+      }
+      this.entries.delete(oldest);
+    }
+  }
+}
+
+const bookBufferCache = new BookBufferCache(MAX_CACHED_BUFFERS);
+
+function evictExcessBuffers(
+  tabs: DocumentTab[],
+  activeTabId: string,
+  recentlyActive: string[],
+): DocumentTab[] {
+  const synced = syncTabState(tabs, activeTabId);
+  const keep = new Set<string>([activeTabId]);
+
+  for (const id of recentlyActive) {
+    if (keep.size >= MAX_STATE_BUFFERS) {
+      break;
+    }
+    keep.add(id);
+  }
+
+  let changed = false;
+  const next = synced.map((tab) => {
+    if (tab.buffer && !keep.has(tab.id)) {
+      changed = true;
+      return { ...tab, buffer: undefined };
+    }
+    return tab;
+  });
+
+  return changed ? next : synced;
+}
+
 type TabScope = "main" | "detached" | "preview";
 
 interface OpenFileResult {
@@ -296,6 +368,9 @@ export function TabProvider({
   const tabsRef = useRef<DocumentTab[]>(initialState.tabs);
   const activeTabIdRef = useRef<string | null>(initialState.activeTabId);
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  const recentlyActiveRef = useRef<string[]>(
+    initialState.activeTabId ? [initialState.activeTabId] : [],
+  );
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -421,8 +496,12 @@ export function TabProvider({
 
       if (existingTab) {
         setActiveTabId(existingTab.id);
+        recentlyActiveRef.current = [
+          existingTab.id,
+          ...recentlyActiveRef.current.filter((id) => id !== existingTab.id),
+        ];
         setTabs((previousTabs) =>
-          syncTabState(
+          evictExcessBuffers(
             previousTabs.map((tab) =>
               tab.id === existingTab.id
                 ? {
@@ -441,7 +520,8 @@ export function TabProvider({
                   }
                 : tab
             ),
-            existingTab.id
+            existingTab.id,
+            recentlyActiveRef.current,
           )
         );
         return existingTab.id;
@@ -466,7 +546,13 @@ export function TabProvider({
       );
 
       setActiveTabId(newTab.id);
-      setTabs((previousTabs) => syncTabState([...previousTabs, newTab], newTab.id));
+      recentlyActiveRef.current = [
+        newTab.id,
+        ...recentlyActiveRef.current.filter((id) => id !== newTab.id),
+      ];
+      setTabs((previousTabs) =>
+        evictExcessBuffers([...previousTabs, newTab], newTab.id, recentlyActiveRef.current),
+      );
 
       return newTab.id;
     },
@@ -488,8 +574,12 @@ export function TabProvider({
   }, []);
 
   const setActiveTab = useCallback((tabId: string) => {
+    recentlyActiveRef.current = [
+      tabId,
+      ...recentlyActiveRef.current.filter((id) => id !== tabId),
+    ];
     setActiveTabId(tabId);
-    setTabs((previousTabs) => syncTabState(previousTabs, tabId));
+    setTabs((previousTabs) => evictExcessBuffers(previousTabs, tabId, recentlyActiveRef.current));
   }, []);
 
   const reorderTabs = useCallback((activeId: string, overId: string) => {
@@ -566,6 +656,24 @@ export function TabProvider({
       return;
     }
 
+    const cachedBuffer = bookBufferCache.get(tab.fileHash);
+    if (cachedBuffer) {
+      setTabs((previousTabs) =>
+        previousTabs.map((candidate) =>
+          candidate.id === tab.id
+            ? {
+                ...candidate,
+                buffer: cachedBuffer,
+                isLoading: false,
+                loadError: undefined,
+              }
+            : candidate
+        )
+      );
+      pendingLoadsRef.current.delete(tab.id);
+      return;
+    }
+
     setTabs((previousTabs) =>
       previousTabs.map((candidate) =>
         candidate.id === tab.id
@@ -583,6 +691,8 @@ export function TabProvider({
       if (!reopened || "error" in reopened || !reopened.fileBuffer) {
         throw new Error("Nao foi possivel reabrir o documento");
       }
+
+      bookBufferCache.set(tab.fileHash, reopened.fileBuffer);
 
       setTabs((previousTabs) =>
         previousTabs.map((candidate) =>
@@ -624,15 +734,18 @@ export function TabProvider({
   }, []);
 
   useEffect(() => {
-    for (const tab of tabs) {
-      if (tab.buffer || tab.loadError || pendingLoadsRef.current.has(tab.id)) {
-        continue;
-      }
-
-      pendingLoadsRef.current.add(tab.id);
-      void hydrateTab(tab);
+    const activeTab = tabs.find((tab) => tab.id === activeTabId);
+    if (!activeTab || activeTab.buffer || activeTab.loadError) {
+      return;
     }
-  }, [hydrateTab, tabs]);
+
+    if (pendingLoadsRef.current.has(activeTab.id)) {
+      return;
+    }
+
+    pendingLoadsRef.current.add(activeTab.id);
+    void hydrateTab(activeTab);
+  }, [hydrateTab, tabs, activeTabId]);
 
   const value: TabContextValue = {
     tabs,
