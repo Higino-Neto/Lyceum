@@ -153,6 +153,7 @@ interface AppSettings {
   betaAtlasEnabled: boolean;
   betaConversionEnabled: boolean;
   betaHabitsEnabled: boolean;
+  reducedEffects: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -168,6 +169,7 @@ interface AppSettingsContextValue {
   setBetaAtlasEnabled: (value: boolean) => void;
   setBetaConversionEnabled: (value: boolean) => void;
   setBetaHabitsEnabled: (value: boolean) => void;
+  setReducedEffects: (value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
@@ -182,6 +184,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   betaAtlasEnabled: true,
   betaConversionEnabled: true,
   betaHabitsEnabled: true,
+  reducedEffects: false,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -242,6 +245,7 @@ function loadSettings(): AppSettings {
       betaConversionEnabled:
         parsed.betaConversionEnabled ?? DEFAULT_SETTINGS.betaConversionEnabled,
       betaHabitsEnabled: parsed.betaHabitsEnabled ?? DEFAULT_SETTINGS.betaHabitsEnabled,
+      reducedEffects: parsed.reducedEffects ?? DEFAULT_SETTINGS.reducedEffects,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -310,6 +314,12 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     );
   }, [effectiveTheme, settings.accentColor, settings.theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.reducedEffects = settings.reducedEffects
+      ? "true"
+      : "false";
+  }, [settings.reducedEffects]);
+
   const value = useMemo<AppSettingsContextValue>(
     () => ({
       settings,
@@ -363,6 +373,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           betaHabitsEnabled: value,
+        })),
+      setReducedEffects: (value) =>
+        setSettings((current) => ({
+          ...current,
+          reducedEffects: value,
         })),
     }),
     [effectiveTheme, settings],

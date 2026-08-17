@@ -374,3 +374,22 @@ input[type="date"] {
 .lyceum-app :where([class~="bg-green-500"] .text-white, [class~="bg-green-600"] .text-white, [class~="bg-green-700"] .text-white) { color: var(--accent-foreground) !important; }
 .lyceum-app :where(.shadow-green-900\/20) { --tw-shadow-color: color-mix(in srgb, var(--accent-900) 20%, transparent) !important; }
 .lyceum-app :where(.shadow-green-900\/30) { --tw-shadow-color: color-mix(in srgb, var(--accent-900) 30%, transparent) !important; }
+
+/* Modo de desempenho: remove efeitos caros em GPUs fracas quando ativado.
+   Aplicado via [data-reduced-effects="true"] no <html>. */
+[data-reduced-effects="true"] *,
+[data-reduced-effects="true"] *::before,
+[data-reduced-effects="true"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+[data-reduced-effects="true"] .shadow-2xl,
+[data-reduced-effects="true"] .shadow-xl,
+[data-reduced-effects="true"] .shadow-lg {
+  box-shadow: none !important;
+}

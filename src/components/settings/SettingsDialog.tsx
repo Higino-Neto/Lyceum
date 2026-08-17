@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Download, FlaskConical, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
+import { BookOpen, Download, FlaskConical, Gauge, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -12,11 +12,12 @@ import {
   DictionarySettingsPanel,
   GeneralSettingsPanel,
   LibrarySettingsPanel,
+  PerformanceSettingsPanel,
   UpdatesSettingsPanel,
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta";
+export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
 
 const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "general",
@@ -28,6 +29,7 @@ const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "zoom",
   "dictionaries",
   "beta",
+  "performance",
 ]);
 
 function isSettingsTabId(value: unknown): value is SettingsTabId {
@@ -139,6 +141,13 @@ export default function SettingsDialog({
         description: "Tema e cor de destaque da interface.",
         icon: Palette,
         panel: <AppearanceSettingsPanel />,
+      },
+      {
+        id: "performance",
+        label: "Desempenho",
+        description: "Reduza efeitos visuais para computadores mais fracos.",
+        icon: Gauge,
+        panel: <PerformanceSettingsPanel />,
       },
       {
         id: "zoom",

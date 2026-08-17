@@ -17,8 +17,6 @@ import {
   type DocumentRecord,
 } from "../local-database";
 import {
-  generateFileHash,
-  toArrayBuffer,
   LIBRARY_PATH,
   USER_DATA_PATH,
   findFileByHash,
@@ -27,7 +25,7 @@ import {
   inferFileTypeFromPath,
   toReadableFileType,
 } from "./file-service";
-import { generateThumbnail, getPdfPageCount, getEpubChapterCount } from "./document-processing";
+import { readAndHash, openAndProcess } from "../workers/processingClient";
 
 const { app } = electron;
 
@@ -36,36 +34,32 @@ export async function openReadableFile(
 ): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string }) | null> {
   const fileType = inferFileTypeFromPath(filePath);
   const title = path.basename(filePath, path.extname(filePath));
-  const fileHash = generateFileHash(filePath);
-  const fileBuffer = toArrayBuffer(fs.readFileSync(filePath));
+  const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
 
   const existingByPath = getDocumentByFilePath(filePath);
   if (existingByPath) {
+    const { buffer, fileHash } = await readAndHash(filePath);
     updateLastOpened(existingByPath.fileHash);
-    return { ...existingByPath, filePath, fileBuffer, fileType, title };
+    return { ...existingByPath, filePath, fileBuffer: buffer, fileType, title };
   }
+
+  const { buffer, fileHash, thumbnailPath, numPages } = await openAndProcess({
+    filePath,
+    thumbnailsDir,
+    fileType,
+  });
 
   const existingByHash = getDocumentByHash(fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
-    return { ...existingByHash, filePath, fileBuffer, fileType, title };
+    return { ...existingByHash, filePath, fileBuffer: buffer, fileType, title };
   }
 
-  const thumbnailPath = await generateThumbnail(filePath, fileHash, {
-    thumbnailsDir: path.join(app.getPath("userData"), "thumbnails"),
-    force: false,
-    fileType,
-    logPrefix: "[DocumentService]",
-  });
-  const numPages = fileType === "pdf"
-    ? await getPdfPageCount(filePath)
-    : await getEpubChapterCount(filePath);
-
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages, fileType);
+  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages ?? 1, fileType);
 
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
-  return { ...doc, filePath, fileBuffer, fileType, title };
+  return { ...doc, filePath, fileBuffer: buffer, fileType, title };
 }
 
 export async function reopenDocument(
@@ -102,8 +96,8 @@ export async function reopenDocument(
     }
 
     if (fs.existsSync(knownDocument.filePath)) {
-      const fileBuffer = toArrayBuffer(fs.readFileSync(knownDocument.filePath));
-      const hash = generateFileHash(knownDocument.filePath);
+      const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+      const { buffer, fileHash: hash } = await readAndHash(knownDocument.filePath);
       const inferredFileType = inferFileTypeFromPath(
         knownDocument.filePath,
         toReadableFileType(knownDocument.fileType),
@@ -116,7 +110,7 @@ export async function reopenDocument(
       updateLastOpened(knownDocument.fileHash);
 
       return {
-        fileBuffer,
+        fileBuffer: buffer,
         fileHash: hash,
         filePath: knownDocument.filePath,
         fileType: inferredFileType,
@@ -142,10 +136,11 @@ export async function reopenDocument(
       updateDocumentFileType(fileHash, inferredFileType);
     }
 
-    const fileBuffer = toArrayBuffer(fs.readFileSync(foundPath));
+    const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+    const { buffer, fileHash: foundHash } = await readAndHash(foundPath);
     return {
-      fileBuffer,
-      fileHash,
+      fileBuffer: buffer,
+      fileHash: foundHash,
       filePath: foundPath,
       fileType: inferredFileType,
       fileName: knownDocument.title,

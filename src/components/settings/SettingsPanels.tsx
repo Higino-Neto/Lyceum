@@ -1309,3 +1309,42 @@ export function ZoomSettingsPanel() {
     </div>
   );
 }
+
+export function PerformanceSettingsPanel() {
+  const { settings, setReducedEffects } = useAppSettings();
+
+  return (
+    <div>
+      <SettingsSection
+        title="Efeitos visuais"
+        description="Em computadores mais fracos, desfoque, sombras pesadas e animações podem deixar a interface lenta ou travar."
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-zinc-100">
+              Reduzir efeitos
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              Remove desfoque de fundo (backdrop-blur), sombras grandes e animações de transição. As telas continuam funcionando normalmente.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Alternar redução de efeitos"
+            onClick={() => setReducedEffects(!settings.reducedEffects)}
+            className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+              settings.reducedEffects ? "bg-green-500" : "bg-zinc-700"
+            }`}
+            aria-pressed={settings.reducedEffects}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                settings.reducedEffects ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}

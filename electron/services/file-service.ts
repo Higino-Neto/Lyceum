@@ -29,6 +29,12 @@ export function generateFileHash(filePath: string): string {
   return hash.digest("hex");
 }
 
+export function generateFileHashFromBuffer(buffer: Uint8Array): string {
+  const hash = crypto.createHash("sha256");
+  hash.update(buffer);
+  return hash.digest("hex");
+}
+
 export function toArrayBuffer(buffer: Buffer): ArrayBuffer {
   return Uint8Array.from(buffer).buffer;
 }
