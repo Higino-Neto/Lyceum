@@ -39,4 +39,8 @@ AGENTS.md
 *.sln
 *.sw?
 
+# PDF.js source build output (regenerated from vendor/pdfjs-4.10.38 via `gulp generic`)
+/vendor/pdfjs-4.10.38/build/
+/vendor/pdfjs-4.10.38/node_modules/
+
 nul
