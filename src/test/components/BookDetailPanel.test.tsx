@@ -62,7 +62,7 @@ describe("BookDetailPanel", () => {
       <BookDetailPanel
         book={{ ...epubVariant, mergedBooks: [epubVariant, pdfVariant] }}
         onClose={vi.fn()}
-        onOpenEmbed={vi.fn()}
+        onOpenReader={vi.fn()}
         onOpenPreview={onOpenPreview}
         onRefresh={vi.fn()}
       />,

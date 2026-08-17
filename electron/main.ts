@@ -3470,7 +3470,7 @@ ipcMain.handle(
       fileType: "pdf" | "epub";
       filePath?: string;
       libraryDocumentId?: string;
-      pdfRenderer?: "embedpdf" | "pdfjs";
+      pdfRenderer?: "pdfjs";
       source?: "library" | "local";
     }
   ) => {

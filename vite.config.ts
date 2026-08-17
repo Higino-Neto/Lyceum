@@ -13,7 +13,10 @@ export default defineConfig({
     tailwindcss(),
     electron({
       main: {
-        entry: "electron/main.ts",
+        entry: {
+          main: "electron/main.ts",
+          "workers/processing.worker": "electron/workers/processing.worker.ts",
+        },
         vite: {
           resolve: {
             alias: {
@@ -74,7 +77,7 @@ export default defineConfig({
             return undefined;
           }
 
-          if (id.includes("@embedpdf") || id.includes("pdfjs-dist")) {
+          if (id.includes("pdfjs-dist")) {
             return "reader-pdf";
           }
 

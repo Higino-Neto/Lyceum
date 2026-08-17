@@ -1,5 +1,5 @@
 export type FileType = "pdf" | "epub";
-export type PdfRenderer = "embedpdf" | "pdfjs";
+export type PdfRenderer = "pdfjs";
 
 export interface DocumentTab {
   id: string;

@@ -600,7 +600,7 @@ openInNewWindow: (data: {
     fileType: "pdf" | "epub";
     filePath?: string;
     libraryDocumentId?: string;
-    pdfRenderer?: "embedpdf" | "pdfjs";
+    pdfRenderer?: "pdfjs";
     source?: "library" | "local";
   }) =>
     ipcRenderer.invoke("window:open-new", data),

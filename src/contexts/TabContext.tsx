@@ -15,7 +15,7 @@ import {
 } from "../types/DocumentTab";
 
 const STORAGE_KEY = "document_tabs";
-const DEFAULT_PDF_RENDERER: PdfRenderer = "embedpdf";
+const DEFAULT_PDF_RENDERER: PdfRenderer = "pdfjs";
 
 // Keep at most this many decoded book buffers alive in React state at once.
 // The active tab is always kept; the remaining slots cover the most recently
@@ -134,7 +134,6 @@ interface TabContextValue {
   setActiveTab: (tabId: string) => void;
   reorderTabs: (activeId: string, overId: string) => void;
   detachTab: (tabId: string) => Promise<void>;
-  setPdfRenderer: (tabId: string, renderer: PdfRenderer) => void;
   updateTabBuffer: (tabId: string, buffer: ArrayBuffer) => void;
   getTabById: (tabId: string) => DocumentTab | undefined;
   openPdfFile: () => Promise<OpenFileResult | undefined>;
@@ -618,19 +617,6 @@ export function TabProvider({
     removeTab(tabId);
   }, [removeTab]);
 
-  const setPdfRenderer = useCallback((tabId: string, renderer: PdfRenderer) => {
-    setTabs((previousTabs) =>
-      previousTabs.map((tab) =>
-        tab.id === tabId && tab.fileType === "pdf"
-          ? {
-              ...tab,
-              pdfRenderer: normalizePdfRenderer(renderer),
-            }
-          : tab
-      )
-    );
-  }, []);
-
   const updateTabBuffer = useCallback((tabId: string, buffer: ArrayBuffer) => {
     setTabs((previousTabs) =>
       previousTabs.map((tab) =>
@@ -756,7 +742,6 @@ export function TabProvider({
     setActiveTab,
     reorderTabs,
     detachTab,
-    setPdfRenderer,
     updateTabBuffer,
     getTabById,
     openPdfFile,

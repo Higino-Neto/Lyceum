@@ -7,11 +7,11 @@ import {
 describe("pdfRenderer utilities", () => {
   const fileHash = "a".repeat(64);
 
-  it("normalizes unsupported renderer values to EmbedPDF", () => {
+  it("always resolves to the PDF.js renderer", () => {
     expect(normalizePdfRenderer("pdfjs")).toBe("pdfjs");
-    expect(normalizePdfRenderer("embedpdf")).toBe("embedpdf");
-    expect(normalizePdfRenderer("file:///tmp/book.pdf")).toBe("embedpdf");
-    expect(normalizePdfRenderer(null)).toBe("embedpdf");
+    expect(normalizePdfRenderer("embedpdf")).toBe("pdfjs");
+    expect(normalizePdfRenderer("file:///tmp/book.pdf")).toBe("pdfjs");
+    expect(normalizePdfRenderer(null)).toBe("pdfjs");
   });
 
   it("creates controlled PDF.js source and viewer URLs from a document hash", () => {

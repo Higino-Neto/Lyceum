@@ -1,28 +1,11 @@
-export type PdfRenderer = "embedpdf" | "pdfjs";
+export type PdfRenderer = "pdfjs";
 
-export const DEFAULT_PDF_RENDERER: PdfRenderer = "embedpdf";
-
-export const PDF_RENDERER_OPTIONS: Array<{
-  value: PdfRenderer;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "embedpdf",
-    label: "EmbedPDF",
-    description: "Renderizador atual",
-  },
-  {
-    value: "pdfjs",
-    label: "PDF.js",
-    description: "Mozilla PDF.js Viewer",
-  },
-];
+export const DEFAULT_PDF_RENDERER: PdfRenderer = "pdfjs";
 
 const PDF_HASH_PATTERN = /^[a-f0-9]{64}$/i;
 
 export function normalizePdfRenderer(value?: string | null): PdfRenderer {
-  return value === "pdfjs" ? "pdfjs" : DEFAULT_PDF_RENDERER;
+  return "pdfjs";
 }
 
 export function createPdfJsSourceUrl(fileHash: string): string | null {

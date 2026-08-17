@@ -1949,7 +1949,7 @@ function LibraryContent() {
             <BookDetailPanel
               book={selectedBook}
               onClose={() => setSelectedBook(null)}
-              onOpenEmbed={async (bookToOpen = selectedBook) => {
+              onOpenReader={async (bookToOpen = selectedBook) => {
                 if (!bookToOpen.filePath) {
                   toast.error("Caminho do arquivo não encontrado");
                   return;
@@ -1957,15 +1957,8 @@ function LibraryContent() {
                 await handleOpen(
                   bookToOpen.filePath,
                   bookToOpen.fileHash,
-                  bookToOpen.fileType === "pdf" ? "embedpdf" : undefined,
+                  bookToOpen.fileType === "pdf" ? "pdfjs" : undefined,
                 );
-              }}
-              onOpenPdfJs={async (bookToOpen = selectedBook) => {
-                if (!bookToOpen.filePath) {
-                  toast.error("Caminho do arquivo nao encontrado");
-                  return;
-                }
-                await handleOpen(bookToOpen.filePath, bookToOpen.fileHash, "pdfjs");
               }}
               onOpenPreview={(bookToOpen = selectedBook) => {
                 void handleOpenPreview(bookToOpen);

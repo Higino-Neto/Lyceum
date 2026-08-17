@@ -48,7 +48,7 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
 function ReadingContent() {
   const reduceMotion = useReducedMotion();
   const session = useReadingSession();
-  const { activeTab, setPdfRenderer } = useTabContext();
+  const { activeTab } = useTabContext();
   const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
 
@@ -107,8 +107,6 @@ function ReadingContent() {
         pdfData={activeTab.buffer}
         fileHash={activeTab.fileHash}
         fileName={activeTab.fileName}
-        renderer={normalizePdfRenderer(activeTab.pdfRenderer)}
-        onRendererChange={(renderer) => setPdfRenderer(activeTab.id, renderer)}
         hasSessionStarted={session.sessionStart}
         hasSessionFinished={session.sessionFinish}
         onReadingInfo={session.handleReadingInfo}

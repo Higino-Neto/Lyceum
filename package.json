@@ -22,8 +22,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "postinstall": "node scripts/prune-embedpdf-fonts.mjs"
+    "test:run": "vitest run"
   },
   "build": {
     "appId": "com.higino.lyceum",
@@ -38,7 +37,9 @@
     "asarUnpack": [
       "node_modules/better-sqlite3/build/Release/*.node",
       "node_modules/sharp/**/*.{node,dll}",
-      "node_modules/pdf-poppler/lib/win/**"
+      "node_modules/pdf-poppler/lib/win/**",
+      "dist-electron/workers/**",
+      "dist-electron/chunks/**"
     ],
     "fileAssociations": [
       {
@@ -138,7 +139,6 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@embedpdf/react-pdf-viewer": "^2.6.2",
     "@radix-ui/react-select": "^2.2.6",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
