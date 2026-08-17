@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -1118,6 +1118,98 @@ export function DictionarySettingsPanel() {
             })}
           </div>
         )}
+      </SettingsSection>
+    </div>
+  );
+}
+
+export function BetaSettingsPanel() {
+  const {
+    settings,
+    setBetaAtlasEnabled,
+    setBetaConversionEnabled,
+    setBetaHabitsEnabled,
+  } = useAppSettings();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const features = [
+    {
+      key: "atlas" as const,
+      label: "Atlas",
+      hint: "Mapas de leitura e progresso.",
+      enabled: settings.betaAtlasEnabled,
+      setEnabled: setBetaAtlasEnabled,
+      route: "/atlas",
+    },
+    {
+      key: "conversion" as const,
+      label: "Conversão",
+      hint: "Conversão entre formatos de documento.",
+      enabled: settings.betaConversionEnabled,
+      setEnabled: setBetaConversionEnabled,
+      route: null,
+    },
+    {
+      key: "habits" as const,
+      label: "Hábitos",
+      hint: "Rastreador de hábitos diários.",
+      enabled: settings.betaHabitsEnabled,
+      setEnabled: setBetaHabitsEnabled,
+      route: "/habit_tracker",
+    },
+  ];
+
+  const handleToggle = (
+    route: string | null,
+    setEnabled: (value: boolean) => void,
+    current: boolean,
+  ) => {
+    const next = !current;
+    setEnabled(next);
+    if (!next && route && pathname === route) {
+      navigate("/");
+    }
+  };
+
+  return (
+    <div>
+      <SettingsSection
+        title="Abas laterais em desenvolvimento"
+        description="Ative ou desative individualmente as funcionalidades experimentais na barra lateral."
+      >
+        <ul className="space-y-2">
+          {features.map((feature) => (
+            <li
+              key={feature.key}
+              className="flex items-center justify-between gap-4 rounded border border-zinc-800 bg-zinc-950/40 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-medium text-zinc-100">{feature.label}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{feature.hint}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  aria-label={`Alternar aba ${feature.label}`}
+                  aria-pressed={feature.enabled}
+                  onClick={() =>
+                    handleToggle(feature.route, feature.setEnabled, feature.enabled)
+                  }
+                  className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                    feature.enabled ? "bg-green-500" : "bg-zinc-700"
+                  }`}
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                      feature.enabled ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       </SettingsSection>
     </div>
   );

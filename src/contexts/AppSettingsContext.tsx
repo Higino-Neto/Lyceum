@@ -150,6 +150,9 @@ interface AppSettings {
   autoHideOverlay: boolean;
   showSubfolderBooks: boolean;
   unifiedLibraryView: boolean;
+  betaAtlasEnabled: boolean;
+  betaConversionEnabled: boolean;
+  betaHabitsEnabled: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -162,6 +165,9 @@ interface AppSettingsContextValue {
   setAutoHideOverlay: (value: boolean) => void;
   setShowSubfolderBooks: (value: boolean) => void;
   setUnifiedLibraryView: (value: boolean) => void;
+  setBetaAtlasEnabled: (value: boolean) => void;
+  setBetaConversionEnabled: (value: boolean) => void;
+  setBetaHabitsEnabled: (value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
@@ -173,6 +179,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoHideOverlay: false,
   showSubfolderBooks: false,
   unifiedLibraryView: false,
+  betaAtlasEnabled: true,
+  betaConversionEnabled: true,
+  betaHabitsEnabled: true,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -229,6 +238,10 @@ function loadSettings(): AppSettings {
       autoHideOverlay: parsed.autoHideOverlay ?? legacy.autoHideOverlay,
       showSubfolderBooks: parsed.showSubfolderBooks ?? DEFAULT_SETTINGS.showSubfolderBooks,
       unifiedLibraryView: parsed.unifiedLibraryView ?? DEFAULT_SETTINGS.unifiedLibraryView,
+      betaAtlasEnabled: parsed.betaAtlasEnabled ?? DEFAULT_SETTINGS.betaAtlasEnabled,
+      betaConversionEnabled:
+        parsed.betaConversionEnabled ?? DEFAULT_SETTINGS.betaConversionEnabled,
+      betaHabitsEnabled: parsed.betaHabitsEnabled ?? DEFAULT_SETTINGS.betaHabitsEnabled,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -335,6 +348,21 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           unifiedLibraryView: value,
+        })),
+      setBetaAtlasEnabled: (value) =>
+        setSettings((current) => ({
+          ...current,
+          betaAtlasEnabled: value,
+        })),
+      setBetaConversionEnabled: (value) =>
+        setSettings((current) => ({
+          ...current,
+          betaConversionEnabled: value,
+        })),
+      setBetaHabitsEnabled: (value) =>
+        setSettings((current) => ({
+          ...current,
+          betaHabitsEnabled: value,
         })),
     }),
     [effectiveTheme, settings],

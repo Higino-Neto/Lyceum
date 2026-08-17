@@ -14,6 +14,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
 import { useRouteState } from "../hooks/useRouteState";
+import { useAppSettings } from "../contexts/AppSettingsContext";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -52,6 +53,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { settings } = useAppSettings();
 
   useRouteState();
 
@@ -107,27 +109,33 @@ export default function Sidebar({
           onClick={() => navigate("/reading")}
           collapsed={collapsed}
         />
-        <SidebarItem
-          Icon={Map}
-          label="Atlas"
-          active={pathname === "/atlas"}
-          onClick={() => navigate("/atlas")}
-          collapsed={collapsed}
-        />
-        <SidebarItem
-          Icon={RefreshCw}
-          label="Conversao"
-          active={conversionOpen}
-          onClick={() => onOpenConversion?.()}
-          collapsed={collapsed}
-        />
-        <SidebarItem
-          Icon={CheckSquare}
-          label="Hábitos"
-          active={pathname === "/habit_tracker"}
-          onClick={() => navigate("/habit_tracker")}
-          collapsed={collapsed}
-        />
+        {settings.betaAtlasEnabled && (
+          <SidebarItem
+            Icon={Map}
+            label="Atlas"
+            active={pathname === "/atlas"}
+            onClick={() => navigate("/atlas")}
+            collapsed={collapsed}
+          />
+        )}
+        {settings.betaConversionEnabled && (
+          <SidebarItem
+            Icon={RefreshCw}
+            label="Conversao"
+            active={conversionOpen}
+            onClick={() => onOpenConversion?.()}
+            collapsed={collapsed}
+          />
+        )}
+        {settings.betaHabitsEnabled && (
+          <SidebarItem
+            Icon={CheckSquare}
+            label="Hábitos"
+            active={pathname === "/habit_tracker"}
+            onClick={() => navigate("/habit_tracker")}
+            collapsed={collapsed}
+          />
+        )}
       </nav>
 
       <div className="flex flex-col mt-auto mb-3 text-zinc-500 text-center">

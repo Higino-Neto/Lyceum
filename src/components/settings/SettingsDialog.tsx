@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Download, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
+import { BookOpen, Download, FlaskConical, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -8,6 +8,7 @@ import FriendsSettingsPanel from "./FriendsSettingsPanel";
 import {
   AccountSettingsPanel,
   AppearanceSettingsPanel,
+  BetaSettingsPanel,
   DictionarySettingsPanel,
   GeneralSettingsPanel,
   LibrarySettingsPanel,
@@ -15,7 +16,7 @@ import {
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 
-export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries";
+export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta";
 
 const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "general",
@@ -26,6 +27,7 @@ const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "appearance",
   "zoom",
   "dictionaries",
+  "beta",
 ]);
 
 function isSettingsTabId(value: unknown): value is SettingsTabId {
@@ -94,6 +96,13 @@ export default function SettingsDialog({
         description: "Configurações gerais do aplicativo.",
         icon: SlidersHorizontal,
         panel: <GeneralSettingsPanel />,
+      },
+      {
+        id: "beta",
+        label: "Beta",
+        description: "Recursos em desenvolvimento disponíveis na barra lateral.",
+        icon: FlaskConical,
+        panel: <BetaSettingsPanel />,
       },
       {
         id: "library",
