@@ -2499,13 +2499,56 @@ function getPdfjsAssetPath(requestUrl: string): string | null {
   }
 }
 
-function createLocalFileResponse(filePath: string, contentType?: string): Response {
+function createLocalFileResponse(
+  filePath: string,
+  contentType?: string,
+  request?: Request,
+): Response {
   const headers = new Headers();
   if (contentType) {
     headers.set("Content-Type", contentType);
   }
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  headers.set("Accept-Ranges", "bytes");
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  headers.set("Content-Length", String(fileSize));
+
+  const rangeHeader = request?.headers.get("range");
+  const rangeMatch = rangeHeader && /bytes=(\d*)-(\d*)/.exec(rangeHeader);
+  if (rangeMatch) {
+    const start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
+    const end = rangeMatch[2]
+      ? parseInt(rangeMatch[2], 10)
+      : fileSize - 1;
+
+    if (
+      Number.isNaN(start) ||
+      Number.isNaN(end) ||
+      start > end ||
+      end >= fileSize
+    ) {
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${fileSize}` },
+      });
+    }
+
+    const length = end - start + 1;
+    const chunk = Buffer.alloc(length);
+    const fd = fs.openSync(filePath, "r");
+    try {
+      fs.readSync(fd, chunk, 0, length, start);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+    headers.set("Content-Length", String(length));
+    return new Response(chunk, { status: 206, headers });
+  }
 
   return new Response(fs.readFileSync(filePath), { headers });
 }
@@ -2520,7 +2563,7 @@ function handlePdfjsAssetRequest(request: Request): Response {
     PDFJS_ASSET_MIME_TYPES[path.extname(assetPath).toLowerCase()] ||
     "application/octet-stream";
 
-  return createLocalFileResponse(assetPath, contentType);
+  return createLocalFileResponse(assetPath, contentType, request);
 }
 
 function parseLyceumPdfHash(requestUrl: string): string | null {
@@ -2540,11 +2583,19 @@ function handleLyceumPdfRequest(request: Request): Response {
   }
 
   const document = getDocumentByHash(fileHash);
-  if (!document?.filePath || document.fileType !== "pdf" || !fs.existsSync(document.filePath)) {
-    return new Response(null, { status: 404 });
+  if (document?.filePath && document.fileType === "pdf" && fs.existsSync(document.filePath)) {
+    return createLocalFileResponse(document.filePath, "application/pdf", request);
   }
 
-  return createLocalFileResponse(document.filePath, "application/pdf");
+  // The database hash may be stale (e.g. the file was rewritten after a
+  // metadata/cover edit, conversion, or a moved file). Fall back to locating
+  // the file by its content hash on disk, mirroring reopenDocument's logic.
+  const foundPath = findFileByHash(fileHash, [LIBRARY_PATH(), USER_DATA_PATH()]);
+  if (foundPath) {
+    return createLocalFileResponse(foundPath, "application/pdf", request);
+  }
+
+  return new Response(null, { status: 404 });
 }
 
 function createAppWindow(
