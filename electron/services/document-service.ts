@@ -26,6 +26,7 @@ import {
   toReadableFileType,
 } from "./file-service";
 import { readAndHash, openAndProcess } from "../workers/processingClient";
+import { cachePdfBuffer } from "./pdfCache";
 
 const { app } = electron;
 
@@ -40,6 +41,7 @@ export async function openReadableFile(
   if (existingByPath) {
     const { buffer, fileHash } = await readAndHash(filePath);
     updateLastOpened(existingByPath.fileHash);
+    cachePdfBuffer(fileHash, buffer);
     return { ...existingByPath, filePath, fileBuffer: buffer, fileType, title };
   }
 
@@ -52,6 +54,7 @@ export async function openReadableFile(
   const existingByHash = getDocumentByHash(fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
+    cachePdfBuffer(fileHash, buffer);
     return { ...existingByHash, filePath, fileBuffer: buffer, fileType, title };
   }
 
@@ -59,6 +62,7 @@ export async function openReadableFile(
 
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
+  cachePdfBuffer(fileHash, buffer);
   return { ...doc, filePath, fileBuffer: buffer, fileType, title };
 }
 

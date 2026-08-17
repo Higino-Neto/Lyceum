@@ -6,6 +6,7 @@ import electron, {
 } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { cachePdfBuffer, getCachedPdfBuffer } from "./services/pdfCache";
 import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
@@ -358,6 +359,7 @@ async function openReadableFile(filePath: string): Promise<(DocumentRecord & { f
   const existingByHash = getDocumentByHash(fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
+    cachePdfBuffer(fileHash, fileBuffer);
     return { ...existingByHash, filePath, fileBuffer, fileType, title };
   }
 
@@ -373,6 +375,7 @@ async function openReadableFile(filePath: string): Promise<(DocumentRecord & { f
     return null;
   }
 
+  cachePdfBuffer(fileHash, fileBuffer);
   return { ...doc, filePath, fileBuffer, fileType, title };
 }
 
@@ -2582,6 +2585,15 @@ function handleLyceumPdfRequest(request: Request): Response {
     return new Response(null, { status: 404 });
   }
 
+  // Prefer the in-memory buffer that was read when the document was opened.
+  // This mirrors how the previous renderer loaded the PDF directly from memory
+  // and guarantees the bytes are served even when the database hash is stale or
+  // the file is no longer resolvable by path on disk.
+  const cachedBuffer = getCachedPdfBuffer(fileHash);
+  if (cachedBuffer) {
+    return createLocalFileResponseFromBuffer(cachedBuffer, request);
+  }
+
   const document = getDocumentByHash(fileHash);
   if (document?.filePath && document.fileType === "pdf" && fs.existsSync(document.filePath)) {
     return createLocalFileResponse(document.filePath, "application/pdf", request);
@@ -2596,6 +2608,43 @@ function handleLyceumPdfRequest(request: Request): Response {
   }
 
   return new Response(null, { status: 404 });
+}
+
+function createLocalFileResponseFromBuffer(buffer: Buffer, request?: Request): Response {
+  const headers = new Headers();
+  headers.set("Content-Type", "application/pdf");
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  headers.set("Accept-Ranges", "bytes");
+
+  const fileSize = buffer.length;
+  headers.set("Content-Length", String(fileSize));
+
+  const rangeHeader = request?.headers.get("range");
+  const rangeMatch = rangeHeader && /bytes=(\d*)-(\d*)/.exec(rangeHeader);
+  if (rangeMatch) {
+    const start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
+    const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
+
+    if (
+      Number.isNaN(start) ||
+      Number.isNaN(end) ||
+      start > end ||
+      end >= fileSize
+    ) {
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${fileSize}` },
+      });
+    }
+
+    const slice = buffer.subarray(start, end + 1);
+    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+    headers.set("Content-Length", String(slice.length));
+    return new Response(new Uint8Array(slice), { status: 206, headers });
+  }
+
+  return new Response(new Uint8Array(buffer), { headers });
 }
 
 function createAppWindow(

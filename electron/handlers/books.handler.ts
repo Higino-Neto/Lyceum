@@ -53,6 +53,7 @@ import {
   deleteWordIndex,
 } from "../local-database";
 import { reopenDocument, renameBook, deleteBook } from "../services/document-service";
+import { cachePdfBuffer } from "../services/pdfCache";
 import { mergeBooksIntoManagedFolder } from "../services/folder-service";
 import { notifyFolderChanged } from "../services/library-service";
 import { generateThumbnail } from "../services/document-processing";
@@ -714,6 +715,9 @@ export function registerBookHandlers() {
 
   ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => {
     const result = await reopenDocument(filePath, fileHash);
+    if (result?.fileBuffer && result.fileHash) {
+      cachePdfBuffer(result.fileHash, result.fileBuffer);
+    }
     win?.webContents.send("library:updated");
     return result;
   });
