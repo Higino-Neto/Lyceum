@@ -14,6 +14,7 @@ import {
   updateAuthor,
   addDocument,
   deleteDocument,
+  getSourceFolders,
   type DocumentRecord,
 } from "../local-database";
 import {
@@ -29,6 +30,17 @@ import { readAndHash, openAndProcess } from "../workers/processingClient";
 import { cachePdfBuffer } from "./pdfCache";
 
 const { app } = electron;
+
+type ReopenedDocumentResult = {
+  fileBuffer?: ArrayBuffer;
+  fileHash?: string;
+  filePath?: string;
+  fileType?: "pdf" | "epub";
+  fileName?: string;
+  foundAt?: string;
+  error?: string;
+  message?: string;
+};
 
 export async function openReadableFile(
   filePath: string
@@ -66,19 +78,37 @@ export async function openReadableFile(
   return { ...doc, filePath, fileBuffer: buffer, fileType, title };
 }
 
+function getReopenSearchPaths(): string[] {
+  const paths = [
+    LIBRARY_PATH(),
+    USER_DATA_PATH(),
+    ...getSourceFolders().map((folder) => folder.path),
+  ];
+  return Array.from(new Set(paths.filter(Boolean).map((candidate) => path.resolve(candidate))));
+}
+
+function formatOpenedDocumentResult(
+  document: DocumentRecord & {
+    fileBuffer: ArrayBuffer;
+    fileType: "pdf" | "epub";
+    title: string;
+  },
+  foundAt?: string,
+): ReopenedDocumentResult {
+  return {
+    fileBuffer: document.fileBuffer,
+    fileHash: document.fileHash,
+    filePath: document.filePath,
+    fileType: document.fileType,
+    fileName: document.title || document.fileName || path.basename(document.filePath || ""),
+    foundAt,
+  };
+}
+
 export async function reopenDocument(
   filePath?: string,
   fileHash?: string,
-): Promise<{
-  fileBuffer?: ArrayBuffer;
-  fileHash?: string;
-  filePath?: string;
-  fileType?: "pdf" | "epub";
-  fileName?: string;
-  foundAt?: string;
-  error?: string;
-  message?: string;
-}> {
+): Promise<ReopenedDocumentResult> {
   try {
     if (!fileHash && !filePath) {
       return { error: "FILE_NOT_FOUND", message: "Nenhum parâmetro fornecido" };
@@ -92,20 +122,29 @@ export async function reopenDocument(
       knownDocument = getDocumentByHash(fileHash);
     }
 
-    if (!knownDocument?.filePath) {
-      return {
-        error: "FILE_NOT_FOUND",
-        message: "O arquivo solicitado não pertence à biblioteca da aplicação",
-      };
-    }
+    const candidatePaths = Array.from(
+      new Set([knownDocument?.filePath, filePath].filter((candidate): candidate is string => Boolean(candidate))),
+    );
+    const existingCandidatePath = candidatePaths.find((candidate) => fs.existsSync(candidate));
 
-    if (fs.existsSync(knownDocument.filePath)) {
-      const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
-      const { buffer, fileHash: hash } = await readAndHash(knownDocument.filePath);
+    if (existingCandidatePath) {
+      if (!knownDocument) {
+        const openedDocument = await openReadableFile(existingCandidatePath);
+        if (!openedDocument) {
+          return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
+        }
+        return formatOpenedDocumentResult(openedDocument);
+      }
+
+      const { buffer, fileHash: hash } = await readAndHash(existingCandidatePath);
       const inferredFileType = inferFileTypeFromPath(
-        knownDocument.filePath,
+        existingCandidatePath,
         toReadableFileType(knownDocument.fileType),
       );
+
+      if (existingCandidatePath !== knownDocument.filePath && hash === knownDocument.fileHash) {
+        updateDocumentPath(knownDocument.fileHash, existingCandidatePath);
+      }
 
       if (inferredFileType !== knownDocument.fileType) {
         updateDocumentFileType(knownDocument.fileHash, inferredFileType);
@@ -116,9 +155,10 @@ export async function reopenDocument(
       return {
         fileBuffer: buffer,
         fileHash: hash,
-        filePath: knownDocument.filePath,
+        filePath: existingCandidatePath,
         fileType: inferredFileType,
         fileName: knownDocument.title,
+        foundAt: existingCandidatePath !== knownDocument.filePath ? existingCandidatePath : undefined,
       };
     }
 
@@ -126,11 +166,18 @@ export async function reopenDocument(
       return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado e hash não fornecido" };
     }
 
-    const searchPaths = [LIBRARY_PATH(), USER_DATA_PATH()];
-    const foundPath = findFileByHash(fileHash, searchPaths);
+    const foundPath = findFileByHash(fileHash, getReopenSearchPaths());
 
     if (!foundPath) {
       return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado em nenhuma pasta da biblioteca" };
+    }
+
+    if (!knownDocument) {
+      const openedDocument = await openReadableFile(foundPath);
+      if (!openedDocument) {
+        return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
+      }
+      return formatOpenedDocumentResult(openedDocument, foundPath);
     }
 
     updateDocumentPath(fileHash, foundPath);
@@ -140,7 +187,6 @@ export async function reopenDocument(
       updateDocumentFileType(fileHash, inferredFileType);
     }
 
-    const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
     const { buffer, fileHash: foundHash } = await readAndHash(foundPath);
     return {
       fileBuffer: buffer,

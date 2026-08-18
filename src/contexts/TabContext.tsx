@@ -489,6 +489,10 @@ export function TabProvider({
         source?: "library" | "local";
       }
     ) => {
+      if (options?.buffer) {
+        bookBufferCache.set(fileHash, options.buffer);
+      }
+
       const existingTab = tabsRef.current.find(
         (tab) => tab.fileHash === fileHash && tab.fileType === fileType
       );
@@ -618,6 +622,11 @@ export function TabProvider({
   }, [removeTab]);
 
   const updateTabBuffer = useCallback((tabId: string, buffer: ArrayBuffer) => {
+    const tab = tabsRef.current.find((candidate) => candidate.id === tabId);
+    if (tab?.fileHash) {
+      bookBufferCache.set(tab.fileHash, buffer);
+    }
+
     setTabs((previousTabs) =>
       previousTabs.map((tab) =>
         tab.id === tabId
@@ -673,7 +682,7 @@ export function TabProvider({
     );
 
     try {
-      const reopened = await window.api.openDocumentByHash(tab.fileHash);
+      const reopened = await window.api.openDocumentByHash(tab.fileHash, tab.filePath);
       if (!reopened || "error" in reopened || !reopened.fileBuffer) {
         throw new Error("Nao foi possivel reabrir o documento");
       }
