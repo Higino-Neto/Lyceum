@@ -10,3 +10,49 @@ body {
 #viewerContainer {
   outline: none;
 }
+
+.textLayer {
+  --lyceum-selection-color: rgba(82, 145, 255, 0.34);
+  user-select: none;
+}
+
+.textLayer ::selection,
+.textLayer br::selection {
+  background: transparent !important;
+}
+
+.textLayer ::-moz-selection,
+.textLayer br::-moz-selection {
+  background: transparent !important;
+}
+
+.textLayer .endOfContent,
+.textLayer.selecting .endOfContent {
+  inset: auto auto auto 0 !important;
+  top: 100% !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+.textLayer .lyceumSelectionLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  forced-color-adjust: none;
+}
+
+.textLayer .lyceumSelectionRect {
+  position: absolute;
+  min-width: 1px;
+  background: var(--lyceum-selection-color);
+  border-radius: 2px;
+}
+
+@media (forced-colors: active) {
+  .textLayer .lyceumSelectionRect {
+    background: Highlight;
+    opacity: 0.45;
+  }
+}

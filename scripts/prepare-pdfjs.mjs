@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pdfjsDistDir = path.join(rootDir, "node_modules", "pdfjs-dist");
 const pdfjsVersion = "4.10.38";
-const viewerSourceDir = path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}-dist`);
 const lyceumViewerDir = path.join(rootDir, "resources", "pdfjs-viewer");
 const targetDir = path.join(rootDir, "public", "pdfjs");
 
@@ -54,9 +53,21 @@ if (installedPdfjsPackage.version !== pdfjsVersion) {
   );
 }
 
+// Prefer the viewer built from the official PDF.js source tree
+// (vendor/pdfjs-<version>/build/generic) when it exists; fall back to the
+// prebuilt Mozilla distribution (vendor/pdfjs-<version>-dist) otherwise.
+// The source build is regenerated with `gulp generic` from vendor/pdfjs-<version>.
+const sourceViewerBuildDir = path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}`, "build", "generic");
+const viewerSourceDir = fs.existsSync(path.join(sourceViewerBuildDir, "web", "viewer.html"))
+  ? sourceViewerBuildDir
+  : path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}-dist`);
+
 if (!fs.existsSync(viewerSourceDir)) {
   throw new Error(`Vendored Mozilla PDF.js viewer was not found at ${viewerSourceDir}.`);
 }
+
+const usingSourceBuild = viewerSourceDir === sourceViewerBuildDir;
+console.log(`[prepare-pdfjs] Viewer source: ${path.relative(rootDir, viewerSourceDir)} (source build: ${usingSourceBuild})`);
 
 fs.rmSync(targetDir, { recursive: true, force: true });
 fs.mkdirSync(targetDir, { recursive: true });
