@@ -175,6 +175,85 @@ function applyLyceumTitle() {
   }
 }
 
+function updateLyceumChapterButton(open) {
+  const button = document.getElementById("sidebarToggleButton");
+  if (!button) {
+    return;
+  }
+
+  button.classList.add("lyceumChapterToggle");
+  button.classList.toggle("toggled", !!open);
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  button.setAttribute("aria-pressed", open ? "true" : "false");
+  button.setAttribute("title", "Mostrar/ocultar painel de capitulos");
+  button.removeAttribute("aria-haspopup");
+  button.removeAttribute("data-l10n-id");
+
+  const label = button.querySelector("span");
+  if (label) {
+    label.textContent = "Capitulos";
+    label.removeAttribute("data-l10n-id");
+  }
+}
+
+function sendChapterToggleRequest() {
+  try {
+    window.parent?.postMessage({ type: "lyceum-pdfjs:toggle-chapters" }, "*");
+  } catch {
+    // Cross-frame messaging is best-effort; the PDF reader remains usable.
+  }
+}
+
+function closeNativeSidebar(app = getApp()) {
+  const sidebar = app?.pdfSidebar;
+  if (sidebar?.isOpen && typeof sidebar.close === "function") {
+    sidebar.close();
+  }
+
+  document.getElementById("outerContainer")?.classList.remove("sidebarMoving", "sidebarOpen");
+}
+
+function installChapterToggleBridge() {
+  const button = document.getElementById("sidebarToggleButton");
+  if (!button || button.__lyceumChapterToggleInstalled) {
+    return;
+  }
+
+  button.__lyceumChapterToggleInstalled = true;
+  updateLyceumChapterButton(false);
+
+  button.addEventListener(
+    "click",
+    event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeNativeSidebar();
+      sendChapterToggleRequest();
+    },
+    true
+  );
+
+  window.addEventListener("message", event => {
+    if (event.source !== window.parent) {
+      return;
+    }
+
+    const data = event.data;
+    if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:chapters-state") {
+      return;
+    }
+
+    closeNativeSidebar();
+    updateLyceumChapterButton(!!data.open);
+  });
+
+  try {
+    window.parent?.postMessage({ type: "lyceum-pdfjs:ready" }, "*");
+  } catch {
+    // Ignore: Lyceum also syncs state from the iframe load handler.
+  }
+}
+
 const SELECTABLE_TEXT_SPAN_SELECTOR = ".textLayer span:not([role='img'])";
 const TEXT_LAYER_SELECTOR = ".textLayer";
 const SELECTION_LAYER_CLASS = "lyceumSelectionLayer";
@@ -936,6 +1015,20 @@ function wrapSetInitialView() {
   };
 }
 
+function wrapNativeSidebarToggle() {
+  const app = getApp();
+  const sidebar = app?.pdfSidebar;
+  if (!sidebar || typeof sidebar.toggle !== "function" || sidebar.__lyceumToggleWrapped) {
+    return;
+  }
+
+  sidebar.__lyceumToggleWrapped = true;
+  sidebar.toggle = function () {
+    closeNativeSidebar(app);
+    sendChapterToggleRequest();
+  };
+}
+
 function configureBeforeRun() {
   const options = globalThis.PDFViewerApplicationOptions;
   if (!options) {
@@ -955,12 +1048,16 @@ document.addEventListener(
   () => {
     configureBeforeRun();
     installTextSelectionGuards();
+    installChapterToggleBridge();
     wrapSetInitialView();
     applyLyceumTitle();
 
     const app = getApp();
     app?.initializedPromise?.then(() => {
       applyLyceumTitle();
+      installChapterToggleBridge();
+      wrapNativeSidebarToggle();
+      closeNativeSidebar(app);
       app.eventBus?._on?.("documentloaded", applyLyceumTitle);
     });
   },

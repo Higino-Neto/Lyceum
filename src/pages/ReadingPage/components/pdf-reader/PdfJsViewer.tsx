@@ -15,6 +15,7 @@ interface PdfJsViewerProps {
   onTotalBookPages: (totalBookPages: number) => void;
   onReadingInfo: (data: SessionPdfData) => void;
   showChapters?: boolean;
+  onToggleChapters?: () => void;
   onCloseChapters?: () => void;
 }
 
@@ -45,6 +46,7 @@ export default function PdfJsViewer({
   onTotalBookPages,
   onReadingInfo,
   showChapters = false,
+  onToggleChapters,
   onCloseChapters,
 }: PdfJsViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -61,6 +63,28 @@ export default function PdfJsViewer({
   );
 
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
+  const viewerOrigin = useMemo(() => {
+    if (!viewerUrls?.viewerUrl) {
+      return null;
+    }
+
+    try {
+      const origin = new URL(viewerUrls.viewerUrl).origin;
+      return origin === "null" ? null : origin;
+    } catch {
+      return null;
+    }
+  }, [viewerUrls?.viewerUrl]);
+
+  const syncChapterButtonState = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      {
+        type: "lyceum-pdfjs:chapters-state",
+        open: showChapters,
+      },
+      viewerOrigin ?? "*",
+    );
+  }, [showChapters, viewerOrigin]);
 
   const handleChapterNavigate = useCallback(() => {
     restoreGenRef.current += 1;
@@ -154,6 +178,32 @@ export default function PdfJsViewer({
   );
 
   useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+
+      const data = event.data;
+      if (!data || typeof data !== "object") {
+        return;
+      }
+
+      if (data.type === "lyceum-pdfjs:toggle-chapters") {
+        onToggleChapters?.();
+      } else if (data.type === "lyceum-pdfjs:ready") {
+        syncChapterButtonState();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [onToggleChapters, syncChapterButtonState]);
+
+  useEffect(() => {
+    syncChapterButtonState();
+  }, [syncChapterButtonState]);
+
+  useEffect(() => {
     restoreStartedRef.current = false;
     lastStateRef.current = null;
     setCurrentPage(1);
@@ -225,6 +275,7 @@ export default function PdfJsViewer({
           onLoad={() => {
             void restoreViewerState();
             void saveViewerState("schedule");
+            syncChapterButtonState();
           }}
           onError={() => {
             setLoadError("O Mozilla PDF.js Viewer nao conseguiu carregar.");

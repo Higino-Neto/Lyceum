@@ -1,10 +1,71 @@
 html,
 body {
+  color-scheme: dark;
   background: #0a0a0f;
+}
+
+:root {
+  --main-color: #f4f4f5;
+  --body-bg-color: #0a0a0f;
+  --toolbar-bg-color: #18181b;
+  --toolbar-border-color: #27272a;
+  --toolbar-border-bottom: 1px solid #27272a;
+  --toolbar-box-shadow: none;
+  --toolbar-icon-bg-color: #d4d4d8;
+  --toolbar-icon-hover-bg-color: #f4f4f5;
+  --button-hover-color: #27272a;
+  --toggled-btn-color: #dcfce7;
+  --dropdown-btn-bg-color: #27272a;
+  --field-color: #f4f4f5;
+  --field-bg-color: #27272a;
+  --field-border-color: #3f3f46;
+  --separator-color: #3f3f46;
+  --doorhanger-bg-color: #18181b;
+  --doorhanger-border-color: #27272a;
+  --doorhanger-hover-bg-color: #27272a;
+  --doorhanger-separator-color: #27272a;
+  --sidebar-bg-color: #18181b;
+  --sidebar-toolbar-bg-color: #18181b;
+  --sidebar-border-color: #27272a;
+  --thumbnail-hover-color: #27272a;
+  --thumbnail-selected-color: rgb(34 197 94 / 0.24);
+  --focus-ring-color: #22c55e;
 }
 
 #outerContainer {
   background: #0a0a0f;
+}
+
+#toolbarContainer {
+  background: #18181b;
+}
+
+#toolbarContainer :is(.toolbarButton, .dropdownToolbarButton, .toolbarLabel) {
+  color: #e4e4e7;
+}
+
+#toolbarContainer :is(.toolbarButton, .dropdownToolbarButton):is(:hover, :focus-visible),
+#toolbarContainer .toolbarButton.toggled,
+#toolbarContainer .lyceumChapterToggle[aria-expanded="true"] {
+  background-color: #27272a;
+  color: #dcfce7;
+}
+
+#toolbarContainer .toolbarButton.toggled::before,
+#toolbarContainer .lyceumChapterToggle[aria-expanded="true"]::before {
+  background-color: #22c55e;
+}
+
+#toolbarContainer input,
+#toolbarContainer select {
+  background-color: #27272a;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+
+#toolbarContainer .splitToolbarButtonSeparator,
+#toolbarContainer .toolbarButtonSpacer {
+  color: #3f3f46;
 }
 
 #viewerContainer {
