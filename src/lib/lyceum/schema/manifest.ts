@@ -64,6 +64,13 @@ export function mergeBookMetadata(
     coverResourceId: metadata?.coverResourceId || undefined,
     coverHref: metadata?.coverHref || undefined,
     coverPageHref: metadata?.coverPageHref || undefined,
+    titles: metadata?.titles,
+    creators: metadata?.creators,
+    contributors: metadata?.contributors,
+    identifiers: metadata?.identifiers,
+    subjects: metadata?.subjects,
+    dates: metadata?.dates,
+    customMetadata: metadata?.customMetadata,
   };
 }
 

@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { escapeXml } from "./text";
 import type { EpubAsset, EpubMetadata, Section } from "./types";
+import { validateEpubBuffer } from "../lyceum/epub/epubValidator";
 
 export interface EpubChapterFile {
   id: string;
@@ -45,7 +46,7 @@ ${items}
 </html>`;
 }
 
-function renderOpf(metadata: EpubMetadata, chapters: EpubChapterFile[], assets: EpubAsset[] = []) {
+function renderOpf(metadata: EpubMetadata, chapters: EpubChapterFile[], assets: EpubAsset[] = [], layout: "reflowable" | "pre-paginated" = "reflowable") {
   const modified = metadata.modified || new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const manifestChapters = chapters
     .map(
@@ -71,6 +72,8 @@ function renderOpf(metadata: EpubMetadata, chapters: EpubChapterFile[], assets: 
     ${metadata.publisher ? `<dc:publisher>${escapeXml(metadata.publisher)}</dc:publisher>` : ""}
     ${metadata.description ? `<dc:description>${escapeXml(metadata.description)}</dc:description>` : ""}
     <meta property="dcterms:modified">${escapeXml(modified)}</meta>
+    <meta property="rendition:layout">${layout}</meta>
+    ${layout === "pre-paginated" ? '<meta property="rendition:spread">none</meta>' : ""}
     <meta name="generator" content="Lyceum PDF to EPUB" />
   </metadata>
   <manifest>
@@ -99,6 +102,7 @@ export async function packageEpub(args: {
   chapters: EpubChapterFile[];
   css: string;
   assets?: EpubAsset[];
+  layout?: "reflowable" | "pre-paginated";
 }) {
   const zip = new JSZip();
 
@@ -106,7 +110,7 @@ export async function packageEpub(args: {
     compression: "STORE",
   });
   zip.file("META-INF/container.xml", renderContainerXml());
-  zip.file("OEBPS/content.opf", renderOpf(args.metadata, args.chapters, args.assets));
+  zip.file("OEBPS/content.opf", renderOpf(args.metadata, args.chapters, args.assets, args.layout));
   zip.file("OEBPS/toc.xhtml", renderToc(args.chapters));
   zip.file("OEBPS/styles/book.css", args.css);
 
@@ -118,9 +122,12 @@ export async function packageEpub(args: {
     zip.file(`OEBPS/${asset.href}`, asset.data);
   }
 
-  return zip.generateAsync({
+  const buffer = await zip.generateAsync({
     type: "arraybuffer",
     mimeType: "application/epub+zip",
     compression: "DEFLATE",
   });
+  const validation = await validateEpubBuffer(buffer);
+  if (!validation.valid) throw new Error(`EPUB gerado e invalido:\n${validation.errors.join("\n")}`);
+  return buffer;
 }

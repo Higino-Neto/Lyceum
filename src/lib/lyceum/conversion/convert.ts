@@ -8,6 +8,7 @@ import type {
   LyceumPackage,
 } from "../schema/types";
 import { createDefaultConversionRegistry } from "./registry";
+import { validateLyceumPackage } from "../validation/packageValidator";
 
 export interface ConvertViaLyceumOptions {
   sourcePath: string;
@@ -120,6 +121,13 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
     renderImageAsset: options.renderImageAsset,
   });
   const pkg = imported.package;
+  const packageValidation = validateLyceumPackage(pkg);
+  if (!packageValidation.valid) {
+    throw new Error(`Pacote .lyceum inconsistente:\n${packageValidation.errors.join("\n")}`);
+  }
+  imported.report.warnings.push(...packageValidation.warnings);
+  imported.report.stats.validatedReferences = packageValidation.stats.checkedReferenceCount;
+  imported.report.stats.packageValidated = true;
   const capability = exporter.canExport(pkg);
 
   if (!capability.supported) {

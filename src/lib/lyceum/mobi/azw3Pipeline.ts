@@ -30,6 +30,9 @@ export interface Azw3ValidationMetadata {
   fullName?: string;
   hasExth?: boolean;
   exthRecordCount?: number;
+  kf8Boundary?: number;
+  coverImageOffset?: number;
+  thumbnailImageOffset?: number;
   extraDataFlags?: number;
   estimatedLocationCount?: number;
   ncxIndexRecord?: number;
@@ -46,6 +49,9 @@ export interface Azw3ValidationMetadata {
   decompressedTextLength?: number;
   rawInternalHrefCount?: number;
   kindlePositionLinkCount?: number;
+  kindleEmbedReferenceCount?: number;
+  imageResourceCount?: number;
+  invalidImageResourceCount?: number;
 }
 
 export interface Azw3ValidationResult {
@@ -345,6 +351,24 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
     metadata.exthRecordCount = readUInt32BE(buffer, mobiHeaderEnd + 8);
     if (exthLength < 12 || mobiHeaderEnd + exthLength > recordOneOffset) {
       errors.push(`Cabecalho EXTH truncado (${exthLength} bytes).`);
+    } else {
+      let cursor = mobiHeaderEnd + 12;
+      for (let index = 0; index < (metadata.exthRecordCount || 0); index += 1) {
+        const type = readUInt32BE(buffer, cursor);
+        const length = readUInt32BE(buffer, cursor + 4);
+        if (length < 8 || cursor + length > mobiHeaderEnd + exthLength) {
+          errors.push(`Registro EXTH ${index} truncado ou com tamanho invalido (${length}).`);
+          break;
+        }
+        if (length >= 12) {
+          const value = readUInt32BE(buffer, cursor + 8);
+          if (type === 121) metadata.kf8Boundary = value;
+          if (type === 201) metadata.coverImageOffset = value;
+          if (type === 202) metadata.thumbnailImageOffset = value;
+        }
+        cursor += length;
+      }
+      if (metadata.kf8Boundary !== 0) errors.push(`EXTH 121 precisa ser 0 em AZW3 KF8-only; encontrado ${metadata.kf8Boundary ?? "ausente"}.`);
     }
   } else {
     errors.push("Flag EXTH esta ativa, mas o registro EXTH nao foi encontrado apos o MOBI header.");
@@ -420,6 +444,36 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   metadata.kindlePositionLinkCount = (
     decompressedTextString.match(/\bhref\s*=\s*["']kindle:pos:fid:/gi) || []
   ).length;
+  const embedIndices = [...decompressedTextString.matchAll(/kindle:embed:(\d+)/gi)]
+    .map((match) => Number.parseInt(match[1], 10))
+    .filter(Number.isFinite);
+  metadata.kindleEmbedReferenceCount = embedIndices.length;
+
+  const firstResource = metadata.firstResourceRecord;
+  const resourceEnd = metadata.fdstRecord;
+  if (firstResource !== undefined && firstResource !== NULL_INDEX && resourceEnd !== undefined && resourceEnd > firstResource) {
+    metadata.imageResourceCount = resourceEnd - firstResource;
+    let invalidImages = 0;
+    for (let index = firstResource; index < resourceEnd; index += 1) {
+      const record = recordSlice(buffer, offsets, index);
+      const isJpeg = record.length >= 3 && record[0] === 0xff && record[1] === 0xd8 && record[2] === 0xff;
+      const isPng = readAscii(record, 1, 3) === "PNG";
+      const isGif = readAscii(record, 0, 3) === "GIF";
+      if (!isJpeg && !isPng && !isGif) invalidImages += 1;
+    }
+    metadata.invalidImageResourceCount = invalidImages;
+    if (invalidImages) errors.push(`${invalidImages} registro(s) de imagem Kindle possuem assinatura invalida.`);
+    const maxEmbed = embedIndices.length ? Math.max(...embedIndices) : 0;
+    if (maxEmbed > metadata.imageResourceCount) errors.push(`kindle:embed:${maxEmbed} aponta alem dos ${metadata.imageResourceCount} recursos de imagem.`);
+    for (const [label, offset] of [["capa", metadata.coverImageOffset], ["thumbnail", metadata.thumbnailImageOffset]] as const) {
+      if (offset !== undefined && offset >= metadata.imageResourceCount) errors.push(`Offset EXTH de ${label} fora dos recursos de imagem (${offset}).`);
+    }
+  } else {
+    metadata.imageResourceCount = 0;
+    metadata.invalidImageResourceCount = 0;
+    if (embedIndices.length) errors.push("Fluxo KF8 contem kindle:embed, mas nao ha registros de imagem declarados.");
+    if (metadata.coverImageOffset !== undefined || metadata.thumbnailImageOffset !== undefined) errors.push("EXTH declara capa/thumbnail sem registros de imagem.");
+  }
   if (metadata.rawInternalHrefCount > 0) {
     warnings.push(`${metadata.rawInternalHrefCount} link(s) interno(s) XHTML permaneceram sem conversao para kindle:pos:fid.`);
   }

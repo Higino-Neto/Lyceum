@@ -365,7 +365,12 @@ export async function parseEpubBufferToTextual(epubBuffer: Buffer | Uint8Array |
       href: item.packageHref,
       mediaType: resolvedItem.mediaType || inferMediaType(resolvedItem.href),
       properties: appendManifestProperty(item.properties || "", isCover ? "cover-image" : "") || undefined,
-      data: data.data,
+      sourceHref: item.href,
+      fallback: item.fallback,
+      linear: item.isExtraSpine ? false : undefined,
+      data: item.isExtraSpine && isContentDocument(item)
+        ? new TextEncoder().encode(sanitizeHtmlDocument(decodeTextBytes(data.data), `Conteudo extra ${resources.length + 1}`).xhtml)
+        : data.data,
     };
     resources.push(markExtraResourceProperties(resource, item));
   }

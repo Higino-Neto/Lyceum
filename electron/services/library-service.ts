@@ -24,21 +24,18 @@ import {
   LIBRARY_PATH,
   THUMBNAILS_DIR,
   ALL_BOOK_EXTENSIONS,
-  generateFileHash,
   getAllBookFiles as getAllBookFilesUtil,
   inferBookFileTypeFromPath,
 } from "./file-service";
 import {
-  generateThumbnail,
-  extractPdfMetadata,
-  extractEpubMetadata,
-  getPdfPageCount,
-  getEpubChapterCount,
-  getCbzPageCount,
-  validateCbzFile,
   isPdfMagicBytesValid,
   type BookFileType,
 } from "./document-processing";
+import {
+  generateThumbnailInWorker as generateThumbnail,
+  hashFile,
+  inspectBookFile,
+} from "../workers/processingClient";
 
 export interface FolderInfo {
   name: string;
@@ -423,16 +420,19 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     const isAzw3 = lowerPath.endsWith(".azw3");
     const isKfx = lowerPath.endsWith(".kfx");
     if (!isPdf && !isEpub && !isCbz && !isAzw3 && !isKfx) return;
-    const fileType: BookFileType = isCbz ? "cbz" : isEpub ? "epub" : "pdf";
+    const fileType: BookFileType = isCbz ? "cbz" : isEpub ? "epub" : isAzw3 ? "azw3" : isKfx ? "kfx" : "pdf";
     const thumbnailsDir = THUMBNAILS_DIR();
     const shouldGenerateThumbnail = options.generateThumbnail !== false;
-    if (isCbz) {
-      await validateCbzFile(filePath);
-    }
-
-    const stats = fs.statSync(filePath);
     const existingByPath = getDocumentByPath(filePath);
-    const fileHash = generateFileHash(filePath);
+    const inspection = await inspectBookFile({
+      filePath,
+      fileType,
+      thumbnailsDir,
+      includeMetadata: true,
+      includeThumbnail: shouldGenerateThumbnail && !existingByPath?.thumbnailPath,
+    });
+    const { fileHash, numPages = 1, metadata } = inspection;
+    const stats = { size: inspection.fileSize };
     const existing = existingByPath || getDocumentByHash(fileHash);
     const sourceRoot = sourceRootForPath(filePath);
     const rootPath = options.rootPath || sourceRoot?.path || LIBRARY_PATH();
@@ -447,7 +447,7 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       if (existing.filePath !== filePath) updateDocumentPath(fileHash, filePath);
       updateDocumentSyncStatus(fileHash, isSynced, category);
       if (shouldGenerateThumbnail && !existing.thumbnailPath) {
-        const thumbnailPath = await generateThumbnail(filePath, fileHash, {
+        const thumbnailPath = inspection.thumbnailPath || await generateThumbnail(filePath, fileHash, {
           thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
           onWarning: (msg) => sendNotification("warning", msg),
         });
@@ -459,9 +459,8 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
           emitLibraryChanged?.();
         }
       }
-      const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
       updateDocumentNumPages(fileHash, numPages);
-      updateFileSize(fileHash, fs.statSync(filePath).size);
+      updateFileSize(fileHash, stats.size);
       return;
     }
 
@@ -474,10 +473,8 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       updateProcessingStatus(fileHash, "processing");
     }
 
-    const numPages = isPdf ? await getPdfPageCount(filePath) : isCbz ? await getCbzPageCount(filePath) : await getEpubChapterCount(filePath);
-    const metadata = isPdf ? await extractPdfMetadata(filePath) : isCbz ? null : await extractEpubMetadata(filePath);
     const thumbnailPath = shouldGenerateThumbnail
-      ? await generateThumbnail(filePath, fileHash, {
+      ? inspection.thumbnailPath || await generateThumbnail(filePath, fileHash, {
           thumbnailsDir, force: false, fileType, logPrefix: "[LibraryService]",
           onWarning: (msg) => sendNotification("warning", msg),
         })
@@ -525,7 +522,7 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
     }
   } catch (error) {
     console.error("[LibraryService] Error processing file:", error);
-    const fileHash = generateFileHash(filePath);
+    const { fileHash } = await hashFile(filePath);
     const existing = getDocumentByHash(fileHash);
     if (existing) {
       updateProcessingStatus(fileHash, "failed");
@@ -542,7 +539,7 @@ export async function scanLibrary(): Promise<ScanLibraryResult> {
   for (const root of roots) {
     if (!fs.existsSync(root.path)) continue;
 
-    const bookFiles = getAllBookFilesUtil(root.path);
+    const bookFiles = await getAllBookFilesAsync(root.path);
     for (const filePath of bookFiles) {
       total++;
       try {
@@ -658,10 +655,10 @@ export async function resyncLibrary(): Promise<{ added: number; removed: number;
     return { added: 0, removed: 0, updated: 0 };
   }
 
-  const bookFilesByRoot = roots.map((root) => ({
+  const bookFilesByRoot = await Promise.all(roots.map(async (root) => ({
     root,
-    files: getAllBookFilesUtil(root.path),
-  }));
+    files: await getAllBookFilesAsync(root.path),
+  })));
   const bookFileSet = new Set(bookFilesByRoot.flatMap(({ files }) => files.map((file) => normalizePathForCompare(file))));
 
   const allDocs = getAllDocuments();
@@ -682,7 +679,7 @@ export async function resyncLibrary(): Promise<{ added: number; removed: number;
       const batch = files.slice(i, i + batchSize);
       await Promise.all(batch.map(async (filePath) => {
         try {
-          const fileHash = generateFileHash(filePath);
+          const { fileHash } = await hashFile(filePath);
           const existing = getDocumentByHash(fileHash);
           if (!existing) {
             await processFile(filePath, { rootPath: root.path, isSynced: true });
@@ -1000,6 +997,60 @@ export async function getAllFoldersFlatAsync(libraryPath: string): Promise<strin
 
   await scan(libraryPath);
   return folders.sort((a, b) => a.localeCompare(b));
+}
+
+export async function getFolderChildrenAsync(parentPath: string | null = null): Promise<FolderInfo[]> {
+  const target = resolveManagedFolderPath(parentPath);
+  let items: fs.Dirent[];
+  try { items = await fs.promises.readdir(target.targetDir, { withFileTypes: true }); } catch { return []; }
+  const useAbsolutePaths = target.rootType === "source";
+  const folders = await Promise.all(items.filter(isVisibleDirectory).map(async (item) => {
+    const itemFullPath = path.join(target.targetDir, item.name);
+    let children: fs.Dirent[] = [];
+    try { children = await fs.promises.readdir(itemFullPath, { withFileTypes: true }); } catch { /* inaccessible */ }
+    return {
+      name: item.name,
+      path: useAbsolutePaths ? itemFullPath : path.relative(target.rootPath, itemFullPath),
+      fullPath: itemFullPath,
+      bookCount: children.filter((child) => child.isFile() && isBookFileName(child.name)).length,
+      subfolders: [],
+      hasChildren: children.some(isVisibleDirectory),
+      isLoaded: false,
+    } satisfies FolderInfo;
+  }));
+  return folders.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getFolderStatsAsync(folderPath: string | null = null): Promise<FolderStats> {
+  const target = resolveManagedFolderPath(folderPath);
+  let bookCount = 0;
+  let totalBytes = 0;
+  let newestMtime = 0;
+  const formatBreakdown: Record<string, number> = {};
+  const pending = [target.targetDir];
+  while (pending.length > 0) {
+    const currentDir = pending.pop()!;
+    let items: fs.Dirent[];
+    try { items = await fs.promises.readdir(currentDir, { withFileTypes: true }); } catch { continue; }
+    await Promise.all(items.map(async (item) => {
+      const itemPath = path.join(currentDir, item.name);
+      let stats: fs.Stats;
+      try { stats = await fs.promises.stat(itemPath); } catch { return; }
+      newestMtime = Math.max(newestMtime, stats.mtimeMs);
+      if (isVisibleDirectory(item)) { pending.push(itemPath); return; }
+      if (!item.isFile() || !isBookFileName(item.name)) return;
+      const format = path.extname(item.name).slice(1).toLowerCase() || "unknown";
+      bookCount++;
+      totalBytes += stats.size;
+      formatBreakdown[format] = (formatBreakdown[format] ?? 0) + 1;
+    }));
+  }
+  return {
+    bookCount,
+    totalSizeMB: Number((totalBytes / (1024 * 1024)).toFixed(2)),
+    lastModified: newestMtime > 0 ? new Date(newestMtime).toISOString() : null,
+    formatBreakdown,
+  };
 }
 
 export function getBooksInFolder(folderPath: string | null): DocumentRecord[] {

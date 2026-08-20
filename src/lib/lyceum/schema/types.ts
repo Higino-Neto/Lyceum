@@ -27,6 +27,16 @@ export interface LyceumManifest {
   updatedAt: string;
 }
 
+export interface LyceumMetadataEntry {
+  value: string;
+  id?: string;
+  scheme?: string;
+  role?: string;
+  fileAs?: string;
+  language?: string;
+  refinements?: Record<string, string[]>;
+}
+
 export interface LyceumBookMetadata {
   title: string;
   author?: string;
@@ -51,6 +61,13 @@ export interface LyceumBookMetadata {
   coverResourceId?: string;
   coverHref?: string;
   coverPageHref?: string;
+  titles?: LyceumMetadataEntry[];
+  creators?: LyceumMetadataEntry[];
+  contributors?: LyceumMetadataEntry[];
+  identifiers?: LyceumMetadataEntry[];
+  subjects?: LyceumMetadataEntry[];
+  dates?: LyceumMetadataEntry[];
+  customMetadata?: Record<string, string[]>;
 }
 
 export interface LyceumTextualChapter {
@@ -66,6 +83,9 @@ export interface LyceumSpineItem {
   id: string;
   href: string;
   title: string;
+  linear?: boolean;
+  properties?: string;
+  mediaType?: string;
 }
 
 export interface LyceumTocItem {
@@ -80,6 +100,9 @@ export interface LyceumTextualResource {
   href: string;
   mediaType: string;
   properties?: string;
+  sourceHref?: string;
+  fallback?: string;
+  linear?: boolean;
   data?: Uint8Array | ArrayBuffer;
 }
 

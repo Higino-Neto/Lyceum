@@ -20,13 +20,12 @@ import {
 import {
   LIBRARY_PATH,
   USER_DATA_PATH,
-  findFileByHash,
   getUniqueFilePath,
   moveFileAcrossDevices,
   inferFileTypeFromPath,
   toReadableFileType,
 } from "./file-service";
-import { readAndHash, openAndProcess } from "../workers/processingClient";
+import { findFileByHashInWorker, readAndHash, openAndProcess } from "../workers/processingClient";
 import { cachePdfBuffer } from "./pdfCache";
 
 const { app } = electron;
@@ -166,7 +165,7 @@ export async function reopenDocument(
       return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado e hash não fornecido" };
     }
 
-    const foundPath = findFileByHash(fileHash, getReopenSearchPaths());
+    const foundPath = await findFileByHashInWorker(fileHash, getReopenSearchPaths());
 
     if (!foundPath) {
       return { error: "FILE_NOT_FOUND", message: "Arquivo não encontrado em nenhuma pasta da biblioteca" };
@@ -216,7 +215,7 @@ export async function renameBook(
     let filePath = doc.filePath;
     if (!filePath || !fs.existsSync(filePath)) {
       const searchPaths = [LIBRARY_PATH(), USER_DATA_PATH()];
-      const foundPath = findFileByHash(fileHash, searchPaths);
+      const foundPath = await findFileByHashInWorker(fileHash, searchPaths);
       if (!foundPath) {
         return { success: false, error: "Arquivo não encontrado em nenhuma pasta da biblioteca" };
       }

@@ -1,4 +1,5 @@
 import { renderDefaultCss } from "../../pdf-to-epub/html";
+import postcss, { type AtRule, type Root } from "postcss";
 
 export interface CssSanitizeOptions {
   resolveImport?: (href: string) => string | null | undefined;
@@ -14,6 +15,10 @@ const SAFE_PROPERTIES = new Set([
   "color",
   "background",
   "background-color",
+  "background-image",
+  "background-position",
+  "background-repeat",
+  "background-size",
   "margin",
   "margin-top",
   "margin-right",
@@ -58,22 +63,21 @@ const SAFE_PROPERTIES = new Set([
 const UNSAFE_VALUE_PATTERN = /\b(expression|javascript:|fixed|absolute|sticky|flex|grid|transform|transition|animation|filter|backdrop-filter|box-shadow|text-shadow|z-index)\b|[-\d.]+v[whminmax]\b/i;
 const SAFE_DISPLAY_VALUES = new Set(["block", "inline", "inline-block", "none", "table", "table-row", "table-cell", "table-caption", "list-item"]);
 
-function stripCssComments(css: string) {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
+function importHref(rule: AtRule) {
+  return rule.params.match(/^(?:url\(\s*)?["']?([^"')\s]+)["']?/i)?.[1] || "";
 }
 
-function inlineImports(css: string, options: CssSanitizeOptions) {
-  return css.replace(/@import\s+(?:url\()?["']?([^"')\s]+)["']?\)?[^;]*;/gi, (_match, href: string) => {
-    const imported = options.resolveImport?.(href);
-    return imported ? sanitizeCss(imported, options).css : "";
-  });
-}
-
-function rewriteUrls(value: string, options: CssSanitizeOptions) {
-  return value.replace(/url\(\s*["']?([^"')]+)["']?\s*\)/gi, (match, href: string) => {
+function rewriteUrls(value: string, options: CssSanitizeOptions, warnings: string[]) {
+  let unresolved = false;
+  const rewrittenValue = value.replace(/url\(\s*["']?([^"')]+)["']?\s*\)/gi, (match, href: string) => {
+    if (/^(?:data:|kindle:embed:)/i.test(href)) return match;
     const rewritten = options.rewriteUrl?.(href);
-    return rewritten ? `url("${rewritten}")` : match;
+    if (rewritten) return `url("${rewritten}")`;
+    unresolved = Boolean(options.rewriteUrl);
+    return match;
   });
+  if (unresolved) warnings.push("Declaracao CSS removida porque um recurso url() nao foi empacotado.");
+  return unresolved ? null : rewrittenValue;
 }
 
 function safeDeclaration(property: string, value: string) {
@@ -84,46 +88,84 @@ function safeDeclaration(property: string, value: string) {
   return true;
 }
 
-function sanitizeRule(selector: string, body: string, options: CssSanitizeOptions) {
-  const declarations = body
-    .split(";")
-    .map((declaration) => {
-      const separator = declaration.indexOf(":");
-      if (separator < 0) return "";
-      const property = declaration.slice(0, separator).trim().toLowerCase();
-      const value = rewriteUrls(declaration.slice(separator + 1).trim(), options);
-      return property && value && safeDeclaration(property, value)
-        ? `${property}: ${value}`
-        : "";
-    })
-    .filter(Boolean);
-
-  return declarations.length ? `${selector.trim()} { ${declarations.join("; ")}; }` : "";
+function inlineImports(root: Root, options: CssSanitizeOptions, warnings: string[], depth: number) {
+  root.walkAtRules("import", (rule) => {
+    const href = importHref(rule);
+    const imported = href && depth < 8 ? options.resolveImport?.(href) : undefined;
+    if (!imported) {
+      warnings.push(`Import CSS removido porque nao foi resolvido: ${href || rule.params}`);
+      rule.remove();
+      return;
+    }
+    try {
+      const importedRoot = postcss.parse(imported, { from: href });
+      inlineImports(importedRoot, options, warnings, depth + 1);
+      rule.replaceWith(...importedRoot.nodes);
+    } catch (error) {
+      warnings.push(`Import CSS invalido removido (${href}): ${error instanceof Error ? error.message : String(error)}`);
+      rule.remove();
+    }
+  });
 }
 
 export function sanitizeCss(css: string, options: CssSanitizeOptions = {}) {
   const warnings: string[] = [];
-  const withoutComments = stripCssComments(css);
-  const withImports = inlineImports(withoutComments, options);
-  const sanitized = withImports.replace(/([^{}@]+)\{([^{}]*)\}/g, (_match, selector: string, body: string) => (
-    sanitizeRule(selector, body, options)
-  ));
-  if (sanitized.length < withImports.length) {
-    warnings.push("CSS inseguro ou incompativel com Kindle foi removido.");
+  let root: Root;
+  try {
+    root = postcss.parse(css);
+  } catch (error) {
+    return {
+      css: "",
+      warnings: [`CSS invalido removido: ${error instanceof Error ? error.message : String(error)}`],
+    };
   }
+
+  inlineImports(root, options, warnings, 0);
+  root.walkComments((comment) => {
+    comment.remove();
+  });
+  root.walkAtRules((rule) => {
+    if (["media", "page"].includes(rule.name.toLowerCase())) return;
+    if (rule.name.toLowerCase() !== "import") {
+      warnings.push(`Regra CSS @${rule.name} removida por incompatibilidade Kindle.`);
+      rule.remove();
+    }
+  });
+  root.walkDecls((declaration) => {
+    const property = declaration.prop.trim().toLowerCase();
+    const value = rewriteUrls(declaration.value.trim(), options, warnings);
+    if (!value || !safeDeclaration(property, value)) {
+      warnings.push(`Propriedade CSS removida: ${property}.`);
+      declaration.remove();
+      return;
+    }
+    declaration.prop = property;
+    declaration.value = value;
+  });
+  root.walkRules((rule) => {
+    if (!rule.nodes?.some((node) => node.type === "decl" || node.type === "atrule")) rule.remove();
+  });
+
   return {
-    css: sanitized.replace(/\s+/g, " ").trim(),
-    warnings,
+    css: root.toString().replace(/\s+/g, " ").trim(),
+    warnings: [...new Set(warnings)],
   };
 }
 
 export function extractCssReferences(css: string) {
   const references = new Set<string>();
-  for (const match of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) {
-    references.add(match[1]);
-  }
-  for (const match of css.matchAll(/@import\s+(?:url\()?["']?([^"')\s]+)["']?\)?/gi)) {
-    references.add(match[1]);
+  try {
+    const root = postcss.parse(css);
+    root.walkAtRules("import", (rule) => {
+      const href = importHref(rule);
+      if (href) references.add(href);
+    });
+    root.walkDecls((declaration) => {
+      for (const match of declaration.value.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) references.add(match[1]);
+    });
+  } catch {
+    for (const match of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) references.add(match[1]);
+    for (const match of css.matchAll(/@import\s+(?:url\()?["']?([^"')\s]+)["']?\)?/gi)) references.add(match[1]);
   }
   return [...references];
 }

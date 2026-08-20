@@ -6,9 +6,10 @@ import { analyzeFontSizes, buildLines, computeDocumentStats, createLine } from "
 import { applyReadingOrder } from "../lib/pdf-to-epub/layout";
 import { removeNoiseLines } from "../lib/pdf-to-epub/noise";
 import { buildParagraphs } from "../lib/pdf-to-epub/paragraphs";
-import { parsePdfToPages, reconstructStructureFromPages } from "../lib/pdf-to-epub/pipeline";
+import { convertPdfToEpub, parsePdfToPages, reconstructStructureFromPages } from "../lib/pdf-to-epub/pipeline";
+import { validateEpubBuffer } from "../lib/lyceum/epub/epubValidator";
 import { paragraphToBlock } from "../lib/pdf-to-epub/semantics";
-import type { Line, PageModel, Paragraph, Token } from "../lib/pdf-to-epub/types";
+import type { ImageCandidate, Line, PageModel, Paragraph, Token } from "../lib/pdf-to-epub/types";
 
 function token(text: string, x: number, y: number, pageNumber = 1, width = text.length * 6): Token {
   return {
@@ -68,6 +69,41 @@ describe("pdf-to-epub geometry", () => {
 
     expect(pages).toHaveLength(1);
     expect(pages[0].lines.map((item) => item.text).join(" ")).toContain("Teste PDF real");
+  });
+});
+
+describe("pdf-to-epub fidelity modes", () => {
+  it("uses pre-paginated full-page assets in auto mode when a renderer is available", async () => {
+    const pdf = await PDFDocument.create();
+    const first = pdf.addPage([300, 400]);
+    const second = pdf.addPage([300, 400]);
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    first.drawText("Primeira pagina", { x: 30, y: 350, size: 14, font });
+    second.drawText("Segunda pagina", { x: 30, y: 350, size: 14, font });
+    const renderedCandidates: ImageCandidate[] = [];
+
+    const result = await convertPdfToEpub(new Uint8Array(await pdf.save()).buffer, {
+      title: "PDF preservado",
+      renderImageAsset: async (candidate) => {
+        renderedCandidates.push(candidate);
+        return {
+          href: `images/${candidate.id}.jpg`,
+          mediaType: "image/jpeg",
+          data: new Uint8Array([255, 216, 255, 217]),
+        };
+      },
+    });
+    const zip = await JSZip.loadAsync(result.epub);
+    const opf = await zip.file("OEBPS/content.opf")!.async("text");
+    const chapter = await zip.file("OEBPS/text/page-0001.xhtml")!.async("text");
+
+    expect(result.report.mode).toBe("fixed-layout");
+    expect(result.report.preservedPageImages).toBe(2);
+    expect(renderedCandidates.every((candidate) => candidate.bbox.width === candidate.pageWidth)).toBe(true);
+    expect(opf).toContain('<meta property="rendition:layout">pre-paginated</meta>');
+    expect(chapter).toContain("../images/page-0001.jpg");
+    expect(chapter).toContain("Primeira pagina");
+    expect((await validateEpubBuffer(result.epub)).valid).toBe(true);
   });
 });
 

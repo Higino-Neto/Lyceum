@@ -9,6 +9,7 @@ import type {
 import type { KindlePreviewerConversionResult } from "../kfx/kindlePreviewer";
 import {
   createPreviewerWorkspace,
+  findKindlePreviewerExecutable,
   runKindlePreviewerConversion,
 } from "../kfx/kindlePreviewer";
 import { materializeKfxFromPreviewerResult } from "../kfx/kfxPipeline";
@@ -29,9 +30,11 @@ export class KfxExporter implements LyceumExporter {
   ) {}
 
   canExport(pkg: ExportInput["package"]) {
-    return pkg.textual
-      ? { supported: true }
-      : { supported: false, reason: "O pacote .lyceum nao possui conteudo textual para KFX." };
+    if (!pkg.textual) return { supported: false, reason: "O pacote .lyceum nao possui conteudo textual para KFX." };
+    if (this.previewerRunner === runKindlePreviewerConversion && !findKindlePreviewerExecutable()) {
+      return { supported: false, reason: "Kindle Previewer 3 nao foi encontrado; KFX e um destino opcional local." };
+    }
+    return { supported: true };
   }
 
   async export(input: ExportInput): Promise<ExportResult> {

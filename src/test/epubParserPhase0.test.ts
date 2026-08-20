@@ -107,11 +107,26 @@ describe("EPUB parser phase 0", () => {
     zip.file("OPS/main.xhtml", "<html><body><h1>Main</h1><p>Fluxo principal.</p></body></html>");
     zip.file("OPS/appendix.xhtml", "<html><body><h1>Extra</h1><p>Fora do fluxo.</p></body></html>");
 
-    const { pkg } = await importEpub(zip, "phase0-linear");
+    const imported = await importEpub(zip, "phase0-linear");
+    const { pkg } = imported;
 
     expect(pkg.textual?.chapters.map((chapter) => chapter.title)).toEqual(["Main"]);
     const extra = pkg.textual?.resources?.find((resource) => resource.id === "extra");
     expect(extra?.properties?.split(/\s+/)).toEqual(expect.arrayContaining(["extra", "linear-no"]));
+    expect(extra?.linear).toBe(false);
+
+    const roundtripPath = path.join(imported.tempDir, "linear-roundtrip.epub");
+    await convertViaLyceum({
+      sourcePath: imported.sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "epub",
+      packageRoot: path.join(imported.tempDir, "linear-roundtrip.lyceum"),
+      outputPath: roundtripPath,
+    });
+    const roundtrip = await JSZip.loadAsync(fs.readFileSync(roundtripPath));
+    const opf = await roundtrip.file("OEBPS/content.opf")!.async("text");
+    expect(opf).toContain('<itemref idref="extra" linear="no" />');
+    expect(opf).not.toContain('properties="extra linear-no"');
   });
 
   it("resolves manifest fallback chains or emits actionable warnings", async () => {
@@ -163,7 +178,7 @@ describe("EPUB parser phase 0", () => {
           <dc:subject>Assunto A</dc:subject>
           <dc:subject>Assunto B</dc:subject>
           <dc:rights>Direitos reservados</dc:rights>
-          <dc:contributor>Editor Teste</dc:contributor>
+          <dc:contributor id="creator">Editor Teste</dc:contributor>
           <meta name="calibre:series" content="Serie Lyceum"/>
           <meta name="calibre:series_index" content="3"/>
           <meta name="calibre:rating" content="4"/>
@@ -177,7 +192,8 @@ describe("EPUB parser phase 0", () => {
     );
     zip.file("OPS/ch.xhtml", "<html><body><h1>Inicio</h1><p>Texto.</p></body></html>");
 
-    const { pkg } = await importEpub(zip, "phase0-refinements");
+    const imported = await importEpub(zip, "phase0-refinements");
+    const { pkg } = imported;
 
     expect(pkg.metadata.identifier).toBe("urn:uuid:phase0-refinements");
     expect(pkg.metadata.titleSort).toBe("Livro, O");
@@ -190,5 +206,33 @@ describe("EPUB parser phase 0", () => {
     expect(pkg.metadata.subject).toBe("Assunto A; Assunto B");
     expect(pkg.metadata.rights).toBe("Direitos reservados");
     expect(pkg.metadata.contributor).toBe("Editor Teste");
+    expect(pkg.metadata.titles?.[0]).toMatchObject({
+      value: "O Livro",
+      id: "title",
+      fileAs: "Livro, O",
+      refinements: { "file-as": ["Livro, O"], "display-seq": ["1"] },
+    });
+    expect(pkg.metadata.creators?.[0]).toMatchObject({ value: "Maria Teste", role: "aut", fileAs: "Teste, Maria" });
+    expect(pkg.metadata.identifiers?.[0]).toMatchObject({ value: "urn:uuid:phase0-refinements", id: "uid" });
+    expect(pkg.metadata.subjects?.map((entry) => entry.value)).toEqual(["Assunto A", "Assunto B"]);
+    expect(pkg.metadata.customMetadata).toMatchObject({
+      "calibre:series": ["Serie Lyceum"],
+      "calibre:series_index": ["3"],
+    });
+
+    const roundtripPath = path.join(imported.tempDir, "roundtrip.epub");
+    await convertViaLyceum({
+      sourcePath: imported.sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "epub",
+      packageRoot: path.join(imported.tempDir, "roundtrip.lyceum"),
+      outputPath: roundtripPath,
+    });
+    const roundtrip = await JSZip.loadAsync(fs.readFileSync(roundtripPath));
+    const opf = await roundtrip.file("OEBPS/content.opf")!.async("text");
+    expect(opf).toContain('<meta refines="#title" property="file-as">Livro, O</meta>');
+    expect(opf).toContain('<meta refines="#creator" property="role">aut</meta>');
+    expect(opf).toContain('<dc:contributor id="creator-2">Editor Teste</dc:contributor>');
+    expect(opf.match(/<dc:subject/g)).toHaveLength(2);
   });
 });

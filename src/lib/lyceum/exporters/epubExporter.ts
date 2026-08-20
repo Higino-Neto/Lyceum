@@ -7,14 +7,17 @@ import type {
   ExportInput,
   ExportResult,
   LyceumBookMetadata,
+  LyceumMetadataEntry,
   LyceumPackage,
   LyceumExporter,
   LyceumTextualChapter,
   LyceumTextualResource,
   LyceumTocItem,
 } from "../schema/types";
-import { escapeXml, isPlaceholderTitle, normalizeHtmlEntitiesForXhtml } from "../textual";
+import { escapeXml, isPlaceholderTitle } from "../textual";
 import { textualRelativePath, textualResourcePath } from "../package/paths";
+import { sanitizeHtmlDocument } from "../epub/htmlSanitizer";
+import { validateEpubBuffer } from "../epub/epubValidator";
 
 interface TocNode {
   item: LyceumTocItem;
@@ -72,28 +75,7 @@ function chapterExportHref(pkg: LyceumPackage, chapter: LyceumTextualChapter, in
 
 function ensureExportableXhtml(chapter: LyceumTextualChapter, metadata: LyceumBookMetadata) {
   const title = isPlaceholderTitle(chapter.title) ? metadata.title : chapter.title;
-  let xhtml = normalizeHtmlEntitiesForXhtml(chapter.xhtml.trim());
-
-  if (!/<html\b/i.test(xhtml)) {
-    xhtml = `<?xml version="1.0" encoding="utf-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="${escapeXml(metadata.language || "pt-BR")}">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeXml(title)}</title>
-</head>
-<body>
-${xhtml}
-</body>
-</html>`;
-  } else if (!/<html\b[^>]*\bxmlns\s*=/i.test(xhtml)) {
-    xhtml = xhtml.replace(/<html\b/i, `<html xmlns="http://www.w3.org/1999/xhtml"`);
-  }
-
-  if (!/<title\b[^>]*>[\s\S]*?<\/title>/i.test(xhtml)) {
-    xhtml = xhtml.replace(/<head\b[^>]*>/i, (match) => `${match}\n<title>${escapeXml(title)}</title>`);
-  }
-
-  return xhtml;
+  return sanitizeHtmlDocument(chapter.xhtml.trim(), title).xhtml;
 }
 
 function tocItems(pkg: LyceumPackage, chapterHrefs: Map<string, string>) {
@@ -175,7 +157,63 @@ function renderOpf(args: {
   resources: EpubResourceFile[];
   defaultCss: boolean;
 }) {
-  const modified = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const opfProperties = (properties?: string) => (properties || "")
+    .split(/\s+/)
+    .filter((property) => property && !["extra", "linear-no", "has-fallback", "kindle-thumbnail"].includes(property))
+    .join(" ");
+  const modified = args.metadata.timestamp && !Number.isNaN(Date.parse(args.metadata.timestamp))
+    ? new Date(args.metadata.timestamp).toISOString().replace(/\.\d{3}Z$/, "Z")
+    : new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const metadataIds = new Set<string>();
+  const reserveMetadataId = (candidate: string) => {
+    const base = candidate.replace(/[^a-zA-Z0-9_.-]/g, "-") || "metadata";
+    let id = base;
+    let suffix = 2;
+    while (metadataIds.has(id)) id = `${base}-${suffix++}`;
+    metadataIds.add(id);
+    return id;
+  };
+  const renderEntries = (tag: string, entries: LyceumMetadataEntry[], prefix: string) => {
+    const refinements: string[] = [];
+    const values = entries.map((entry, index) => {
+      const id = reserveMetadataId(entry.id || `${prefix}-${index + 1}`);
+      const language = entry.language ? ` xml:lang="${escapeXml(entry.language)}"` : "";
+      const mergedRefinements = { ...(entry.refinements || {}) };
+      if (entry.fileAs && !mergedRefinements["file-as"]) mergedRefinements["file-as"] = [entry.fileAs];
+      if (entry.role && !mergedRefinements.role) mergedRefinements.role = [entry.role];
+      if (entry.scheme && !mergedRefinements["identifier-type"]) mergedRefinements["identifier-type"] = [entry.scheme];
+      for (const [property, propertyValues] of Object.entries(mergedRefinements)) {
+        for (const value of propertyValues) refinements.push(`    <meta refines="#${escapeXml(id)}" property="${escapeXml(property)}">${escapeXml(value)}</meta>`);
+      }
+      return `    <dc:${tag} id="${escapeXml(id)}"${language}>${escapeXml(entry.value)}</dc:${tag}>`;
+    });
+    return [...values, ...refinements].join("\n");
+  };
+  const identifiers = args.metadata.identifiers?.length
+    ? args.metadata.identifiers
+    : [{ value: normalizeIdentifier(args.metadata.identifier || ""), id: "bookid" }];
+  const primaryIdentifierIndex = Math.max(0, identifiers.findIndex((entry) => entry.value === args.metadata.identifier));
+  const normalizedIdentifiers = identifiers.map((entry, index) => ({
+    ...entry,
+    id: index === primaryIdentifierIndex ? "bookid" : entry.id || `identifier-${index + 1}`,
+  }));
+  const titles = args.metadata.titles?.length ? args.metadata.titles : [{ value: args.metadata.title, id: "title-1" }];
+  const creators = args.metadata.creators?.length
+    ? args.metadata.creators
+    : args.metadata.author ? [{ value: args.metadata.author, id: "creator-1", fileAs: args.metadata.authorSort }] : [];
+  const contributors = args.metadata.contributors?.length
+    ? args.metadata.contributors
+    : args.metadata.contributor ? [{ value: args.metadata.contributor, id: "contributor-1" }] : [];
+  const subjects = args.metadata.subjects?.length
+    ? args.metadata.subjects
+    : (Array.isArray(args.metadata.subject) ? args.metadata.subject : args.metadata.subject ? [args.metadata.subject] : []).map((value) => ({ value }));
+  const dates = args.metadata.dates?.length
+    ? args.metadata.dates
+    : args.metadata.publishDate ? [{ value: args.metadata.publishDate }] : [];
+  const customMetadata = Object.entries(args.metadata.customMetadata || {})
+    .filter(([property]) => !["cover", "dcterms:modified", "modified"].includes(property.toLowerCase()))
+    .flatMap(([property, values]) => values.map((value) => `    <meta property="${escapeXml(property)}">${escapeXml(value)}</meta>`))
+    .join("\n");
   const manifestChapters = args.chapters
     .map((chapter) => {
       const properties = chapter.properties ? ` properties="${escapeXml(chapter.properties)}"` : "";
@@ -184,8 +222,10 @@ function renderOpf(args: {
     .join("\n");
   const manifestResources = args.resources
     .map((resource) => {
-      const properties = resource.properties ? ` properties="${escapeXml(resource.properties)}"` : "";
-      return `    <item id="${escapeXml(resource.id)}" href="${escapeXml(resource.href)}" media-type="${escapeXml(resource.mediaType)}"${properties} />`;
+      const normalizedProperties = opfProperties(resource.properties);
+      const properties = normalizedProperties ? ` properties="${escapeXml(normalizedProperties)}"` : "";
+      const fallback = resource.fallback ? ` fallback="${escapeXml(resource.fallback)}"` : "";
+      return `    <item id="${escapeXml(resource.id)}" href="${escapeXml(resource.href)}" media-type="${escapeXml(resource.mediaType)}"${properties}${fallback} />`;
     })
     .join("\n");
   const coverResource = args.resources.find((resource) => resource.properties?.split(/\s+/).includes("cover-image"));
@@ -195,17 +235,25 @@ function renderOpf(args: {
   const defaultCss = args.defaultCss
     ? `    <item id="lyceum-css" href="styles/book.css" media-type="text/css" />`
     : "";
-  const spine = args.chapters.map((chapter) => `    <itemref idref="${escapeXml(chapter.id)}" />`).join("\n");
+  const spine = [
+    ...args.chapters.map((chapter) => `    <itemref idref="${escapeXml(chapter.id)}" />`),
+    ...args.resources.filter((resource) => resource.linear === false).map((resource) => `    <itemref idref="${escapeXml(resource.id)}" linear="no" />`),
+  ].join("\n");
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="bookid">${escapeXml(normalizeIdentifier(args.metadata.identifier || ""))}</dc:identifier>
-    <dc:title>${escapeXml(args.metadata.title)}</dc:title>
+${renderEntries("identifier", normalizedIdentifiers, "identifier")}
+${renderEntries("title", titles, "title")}
     <dc:language>${escapeXml(args.metadata.language || "pt-BR")}</dc:language>
-    ${args.metadata.author ? `<dc:creator>${escapeXml(args.metadata.author)}</dc:creator>` : ""}
+${renderEntries("creator", creators, "creator")}
+${renderEntries("contributor", contributors, "contributor")}
+${renderEntries("subject", subjects, "subject")}
+${renderEntries("date", dates, "date")}
     ${args.metadata.publisher ? `<dc:publisher>${escapeXml(args.metadata.publisher)}</dc:publisher>` : ""}
     ${args.metadata.description ? `<dc:description>${escapeXml(args.metadata.description)}</dc:description>` : ""}
+    ${args.metadata.rights ? `<dc:rights>${escapeXml(args.metadata.rights)}</dc:rights>` : ""}
+${customMetadata}
     <meta property="dcterms:modified">${escapeXml(modified)}</meta>
     <meta name="generator" content="Lyceum" />
 ${coverMeta}
@@ -223,20 +271,27 @@ ${spine}
 }
 
 function resourceData(resource: LyceumTextualResource, pkg: LyceumPackage) {
-  if (resource.data instanceof ArrayBuffer) return new Uint8Array(resource.data);
-  if (resource.data) return resource.data;
+  if (resource.data instanceof ArrayBuffer) return Buffer.from(resource.data);
+  if (resource.data) return Buffer.from(resource.data.buffer, resource.data.byteOffset, resource.data.byteLength);
   return fs.readFileSync(textualResourcePath(pkg.rootPath, resource.href));
 }
 
 function loadResources(pkg: LyceumPackage, warnings: string[], usedIds: Set<string>) {
   const resources: EpubResourceFile[] = [];
+  const sourceResources = pkg.textual?.resources || [];
+  const exportedIds = new Map<string, string>();
 
-  for (const [index, resource] of (pkg.textual?.resources || []).entries()) {
+  sourceResources.forEach((resource, index) => {
+    exportedIds.set(resource.id, safeManifestId(resource.id || "", `resource-${index + 1}`, usedIds));
+  });
+
+  for (const [index, resource] of sourceResources.entries()) {
     try {
       const href = textualRelativePath(resource.href, `resources/resource-${index + 1}`);
       resources.push({
         ...resource,
-        id: safeManifestId(resource.id || "", `resource-${index + 1}`, usedIds),
+        id: exportedIds.get(resource.id) || `resource-${index + 1}`,
+        fallback: resource.fallback ? exportedIds.get(resource.fallback) : undefined,
         href,
         data: resourceData(resource, pkg),
       });
@@ -302,6 +357,12 @@ async function createEpubArchive(pkg: LyceumPackage, metadataOverrides?: Partial
     compression: "DEFLATE",
   });
 
+  const validation = await validateEpubBuffer(buffer);
+  if (!validation.valid) {
+    throw new Error(`EPUB gerado e invalido:\n${validation.errors.join("\n")}`);
+  }
+  warnings.push(...validation.warnings);
+
   return {
     buffer,
     warnings,
@@ -311,6 +372,9 @@ async function createEpubArchive(pkg: LyceumPackage, metadataOverrides?: Partial
       imageCount: resources.filter((resource) => resource.mediaType.startsWith("image/")).length,
       stylesheetCount: resources.filter((resource) => resource.mediaType === "text/css").length + (hasCssResource ? 0 : 1),
       tocItemCount: toc.length,
+      validatedXhtmlCount: validation.stats.xhtmlCount,
+      brokenReferenceCount: 0,
+      fidelityMode: "reflowable-semantic",
     },
   };
 }

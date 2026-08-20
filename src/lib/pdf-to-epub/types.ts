@@ -204,6 +204,8 @@ export interface EpubAsset {
   href: string;
   mediaType: string;
   data: ArrayBuffer | Uint8Array;
+  width?: number;
+  height?: number;
 }
 
 export interface ConversionReport {
@@ -216,6 +218,9 @@ export interface ConversionReport {
     lowConfidenceBlocks: number;
   };
   warnings: string[];
+  mode?: "reflow" | "fixed-layout";
+  preservedPageImages?: number;
+  fidelityMode?: "fixed-layout-visual" | "reflowable-semantic";
 }
 
 export interface ChecklistItem {
@@ -233,5 +238,6 @@ export interface ConvertPdfToEpubOptions {
   publisher?: string;
   description?: string;
   minTextTokensPerPage?: number;
+  mode?: "auto" | "reflow" | "fixed-layout";
   renderImageAsset?: (candidate: ImageCandidate) => Promise<EpubAsset | null>;
 }

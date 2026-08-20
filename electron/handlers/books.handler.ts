@@ -56,11 +56,17 @@ import { reopenDocument, renameBook, deleteBook } from "../services/document-ser
 import { cachePdfBuffer } from "../services/pdfCache";
 import { mergeBooksIntoManagedFolder } from "../services/folder-service";
 import { notifyFolderChanged } from "../services/library-service";
-import { generateThumbnail } from "../services/document-processing";
+import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
 import { LIBRARY_PATH, USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
 import { extractVocabularyFromEpub } from "../services/vocabulary-service";
 import { processFile as processLibraryFile } from "../services/library-service";
 import { setBookCoverInFile, writeBookMetadataToFile, writeCoverImageFile, writeThumbnailFile, type EditableBookMetadata } from "../services/book-file-metadata";
+import {
+  applyBookCoverInWorker,
+  extractVocabularyInWorker,
+  prepareCoverImageInWorker,
+  writeBookMetadataInWorker,
+} from "../workers/processingClient";
 import { searchBookMetadataSources, type MetadataSearchField, type MetadataSearchScope } from "../../src/api/bookMetadataSearch";
 import fs from "node:fs";
 import os from "node:os";
@@ -99,6 +105,53 @@ export function registerBookHandlers() {
     if (!doc || !doc.filePath) return { success: false, error: "Livro nao encontrado" };
     if (!fs.existsSync(doc.filePath)) return { success: false, error: "Arquivo nao encontrado" };
     if (!fs.existsSync(imagePath)) return { success: false, error: "Imagem nao encontrada" };
+
+    const metadata: EditableBookMetadata = {
+      title: doc.title,
+      author: doc.author || undefined,
+      description: doc.description || undefined,
+      isbn: doc.isbn || undefined,
+      publisher: doc.publisher || undefined,
+      publishDate: doc.publishDate || undefined,
+      language: doc.language || undefined,
+      identifier: doc.identifier || undefined,
+      asin: doc.asin || undefined,
+      subject: doc.subject || undefined,
+      series: doc.series || undefined,
+      seriesIndex: doc.seriesIndex || undefined,
+      authorSort: doc.authorSort || undefined,
+      titleSort: doc.titleSort || undefined,
+    };
+    const mutation = await applyBookCoverInWorker({
+      filePath: doc.filePath,
+      fileType: doc.fileType,
+      imagePath,
+      mode,
+      metadata,
+      thumbnailsDir: THUMBNAILS_DIR(),
+      currentFileHash: fileHash,
+    });
+    const mutationHash = mutation.fileHash || fileHash;
+    if (mutation.fileResult.success && mutation.fileHash) {
+      updateDocumentFileIdentity(fileHash, mutationHash, doc.filePath, mutation.fileSize || fs.statSync(doc.filePath).size);
+    }
+    if (mutation.thumbnailPath) {
+      updateThumbnailPath(mutationHash, mutation.thumbnailPath);
+      syncMergedBookThumbnail(doc.bookId, mutationHash, mutation.thumbnailPath);
+    }
+    if (mutation.numPages) updateDocumentNumPages(mutationHash, mutation.numPages);
+    win?.webContents.send("library:updated");
+    if (mutation.fileResult.success || mutation.thumbnailPath) {
+      return {
+        success: true,
+        fileHash: mutationHash,
+        thumbnailPath: mutation.thumbnailPath,
+        warnings: mutation.fileResult.success
+          ? mutation.fileResult.warnings
+          : [...mutation.fileResult.warnings, mutation.fileResult.error || "Capa embutida nao suportada; thumbnail atualizado."],
+      };
+    }
+    return { success: false, error: mutation.fileResult.error || "Falha ao atualizar capa" };
 
     if (doc.fileType !== "pdf") {
       const metadata: EditableBookMetadata = {
@@ -203,7 +256,7 @@ export function registerBookHandlers() {
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length > 15 * 1024 * 1024) throw new Error("Imagem de capa muito grande.");
     await fs.promises.writeFile(rawPath, buffer);
-    await writeCoverImageFile(rawPath, coverPath);
+    await prepareCoverImageInWorker(rawPath, coverPath);
     return { workspace, coverPath };
   }
 
@@ -557,15 +610,16 @@ export function registerBookHandlers() {
     };
 
     try {
-      const fileResult = await writeBookMetadataToFile(doc.filePath, doc.fileType, mergedMetadata);
+      const mutation = await writeBookMetadataInWorker(doc.filePath, doc.fileType, mergedMetadata);
+      const fileResult = mutation.fileResult;
       const warnings = [...(fileResult.warnings || [])];
       if (!fileResult.success) {
         warnings.push(fileResult.error || `Edicao de metadados nao suportada para ${String(doc.fileType || "este formato").toUpperCase()}. Dados salvos apenas na biblioteca.`);
       }
       updateMetadata(fileHash, mergedMetadata);
-      const nextHash = fileResult.success ? generateFileHash(doc.filePath) : fileHash;
+      const nextHash = mutation.fileHash || fileHash;
       if (fileResult.success) {
-        updateDocumentFileIdentity(fileHash, nextHash, doc.filePath, fs.statSync(doc.filePath).size);
+        updateDocumentFileIdentity(fileHash, nextHash, doc.filePath, mutation.fileSize || fs.statSync(doc.filePath).size);
       }
       syncMergedBookMetadata(doc.bookId, nextHash, mergedMetadata);
       if (metadata.pageCount && Number.isFinite(metadata.pageCount)) {
@@ -689,7 +743,7 @@ export function registerBookHandlers() {
     if (doc.fileType !== "epub") return { success: false, error: "Vocabulary extraction only supported for EPUB files" };
     if (!fs.existsSync(doc.filePath)) return { success: false, error: "File not found" };
     try {
-      const words = extractVocabularyFromEpub(doc.filePath);
+      const words = await extractVocabularyInWorker(doc.filePath);
       const totalWords = words.reduce((sum, w) => sum + w.count, 0);
       saveWordIndex(fileHash, words);
       return { success: true, totalWords, uniqueWords: words.length };

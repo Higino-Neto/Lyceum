@@ -1,4 +1,4 @@
-import type { LyceumBookMetadata } from "../schema/types";
+import type { LyceumBookMetadata, LyceumMetadataEntry } from "../schema/types";
 import { decodeHtmlEntities, stripHtml } from "../textual";
 import { parseXmlDocument } from "./containerParser";
 
@@ -116,6 +116,35 @@ function firstRefinement(refinements: Map<string, Map<string, string[]>>, id: st
   return id ? refinements.get(id)?.get(property)?.[0] : undefined;
 }
 
+function refinementRecord(refinements: Map<string, Map<string, string[]>>, id?: string) {
+  const values = id ? refinements.get(id) : undefined;
+  return values?.size ? Object.fromEntries(values) : undefined;
+}
+
+function metadataEntry(element: Element, refinements: Map<string, Map<string, string[]>>): LyceumMetadataEntry {
+  const id = attr(element, "id");
+  return {
+    value: cleanText(element.textContent),
+    id,
+    scheme: attr(element, "opf:scheme") || attr(element, "scheme") || firstRefinement(refinements, id, "identifier-type"),
+    role: attr(element, "opf:role") || attr(element, "role") || firstRefinement(refinements, id, "role"),
+    fileAs: attr(element, "opf:file-as") || attr(element, "file-as") || firstRefinement(refinements, id, "file-as"),
+    language: attr(element, "xml:lang") || attr(element, "lang"),
+    refinements: refinementRecord(refinements, id),
+  };
+}
+
+function customMetadata(metadataElement: Element | null) {
+  const result: Record<string, string[]> = {};
+  for (const element of metadataChildren(metadataElement)) {
+    if (element.localName !== "meta" || attr(element, "refines")) continue;
+    const property = metaProperty(element);
+    const value = metaValue(element);
+    if (property && value) result[property] = [...(result[property] || []), value];
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 function firstMeta(metadataElement: Element | null, names: string[]) {
   const lowerNames = new Set(names.map((name) => name.toLowerCase()));
   for (const element of metadataChildren(metadataElement)) {
@@ -218,6 +247,10 @@ export function parseOpfDocument(opfXml: string): ParsedOpf {
   const creatorElements = dcElements(metadataElement, "creator");
   const firstCreator = creatorElements[0];
   const subjects = allDc(metadataElement, "subject");
+  const contributorElements = dcElements(metadataElement, "contributor");
+  const identifierElements = dcElements(metadataElement, "identifier");
+  const subjectElements = dcElements(metadataElement, "subject");
+  const dateElements = dcElements(metadataElement, "date");
   const titleId = attr(primaryTitle, "id");
   const creatorId = attr(firstCreator, "id");
   const series = firstMeta(metadataElement, ["calibre:series", "belongs-to-collection"]);
@@ -256,6 +289,13 @@ export function parseOpfDocument(opfXml: string): ParsedOpf {
       asin: firstMeta(metadataElement, ["amazon:asin", "mobi-asin"]),
       rating: parseRating(firstMeta(metadataElement, ["calibre:rating"])),
       timestamp: firstMeta(metadataElement, ["calibre:timestamp"]),
+      titles: titleElements.map((element) => metadataEntry(element, refinements)),
+      creators: creatorElements.map((element) => metadataEntry(element, refinements)),
+      contributors: contributorElements.map((element) => metadataEntry(element, refinements)),
+      identifiers: identifierElements.map((element) => metadataEntry(element, refinements)),
+      subjects: subjectElements.map((element) => metadataEntry(element, refinements)),
+      dates: dateElements.map((element) => metadataEntry(element, refinements)),
+      customMetadata: customMetadata(metadataElement),
     },
     identifiers,
     primaryIdentifier,

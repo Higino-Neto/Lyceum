@@ -6,6 +6,8 @@ export * from "./package/write";
 export * from "./conversion/convert";
 export * from "./conversion/registry";
 export * from "./conversion/reports";
+export * from "./validation/packageValidator";
+export * from "./epub/epubValidator";
 export * from "./textual";
 export * from "./importers/cbzImporter";
 export * from "./mobi/azw3Pipeline";

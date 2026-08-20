@@ -4,12 +4,7 @@ import path from "node:path";
 import type sharpType from "sharp";
 import { textualResourcePath } from "../../package/paths";
 import type { LyceumPackage, LyceumTextualResource } from "../../schema/types";
-
-const KINDLE_SAFE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif"]);
-const KINDLE_MAX_IMAGE_EDGE = 2560;
-const KINDLE_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const KINDLE_THUMBNAIL_WIDTH = 330;
-const KINDLE_THUMBNAIL_HEIGHT = 470;
+import { resolveKindleFirmwareProfile, type KindleFirmwareProfile } from "../../kindle/firmwareQuirks";
 
 type SharpFactory = typeof sharpType;
 const require = createRequire(import.meta.url);
@@ -20,6 +15,7 @@ export interface KindleImagePreparation {
   convertedImageCount: number;
   resizedImageCount: number;
   thumbnailGenerated: boolean;
+  firmwareProfile: string;
   warnings: string[];
 }
 
@@ -73,7 +69,7 @@ function thumbnailHrefFor(resource: LyceumTextualResource) {
   return `${directory}${baseName}-thumbnail.jpg`;
 }
 
-async function convertImageForKindle(resource: LyceumTextualResource): Promise<{
+async function convertImageForKindle(resource: LyceumTextualResource, profile: KindleFirmwareProfile): Promise<{
   resource: LyceumTextualResource;
   converted: boolean;
   resized: boolean;
@@ -88,8 +84,8 @@ async function convertImageForKindle(resource: LyceumTextualResource): Promise<{
   const image = sharp(Buffer.from(data), { animated: normalizedType === "image/gif" });
   const metadata = await image.metadata();
   const longestEdge = Math.max(metadata.width || 0, metadata.height || 0);
-  const shouldResize = longestEdge > KINDLE_MAX_IMAGE_EDGE || data.length > KINDLE_MAX_IMAGE_BYTES;
-  const shouldConvert = !KINDLE_SAFE_IMAGE_TYPES.has(normalizedType);
+  const shouldResize = longestEdge > profile.maxImageEdge || data.length > profile.maxImageBytes;
+  const shouldConvert = !profile.safeImageTypes.has(normalizedType);
 
   if (!shouldResize && !shouldConvert) {
     return { resource, converted: false, resized: false };
@@ -98,8 +94,8 @@ async function convertImageForKindle(resource: LyceumTextualResource): Promise<{
   const base = sharp(Buffer.from(data), { animated: false }).rotate();
   const pipeline = shouldResize
     ? base.resize({
-      width: KINDLE_MAX_IMAGE_EDGE,
-      height: KINDLE_MAX_IMAGE_EDGE,
+      width: profile.maxImageEdge,
+      height: profile.maxImageEdge,
       fit: "inside",
       withoutEnlargement: true,
     })
@@ -120,7 +116,7 @@ async function convertImageForKindle(resource: LyceumTextualResource): Promise<{
   };
 }
 
-async function buildCoverThumbnail(coverResource: LyceumTextualResource): Promise<LyceumTextualResource | null> {
+async function buildCoverThumbnail(coverResource: LyceumTextualResource, profile: KindleFirmwareProfile): Promise<LyceumTextualResource | null> {
   const data = resourceBytes(coverResource);
   if (!data || data.length === 0) return null;
 
@@ -128,8 +124,8 @@ async function buildCoverThumbnail(coverResource: LyceumTextualResource): Promis
   const output = await sharp(Buffer.from(data), { animated: false })
     .rotate()
     .resize({
-      width: KINDLE_THUMBNAIL_WIDTH,
-      height: KINDLE_THUMBNAIL_HEIGHT,
+      width: profile.thumbnailWidth,
+      height: profile.thumbnailHeight,
       fit: "inside",
       withoutEnlargement: true,
     })
@@ -146,12 +142,14 @@ async function buildCoverThumbnail(coverResource: LyceumTextualResource): Promis
 }
 
 export async function prepareKindleImages(pkg: LyceumPackage): Promise<KindleImagePreparation> {
+  const profile = resolveKindleFirmwareProfile();
   if (!pkg.textual?.resources?.length) {
     return {
       pkg,
       convertedImageCount: 0,
       resizedImageCount: 0,
       thumbnailGenerated: false,
+      firmwareProfile: profile.id,
       warnings: [],
     };
   }
@@ -168,7 +166,7 @@ export async function prepareKindleImages(pkg: LyceumPackage): Promise<KindleIma
     }
 
     try {
-      const prepared = await convertImageForKindle(resource);
+      const prepared = await convertImageForKindle(resource, profile);
       resources.push(prepared.resource);
       if (prepared.converted) convertedImageCount += 1;
       if (prepared.resized) resizedImageCount += 1;
@@ -182,7 +180,7 @@ export async function prepareKindleImages(pkg: LyceumPackage): Promise<KindleIma
   let thumbnailGenerated = false;
   if (coverResource && !resources.some((resource) => hasManifestProperty(resource, "kindle-thumbnail"))) {
     try {
-      const thumbnail = await buildCoverThumbnail(coverResource);
+      const thumbnail = await buildCoverThumbnail(coverResource, profile);
       if (thumbnail) {
         resources.push({
           ...thumbnail,
@@ -206,6 +204,7 @@ export async function prepareKindleImages(pkg: LyceumPackage): Promise<KindleIma
     convertedImageCount,
     resizedImageCount,
     thumbnailGenerated,
+    firmwareProfile: profile.id,
     warnings,
   };
 }

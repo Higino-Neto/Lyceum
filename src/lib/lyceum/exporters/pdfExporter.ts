@@ -3,8 +3,6 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { PDFDocument } from "pdf-lib";
 import type sharpType from "sharp";
-import { convertEpubToPdf } from "../../epub-to-pdf";
-import { buildEpubFromLyceumPackage } from "./epubExporter";
 import { textualResourcePath } from "../package/paths";
 import type { ExportInput, ExportResult, LyceumExporter, LyceumTextualResource } from "../schema/types";
 
@@ -113,28 +111,8 @@ export class PdfExporter implements LyceumExporter {
       throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para PDF.");
     }
 
-    const epub = await buildEpubFromLyceumPackage(input.package, input.metadata);
-    const converted = await convertEpubToPdf(epub, {
-      title: input.metadata?.title || input.package.metadata.title,
-      author: input.metadata?.author || input.package.metadata.author,
-    });
-    await fs.promises.writeFile(input.outputPath, Buffer.from(converted.pdf));
-
-    return {
-      outputPath: input.outputPath,
-      outputFormat: "pdf",
-      report: {
-        outputFormat: "pdf",
-        warnings: converted.report.warnings,
-        stats: {
-          chapterCount: converted.report.chapterCount,
-          pageCount: converted.report.pageCount,
-          wordCount: converted.report.wordCount,
-          imageCount: converted.report.imageCount,
-          skippedImageCount: converted.report.skippedImageCount,
-          unsupportedCharacterCount: converted.report.unsupportedCharacterCount,
-        },
-      },
-    };
+    throw new Error(
+      "Exportacao textual para PDF exige o renderizador Chromium do processo principal do Lyceum; o fallback simplificado foi desativado para evitar perda de layout.",
+    );
   }
 }

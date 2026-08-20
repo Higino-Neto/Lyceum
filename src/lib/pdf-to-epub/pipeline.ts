@@ -71,7 +71,13 @@ async function loadPdfJs(): Promise<PdfJsModule> {
 }
 
 function createIdentifier(data: ArrayBuffer) {
-  return `urn:lyceum:pdf:${data.byteLength.toString(16)}:${Date.now().toString(36)}`;
+  const bytes = new Uint8Array(data);
+  let hash = 0x811c9dc5;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `urn:lyceum:pdf:${data.byteLength.toString(16)}:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 function inferTitle(sections: Section[], fallback = "Documento convertido") {
@@ -112,6 +118,8 @@ function buildReport(args: {
   sections: Section[];
   blocks: Block[];
   warnings: string[];
+  mode?: "reflow" | "fixed-layout";
+  preservedPageImages?: number;
 }): ConversionReport {
   return {
     checklist: PDF_TO_EPUB_CHECKLIST,
@@ -120,7 +128,53 @@ function buildReport(args: {
     blockCount: args.blocks.length,
     confidence: summarizeConfidence(args.blocks),
     warnings: args.warnings,
+    mode: args.mode,
+    preservedPageImages: args.preservedPageImages,
+    fidelityMode: args.mode === "fixed-layout" ? "fixed-layout-visual" : "reflowable-semantic",
   };
+}
+
+function fixedLayoutCandidate(page: PageModel): import("./types").ImageCandidate {
+  return {
+    id: `page-${String(page.pageNumber).padStart(4, "0")}`,
+    pageNumber: page.pageNumber,
+    bbox: { x0: 0, y0: 0, x1: page.width, y1: page.height, width: page.width, height: page.height },
+    pageWidth: page.width,
+    pageHeight: page.height,
+    confidence: 1,
+  };
+}
+
+function renderFixedLayoutChapter(page: PageModel, asset: import("./types").EpubAsset) {
+  const title = `Pagina ${page.pageNumber}`;
+  const text = page.orderedLines.map((line) => line.text).filter(Boolean).join("\n");
+  return {
+    id: `page-${String(page.pageNumber).padStart(4, "0")}`,
+    href: `text/page-${String(page.pageNumber).padStart(4, "0")}.xhtml`,
+    title,
+    xhtml: `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=${Math.round(page.width)},height=${Math.round(page.height)}" />
+  <title>${title}</title>
+  <link rel="stylesheet" type="text/css" href="../styles/book.css" />
+</head>
+<body class="fixed-page">
+  <img class="page-image" src="../${asset.href}" alt="${title}" />
+  <div class="page-text" aria-label="Texto extraido da pagina">${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />")}</div>
+</body>
+</html>`,
+  };
+}
+
+function fixedLayoutCss() {
+  return `@page { margin: 0; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+body.fixed-page { position: relative; overflow: hidden; background: white; }
+.page-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.page-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: pre-wrap; }`;
 }
 
 function shouldRenderImageCandidate(candidate: import("./types").ImageCandidate) {
@@ -256,10 +310,50 @@ export async function convertPdfToEpub(
   pdfData: ArrayBuffer,
   options: ConvertPdfToEpubOptions = {},
 ) {
-  const pages = await parsePdfToPages(pdfData, options);
+  // PDF.js may transfer and detach the supplied ArrayBuffer. Keep the original
+  // available for deterministic identifiers and later integrity reporting.
+  const pages = await parsePdfToPages(pdfData.slice(0), options);
+  const mode: "reflow" | "fixed-layout" = options.mode === "fixed-layout"
+    || (options.mode !== "reflow" && Boolean(options.renderImageAsset))
+    ? "fixed-layout"
+    : "reflow";
   const warnings = pages
     .filter((page) => page.requiresOcr)
     .map((page) => `Pagina ${page.pageNumber} tem pouco texto extraido e pode precisar de OCR.`);
+  if (mode === "fixed-layout") {
+    if (!options.renderImageAsset) throw new Error("O modo fixed-layout exige um renderizador de paginas PDF.");
+    const renderedPages = await Promise.all(pages.map(async (page) => ({
+      page,
+      asset: await options.renderImageAsset!(fixedLayoutCandidate(page)),
+    })));
+    const missingPages = renderedPages.filter((item) => !item.asset).map((item) => item.page.pageNumber);
+    if (missingPages.length) throw new Error(`Falha ao preservar as paginas PDF: ${missingPages.join(", ")}.`);
+    const completePages = renderedPages as Array<{ page: PageModel; asset: import("./types").EpubAsset }>;
+    const metadata = buildMetadata(pdfData, [], options);
+    const chapters = completePages.map(({ page, asset }) => renderFixedLayoutChapter(page, asset));
+    const epub = await packageEpub({
+      metadata,
+      chapters,
+      css: fixedLayoutCss(),
+      assets: completePages.map((item) => item.asset),
+      layout: "pre-paginated",
+    });
+    return {
+      epub,
+      report: buildReport({
+        pages,
+        sections: [],
+        blocks: [],
+        warnings: [
+          ...warnings,
+          "Layout fixo usado para preservar integralmente a aparencia de cada pagina; uma camada textual acessivel foi mantida.",
+        ],
+        mode,
+        preservedPageImages: completePages.length,
+      }),
+    };
+  }
+
   const imageCandidates = pages
     .flatMap((page) => page.imageCandidates || [])
     .filter(shouldRenderImageCandidate);
@@ -296,6 +390,8 @@ export async function convertPdfToEpub(
       sections: structure.sections,
       blocks: structure.blocks,
       warnings,
+      mode,
+      preservedPageImages: renderedImagePairs.length,
     }),
   };
 }

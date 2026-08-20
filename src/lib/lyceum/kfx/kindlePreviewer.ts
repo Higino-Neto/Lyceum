@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -80,7 +80,10 @@ export function findKindlePreviewerExecutable() {
     if (candidate.includes(path.sep) || path.isAbsolute(candidate)) {
       if (fs.existsSync(candidate)) return candidate;
     } else {
-      return candidate;
+      const locator = process.platform === "win32" ? "where.exe" : "which";
+      const located = spawnSync(locator, [candidate], { encoding: "utf8", windowsHide: true });
+      const resolved = located.status === 0 ? located.stdout.split(/\r?\n/).find(Boolean)?.trim() : "";
+      if (resolved) return resolved;
     }
   }
 

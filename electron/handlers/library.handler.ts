@@ -31,6 +31,8 @@ import {
   getFolderStructureCached,
   getFolderChildren,
   getFolderStats,
+  getFolderChildrenAsync,
+  getFolderStatsAsync,
   folderExists,
   notifyFolderChanged,
   refreshLibraryPathWatcher,
@@ -49,7 +51,8 @@ import {
   inferFileTypeFromPath,
   toReadableFileType,
 } from "../services/file-service";
-import { generateThumbnail, type BookFileType } from "../services/document-processing";
+import { type BookFileType } from "../services/document-processing";
+import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
 import { openReadableFile } from "../services/document-service";
 import {
   addManagedSourceFolder,
@@ -197,19 +200,19 @@ export function registerLibraryHandlers() {
     return getFolderStructureAsync(root.path, root.type === "source");
   });
 
-  ipcMain.handle("library:get-folder-structure-cached", (_, rootPath?: string | null) => {
-    if (!rootPath) return getFolderStructureCached(LIBRARY_PATH());
+  ipcMain.handle("library:get-folder-structure-cached", async (_, rootPath?: string | null) => {
+    if (!rootPath) return getFolderStructureAsync(LIBRARY_PATH());
     const root = getLibraryRoots().find((candidate) => path.resolve(candidate.path) === path.resolve(rootPath));
     if (!root) return [];
-    return getFolderStructureCached(root.path, root.type === "source");
+    return getFolderStructureAsync(root.path, root.type === "source");
   });
 
-  ipcMain.handle("library:get-folder-children", (_, parentPath: string | null = null) => {
-    return getFolderChildren(parentPath);
+  ipcMain.handle("library:get-folder-children", async (_, parentPath: string | null = null) => {
+    return getFolderChildrenAsync(parentPath);
   });
 
-  ipcMain.handle("library:get-folder-stats", (_, folderPath: string | null = null) => {
-    return getFolderStats(folderPath);
+  ipcMain.handle("library:get-folder-stats", async (_, folderPath: string | null = null) => {
+    return getFolderStatsAsync(folderPath);
   });
 
   ipcMain.handle("library:folder-exists", (_, folderPath: string | null = null) => {

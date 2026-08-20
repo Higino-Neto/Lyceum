@@ -12,6 +12,7 @@ import {
   KfxExporter,
   validateKfxFile,
   inspectKpfArchive,
+  validateLyceumPackage,
   type LyceumPackage,
 } from "../lib/lyceum";
 
@@ -55,6 +56,18 @@ function readPdbRecord(buffer: Buffer, index: number, recordCount: number) {
   const end = index + 1 < recordCount ? view.getUint32(78 + (index + 1) * 8, false) : buffer.byteLength;
   return buffer.subarray(start, end);
 }
+
+describe("Lyceum package validation", () => {
+  it("reports malformed percent-encoded anchors without crashing", () => {
+    const pkg = buildMinimalLyceumPackage("C:/virtual-package");
+    pkg.textual!.chapters[0].xhtml = '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>T</title></head><body><a href="#bad%ZZ">Broken</a></body></html>';
+
+    const validation = validateLyceumPackage(pkg);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.join("\n")).toContain("Anchor ausente");
+  });
+});
 
 async function buildEpub() {
   const zip = new JSZip();
@@ -661,6 +674,29 @@ describe("lyceum conversion core", () => {
       6, 2, 128, 0,
       0, 0, 0, 1,
     ]);
+  });
+
+  it("reopens AZW3 image records and cross-validates kindle:embed and EXTH cover offsets", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-images-"));
+    const sourcePath = path.join(tempDir, "images.epub");
+    const outputPath = path.join(tempDir, "images.azw3");
+    fs.writeFileSync(sourcePath, Buffer.from(await buildRichEpub()));
+
+    await convertViaLyceum({
+      sourcePath,
+      sourceFormat: "epub",
+      targetFormat: "azw3",
+      packageRoot: path.join(tempDir, "images.lyceum"),
+      outputPath,
+    });
+    const validation = validateAzw3File(outputPath);
+
+    expect(validation.valid).toBe(true);
+    expect(validation.metadata.imageResourceCount).toBe(1);
+    expect(validation.metadata.invalidImageResourceCount).toBe(0);
+    expect(validation.metadata.kindleEmbedReferenceCount).toBeGreaterThan(0);
+    expect(validation.metadata.coverImageOffset).toBe(0);
+    expect(validation.metadata.kf8Boundary).toBe(0);
   });
 
   it("rewrites EPUB internal links to Kindle position links before AZW3 export", async () => {

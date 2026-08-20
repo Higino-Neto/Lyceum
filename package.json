@@ -10,7 +10,7 @@
     "clean:build": "node scripts/clean-build.mjs",
     "size:audit": "node scripts/size-audit.mjs",
     "prebuild": "node scripts/clean-build.mjs",
-    "build": "node scripts/prepare-pdfjs.mjs && tsc && vite build && node scripts/verify-electron-imports.mjs",
+    "build": "node scripts/prepare-pdfjs.mjs && tsc && vite build && node scripts/verify-electron-imports.mjs && node scripts/verify-electron-workers.mjs",
     "build:mobile": "vite build --config vite.mobile.config.ts",
     "mobile:ota": "npm run build:mobile && node scripts/prepare-mobile-ota.mjs",
     "mobile:native-assets": "node scripts/prepare-native-mobile-assets.mjs",

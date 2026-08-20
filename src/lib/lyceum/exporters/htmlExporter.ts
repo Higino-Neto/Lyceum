@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { JSDOM } from "jsdom";
 import type { ExportInput, ExportResult, LyceumExporter, LyceumTextualResource } from "../schema/types";
 import { mergeDefinedBookMetadata } from "../schema/manifest";
-import { escapeXml, extractBodyHtml } from "../textual";
+import { escapeXml } from "../textual";
 import { textualResourcePath } from "../package/paths";
 
 function normalizeHref(value: string) {
@@ -29,18 +30,44 @@ function resourceData(resource: LyceumTextualResource, rootPath: string) {
   return fs.readFileSync(textualResourcePath(rootPath, resource.href));
 }
 
-function rewriteResourceLinks(html: string, chapterHref: string, resourceLinks: Map<string, string>) {
-  return html
-    .replace(/\b(src|href)\s*=\s*(["'])([^"']+)\2/gi, (match, attr, quote, href) => {
+function rewriteCssUrls(css: string, chapterHref: string, resourceLinks: Map<string, string>) {
+  return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote, href) => {
+    const resolved = resolveChapterHref(chapterHref, href);
+    const replacement = resolved ? resourceLinks.get(resolved.toLowerCase()) : undefined;
+    return replacement ? `url(${quote}${replacement}${quote})` : match;
+  });
+}
+
+function rewriteChapterDocument(html: string, chapterHref: string, resourceLinks: Map<string, string>) {
+  const dom = new JSDOM(html, { contentType: "text/html" });
+  const document = dom.window.document;
+  for (const element of Array.from(document.querySelectorAll("*"))) {
+    for (const attribute of ["src", "href", "data", "poster", "xlink:href"]) {
+      const href = element.getAttribute(attribute);
+      if (!href) continue;
       const resolved = resolveChapterHref(chapterHref, href);
       const replacement = resolved ? resourceLinks.get(resolved.toLowerCase()) : undefined;
-      return replacement ? `${attr}=${quote}${escapeXml(replacement)}${quote}` : match;
-    })
-    .replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote, href) => {
-      const resolved = resolveChapterHref(chapterHref, href);
-      const replacement = resolved ? resourceLinks.get(resolved.toLowerCase()) : undefined;
-      return replacement ? `url(${quote}${replacement}${quote})` : match;
-    });
+      if (replacement) element.setAttribute(attribute, replacement);
+    }
+    const srcset = element.getAttribute("srcset");
+    if (srcset) {
+      element.setAttribute("srcset", srcset.split(",").map((candidate) => {
+        const [href, descriptor] = candidate.trim().split(/\s+/, 2);
+        const resolved = resolveChapterHref(chapterHref, href);
+        const replacement = resolved ? resourceLinks.get(resolved.toLowerCase()) : undefined;
+        return `${replacement || href}${descriptor ? ` ${descriptor}` : ""}`;
+      }).join(", "));
+    }
+    const style = element.getAttribute("style");
+    if (style) element.setAttribute("style", rewriteCssUrls(style, chapterHref, resourceLinks));
+  }
+  for (const style of Array.from(document.querySelectorAll("style"))) {
+    style.textContent = rewriteCssUrls(style.textContent || "", chapterHref, resourceLinks);
+  }
+  return {
+    body: document.body.innerHTML,
+    styles: Array.from(document.head.querySelectorAll("style")).map((style) => style.outerHTML),
+  };
 }
 
 export class HtmlExporter implements LyceumExporter {
@@ -71,14 +98,39 @@ export class HtmlExporter implements LyceumExporter {
       resourceLinks.set(safeHref.toLowerCase(), `${filesDirName}/${safeHref}`);
     }
 
-    const body = input.package.textual.chapters
-      .map((chapter) => `<section data-lyceum-chapter="${escapeXml(chapter.id)}">\n${rewriteResourceLinks(extractBodyHtml(chapter.xhtml), chapter.href, resourceLinks)}\n</section>`)
+    const chapterDocuments = input.package.textual.chapters.map((chapter) => ({
+      chapter,
+      document: rewriteChapterDocument(chapter.xhtml, chapter.href, resourceLinks),
+    }));
+    const stylesheetLinks = (input.package.textual.resources || [])
+      .filter((resource) => resource.mediaType === "text/css")
+      .map((resource) => resourceLinks.get(normalizeHref(resource.href).toLowerCase()))
+      .filter((href): href is string => Boolean(href))
+      .map((href) => `  <link rel="stylesheet" href="${escapeXml(href)}" />`)
+      .join("\n");
+    const inlineStyles = chapterDocuments.flatMap((item) => item.document.styles).join("\n");
+    const body = chapterDocuments
+      .map(({ chapter, document }) => `<section class="lyceum-chapter" id="lyceum-${escapeXml(chapter.id)}" data-lyceum-chapter="${escapeXml(chapter.id)}">\n${document.body}\n</section>`)
       .join("\n");
     const html = `<!doctype html>
 <html lang="${escapeXml(metadata.language || "pt-BR")}">
 <head>
   <meta charset="utf-8" />
   <title>${escapeXml(metadata.title)}</title>
+${stylesheetLinks}
+${inlineStyles}
+  <style>
+    @page { margin: 16mm 15mm 18mm; }
+    html, body { background: white; color: black; }
+    body { margin: 0; }
+    .lyceum-chapter { display: flow-root; }
+    .lyceum-chapter + .lyceum-chapter { break-before: page; }
+    img, svg, table, pre { max-width: 100%; }
+    img { height: auto; }
+    table { break-inside: avoid; border-collapse: collapse; }
+    h1, h2, h3 { break-after: avoid; }
+    figure, blockquote, pre { break-inside: avoid; }
+  </style>
 </head>
 <body>
 ${body}
@@ -97,6 +149,8 @@ ${body}
         stats: {
           chapterCount: input.package.textual.chapters.length,
           resourceCount: resourceLinks.size,
+          stylesheetCount: (input.package.textual.resources || []).filter((resource) => resource.mediaType === "text/css").length,
+          printReady: true,
         },
       },
     };

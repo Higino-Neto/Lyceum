@@ -2,10 +2,8 @@ import { JSDOM } from "jsdom";
 import {
   extractBodyHtml,
   isPlaceholderTitle,
-  normalizeHtmlEntitiesForXhtml,
   stripHtml,
   wrapTextAsXhtml,
-  escapeXml,
 } from "../textual";
 import { decodeTextBytes } from "./containerParser";
 
@@ -49,37 +47,60 @@ function ensureDocument(rawHtml: string, title: string) {
   return wrapTextAsXhtml(title, [stripHtml(rawHtml) || rawHtml]);
 }
 
-function ensureXhtmlNamespace(xhtml: string) {
-  if (!/<html\b/i.test(xhtml)) return xhtml;
-  let normalized = xhtml;
-  if (!/<html\b[^>]*\bxmlns\s*=/i.test(normalized)) {
-    normalized = normalized.replace(/<html\b/i, `<html xmlns="http://www.w3.org/1999/xhtml"`);
+function ensureXhtmlNamespaces(document: Document, rawHtml: string) {
+  const root = document.documentElement;
+  // XMLSerializer emits the HTML element namespace itself. Keeping the parsed
+  // xmlns attribute would serialize a duplicate attribute and invalidate XML.
+  root.removeAttribute("xmlns");
+  if (/\bepub:/i.test(rawHtml) && !root.getAttribute("xmlns:epub")) {
+    root.setAttribute("xmlns:epub", "http://www.idpf.org/2007/ops");
   }
-  return normalized;
+  if (/\bxlink:/i.test(rawHtml) && !root.getAttribute("xmlns:xlink")) {
+    root.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  }
 }
 
-function replaceOrInsertTitle(xhtml: string, title: string, replaceExisting: boolean) {
-  const escapedTitle = escapeXml(title);
-  if (/<title\b[^>]*>[\s\S]*?<\/title>/i.test(xhtml)) {
-    return replaceExisting
-      ? xhtml.replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, `<title>${escapedTitle}</title>`)
-      : xhtml;
+function normalizeTitle(document: Document, title: string, replaceExisting: boolean) {
+  const head = document.head;
+  let titleElement = head.querySelector("title");
+  if (!titleElement) {
+    titleElement = document.createElement("title");
+    head.prepend(titleElement);
   }
+  if (replaceExisting || !titleElement.textContent?.trim()) titleElement.textContent = title;
 
-  if (/<head\b[^>]*>/i.test(xhtml)) {
-    return xhtml.replace(/<head\b[^>]*>/i, (match) => `${match}\n<title>${escapedTitle}</title>`);
-  }
-
-  return xhtml.replace(/<html\b[^>]*>/i, (match) => `${match}\n<head><title>${escapedTitle}</title></head>`);
+  const firstBodyElement = Array.from(document.body?.children || []).find((element) => (
+    !["script", "style", "link", "meta"].includes(element.localName.toLowerCase())
+  ));
+  const heading = firstBodyElement?.matches("h1,h2,h3,h4,h5,h6")
+    ? firstBodyElement
+    : firstBodyElement?.querySelector("h1,h2,h3,h4,h5,h6");
+  if (heading && isPlaceholderTitle(stripHtml(heading.textContent || ""))) heading.textContent = title;
 }
 
-function replaceLeadingPlaceholderHeading(xhtml: string, title: string) {
-  const escapedTitle = escapeXml(title);
-  return xhtml.replace(/(<body\b[^>]*>\s*(?:<[^>]+>\s*)*)<h([1-6])\b([^>]*)>([\s\S]*?)<\/h\2>/i, (match, prefix, level, attrs, heading) => {
-    return isPlaceholderTitle(stripHtml(heading))
-      ? `${prefix}<h${level}${attrs}>${escapedTitle}</h${level}>`
-      : match;
-  });
+function serializeXhtml(dom: JSDOM) {
+  const serializer = new dom.window.XMLSerializer();
+  const serialized = serializer.serializeToString(dom.window.document.documentElement);
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n${serialized}`;
+}
+
+export function validateXhtmlDocument(xhtml: string, label = "Documento XHTML") {
+  try {
+    const parsed = new JSDOM(xhtml, { contentType: "application/xhtml+xml" });
+    const root = parsed.window.document.documentElement;
+    if (!root || root.localName.toLowerCase() !== "html") {
+      return { valid: false as const, error: `${label}: elemento raiz <html> ausente.` };
+    }
+    return { valid: true as const };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { valid: false as const, error: `${label}: XML invalido (${detail}).` };
+  }
+}
+
+export function assertValidXhtmlDocument(xhtml: string, label?: string) {
+  const validation = validateXhtmlDocument(xhtml, label);
+  if (!validation.valid) throw new Error(validation.error);
 }
 
 export function sanitizeHtmlDocument(rawHtml: string, title: string): SanitizedHtmlDocument {
@@ -89,10 +110,10 @@ export function sanitizeHtmlDocument(rawHtml: string, title: string): SanitizedH
   const htmlTitle = documentTitle(document);
   const headingTitle = firstHeading(document);
   removeActiveContent(document);
-
-  let xhtml = normalizeHtmlEntitiesForXhtml(ensureXhtmlNamespace(document.documentElement.outerHTML));
-  xhtml = replaceOrInsertTitle(xhtml, title, isPlaceholderTitle(htmlTitle));
-  xhtml = replaceLeadingPlaceholderHeading(xhtml, title);
+  ensureXhtmlNamespaces(document, rawHtml);
+  normalizeTitle(document, title, isPlaceholderTitle(htmlTitle));
+  const xhtml = serializeXhtml(dom);
+  assertValidXhtmlDocument(xhtml, title);
 
   return {
     xhtml,

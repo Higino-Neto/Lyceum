@@ -68,6 +68,9 @@ export class PdfImporter implements LyceumImporter {
           resourceCount: parsed.textual.resources?.length || 0,
           imageCount: parsed.textual.resources?.filter((resource) => resource.mediaType.startsWith("image/")).length || 0,
           wordCount: parsed.textual.fulltext.split(/\s+/).filter(Boolean).length,
+          pdfImportMode: converted.report.mode || "reflow",
+          preservedPageImages: converted.report.preservedPageImages || 0,
+          fidelityMode: converted.report.fidelityMode || "reflowable-semantic",
         },
       },
     };

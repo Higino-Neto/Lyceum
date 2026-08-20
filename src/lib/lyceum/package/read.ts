@@ -4,6 +4,7 @@ import type {
   LyceumComicContent,
   LyceumComicPage,
   LyceumManifest,
+  LyceumMetadataEntry,
   LyceumPackage,
   LyceumTextualChapter,
   LyceumTextualContent,
@@ -51,6 +52,35 @@ function requireString(value: Record<string, unknown>, key: string, label: strin
 
 function optionalString(value: Record<string, unknown>, key: string) {
   return typeof value[key] === "string" ? String(value[key]) : undefined;
+}
+
+function metadataEntries(value: unknown): LyceumMetadataEntry[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const entries = value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.value !== "string" || !item.value.trim()) return [];
+    const refinements = isRecord(item.refinements)
+      ? Object.fromEntries(Object.entries(item.refinements).flatMap(([key, values]) => (
+          Array.isArray(values) ? [[key, values.filter((entry): entry is string => typeof entry === "string")]] : []
+        )))
+      : undefined;
+    return [{
+      value: item.value,
+      id: optionalString(item, "id"),
+      scheme: optionalString(item, "scheme"),
+      role: optionalString(item, "role"),
+      fileAs: optionalString(item, "fileAs"),
+      language: optionalString(item, "language"),
+      refinements,
+    }];
+  });
+  return entries.length ? entries : undefined;
+}
+
+function validateCustomMetadata(value: unknown) {
+  if (!isRecord(value)) return undefined;
+  return Object.fromEntries(Object.entries(value).flatMap(([key, values]) => (
+    Array.isArray(values) ? [[key, values.filter((entry): entry is string => typeof entry === "string")]] : []
+  )));
 }
 
 function validateManifest(value: unknown): LyceumManifest {
@@ -103,6 +133,13 @@ function validateMetadata(value: unknown): LyceumBookMetadata {
     coverResourceId: optionalString(metadata, "coverResourceId"),
     coverHref: optionalString(metadata, "coverHref"),
     coverPageHref: optionalString(metadata, "coverPageHref"),
+    titles: metadataEntries(metadata.titles),
+    creators: metadataEntries(metadata.creators),
+    contributors: metadataEntries(metadata.contributors),
+    identifiers: metadataEntries(metadata.identifiers),
+    subjects: metadataEntries(metadata.subjects),
+    dates: metadataEntries(metadata.dates),
+    customMetadata: validateCustomMetadata(metadata.customMetadata),
   };
 }
 
@@ -117,6 +154,9 @@ function validateSpine(value: unknown): LyceumTextualContent["spine"] {
       id: requireString(spineItem, "id", `spine item ${index + 1}`),
       href: requireString(spineItem, "href", `spine item ${index + 1}`),
       title: requireString(spineItem, "title", `spine item ${index + 1}`),
+      linear: typeof spineItem.linear === "boolean" ? spineItem.linear : true,
+      properties: optionalString(spineItem, "properties"),
+      mediaType: optionalString(spineItem, "mediaType"),
     };
   });
 }
@@ -151,6 +191,9 @@ function validateResources(value: unknown): LyceumTextualResource[] {
       href: requireString(resource, "href", `resource item ${index + 1}`),
       mediaType: requireString(resource, "mediaType", `resource item ${index + 1}`),
       properties: optionalString(resource, "properties"),
+      sourceHref: optionalString(resource, "sourceHref"),
+      fallback: optionalString(resource, "fallback"),
+      linear: typeof resource.linear === "boolean" ? resource.linear : undefined,
     };
   });
 }
@@ -209,7 +252,8 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     href: item.href,
     title: item.title,
     xhtml: fs.readFileSync(textualChapterPath(rootPath, item.href), "utf8"),
-    mediaType: "application/xhtml+xml",
+    mediaType: item.mediaType || "application/xhtml+xml",
+    properties: item.properties,
   }));
 
   return {

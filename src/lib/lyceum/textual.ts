@@ -203,6 +203,9 @@ export function buildTextualContent(
     id: chapter.id,
     href: chapter.href,
     title: chapter.title,
+    mediaType: chapter.mediaType,
+    properties: chapter.properties,
+    linear: true,
   }));
   const toc: LyceumTocItem[] = options.toc || spine.map((item) => ({
     ...item,

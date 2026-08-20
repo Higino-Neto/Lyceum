@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { JSDOM } from "jsdom";
 import { renderDefaultCss } from "../../pdf-to-epub/html";
 import type { LyceumBookMetadata, LyceumTextualContent, LyceumTextualResource } from "../schema/types";
 import { renderKindleDefaultCss, sanitizeCss } from "../epub/cssSanitizer";
@@ -443,6 +444,8 @@ function rewriteResourceReferences(
   internalLinks: InternalLinkReference[],
 ): { html: string; unresolved: number } {
   let unresolved = 0;
+  const dom = new JSDOM(`<root xmlns="http://www.w3.org/1999/xhtml">${html}</root>`, { contentType: "application/xhtml+xml" });
+  const document = dom.window.document;
   const rewrite = (value: string) => {
     if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("#")) return value;
     const resolved = resolveContentHref(chapterHref, value).toLowerCase();
@@ -454,56 +457,47 @@ function rewriteResourceReferences(
     return `kindle:embed:${String(embed).padStart(4, "0")}?mime=image`;
   };
 
-  const withAnchors = html.replace(
-    /<a\b([^>]*?)\bhref\s*=\s*(["'])([^"']*)\2([^>]*)>/gi,
-    (_match, before: string, quote: string, value: string, after: string) => {
-      if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value)) {
-        return `<a${before}href=${quote}${value}${quote}${after}>`;
-      }
-
-      if (value.startsWith("#")) {
-        const placeholder = internalLinkPlaceholder(internalLinks.length + 1);
-        internalLinks.push({
-          placeholder,
-          target: {
-            chapterHref: normalizeContentPath(chapterHref).toLowerCase(),
-            fragment: normalizeLinkFragment(value.slice(1)),
-          },
-        });
-        return `<a${before}href=${quote}${placeholder}${quote}${after}>`;
-      }
-
-      const [targetPath, fragment = ""] = value.split("#");
-      const resolved = resolveContentHref(chapterHref, targetPath).toLowerCase();
-      if (chapterPaths.has(resolved)) {
-        const placeholder = internalLinkPlaceholder(internalLinks.length + 1);
-        internalLinks.push({
-          placeholder,
-          target: {
-            chapterHref: resolved,
-            fragment: normalizeLinkFragment(fragment),
-          },
-        });
-        return `<a${before}href=${quote}${placeholder}${quote}${after}>`;
-      }
+  for (const anchor of Array.from(document.querySelectorAll("a[href]"))) {
+    const value = anchor.getAttribute("href") || "";
+    if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value)) continue;
+    const [targetPath, fragment = ""] = value.split("#", 2);
+    const resolved = targetPath
+      ? resolveContentHref(chapterHref, targetPath).toLowerCase()
+      : normalizeContentPath(chapterHref).toLowerCase();
+    if (!targetPath || chapterPaths.has(resolved)) {
+      const placeholder = internalLinkPlaceholder(internalLinks.length + 1);
+      internalLinks.push({
+        placeholder,
+        target: { chapterHref: resolved, fragment: normalizeLinkFragment(fragment) },
+      });
+      anchor.setAttribute("href", placeholder);
+    } else {
       unresolved += 1;
-      return `<a${before}${after}>`;
-    },
-  );
+      anchor.removeAttribute("href");
+    }
+  }
 
-  const withSimpleAttrs = withAnchors.replace(
-    /\b(src|href|xlink:href|poster)\s*=\s*(["'])([^"']*)\2/gi,
-    (_match, name: string, quote: string, value: string) => `${name}=${quote}${rewrite(value)}${quote}`,
-  );
+  for (const element of Array.from(document.querySelectorAll("[src],[href],[xlink\\:href],[poster]"))) {
+    if (element.localName === "a") continue;
+    for (const name of ["src", "href", "xlink:href", "poster"]) {
+      const value = element.getAttribute(name);
+      if (value) element.setAttribute(name, rewrite(value));
+    }
+  }
+
+  for (const element of Array.from(document.querySelectorAll("[srcset]"))) {
+    const candidates = (element.getAttribute("srcset") || "").split(",").map((candidate) => {
+      const [value, descriptor] = candidate.trim().split(/\s+/, 2);
+      return `${rewrite(value)}${descriptor ? ` ${descriptor}` : ""}`;
+    });
+    element.setAttribute("srcset", candidates.join(", "));
+  }
+
+  const serializer = new dom.window.XMLSerializer();
+  const root = document.documentElement;
 
   return {
-    html: withSimpleAttrs.replace(
-      /\bsrcset\s*=\s*(["'])([^"']*)\1/gi,
-      (_match, quote: string, value: string) => {
-        const first = value.split(",")[0]?.trim().split(/\s+/)[0] || "";
-        return `srcset=${quote}${rewrite(first)}${quote}`;
-      },
-    ),
+    html: Array.from(root.childNodes).map((node) => serializer.serializeToString(node)).join(""),
     unresolved,
   };
 }
@@ -539,15 +533,17 @@ ${bodyHtml}
 }
 
 function addAidAttributes(html: string, aidCounterRef: { value: number }): string {
-  const aidableTags =
-    /<(p|div|h[1-6]|li|ul|ol|table|tr|td|th|section|article|aside|nav|header|footer|figure|figcaption|blockquote|span|a|em|strong|b|i|body)(\s[^>]*?)?(\/?)>/gi;
-
-  return html.replace(aidableTags, (match, tag: string, attrs = "", selfClose = "") => {
-    if (/\said\s*=/.test(attrs)) return match;
+  const dom = new JSDOM(html, { contentType: "application/xhtml+xml" });
+  const document = dom.window.document;
+  const selector = "p,div,h1,h2,h3,h4,h5,h6,li,ul,ol,table,tr,td,th,section,article,aside,nav,header,footer,figure,figcaption,blockquote,span,a,em,strong,b,i,body";
+  for (const element of Array.from(document.querySelectorAll(selector))) {
+    if (element.hasAttribute("aid")) continue;
     const aid = encodeAidBase32(aidCounterRef.value);
     aidCounterRef.value += 1;
-    return `<${tag}${attrs} aid="${aid}"${selfClose}>`;
-  });
+    element.setAttribute("aid", aid);
+  }
+  const serializer = new dom.window.XMLSerializer();
+  return `<?xml version="1.0" encoding="utf-8"?>\n${serializer.serializeToString(document.documentElement)}`;
 }
 
 interface BodySplit {
