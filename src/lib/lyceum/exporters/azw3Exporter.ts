@@ -23,7 +23,10 @@ export class Azw3Exporter implements LyceumExporter {
     await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
 
     const metadata = mergeDefinedBookMetadata(input.package.metadata, input.metadata);
-    const prepared = await prepareKindleImages(hydrateTextualResources(input.package));
+    const prepared = await prepareKindleImages(
+      hydrateTextualResources(input.package),
+      input.conversionOptions?.kindleProfile,
+    );
     if (!prepared.pkg.textual) {
       throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para AZW3.");
     }

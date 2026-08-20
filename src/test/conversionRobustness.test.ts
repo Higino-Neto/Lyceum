@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sanitizeCss } from "../lib/lyceum/epub/cssSanitizer";
 import { sanitizeHtmlDocument, validateXhtmlDocument } from "../lib/lyceum/epub/htmlSanitizer";
 import { validateEpubBuffer } from "../lib/lyceum/epub/epubValidator";
+import { escapeXml, sanitizeXmlText } from "../lib/pdf-to-epub/text";
 
 const HOSTILE_HTML = [
   '<html><body><p>Tag aberta<img src="x.png"><script>alert(1)</script></body>',
@@ -12,6 +13,16 @@ const HOSTILE_HTML = [
 ];
 
 describe("conversion robustness corpus", () => {
+  it("replaces PDF control characters that XML 1.0 forbids", () => {
+    const extracted = `Pagina\u0000com\u000bcontroles\u001f e texto <valido> \ud800`;
+    const sanitized = sanitizeXmlText(extracted);
+    const xhtml = `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><p>${escapeXml(extracted)}</p></body></html>`;
+
+    expect(["\u0000", "\u000b", "\u001f", "\ud800"].some((character) => sanitized.includes(character))).toBe(false);
+    expect(validateXhtmlDocument(xhtml).valid).toBe(true);
+    expect(xhtml).toContain("&lt;valido&gt;");
+  });
+
   it.each(HOSTILE_HTML)("repairs malformed/active HTML into strict XHTML", (html) => {
     const result = sanitizeHtmlDocument(html, "Corpus");
     expect(validateXhtmlDocument(result.xhtml).valid).toBe(true);

@@ -122,7 +122,8 @@ const __filename = fileURLToPath(import.meta.url);
 import crypto from "crypto";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
-import type { BookFormat } from "../src/lib/lyceum";
+import type { BookFormat, LyceumConversionOptions } from "../src/lib/lyceum";
+import type { ConversionRequestOptions } from "./workers/protocol";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
 const bundledFromChunksDir = path.basename(__dirname) === "chunks";
@@ -1979,8 +1980,8 @@ function createUniqueConvertedEpubPath(pdfPath: string): string {
   return candidate;
 }
 
-function createUniqueConvertedPath(sourcePath: string, targetFormat: BookFormat): string {
-  const directory = path.dirname(sourcePath);
+function createUniqueConvertedPath(sourcePath: string, targetFormat: BookFormat, outputDirectory?: string): string {
+  const directory = outputDirectory ? path.resolve(outputDirectory) : path.dirname(sourcePath);
   const baseName = path.basename(sourcePath, path.extname(sourcePath));
   let candidate = path.join(directory, `${baseName}-convertido.${targetFormat}`);
   let index = 2;
@@ -2988,7 +2989,7 @@ ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash:
   }
 });
 
-async function printHtmlToPdf(htmlPath: string, outputPath: string) {
+async function printHtmlToPdf(htmlPath: string, outputPath: string, options: LyceumConversionOptions = {}) {
   const printer = new BrowserWindow({
     show: false,
     backgroundColor: "#ffffff",
@@ -3015,6 +3016,9 @@ async function printHtmlToPdf(htmlPath: string, outputPath: string) {
       preferCSSPageSize: true,
       displayHeaderFooter: false,
       landscape: false,
+      pageSize: options.pdfPageSize || "A4",
+      generateTaggedPDF: true,
+      generateDocumentOutline: options.pdfGenerateOutline !== false,
     });
     await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.promises.writeFile(outputPath, pdf);
@@ -3036,7 +3040,7 @@ async function convertTextualToPdfWithChromium(payload: Parameters<typeof conver
       outputPath: htmlPath,
       thumbnailsDir: undefined,
     });
-    await printHtmlToPdf(htmlPath, payload.outputPath);
+    await printHtmlToPdf(htmlPath, payload.outputPath, payload.conversionOptions);
     const [hashed, pageCount] = await Promise.all([
       hashFile(payload.outputPath),
       getPdfPageCountMainThread(payload.outputPath, "[Chromium PDF]"),
@@ -3083,7 +3087,11 @@ function shouldUseChromiumPdf(sourceFormat: BookFormat, targetFormat: BookFormat
   return targetFormat === "pdf" && (["epub", "html", "txt"] as BookFormat[]).includes(sourceFormat);
 }
 
-async function runGenericDocumentConversion(fileHash: string, targetFormat: BookFormat) {
+async function runGenericDocumentConversion(
+  fileHash: string,
+  targetFormat: BookFormat,
+  requestOptions: ConversionRequestOptions = {},
+) {
   try {
     const { inferBookFormatFromPath } = await loadLyceumConversionModule();
     const doc = getDocumentByHash(fileHash);
@@ -3101,7 +3109,7 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
       return { success: false, error: "Arquivo de origem nao encontrado no disco" };
     }
 
-    const outputPath = createUniqueConvertedPath(doc.filePath, targetFormat);
+    const outputPath = createUniqueConvertedPath(doc.filePath, targetFormat, requestOptions.outputDirectory);
     const conversionPayload = {
       sourcePath: doc.filePath,
       sourceFormat,
@@ -3127,6 +3135,7 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
         ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", fileHash)
         : undefined,
       thumbnailsDir: THUMBNAILS_DIR(),
+      conversionOptions: requestOptions.conversionOptions,
     };
     const converted = shouldUseChromiumPdf(sourceFormat, targetFormat)
       ? await convertTextualToPdfWithChromium(conversionPayload)
@@ -3156,6 +3165,8 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
       success: true,
       outputPath,
       fileHash: outputHash,
+      fileSize: converted.fileSize,
+      thumbnailPath: thumbnailPath || undefined,
       packageRoot: converted.packageRoot,
       report: converted.report,
     };
@@ -3168,7 +3179,11 @@ async function runGenericDocumentConversion(fileHash: string, targetFormat: Book
   }
 }
 
-async function runGenericFileConversion(sourcePath: string, targetFormat: BookFormat) {
+async function runGenericFileConversion(
+  sourcePath: string,
+  targetFormat: BookFormat,
+  requestOptions: ConversionRequestOptions = {},
+) {
   try {
     const { inferBookFormatFromPath } = await loadLyceumConversionModule();
     const localPath = sourcePath.startsWith("::")
@@ -3194,7 +3209,7 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
 
     const { fileHash: sourceHash } = await hashFile(localPath);
     const sourceTitle = path.basename(localPath, path.extname(localPath));
-    const outputPath = createUniqueConvertedPath(localPath, targetFormat);
+    const outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory);
     const conversionPayload = {
       sourcePath: localPath,
       sourceFormat,
@@ -3209,6 +3224,7 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
         ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", sourceHash)
         : undefined,
       thumbnailsDir: THUMBNAILS_DIR(),
+      conversionOptions: requestOptions.conversionOptions,
     };
     const converted = shouldUseChromiumPdf(sourceFormat, targetFormat)
       ? await convertTextualToPdfWithChromium(conversionPayload)
@@ -3237,6 +3253,8 @@ async function runGenericFileConversion(sourcePath: string, targetFormat: BookFo
       success: true,
       outputPath,
       fileHash: outputHash,
+      fileSize: converted.fileSize,
+      thumbnailPath: thumbnailPath || undefined,
       packageRoot: converted.packageRoot,
       report: converted.report,
     };
@@ -3268,12 +3286,12 @@ ipcMain.handle("conversion:list-targets", async (_, fileHash: string) => {
   };
 });
 
-ipcMain.handle("conversion:run", async (_, fileHash: string, targetFormat: BookFormat) => {
-  return runGenericDocumentConversion(fileHash, targetFormat);
+ipcMain.handle("conversion:run", async (_, fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => {
+  return runGenericDocumentConversion(fileHash, targetFormat, requestOptions);
 });
 
-ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: BookFormat) => {
-  return runGenericFileConversion(filePath, targetFormat);
+ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => {
+  return runGenericFileConversion(filePath, targetFormat, requestOptions);
 });
 
 ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {

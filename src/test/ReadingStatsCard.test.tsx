@@ -148,7 +148,7 @@ describe("ReadingStatsCard quick readings", () => {
 
     fireEvent.change(pagesInput, { target: { value: "12" } });
     fireEvent.change(minutesInput, { target: { value: "30" } });
-    fireEvent.click(screen.getByRole("button", { name: /Enviar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Registrar leitura/i }));
 
     await waitFor(() => {
       expect(createReadingEntry).toHaveBeenCalledWith(

@@ -42,6 +42,12 @@ interface NativePdfViewerApplyState {
 }
 
 type BookFormat = import("../src/types/LibraryTypes").BookFormat;
+type LyceumConversionOptions = import("../src/lib/lyceum/schema/types").LyceumConversionOptions;
+
+interface ConversionRequestOptions {
+  conversionOptions?: LyceumConversionOptions;
+  outputDirectory?: string;
+}
 
 type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
 type MetadataSearchField = "title" | "author" | "isbn";
@@ -75,6 +81,8 @@ interface GenericConversionResult {
   success: boolean;
   outputPath?: string;
   fileHash?: string;
+  fileSize?: number;
+  thumbnailPath?: string;
   packageRoot?: string;
   report?: Record<string, unknown> & { warnings?: string[] };
   error?: string;
@@ -207,7 +215,8 @@ interface Window {
       targets: ConversionTarget[];
       error?: string;
     }>;
-    convertBook: (fileHash: string, targetFormat: BookFormat) => Promise<GenericConversionResult>;
+    convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
+    convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     readImageDataUrl: (filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
@@ -480,7 +489,8 @@ interface Window {
       targets: ConversionTarget[];
       error?: string;
     }>;
-    convertBook: (fileHash: string, targetFormat: BookFormat) => Promise<GenericConversionResult>;
+    convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
+    convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;

@@ -10,6 +10,7 @@ import type {
   ReadingStatus,
   ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
+import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
 
 const { ipcRenderer, contextBridge } = electron;
 
@@ -246,11 +247,11 @@ contextBridge.exposeInMainWorld("api", {
   listConversionTargets: (fileHash: string) =>
     ipcRenderer.invoke("conversion:list-targets", fileHash),
 
-  convertBook: (fileHash: string, targetFormat: BookFormat) =>
-    ipcRenderer.invoke("conversion:run", fileHash, targetFormat),
+  convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: { conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+    ipcRenderer.invoke("conversion:run", fileHash, targetFormat, requestOptions),
 
-  convertBookFile: (filePath: string, targetFormat: BookFormat) =>
-    ipcRenderer.invoke("conversion:run-file", filePath, targetFormat),
+  convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+    ipcRenderer.invoke("conversion:run-file", filePath, targetFormat, requestOptions),
 
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),

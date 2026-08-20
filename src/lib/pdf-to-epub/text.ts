@@ -11,6 +11,21 @@ export function normalizeText(text: string) {
     .trim();
 }
 
+export function sanitizeXmlText(value: string) {
+  let sanitized = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    const allowed = codePoint === 0x9
+      || codePoint === 0xa
+      || codePoint === 0xd
+      || (codePoint >= 0x20 && codePoint <= 0xd7ff)
+      || (codePoint >= 0xe000 && codePoint <= 0xfffd)
+      || (codePoint >= 0x10000 && codePoint <= 0x10ffff);
+    sanitized += allowed ? character : "\ufffd";
+  }
+  return sanitized;
+}
+
 function shouldRemoveTerminalHyphen(current: Line, next: Line, columnRight: number, columnWidth: number) {
   if (!/[A-Za-zÀ-ÿ]-$/.test(current.text)) return false;
   if (!/^[a-zà-ÿ]/.test(next.text.trim())) return false;
@@ -44,7 +59,7 @@ export function joinParagraphLines(lines: Line[], columnRight: number, columnWid
 }
 
 export function escapeXml(value: string) {
-  return value
+  return sanitizeXmlText(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

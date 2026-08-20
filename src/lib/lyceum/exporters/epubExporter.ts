@@ -304,7 +304,11 @@ function loadResources(pkg: LyceumPackage, warnings: string[], usedIds: Set<stri
   return resources;
 }
 
-async function createEpubArchive(pkg: LyceumPackage, metadataOverrides?: Partial<LyceumBookMetadata>) {
+async function createEpubArchive(
+  pkg: LyceumPackage,
+  metadataOverrides?: Partial<LyceumBookMetadata>,
+  conversionOptions?: ExportInput["conversionOptions"],
+) {
   if (!pkg.textual) {
     throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para EPUB.");
   }
@@ -327,7 +331,7 @@ async function createEpubArchive(pkg: LyceumPackage, metadataOverrides?: Partial
   });
   const resources = loadResources(pkg, warnings, usedIds);
   const hasCssResource = resources.some((resource) => resource.mediaType === "text/css");
-  const toc = tocItems(pkg, chapterHrefs);
+  const toc = conversionOptions?.generateIndex === false ? [] : tocItems(pkg, chapterHrefs);
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
   zip.file("META-INF/container.xml", renderContainerXml());
@@ -382,8 +386,9 @@ async function createEpubArchive(pkg: LyceumPackage, metadataOverrides?: Partial
 export async function buildEpubFromLyceumPackage(
   pkg: LyceumPackage,
   metadata?: Partial<LyceumBookMetadata>,
+  conversionOptions?: ExportInput["conversionOptions"],
 ) {
-  return (await createEpubArchive(pkg, metadata)).buffer;
+  return (await createEpubArchive(pkg, metadata, conversionOptions)).buffer;
 }
 
 export class EpubExporter implements LyceumExporter {
@@ -401,7 +406,7 @@ export class EpubExporter implements LyceumExporter {
     }
 
     await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
-    const epub = await createEpubArchive(input.package, input.metadata);
+    const epub = await createEpubArchive(input.package, input.metadata, input.conversionOptions);
 
     await fs.promises.writeFile(input.outputPath, Buffer.from(epub.buffer));
 

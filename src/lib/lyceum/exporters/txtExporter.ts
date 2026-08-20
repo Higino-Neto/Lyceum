@@ -17,7 +17,11 @@ export class TxtExporter implements LyceumExporter {
     }
 
     await fs.promises.mkdir(path.dirname(input.outputPath), { recursive: true });
-    await fs.promises.writeFile(input.outputPath, input.package.textual.fulltext, "utf8");
+    const normalized = input.package.textual.fulltext.replace(/\r\n?/g, "\n");
+    const content = input.conversionOptions?.txtLineEnding === "lf"
+      ? normalized
+      : normalized.replace(/\n/g, "\r\n");
+    await fs.promises.writeFile(input.outputPath, content, "utf8");
 
     return {
       outputPath: input.outputPath,

@@ -35,10 +35,21 @@ describe("HTML print export", () => {
           id: "chapter-1",
           href: "text/chapter.xhtml",
           title: "Capitulo",
-          xhtml: '<html><head><style>.special { color: red; }</style><link rel="stylesheet" href="../styles/book.css" /></head><body><h1>Capitulo</h1><img src="../images/cover.png" /></body></html>',
+          xhtml: '<html><head><style>.special { color: red; }</style><link rel="stylesheet" href="../styles/book.css" /></head><body><h1 id="start">Capitulo</h1><p>Primeiro paragrafo.</p><a href="second.xhtml#details">Proximo</a><img src="../images/cover.png" /></body></html>',
+        }, {
+          id: "chapter-2",
+          href: "text/second.xhtml",
+          title: "Secao seguinte",
+          xhtml: '<html><body><h1 id="details">Secao seguinte</h1><a href="chapter.xhtml#start">Voltar</a><p>Segundo paragrafo.</p></body></html>',
         }],
-        spine: [{ id: "chapter-1", href: "text/chapter.xhtml", title: "Capitulo" }],
-        toc: [{ id: "chapter-1", href: "text/chapter.xhtml", title: "Capitulo", level: 1 }],
+        spine: [
+          { id: "chapter-1", href: "text/chapter.xhtml", title: "Capitulo" },
+          { id: "chapter-2", href: "text/second.xhtml", title: "Secao seguinte" },
+        ],
+        toc: [
+          { id: "chapter-1", href: "text/chapter.xhtml#start", title: "Capitulo", level: 1 },
+          { id: "chapter-2", href: "text/second.xhtml#details", title: "Secao seguinte", level: 2 },
+        ],
         fulltext: "Capitulo",
         resources: [
           { id: "css", href: "styles/book.css", mediaType: "text/css", data: new TextEncoder().encode("body { font-family: serif; }") },
@@ -47,13 +58,30 @@ describe("HTML print export", () => {
       },
     };
 
-    const result = await new HtmlExporter().export({ package: pkg, outputPath });
+    const result = await new HtmlExporter().export({
+      package: pkg,
+      outputPath,
+      conversionOptions: {
+        pdfPageSize: "Letter",
+        pdfMarginTopMm: 20,
+        pdfMarginRightMm: 21,
+        pdfMarginBottomMm: 22,
+        pdfMarginLeftMm: 23,
+        pdfLineHeight: 1.7,
+        pdfParagraphSpacingEm: 1.1,
+      },
+    });
     const html = fs.readFileSync(outputPath, "utf8");
 
     expect(html).toContain('href="book_files/styles/book.css"');
     expect(html).toContain('src="book_files/images/cover.png"');
     expect(html).toContain(".special { color: red; }");
     expect(html).toContain("break-before: page");
-    expect(result.report.stats).toMatchObject({ printReady: true, stylesheetCount: 1 });
+    expect(html).toContain("@page { size: Letter; margin: 20mm 21mm 22mm 23mm; }");
+    expect(html).toContain("margin-bottom: 1.1em !important");
+    expect(html).toContain('href="#lyceum-chapter-2--details"');
+    expect(html).toContain('id="lyceum-chapter-2--details"');
+    expect(html).toContain('class="lyceum-toc"');
+    expect(result.report.stats).toMatchObject({ printReady: true, stylesheetCount: 1, tocItemCount: 2, internalLinkMapping: true });
   });
 });

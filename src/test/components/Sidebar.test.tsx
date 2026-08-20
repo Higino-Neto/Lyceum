@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { screen } from "@testing-library/react";
 import Sidebar from "../../components/Sidebar";
+import { renderWithBasicProviders } from "../helpers/renderWithProviders";
 
 const renderSidebar = (
   collapsed = false,
@@ -10,19 +10,17 @@ const renderSidebar = (
   panelsVisible = true,
   isLoggedIn = true,
 ) => {
-  return render(
-    <BrowserRouter>
-      <Sidebar
-        collapsed={collapsed}
-        autoHideEnabled={autoHideEnabled}
-        autoHideOverlay={autoHideOverlay}
-        panelsVisible={panelsVisible}
-        onShowPanels={() => {}}
-        onHidePanels={() => {}}
-        isLoggedIn={isLoggedIn}
-        userEmail="test@example.com"
-      />
-    </BrowserRouter>,
+  return renderWithBasicProviders(
+    <Sidebar
+      collapsed={collapsed}
+      autoHideEnabled={autoHideEnabled}
+      autoHideOverlay={autoHideOverlay}
+      panelsVisible={panelsVisible}
+      onShowPanels={() => {}}
+      onHidePanels={() => {}}
+      isLoggedIn={isLoggedIn}
+      userEmail="test@example.com"
+    />,
   );
 };
 

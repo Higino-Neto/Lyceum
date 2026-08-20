@@ -732,8 +732,9 @@ export function registerBookHandlers() {
 
   ipcMain.handle("book:show-in-folder", (_, filePath: string) => {
     const doc = getDocumentByPath(filePath);
-    if (!doc?.filePath) return false;
-    shell.showItemInFolder(doc.filePath);
+    const resolvedPath = doc?.filePath || filePath;
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) return false;
+    shell.showItemInFolder(resolvedPath);
     return true;
   });
 

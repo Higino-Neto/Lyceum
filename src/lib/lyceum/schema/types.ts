@@ -15,6 +15,31 @@ export type BookFormat =
 
 export type LyceumContentKind = "textual" | "pdf" | "comic" | "audio";
 
+export interface LyceumConversionOptions {
+  preserveCover?: boolean;
+  preserveMetadata?: boolean;
+  optimizeImages?: boolean;
+  generateIndex?: boolean;
+  pdfPageSize?: "A4" | "A5" | "Letter" | "Legal";
+  pdfMarginTopMm?: number;
+  pdfMarginBottomMm?: number;
+  pdfMarginLeftMm?: number;
+  pdfMarginRightMm?: number;
+  pdfLineHeight?: number;
+  pdfParagraphSpacingEm?: number;
+  pdfFontSizePt?: number;
+  pdfChapterPageBreaks?: boolean;
+  pdfIncludeToc?: boolean;
+  pdfGenerateOutline?: boolean;
+  epubLayout?: "auto" | "reflow" | "fixed-layout";
+  epubLineHeight?: number;
+  epubParagraphSpacingEm?: number;
+  kindleProfile?: "legacy-paperwhite" | "kindle-compatible" | "modern-kindle" | "scribe";
+  txtChapterHeadings?: boolean;
+  txtLineEnding?: "lf" | "crlf";
+  htmlIncludeToc?: boolean;
+}
+
 export interface LyceumManifest {
   schemaVersion: 1;
   packageId: string;
@@ -146,6 +171,7 @@ export interface ImportInput {
   packageRoot: string;
   metadata?: Partial<LyceumBookMetadata>;
   renderImageAsset?: unknown;
+  conversionOptions?: LyceumConversionOptions;
 }
 
 export interface ImportReport {
@@ -164,6 +190,7 @@ export interface ExportInput {
   package: LyceumPackage;
   outputPath: string;
   metadata?: Partial<LyceumBookMetadata>;
+  conversionOptions?: LyceumConversionOptions;
 }
 
 export interface ExportReport {

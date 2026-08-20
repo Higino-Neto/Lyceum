@@ -1,4 +1,4 @@
-import type { BookFormat, LyceumBookMetadata } from "../../src/lib/lyceum";
+import type { BookFormat, LyceumBookMetadata, LyceumConversionOptions } from "../../src/lib/lyceum";
 import type { EditableBookMetadata, FileMetadataUpdateResult } from "../services/book-file-metadata";
 import type { BookFileType, EpubMetadata, PdfMetadata } from "../services/document-processing";
 
@@ -58,6 +58,12 @@ export interface ConvertViaLyceumWorkerInput {
   metadata?: Partial<LyceumBookMetadata>;
   pdfImageTempDir?: string;
   thumbnailsDir?: string;
+  conversionOptions?: LyceumConversionOptions;
+}
+
+export interface ConversionRequestOptions {
+  conversionOptions?: LyceumConversionOptions;
+  outputDirectory?: string;
 }
 
 export interface FileConversionWorkerResult {

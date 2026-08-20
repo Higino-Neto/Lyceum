@@ -8,6 +8,7 @@ import {
   extractTokensFromPdfJsPage,
 } from "./geometry";
 import { renderDefaultCss, renderSectionToXhtml } from "./html";
+import { escapeXml } from "./text";
 import { applyReadingOrder } from "./layout";
 import { removeNoiseLines } from "./noise";
 import { buildParagraphs } from "./paragraphs";
@@ -163,7 +164,7 @@ function renderFixedLayoutChapter(page: PageModel, asset: import("./types").Epub
 </head>
 <body class="fixed-page">
   <img class="page-image" src="../${asset.href}" alt="${title}" />
-  <div class="page-text" aria-label="Texto extraido da pagina">${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />")}</div>
+  <div class="page-text" aria-label="Texto extraido da pagina">${escapeXml(text).replace(/\n/g, "<br />")}</div>
 </body>
 </html>`,
   };
@@ -379,7 +380,10 @@ export async function convertPdfToEpub(
   const epub = await packageEpub({
     metadata,
     chapters,
-    css: renderDefaultCss(),
+    css: renderDefaultCss({
+      lineHeight: options.lineHeight,
+      paragraphSpacing: options.paragraphSpacing,
+    }),
     assets: renderedImagePairs.map((pair) => pair.asset),
   });
 

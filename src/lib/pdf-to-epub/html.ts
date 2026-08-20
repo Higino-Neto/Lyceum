@@ -37,13 +37,13 @@ function renderBlock(block: Block, index: number): string {
     case "list": {
       const ordered = block.children.some((child) => {
         const childText = isParagraph(child) ? child.text : child.text || "";
-        return /^\s*\d+[\.)]/.test(childText);
+        return /^\s*\d+[.)]/.test(childText);
       });
       const tag = ordered ? "ol" : "ul";
       const items = block.children
         .map((child) => {
           const childText = isParagraph(child) ? child.text : child.text || "";
-          const clean = childText.replace(/^\s*(?:[-*•]|\d+[\.)]|[A-Za-z][\.)]|[ivxlcdm]+[\.)])\s+/i, "");
+          const clean = childText.replace(/^\s*(?:[-*•]|\d+[.)]|[A-Za-z][.)]|[ivxlcdm]+[.)])\s+/i, "");
           return `<li>${escapeXml(clean)}</li>`;
         })
         .join("\n");
@@ -81,15 +81,17 @@ ${body}
 </html>`;
 }
 
-export function renderDefaultCss() {
+export function renderDefaultCss(options: { lineHeight?: number; paragraphSpacing?: number } = {}) {
+  const lineHeight = Math.min(2.2, Math.max(1, options.lineHeight ?? 1.45));
+  const paragraphSpacing = Math.min(3, Math.max(0, options.paragraphSpacing ?? 0.9));
   return `body {
   font-family: serif;
-  line-height: 1.35;
+  line-height: ${lineHeight};
   margin: 0;
 }
 
 p {
-  margin: 0 0 0.9em 0;
+  margin: 0 0 ${paragraphSpacing}em 0;
   text-indent: 1.2em;
 }
 

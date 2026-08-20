@@ -43,6 +43,7 @@ interface BookDetailPanelProps {
   onClose: () => void;
   onOpenReader: (book?: BookWithThumbnail) => void;
   onOpenPreview?: (book?: BookWithThumbnail) => void;
+  onConvert?: (book: BookWithThumbnail) => void;
   onDelete?: () => void;
   onRefresh: () => void;
   readOnly?: boolean;
@@ -50,14 +51,6 @@ interface BookDetailPanelProps {
 }
 
 type EditMode = "title" | "author" | null;
-type ConversionFormat = "pdf" | "epub" | "docx" | "html" | "cbz" | "mobi" | "azw" | "azw3" | "azw4" | "kfx" | "prc" | "txt" | "lyceum";
-
-interface ConversionTarget {
-  format: ConversionFormat;
-  supported: boolean;
-  reason?: string;
-}
-
 function DetailSkeleton() {
   return (
     <div className="animate-pulse space-y-4 p-4">
@@ -93,13 +86,13 @@ export default function BookDetailPanel({
   onClose,
   onOpenReader,
   onOpenPreview,
+  onConvert,
   onDelete,
   onRefresh,
   readOnly = false,
   previewOpen = false,
 }: BookDetailPanelProps) {
   const [thumbnail, setThumbnail] = useState(book.thumbnail);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFileAlso, setDeleteFileAlso] = useState(false);
 
@@ -131,12 +124,6 @@ export default function BookDetailPanel({
   const [thumbnailKey, setThumbnailKey] = useState(0);
   const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
   const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
-  const [isConvertingToEpub, setIsConvertingToEpub] = useState(false);
-  const [isConvertingToPdf, setIsConvertingToPdf] = useState(false);
-  const [showConversionDialog, setShowConversionDialog] = useState(false);
-  const [conversionTargets, setConversionTargets] = useState<ConversionTarget[]>([]);
-  const [selectedConversionTarget, setSelectedConversionTarget] = useState<ConversionFormat | null>(null);
-  const isConverting = isConvertingToEpub || isConvertingToPdf;
 
   const prevHashRef = useRef<string | undefined>(undefined);
   const wasPanelOpenRef = useRef(false);
@@ -223,128 +210,6 @@ export default function BookDetailPanel({
     }
   };
 
-  const handleConvertToEpub = async () => {
-    if (book.fileType === "epub") {
-      toast.error("Este livro jÃ¡ Ã© um EPUB");
-      return;
-    }
-
-    setIsConvertingToEpub(true);
-    const loadingToast = toast.loading("Convertendo PDF para EPUB...");
-
-    try {
-      const result = await window.api.convertPdfToEpub(book.fileHash);
-
-      if (result.success) {
-        const warnings = result.report?.warnings?.length || 0;
-        toast.success(
-          warnings
-            ? `EPUB criado com ${warnings} aviso(s).`
-            : "EPUB criado na biblioteca!",
-          { id: loadingToast },
-        );
-        setShowConversionDialog(false);
-        onRefresh();
-      } else {
-        toast.error(result.error || "Erro ao converter PDF", { id: loadingToast });
-      }
-    } catch (error) {
-      toast.error("Erro ao converter PDF", { id: loadingToast });
-    } finally {
-      setIsConvertingToEpub(false);
-    }
-  };
-
-  const handleConvertToPdf = async () => {
-    if (book.fileType !== "epub") {
-      toast.error("Este livro não é um EPUB");
-      return;
-    }
-
-    setIsConvertingToPdf(true);
-    const loadingToast = toast.loading("Convertendo EPUB para PDF...");
-
-    try {
-      const result = await window.api.convertEpubToPdf(book.fileHash);
-
-      if (result.success) {
-        const warnings = result.report?.warnings?.length || 0;
-        toast.success(
-          warnings
-            ? `PDF criado com ${warnings} aviso(s).`
-            : "PDF criado na biblioteca!",
-          { id: loadingToast },
-        );
-        setShowConversionDialog(false);
-        onRefresh();
-      } else {
-        toast.error(result.error || "Erro ao converter EPUB", { id: loadingToast });
-      }
-    } catch (error) {
-      toast.error("Erro ao converter EPUB", { id: loadingToast });
-    } finally {
-      setIsConvertingToPdf(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!showConversionDialog) return;
-
-    let canceled = false;
-    setConversionTargets([]);
-    setSelectedConversionTarget(null);
-
-    window.api.listConversionTargets(book.fileHash).then((result) => {
-      if (canceled) return;
-      if (result.success) {
-        const targets = result.targets.filter((target) => target.supported);
-        setConversionTargets(targets);
-        setSelectedConversionTarget(targets[0]?.format || null);
-      } else {
-        toast.error(result.error || "Erro ao carregar conversoes disponiveis");
-      }
-    });
-
-    return () => {
-      canceled = true;
-    };
-  }, [book.fileHash, showConversionDialog]);
-
-  const handleConvertSelected = async () => {
-    if (!selectedConversionTarget) {
-      toast.error("Selecione um formato de saida");
-      return;
-    }
-
-    setIsConvertingToEpub(selectedConversionTarget === "epub");
-    setIsConvertingToPdf(selectedConversionTarget !== "epub");
-    const targetLabel = selectedConversionTarget.toUpperCase();
-    const loadingToast = toast.loading(`Convertendo para ${targetLabel}...`);
-
-    try {
-      const result = await window.api.convertBook(book.fileHash, selectedConversionTarget);
-
-      if (result.success) {
-        const warnings = result.report?.warnings?.length || 0;
-        toast.success(
-          warnings
-            ? `${targetLabel} criado com ${warnings} aviso(s).`
-            : `${targetLabel} criado na biblioteca!`,
-          { id: loadingToast },
-        );
-        setShowConversionDialog(false);
-        onRefresh();
-      } else {
-        toast.error(result.error || `Erro ao converter para ${targetLabel}`, { id: loadingToast });
-      }
-    } catch {
-      toast.error(`Erro ao converter para ${targetLabel}`, { id: loadingToast });
-    } finally {
-      setIsConvertingToEpub(false);
-      setIsConvertingToPdf(false);
-    }
-  };
-
   const handleStartEditTitle = () => {
     if (readOnly) return;
     setEditValue(getTitleWithoutExtension(book.title, book.fileType));
@@ -407,13 +272,11 @@ export default function BookDetailPanel({
     } else {
       toast.error("Erro ao remover: " + result.error);
     }
-    setIsDeleting(false);
   };
 
   const cancelDelete = () => {
     setShowDeleteDialog(false);
     setDeleteFileAlso(false);
-    setIsDeleting(false);
   };
 
   const handleRegenerateThumbnail = async () => {
@@ -831,16 +694,11 @@ export default function BookDetailPanel({
         <div className="space-y-2">
           <div className={`grid gap-2 ${book.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>
             <button
-              onClick={() => setShowConversionDialog(true)}
-              disabled={isConverting}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => onConvert?.(book)}
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
               title="Converter"
             >
-              {isConverting ? (
-                <RefreshCw size={13} className="animate-spin" />
-              ) : (
-                <FileType size={13} />
-              )}
+              <FileType size={13} />
               <span className="truncate">Converter</span>
             </button>
             {book.fileType === "epub" && (
@@ -954,85 +812,6 @@ export default function BookDetailPanel({
       </div>
       </div>
 
-      {showConversionDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-700 p-4">
-              <div className="flex items-center gap-2">
-                <FileType size={20} className="text-green-400" />
-                <h2 className="text-lg font-semibold text-zinc-100">Converter</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConversionDialog(false)}
-                disabled={isConverting}
-                className="cursor-pointer rounded-sm p-2 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                title="Fechar"
-              >
-                <X size={20} className="text-zinc-400" />
-              </button>
-            </div>
-
-            <div className="space-y-3 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Formato de saída
-              </p>
-              <div className="space-y-2">
-                {conversionTargets.length === 0 ? (
-                  <div className="rounded-sm border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-500">
-                    Nenhuma conversao disponivel para este formato.
-                  </div>
-                ) : (
-                  conversionTargets.map((target) => (
-                    <button
-                      key={target.format}
-                      type="button"
-                      onClick={() => setSelectedConversionTarget(target.format)}
-                      className={`flex w-full items-start gap-3 rounded-sm border p-3 text-left transition-colors ${
-                        selectedConversionTarget === target.format
-                          ? "border-green-500/70 bg-green-500/10"
-                          : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
-                      }`}
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-800 text-green-400">
-                        <FileType size={16} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-zinc-100">
-                          {target.format.toUpperCase()}
-                        </p>
-                        <p className="truncate text-xs text-zinc-500">
-                          {book.fileType?.toUpperCase() || "LIVRO"} para {target.format.toUpperCase()} - {getTitleWithoutExtension(book.title, book.fileType)}
-                        </p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-zinc-700 p-4">
-              <button
-                type="button"
-                onClick={() => setShowConversionDialog(false)}
-                disabled={isConverting}
-                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConvertSelected}
-                disabled={isConverting || !selectedConversionTarget}
-                className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isConverting && <RefreshCw size={14} className="animate-spin" />}
-                Converter
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

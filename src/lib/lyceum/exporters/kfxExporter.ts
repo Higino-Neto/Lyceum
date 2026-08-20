@@ -50,7 +50,7 @@ export class KfxExporter implements LyceumExporter {
     ];
 
     const metadata = mergeDefinedBookMetadata(input.package.metadata, input.metadata);
-    const epub = await buildEpubFromLyceumPackage(input.package, metadata);
+    const epub = await buildEpubFromLyceumPackage(input.package, metadata, input.conversionOptions);
     await fs.promises.writeFile(intermediateEpubPath, Buffer.from(epub));
 
     const previewer = await this.previewerRunner({

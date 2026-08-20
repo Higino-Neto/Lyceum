@@ -207,6 +207,7 @@ async function convertViaLyceum(payload: WorkerTaskPayloads["convert-via-lyceum"
     renderImageAsset: payload.sourceFormat === "pdf" && payload.pdfImageTempDir
       ? createPdfImageAssetRenderer(payload.sourcePath, payload.pdfImageTempDir)
       : undefined,
+    conversionOptions: payload.conversionOptions,
   });
   const hashed = await hashPath(payload.outputPath);
   const thumbnailType = ["pdf", "epub", "azw3", "kfx"].includes(payload.targetFormat)

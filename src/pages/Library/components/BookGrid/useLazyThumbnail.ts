@@ -16,8 +16,17 @@ export function useLazyThumbnail(book: BookWithThumbnail) {
   const [src, setSrc] = useState<string | undefined>(() => getThumbnailSrc(book));
 
   useEffect(() => {
-    setSrc(getThumbnailSrc(book));
-  }, [book.fileHash, book.thumbnail, book.thumbnailPath]);
+    const immediate = getThumbnailSrc(book);
+    setSrc(immediate);
+    if (immediate || !book.thumbnailPath || !window.api?.getThumbnail) return;
+    let canceled = false;
+    void window.api.getThumbnail(book.thumbnailPath).then((value) => {
+      if (!canceled) setSrc(value || undefined);
+    });
+    return () => {
+      canceled = true;
+    };
+  }, [book]);
 
   return { thumbnail: src, thumbnailRef: containerRef };
 }

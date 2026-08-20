@@ -73,4 +73,23 @@ describe("BookDetailPanel", () => {
 
     expect(onOpenPreview).toHaveBeenCalledWith(pdfVariant);
   });
+
+  it("delegates conversion to the global conversion workspace", () => {
+    const book = createBook();
+    const onConvert = vi.fn();
+    render(
+      <BookDetailPanel
+        book={book}
+        onClose={vi.fn()}
+        onOpenReader={vi.fn()}
+        onConvert={onConvert}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Converter" }));
+
+    expect(onConvert).toHaveBeenCalledWith(book);
+    expect(screen.queryByRole("dialog", { name: "Converter" })).not.toBeInTheDocument();
+  });
 });

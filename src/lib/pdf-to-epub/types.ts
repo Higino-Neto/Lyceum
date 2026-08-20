@@ -239,5 +239,7 @@ export interface ConvertPdfToEpubOptions {
   description?: string;
   minTextTokensPerPage?: number;
   mode?: "auto" | "reflow" | "fixed-layout";
+  lineHeight?: number;
+  paragraphSpacing?: number;
   renderImageAsset?: (candidate: ImageCandidate) => Promise<EpubAsset | null>;
 }

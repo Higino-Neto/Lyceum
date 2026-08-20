@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  BookOpen,
   Check,
   CircleAlert,
   CircleCheck,
@@ -11,10 +12,12 @@ import {
   Folder,
   FolderOpen,
   Info,
+  ListTree,
   RefreshCw,
   Search,
   Send,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -44,6 +47,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../Library/utils";
+import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnail";
 
 const outputFormats: {
   value: ConversionOutputFormat;
@@ -71,13 +75,12 @@ function statusLabel(item: ConversionQueueItem) {
 }
 
 function Cover({ book }: { book: BookWithThumbnail }) {
-  if (book.thumbnail) {
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+  if (thumbnail) {
     return (
-      <img
-        src={book.thumbnail}
-        alt={book.title}
-        className="h-20 w-14 flex-shrink-0 rounded-sm object-cover"
-      />
+      <div ref={thumbnailRef} className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-sm">
+        <img src={thumbnail} alt={book.title} className="h-full w-full object-cover" />
+      </div>
     );
   }
 
@@ -89,13 +92,12 @@ function Cover({ book }: { book: BookWithThumbnail }) {
 }
 
 function MiniCover({ book }: { book: BookWithThumbnail }) {
-  if (book.thumbnail) {
+  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+  if (thumbnail) {
     return (
-      <img
-        src={book.thumbnail}
-        alt={book.title}
-        className="h-10 w-7 flex-shrink-0 rounded-sm object-cover"
-      />
+      <div ref={thumbnailRef} className="h-10 w-7 flex-shrink-0 overflow-hidden rounded-sm">
+        <img src={thumbnail} alt={book.title} className="h-full w-full object-cover" />
+      </div>
     );
   }
 
@@ -127,6 +129,136 @@ function Toggle({ checked, onChange }: ToggleProps) {
         }`}
       />
     </button>
+  );
+}
+
+function NumberOption({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="space-y-1 text-xs text-zinc-400">
+      <span>{label}</span>
+      <span className="flex h-9 items-center rounded-sm border border-zinc-800 bg-zinc-950 px-2">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
+          className="min-w-0 flex-1 bg-transparent text-sm text-zinc-200 outline-none"
+        />
+        {suffix && <span className="text-zinc-600">{suffix}</span>}
+      </span>
+    </label>
+  );
+}
+
+function ToggleOption({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <div className="flex min-h-8 items-center justify-between gap-3 text-sm text-zinc-300">
+      <span>{label}</span>
+      <Toggle checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+function FormatOptions({
+  format,
+  options,
+  onChange,
+}: {
+  format: ConversionOutputFormat;
+  options: ConversionOptions;
+  onChange: (updates: Partial<ConversionOptions>) => void;
+}) {
+  if (format === "pdf") {
+    return (
+      <div className="space-y-4">
+        <label className="block space-y-1 text-xs text-zinc-400">
+          <span>Tamanho da pagina</span>
+          <select value={options.pdfPageSize} onChange={(event) => onChange({ pdfPageSize: event.target.value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+            <option value="A4">A4</option><option value="A5">A5</option><option value="Letter">Carta</option><option value="Legal">Oficio</option>
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberOption label="Margem superior" value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
+          <NumberOption label="Margem inferior" value={options.pdfMarginBottomMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginBottomMm: value })} />
+          <NumberOption label="Margem esquerda" value={options.pdfMarginLeftMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginLeftMm: value })} />
+          <NumberOption label="Margem direita" value={options.pdfMarginRightMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginRightMm: value })} />
+          <NumberOption label="Tamanho do texto" value={options.pdfFontSizePt} min={7} max={24} step={0.5} suffix="pt" onChange={(value) => onChange({ pdfFontSizePt: value })} />
+          <NumberOption label="Entrelinha" value={options.pdfLineHeight} min={1} max={2.4} step={0.05} onChange={(value) => onChange({ pdfLineHeight: value })} />
+          <NumberOption label="Espaco entre paragrafos" value={options.pdfParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ pdfParagraphSpacingEm: value })} />
+        </div>
+        <ToggleOption label="Novo capitulo em nova pagina" checked={options.pdfChapterPageBreaks} onChange={() => onChange({ pdfChapterPageBreaks: !options.pdfChapterPageBreaks })} />
+        <ToggleOption label="Incluir sumario clicavel" checked={options.pdfIncludeToc} onChange={() => onChange({ pdfIncludeToc: !options.pdfIncludeToc })} />
+        <ToggleOption label="Gerar marcadores de capitulos" checked={options.pdfGenerateOutline} onChange={() => onChange({ pdfGenerateOutline: !options.pdfGenerateOutline })} />
+      </div>
+    );
+  }
+
+  if (format === "epub") {
+    return (
+      <div className="space-y-4">
+        <label className="block space-y-1 text-xs text-zinc-400">
+          <span>Layout</span>
+          <select value={options.epubLayout} onChange={(event) => onChange({ epubLayout: event.target.value as ConversionOptions["epubLayout"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+            <option value="auto">Automatico</option><option value="fixed-layout">Visual, pagina por pagina</option><option value="reflow">Texto fluido</option>
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberOption label="Entrelinha" value={options.epubLineHeight} min={1} max={2.2} step={0.05} onChange={(value) => onChange({ epubLineHeight: value })} />
+          <NumberOption label="Espaco entre paragrafos" value={options.epubParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ epubParagraphSpacingEm: value })} />
+        </div>
+        <ToggleOption label="Gerar sumario" checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
+      </div>
+    );
+  }
+
+  if (format === "azw3" || format === "kfx") {
+    return (
+      <div className="space-y-4">
+        <label className="block space-y-1 text-xs text-zinc-400">
+          <span>Perfil Kindle</span>
+          <select value={options.kindleProfile} onChange={(event) => onChange({ kindleProfile: event.target.value as ConversionOptions["kindleProfile"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+            <option value="legacy-paperwhite">Paperwhite antigo</option><option value="kindle-compatible">Compatibilidade ampla</option><option value="modern-kindle">Kindle moderno</option><option value="scribe">Kindle Scribe</option>
+          </select>
+        </label>
+        <ToggleOption label="Preservar capa" checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
+        <ToggleOption label="Preservar metadados" checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+        <ToggleOption label="Gerar sumario" checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
+      </div>
+    );
+  }
+
+  if (format === "html") return <ToggleOption label="Incluir sumario clicavel" checked={options.htmlIncludeToc} onChange={() => onChange({ htmlIncludeToc: !options.htmlIncludeToc })} />;
+  if (format === "txt") return (
+    <label className="block space-y-1 text-xs text-zinc-400">
+      <span>Quebra de linha</span>
+      <select value={options.txtLineEnding} onChange={(event) => onChange({ txtLineEnding: event.target.value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+        <option value="crlf">Windows (CRLF)</option><option value="lf">Unix (LF)</option>
+      </select>
+    </label>
+  );
+  return (
+    <div className="space-y-2">
+      <ToggleOption label="Preservar capa" checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
+      <ToggleOption label="Preservar metadados" checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+    </div>
   );
 }
 
@@ -243,13 +375,16 @@ function LibrarySearchPanel({
 
 interface ConversionWorkspaceProps {
   onClose?: () => void;
+  onOpenConverted?: (item: ConversionQueueItem) => void;
   className?: string;
 }
 
-function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
+function ConversionWorkspace({ onClose, onOpenConverted, className }: ConversionWorkspaceProps) {
   const {
     draftBooks,
     queue,
+    logs,
+    clearLogs,
     addDraftBooks,
     removeDraftBook,
     isRunning,
@@ -267,6 +402,12 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
   );
   const [search, setSearch] = useState("");
 
+  const defaultConfigFor = useCallback((book: BookWithThumbnail) => ({
+    targetFormat: (outputFormats.find((format) => canConvertBook(book, format.value))?.value || "epub") as ConversionOutputFormat,
+    profile: "ereader" as ConversionProfile,
+    options: { ...defaultConversionOptions },
+  }), []);
+
   const getBookConfig = useCallback(
     (book: BookWithThumbnail): {
       targetFormat: ConversionOutputFormat;
@@ -275,14 +416,10 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
       outputPath?: string;
     } => {
       return (
-        bookConfigs.get(book.fileHash) || {
-          targetFormat: "epub" as ConversionOutputFormat,
-          profile: "ereader" as ConversionProfile,
-          options: { ...defaultConversionOptions },
-        }
+        bookConfigs.get(book.fileHash) || defaultConfigFor(book)
       );
     },
-    [bookConfigs],
+    [bookConfigs, defaultConfigFor],
   );
 
   const setBookConfig = useCallback(
@@ -294,38 +431,40 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
     }>) => {
       setBookConfigs((prev) => {
         const next = new Map(prev);
-        const existing = next.get(bookHash) || {
+        const book = draftBooks.find((candidate) => candidate.fileHash === bookHash);
+        const existing = next.get(bookHash) || (book ? defaultConfigFor(book) : {
           targetFormat: "epub" as ConversionOutputFormat,
           profile: "ereader" as ConversionProfile,
           options: { ...defaultConversionOptions },
-        };
+        });
         next.set(bookHash, { ...existing, ...updates });
         return next;
       });
     },
-    [],
+    [defaultConfigFor, draftBooks],
   );
 
-  const toggleBookOption = useCallback(
-    (bookHash: string, optionKey: keyof ConversionOptions) => {
+  const updateBookOptions = useCallback(
+    (bookHash: string, updates: Partial<ConversionOptions>) => {
       setBookConfigs((prev) => {
         const next = new Map(prev);
-        const existing = next.get(bookHash) || {
+        const book = draftBooks.find((candidate) => candidate.fileHash === bookHash);
+        const existing = next.get(bookHash) || (book ? defaultConfigFor(book) : {
           targetFormat: "epub" as ConversionOutputFormat,
           profile: "ereader" as ConversionProfile,
           options: { ...defaultConversionOptions },
-        };
+        });
         next.set(bookHash, {
           ...existing,
           options: {
             ...existing.options,
-            [optionKey]: !existing.options[optionKey],
+            ...updates,
           },
         });
         return next;
       });
     },
-    [],
+    [defaultConfigFor, draftBooks],
   );
 
   const selectedBook = useMemo(
@@ -364,6 +503,11 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
         selectedKeys.size > 0 ? selectedKeys.has(bookKey(item.book)) : true,
       ),
     [queue, selectedKeys],
+  );
+  const visibleItemIds = useMemo(() => new Set(visibleQueue.map((item) => item.id)), [visibleQueue]);
+  const visibleLogs = useMemo(
+    () => logs.filter((entry) => !entry.itemId || visibleItemIds.size === 0 || visibleItemIds.has(entry.itemId)),
+    [logs, visibleItemIds],
   );
   const convertibleCount = useMemo(
     () =>
@@ -416,8 +560,8 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
 
   return (
     <div className={`lyceum-page-conversion flex h-full min-h-0 flex-col overflow-hidden bg-zinc-950 p-3 text-zinc-100 ${className ?? ""}`}>
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        <main className="min-h-0 overflow-y-auto pr-0.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_400px]">
+        <main className="flex-none overflow-visible pr-0.5 lg:min-h-0 lg:overflow-y-auto">
           <LibrarySearchPanel selectedBooks={draftBooks} onAddBooks={addDraftBooks} />
 
           <div className="mb-3 rounded-sm border border-zinc-800 bg-zinc-900/40">
@@ -499,7 +643,7 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                </h2>
              </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm">
+                <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="text-xs text-zinc-500">
                     <tr className="border-b border-zinc-800">
                       <th className="w-72 px-4 py-3 font-medium">Livro</th>
@@ -507,12 +651,13 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                       <th className="w-44 px-4 py-3 font-medium">Progresso</th>
                       <th className="px-4 py-3 font-medium">Status</th>
                       <th className="px-4 py-3 font-medium">Tamanho</th>
+                      <th className="w-24 px-4 py-3 font-medium">Acoes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800">
                     {visibleQueue.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                        <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
                           A fila aparece aqui quando voce inicia a conversao.
                         </td>
                       </tr>
@@ -608,6 +753,30 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                                 <span className="text-zinc-600">-</span>
                               )}
                             </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={item.status !== "done" || !item.outputHash || !["pdf", "epub"].includes(item.targetFormat)}
+                                  onClick={() => onOpenConverted?.(item)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
+                                  title="Abrir no Lyceum"
+                                  aria-label={`Abrir ${item.book.title} convertido no Lyceum`}
+                                >
+                                  <BookOpen size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={item.status !== "done" || !item.outputPath}
+                                  onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
+                                  title="Mostrar na pasta"
+                                  aria-label={`Mostrar ${item.book.title} convertido na pasta`}
+                                >
+                                  <FolderOpen size={15} />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })
@@ -616,6 +785,29 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                 </table>
               </div>
             </div>
+
+            <section className="mb-3 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
+              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+                  <ListTree size={15} className="text-green-400" />
+                  Logs da conversao
+                </h2>
+                <button type="button" onClick={clearLogs} disabled={logs.length === 0} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30" title="Limpar logs" aria-label="Limpar logs de conversao">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <div className="max-h-56 overflow-y-auto font-mono text-xs">
+                {visibleLogs.length === 0 ? (
+                  <div className="px-4 py-6 text-center font-sans text-sm text-zinc-600">Nenhum evento registrado nesta sessao.</div>
+                ) : visibleLogs.map((entry) => (
+                  <div key={entry.id} className="grid grid-cols-[5.25rem_4.5rem_minmax(0,1fr)] gap-2 border-b border-zinc-900 px-4 py-2 last:border-0">
+                    <time className="text-zinc-600">{new Date(entry.timestamp).toLocaleTimeString("pt-BR", { hour12: false })}</time>
+                    <span className={entry.level === "error" ? "text-red-400" : entry.level === "warning" ? "text-amber-300" : entry.level === "success" ? "text-green-400" : "text-sky-300"}>{entry.level.toUpperCase()}</span>
+                    <span className="min-w-0 break-words text-zinc-300">{entry.message}{entry.detail && <span className="mt-0.5 block text-zinc-600">{entry.detail}</span>}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
 
           <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/40">
             <div className="border-b border-zinc-800 px-4 py-3">
@@ -633,7 +825,10 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                       {item.sourceFormat.toUpperCase()} - {item.targetFormat.toUpperCase()}
                     </p>
                   </div>
-                  <span className="text-xs text-green-400">Concluido</span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)} onClick={() => onOpenConverted?.(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title="Abrir no Lyceum"><BookOpen size={14} /></button>
+                    <button type="button" disabled={!item.outputPath} onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title="Mostrar na pasta"><FolderOpen size={14} /></button>
+                  </div>
                 </div>
               ))}
               {queue.every((item) => item.status !== "done") && (
@@ -645,7 +840,7 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
           </div>
         </main>
 
-        <aside className="min-h-0 overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-900/60">
+        <aside className="flex-none overflow-visible rounded-sm border border-zinc-800 bg-zinc-900/60 lg:min-h-0 lg:overflow-y-auto">
           <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
             <div className="min-w-0">
               <h2 className="font-semibold text-zinc-100">Configuracao de conversao</h2>
@@ -655,16 +850,6 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                 </p>
               )}
             </div>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                title="Fechar"
-                aria-label="Fechar conversao"
-              >
-                <X size={16} />
-              </button>
-            )}
           </div>
 
            {!selectedBook ? (
@@ -675,14 +860,6 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
            ) : (
              (() => {
                const cfg = getBookConfig(selectedBook);
-               const optionList: { label: string; key: keyof ConversionOptions }[] = [
-                 { label: "Preservar capa", key: "preserveCover" },
-                 { label: "Preservar metadados", key: "preserveMetadata" },
-                 { label: "Otimizar imagens", key: "optimizeImages" },
-                 { label: "Gerar indice", key: "generateIndex" },
-                 { label: "Ajustar para e-reader", key: "adjustForEreader" },
-                 { label: "Saida simplificada", key: "simplifiedOutput" },
-               ];
 
                return (
                  <div className="space-y-6 p-5">
@@ -722,18 +899,12 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                    </section>
 
                    <section>
-                     <h3 className="mb-2 text-sm font-semibold text-zinc-100">Opcoes de conversao</h3>
-                     <div className="space-y-2 text-sm text-zinc-300">
-                       {optionList.map(({ label, key }) => (
-                         <div key={key} className="flex items-center justify-between gap-3">
-                           <span>{label}</span>
-                           <Toggle
-                             checked={cfg.options[key]}
-                             onChange={() => toggleBookOption(selectedBook.fileHash, key)}
-                           />
-                         </div>
-                       ))}
-                     </div>
+                     <h3 className="mb-3 text-sm font-semibold text-zinc-100">Opcoes para {cfg.targetFormat.toUpperCase()}</h3>
+                     <FormatOptions
+                       format={cfg.targetFormat}
+                       options={cfg.options}
+                       onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
+                     />
                    </section>
 
                    <section>
@@ -782,7 +953,7 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
                        </span>
                        <div className="min-w-0">
                          <p className="font-semibold text-zinc-100">
-                           {convertibleCount} livros <span className="text-zinc-500">-</span> configuracoes individuais
+                           {convertibleCount} {convertibleCount === 1 ? "livro" : "livros"} <span className="text-zinc-500">-</span> configuracoes individuais
                          </p>
                          <p className="mt-1 text-sm text-zinc-400">
                            {estimatedSize} estimados
@@ -810,7 +981,7 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
               className="flex h-11 flex-[1.8] items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-semibold text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
-              Converter {convertibleCount} livros
+              Converter {convertibleCount} {convertibleCount === 1 ? "livro" : "livros"}
             </button>
           </div>
         </aside>
@@ -822,9 +993,10 @@ function ConversionWorkspace({ onClose, className }: ConversionWorkspaceProps) {
 interface ConversionDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenConverted?: (item: ConversionQueueItem) => void;
 }
 
-export function ConversionDialog({ isOpen, onClose }: ConversionDialogProps) {
+export function ConversionDialog({ isOpen, onClose, onOpenConverted }: ConversionDialogProps) {
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -868,7 +1040,7 @@ export function ConversionDialog({ isOpen, onClose }: ConversionDialogProps) {
               <X size={17} />
             </button>
           </header>
-          <ConversionWorkspace onClose={onClose} className="flex-1" />
+          <ConversionWorkspace onClose={onClose} onOpenConverted={onOpenConverted} className="flex-1" />
         </div>
       </div>
     </div>

@@ -1469,7 +1469,7 @@ function LibraryContent() {
   const openConversionWithSelection = () => {
     if (selectedConcreteBooks.length === 0) return;
     prepareBooks(selectedConcreteBooks);
-    navigate("/conversion");
+    window.dispatchEvent(new CustomEvent("lyceum:open-conversion"));
   };
 
   const openKindlePanel = () => {
@@ -1962,6 +1962,10 @@ function LibraryContent() {
               }}
               onOpenPreview={(bookToOpen = selectedBook) => {
                 void handleOpenPreview(bookToOpen);
+              }}
+              onConvert={(bookToConvert) => {
+                prepareBooks([bookToConvert]);
+                window.dispatchEvent(new CustomEvent("lyceum:open-conversion"));
               }}
               onDelete={handleBookDeleted}
               onRefresh={handleBookRefresh}

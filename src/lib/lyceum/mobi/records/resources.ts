@@ -141,8 +141,8 @@ async function buildCoverThumbnail(coverResource: LyceumTextualResource, profile
   };
 }
 
-export async function prepareKindleImages(pkg: LyceumPackage): Promise<KindleImagePreparation> {
-  const profile = resolveKindleFirmwareProfile();
+export async function prepareKindleImages(pkg: LyceumPackage, profileId?: string): Promise<KindleImagePreparation> {
+  const profile = resolveKindleFirmwareProfile(profileId);
   if (!pkg.textual?.resources?.length) {
     return {
       pkg,

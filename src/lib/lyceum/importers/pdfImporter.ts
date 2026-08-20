@@ -31,6 +31,9 @@ export class PdfImporter implements LyceumImporter {
         identifier: input.metadata?.identifier,
         publisher: input.metadata?.publisher,
         description: input.metadata?.description,
+        mode: input.conversionOptions?.epubLayout,
+        lineHeight: input.conversionOptions?.epubLineHeight,
+        paragraphSpacing: input.conversionOptions?.epubParagraphSpacingEm,
         renderImageAsset: input.renderImageAsset as RenderImageAsset | undefined,
       },
     );

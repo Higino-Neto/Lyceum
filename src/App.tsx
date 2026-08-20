@@ -12,11 +12,12 @@ import Library from "./pages/Library/Library";
 import AtlasPage from "./pages/Atlas/AtlasPage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import { ConversionDialog } from "./pages/Conversion/ConversionPage";
+import type { ConversionQueueItem } from "./contexts/ConversionQueueContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
 import SettingsDialog from "./components/settings/SettingsDialog";
 import type { SettingsTabId } from "./components/settings/SettingsDialog";
-import { Toaster } from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { getLastRoute } from "./hooks/useRouteState";
@@ -409,8 +410,34 @@ function AppShell() {
    useEffect(() => {
      if (location.pathname === "/conversion") {
        setConversionOpen(true);
+       navigate("/library", { replace: true });
      }
-   }, [location.pathname]);
+   }, [location.pathname, navigate]);
+
+   const handleOpenConverted = useCallback(async (item: ConversionQueueItem) => {
+     if (!item.outputHash || !item.outputPath) return;
+     const result = await window.api.openDocumentByHash(item.outputHash, item.outputPath);
+     if (!result) {
+       toast.error("Nao foi possivel abrir o arquivo convertido");
+       return;
+     }
+     if ("error" in result) {
+       toast.error(result.message || "Nao foi possivel abrir o arquivo convertido");
+       return;
+     }
+     setConversionOpen(false);
+     navigate("/reading", {
+       state: {
+         fileBuffer: result.fileBuffer,
+         fileHash: result.fileHash,
+         fileName: result.fileName,
+         filePath: result.foundAt || result.filePath || item.outputPath,
+         fileType: item.targetFormat,
+         source: "library",
+         navigationId: crypto.randomUUID(),
+       },
+     });
+   }, [navigate]);
 
    const handleSidebarSignOut = async () => {
      await authSignOut();
@@ -607,6 +634,7 @@ function AppShell() {
               <ConversionDialog
                 isOpen={conversionOpen}
                 onClose={() => setConversionOpen(false)}
+                onOpenConverted={handleOpenConverted}
               />
               <SettingsDialog
                 isOpen={settingsOpen}
