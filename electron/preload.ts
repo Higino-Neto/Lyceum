@@ -247,11 +247,23 @@ contextBridge.exposeInMainWorld("api", {
   listConversionTargets: (fileHash: string) =>
     ipcRenderer.invoke("conversion:list-targets", fileHash),
 
-  convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: { conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+  convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
     ipcRenderer.invoke("conversion:run", fileHash, targetFormat, requestOptions),
 
-  convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+  convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
     ipcRenderer.invoke("conversion:run-file", filePath, targetFormat, requestOptions),
+
+  cancelConversion: (jobId: string) =>
+    ipcRenderer.invoke("conversion:cancel", jobId),
+
+  deleteConvertedOutput: (outputPath: string, outputHash: string) =>
+    ipcRenderer.invoke("conversion:delete-output", outputPath, outputHash),
+
+  onConversionProgress: (callback: (payload: { jobId: string; progress: number; message?: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, payload: { jobId: string; progress: number; message?: string }) => callback(payload);
+    ipcRenderer.on("conversion:progress", listener);
+    return () => ipcRenderer.removeListener("conversion:progress", listener);
+  },
 
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
     ipcRenderer.invoke("dialog:import-pdf", targetFolder, action),

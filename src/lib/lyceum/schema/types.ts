@@ -172,6 +172,7 @@ export interface ImportInput {
   metadata?: Partial<LyceumBookMetadata>;
   renderImageAsset?: unknown;
   conversionOptions?: LyceumConversionOptions;
+  onProgress?: (progress: number, message: string) => void;
 }
 
 export interface ImportReport {

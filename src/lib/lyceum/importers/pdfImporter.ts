@@ -35,6 +35,7 @@ export class PdfImporter implements LyceumImporter {
         lineHeight: input.conversionOptions?.epubLineHeight,
         paragraphSpacing: input.conversionOptions?.epubParagraphSpacingEm,
         renderImageAsset: input.renderImageAsset as RenderImageAsset | undefined,
+        onProgress: input.onProgress,
       },
     );
     const parsed = await parseEpubBufferToTextual(converted.epub);

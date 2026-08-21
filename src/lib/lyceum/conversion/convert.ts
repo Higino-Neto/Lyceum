@@ -20,6 +20,7 @@ export interface ConvertViaLyceumOptions {
   metadata?: Partial<LyceumBookMetadata>;
   renderImageAsset?: unknown;
   conversionOptions?: LyceumConversionOptions;
+  onProgress?: (progress: number, message: string) => void;
 }
 
 export interface ConvertViaLyceumResult {
@@ -152,6 +153,7 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
     metadata: options.metadata,
     renderImageAsset: options.renderImageAsset,
     conversionOptions: options.conversionOptions,
+    onProgress: options.onProgress,
   });
   const pkg = imported.package;
   const packageValidation = validateLyceumPackage(pkg);

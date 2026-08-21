@@ -45,6 +45,7 @@ type BookFormat = import("../src/types/LibraryTypes").BookFormat;
 type LyceumConversionOptions = import("../src/lib/lyceum/schema/types").LyceumConversionOptions;
 
 interface ConversionRequestOptions {
+  jobId?: string;
   conversionOptions?: LyceumConversionOptions;
   outputDirectory?: string;
 }
@@ -79,6 +80,7 @@ interface ConversionTarget {
 
 interface GenericConversionResult {
   success: boolean;
+  canceled?: boolean;
   outputPath?: string;
   fileHash?: string;
   fileSize?: number;
@@ -217,6 +219,9 @@ interface Window {
     }>;
     convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
     convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
+    cancelConversion: (jobId: string) => Promise<{ success: boolean; active: boolean }>;
+    deleteConvertedOutput: (outputPath: string, outputHash: string) => Promise<{ success: boolean; error?: string }>;
+    onConversionProgress?: (callback: (payload: { jobId: string; progress: number; message?: string }) => void) => () => void;
     importPdf: (targetFolder: string | null, action?: "move" | "copy") => Promise<{ success: boolean; canceled?: boolean; imported: string[]; errors: string[]; message: string }>;
     openImageDialog: () => Promise<string | null>;
     readImageDataUrl: (filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
@@ -491,6 +496,9 @@ interface Window {
     }>;
     convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
     convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => Promise<GenericConversionResult>;
+    cancelConversion: (jobId: string) => Promise<{ success: boolean; active: boolean }>;
+    deleteConvertedOutput: (outputPath: string, outputHash: string) => Promise<{ success: boolean; error?: string }>;
+    onConversionProgress?: (callback: (payload: { jobId: string; progress: number; message?: string }) => void) => () => void;
     getLastDocument: () => Promise<any>;
     reopenPdf: (filePath?: string, fileHash?: string) => Promise<any>;
     openDocumentByHash: (fileHash: string, filePath?: string) => Promise<any>;

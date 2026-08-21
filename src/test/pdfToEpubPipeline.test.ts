@@ -105,6 +105,33 @@ describe("pdf-to-epub fidelity modes", () => {
     expect(chapter).toContain("Primeira pagina");
     expect((await validateEpubBuffer(result.epub)).valid).toBe(true);
   });
+
+  it("limits concurrent page rendering for large fixed-layout documents", async () => {
+    const pdf = await PDFDocument.create();
+    for (let index = 0; index < 8; index += 1) pdf.addPage([300, 400]);
+    let active = 0;
+    let maxActive = 0;
+
+    const result = await convertPdfToEpub(new Uint8Array(await pdf.save()).buffer, {
+      title: "PDF grande",
+      mode: "fixed-layout",
+      renderImageAsset: async (candidate) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+        return {
+          href: `images/${candidate.id}.jpg`,
+          mediaType: "image/jpeg",
+          data: new Uint8Array([255, 216, 255, 217]),
+        };
+      },
+    });
+
+    expect(result.report.preservedPageImages).toBe(8);
+    expect(maxActive).toBeGreaterThan(1);
+    expect(maxActive).toBeLessThanOrEqual(3);
+  });
 });
 
 describe("pdf-to-epub noise removal", () => {

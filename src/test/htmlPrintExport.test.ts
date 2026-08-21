@@ -81,7 +81,34 @@ describe("HTML print export", () => {
     expect(html).toContain("margin-bottom: 1.1em !important");
     expect(html).toContain('href="#lyceum-chapter-2--details"');
     expect(html).toContain('id="lyceum-chapter-2--details"');
-    expect(html).toContain('class="lyceum-toc"');
+    expect(html).not.toContain('class="lyceum-toc"');
+    expect(html).not.toContain(">Sumario<");
+    expect(html.match(/>Capitulo<\/h1>/g)).toHaveLength(1);
     expect(result.report.stats).toMatchObject({ printReady: true, stylesheetCount: 1, tocItemCount: 2, internalLinkMapping: true });
+  });
+
+  it("does not invent a heading for cover or headingless chapters", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lyceum-html-cover-"));
+    tempRoots.push(root);
+    const outputPath = path.join(root, "book.html");
+    const pkg: LyceumPackage = {
+      rootPath: root,
+      manifest: {
+        schemaVersion: 1, packageId: "cover-test", title: "Livro", sourceFormat: "epub",
+        originalFileName: "book.epub", primaryContentKind: "textual", contentKinds: ["textual"],
+        createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+      },
+      metadata: { title: "Livro", language: "pt-BR" },
+      textual: {
+        chapters: [{ id: "cover", href: "cover.xhtml", title: "Cover", xhtml: "<html><body><img src=\"cover.jpg\" /></body></html>" }],
+        spine: [{ id: "cover", href: "cover.xhtml", title: "Cover" }],
+        toc: [], fulltext: "", resources: [{ id: "cover-image", href: "cover.jpg", mediaType: "image/jpeg", data: new Uint8Array([1]) }],
+      },
+    };
+
+    await new HtmlExporter().export({ package: pkg, outputPath });
+    const html = fs.readFileSync(outputPath, "utf8");
+    expect(html).not.toContain(">Cover</h1>");
+    expect(html).toContain('<img src="book_files/cover.jpg">');
   });
 });

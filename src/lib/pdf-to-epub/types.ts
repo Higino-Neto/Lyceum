@@ -242,4 +242,5 @@ export interface ConvertPdfToEpubOptions {
   lineHeight?: number;
   paragraphSpacing?: number;
   renderImageAsset?: (candidate: ImageCandidate) => Promise<EpubAsset | null>;
+  onProgress?: (progress: number, message: string) => void;
 }

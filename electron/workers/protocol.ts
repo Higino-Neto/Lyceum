@@ -62,6 +62,7 @@ export interface ConvertViaLyceumWorkerInput {
 }
 
 export interface ConversionRequestOptions {
+  jobId?: string;
   conversionOptions?: LyceumConversionOptions;
   outputDirectory?: string;
 }

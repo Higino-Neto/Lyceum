@@ -7,7 +7,6 @@ import { PDFDocument } from "pdf-lib";
 import {
   extractEpubMetadata,
   extractPdfMetadata,
-  ensureAsciiPdfPath,
   generateThumbnail,
   getCbzPageCount,
   getEpubChapterCount,
@@ -146,12 +145,7 @@ function createPdfImageAssetRenderer(pdfPath: string, tempDir: string) {
         const sharp = require("sharp");
         await fs.promises.mkdir(tempDir, { recursive: true });
         const outPrefix = `page-hq-${pageNumber}`;
-        const { path: safePdfPath, cleanup } = ensureAsciiPdfPath(pdfPath);
-        try {
-          await pdfPoppler.convert(safePdfPath, { format: "png", out_dir: tempDir, out_prefix: outPrefix, page: pageNumber });
-        } finally {
-          cleanup();
-        }
+        await pdfPoppler.convert(pdfPath, { format: "png", out_dir: tempDir, out_prefix: outPrefix, page: pageNumber });
         const renderedName = (await fs.promises.readdir(tempDir)).find((fileName) =>
           fileName.toLowerCase().startsWith(outPrefix.toLowerCase()) && /\.(jpg|jpeg|png)$/i.test(fileName),
         );
@@ -195,64 +189,90 @@ function createPdfImageAssetRenderer(pdfPath: string, tempDir: string) {
   };
 }
 
-async function convertViaLyceum(payload: WorkerTaskPayloads["convert-via-lyceum"]): Promise<FileConversionWorkerResult> {
+type ConversionProgress = (progress: number, message: string) => void;
+
+async function convertViaLyceum(payload: WorkerTaskPayloads["convert-via-lyceum"], onProgress?: ConversionProgress): Promise<FileConversionWorkerResult> {
   const { convertViaLyceum: convert, flattenConversionStats } = await import("../../src/lib/lyceum");
-  const converted = await convert({
-    sourcePath: payload.sourcePath,
-    sourceFormat: payload.sourceFormat,
-    targetFormat: payload.targetFormat,
-    packageRoot: payload.packageRoot,
-    outputPath: payload.outputPath,
-    metadata: payload.metadata,
-    renderImageAsset: payload.sourceFormat === "pdf" && payload.pdfImageTempDir
-      ? createPdfImageAssetRenderer(payload.sourcePath, payload.pdfImageTempDir)
-      : undefined,
-    conversionOptions: payload.conversionOptions,
-  });
-  const hashed = await hashPath(payload.outputPath);
-  const thumbnailType = ["pdf", "epub", "azw3", "kfx"].includes(payload.targetFormat)
-    ? payload.targetFormat as "pdf" | "epub" | "azw3" | "kfx"
-    : undefined;
-  const [thumbnailPath, numPages] = await Promise.all([
-    thumbnailType && payload.thumbnailsDir
-      ? generateThumbnail(payload.outputPath, hashed.fileHash, {
-          thumbnailsDir: payload.thumbnailsDir,
-          fileType: thumbnailType,
-          logPrefix: "[Worker]",
-        })
-      : Promise.resolve(null),
-    payload.targetFormat === "pdf"
-      ? getPdfPageCount(payload.outputPath, "[Worker]")
-      : payload.targetFormat === "epub"
-        ? getEpubChapterCount(payload.outputPath, "[Worker]")
-        : Promise.resolve(Number(converted.exportReport.stats.pageCount || converted.exportReport.stats.chapterCount || 1)),
-  ]);
-  return {
-    outputPath: payload.outputPath,
-    ...hashed,
-    packageRoot: converted.packageRoot,
-    importReport: converted.importReport,
-    exportReport: converted.exportReport,
-    thumbnailPath: thumbnailPath || undefined,
-    numPages,
-    report: flattenConversionStats(converted),
-  };
+  const stagedPdfPath = payload.sourceFormat === "pdf" && payload.pdfImageTempDir
+    ? path.join(payload.pdfImageTempDir, "source.pdf")
+    : null;
+  try {
+    if (stagedPdfPath && payload.pdfImageTempDir) {
+      await fs.promises.rm(payload.pdfImageTempDir, { recursive: true, force: true });
+      await fs.promises.mkdir(payload.pdfImageTempDir, { recursive: true });
+      await fs.promises.copyFile(payload.sourcePath, stagedPdfPath);
+    }
+    const converted = await convert({
+      sourcePath: payload.sourcePath,
+      sourceFormat: payload.sourceFormat,
+      targetFormat: payload.targetFormat,
+      packageRoot: payload.packageRoot,
+      outputPath: payload.outputPath,
+      metadata: payload.metadata,
+      renderImageAsset: stagedPdfPath && payload.pdfImageTempDir
+        ? createPdfImageAssetRenderer(stagedPdfPath, payload.pdfImageTempDir)
+        : undefined,
+      conversionOptions: payload.conversionOptions,
+      onProgress,
+    });
+    const hashed = await hashPath(payload.outputPath);
+    const thumbnailType = ["pdf", "epub", "azw3", "kfx"].includes(payload.targetFormat)
+      ? payload.targetFormat as "pdf" | "epub" | "azw3" | "kfx"
+      : undefined;
+    const [thumbnailPath, numPages] = await Promise.all([
+      thumbnailType && payload.thumbnailsDir
+        ? generateThumbnail(payload.outputPath, hashed.fileHash, {
+            thumbnailsDir: payload.thumbnailsDir,
+            fileType: thumbnailType,
+            logPrefix: "[Worker]",
+          })
+        : Promise.resolve(null),
+      payload.targetFormat === "pdf"
+        ? getPdfPageCount(payload.outputPath, "[Worker]")
+        : payload.targetFormat === "epub"
+          ? getEpubChapterCount(payload.outputPath, "[Worker]")
+          : Promise.resolve(Number(converted.exportReport.stats.pageCount || converted.exportReport.stats.chapterCount || 1)),
+    ]);
+    return {
+      outputPath: payload.outputPath,
+      ...hashed,
+      packageRoot: converted.packageRoot,
+      importReport: converted.importReport,
+      exportReport: converted.exportReport,
+      thumbnailPath: thumbnailPath || undefined,
+      numPages,
+      report: flattenConversionStats(converted),
+    };
+  } finally {
+    if (payload.pdfImageTempDir) {
+      await fs.promises.rm(payload.pdfImageTempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
 }
 
-async function convertPdfToEpub(payload: WorkerTaskPayloads["convert-pdf-to-epub"]): Promise<FileConversionWorkerResult> {
+async function convertPdfToEpub(payload: WorkerTaskPayloads["convert-pdf-to-epub"], onProgress?: ConversionProgress): Promise<FileConversionWorkerResult> {
   const { convertPdfToEpub: convert } = await import("../../src/lib/pdf-to-epub");
-  const bytes = Uint8Array.from(await fs.promises.readFile(payload.sourcePath));
-  const converted = await convert(bytes.buffer, {
-    ...payload.metadata,
-    renderImageAsset: createPdfImageAssetRenderer(payload.sourcePath, payload.pdfImageTempDir),
-  });
-  await fs.promises.writeFile(payload.outputPath, Buffer.from(converted.epub));
-  const hashed = await hashPath(payload.outputPath);
-  const [thumbnailPath, numPages] = await Promise.all([
-    generateThumbnail(payload.outputPath, hashed.fileHash, { thumbnailsDir: payload.thumbnailsDir, fileType: "epub", logPrefix: "[Worker]" }),
-    getEpubChapterCount(payload.outputPath, "[Worker]"),
-  ]);
-  return { outputPath: payload.outputPath, ...hashed, thumbnailPath: thumbnailPath || undefined, numPages, report: converted.report };
+  const stagedPdfPath = path.join(payload.pdfImageTempDir, "source.pdf");
+  try {
+    await fs.promises.rm(payload.pdfImageTempDir, { recursive: true, force: true });
+    await fs.promises.mkdir(payload.pdfImageTempDir, { recursive: true });
+    await fs.promises.copyFile(payload.sourcePath, stagedPdfPath);
+    const bytes = Uint8Array.from(await fs.promises.readFile(payload.sourcePath));
+    const converted = await convert(bytes.buffer, {
+      ...payload.metadata,
+      renderImageAsset: createPdfImageAssetRenderer(stagedPdfPath, payload.pdfImageTempDir),
+      onProgress,
+    });
+    await fs.promises.writeFile(payload.outputPath, Buffer.from(converted.epub));
+    const hashed = await hashPath(payload.outputPath);
+    const [thumbnailPath, numPages] = await Promise.all([
+      generateThumbnail(payload.outputPath, hashed.fileHash, { thumbnailsDir: payload.thumbnailsDir, fileType: "epub", logPrefix: "[Worker]" }),
+      getEpubChapterCount(payload.outputPath, "[Worker]"),
+    ]);
+    return { outputPath: payload.outputPath, ...hashed, thumbnailPath: thumbnailPath || undefined, numPages, report: converted.report };
+  } finally {
+    await fs.promises.rm(payload.pdfImageTempDir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 async function convertEpubToPdf(payload: WorkerTaskPayloads["convert-epub-to-pdf"]): Promise<FileConversionWorkerResult> {
@@ -311,7 +331,7 @@ async function applyBookCover(payload: WorkerTaskPayloads["apply-book-cover"]): 
   return { fileResult, ...(hashed || {}), thumbnailPath };
 }
 
-async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPayloads[K]): Promise<WorkerTaskResults[K]> {
+async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPayloads[K], onProgress?: ConversionProgress): Promise<WorkerTaskResults[K]> {
   switch (kind) {
     case "ping": return { pong: true, pid: process.pid } as WorkerTaskResults[K];
     case "hash-file": {
@@ -330,8 +350,8 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
       });
       return { thumbnailPath: thumbnailPath || undefined } as WorkerTaskResults[K];
     }
-    case "convert-via-lyceum": return await convertViaLyceum(payload as WorkerTaskPayloads["convert-via-lyceum"]) as WorkerTaskResults[K];
-    case "convert-pdf-to-epub": return await convertPdfToEpub(payload as WorkerTaskPayloads["convert-pdf-to-epub"]) as WorkerTaskResults[K];
+    case "convert-via-lyceum": return await convertViaLyceum(payload as WorkerTaskPayloads["convert-via-lyceum"], onProgress) as WorkerTaskResults[K];
+    case "convert-pdf-to-epub": return await convertPdfToEpub(payload as WorkerTaskPayloads["convert-pdf-to-epub"], onProgress) as WorkerTaskResults[K];
     case "convert-epub-to-pdf": return await convertEpubToPdf(payload as WorkerTaskPayloads["convert-epub-to-pdf"]) as WorkerTaskResults[K];
     case "extract-vocabulary": {
       const input = payload as WorkerTaskPayloads["extract-vocabulary"];
@@ -361,7 +381,9 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
 workerPort.on("message", async (request: WorkerRequest) => {
   try {
     workerPort.postMessage({ type: "progress", requestId: request.requestId, progress: 0, message: `Starting ${request.kind}` } satisfies WorkerResponse);
-    const value = await execute(request.kind, request.payload as never);
+    const value = await execute(request.kind, request.payload as never, (progress, message) => {
+      workerPort.postMessage({ type: "progress", requestId: request.requestId, progress, message } satisfies WorkerResponse);
+    });
     workerPort.postMessage({ type: "progress", requestId: request.requestId, progress: 1, message: `Finished ${request.kind}` } satisfies WorkerResponse);
     const response: WorkerResponse = { type: "result", requestId: request.requestId, success: true, value };
     const transfer = value && typeof value === "object" && "buffer" in value && value.buffer instanceof ArrayBuffer ? [value.buffer] : [];

@@ -307,6 +307,23 @@ export function reconstructStructureFromPages(
   };
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 export async function convertPdfToEpub(
   pdfData: ArrayBuffer,
   options: ConvertPdfToEpubOptions = {},
@@ -314,6 +331,7 @@ export async function convertPdfToEpub(
   // PDF.js may transfer and detach the supplied ArrayBuffer. Keep the original
   // available for deterministic identifiers and later integrity reporting.
   const pages = await parsePdfToPages(pdfData.slice(0), options);
+  options.onProgress?.(0.12, `${pages.length} paginas analisadas`);
   const mode: "reflow" | "fixed-layout" = options.mode === "fixed-layout"
     || (options.mode !== "reflow" && Boolean(options.renderImageAsset))
     ? "fixed-layout"
@@ -323,10 +341,16 @@ export async function convertPdfToEpub(
     .map((page) => `Pagina ${page.pageNumber} tem pouco texto extraido e pode precisar de OCR.`);
   if (mode === "fixed-layout") {
     if (!options.renderImageAsset) throw new Error("O modo fixed-layout exige um renderizador de paginas PDF.");
-    const renderedPages = await Promise.all(pages.map(async (page) => ({
-      page,
-      asset: await options.renderImageAsset!(fixedLayoutCandidate(page)),
-    })));
+    let renderedPageCount = 0;
+    const renderedPages = await mapWithConcurrency(pages, 3, async (page) => {
+      const asset = await options.renderImageAsset!(fixedLayoutCandidate(page));
+      renderedPageCount += 1;
+      options.onProgress?.(
+        0.12 + (0.78 * renderedPageCount) / Math.max(1, pages.length),
+        `Renderizando pagina ${renderedPageCount} de ${pages.length}`,
+      );
+      return { page, asset };
+    });
     const missingPages = renderedPages.filter((item) => !item.asset).map((item) => item.page.pageNumber);
     if (missingPages.length) throw new Error(`Falha ao preservar as paginas PDF: ${missingPages.join(", ")}.`);
     const completePages = renderedPages as Array<{ page: PageModel; asset: import("./types").EpubAsset }>;
@@ -339,6 +363,7 @@ export async function convertPdfToEpub(
       assets: completePages.map((item) => item.asset),
       layout: "pre-paginated",
     });
+    options.onProgress?.(0.96, "Validando pacote EPUB");
     return {
       epub,
       report: buildReport({
@@ -358,13 +383,21 @@ export async function convertPdfToEpub(
   const imageCandidates = pages
     .flatMap((page) => page.imageCandidates || [])
     .filter(shouldRenderImageCandidate);
+  let renderedImageCount = 0;
   const renderedImagePairs = options.renderImageAsset
     ? (
-        await Promise.all(
-          imageCandidates.map(async (candidate) => ({
-            candidate,
-            asset: await options.renderImageAsset?.(candidate),
-          })),
+        await mapWithConcurrency(
+          imageCandidates,
+          3,
+          async (candidate) => {
+            const asset = await options.renderImageAsset?.(candidate);
+            renderedImageCount += 1;
+            options.onProgress?.(
+              0.2 + (0.65 * renderedImageCount) / Math.max(1, imageCandidates.length),
+              `Preservando imagem ${renderedImageCount} de ${imageCandidates.length}`,
+            );
+            return { candidate, asset };
+          },
         )
       ).filter((pair): pair is { candidate: (typeof imageCandidates)[number]; asset: import("./types").EpubAsset } =>
         Boolean(pair.asset),
@@ -386,6 +419,7 @@ export async function convertPdfToEpub(
     }),
     assets: renderedImagePairs.map((pair) => pair.asset),
   });
+  options.onProgress?.(0.96, "Validando pacote EPUB");
 
   return {
     epub,

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -13,7 +14,7 @@ import type { LyceumConversionOptions } from "../lib/lyceum/schema/types";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
-export type ConversionQueueStatus = "pending" | "running" | "done" | "error";
+export type ConversionQueueStatus = "pending" | "running" | "done" | "error" | "canceled";
 
 export interface ConversionQueueItem {
   id: string;
@@ -82,7 +83,7 @@ export const defaultConversionOptions: ConversionOptions = {
   pdfParagraphSpacingEm: 0.85,
   pdfFontSizePt: 11,
   pdfChapterPageBreaks: true,
-  pdfIncludeToc: true,
+  pdfIncludeToc: false,
   pdfGenerateOutline: true,
   epubLayout: "auto",
   epubLineHeight: 1.45,
@@ -131,6 +132,8 @@ interface ConversionQueueContextValue {
   clearDraft: () => void;
   startConversion: (options: ConversionRunOptions) => void;
   startConversionWithConfigs: (configs: BookConversionConfig[]) => void;
+  cancelConversion: (itemId: string) => Promise<void>;
+  deleteConversion: (itemId: string) => Promise<boolean>;
   clearLogs: () => void;
 }
 
@@ -138,9 +141,10 @@ interface ConversionApi {
   convertBookFile: (
     filePath: string,
     targetFormat: ConversionOutputFormat,
-    requestOptions?: { conversionOptions?: LyceumConversionOptions; outputDirectory?: string },
+    requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string },
   ) => Promise<{
     success: boolean;
+    canceled?: boolean;
     outputPath?: string;
     fileHash?: string;
     fileSize?: number;
@@ -183,6 +187,8 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
   const [isRunning, setIsRunning] = useState(false);
   const pendingRef = useRef<ConversionQueueItem[]>([]);
   const processingRef = useRef(false);
+  const canceledRef = useRef(new Set<string>());
+  const progressBucketsRef = useRef(new Map<string, number>());
 
   const addLog = useCallback((entry: Omit<ConversionLogEntry, "id" | "timestamp">) => {
     setLogs((current) => [...current.slice(-499), {
@@ -195,12 +201,27 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
    const updateProgress = useCallback((itemId: string, progress: number, message?: string) => {
      setQueue((current) =>
        current.map((candidate) =>
-         candidate.id === itemId
-           ? { ...candidate, progress: Math.min(99, Math.max(0, progress)), message: message || candidate.message }
+         candidate.id === itemId && ["pending", "running"].includes(candidate.status)
+           ? { ...candidate, progress: Math.min(99, Math.max(candidate.progress, progress)), message: message || candidate.message }
            : candidate,
        ),
      );
    }, []);
+
+  useEffect(() => {
+    if (!window.api?.onConversionProgress) return;
+    return window.api.onConversionProgress(({ jobId, progress, message }) => {
+      const normalized = Math.min(1, Math.max(0, progress));
+      const percentage = Math.round(10 + normalized * 82);
+      updateProgress(jobId, percentage, message);
+      const bucket = Math.floor(percentage / 10);
+      const previousBucket = progressBucketsRef.current.get(jobId) ?? -1;
+      if (message && bucket > previousBucket && !/^(?:Starting|Finished)\b/i.test(message)) {
+        progressBucketsRef.current.set(jobId, bucket);
+        addLog({ itemId: jobId, level: "info", message });
+      }
+    });
+  }, [addLog, updateProgress]);
 
    const processQueue = useCallback(async () => {
      if (processingRef.current) return;
@@ -228,14 +249,15 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
        addLog({
          itemId: item.id,
          level: "info",
-         message: `Iniciando ${item.sourceFormat.toUpperCase()} para ${item.targetFormat.toUpperCase()}`,
+         message: `${item.book.title}: iniciando ${item.sourceFormat.toUpperCase()} para ${item.targetFormat.toUpperCase()}`,
          detail: item.book.filePath,
        });
 
        try {
          updateProgress(item.id, 28, "Analisando estrutura e recursos...");
-         addLog({ itemId: item.id, level: "info", message: "Pipeline de conversao em execucao" });
+         addLog({ itemId: item.id, level: "info", message: `${item.book.title}: pipeline de conversao em execucao` });
          const requestOptions = {
+           jobId: item.id,
            conversionOptions: item.options,
            outputDirectory: item.outputPath,
          };
@@ -247,6 +269,14 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
                  requestOptions,
                )
              : await window.api.convertBook(item.book.fileHash, item.targetFormat, requestOptions);
+
+         if (canceledRef.current.has(item.id) || result?.canceled) {
+           canceledRef.current.delete(item.id);
+           setQueue((current) => current.map((candidate) => candidate.id === item.id
+             ? { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() }
+             : candidate));
+           continue;
+         }
 
          updateProgress(item.id, 92, "Validando arquivo de saida...");
          const report = result?.report;
@@ -276,15 +306,22 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            addLog({
              itemId: item.id,
              level: "success",
-             message: `Conversao concluida em ${(Math.max(0, Date.now() - startedAt) / 1000).toFixed(1)}s`,
+             message: `${item.book.title}: conversao concluida em ${(Math.max(0, Date.now() - startedAt) / 1000).toFixed(1)}s`,
              detail: result.outputPath,
            });
-           warnings.forEach((warning) => addLog({ itemId: item.id, level: "warning", message: warning }));
+           warnings.forEach((warning) => addLog({ itemId: item.id, level: "warning", message: `${item.book.title}: ${warning}` }));
          } else {
-           addLog({ itemId: item.id, level: "error", message: result?.error || "Erro ao converter" });
+           addLog({ itemId: item.id, level: "error", message: `${item.book.title}: ${result?.error || "Erro ao converter"}` });
          }
        } catch (error) {
          const message = error instanceof Error ? error.message : "Erro ao converter";
+         if (canceledRef.current.has(item.id) || (error instanceof DOMException && error.name === "AbortError")) {
+           canceledRef.current.delete(item.id);
+           setQueue((current) => current.map((candidate) => candidate.id === item.id
+             ? { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() }
+             : candidate));
+           continue;
+         }
          setQueue((current) =>
            current.map((candidate) =>
              candidate.id === item.id
@@ -298,7 +335,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
                : candidate,
            ),
          );
-         addLog({ itemId: item.id, level: "error", message });
+         addLog({ itemId: item.id, level: "error", message: `${item.book.title}: ${message}` });
        }
      }
 
@@ -327,6 +364,46 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearLogs = useCallback(() => setLogs([]), []);
+
+  const cancelConversion = useCallback(async (itemId: string) => {
+    const item = queue.find((candidate) => candidate.id === itemId);
+    if (!item || !["pending", "running"].includes(item.status)) return;
+    const pendingIndex = pendingRef.current.findIndex((item) => item.id === itemId);
+    const wasPending = pendingIndex >= 0;
+    if (pendingIndex >= 0) pendingRef.current.splice(pendingIndex, 1);
+    canceledRef.current.add(itemId);
+    setQueue((current) => current.map((candidate) => {
+      if (candidate.id !== itemId || !["pending", "running"].includes(candidate.status)) return candidate;
+      return { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() };
+    }));
+    addLog({ itemId, level: "warning", message: `${item.book.title}: cancelamento solicitado` });
+    await window.api.cancelConversion(itemId).catch(() => ({ success: false, active: false }));
+    if (wasPending) canceledRef.current.delete(itemId);
+  }, [addLog, queue]);
+
+  const deleteConversion = useCallback(async (itemId: string) => {
+    const item = queue.find((candidate) => candidate.id === itemId);
+    if (!item) return false;
+    if (item.status === "done" && (!item.outputHash || !item.outputPath)) {
+      toast.error("O resultado da conversao nao possui caminho verificavel");
+      return false;
+    }
+    if (item.status === "done" && item.outputHash && item.outputPath) {
+      const result = await window.api.deleteConvertedOutput(item.outputPath, item.outputHash);
+      if (!result.success) {
+        toast.error(result.error || "Nao foi possivel excluir o arquivo convertido");
+        addLog({ itemId, level: "error", message: `${item.book.title}: falha ao excluir o arquivo convertido`, detail: result.error });
+        return false;
+      }
+    }
+    pendingRef.current = pendingRef.current.filter((candidate) => candidate.id !== itemId);
+    canceledRef.current.delete(itemId);
+    progressBucketsRef.current.delete(itemId);
+    setQueue((current) => current.filter((candidate) => candidate.id !== itemId));
+    setLogs((current) => current.filter((entry) => entry.itemId !== itemId));
+    if (item.status === "done") toast.success("Arquivo convertido excluido");
+    return true;
+  }, [addLog, queue]);
 
   const createQueueItem = useCallback(
     ({ book, targetFormat, profile, options, outputPath }: BookConversionConfig): ConversionQueueItem => {
@@ -403,11 +480,15 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
       clearLogs,
       startConversion,
       startConversionWithConfigs,
+      cancelConversion,
+      deleteConversion,
     }),
     [
       addDraftBooks,
       clearDraft,
       clearLogs,
+      cancelConversion,
+      deleteConversion,
       draftBooks,
       isRunning,
       logs,

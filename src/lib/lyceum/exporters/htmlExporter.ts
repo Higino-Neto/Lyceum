@@ -121,7 +121,6 @@ function rewriteChapterDocument(
   return {
     body: document.body.innerHTML,
     styles: Array.from(document.head.querySelectorAll("style")).map((style) => style.outerHTML),
-    hasHeading: Boolean(document.body.querySelector("h1, h2")),
   };
 }
 
@@ -144,11 +143,6 @@ function printCss(options: LyceumConversionOptions = {}) {
     body { margin: 0; font-size: ${fontSize}pt; line-height: ${lineHeight}; }
     p { margin-top: 0 !important; margin-bottom: ${paragraphSpacing}em !important; line-height: ${lineHeight} !important; }
     li, blockquote, figcaption { line-height: ${lineHeight}; }
-    .lyceum-toc { break-after: page; }
-    .lyceum-toc ol { list-style: none; margin: 0; padding: 0; }
-    .lyceum-toc li { margin: 0 0 0.45em; }
-    .lyceum-toc-level-2 { padding-left: 1.25em; }
-    .lyceum-toc-level-3, .lyceum-toc-level-4 { padding-left: 2.5em; }
     .lyceum-chapter { display: flow-root; }
     .lyceum-chapter + .lyceum-chapter { break-before: ${chapterBreak}; }
     img, svg, table, pre { max-width: 100%; }
@@ -210,25 +204,8 @@ export class HtmlExporter implements LyceumExporter {
       .map((href) => `  <link rel="stylesheet" href="${escapeXml(href)}" />`)
       .join("\n");
     const inlineStyles = chapterDocuments.flatMap((item) => item.document.styles).join("\n");
-    const includeToc = options.pdfIncludeToc ?? options.htmlIncludeToc ?? true;
-    const toc = includeToc && input.package.textual.toc.length
-      ? `<nav class="lyceum-toc" aria-labelledby="lyceum-toc-title">
-  <h1 id="lyceum-toc-title">Sumario</h1>
-  <ol>
-${input.package.textual.toc.map((item) => {
-  const [tocPath, fragment = ""] = item.href.split("#", 2);
-  const target = chapterTargets.get(normalizeHref(tocPath).toLowerCase());
-  if (!target) return "";
-  const href = fragment
-    ? `#${target.anchorPrefix}--${safeDocumentId(decodeFragment(fragment))}`
-    : `#${target.sectionId}`;
-  return `    <li class="lyceum-toc-level-${Math.min(4, Math.max(1, item.level))}"><a href="${escapeXml(href)}">${escapeXml(item.title)}</a></li>`;
-}).filter(Boolean).join("\n")}
-  </ol>
-</nav>`
-      : "";
     const body = chapterDocuments
-      .map(({ chapter, document, target }) => `<section class="lyceum-chapter" id="${escapeXml(target.sectionId)}" data-lyceum-chapter="${escapeXml(chapter.id)}">\n${document.hasHeading ? "" : `<h1>${escapeXml(chapter.title)}</h1>`}\n${document.body}\n</section>`)
+      .map(({ chapter, document, target }) => `<section class="lyceum-chapter" id="${escapeXml(target.sectionId)}" data-lyceum-chapter="${escapeXml(chapter.id)}">\n${document.body}\n</section>`)
       .join("\n");
     const html = `<!doctype html>
 <html lang="${escapeXml(metadata.language || "pt-BR")}">
@@ -242,7 +219,6 @@ ${printCss(options)}
   </style>
 </head>
 <body>
-${toc}
 ${body}
 </body>
 </html>`;

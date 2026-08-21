@@ -78,6 +78,7 @@ import {
   validateCbzFile as validateCbzFileMainThread,
   type BookFileType,
 } from "./services/document-processing";
+import { deleteBook } from "./services/document-service";
 import {
   checkProcessingWorkers,
   convertPdfToEpubInWorker,
@@ -143,6 +144,12 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
 let pendingAuthDeepLink: string | null = null;
+const activeConversionControllers = new Map<string, AbortController>();
+const knownConversionOutputs = new Map<string, string>();
+
+function throwIfConversionAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException("Conversao cancelada", "AbortError");
+}
 let pendingAuthDeepLinkParams: Record<string, string> | null = null;
 
 type LyceumConversionModule = typeof import("../src/lib/lyceum");
@@ -2989,7 +2996,7 @@ ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash:
   }
 });
 
-async function printHtmlToPdf(htmlPath: string, outputPath: string, options: LyceumConversionOptions = {}) {
+async function printHtmlToPdf(htmlPath: string, outputPath: string, options: LyceumConversionOptions = {}, signal?: AbortSignal) {
   const printer = new BrowserWindow({
     show: false,
     backgroundColor: "#ffffff",
@@ -3000,8 +3007,15 @@ async function printHtmlToPdf(htmlPath: string, outputPath: string, options: Lyc
     },
   });
 
+  const abortPrinter = () => {
+    if (!printer.isDestroyed()) printer.destroy();
+  };
+  signal?.addEventListener("abort", abortPrinter, { once: true });
+
   try {
+    throwIfConversionAborted(signal);
     await printer.loadURL(pathToFileURL(htmlPath).href);
+    throwIfConversionAborted(signal);
     await printer.webContents.executeJavaScript(`Promise.all([
       document.fonts ? document.fonts.ready : Promise.resolve(),
       ...Array.from(document.images).map((image) => image.complete
@@ -3020,27 +3034,44 @@ async function printHtmlToPdf(htmlPath: string, outputPath: string, options: Lyc
       generateTaggedPDF: true,
       generateDocumentOutline: options.pdfGenerateOutline !== false,
     });
+    throwIfConversionAborted(signal);
     await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.promises.writeFile(outputPath, pdf);
+  } catch (error) {
+    if (signal?.aborted) throw new DOMException("Conversao cancelada", "AbortError");
+    throw error;
   } finally {
+    signal?.removeEventListener("abort", abortPrinter);
     if (!printer.isDestroyed()) printer.destroy();
   }
 }
 
-async function convertTextualToPdfWithChromium(payload: Parameters<typeof convertViaLyceumInWorker>[0]) {
+async function convertTextualToPdfWithChromium(
+  payload: Parameters<typeof convertViaLyceumInWorker>[0],
+  signal?: AbortSignal,
+  onProgress?: (progress: number, message?: string) => void,
+) {
   const tempBase = path.join(app.getPath("temp"), "lyceum-print");
   await fs.promises.mkdir(tempBase, { recursive: true });
   const tempRoot = await fs.promises.mkdtemp(path.join(tempBase, "job-"));
   const htmlPath = path.join(tempRoot, "book.html");
 
   try {
+    throwIfConversionAborted(signal);
     const prepared = await convertViaLyceumInWorker({
       ...payload,
       targetFormat: "html",
       outputPath: htmlPath,
       thumbnailsDir: undefined,
-    });
-    await printHtmlToPdf(htmlPath, payload.outputPath, payload.conversionOptions);
+      conversionOptions: {
+        ...payload.conversionOptions,
+        htmlIncludeToc: false,
+      },
+    }, { signal, onProgress: (progress, message) => onProgress?.(progress * 0.7, message) });
+    onProgress?.(0.76, "Paginando HTML no Chromium");
+    await printHtmlToPdf(htmlPath, payload.outputPath, payload.conversionOptions, signal);
+    onProgress?.(0.9, "Validando PDF gerado");
+    throwIfConversionAborted(signal);
     const [hashed, pageCount] = await Promise.all([
       hashFile(payload.outputPath),
       getPdfPageCountMainThread(payload.outputPath, "[Chromium PDF]"),
@@ -3091,8 +3122,12 @@ async function runGenericDocumentConversion(
   fileHash: string,
   targetFormat: BookFormat,
   requestOptions: ConversionRequestOptions = {},
+  signal?: AbortSignal,
+  onProgress?: (progress: number, message?: string) => void,
 ) {
+  let outputPath: string | undefined;
   try {
+    throwIfConversionAborted(signal);
     const { inferBookFormatFromPath } = await loadLyceumConversionModule();
     const doc = getDocumentByHash(fileHash);
 
@@ -3109,7 +3144,7 @@ async function runGenericDocumentConversion(
       return { success: false, error: "Arquivo de origem nao encontrado no disco" };
     }
 
-    const outputPath = createUniqueConvertedPath(doc.filePath, targetFormat, requestOptions.outputDirectory);
+    outputPath = createUniqueConvertedPath(doc.filePath, targetFormat, requestOptions.outputDirectory);
     const conversionPayload = {
       sourcePath: doc.filePath,
       sourceFormat,
@@ -3138,8 +3173,9 @@ async function runGenericDocumentConversion(
       conversionOptions: requestOptions.conversionOptions,
     };
     const converted = shouldUseChromiumPdf(sourceFormat, targetFormat)
-      ? await convertTextualToPdfWithChromium(conversionPayload)
-      : await convertViaLyceumInWorker(conversionPayload);
+      ? await convertTextualToPdfWithChromium(conversionPayload, signal, onProgress)
+      : await convertViaLyceumInWorker(conversionPayload, { signal, onProgress });
+    throwIfConversionAborted(signal);
 
     const outputHash = converted.fileHash;
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
@@ -3160,6 +3196,7 @@ async function runGenericDocumentConversion(
     }
 
     win?.webContents.send("library:updated");
+    knownConversionOutputs.set(path.resolve(outputPath), outputHash);
 
     return {
       success: true,
@@ -3171,6 +3208,10 @@ async function runGenericDocumentConversion(
       report: converted.report,
     };
   } catch (error) {
+    if (signal?.aborted) {
+      if (outputPath) await fs.promises.rm(outputPath, { force: true }).catch(() => undefined);
+      return { success: false, canceled: true, error: "Conversao cancelada" };
+    }
     console.error("[conversion:run] Error:", error);
     return {
       success: false,
@@ -3183,8 +3224,12 @@ async function runGenericFileConversion(
   sourcePath: string,
   targetFormat: BookFormat,
   requestOptions: ConversionRequestOptions = {},
+  signal?: AbortSignal,
+  onProgress?: (progress: number, message?: string) => void,
 ) {
+  let outputPath: string | undefined;
   try {
+    throwIfConversionAborted(signal);
     const { inferBookFormatFromPath } = await loadLyceumConversionModule();
     const localPath = sourcePath.startsWith("::")
       ? await copyWindowsMtpBookToTemp(sourcePath)
@@ -3209,7 +3254,7 @@ async function runGenericFileConversion(
 
     const { fileHash: sourceHash } = await hashFile(localPath);
     const sourceTitle = path.basename(localPath, path.extname(localPath));
-    const outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory);
+    outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory);
     const conversionPayload = {
       sourcePath: localPath,
       sourceFormat,
@@ -3227,8 +3272,9 @@ async function runGenericFileConversion(
       conversionOptions: requestOptions.conversionOptions,
     };
     const converted = shouldUseChromiumPdf(sourceFormat, targetFormat)
-      ? await convertTextualToPdfWithChromium(conversionPayload)
-      : await convertViaLyceumInWorker(conversionPayload);
+      ? await convertTextualToPdfWithChromium(conversionPayload, signal, onProgress)
+      : await convertViaLyceumInWorker(conversionPayload, { signal, onProgress });
+    throwIfConversionAborted(signal);
 
     const outputHash = converted.fileHash;
     const existing = getDocumentByHash(outputHash) || getDocumentByPath(outputPath);
@@ -3248,6 +3294,7 @@ async function runGenericFileConversion(
     }
 
     win?.webContents.send("library:updated");
+    knownConversionOutputs.set(path.resolve(outputPath), outputHash);
 
     return {
       success: true,
@@ -3259,6 +3306,10 @@ async function runGenericFileConversion(
       report: converted.report,
     };
   } catch (error) {
+    if (signal?.aborted) {
+      if (outputPath) await fs.promises.rm(outputPath, { force: true }).catch(() => undefined);
+      return { success: false, canceled: true, error: "Conversao cancelada" };
+    }
     console.error("[conversion:run-file] Error:", error);
     return {
       success: false,
@@ -3286,12 +3337,66 @@ ipcMain.handle("conversion:list-targets", async (_, fileHash: string) => {
   };
 });
 
+async function runTrackedConversion<T>(
+  jobId: string | undefined,
+  action: (signal?: AbortSignal) => Promise<T>,
+) {
+  if (!jobId) return action();
+  if (activeConversionControllers.has(jobId)) {
+    return { success: false, error: "Esta conversao ja esta em andamento" } as T;
+  }
+  const controller = new AbortController();
+  activeConversionControllers.set(jobId, controller);
+  try {
+    return await action(controller.signal);
+  } finally {
+    if (activeConversionControllers.get(jobId) === controller) {
+      activeConversionControllers.delete(jobId);
+    }
+  }
+}
+
 ipcMain.handle("conversion:run", async (_, fileHash: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => {
-  return runGenericDocumentConversion(fileHash, targetFormat, requestOptions);
+  const onProgress = requestOptions?.jobId
+    ? (progress: number, message?: string) => win?.webContents.send("conversion:progress", { jobId: requestOptions.jobId, progress, message })
+    : undefined;
+  return runTrackedConversion(requestOptions?.jobId, (signal) =>
+    runGenericDocumentConversion(fileHash, targetFormat, requestOptions, signal, onProgress));
 });
 
 ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: BookFormat, requestOptions?: ConversionRequestOptions) => {
-  return runGenericFileConversion(filePath, targetFormat, requestOptions);
+  const onProgress = requestOptions?.jobId
+    ? (progress: number, message?: string) => win?.webContents.send("conversion:progress", { jobId: requestOptions.jobId, progress, message })
+    : undefined;
+  return runTrackedConversion(requestOptions?.jobId, (signal) =>
+    runGenericFileConversion(filePath, targetFormat, requestOptions, signal, onProgress));
+});
+
+ipcMain.handle("conversion:cancel", (_, jobId: string) => {
+  const controller = activeConversionControllers.get(jobId);
+  if (controller) controller.abort();
+  return { success: true, active: Boolean(controller) };
+});
+
+ipcMain.handle("conversion:delete-output", async (_, outputPath: string, outputHash: string) => {
+  try {
+    const resolvedPath = path.resolve(outputPath);
+    if (knownConversionOutputs.get(resolvedPath) !== outputHash) {
+      return { success: false, error: "O arquivo nao pertence a uma conversao desta sessao" };
+    }
+    const documentAtPath = getDocumentByPath(resolvedPath);
+    if (documentAtPath?.fileHash) {
+      const deleted = deleteBook(documentAtPath.fileHash, true);
+      if (!deleted.success) return deleted;
+    } else {
+      await fs.promises.rm(resolvedPath, { force: true });
+    }
+    knownConversionOutputs.delete(resolvedPath);
+    win?.webContents.send("library:updated");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
