@@ -9,15 +9,23 @@ on:
       version:
         description: "Mobile version to publish"
         required: true
-        default: "1.7.5"
+        default: "1.8.26"
 
 permissions:
   contents: write
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   android-and-ota:
     name: Android + OTA GitHub Release
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_AUTH_REDIRECT_BASE_URL: ${{ vars.VITE_AUTH_REDIRECT_BASE_URL || secrets.VITE_AUTH_REDIRECT_BASE_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -34,10 +42,16 @@ jobs:
 
       - name: Resolve release version
         shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
+          VERSION="$REQUESTED_VERSION"
           if [ -z "$VERSION" ]; then
             VERSION="${GITHUB_REF_NAME#mobile-v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid mobile version: $VERSION"
+            exit 1
           fi
           IFS='.' read -r MAJOR MINOR PATCH REST <<< "$VERSION"
           MAJOR="${MAJOR:-0}"
@@ -49,6 +63,17 @@ jobs:
           echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - run: npm ci
+
+      - name: Verify mobile Supabase config
+        shell: bash
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Configure repository variables or secrets before publishing mobile."
+            exit 1
+          fi
+
+      - name: Run mobile regression tests
+        run: npm run test:mobile
 
       - name: Build mobile web bundle
         run: npm run build:mobile
@@ -81,12 +106,11 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug assembleRelease
+          ./gradlew assembleRelease
 
       - name: Collect release assets
         run: |
           mkdir -p release-mobile/android
-          cp "$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)" "release-mobile/android/lyceum-mobile-${MOBILE_RELEASE_VERSION}-debug.apk"
           cp "$(ls android/app/build/outputs/apk/release/*.apk | head -n 1)" "release-mobile/android/lyceum-mobile-${MOBILE_RELEASE_VERSION}.apk"
           cat > release-mobile/RELEASE_NOTES.md <<'EOF'
           Lyceum Mobile release with GitHub-hosted OTA and APK updates.
@@ -110,7 +134,10 @@ jobs:
   ios-native-check:
     name: iOS native project check
     runs-on: macos-latest
-    continue-on-error: true
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_AUTH_REDIRECT_BASE_URL: ${{ vars.VITE_AUTH_REDIRECT_BASE_URL || secrets.VITE_AUTH_REDIRECT_BASE_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -122,10 +149,16 @@ jobs:
 
       - name: Resolve release version
         shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
+          VERSION="$REQUESTED_VERSION"
           if [ -z "$VERSION" ]; then
             VERSION="${GITHUB_REF_NAME#mobile-v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid mobile version: $VERSION"
+            exit 1
           fi
           IFS='.' read -r MAJOR MINOR PATCH REST <<< "$VERSION"
           MAJOR="${MAJOR:-0}"
@@ -137,6 +170,14 @@ jobs:
           echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - run: npm ci
+      - name: Verify mobile Supabase config
+        shell: bash
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+      - run: npm run test:mobile
       - run: npm run build:mobile
       - name: Prepare native iOS assets
         run: npm run mobile:native-assets

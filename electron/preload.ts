@@ -415,6 +415,9 @@ contextBridge.exposeInMainWorld("api", {
   mergeBooks: (fileHashes: string[]) =>
     ipcRenderer.invoke("book:merge", fileHashes),
 
+  unmergeBooks: (bookId: string) =>
+    ipcRenderer.invoke("book:unmerge", bookId),
+
   mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) =>
     ipcRenderer.invoke("book:merge-into-folder", fileHashes, parentPath ?? null),
 
@@ -521,6 +524,9 @@ contextBridge.exposeInMainWorld("api", {
 
   deleteFolder: (folderPath: string, force = false) =>
     ipcRenderer.invoke("library:delete-folder", folderPath, force),
+
+  dissolveFolder: (folderPath: string) =>
+    ipcRenderer.invoke("library:dissolve-folder", folderPath),
 
   moveFolder: (sourcePath: string, targetPath: string | null) =>
     ipcRenderer.invoke("library:move-folder", sourcePath, targetPath),

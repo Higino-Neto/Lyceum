@@ -60,6 +60,15 @@ export function useFolderOperations(options: UseFolderOperationsOptions = {}) {
     [onChanged],
   );
 
+  const dissolveFolder = useCallback(
+    (folderPath: string) =>
+      runWithRefresh(
+        () => window.api.dissolveFolder(folderPath),
+        onChanged,
+      ),
+    [onChanged],
+  );
+
   const moveBook = useCallback(
     (fileHash: string, targetFolder: string | null) =>
       runWithRefresh(
@@ -73,6 +82,7 @@ export function useFolderOperations(options: UseFolderOperationsOptions = {}) {
     createFolder,
     renameFolder,
     deleteFolder,
+    dissolveFolder,
     moveFolder,
     moveBook,
   };

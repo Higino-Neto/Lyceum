@@ -64,6 +64,7 @@ interface BookGridProps {
   onImportBook?: (targetFolder: string | null) => void;
   onRenameFolder?: (folder: FolderInfo) => void;
   onDeleteFolder?: (folder: FolderInfo) => void;
+  onDissolveFolder?: (folder: FolderInfo) => void;
   isFolderReadOnly?: (folder: FolderInfo) => boolean;
   onMoveBook?: (
     fileHash: string,
@@ -208,6 +209,7 @@ export default function BookGrid({
   onImportBook,
   onRenameFolder,
   onDeleteFolder,
+  onDissolveFolder,
   isFolderReadOnly,
   onMoveBook,
   onMoveBooks,
@@ -646,6 +648,10 @@ export default function BookGrid({
         closeContextMenu();
         onDeleteFolder?.(folder);
       }}
+      onDissolveFolder={onDissolveFolder ? (folder) => {
+        closeContextMenu();
+        onDissolveFolder(folder);
+      } : undefined}
     />
   ) : null;
 

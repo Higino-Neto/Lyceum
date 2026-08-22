@@ -7,10 +7,11 @@ The mobile app has two update tracks:
 
 ## GitHub OTA
 
-On native Android/iOS startup the app checks:
+On native Android/iOS startup the app queries the GitHub Releases API and finds
+the newest non-draft release tagged `mobile-v*` that contains:
 
 ```text
-https://github.com/higino-neto/lyceum/releases/latest/download/lyceum-mobile-ota.json
+lyceum-mobile-ota.json
 ```
 
 If the manifest version is newer than the installed web bundle, the app downloads the matching `lyceum-mobile-ota-<version>.zip` from the same GitHub Release and schedules it for the next background/restart.
@@ -19,10 +20,11 @@ OTA updates are only for the Capacitor web bundle: HTML, CSS, JavaScript, and bu
 
 ## Android APK updater
 
-On Android startup and from the mobile profile screen, the app checks:
+On Android startup and from the mobile profile screen, the app discovers this
+asset in the newest matching `mobile-v*` release:
 
 ```text
-https://github.com/Higino-Neto/Lyceum/releases/latest/download/lyceum-mobile-latest.json
+lyceum-mobile-latest.json
 ```
 
 The URL can be overridden at build time with:
@@ -47,7 +49,12 @@ The manifest shape is:
 }
 ```
 
-The app compares `versionCode`, downloads the APK, validates SHA-256 when present, validates that the APK package name still matches `com.higino.lyceum.mobile`, and opens the Android system installer through `FileProvider`. Android still requires the user to confirm the installation. On Android 8+, the user may also need to allow Lyceum to install unknown apps.
+The app compares `versionCode`, requires and validates SHA-256 and the exact file
+size, validates the package name, minimum Android SDK, higher version code, and
+signing certificate against the installed app, then opens the Android system
+installer through a cache-scoped `FileProvider`. Android still requires the user
+to confirm the installation. On Android 8+, the user may also need to allow
+Lyceum to install unknown apps.
 
 Native APK updates require every release APK to use:
 
@@ -66,6 +73,12 @@ ANDROID_SIGNING_KEY_ALIAS
 ANDROID_SIGNING_KEY_PASSWORD
 ```
 
+The workflow also requires `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` as repository variables or secrets. Publishing stops
+instead of producing an APK with a non-functional account screen when either is
+missing. Set `VITE_AUTH_REDIRECT_BASE_URL` as well so password-recovery emails
+return to the configured Lyceum reset-password page.
+
 Create the keystore once, keep it backed up, and store its base64 form in `ANDROID_KEYSTORE_BASE64`. Losing or changing this keystore prevents Android from updating the installed app in place.
 
 ## Publish
@@ -73,11 +86,13 @@ Create the keystore once, keep it backed up, and store its base64 form in `ANDRO
 Run the `Mobile Release` GitHub Actions workflow with the desired version. It:
 
 - builds `dist-mobile`;
+- runs the mobile regression test suite and TypeScript validation;
 - creates the Capgo-compatible OTA zip and manifest;
-- builds Android debug/release APKs with the configured release keystore;
+- builds the signed Android release APK with the configured release keystore;
 - creates `lyceum-mobile-latest.json` for native APK updates;
 - publishes the OTA manifest, OTA zip, APK manifest, and APKs to a GitHub Release tagged `mobile-v<version>`;
-- verifies the iOS project on macOS without code signing.
+- verifies the iOS project on macOS without code signing; this check is required,
+  rather than allowed to fail silently.
 
 ## iOS signing
 

@@ -16,14 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import EpubPane from "./EpubPane";
-import MobileDashboardScreen from "./MobileDashboardScreen";
-import MobileLeaderboardScreen from "./MobileLeaderboardScreen";
-import MobileLibraryScreenV2 from "./MobileLibraryScreen";
-import MobileReadingEntryScreen from "./MobileReadingEntryScreen";
-import PdfPane from "./PdfPane";
 import {
   deleteMobileBookFile,
   getStoredBookPatch,
@@ -64,7 +58,14 @@ import {
   openInstallPermissionSettings,
   type NativeApkUpdateState,
 } from "./nativeApkUpdater";
-import { getMobileSession, getMobileSupabase, hasSupabaseConfig } from "./supabaseMobile";
+import {
+  getMobileAuthErrorMessage,
+  getMobileSupabase,
+  getMobileSupabaseConfigError,
+  hasSupabaseConfig,
+  subscribeMobileAuth,
+  validateMobileSession,
+} from "./supabaseMobile";
 import {
   loadPersistentSourceFile,
   pickPersistentSourceFolder,
@@ -77,6 +78,13 @@ import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbna
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import { createMobileUserProfile } from "./readingApi";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
+
+const EpubPane = lazy(() => import("./EpubPane"));
+const MobileDashboardScreen = lazy(() => import("./MobileDashboardScreen"));
+const MobileLeaderboardScreen = lazy(() => import("./MobileLeaderboardScreen"));
+const MobileLibraryScreenV2 = lazy(() => import("./MobileLibraryScreen"));
+const MobileReadingEntryScreen = lazy(() => import("./MobileReadingEntryScreen"));
+const PdfPane = lazy(() => import("./PdfPane"));
 
 const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
   { id: "dashboard", label: "Hoje", icon: BarChart3 },
@@ -130,6 +138,8 @@ function getNativeApkUpdateText(state: NativeApkUpdateState) {
       return "Atualizacao disponivel para instalar.";
     case "not-available":
       return "Voce esta na versao mais recente.";
+    case "not-published":
+      return state.error || "Ainda nao existe uma versao mobile publicada.";
     case "permission-required":
       return "Permita que o Lyceum solicite instalacao de APKs.";
     case "downloading":
@@ -521,8 +531,12 @@ function MobileApp() {
   const [libraryView, setLibraryView] = useState<LibraryView>("grid");
   const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
   const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
   const [readerFileLoading, setReaderFileLoading] = useState(false);
   const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
@@ -548,6 +562,8 @@ function MobileApp() {
         toast.success("Atualizacao disponivel");
       } else if (result.status === "not-available") {
         toast.success("Voce ja esta na versao mais recente");
+      } else if (result.status === "not-published") {
+        toast(result.error || "Nenhuma versao mobile foi publicada ainda");
       } else if (result.status === "error") {
         toast.error(result.error || "Falha ao verificar atualizacao");
       }
@@ -602,8 +618,21 @@ function MobileApp() {
 
   useEffect(() => {
     if (!repositoryReady) return;
-    saveMobileState(state);
+    void saveMobileState(state).catch((error) => {
+      console.error("[mobile-storage] persist failed", error);
+      toast.error("Nao foi possivel salvar as ultimas alteracoes no aparelho.", { id: "mobile-storage-error" });
+    });
   }, [repositoryReady, state]);
+
+  useEffect(() => {
+    const updateConnection = () => setIsOnline(navigator.onLine !== false);
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    return () => {
+      window.removeEventListener("online", updateConnection);
+      window.removeEventListener("offline", updateConnection);
+    };
+  }, []);
 
   useEffect(() => {
     void refreshNativeApkUpdate(true);
@@ -675,26 +704,41 @@ function MobileApp() {
     };
   }, [state.books]);
 
+  const invalidateAccountQueries = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
+    void queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
+    void queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
+    void queryClient.invalidateQueries({ queryKey: ["mobile-friend-requests"] });
+    void queryClient.invalidateQueries({ queryKey: ["mobile-user-profile"] });
+  }, [queryClient]);
+
   useEffect(() => {
-    getMobileSession().then((session) => setSessionEmail(session?.user?.email ?? null));
+    let cancelled = false;
+    validateMobileSession()
+      .then((session) => {
+        if (!cancelled) setSessionEmail(session?.user?.email ?? null);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setSessionEmail(null);
+          setAuthError(getMobileAuthErrorMessage(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    const supabase = getMobileSupabase();
-    if (!supabase) return undefined;
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    return subscribeMobileAuth((_event, session) => {
       setSessionEmail(session?.user?.email ?? null);
-      queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-friend-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-user-profile"] });
+      setAuthReady(true);
+      setAuthError(null);
+      invalidateAccountQueries();
     });
-
-    return () => data.subscription.unsubscribe();
-  }, [queryClient]);
+  }, [invalidateAccountQueries]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1195,53 +1239,102 @@ function MobileApp() {
     }
 
     const email = authEmail.trim();
-    if (!email || !authPassword) {
+    if (!/^\S+@\S+\.\S+$/.test(email) || !authPassword) {
       toast.error("Informe email e senha");
       return;
     }
+    if (mode === "signup" && authPassword.length < 8) {
+      toast.error("Use uma senha com pelo menos 8 caracteres");
+      return;
+    }
 
-    const result = mode === "signin"
-      ? await supabase.auth.signInWithPassword({ email, password: authPassword })
-      : await supabase.auth.signUp({
-          email,
-          password: authPassword,
-          options: {
-            data: {
-              name: email.split("@")[0],
-              full_name: email.split("@")[0],
+    setAuthBusy(true);
+    setAuthError(null);
+
+    try {
+      const result = mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email, password: authPassword })
+        : await supabase.auth.signUp({
+            email,
+            password: authPassword,
+            options: {
+              data: {
+                name: email.split("@")[0],
+                full_name: email.split("@")[0],
+              },
             },
-          },
+          });
+
+      if (result.error) throw result.error;
+
+      if (result.data.session?.user?.id) {
+        await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
+          console.warn("[mobile-auth] profile bootstrap failed", error);
+          toast("A sessao foi iniciada, mas o perfil social sera reparado na proxima sincronizacao.");
         });
+      }
 
-    if (result.error) {
-      toast.error(result.error.message);
-      return;
+      if (!result.data.session) {
+        setSessionEmail(null);
+        setAuthPassword("");
+        toast.success("Conta criada. Confirme o email antes de entrar.");
+        return;
+      }
+
+      setSessionEmail(result.data.session.user.email ?? email);
+      setAuthPassword("");
+      invalidateAccountQueries();
+      toast.success(mode === "signin" ? "Sessao iniciada" : "Conta criada");
+    } catch (error) {
+      const message = getMobileAuthErrorMessage(error);
+      setAuthError(message);
+      toast.error(message);
+    } finally {
+      setAuthBusy(false);
     }
-
-    if (result.data.session?.user?.id) {
-      await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
-        console.warn("Could not create mobile profile:", error);
-      });
-    }
-
-    if (!result.data.session) {
-      setSessionEmail(null);
-      toast.success("Conta criada. Confirme o email antes de entrar.");
-      return;
-    }
-
-    setSessionEmail(result.data.session.user.email ?? email);
-    queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
-    queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
-    queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
-    queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
-    toast.success(mode === "signin" ? "Sessao iniciada" : "Conta criada");
   };
 
   const signOut = async () => {
-    await getMobileSupabase()?.auth.signOut();
-    setSessionEmail(null);
-    queryClient.clear();
+    setAuthBusy(true);
+    try {
+      const { error } = await getMobileSupabase()?.auth.signOut() || { error: null };
+      if (error) throw error;
+      setSessionEmail(null);
+      setAuthPassword("");
+      queryClient.clear();
+    } catch (error) {
+      const message = getMobileAuthErrorMessage(error);
+      setAuthError(message);
+      toast.error(message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const requestPasswordReset = async () => {
+    const supabase = getMobileSupabase();
+    const email = authEmail.trim();
+    if (!supabase || !/^\S+@\S+\.\S+$/.test(email)) {
+      toast.error("Informe o email da sua conta");
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      const redirectBase = String(import.meta.env.VITE_AUTH_REDIRECT_BASE_URL || "").trim().replace(/\/$/, "");
+      const options = redirectBase.startsWith("https://")
+        ? { redirectTo: `${redirectBase}/reset-password` }
+        : undefined;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, options);
+      if (error) throw error;
+      toast.success("Enviamos as instrucoes de recuperacao para o seu email.");
+    } catch (error) {
+      const message = getMobileAuthErrorMessage(error);
+      setAuthError(message);
+      toast.error(message);
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const nativeUpdateProgress = nativeApkUpdate.progress?.percent ?? 0;
@@ -1261,6 +1354,11 @@ function MobileApp() {
           },
         }}
       />
+      {!isOnline ? (
+        <div className="fixed inset-x-0 top-0 z-50 mx-auto max-w-[480px] bg-amber-500 px-4 py-2 text-center text-xs font-semibold text-zinc-950" role="status">
+          Sem internet. A biblioteca e o leitor continuam disponiveis; a conta e a sincronizacao aguardarao a conexao.
+        </div>
+      ) : null}
       <input
         ref={fileInputRef}
         className="hidden"
@@ -1338,6 +1436,7 @@ function MobileApp() {
         )}
 
         <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
+          <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-zinc-500">Carregando...</div>}>
           {activeTab === "dashboard" && (
             <MobileDashboardScreen
               sessionEmail={sessionEmail}
@@ -1552,6 +1651,9 @@ function MobileApp() {
                         {selectedBook.fileType === "pdf" && selectedBookDataUrl ? (
                           <PdfPane
                             dataUrl={selectedBookDataUrl}
+                            title={selectedBook.title}
+                            fileName={selectedBook.fileName}
+                            fileSize={selectedBook.fileSize}
                             currentPage={selectedBook.currentPage}
                             initialZoom={selectedBook.currentZoom || 1}
                             onClose={() => setActiveTab("library")}
@@ -1647,11 +1749,12 @@ function MobileApp() {
           {activeTab === "profile" && (
             <section className="space-y-5 p-4">
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">Estado do MVP</p>
+                <p className="text-base font-semibold text-zinc-100">Lyceum Mobile</p>
                 <div className="mt-4 space-y-3 text-sm text-zinc-400">
-                  <p>Modo: Capacitor-ready com armazenamento local no aparelho.</p>
+                  <p>Versao: {import.meta.env.VITE_APP_VERSION || "desenvolvimento"}</p>
+                  <p>Biblioteca: armazenamento local persistente no aparelho.</p>
                   <p>Supabase: {hasSupabaseConfig() ? "configurado" : "nao configurado"}</p>
-                  <p>Conta: {sessionEmail || "modo local"}</p>
+                  <p>Conta: {!authReady ? "verificando sessao..." : sessionEmail || "modo local"}</p>
                 </div>
                 {sessionEmail && (
                   <button
@@ -1753,10 +1856,23 @@ function MobileApp() {
 
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
                 <p className="text-base font-semibold text-zinc-100">Login Supabase</p>
+                {getMobileSupabaseConfigError() ? (
+                  <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                    {getMobileSupabaseConfigError()}
+                  </p>
+                ) : null}
+                {authError ? (
+                  <p className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">
+                    {authError}
+                  </p>
+                ) : null}
                 <div className="mt-4 space-y-3">
                   <input
                     className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
                     placeholder="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    disabled={authBusy || Boolean(sessionEmail)}
                     value={authEmail}
                     onChange={(event) => setAuthEmail(event.target.value)}
                   />
@@ -1764,6 +1880,8 @@ function MobileApp() {
                     className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
                     placeholder="senha"
                     type="password"
+                    autoComplete={sessionEmail ? "off" : "current-password"}
+                    disabled={authBusy || Boolean(sessionEmail)}
                     value={authPassword}
                     onChange={(event) => setAuthPassword(event.target.value)}
                   />
@@ -1771,22 +1889,35 @@ function MobileApp() {
                     <button
                       className="rounded bg-green-600 px-3 py-3 text-sm font-semibold text-white"
                       onClick={() => signIn("signin")}
+                      disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
                     >
-                      Entrar
+                      {authBusy ? "Conectando..." : "Entrar"}
                     </button>
                     <button
                       className="rounded border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm font-semibold text-zinc-100"
                       onClick={() => signIn("signup")}
+                      disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
                     >
                       Criar
                     </button>
                   </div>
+                  {!sessionEmail ? (
+                    <button
+                      className="h-10 w-full text-xs font-semibold text-emerald-400 disabled:opacity-50"
+                      onClick={requestPasswordReset}
+                      disabled={authBusy || !hasSupabaseConfig() || !isOnline}
+                      type="button"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  ) : null}
                   {sessionEmail && (
                     <button
                       className="h-11 w-full rounded border border-zinc-800 text-sm font-medium text-zinc-300"
                       onClick={signOut}
+                      disabled={authBusy}
                       type="button"
                     >
                       Sair
@@ -1796,6 +1927,7 @@ function MobileApp() {
               </div>
             </section>
           )}
+          </Suspense>
         </main>
 
         {activeTab === "reader" && isEbookReader ? null : (

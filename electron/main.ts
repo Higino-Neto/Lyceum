@@ -1331,7 +1331,7 @@ async function copyFileToFilesystemKindle(
   device: KindleSendDevice,
   destinationParts: string[],
   fileName: string,
-): Promise<{ success: boolean; outputPath?: string; outputName?: string; error?: string }> {
+): Promise<KindleCopyResult> {
   if (!device.rootPath) {
     return { success: false, error: "Dispositivo USB invalido" };
   }
@@ -1339,12 +1339,30 @@ async function copyFileToFilesystemKindle(
   const targetDir = path.join(device.rootPath, ...destinationParts);
   fs.mkdirSync(targetDir, { recursive: true });
   const targetPath = getUniquePathInDir(targetDir, fileName);
-  fs.copyFileSync(sourcePath, targetPath);
+  const sourceBytes = fs.statSync(sourcePath).size;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    fs.copyFileSync(sourcePath, targetPath);
+    const copiedBytes = fs.existsSync(targetPath) ? fs.statSync(targetPath).size : -1;
+    if (copiedBytes === sourceBytes) {
+      return {
+        success: true,
+        outputPath: targetPath,
+        outputName: path.basename(targetPath),
+        verified: true,
+        bytes: copiedBytes,
+        note: attempt > 1 ? "Copia verificada apos uma nova tentativa" : "Copia verificada por tamanho",
+      };
+    }
+
+    if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+  }
 
   return {
-    success: true,
-    outputPath: targetPath,
-    outputName: path.basename(targetPath),
+    success: false,
+    verified: false,
+    bytes: sourceBytes,
+    error: "A copia terminou com tamanho diferente do arquivo de origem",
   };
 }
 
@@ -1353,7 +1371,7 @@ async function copyFileToMtpKindle(
   device: KindleSendDevice,
   destinationParts: string[],
   fileName: string,
-): Promise<{ success: boolean; outputPath?: string; outputName?: string; error?: string }> {
+): Promise<KindleCopyResult> {
   if (process.platform !== "win32" || !device.devicePath || !device.storageName) {
     return { success: false, error: "Dispositivo MTP invalido" };
   }
@@ -1445,8 +1463,15 @@ while ($existing.ContainsKey($targetName.ToLowerInvariant())) {
 }
 
 $stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'lyceum-kindle-mtp'
+$staleBefore = (Get-Date).AddDays(-7)
+if (Test-Path -LiteralPath $stagingRoot) {
+  Get-ChildItem -LiteralPath $stagingRoot -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt $staleBefore } |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
 $stagingDir = Join-Path $stagingRoot ([System.Guid]::NewGuid().ToString('N'))
 $stagingPath = Join-Path $stagingDir $targetName
+$expectedBytes = [int64](Get-Item -LiteralPath $sourcePath).Length
 
 try {
   New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
@@ -1475,11 +1500,20 @@ $targetFolder.CopyHere($sourceItem, 16)
 for ($i = 0; $i -lt 240; $i++) {
   foreach ($child in @($targetFolder.Items())) {
     if ([string]$child.Name -eq $targetName) {
-      if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -Recurse -Force }
+      $reportedBytes = 0
+      try { $reportedBytes = [int64]$child.Size } catch { $reportedBytes = 0 }
+      if ($reportedBytes -gt 0 -and $reportedBytes -ne $expectedBytes) { continue }
+      $verified = $reportedBytes -eq $expectedBytes
+      if ($verified -and (Test-Path -LiteralPath $stagingDir)) {
+        Remove-Item -LiteralPath $stagingDir -Recurse -Force
+      }
       [PSCustomObject]@{
         success = $true
         outputName = $targetName
         outputPath = (($parts -join '/') + '/' + $targetName)
+        verified = $verified
+        bytes = $expectedBytes
+        note = $(if ($verified) { 'Copia MTP verificada por tamanho' } else { 'Arquivo detectado no Kindle; tamanho MTP indisponivel. Staging preservado para concluir a transferencia.' })
       } | ConvertTo-Json -Depth 4
       exit
     }
@@ -1487,8 +1521,7 @@ for ($i = 0; $i -lt 240; $i++) {
   Start-Sleep -Milliseconds 250
 }
 
-if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -Recurse -Force }
-[PSCustomObject]@{ success = $false; error = 'Tempo esgotado ao copiar para o Kindle' } | ConvertTo-Json -Depth 4
+[PSCustomObject]@{ success = $false; error = 'Tempo esgotado ao confirmar a copia no Kindle; staging preservado para diagnostico' } | ConvertTo-Json -Depth 4
 `;
 
   try {
@@ -1496,6 +1529,9 @@ if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -
       success: boolean;
       outputName?: string;
       outputPath?: string;
+      verified?: boolean;
+      bytes?: number;
+      note?: string;
       error?: string;
     }>(script))[0];
 
@@ -1504,6 +1540,9 @@ if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -
         success: true,
         outputName: result.outputName,
         outputPath: result.outputPath,
+        verified: result.verified === true,
+        bytes: result.bytes,
+        note: result.note,
       };
     }
 
@@ -1571,6 +1610,9 @@ async function sendBooksToKindle(options: KindleSendOptions): Promise<{
         sourcePath: prepared.filePath,
         outputName: copied.outputName,
         outputPath: copied.outputPath,
+        verified: copied.verified,
+        bytes: copied.bytes,
+        note: copied.note,
         error: copied.error,
       });
     } catch (error) {
@@ -2060,6 +2102,19 @@ interface KindleSendItemResult {
   outputName?: string;
   outputPath?: string;
   sourcePath?: string;
+  verified?: boolean;
+  bytes?: number;
+  note?: string;
+  error?: string;
+}
+
+interface KindleCopyResult {
+  success: boolean;
+  outputPath?: string;
+  outputName?: string;
+  verified?: boolean;
+  bytes?: number;
+  note?: string;
   error?: string;
 }
 

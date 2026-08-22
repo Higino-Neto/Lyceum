@@ -41,6 +41,7 @@ import {
   updateReadingStatusItemStatus,
   updateMetadata,
   mergeDocuments,
+  unmergeDocuments,
   updateDocumentBookId,
   updateDocumentFileIdentity,
   getDocumentsByBookId,
@@ -736,6 +737,16 @@ export function registerBookHandlers() {
     if (!resolvedPath || !fs.existsSync(resolvedPath)) return false;
     shell.showItemInFolder(resolvedPath);
     return true;
+  });
+
+  ipcMain.handle("book:unmerge", (_, bookId: string) => {
+    if (!bookId) return { success: false, documents: [], error: "Identificador da mesclagem ausente" };
+    const documents = unmergeDocuments(bookId);
+    if (documents.length === 0) {
+      return { success: false, documents: [], error: "Mesclagem nao encontrada" };
+    }
+    win?.webContents.send("library:updated");
+    return { success: true, documents };
   });
 
   ipcMain.handle("book:extract-vocabulary", async (_, fileHash: string) => {

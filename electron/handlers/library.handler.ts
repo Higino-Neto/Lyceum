@@ -58,6 +58,7 @@ import {
   addManagedSourceFolder,
   addManagedWatchFolder,
   createManagedCollection,
+  dissolveManagedFolder,
   createManagedFolder,
   deleteManagedFolder,
   getManagedWatchFolderBookCount,
@@ -251,6 +252,12 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
     const result = deleteManagedFolder(folderPath, force);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:dissolve-folder", async (_, folderPath: string) => {
+    const result = dissolveManagedFolder(folderPath);
     emitLibraryUpdated(result);
     return result;
   });

@@ -1,0 +1,324 @@
+.lyceum-pdf-reader {
+  --pdf-accent: #34d399;
+  --pdf-accent-strong: #10b981;
+  --pdf-chrome: rgba(9, 12, 16, 0.94);
+  --pdf-surface: #151a20;
+  --pdf-stage: #20262d;
+  --pdf-page-filter: none;
+  --pdf-reader-brightness: 1;
+  color: #f8fafc;
+  background: var(--pdf-stage);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.lyceum-pdf-reader[data-theme="sepia"] {
+  --pdf-stage: #29261f;
+  --pdf-page-filter: sepia(0.23) saturate(0.9) brightness(0.98);
+}
+
+.lyceum-pdf-reader[data-theme="night"] {
+  --pdf-stage: #0b0f13;
+  --pdf-page-filter: invert(0.9) hue-rotate(180deg) brightness(0.82) contrast(0.92);
+}
+
+.lyceum-pdf-reader button,
+.lyceum-pdf-reader input {
+  font: inherit;
+}
+
+.lyceum-pdf-reader__viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(71, 85, 105, 0.2), transparent 44%),
+    var(--pdf-stage);
+  touch-action: pan-x pan-y pinch-zoom;
+  scrollbar-width: none;
+}
+
+.lyceum-pdf-reader__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.lyceum-pdf-reader__viewer.pdfViewer {
+  padding-top: calc(18px + env(safe-area-inset-top));
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+.lyceum-pdf-reader__viewer.pdfViewer .page {
+  margin: 0 auto 18px;
+  border: 0;
+  border-radius: 3px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.32);
+  filter: var(--pdf-page-filter) brightness(var(--pdf-reader-brightness));
+  transition: filter 160ms ease, box-shadow 160ms ease;
+}
+
+.lyceum-pdf-reader__viewer.pdfViewer.scrollPage .page {
+  margin-bottom: 0;
+}
+
+.lyceum-pdf-reader__viewer .textLayer {
+  user-select: text;
+}
+
+.lyceum-pdf-reader__viewer .textLayer ::selection {
+  background: rgba(16, 185, 129, 0.42);
+}
+
+.lyceum-pdf-reader__viewer .textLayer .highlight {
+  background-color: rgba(250, 204, 21, 0.5);
+  border-radius: 2px;
+}
+
+.lyceum-pdf-reader__viewer .textLayer .highlight.selected {
+  background-color: rgba(16, 185, 129, 0.7);
+}
+
+.lyceum-pdf-reader__viewer .annotationLayer :is(a, button, input, textarea, select) {
+  pointer-events: auto;
+}
+
+.lyceum-pdf-reader__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  border: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.lyceum-pdf-reader__topbar,
+.lyceum-pdf-reader__bottom-bar {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  background: var(--pdf-chrome);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lyceum-pdf-reader__topbar {
+  top: 0;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+
+.lyceum-pdf-reader__bottom-bar {
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.lyceum-pdf-reader[data-controls="hidden"] .lyceum-pdf-reader__topbar {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-110%);
+}
+
+.lyceum-pdf-reader[data-controls="hidden"] .lyceum-pdf-reader__bottom-bar {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(110%);
+}
+
+.lyceum-pdf-reader__icon-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: #e2e8f0;
+  background: transparent;
+}
+
+.lyceum-pdf-reader__icon-button:active {
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(0.94);
+}
+
+.lyceum-pdf-reader__icon-button[aria-pressed="true"] {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.13);
+}
+
+.lyceum-pdf-reader__progress {
+  width: 100%;
+  height: 3px;
+  border-radius: 99px;
+  accent-color: var(--pdf-accent-strong);
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.14);
+  touch-action: none;
+}
+
+.lyceum-pdf-reader__progress::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--pdf-accent-strong) var(--pdf-progress), rgba(255, 255, 255, 0.14) var(--pdf-progress));
+}
+
+.lyceum-pdf-reader__progress::-webkit-slider-thumb {
+  width: 19px;
+  height: 19px;
+  margin-top: -8px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 3px solid #ecfdf5;
+  border-radius: 50%;
+  background: var(--pdf-accent-strong);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.42);
+}
+
+.lyceum-pdf-reader__progress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #ecfdf5;
+  border-radius: 50%;
+  background: var(--pdf-accent-strong);
+}
+
+.lyceum-pdf-reader__sheet {
+  position: absolute;
+  z-index: 40;
+  inset: 0 0 0 auto;
+  display: flex;
+  width: min(92vw, 410px);
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  color: #f8fafc;
+  background: #11161c;
+  box-shadow: -18px 0 46px rgba(0, 0, 0, 0.44);
+  animation: lyceum-pdf-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lyceum-pdf-reader__sheet--bottom {
+  inset: auto 0 0;
+  width: 100%;
+  max-height: min(74dvh, 620px);
+  padding-top: 0;
+  border-radius: 24px 24px 0 0;
+  animation-name: lyceum-pdf-sheet-up;
+}
+
+.lyceum-pdf-reader__sheet-handle {
+  width: 38px;
+  height: 4px;
+  margin: 9px auto 2px;
+  border-radius: 99px;
+  background: #475569;
+}
+
+.lyceum-pdf-reader__thumbnail {
+  display: block;
+  width: 100%;
+  min-height: 126px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #2a323c;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.26);
+}
+
+.lyceum-pdf-reader__thumbnail canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lyceum-pdf-reader__fab {
+  position: absolute;
+  z-index: 24;
+  right: 14px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  color: #d1fae5;
+  background: rgba(5, 10, 14, 0.72);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.lyceum-pdf-reader[data-controls="visible"] .lyceum-pdf-reader__fab {
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.84);
+}
+
+.lyceum-pdf-reader__loading-track {
+  width: min(230px, 64vw);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lyceum-pdf-reader__loading-value {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #10b981, #6ee7b7);
+  transition: width 160ms ease;
+}
+
+.lyceum-pdf-reader__skeleton-page {
+  width: min(82vw, 420px);
+  aspect-ratio: 0.707;
+  border-radius: 4px;
+  background: linear-gradient(100deg, #262d35 20%, #343d47 42%, #262d35 64%);
+  background-size: 220% 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+  animation: lyceum-pdf-shimmer 1.45s linear infinite;
+}
+
+@keyframes lyceum-pdf-sheet-in {
+  from { transform: translateX(100%); }
+}
+
+@keyframes lyceum-pdf-sheet-up {
+  from { transform: translateY(100%); }
+}
+
+@keyframes lyceum-pdf-shimmer {
+  to { background-position: -220% 0; }
+}
+
+@media (min-width: 720px) {
+  .lyceum-pdf-reader__viewer.pdfViewer .page {
+    margin-bottom: 24px;
+  }
+
+  .lyceum-pdf-reader__topbar > div,
+  .lyceum-pdf-reader__bottom-bar > div {
+    max-width: 760px;
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyceum-pdf-reader *,
+  .lyceum-pdf-reader *::before,
+  .lyceum-pdf-reader *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

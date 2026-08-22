@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import MobileAccountGate from "./MobileAccountGate";
+import MobileQueryError from "./MobileQueryError";
 import {
   createMobileReadingEntry,
   deleteMobileReadingEntry,
@@ -192,13 +193,13 @@ export default function MobileReadingEntryScreen({
   const [categoryId, setCategoryId] = useState("");
   const [editingReading, setEditingReading] = useState<MobileReadingEntry | null>(null);
 
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ["mobile-categories"],
     queryFn: getMobileCategories,
     enabled,
   });
 
-  const { data: readings = [], isLoading: readingsLoading } = useQuery({
+  const { data: readings = [], isLoading: readingsLoading, error: readingsError, refetch: refetchReadings } = useQuery({
     queryKey: ["mobile-readings"],
     queryFn: getMobileUserReadings,
     enabled,
@@ -283,6 +284,10 @@ export default function MobileReadingEntryScreen({
 
   return (
     <section className="space-y-4 p-4">
+      <MobileQueryError
+        error={categoriesError || readingsError}
+        onRetry={() => { void Promise.all([refetchCategories(), refetchReadings()]); }}
+      />
       <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

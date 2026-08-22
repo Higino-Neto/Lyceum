@@ -22,7 +22,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 @CapacitorPlugin(name = "AppUpdater")
 public class AppUpdaterPlugin extends Plugin {
@@ -39,6 +41,7 @@ public class AppUpdaterPlugin extends Plugin {
             response.put("packageName", getContext().getPackageName());
             response.put("versionName", info.versionName == null ? "" : info.versionName);
             response.put("versionCode", getVersionCode(info));
+            response.put("sdkInt", Build.VERSION.SDK_INT);
             call.resolve(response);
         } catch (Exception error) {
             call.reject("Falha ao ler versao instalada", error);
@@ -81,6 +84,14 @@ public class AppUpdaterPlugin extends Plugin {
 
         if (urlValue == null || urlValue.trim().isEmpty()) {
             call.reject("URL do APK ausente");
+            return;
+        }
+        if (expectedSha256 == null || !expectedSha256.trim().matches("(?i)^[a-f0-9]{64}$")) {
+            call.reject("SHA-256 do APK ausente ou invalido");
+            return;
+        }
+        if (expectedBytes <= 0 || expectedBytes > MAX_APK_BYTES) {
+            call.reject("Tamanho esperado do APK ausente ou invalido");
             return;
         }
 
@@ -146,6 +157,9 @@ public class AppUpdaterPlugin extends Plugin {
         if (status < 200 || status >= 300) {
             throw new IllegalStateException("Servidor retornou HTTP " + status);
         }
+        if (!"https".equalsIgnoreCase(connection.getURL().getProtocol())) {
+            throw new SecurityException("O download do APK redirecionou para uma URL insegura");
+        }
 
         long total = connection.getContentLengthLong();
         if (total <= 0 && expectedBytes > 0) {
@@ -189,7 +203,7 @@ public class AppUpdaterPlugin extends Plugin {
 
     private void validateArchive(File apkFile) throws Exception {
         PackageManager packageManager = getContext().getPackageManager();
-        PackageInfo archiveInfo = packageManager.getPackageArchiveInfo(apkFile.getAbsolutePath(), 0);
+        PackageInfo archiveInfo = packageManager.getPackageArchiveInfo(apkFile.getAbsolutePath(), signatureFlags());
         if (archiveInfo == null) {
             throw new IllegalStateException("APK invalido");
         }
@@ -199,11 +213,14 @@ public class AppUpdaterPlugin extends Plugin {
             throw new IllegalStateException("APK usa package name diferente: " + archiveInfo.packageName);
         }
 
-        PackageInfo installedInfo = packageManager.getPackageInfo(currentPackage, 0);
+        PackageInfo installedInfo = packageManager.getPackageInfo(currentPackage, signatureFlags());
         long archiveVersion = getVersionCode(archiveInfo);
         long installedVersion = getVersionCode(installedInfo);
         if (archiveVersion <= installedVersion) {
             throw new IllegalStateException("APK nao e mais novo que a versao instalada");
+        }
+        if (!signaturesMatch(installedInfo, archiveInfo)) {
+            throw new IllegalStateException("A assinatura do APK nao corresponde ao aplicativo instalado");
         }
     }
 
@@ -257,6 +274,41 @@ public class AppUpdaterPlugin extends Plugin {
             return info.getLongVersionCode();
         }
         return info.versionCode;
+    }
+
+    private int signatureFlags() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return PackageManager.GET_SIGNING_CERTIFICATES;
+        }
+        return PackageManager.GET_SIGNATURES;
+    }
+
+    @SuppressWarnings("deprecation")
+    private Set<String> signatureDigests(PackageInfo info) throws Exception {
+        android.content.pm.Signature[] signatures;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && info.signingInfo != null) {
+            signatures = info.signingInfo.hasMultipleSigners()
+                ? info.signingInfo.getApkContentsSigners()
+                : info.signingInfo.getSigningCertificateHistory();
+        } else {
+            signatures = info.signatures;
+        }
+
+        Set<String> digests = new HashSet<>();
+        if (signatures == null) return digests;
+        for (android.content.pm.Signature signature : signatures) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digests.add(bytesToHex(digest.digest(signature.toByteArray())));
+        }
+        return digests;
+    }
+
+    private boolean signaturesMatch(PackageInfo installed, PackageInfo archive) throws Exception {
+        Set<String> installedDigests = signatureDigests(installed);
+        Set<String> archiveDigests = signatureDigests(archive);
+        return !installedDigests.isEmpty()
+            && !archiveDigests.isEmpty()
+            && archiveDigests.stream().anyMatch(installedDigests::contains);
     }
 
     private String bytesToHex(byte[] bytes) {

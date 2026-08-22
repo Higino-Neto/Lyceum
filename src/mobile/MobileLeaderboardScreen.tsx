@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import MobileAccountGate from "./MobileAccountGate";
+import MobileQueryError from "./MobileQueryError";
 import {
   acceptMobileFriendRequest,
   cancelMobileFriendRequest,
@@ -443,7 +444,7 @@ export default function MobileLeaderboardScreen({
     enabled,
   });
 
-  const { data: ranking = [], isLoading } = useQuery({
+  const { data: ranking = [], isLoading, error: rankingError, refetch: refetchRanking } = useQuery({
     queryKey: ["mobile-ranking", categoryId || "all", period],
     queryFn: () => getMobileRanking(categoryId || null, period),
     enabled,
@@ -467,6 +468,7 @@ export default function MobileLeaderboardScreen({
 
   return (
     <section className="space-y-4 p-4">
+      <MobileQueryError error={rankingError} onRetry={() => { void refetchRanking(); }} />
       <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

@@ -11,7 +11,7 @@
     "size:audit": "node scripts/size-audit.mjs",
     "prebuild": "node scripts/clean-build.mjs",
     "build": "node scripts/prepare-pdfjs.mjs && tsc && vite build && node scripts/verify-electron-imports.mjs && node scripts/verify-electron-workers.mjs",
-    "build:mobile": "vite build --config vite.mobile.config.ts",
+    "build:mobile": "tsc --noEmit && vite build --config vite.mobile.config.ts",
     "mobile:ota": "npm run build:mobile && node scripts/prepare-mobile-ota.mjs",
     "mobile:native-assets": "node scripts/prepare-native-mobile-assets.mjs",
     "cap:sync": "npm run build:mobile && cap sync",
@@ -22,7 +22,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:mobile": "vitest run src/test/mobileLibrary.test.ts src/test/mobileReadingStats.test.ts src/test/mobileReleaseResolver.test.ts src/test/mobileOtaUpdater.test.ts src/test/mobileAuth.test.ts src/test/nativeApkUpdater.test.ts"
   },
   "build": {
     "appId": "com.higino.lyceum",

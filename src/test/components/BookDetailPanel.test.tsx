@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BookDetailPanel from "../../pages/Library/components/BookDetailPanel";
 import type { BookWithThumbnail } from "../../types/LibraryTypes";
@@ -68,7 +68,7 @@ describe("BookDetailPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Preview Book\.pdf/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /Preview Book\.pdf/i }));
     fireEvent.click(screen.getByRole("button", { name: "Abrir previa lateral" }));
 
     expect(onOpenPreview).toHaveBeenCalledWith(pdfVariant);
@@ -91,5 +91,80 @@ describe("BookDetailPanel", () => {
 
     expect(onConvert).toHaveBeenCalledWith(book);
     expect(screen.queryByRole("dialog", { name: "Converter" })).not.toBeInTheDocument();
+  });
+
+  it("routes conversion and thumbnail regeneration to the selected merged variant", async () => {
+    const epubVariant = createBook();
+    const pdfVariant = createBook({
+      id: 2,
+      title: "Preview Book.pdf",
+      fileName: "Preview Book.pdf",
+      filePath: "C:\\library\\_Preview Book\\Preview Book.pdf",
+      fileHash: "hash-pdf",
+      fileType: "pdf",
+    });
+    const onConvert = vi.fn();
+    const onRefresh = vi.fn();
+    window.api.regenerateThumbnail = vi.fn().mockResolvedValue({ success: true });
+
+    render(
+      <BookDetailPanel
+        book={{
+          ...epubVariant,
+          fileHash: "merged-folder:preview",
+          syntheticFolderPath: "_Preview Book",
+          syntheticFolderType: "merged",
+          mergedBooks: [epubVariant, pdfVariant],
+        }}
+        onClose={vi.fn()}
+        onOpenReader={vi.fn()}
+        onConvert={onConvert}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /PDF: Preview Book\.pdf/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Converter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Thumbnail" }));
+
+    expect(onConvert).toHaveBeenCalledWith(pdfVariant);
+    await waitFor(() => {
+      expect(window.api.regenerateThumbnail).toHaveBeenCalledWith("hash-pdf");
+      expect(onRefresh).toHaveBeenCalledWith("hash-pdf");
+    });
+  });
+
+  it("offers a non-destructive unmerge action for a merged folder", async () => {
+    const epubVariant = createBook();
+    const pdfVariant = createBook({
+      id: 2,
+      fileHash: "hash-pdf",
+      filePath: "C:\\library\\_Preview Book\\Preview Book.pdf",
+      fileType: "pdf",
+    });
+    const mergedBook = {
+      ...epubVariant,
+      fileHash: "merged-folder:preview",
+      syntheticFolderPath: "_Preview Book",
+      syntheticFolderType: "merged" as const,
+      mergedBooks: [epubVariant, pdfVariant],
+    };
+    const onDissolve = vi.fn();
+
+    render(
+      <BookDetailPanel
+        book={mergedBook}
+        onClose={vi.fn()}
+        onOpenReader={vi.fn()}
+        onDissolve={onDissolve}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Desmesclar e manter arquivos" }));
+    expect(screen.getByText(/continuarão na biblioteca como livros independentes/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Desmesclar" }));
+
+    await waitFor(() => expect(onDissolve).toHaveBeenCalledWith(mergedBook));
   });
 });

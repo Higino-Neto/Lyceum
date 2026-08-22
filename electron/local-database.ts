@@ -1917,6 +1917,25 @@ export function getDocumentsByBookId(bookId: string): DocumentRecord[] {
   ).all(bookId);
 }
 
+export function unmergeDocuments(bookId: string): DocumentRecord[] {
+  const documents = getDocumentsByBookId(bookId);
+  if (documents.length === 0) return [];
+
+  const clearGroup = db.transaction((items: DocumentRecord[]) => {
+    const update = db.prepare(`
+      UPDATE documents
+      SET bookId = NULL, updatedAt = CURRENT_TIMESTAMP
+      WHERE fileHash = ?
+    `);
+    for (const document of items) {
+      update.run(document.fileHash);
+      refreshDocumentSearchIndex(document.fileHash);
+    }
+  });
+  clearGroup(documents);
+  return documents.map((document) => ({ ...document, bookId: null }));
+}
+
 type SharedMetadata = Pick<
   DocumentRecord,
   | "title"

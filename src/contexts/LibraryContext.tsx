@@ -32,6 +32,7 @@ interface LibraryContextValue {
   createFolder: (parentPath: string | null, name: string) => Promise<{ success: boolean; error?: string }>;
   renameFolder: (folderPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
   deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
+  dissolveFolder: (folderPath: string) => Promise<{ success: boolean; moved?: number; movedFolders?: number; targetPath?: string; error?: string }>;
   moveFolder: (folderPath: string, newParent: string | null) => Promise<{ success: boolean; error?: string }>;
   moveBook: (fileHash: string, targetFolder: string | null) => Promise<{ success: boolean; error?: string }>;
 }

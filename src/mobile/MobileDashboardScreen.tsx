@@ -24,6 +24,7 @@ import {
   YAxis,
 } from "recharts";
 import MobileAccountGate from "./MobileAccountGate";
+import MobileQueryError from "./MobileQueryError";
 import {
   getMobileCategories,
   getMobileFriends,
@@ -102,13 +103,13 @@ export default function MobileDashboardScreen({
   const enabled = getMobileReadingQueryEnabled(sessionEmail);
   const [chartMode, setChartMode] = useState<ChartMode>("daily");
 
-  const { data: readings = [], isLoading: readingsLoading } = useQuery({
+  const { data: readings = [], isLoading: readingsLoading, error: readingsError, refetch: refetchReadings } = useQuery({
     queryKey: ["mobile-readings"],
     queryFn: getMobileUserReadings,
     enabled,
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["mobile-reading-stats"],
     queryFn: getMobileReadingStats,
     enabled,
@@ -166,6 +167,10 @@ export default function MobileDashboardScreen({
 
   return (
     <section className="space-y-4 p-4">
+      <MobileQueryError
+        error={readingsError || statsError}
+        onRetry={() => { void Promise.all([refetchReadings(), refetchStats()]); }}
+      />
       <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

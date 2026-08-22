@@ -51,7 +51,7 @@ interface BookMetadataSearchDialogProps {
   thumbnail?: string;
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (fileHash?: string) => void;
   onSaveMetadata?: (metadata: BookMetadataSavePayload) => Promise<void> | void;
 }
 
@@ -294,7 +294,7 @@ export default function BookMetadataSearchDialog({
           coverUrl: saveCover ? form.coverUrl.trim() || undefined : undefined,
         });
         toast.success("Metadados salvos.", { id: loadingToast });
-        onSaved();
+        onSaved(book.fileHash);
         onClose();
         return;
       }
@@ -324,7 +324,7 @@ export default function BookMetadataSearchDialog({
           : "Metadados salvos.",
         { id: loadingToast },
       );
-      onSaved();
+      onSaved(currentHash);
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao salvar metadados", { id: loadingToast });

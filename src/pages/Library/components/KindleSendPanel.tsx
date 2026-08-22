@@ -37,6 +37,9 @@ interface KindleSendResultItem {
   status: "sent" | "converted" | "skipped" | "error";
   outputName?: string;
   outputPath?: string;
+  verified?: boolean;
+  bytes?: number;
+  note?: string;
   error?: string;
 }
 
@@ -143,8 +146,8 @@ function getBookFormat(book: BookWithThumbnail) {
 
 function itemStatusLabel(result?: KindleSendResultItem, shouldConvert?: boolean) {
   if (!result) return shouldConvert ? "Converter para AZW3" : "Pronto";
-  if (result.success && result.status === "converted") return "Convertido e enviado";
-  if (result.success) return "Enviado";
+  if (result.success && result.status === "converted") return result.verified ? "Convertido, enviado e verificado" : "Convertido e enviado (verificacao limitada)";
+  if (result.success) return result.verified ? "Enviado e verificado" : "Enviado (verificacao limitada)";
   return result.error || "Erro no envio";
 }
 
@@ -179,6 +182,14 @@ export default function KindleSendPanel({
   const totalSize = useMemo(
     () => books.reduce((sum, book) => sum + (book.fileSize || 0), 0),
     [books],
+  );
+  const verifiedCount = useMemo(
+    () => Array.from(results.values()).filter((result) => result.success && result.verified).length,
+    [results],
+  );
+  const inferredCount = useMemo(
+    () => Array.from(results.values()).filter((result) => result.success && !result.verified).length,
+    [results],
   );
 
   const destinationLabel = useMemo(() => {
@@ -413,6 +424,12 @@ export default function KindleSendPanel({
                       )}
                       <span className="truncate">{fallbackStatus}</span>
                     </p>
+                    {result?.note && (
+                      <p className="mt-1 text-[11px] leading-4 text-zinc-500">{result.note}</p>
+                    )}
+                    {result?.outputPath && (
+                      <p className="mt-1 truncate text-[11px] text-zinc-600" title={result.outputPath}>{result.outputPath}</p>
+                    )}
                   </div>
                 </article>
               );
@@ -424,7 +441,11 @@ export default function KindleSendPanel({
       <footer className="flex-shrink-0 border-t border-zinc-800 bg-zinc-900/95 p-4">
         <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
           <span>{convertibleCount} convers{convertibleCount === 1 ? "ao" : "oes"} AZW3</span>
-          <span>{books.length} arquivo{books.length !== 1 ? "s" : ""}</span>
+          <span>
+            {results.size > 0
+              ? `${verifiedCount} verificado(s)${inferredCount > 0 ? `, ${inferredCount} inferido(s)` : ""}`
+              : `${books.length} arquivo${books.length !== 1 ? "s" : ""}`}
+          </span>
         </div>
         <div className="flex gap-2">
           <button

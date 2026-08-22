@@ -4,7 +4,7 @@ This checklist tracks the mobile adaptation of the desktop library. Mobile keeps
 the same user concepts while using app-managed storage and explicit folder
 imports instead of unrestricted desktop filesystem access.
 
-## MVP library workflow
+## Core library workflow
 
 - [x] Start with an honest empty library, without demo books or fake counts.
 - [x] Import PDF, EPUB, and TXT into app-managed storage.
@@ -60,6 +60,10 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Store managed documents under the Capacitor app data directory.
 - [x] Keep metadata in a schema-versioned repository.
 - [x] Migrate the original localStorage MVP state.
+- [x] Serialize native writes so an older asynchronous save cannot overwrite a
+      newer state.
+- [x] Keep and recover a last-known-good metadata backup after corrupt writes.
+- [x] Repair orphaned and cyclic folder references during migration.
 - [x] Remove orphaned managed files and thumbnails when a book is deleted.
 - [x] Report storage/import failures instead of silently retaining large data
       URLs in metadata.

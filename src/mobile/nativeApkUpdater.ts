@@ -7,6 +7,7 @@ import {
   type AppUpdaterDownloadProgress,
   type InstalledAppVersion,
 } from "./appUpdaterBridge";
+import { fetchLatestMobileReleaseJson, fetchWithTimeout, MobileReleaseError } from "./githubReleaseResolver";
 
 export interface NativeApkUpdateManifest {
   version: string;
@@ -26,6 +27,7 @@ export type NativeApkUpdateStatus =
   | "checking"
   | "available"
   | "not-available"
+  | "not-published"
   | "permission-required"
   | "downloading"
   | "installing"
@@ -40,11 +42,8 @@ export interface NativeApkUpdateState {
   error?: string;
 }
 
-const DEFAULT_NATIVE_APK_MANIFEST_URL =
-  "https://github.com/Higino-Neto/Lyceum/releases/latest/download/lyceum-mobile-latest.json";
-
 const NATIVE_APK_MANIFEST_URL =
-  import.meta.env.VITE_MOBILE_APK_UPDATE_MANIFEST_URL || DEFAULT_NATIVE_APK_MANIFEST_URL;
+  import.meta.env.VITE_MOBILE_APK_UPDATE_MANIFEST_URL?.trim();
 
 export function isNewerVersionCode(remoteVersionCode: number, installedVersionCode: number) {
   return Number.isFinite(remoteVersionCode)
@@ -52,7 +51,7 @@ export function isNewerVersionCode(remoteVersionCode: number, installedVersionCo
     && remoteVersionCode > installedVersionCode;
 }
 
-function parseManifest(value: unknown): NativeApkUpdateManifest {
+export function parseNativeApkManifest(value: unknown): NativeApkUpdateManifest {
   if (!value || typeof value !== "object") {
     throw new Error("Manifesto de atualizacao invalido");
   }
@@ -62,7 +61,7 @@ function parseManifest(value: unknown): NativeApkUpdateManifest {
     throw new Error("Manifesto sem versao");
   }
   const versionCode = Number(record.versionCode);
-  if (!Number.isFinite(versionCode)) {
+  if (!Number.isSafeInteger(versionCode) || versionCode <= 0) {
     throw new Error("Manifesto sem versionCode");
   }
   if (!record.apkUrl || typeof record.apkUrl !== "string") {
@@ -74,14 +73,21 @@ function parseManifest(value: unknown): NativeApkUpdateManifest {
 
   const sizeBytes = Number(record.sizeBytes);
   const minSdk = Number(record.minSdk);
+  const sha256 = typeof record.sha256 === "string" ? record.sha256.trim().toLowerCase() : undefined;
+  if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
+    throw new Error("Manifesto com SHA-256 invalido");
+  }
+  if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > 512 * 1024 * 1024) {
+    throw new Error("Manifesto com tamanho de APK invalido");
+  }
 
   return {
     version: record.version,
     versionCode,
     apkUrl: record.apkUrl,
     notes: typeof record.notes === "string" ? record.notes : undefined,
-    sha256: typeof record.sha256 === "string" ? record.sha256 : undefined,
-    sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : undefined,
+    sha256,
+    sizeBytes,
     publishedAt: typeof record.publishedAt === "string" ? record.publishedAt : undefined,
     minSdk: Number.isFinite(minSdk) ? minSdk : undefined,
     mandatory: Boolean(record.mandatory),
@@ -89,13 +95,15 @@ function parseManifest(value: unknown): NativeApkUpdateManifest {
 }
 
 export async function fetchNativeApkUpdateManifest() {
-  const response = await fetch(`${NATIVE_APK_MANIFEST_URL}?t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Manifesto de APK retornou HTTP ${response.status}`);
+  if (!NATIVE_APK_MANIFEST_URL) {
+    return parseNativeApkManifest(await fetchLatestMobileReleaseJson("lyceum-mobile-latest.json"));
   }
-  return parseManifest(await response.json());
+  if (!NATIVE_APK_MANIFEST_URL.startsWith("https://")) {
+    throw new Error("A URL do manifesto de APK precisa usar HTTPS");
+  }
+  const response = await fetchWithTimeout(`${NATIVE_APK_MANIFEST_URL}?t=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Manifesto de APK retornou HTTP ${response.status}`);
+  return parseNativeApkManifest(await response.json());
 }
 
 export async function checkNativeApkUpdate(): Promise<NativeApkUpdateState> {
@@ -111,12 +119,29 @@ export async function checkNativeApkUpdate(): Promise<NativeApkUpdateState> {
     const manifest = await fetchNativeApkUpdateManifest();
     const checkedAt = new Date().toISOString();
 
+    if (manifest.minSdk && installed.sdkInt && manifest.minSdk > installed.sdkInt) {
+      return {
+        status: "error",
+        installed,
+        manifest,
+        checkedAt,
+        error: `Esta versao exige Android API ${manifest.minSdk} ou mais recente.`,
+      };
+    }
+
     if (!isNewerVersionCode(manifest.versionCode, installed.versionCode)) {
       return { status: "not-available", installed, manifest, checkedAt };
     }
 
     return { status: "available", installed, manifest, checkedAt };
   } catch (error) {
+    if (error instanceof MobileReleaseError && error.code === "NOT_PUBLISHED") {
+      return {
+        status: "not-published",
+        checkedAt: new Date().toISOString(),
+        error: error.message,
+      };
+    }
     return {
       status: "error",
       checkedAt: new Date().toISOString(),

@@ -125,13 +125,13 @@ export async function requireMobileSession(): Promise<AuthenticatedClient> {
     throw new Error("Supabase nao configurado no mobile.");
   }
 
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  if (!data.user) {
+  if (!data.session?.user) {
     throw new Error("Entre na sua conta para sincronizar leituras.");
   }
 
-  return { supabase, user: data.user };
+  return { supabase, user: data.session.user };
 }
 
 export async function getMobileUserReadings(): Promise<MobileReadingEntry[]> {

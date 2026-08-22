@@ -4,6 +4,7 @@ export interface InstalledAppVersion {
   packageName: string;
   versionName: string;
   versionCode: number;
+  sdkInt: number;
 }
 
 export interface AppUpdaterDownloadOptions {

@@ -24,6 +24,7 @@ import {
   Send,
   Trash2,
   Usb,
+  Unlink,
   X,
 } from "lucide-react";
 import {
@@ -48,6 +49,8 @@ import {
   getBookFolderLabel,
   getFileTypeLabel,
   getFolderChildren,
+  getParentFolderPath,
+  findFolderTrail,
   classifyFolder,
   classifyFolders,
   calculateSimilarity,
@@ -383,6 +386,7 @@ function LibraryContent() {
     createFolder,
     renameFolder,
     deleteFolder,
+    dissolveFolder,
     moveFolder,
     moveBook: moveBookInLibrary,
   } = useLibraryContext();
@@ -439,7 +443,7 @@ function LibraryContent() {
     folderName: string;
   }>({ open: false, parentPath: null, folderName: "" });
   const [folderActionDialog, setFolderActionDialog] = useState<{
-    mode: "rename" | "delete";
+    mode: "rename" | "delete" | "dissolve";
     folder: FolderInfo;
     value: string;
   } | null>(null);
@@ -804,10 +808,42 @@ function LibraryContent() {
     ),
   )), []);
 
-  const handleBookDeleted = useCallback(() => {
+  const handleBookDeleted = useCallback(async (deletedFileHash: string) => {
+    if (selectedBook?.syntheticFolderPath && selectedBook.syntheticFolderType) {
+      const variants = ((await window.api.getBooksInFolder(selectedBook.syntheticFolderPath)) as BookWithThumbnail[])
+        .filter((variant) => variant.fileHash !== deletedFileHash);
+
+      if (selectedBook.syntheticFolderType === "merged" && variants.length === 1) {
+        const result = await dissolveFolder(selectedBook.syntheticFolderPath);
+        if (!result.success) {
+          toast.error(result.error || "O arquivo foi removido, mas a mesclagem restante nao pode ser desfeita");
+        }
+        setSelectedBook(null);
+        await refreshLibraryState();
+        return;
+      }
+
+      if (variants.length > 0) {
+        const representative = pickRepresentativeBook(variants);
+        setSelectedBook({
+          ...selectedBook,
+          ...representative,
+          id: selectedBook.id,
+          title: selectedBook.title,
+          fileHash: selectedBook.fileHash,
+          folderPath: selectedBook.folderPath,
+          mergedBooks: variants,
+          syntheticFolderPath: selectedBook.syntheticFolderPath,
+          syntheticFolderType: selectedBook.syntheticFolderType,
+        });
+        await refreshLibraryState();
+        return;
+      }
+    }
+
     setSelectedBook(null);
-    refreshLibraryState();
-  }, [refreshLibraryState]);
+    await refreshLibraryState();
+  }, [dissolveFolder, refreshLibraryState, selectedBook]);
 
   const handleDeleteBook = useCallback(async (fileHash: string): Promise<boolean> => {
     const result = await window.api.deleteBook(fileHash, false);
@@ -1094,6 +1130,36 @@ function LibraryContent() {
     });
   };
 
+  const openDissolveFolderDialog = (folder: FolderInfo) => {
+    setFolderActionDialog({
+      mode: "dissolve",
+      folder,
+      value: folder.name,
+    });
+  };
+
+  const handleDissolveSpecialBook = async (book: BookWithThumbnail) => {
+    const result = book.syntheticFolderPath
+      ? await dissolveFolder(book.syntheticFolderPath)
+      : book.bookId
+        ? await window.api.unmergeBooks(book.bookId)
+        : { success: false, error: "Mesclagem sem identificador" };
+    if (!result.success) {
+      toast.error(result.error || "Nao foi possivel desfazer a mesclagem");
+      return;
+    }
+
+    const moved = "moved" in result
+      ? result.moved
+      : "documents" in result
+        ? result.documents?.length
+        : 0;
+    toast.success(`${moved || book.mergedBooks?.length || 0} arquivo(s) mantido(s) como livros independentes`);
+    setSelectedBook(null);
+    clearSelection();
+    await refreshLibraryState();
+  };
+
   const closeFolderActionDialog = () => {
     setFolderActionDialog(null);
   };
@@ -1124,6 +1190,24 @@ function LibraryContent() {
         closeFolderActionDialog();
       } else {
         toast.error(result.error || "Erro ao renomear pasta");
+      }
+      return;
+    }
+
+    if (folderActionDialog.mode === "dissolve") {
+      const result = await dissolveFolder(folderActionDialog.folder.fullPath);
+      if (result.success) {
+        const folderType = classifyFolder(folderActionDialog.folder.name);
+        toast.success(folderType === "collection" ? "Colecao removida; livros mantidos" : "Mesclagem desfeita; livros mantidos");
+        const selected = normalizeFolderPath(selectedFolder);
+        const dissolved = normalizeFolderPath(folderActionDialog.folder.path);
+        if (selected === dissolved || selected.startsWith(`${dissolved}/`)) {
+          handleFolderSelect(getParentFolderPath(folderStructure, folderActionDialog.folder.path));
+        }
+        closeFolderActionDialog();
+        await refreshLibraryState();
+      } else {
+        toast.error(result.error || "Nao foi possivel remover a estrutura");
       }
       return;
     }
@@ -1166,27 +1250,51 @@ function LibraryContent() {
     }
   };
 
-  const handleBookRefresh = async () => {
+  const handleBookRefresh = async (preferredFileHash?: string) => {
     await refreshLibraryState();
-    if (selectedBook) {
-      const result = await window.api.listBooks({
-        section: "all",
-        search: selectedBook.title,
-        limit: 10,
-        offset: 0,
-      });
-      const updatedBook = result.items.find((book: BookWithThumbnail) => (
-        book.fileHash === selectedBook.fileHash
-      ));
-      if (updatedBook) {
-        const thumbnail = updatedBook.thumbnailPath
-          ? await window.api.getThumbnail(updatedBook.thumbnailPath)
-          : null;
-        setSelectedBook({ ...updatedBook, thumbnail: thumbnail || undefined });
-      } else {
+    if (!selectedBook) return;
+
+    if (selectedBook.syntheticFolderPath && selectedBook.syntheticFolderType) {
+      const variants = (await window.api.getBooksInFolder(selectedBook.syntheticFolderPath)) as BookWithThumbnail[];
+      if (variants.length === 0) {
         setSelectedBook(null);
+        return;
       }
+      const representative = variants.find((variant) => variant.fileHash === preferredFileHash) || pickRepresentativeBook(variants);
+      setSelectedBook({
+        ...selectedBook,
+        ...representative,
+        id: selectedBook.id,
+        title: selectedBook.title,
+        fileHash: selectedBook.fileHash,
+        folderPath: selectedBook.folderPath,
+        mergedBooks: variants,
+        syntheticFolderPath: selectedBook.syntheticFolderPath,
+        syntheticFolderType: selectedBook.syntheticFolderType,
+      });
+      return;
     }
+
+    if (selectedBook.bookId) {
+      const variants = (await window.api.getDocumentsByBookId(selectedBook.bookId)) as BookWithThumbnail[];
+      if (variants.length === 0) {
+        setSelectedBook(null);
+        return;
+      }
+      const representative = variants.find((variant) => variant.fileHash === preferredFileHash) || pickRepresentativeBook(variants);
+      setSelectedBook({ ...representative, mergedBooks: variants });
+      return;
+    }
+
+    const updatedBook = await window.api.getBookById(selectedBook.id);
+    if (!updatedBook) {
+      setSelectedBook(null);
+      return;
+    }
+    const thumbnail = updatedBook.thumbnailPath
+      ? await window.api.getThumbnail(updatedBook.thumbnailPath)
+      : null;
+    setSelectedBook({ ...updatedBook, thumbnail: thumbnail || undefined });
   };
 
   const toggleSelection = useCallback((book: BookWithThumbnail) => {
@@ -1269,6 +1377,10 @@ function LibraryContent() {
     [settings.showSubfolderBooks, visibleFolders],
   );
   const currentFolderType = classifyFolder(getPathLeaf(selectedFolder));
+  const currentFolder = useMemo(
+    () => findFolderTrail(folderStructure, selectedFolder).at(-1) || null,
+    [folderStructure, selectedFolder],
+  );
 
   useEffect(() => {
     if (
@@ -1437,6 +1549,7 @@ function LibraryContent() {
           onImportBook={handleImportBook}
           onRenameFolder={openRenameFolderDialog}
           onDeleteFolder={openDeleteFolderDialog}
+          onDissolveFolder={openDissolveFolderDialog}
           onMoveBook={handleMoveBook}
           onMoveBooks={handleMoveBooks}
         />
@@ -1635,6 +1748,7 @@ function LibraryContent() {
               onMoveBooks={handleMoveBooks}
               draggingBookHashes={folderDragDrop.draggedBooks}
               onImportBook={handleImportBook}
+              onDissolveFolder={openDissolveFolderDialog}
             />
           </div>
           <button
@@ -1717,6 +1831,18 @@ function LibraryContent() {
                   <FolderOpen size={18} />
                 )}
               </button>
+
+              {currentFolderType !== "normal" && currentFolder && (
+                <button
+                  type="button"
+                  onClick={() => openDissolveFolderDialog(currentFolder)}
+                  className="flex h-8 items-center gap-1.5 rounded-sm border border-amber-500/30 bg-amber-500/10 px-2.5 text-xs text-amber-300 hover:bg-amber-500/20"
+                  title={currentFolderType === "collection" ? "Remover colecao mantendo os livros" : "Desmesclar mantendo os arquivos"}
+                >
+                  <Unlink size={14} />
+                  {currentFolderType === "collection" ? "Remover colecao" : "Desmesclar"}
+                </button>
+              )}
 
               <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
                 <button
@@ -1906,6 +2032,7 @@ function LibraryContent() {
                 onImportBook={handleImportBook}
                 onRenameFolder={openRenameFolderDialog}
                 onDeleteFolder={openDeleteFolderDialog}
+                onDissolveFolder={openDissolveFolderDialog}
                 onMoveBook={handleMoveBook}
                 onMoveBooks={handleMoveBooks}
                 onDropBooksOnBook={handleDropBooksOnBook}
@@ -1968,6 +2095,7 @@ function LibraryContent() {
                 window.dispatchEvent(new CustomEvent("lyceum:open-conversion"));
               }}
               onDelete={handleBookDeleted}
+              onDissolve={handleDissolveSpecialBook}
               onRefresh={handleBookRefresh}
               readOnly={activeSection === "usb"}
               previewOpen={readingPreviewOpen}
@@ -2137,12 +2265,18 @@ function LibraryContent() {
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
               {folderActionDialog.mode === "delete" ? (
                 <Trash2 size={18} className="text-red-400" />
+              ) : folderActionDialog.mode === "dissolve" ? (
+                <Unlink size={18} className="text-amber-300" />
               ) : (
                 <FolderOpen size={18} className="text-green-400" />
               )}
               <h2 className="text-sm font-semibold text-zinc-100">
                 {folderActionDialog.mode === "delete"
                   ? "Excluir pasta"
+                  : folderActionDialog.mode === "dissolve"
+                    ? classifyFolder(folderActionDialog.folder.name) === "collection"
+                      ? "Remover colecao"
+                      : "Desmesclar livros"
                   : "Renomear pasta"}
               </h2>
             </div>
@@ -2159,6 +2293,17 @@ function LibraryContent() {
                   </p>
                   <p className="text-xs text-zinc-600">
                     Esta pasta e todo o seu conteudo serao excluidos permanentemente.
+                  </p>
+                </>
+              ) : folderActionDialog.mode === "dissolve" ? (
+                <>
+                  <p className="text-sm text-zinc-300">
+                    {classifyFolder(folderActionDialog.folder.name) === "collection"
+                      ? "A colecao sera removida, mas todos os livros serao mantidos."
+                      : "A mesclagem sera desfeita e cada formato voltara a aparecer como um livro independente."}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Arquivos e subpastas serao movidos com seguranca para a pasta pai. Nomes repetidos receberao um sufixo.
                   </p>
                 </>
               ) : (
@@ -2196,10 +2341,12 @@ function LibraryContent() {
                 className={`cursor-pointer rounded-sm px-4 py-2 text-sm font-medium ${
                   folderActionDialog.mode === "delete"
                     ? "bg-red-500 text-white hover:bg-red-400"
+                    : folderActionDialog.mode === "dissolve"
+                      ? "bg-amber-400 text-zinc-950 hover:bg-amber-300"
                     : "bg-green-500 text-zinc-950 hover:bg-green-400"
                 }`}
               >
-                {folderActionDialog.mode === "delete" ? "Excluir" : "Salvar"}
+                {folderActionDialog.mode === "delete" ? "Excluir" : folderActionDialog.mode === "dissolve" ? "Manter livros e remover" : "Salvar"}
               </button>
             </div>
           </form>

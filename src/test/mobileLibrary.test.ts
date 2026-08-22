@@ -6,7 +6,7 @@ import {
   getBookProgress,
   queryMobileBooks,
 } from "../mobile/libraryModel";
-import { createBookFromFile, emptyMobileState, migrateMobileState } from "../mobile/storage";
+import { createBookFromFile, emptyMobileState, loadMobileState, migrateMobileState, saveMobileState } from "../mobile/storage";
 import type { MobileBook, MobileLibraryFolder } from "../mobile/types";
 
 function makeFile(name: string, contents = "book") {
@@ -42,7 +42,7 @@ describe("mobile library state", () => {
       selectedBookId: "book-1",
     });
 
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.categories).toContain("Historia");
     expect(migrated.selectedBookId).toBe("book-1");
     expect(migrated).not.toHaveProperty("sessions");
@@ -54,9 +54,35 @@ describe("mobile library state", () => {
     expect(migrated.books).toEqual([]);
   });
 
+  it("repairs orphan and cyclic folder references during migration", () => {
+    const migrated = migrateMobileState({
+      folders: [
+        { id: "a", name: "A", parentId: "b", createdAt: "2026-01-01" },
+        { id: "b", name: "B", parentId: "a", createdAt: "2026-01-01" },
+      ],
+      books: [makeBook({ folderId: "missing" })],
+    });
+
+    expect(migrated.folders.some((folder) => !folder.parentId)).toBe(true);
+    expect(migrated.books[0].folderId).toBeUndefined();
+  });
+
   it("rejects unsupported files before creating a book", () => {
     const file = new File(["<p>book</p>"], "arquivo.html", { type: "text/html" });
     expect(() => createBookFromFile(file, "data:text/html;base64,AA==")).toThrow("Formato nao suportado");
+  });
+
+  it("keeps a last-known-good backup while persisting newer state", async () => {
+    localStorage.clear();
+    const first = { ...emptyMobileState(), categories: ["Primeira"] };
+    const second = { ...emptyMobileState(), categories: ["Segunda"] };
+
+    await saveMobileState(first);
+    await saveMobileState(second);
+
+    expect(loadMobileState().categories).toContain("Segunda");
+    expect(JSON.parse(localStorage.getItem("lyceum_mobile_library_state_backup") || "{}").categories)
+      .toContain("Primeira");
   });
 });
 

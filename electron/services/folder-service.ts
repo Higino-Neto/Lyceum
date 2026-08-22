@@ -46,6 +46,12 @@ interface FolderBooksResult extends FolderOperationResult {
   mergedCount?: number;
 }
 
+interface DissolveFolderResult extends FolderOperationResult {
+  moved?: number;
+  movedFolders?: number;
+  targetPath?: string;
+}
+
 function permissionError(defaultMessage: string, error: unknown) {
   const err = error as Error & { code?: string };
   if (err.code === "EBUSY" || err.code === "ENOTEMPTY") return "Pasta esta sendo usada";
@@ -252,6 +258,103 @@ export function deleteManagedFolder(
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: folderOperationError("Erro ao excluir pasta", error) };
+  }
+}
+
+/**
+ * Removes the special merge/collection container while keeping every book.
+ * Entries are moved to the container's parent with collision-safe names. The
+ * filesystem is changed first and rolled back if any move fails; database
+ * paths are only updated after all entries have been moved successfully.
+ */
+export function dissolveManagedFolder(folderPath: string): DissolveFolderResult {
+  const moved: Array<{
+    from: string;
+    to: string;
+    isDirectory: boolean;
+  }> = [];
+
+  try {
+    const target = resolveManagedFolderPath(folderPath);
+    const sourceDir = target.targetDir;
+    const folderName = path.basename(sourceDir);
+
+    if (!folderName.startsWith("_") || sourceDir === LIBRARY_PATH()) {
+      return { success: false, error: "Apenas mesclagens e colecoes podem ser dissolvidas" };
+    }
+    if (!fs.existsSync(sourceDir) || !fs.statSync(sourceDir).isDirectory()) {
+      return { success: false, error: "Mesclagem ou colecao nao encontrada" };
+    }
+
+    const parentDir = path.dirname(sourceDir);
+    const documents = getAllDocuments().filter((doc) =>
+      Boolean(doc.filePath && (path.resolve(doc.filePath) === sourceDir || isPathWithin(sourceDir, doc.filePath))),
+    );
+
+    for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+      const sourcePath = path.join(sourceDir, entry.name);
+      const destinationPath = entry.isDirectory()
+        ? getUniqueDirPath(parentDir, entry.name)
+        : getUniqueFilePath(parentDir, entry.name);
+
+      if (entry.isDirectory()) {
+        fs.renameSync(sourcePath, destinationPath);
+      } else {
+        moveFileAcrossDevices(sourcePath, destinationPath);
+      }
+      moved.push({ from: sourcePath, to: destinationPath, isDirectory: entry.isDirectory() });
+    }
+
+    fs.rmdirSync(sourceDir);
+
+    for (const doc of documents) {
+      if (!doc.filePath) continue;
+      const mapping = moved.find((item) => {
+        const resolvedDocumentPath = path.resolve(doc.filePath);
+        return resolvedDocumentPath === path.resolve(item.from) ||
+          (item.isDirectory && isPathWithin(item.from, doc.filePath));
+      });
+      if (!mapping) continue;
+
+      const nextPath = mapping.isDirectory
+        ? path.join(mapping.to, path.relative(mapping.from, doc.filePath))
+        : mapping.to;
+      updateDocumentPath(doc.fileHash, nextPath);
+      updateDocumentBookId(doc.fileHash, null);
+      updateDocumentSyncStatus(doc.fileHash, true);
+    }
+
+    return {
+      success: true,
+      moved: documents.length,
+      movedFolders: moved.filter((item) => item.isDirectory).length,
+      targetPath: parentDir,
+    };
+  } catch (error: unknown) {
+    if (moved.length > 0) {
+      try {
+        fs.mkdirSync(path.dirname(moved[0].from), { recursive: true });
+      } catch (restoreDirectoryError) {
+        console.error("[FolderService] Error restoring dissolved folder:", restoreDirectoryError);
+      }
+    }
+    for (const item of [...moved].reverse()) {
+      try {
+        if (!fs.existsSync(item.to) || fs.existsSync(item.from)) continue;
+        if (item.isDirectory) {
+          fs.renameSync(item.to, item.from);
+        } else {
+          moveFileAcrossDevices(item.to, item.from);
+        }
+      } catch (rollbackError) {
+        console.error("[FolderService] Error rolling back dissolve operation:", rollbackError);
+      }
+    }
+
+    return {
+      success: false,
+      error: folderOperationError("Nao foi possivel desfazer a mesclagem ou colecao", error),
+    };
   }
 }
 

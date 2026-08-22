@@ -1,7 +1,14 @@
 apply plugin: 'com.android.application'
 
-def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: "1.8.13"
-def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: "10813").toInteger()
+import groovy.json.JsonSlurper
+
+def packageMetadata = new JsonSlurper().parse(file('../../package.json'))
+def packageVersion = (packageMetadata.version ?: '1.0.0').toString()
+def versionParts = packageVersion.tokenize('.').collect { (it.find(/^\d+/) ?: '0').toInteger() }
+while (versionParts.size() < 3) versionParts.add(0)
+def defaultMobileVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: packageVersion
+def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: defaultMobileVersionCode.toString()).toInteger()
 
 def releaseKeystorePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
 def releaseKeystorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")

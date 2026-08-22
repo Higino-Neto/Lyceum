@@ -116,6 +116,7 @@ function FolderTreeContainer({
   draggingBookHash,
   draggingBookHashes = [],
   onImportBook,
+  onDissolveFolder,
   data,
   loadChildren,
 }: FolderTreeProps & { data: FolderTreeData; loadChildren?: LoadFolderChildren }) {
@@ -455,6 +456,10 @@ function FolderTreeContainer({
               setDeleteDialog({ open: true, folder });
               closeContextMenu();
             }}
+            onDissolveFolder={onDissolveFolder ? (folder) => {
+              onDissolveFolder(folder);
+              closeContextMenu();
+            } : undefined}
           />
         )}
 

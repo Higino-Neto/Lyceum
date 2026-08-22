@@ -8,8 +8,10 @@ import type {
   MobileSourceFolder,
 } from "./types";
 
-export const MOBILE_SCHEMA_VERSION = 3;
-const STORAGE_KEY = "lyceum_mobile_mvp_state";
+export const MOBILE_SCHEMA_VERSION = 4;
+const STORAGE_KEY = "lyceum_mobile_library_state";
+const STORAGE_BACKUP_KEY = "lyceum_mobile_library_state_backup";
+const LEGACY_STORAGE_KEY = "lyceum_mobile_mvp_state";
 const DEFAULT_CATEGORIES = ["Geral", "Ficcao", "Tecnologia", "Filosofia", "Idiomas", "Academico"];
 
 export function makeMobileId(prefix: string) {
@@ -79,9 +81,35 @@ export function migrateMobileState(value: unknown): MobileLibraryState {
       .filter((book): book is MobileBook => Boolean(book))
       .filter((book) => !book.id.startsWith("demo_") || Boolean(book.storagePath || book.dataUrl))
     : [];
-  const folders = Array.isArray(parsed.folders) ? parsed.folders.filter((folder): folder is MobileLibraryFolder => Boolean(folder?.id && folder?.name)) : [];
+  const folderCandidates = Array.isArray(parsed.folders)
+    ? parsed.folders.filter((folder): folder is MobileLibraryFolder => Boolean(folder?.id && folder?.name))
+    : [];
+  const folders = folderCandidates
+    .filter((folder, index) => folderCandidates.findIndex((candidate) => candidate.id === folder.id) === index)
+    .map((folder) => ({ ...folder, name: folder.name.trim() }))
+    .filter((folder) => Boolean(folder.name));
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  const parentById = new Map(folders.map((folder) => [folder.id, folder.parentId]));
+  for (const folder of folders) {
+    if (!folder.parentId || !folderIds.has(folder.parentId) || folder.parentId === folder.id) {
+      folder.parentId = undefined;
+      continue;
+    }
+    const visited = new Set([folder.id]);
+    let parentId: string | undefined = folder.parentId;
+    while (parentId) {
+      if (visited.has(parentId)) {
+        folder.parentId = undefined;
+        break;
+      }
+      visited.add(parentId);
+      parentId = parentById.get(parentId);
+    }
+  }
   const sourceFolders = Array.isArray(parsed.sourceFolders)
-    ? parsed.sourceFolders.filter((folder): folder is MobileSourceFolder => Boolean(folder?.id && folder?.name))
+    ? parsed.sourceFolders
+      .filter((folder): folder is MobileSourceFolder => Boolean(folder?.id && folder?.name))
+      .filter((folder, index, items) => items.findIndex((candidate) => candidate.id === folder.id) === index)
     : [];
   const categories = Array.from(new Set([
     ...DEFAULT_CATEGORIES,
@@ -91,7 +119,13 @@ export function migrateMobileState(value: unknown): MobileLibraryState {
 
   return {
     schemaVersion: MOBILE_SCHEMA_VERSION,
-    books,
+    books: books.map((book) => ({
+      ...book,
+      folderId: book.folderId && folderIds.has(book.folderId) ? book.folderId : undefined,
+      sourceFolderId: book.sourceFolderId && sourceFolders.some((folder) => folder.id === book.sourceFolderId)
+        ? book.sourceFolderId
+        : undefined,
+    })),
     folders,
     sourceFolders,
     categories,
@@ -100,10 +134,21 @@ export function migrateMobileState(value: unknown): MobileLibraryState {
   };
 }
 
+function parseStoredState(raw: string | null | undefined) {
+  if (!raw) return null;
+  try {
+    return migrateMobileState(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
 export function loadMobileState(): MobileLibraryState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? migrateMobileState(JSON.parse(raw)) : emptyMobileState();
+    return parseStoredState(localStorage.getItem(STORAGE_KEY))
+      || parseStoredState(localStorage.getItem(STORAGE_BACKUP_KEY))
+      || parseStoredState(localStorage.getItem(LEGACY_STORAGE_KEY))
+      || emptyMobileState();
   } catch {
     return emptyMobileState();
   }
@@ -112,8 +157,15 @@ export function loadMobileState(): MobileLibraryState {
 export async function hydrateMobileState() {
   if (!Capacitor.isNativePlatform()) return loadMobileState();
   try {
-    const { value } = await Preferences.get({ key: STORAGE_KEY });
-    const state = value ? migrateMobileState(JSON.parse(value)) : loadMobileState();
+    const [current, backup, legacy] = await Promise.all([
+      Preferences.get({ key: STORAGE_KEY }),
+      Preferences.get({ key: STORAGE_BACKUP_KEY }),
+      Preferences.get({ key: LEGACY_STORAGE_KEY }),
+    ]);
+    const state = parseStoredState(current.value)
+      || parseStoredState(backup.value)
+      || parseStoredState(legacy.value)
+      || loadMobileState();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return state;
   } catch {
@@ -121,17 +173,39 @@ export async function hydrateMobileState() {
   }
 }
 
-export function saveMobileState(state: MobileLibraryState) {
+let persistenceQueue: Promise<void> = Promise.resolve();
+let lastPersistedState = "";
+
+export function saveMobileState(state: MobileLibraryState): Promise<void> {
   const normalized = migrateMobileState(state);
   const serialized = JSON.stringify(normalized);
+  if (serialized === lastPersistedState) return persistenceQueue;
+  lastPersistedState = serialized;
+  let browserError: unknown;
   try {
+    const previous = localStorage.getItem(STORAGE_KEY);
+    if (previous && previous !== serialized) localStorage.setItem(STORAGE_BACKUP_KEY, previous);
     localStorage.setItem(STORAGE_KEY, serialized);
-  } catch {
+  } catch (error) {
+    browserError = error;
     // Preferences remains the durable native repository if the web mirror is full.
   }
   if (Capacitor.isNativePlatform()) {
-    void Preferences.set({ key: STORAGE_KEY, value: serialized });
+    persistenceQueue = persistenceQueue.catch(() => undefined).then(async () => {
+      const previous = await Preferences.get({ key: STORAGE_KEY });
+      if (previous.value && previous.value !== serialized) {
+        await Preferences.set({ key: STORAGE_BACKUP_KEY, value: previous.value });
+      }
+      await Preferences.set({ key: STORAGE_KEY, value: serialized });
+    }).catch((error) => {
+      if (lastPersistedState === serialized) lastPersistedState = "";
+      throw error;
+    });
+  } else if (browserError) {
+    lastPersistedState = "";
+    return Promise.reject(browserError);
   }
+  return persistenceQueue;
 }
 
 export function inferFileType(file: File): MobileFileType | null {
