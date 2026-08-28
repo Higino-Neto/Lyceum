@@ -186,10 +186,10 @@ export default function FolderCard({
       className={[
         "group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
         fluid ? "w-full" : "w-55",
-        "hover:border-emerald-400/60 hover:bg-zinc-900/90",
+        "hover:border-green-400/60 hover:bg-zinc-900/90",
         "",
-        isSelected ? "border-emerald-400/80 bg-emerald-500/10 shadow-emerald-950/30" : "border-zinc-800",
-        isDropTarget ? "border-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-400/70" : "",
+        isSelected ? "border-green-400/80 bg-green-500/10 shadow-green-950/30" : "border-zinc-800",
+        isDropTarget ? "border-green-400 bg-green-500/10 ring-1 ring-green-400/70" : "",
       ].join(" ")}
     >
       {onContextMenu && (
@@ -201,7 +201,7 @@ export default function FolderCard({
             onContextMenu(id, event);
           }}
           onKeyDown={(event) => event.stopPropagation()}
-          className="absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/75 text-zinc-500 opacity-0 shadow-sm transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35 group-hover:opacity-100"
+          className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/75 text-zinc-500 opacity-0 shadow-sm transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/35 group-hover:opacity-100"
           aria-label={`Mais ações de ${name}`}
           title={`Mais ações de ${name}`}
         >
@@ -227,7 +227,7 @@ export default function FolderCard({
           )}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
             <span className="inline-flex items-center gap-1">
-              <Boxes size={12} className={folderCount > 0 ? "text-emerald-300/80" : "text-zinc-600"} />
+              <Boxes size={12} className={folderCount > 0 ? "text-green-300/80" : "text-zinc-600"} />
               {formatCount(folderCount, "subpasta", "subpastas")}
             </span>
             <span className="inline-flex items-center gap-1">
@@ -240,10 +240,10 @@ export default function FolderCard({
 
         <div
           className={[
-            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm border transition-all",
+            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm transition-all",
             empty
               ? "border-zinc-800 text-zinc-600"
-              : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200 group-hover:translate-x-0.5 group-hover:border-emerald-300/45",
+              : " group-hover:bg-green-500 text-zinc-200 groud-hover:text-zinc-800 group-hover:translate-x-0.5",
           ].join(" ")}
           aria-hidden="true"
         >

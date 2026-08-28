@@ -21,6 +21,7 @@ import {
   Search,
   PanelRightOpen,
   Unlink,
+  Shuffle,
 } from "lucide-react";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
@@ -691,14 +692,14 @@ export default function BookDetailPanel({
           <button
             type="button"
             onClick={() => setShowMetadataSearchDialog(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-sm border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-200 transition-colors hover:bg-green-500/20"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-600 cursor-pointer"
           >
             <Search size={15} />
             Pesquisar e editar metadados
           </button>
         )}
 
-        <div className="space-y-2">
+        {/* <div className="space-y-2">
           <p className="text-xs text-zinc-500">
             {formatPageCount(selectedVariant.numPages, selectedVariant.fileType)}{" "}
             <span className="text-zinc-700">|</span>{" "}
@@ -706,32 +707,28 @@ export default function BookDetailPanel({
             <span className="text-zinc-700">|</span>{" "}
             {getBookFolderLabel(selectedVariant.filePath)}
           </p>
-        </div>
+        </div> */}
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => onOpenReader(selectedVariant)}
             disabled={!canOpenInReader}
-            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 px-2 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 px-2 py-2.5 text-sm font-bold transition-colors  hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-700"
           >
-            <BookOpen size={16} />
+            <BookOpen size={16} strokeWidth={3} />
             {canOpenInReader
               ? selectedVariant.currentPage > 1
                 ? "Continuar Leitura"
                 : "Começar a Ler"
-              : "Formato não suportado no leitor"}
+              : "Formato não suportado"}
           </button>
         {onOpenPreview && (
           <button
             type="button"
             onClick={() => onOpenPreview(selectedVariant)}
             disabled={!canOpenInReader}
-            className={`flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500 ${
-              previewOpen
-                ? "border-green-500/70 bg-green-500/15 text-green-200 hover:bg-green-500/25"
-                : "border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-200"
-            }`}
+            className={`bg-zinc-800 text-zinc-300 hover:bg-zinc-600 hover:text-green-200 flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500`}
             title={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
             aria-label={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
           >
@@ -744,17 +741,17 @@ export default function BookDetailPanel({
           <div className={`grid gap-2 ${selectedVariant.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>
             <button
               onClick={() => onConvert?.(selectedVariant)}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 cursor-pointer"
               title="Converter"
             >
-              <FileType size={13} />
+              <Shuffle size={14} />
               <span className="truncate">Converter</span>
             </button>
             {selectedVariant.fileType === "epub" && (
             <button
               onClick={handleExtractVocabulary}
               disabled={isExtractingVocabulary}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
               title={vocabularyStats?.hasIndex ? "Atualizar Vocabulário" : "Extrair Vocabulário"}
             >
               {isExtractingVocabulary ? (
@@ -767,7 +764,7 @@ export default function BookDetailPanel({
             )}
           <button
             onClick={handleRegenerateThumbnail}
-            className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
             title="Regenerar thumbnail"
           >
             <RefreshCw size={13} />
@@ -775,7 +772,7 @@ export default function BookDetailPanel({
           </button>
           <button
             onClick={handleShowInFolder}
-            className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
             title="Abrir pasta"
           >
             <FolderOpen size={13} />

@@ -26,6 +26,7 @@ import {
   Usb,
   Unlink,
   X,
+  Shuffle,
 } from "lucide-react";
 import {
   BookDetailPanel,
@@ -1929,46 +1930,47 @@ function LibraryContent() {
 
                 <button
                   onClick={selectAllFiltered}
-                  className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800"
+                  className="flex items-center gap-2 cursor-pointer rounded-sm border border-zinc-800 bg-zinc-800 px-3 py-2 text-xs text-zinc-200"
                 >
-                  Selecionar todos
+                  <LayoutGrid size={14} />
+                  Todos
                 </button>
                 <button
                   onClick={openConversionWithSelection}
                   disabled={selectedConcreteBooks.length === 0}
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Send size={14} />
+                  <Shuffle size={14} />
                   Converter
                 </button>
                 {activeSection !== "usb" && (
                   <button
                     onClick={openKindlePanel}
                     disabled={selectedConcreteBooks.length === 0}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-green-500/50 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-200 hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <Usb size={14} />
-                    Enviar para Kindle
+                    <Send size={14} />
+                    Kindle
                   </button>
                 )}
                 {activeSection !== "usb" && (
                   <button
                     onClick={() => setConfirmMergeBooks(true)}
                     disabled={bulkBusy || selectedConcreteBooks.length < 2}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <GitMerge size={14} />
-                    Mesclar livros
+                    Mesclar
                   </button>
                 )}
                 {activeSection !== "usb" && (
                   <button
                     onClick={() => setCollectionDialog({ open: true, name: "" })}
                     disabled={bulkBusy || selectedConcreteBooks.length === 0}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm  bg-zinc-800 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Layers size={14} />
-                    Criar colecao
+                    Colecao
                   </button>
                 )}
                   <button
@@ -2205,7 +2207,7 @@ function LibraryContent() {
             }}
           >
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
-              <Layers size={18} className="text-emerald-300" />
+              <Layers size={18} className="text-green-300" />
               <h2 className="text-sm font-semibold text-zinc-100">
                 Nova colecao
               </h2>
@@ -2244,7 +2246,7 @@ function LibraryContent() {
               <button
                 type="submit"
                 disabled={bulkBusy || collectionDialog.name.trim().length === 0}
-                className="cursor-pointer rounded-sm bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {bulkBusy ? "Criando..." : "Criar"}
               </button>

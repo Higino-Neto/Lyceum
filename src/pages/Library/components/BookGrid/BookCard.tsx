@@ -127,7 +127,7 @@ function BookCard({
       className={`bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
           isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
         } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""} ${
-          isCollection ? "border border-dashed border-zinc-700/40 hover:border-emerald-500/40" : ""
+          isCollection ? "border border-dashed border-zinc-700/40 hover:border-green-500/40" : ""
         }`}
       onClick={handleClick}
       onContextMenu={(e) => {
@@ -187,7 +187,7 @@ function BookCard({
           <div className="relative h-full w-full">
             <CollectionThumbnailGrid books={book.mergedBooks || []} />
             <div className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-sm bg-zinc-900/90 border border-zinc-700/60 shadow-sm">
-              <Folder size={13} className="text-emerald-400" />
+              <Folder size={13} className="text-green-400" />
             </div>
           </div>
         ) : thumbnail ? (
@@ -282,7 +282,7 @@ function BookCard({
           {isCollection ? (
             <>
               <span>{book.mergedBooks?.length || 0} livros</span>
-              <span className="rounded-sm bg-emerald-950/50 px-1.5 py-0.5 text-emerald-300">
+              <span className="bg-zinc-800 rounded-sm px-1.5 py-0.5 text-zinc-300 ">
                 Coleção
               </span>
             </>
