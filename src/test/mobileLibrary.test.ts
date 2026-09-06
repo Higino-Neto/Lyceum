@@ -42,7 +42,7 @@ describe("mobile library state", () => {
       selectedBookId: "book-1",
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.categories).toContain("Historia");
     expect(migrated.selectedBookId).toBe("book-1");
     expect(migrated).not.toHaveProperty("sessions");

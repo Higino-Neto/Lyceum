@@ -3,6 +3,11 @@ import path from "node:path";
 
 const root = process.cwd();
 const webDir = path.join(root, "dist-mobile");
+const requestedTarget = (process.env.MOBILE_NATIVE_TARGET || "all").toLowerCase();
+
+if (!["all", "android", "ios"].includes(requestedTarget)) {
+  throw new Error(`Unsupported MOBILE_NATIVE_TARGET: ${requestedTarget}`);
+}
 
 const appConfig = {
   appId: "com.higino.lyceum.mobile",
@@ -161,7 +166,7 @@ function writeIosAssets() {
   );
 }
 
-writeAndroidAssets();
-writeIosAssets();
+if (requestedTarget === "all" || requestedTarget === "android") writeAndroidAssets();
+if (requestedTarget === "all" || requestedTarget === "ios") writeIosAssets();
 
-console.log("Prepared native mobile assets for Android and iOS.");
+console.log(`Prepared native mobile assets for ${requestedTarget === "all" ? "Android and iOS" : requestedTarget}.`);

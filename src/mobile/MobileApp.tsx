@@ -1,22 +1,27 @@
+import { useMobileImport } from "./useMobileImport";
+import { useMobileReaderState } from "./useMobileReaderState";
+import { useMobileUpdater } from "./useMobileUpdater";
+import { useMobileAuth } from "./useMobileAuth";
+import { useMobileLibrary } from "./useMobileLibrary";
+import MobileBackupPanel from "./MobileBackupPanel";
+import { hashMobileFile } from "./mobileBackup";
+import { extractMobileMetadata } from "./mobileMetadata";
+import TextPane from "./TextPane";
+import { useMobileConfirm } from "./MobileConfirmDialog";
 import {
   BarChart3,
   BookOpen,
-  ChevronDown,
   Download,
   Heart,
   Library,
-  Menu,
   NotebookPen,
   RefreshCw,
-  Search,
   Settings,
-  SlidersHorizontal,
   Trophy,
   UserCircle,
   X,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import {
   deleteMobileBookFile,
@@ -26,24 +31,11 @@ import {
   writeMobileBookFile,
 } from "./bookFileStorage";
 import {
-  acknowledgeNativeBook,
-  getPendingNativeBooks,
-  listenForIncomingBooks,
-  loadNativeBook,
-  pickNativeBooks,
-  supportsNativeDocumentPicker,
-  supportsNativeIncomingBooks,
-  type NativeImportFile,
-} from "./incomingBooksBridge";
-import {
   createBookFromFile,
   createFolder,
   createSourceFolder,
-  hydrateMobileState,
   inferFileType,
-  loadMobileState,
   readFileAsDataUrl,
-  saveMobileState,
 } from "./storage";
 import {
   descendantFolderIds,
@@ -52,19 +44,10 @@ import {
   sanitizeFolderName,
   type MobileLibraryQuery,
 } from "./libraryModel";
+import type { NativeApkUpdateState } from "./nativeApkUpdater";
 import {
-  checkNativeApkUpdate,
-  installNativeApkUpdate,
-  openInstallPermissionSettings,
-  type NativeApkUpdateState,
-} from "./nativeApkUpdater";
-import {
-  getMobileAuthErrorMessage,
-  getMobileSupabase,
   getMobileSupabaseConfigError,
   hasSupabaseConfig,
-  subscribeMobileAuth,
-  validateMobileSession,
 } from "./supabaseMobile";
 import {
   loadPersistentSourceFile,
@@ -76,7 +59,6 @@ import {
 } from "./sourceFolderBridge";
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
-import { createMobileUserProfile } from "./readingApi";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
 
 const EpubPane = lazy(() => import("./EpubPane"));
@@ -155,12 +137,7 @@ function getNativeApkUpdateText(state: NativeApkUpdateState) {
   }
 }
 
-type LibraryFilter = "all" | "pdf" | "epub";
 type LibraryView = "grid" | "list";
-
-const INITIAL_NATIVE_APK_UPDATE_STATE: NativeApkUpdateState = {
-  status: "idle",
-};
 
 interface SourceImportEntry {
   name: string;
@@ -170,31 +147,10 @@ interface SourceImportEntry {
   loadFile: (signal?: AbortSignal, onProgress?: (loaded: number, total: number) => void) => Promise<File>;
 }
 
-interface ImportJob {
-  id: string;
-  name: string;
-  progress: number;
-  status: "reading" | "processing" | "done" | "cancelled" | "error";
-  message?: string;
-}
-
-interface ImportCandidate {
-  key: string;
-  name: string;
-  size: number;
-  loadFile: (signal: AbortSignal, onProgress: (loaded: number, total: number) => void) => Promise<File>;
-  acknowledge?: () => Promise<void>;
-}
-
 function getProgress(book: MobileBook) {
   if (book.fileType !== "pdf") return Math.round(book.progressPercent || book.textScrollPercent || 0);
   if (book.totalPages <= 1) return 0;
   return Math.min(96, Math.max(4, Math.round((book.currentPage / book.totalPages) * 100)));
-}
-
-function getBookMeasure(book: MobileBook) {
-  if (book.fileType === "epub" && book.totalPages <= 80) return `${book.totalPages} cap.`;
-  return `${book.totalPages} pags.`;
 }
 
 function canExtractThumbnail(book: MobileBook) {
@@ -208,258 +164,16 @@ function shouldExtractThumbnail(book: MobileBook) {
 }
 
 async function extractThumbnailPatch(book: MobileBook, file: File): Promise<Partial<MobileBook>> {
-  if (!canExtractThumbnail(book)) return {};
+  const metadata = await extractMobileMetadata(file, book.fileType).catch(() => { toast(`Metadados indisponíveis: ${file.name}. Você pode editá-los na biblioteca.`); return {}; });
+  if (!canExtractThumbnail(book)) return metadata;
 
   try {
     const thumbnailDataUrl = await extractThumbnailFromFile(file, book.fileType);
-    if (!thumbnailDataUrl) return { thumbnailExtractAttempted: true };
-    return persistExtractedBookThumbnail(book, thumbnailDataUrl);
+    if (!thumbnailDataUrl) return { ...metadata, thumbnailExtractAttempted: true };
+    return { ...metadata, ...await persistExtractedBookThumbnail(book, thumbnailDataUrl) };
   } catch {
-    return { thumbnailExtractAttempted: true };
+    return { ...metadata, thumbnailExtractAttempted: true };
   }
-}
-
-function IconButton({
-  label,
-  children,
-  className = "",
-  onClick,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      className={`grid h-10 w-10 place-items-center rounded text-zinc-300 transition active:scale-95 ${className}`}
-      onClick={onClick}
-      type="button"
-      aria-label={label}
-      title={label}
-    >
-      {children}
-    </button>
-  );
-}
-
-function FilterPill({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={`h-8 min-w-[70px] rounded-full px-4 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition active:scale-95 ${
-        active
-          ? "bg-emerald-500 text-white shadow-emerald-950/30"
-          : "border border-white/5 bg-zinc-800/80 text-zinc-300"
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
-
-function ContinueCard({ book, onSelect }: { book: MobileBook; onSelect: (bookId: string) => void }) {
-  const progress = getProgress(book);
-
-  return (
-    <button
-      className="grid h-[136px] w-[246px] shrink-0 grid-cols-[48px_1fr] gap-4 rounded border border-zinc-800 bg-zinc-900/70 p-4 text-left shadow-lg shadow-black/20"
-      onClick={() => onSelect(book.id)}
-      type="button"
-    >
-      <div className="grid h-14 w-12 place-items-center rounded border border-zinc-700 bg-zinc-950 text-[11px] uppercase text-zinc-400">
-        {book.fileType}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold text-zinc-100">{book.title}</p>
-        <p className="mt-1 truncate text-sm text-zinc-500">{book.category}</p>
-      </div>
-      <div className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-3">
-        <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-          <div className="h-full rounded-full bg-green-500" style={{ width: `${progress}%` }} />
-        </div>
-        <span className="text-sm text-zinc-400">{progress}%</span>
-      </div>
-    </button>
-  );
-}
-
-function BookCover({ book, compact = false }: { book: MobileBook; compact?: boolean }) {
-  return book.thumbnailUrl ? (
-    <img
-      src={book.thumbnailUrl}
-      alt=""
-      className={`w-full object-cover ${compact ? "h-24 rounded" : "h-full"}`}
-      loading="lazy"
-    />
-  ) : (
-    <div className={`grid w-full place-items-center bg-zinc-800 text-xs uppercase text-zinc-500 ${compact ? "h-24 rounded" : "h-full"}`}>
-      {book.fileType}
-    </div>
-  );
-}
-
-function BookGridCard({ book, onSelect }: { book: MobileBook; onSelect: (bookId: string) => void }) {
-  const progress = getProgress(book);
-
-  return (
-    <button
-      className="group relative min-w-0 overflow-hidden rounded-[10px] border border-white/[0.06] bg-zinc-900 text-left shadow-[0_14px_35px_rgba(0,0,0,0.38)] transition active:scale-[0.99]"
-      onClick={() => onSelect(book.id)}
-      type="button"
-    >
-      <div className="aspect-[0.78/1] w-full overflow-hidden">
-        <BookCover book={book} />
-      </div>
-      <span className="absolute left-2 top-2 rounded-[4px] bg-zinc-800/95 px-2 py-1 text-[9px] font-semibold uppercase leading-none text-zinc-200 shadow">
-        {book.fileType}
-      </span>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#101114] via-[#101114]/95 to-transparent px-3 pb-3 pt-14">
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-bold leading-4 text-zinc-50">{book.title}</p>
-          <p className="mt-1 truncate text-xs text-zinc-400">{book.author || book.category}</p>
-        </div>
-        <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-2">
-          <div className="h-1 overflow-hidden rounded-full bg-zinc-700/70">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
-          </div>
-          <span className="text-[10px] tabular-nums text-zinc-400">{progress}%</span>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function BookListRow({ book, onSelect }: { book: MobileBook; onSelect: (bookId: string) => void }) {
-  return (
-    <button
-      className="grid w-full grid-cols-[56px_1fr_auto] items-center gap-4 rounded border border-zinc-800 bg-zinc-900/80 p-3 text-left"
-      onClick={() => onSelect(book.id)}
-      type="button"
-    >
-      <BookCover book={book} compact />
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold text-zinc-100">{book.title}</p>
-        <p className="mt-1 truncate text-sm text-zinc-500">{book.category}</p>
-        <p className="mt-2 text-sm text-zinc-500">{getBookMeasure(book)}</p>
-      </div>
-      <span className="rounded bg-zinc-800 px-2 py-1 text-sm font-medium uppercase text-zinc-100">{book.fileType}</span>
-    </button>
-  );
-}
-
-function MobileLibraryScreen({
-  books,
-  query,
-  filter,
-  view,
-  onQueryChange,
-  onFilterChange,
-  onViewChange,
-  onSelectBook,
-  onImportClick,
-}: {
-  books: MobileBook[];
-  query: string;
-  filter: LibraryFilter;
-  view: LibraryView;
-  onQueryChange: (query: string) => void;
-  onFilterChange: (filter: LibraryFilter) => void;
-  onViewChange: (view: LibraryView) => void;
-  onSelectBook: (bookId: string) => void;
-  onImportClick: () => void;
-}) {
-  const normalized = query.trim().toLowerCase();
-  const filteredBooks = books.filter((book) => {
-    const matchesFilter = filter === "all" || book.fileType === filter;
-    const matchesQuery = !normalized || [book.title, book.author, book.fileName, book.category, book.fileType, String(book.totalPages)]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(normalized));
-
-    return matchesFilter && matchesQuery;
-  });
-  const totalVolumes = Math.max(books.length, 152);
-
-  return (
-    <section className="min-h-screen bg-[#050607] px-6 pb-[calc(76px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-zinc-100">
-      <div className="mx-auto w-full max-w-[480px]">
-        <header className="flex h-11 items-center justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <IconButton label="Menu" className="-ml-1" onClick={onImportClick}>
-              <Menu size={23} />
-            </IconButton>
-            <div className="min-w-0">
-              <h1 className="truncate text-[22px] font-extrabold leading-6 tracking-normal text-zinc-50">Biblioteca</h1>
-              <p className="mt-0.5 text-sm leading-4 text-zinc-500">{totalVolumes} volumes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <IconButton label="Buscar">
-              <Search size={21} />
-            </IconButton>
-            <IconButton label="Ordenar">
-              <SlidersHorizontal size={21} />
-            </IconButton>
-          </div>
-        </header>
-
-        <div className="mt-3">
-          <label className="relative block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={19} />
-            <input
-              className="h-11 w-full rounded-2xl border border-white/[0.03] bg-[#17181c] pl-12 pr-4 text-sm font-medium text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-emerald-500/40"
-              placeholder="Buscar livros, autores ou pastas"
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 gap-2">
-            <FilterPill active={filter === "all"} label="Todos" onClick={() => onFilterChange("all")} />
-            <FilterPill active={filter === "pdf"} label="PDF" onClick={() => onFilterChange("pdf")} />
-            <FilterPill active={filter === "epub"} label="EPUB" onClick={() => onFilterChange("epub")} />
-          </div>
-          <button
-            className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-white/5 bg-zinc-800/80 px-4 text-xs font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-            type="button"
-          >
-            A-Z
-            <ChevronDown size={14} />
-          </button>
-        </div>
-
-        {filteredBooks.length === 0 ? (
-          <EmptyState
-            title="Nenhum livro encontrado"
-            body="Ajuste a busca ou o filtro para ver outros itens da biblioteca."
-          />
-        ) : view === "grid" ? (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {filteredBooks.map((book) => (
-              <BookGridCard key={book.id} book={book} onSelect={onSelectBook} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 space-y-3">
-            {filteredBooks.map((book) => (
-              <BookListRow key={book.id} book={book} onSelect={onSelectBook} />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
 }
 
 function MissingBookFile({
@@ -511,15 +225,10 @@ function MissingBookFile({
 }
 
 function MobileApp() {
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const confirm = useMobileConfirm();
   const sourceFolderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
-  const importControllersRef = useRef(new Map<string, AbortController>());
-  const incomingProcessingRef = useRef(new Set<string>());
-  const [state, setState] = useState<MobileLibraryState>(() => loadMobileState());
-  const stateRef = useRef(state);
-  const [repositoryReady, setRepositoryReady] = useState(false);
+  const { state, setState, stateRef, repositoryReady } = useMobileLibrary();
   const [activeTab, setActiveTab] = useState<MobileTab>("dashboard");
   const [readingSeedBookId, setReadingSeedBookId] = useState<string>();
   const [libraryQuery, setLibraryQuery] = useState<MobileLibraryQuery>({
@@ -530,100 +239,10 @@ function MobileApp() {
   });
   const [libraryView, setLibraryView] = useState<LibraryView>("grid");
   const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
+  const { sessionEmail, authReady, authBusy, authError, authEmail, setAuthEmail, authPassword, setAuthPassword, signIn, signOut, requestPasswordReset } = useMobileAuth();
   const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
-  const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
-  const [readerFileLoading, setReaderFileLoading] = useState(false);
-  const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
-  const [nativeApkUpdate, setNativeApkUpdate] = useState<NativeApkUpdateState>(INITIAL_NATIVE_APK_UPDATE_STATE);
-  const [nativeApkUpdateBusy, setNativeApkUpdateBusy] = useState(false);
-
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  const selectedBook = state.books.find((book) => book.id === state.selectedBookId) || state.books[0];
-  const selectedBookDataUrl = selectedBook ? (readerDataUrls[selectedBook.id] || selectedBook.dataUrl) : undefined;
-  const isPdfBook = selectedBook?.fileType === "pdf";
-  const isEbookReader = selectedBook?.fileType === "pdf" || selectedBook?.fileType === "epub";
-
-  const refreshNativeApkUpdate = useCallback(async (silent = false) => {
-    setNativeApkUpdate((current) => ({ ...current, status: "checking", error: undefined }));
-    const result = await checkNativeApkUpdate();
-    setNativeApkUpdate(result);
-
-    if (!silent) {
-      if (result.status === "available") {
-        toast.success("Atualizacao disponivel");
-      } else if (result.status === "not-available") {
-        toast.success("Voce ja esta na versao mais recente");
-      } else if (result.status === "not-published") {
-        toast(result.error || "Nenhuma versao mobile foi publicada ainda");
-      } else if (result.status === "error") {
-        toast.error(result.error || "Falha ao verificar atualizacao");
-      }
-    }
-
-    return result;
-  }, []);
-
-  const installNativeUpdate = useCallback(async () => {
-    const manifest = nativeApkUpdate.manifest;
-    if (!manifest) {
-      toast.error("Nenhuma atualizacao disponivel");
-      return;
-    }
-
-    setNativeApkUpdateBusy(true);
-    setNativeApkUpdate((current) => ({
-      ...current,
-      status: "downloading",
-      progress: { loaded: 0, total: manifest.sizeBytes || 0, percent: 0 },
-      error: undefined,
-    }));
-
-    const result = await installNativeApkUpdate(manifest, (progress) => {
-      setNativeApkUpdate((current) => ({
-        ...current,
-        status: "downloading",
-        progress,
-      }));
-    });
-
-    setNativeApkUpdate((current) => ({ ...current, ...result }));
-    setNativeApkUpdateBusy(false);
-
-    if (result.status === "permission-required") {
-      toast("Permissao de instalacao necessaria");
-    } else if (result.status === "installing") {
-      toast.success("Confirme a instalacao no Android");
-    } else if (result.status === "error") {
-      toast.error(result.error || "Falha ao instalar atualizacao");
-    }
-  }, [nativeApkUpdate.manifest]);
-
-  const openNativeInstallSettings = useCallback(async () => {
-    try {
-      await openInstallPermissionSettings();
-      toast("Ative a permissao e volte ao Lyceum para atualizar");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao abrir permissoes");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!repositoryReady) return;
-    void saveMobileState(state).catch((error) => {
-      console.error("[mobile-storage] persist failed", error);
-      toast.error("Nao foi possivel salvar as ultimas alteracoes no aparelho.", { id: "mobile-storage-error" });
-    });
-  }, [repositoryReady, state]);
-
+  const { selectedBook, selectedBookDataUrl, isEbookReader, setReaderDataUrls, readerFileLoading, selectBook } = useMobileReaderState(state, setState, setActiveTab);
+  const { nativeApkUpdate, nativeApkUpdateBusy, refreshNativeApkUpdate, installNativeUpdate, openNativeInstallSettings } = useMobileUpdater();
   useEffect(() => {
     const updateConnection = () => setIsOnline(navigator.onLine !== false);
     window.addEventListener("online", updateConnection);
@@ -631,23 +250,6 @@ function MobileApp() {
     return () => {
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
-    };
-  }, []);
-
-  useEffect(() => {
-    void refreshNativeApkUpdate(true);
-  }, [refreshNativeApkUpdate]);
-
-  useEffect(() => {
-    let cancelled = false;
-    hydrateMobileState().then((hydrated) => {
-      if (!cancelled) {
-        setState(hydrated);
-        setRepositoryReady(true);
-      }
-    });
-    return () => {
-      cancelled = true;
     };
   }, []);
 
@@ -667,7 +269,7 @@ function MobileApp() {
     return () => {
       cancelled = true;
     };
-  }, [state.books]);
+  }, [setState, state.books]);
 
   useEffect(() => {
     let cancelled = false;
@@ -702,229 +304,9 @@ function MobileApp() {
     return () => {
       cancelled = true;
     };
-  }, [state.books]);
+  }, [setState, state.books]);
 
-  const invalidateAccountQueries = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["mobile-readings"] });
-    void queryClient.invalidateQueries({ queryKey: ["mobile-reading-stats"] });
-    void queryClient.invalidateQueries({ queryKey: ["mobile-ranking"] });
-    void queryClient.invalidateQueries({ queryKey: ["mobile-friends"] });
-    void queryClient.invalidateQueries({ queryKey: ["mobile-friend-requests"] });
-    void queryClient.invalidateQueries({ queryKey: ["mobile-user-profile"] });
-  }, [queryClient]);
-
-  useEffect(() => {
-    let cancelled = false;
-    validateMobileSession()
-      .then((session) => {
-        if (!cancelled) setSessionEmail(session?.user?.email ?? null);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setSessionEmail(null);
-          setAuthError(getMobileAuthErrorMessage(error));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setAuthReady(true);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return subscribeMobileAuth((_event, session) => {
-      setSessionEmail(session?.user?.email ?? null);
-      setAuthReady(true);
-      setAuthError(null);
-      invalidateAccountQueries();
-    });
-  }, [invalidateAccountQueries]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const book = selectedBook;
-
-    if (!book || !["epub", "pdf", "txt"].includes(book.fileType)) {
-      setReaderFileLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (book.dataUrl || readerDataUrls[book.id]) {
-      setReaderFileLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setReaderFileLoading(Boolean(book.storagePath));
-    resolveMobileBookDataUrl(book)
-      .then((dataUrl) => {
-        if (cancelled) return;
-        if (dataUrl) {
-          setReaderDataUrls((current) => ({ ...current, [book.id]: dataUrl }));
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setReaderFileLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [readerDataUrls, selectedBook]);
-
-  const selectBook = useCallback((bookId: string) => {
-    setState((current) => updateBook({ ...current, selectedBookId: bookId }, bookId, {
-      lastOpenedAt: new Date().toISOString(),
-    }));
-    setActiveTab("reader");
-  }, []);
-
-  const updateImportJob = (jobId: string, patch: Partial<ImportJob>) => {
-    setImportJobs((current) => current.map((job) => job.id === jobId ? { ...job, ...patch } : job));
-  };
-
-  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId) => {
-    if (!candidates.length) return;
-    const imported: MobileBook[] = [];
-    const existing = [...stateRef.current.books];
-
-    for (const candidate of candidates) {
-      const jobId = `import_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const controller = new AbortController();
-      importControllersRef.current.set(jobId, controller);
-      setImportJobs((current) => [...current.filter((job) => job.status === "reading" || job.status === "processing"), {
-        id: jobId,
-        name: candidate.name,
-        progress: 0,
-        status: "reading",
-      }]);
-
-      try {
-        const file = await candidate.loadFile(controller.signal, (loaded, total) => {
-          const progress = total > 0 ? Math.round((loaded / total) * 58) : 12;
-          updateImportJob(jobId, { progress: Math.min(58, progress), status: "reading", message: "Lendo arquivo" });
-        });
-        if (controller.signal.aborted) throw new DOMException("Importacao cancelada", "AbortError");
-        if (!inferFileType(file)) throw new Error(`Formato nao suportado: ${file.name}`);
-        if (findDuplicateBook([...existing, ...imported], file)) {
-          toast(`Ignorado por parecer duplicado: ${file.name}`);
-          updateImportJob(jobId, { progress: 100, status: "done", message: "Ja estava na biblioteca" });
-          await candidate.acknowledge?.();
-          continue;
-        }
-        const dataUrl = await readFileAsDataUrl(file, {
-          signal: controller.signal,
-          onProgress: (loaded, total) => {
-            const progress = total > 0 ? 58 + Math.round((loaded / total) * 22) : 68;
-            updateImportJob(jobId, { progress: Math.min(80, progress), status: "reading", message: "Preparando livro" });
-          },
-        });
-        updateImportJob(jobId, { progress: 84, status: "processing", message: "Extraindo capa e salvando" });
-        const book = createBookFromFile(file, dataUrl, folderId);
-        const thumbnailPatch = await extractThumbnailPatch(book, file);
-        if (controller.signal.aborted) throw new DOMException("Importacao cancelada", "AbortError");
-        const storagePath = await writeMobileBookFile(book, dataUrl, folderId);
-        imported.push({
-          ...book,
-          ...getStoredBookPatch(book, file, dataUrl, storagePath),
-          ...thumbnailPatch,
-        });
-        if (storagePath) {
-          setReaderDataUrls((current) => ({ ...current, [book.id]: dataUrl }));
-        }
-        await candidate.acknowledge?.();
-        updateImportJob(jobId, { progress: 100, status: "done", message: "Importado" });
-      } catch (error) {
-        const cancelled = controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError") || (error instanceof Error && error.message.toLowerCase().includes("cancel"));
-        updateImportJob(jobId, {
-          status: cancelled ? "cancelled" : "error",
-          message: cancelled ? "Cancelado" : error instanceof Error ? error.message : "Falha ao importar arquivo",
-        });
-        if (!cancelled) toast.error(error instanceof Error ? error.message : "Falha ao importar arquivo");
-      } finally {
-        importControllersRef.current.delete(jobId);
-        incomingProcessingRef.current.delete(candidate.key);
-      }
-    }
-
-    if (imported.length) {
-      setState((current) => ({
-        ...current,
-        books: [...imported, ...current.books],
-        selectedBookId: imported[0].id,
-      }));
-      toast.success(imported.length === 1 ? "Livro importado" : `${imported.length} livros importados`);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const importFiles = async (files: FileList | null, folderId = libraryQuery.folderId) => {
-    if (!files?.length) return;
-    await importCandidates(Array.from(files).map((file) => ({
-      key: `web:${file.name}:${file.size}:${file.lastModified}`,
-      name: file.name,
-      size: file.size,
-      loadFile: async () => file,
-    })), folderId);
-  };
-
-  const importNativeFiles = async (files: NativeImportFile[], folderId = libraryQuery.folderId) => {
-    const candidates = files.filter((file) => {
-      if (incomingProcessingRef.current.has(file.uri)) return false;
-      incomingProcessingRef.current.add(file.uri);
-      return true;
-    }).map((nativeFile): ImportCandidate => ({
-      key: nativeFile.uri,
-      name: nativeFile.name,
-      size: nativeFile.size,
-      loadFile: (signal, onProgress) => loadNativeBook(nativeFile, onProgress, signal),
-      acknowledge: () => acknowledgeNativeBook(nativeFile.uri),
-    }));
-    await importCandidates(candidates, folderId);
-  };
-
-  const openFileImporter = async () => {
-    if (!supportsNativeDocumentPicker()) {
-      fileInputRef.current?.click();
-      return;
-    }
-    try {
-      await importNativeFiles(await pickNativeBooks());
-    } catch (error) {
-      if (!(error instanceof Error && error.message.toLowerCase().includes("cancel"))) {
-        toast.error(error instanceof Error ? error.message : "Falha ao abrir o seletor de arquivos");
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (!repositoryReady || !supportsNativeIncomingBooks()) return undefined;
-    let disposed = false;
-    let listener: { remove: () => Promise<void> } | undefined;
-    const consumePending = async () => {
-      try {
-        const pending = await getPendingNativeBooks();
-        if (!disposed && pending.length) {
-          setActiveTab("library");
-          await importNativeFiles(pending);
-        }
-      } catch (error) {
-        if (!disposed) toast.error(error instanceof Error ? error.message : "Falha ao receber arquivo compartilhado");
-      }
-    };
-    void consumePending();
-    void listenForIncomingBooks(() => { void consumePending(); }).then((handle) => {
-      listener = handle;
-    });
-    return () => {
-      disposed = true;
-      void listener?.remove();
-    };
-  }, [repositoryReady]);
+  const { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter } = useMobileImport({ stateRef, repositoryReady, setState, setReaderDataUrls, setActiveTab, folderId: libraryQuery.folderId, extractThumbnailPatch });
 
   const importSourceEntries = async (
     entries: SourceImportEntry[],
@@ -973,6 +355,7 @@ function MobileApp() {
         const file = await entry.loadFile(sourceController.signal, (loaded, total) => {
           updateImportJob(sourceJobId!, { progress: total > 0 ? Math.min(58, Math.round((loaded / total) * 58)) : 12 });
         });
+        const contentHash = await hashMobileFile(file);
         const dataUrl = await readFileAsDataUrl(file, {
           signal: sourceController.signal,
           onProgress: (loaded, total) => updateImportJob(sourceJobId!, {
@@ -990,6 +373,7 @@ function MobileApp() {
             ...nextBook,
             ...getStoredBookPatch(nextBook, file, dataUrl, storagePath),
             ...thumbnailPatch,
+            contentHash,
           });
           updateImportJob(sourceJobId, { progress: 100, status: "done", message: "Atualizado" });
           continue;
@@ -1002,6 +386,7 @@ function MobileApp() {
           ...book,
           ...getStoredBookPatch(book, file, dataUrl, storagePath),
           ...thumbnailPatch,
+          contentHash,
           sourceFolderId: source.id,
           sourceRelativePath: relativePath,
         });
@@ -1088,6 +473,7 @@ function MobileApp() {
       const fileType = inferFileType(file);
       if (!fileType) throw new Error("Use um arquivo PDF, EPUB ou TXT");
       const linkedBook = { ...selectedBook, fileName: file.name, fileType };
+      const contentHash = await hashMobileFile(file);
       const thumbnailPatch = await extractThumbnailPatch(linkedBook, file);
       const storagePath = await writeMobileBookFile(linkedBook, dataUrl, selectedBook.folderId);
 
@@ -1095,6 +481,7 @@ function MobileApp() {
       setState((current) => updateBook(current, selectedBook.id, {
         ...getStoredBookPatch(linkedBook, file, dataUrl, storagePath),
         fileType,
+        contentHash,
         lastOpenedAt: new Date().toISOString(),
         ...thumbnailPatch,
       }));
@@ -1163,6 +550,7 @@ function MobileApp() {
   };
 
   const deleteBooks = async (bookIds: string[]) => {
+    if (!await confirm(`Excluir ${bookIds.length} livro(s) e seus arquivos salvos pelo Lyceum?`)) return;
     const ids = new Set(bookIds);
     const targets = state.books.filter((book) => ids.has(book.id));
     await Promise.all(targets.map(async (book) => {
@@ -1181,7 +569,7 @@ function MobileApp() {
   const deleteManagedFolder = async (folderId: string) => {
     const ids = descendantFolderIds(folderId, state.folders);
     const folder = state.folders.find((item) => item.id === folderId);
-    if (!folder || !window.confirm(`Excluir a pasta ${folder.name}? Os livros serao movidos para a pasta superior.`)) return;
+    if (!folder || !await confirm(`Excluir a pasta ${folder.name}? Os livros serao movidos para a pasta superior.`)) return;
     const affected = state.books.filter((book) => book.folderId && ids.has(book.folderId));
     await moveBooks(affected.map((book) => book.id), folder.parentId);
     setState((current) => ({
@@ -1203,7 +591,7 @@ function MobileApp() {
 
   const deleteSourceFolder = async (sourceFolderId: string) => {
     const source = state.sourceFolders.find((item) => item.id === sourceFolderId);
-    if (!source || !window.confirm(`Desconectar ${source.name}? Os livros importados continuarao na biblioteca.`)) return;
+    if (!source || !await confirm(`Desconectar ${source.name}? Os livros importados continuarao na biblioteca.`)) return;
     if (source.nativeUri) await releasePersistentSourceFolder(source.nativeUri).catch(() => undefined);
     setState((current) => ({
       ...current,
@@ -1229,112 +617,6 @@ function MobileApp() {
     const book = state.books.find((item) => item.id === bookId);
     if (!book) return;
     setState((current) => updateBook(current, bookId, { isFavorite: !book.isFavorite }));
-  };
-
-  const signIn = async (mode: "signin" | "signup") => {
-    const supabase = getMobileSupabase();
-    if (!supabase) {
-      toast.error("Supabase nao configurado no build mobile");
-      return;
-    }
-
-    const email = authEmail.trim();
-    if (!/^\S+@\S+\.\S+$/.test(email) || !authPassword) {
-      toast.error("Informe email e senha");
-      return;
-    }
-    if (mode === "signup" && authPassword.length < 8) {
-      toast.error("Use uma senha com pelo menos 8 caracteres");
-      return;
-    }
-
-    setAuthBusy(true);
-    setAuthError(null);
-
-    try {
-      const result = mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password: authPassword })
-        : await supabase.auth.signUp({
-            email,
-            password: authPassword,
-            options: {
-              data: {
-                name: email.split("@")[0],
-                full_name: email.split("@")[0],
-              },
-            },
-          });
-
-      if (result.error) throw result.error;
-
-      if (result.data.session?.user?.id) {
-        await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
-          console.warn("[mobile-auth] profile bootstrap failed", error);
-          toast("A sessao foi iniciada, mas o perfil social sera reparado na proxima sincronizacao.");
-        });
-      }
-
-      if (!result.data.session) {
-        setSessionEmail(null);
-        setAuthPassword("");
-        toast.success("Conta criada. Confirme o email antes de entrar.");
-        return;
-      }
-
-      setSessionEmail(result.data.session.user.email ?? email);
-      setAuthPassword("");
-      invalidateAccountQueries();
-      toast.success(mode === "signin" ? "Sessao iniciada" : "Conta criada");
-    } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
-      setAuthError(message);
-      toast.error(message);
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const signOut = async () => {
-    setAuthBusy(true);
-    try {
-      const { error } = await getMobileSupabase()?.auth.signOut() || { error: null };
-      if (error) throw error;
-      setSessionEmail(null);
-      setAuthPassword("");
-      queryClient.clear();
-    } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
-      setAuthError(message);
-      toast.error(message);
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const requestPasswordReset = async () => {
-    const supabase = getMobileSupabase();
-    const email = authEmail.trim();
-    if (!supabase || !/^\S+@\S+\.\S+$/.test(email)) {
-      toast.error("Informe o email da sua conta");
-      return;
-    }
-    setAuthBusy(true);
-    setAuthError(null);
-    try {
-      const redirectBase = String(import.meta.env.VITE_AUTH_REDIRECT_BASE_URL || "").trim().replace(/\/$/, "");
-      const options = redirectBase.startsWith("https://")
-        ? { redirectTo: `${redirectBase}/reset-password` }
-        : undefined;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, options);
-      if (error) throw error;
-      toast.success("Enviamos as instrucoes de recuperacao para o seu email.");
-    } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
-      setAuthError(message);
-      toast.error(message);
-    } finally {
-      setAuthBusy(false);
-    }
   };
 
   const nativeUpdateProgress = nativeApkUpdate.progress?.percent ?? 0;
@@ -1477,114 +759,16 @@ function MobileApp() {
               onUpdateBook={updateMobileBook}
               onMoveBooks={moveBooks}
               onDeleteBooks={deleteBooks}
+              onCollectionsChange={collections => setState(current => ({ ...current, collections }))}
             />
           )}
-
-          {/* Legacy library prototype retained in history; the managed library is rendered above.
-            <section className="space-y-5 p-4">
-              <div className="flex gap-2">
-                <button
-                  className="flex flex-1 items-center justify-center gap-2 rounded bg-green-600 px-4 py-3 text-sm font-semibold text-white"
-                  onClick={() => fileInputRef.current?.click()}
-                  type="button"
-                >
-                  <FilePlus2 size={18} />
-                  Importar
-                </button>
-                <button
-                  className="grid h-12 w-12 place-items-center rounded border border-zinc-800 bg-zinc-900 text-zinc-200"
-                  onClick={() => setManualTitle("Livro sem arquivo")}
-                  type="button"
-                  aria-label="Criar livro manual"
-                >
-                  <Plus size={18} />
-                </button>
-              </div>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-                <input
-                  className="h-11 w-full rounded border border-zinc-800 bg-zinc-900 pl-10 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500"
-                  placeholder="Buscar livros, autores ou categorias"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </div>
-
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-3">
-                <p className="text-sm font-medium text-zinc-100">Adicionar sem arquivo</p>
-                <div className="mt-3 space-y-2">
-                  <input
-                    className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
-                    placeholder="Titulo"
-                    value={manualTitle}
-                    onChange={(event) => setManualTitle(event.target.value)}
-                  />
-                  <input
-                    className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
-                    placeholder="Autor opcional"
-                    value={manualAuthor}
-                    onChange={(event) => setManualAuthor(event.target.value)}
-                  />
-                  <button
-                    className="h-11 w-full rounded bg-zinc-100 text-sm font-semibold text-zinc-950"
-                    onClick={addManualBook}
-                    type="button"
-                  >
-                    Criar entrada
-                  </button>
-                </div>
-              </div>
-
-              {visibleBooks.length === 0 ? (
-                <EmptyState
-                  title="Sua biblioteca mobile esta vazia"
-                  body="Importe um PDF, EPUB ou TXT para testar leitura, progresso, sessoes e habitos no celular."
-                  action={
-                    <button
-                      className="rounded bg-green-600 px-4 py-3 text-sm font-semibold text-white"
-                      onClick={() => fileInputRef.current?.click()}
-                      type="button"
-                    >
-                      Importar primeiro livro
-                    </button>
-                  }
-                />
-              ) : (
-                <div className="space-y-2">
-                  {visibleBooks.map((book) => (
-                    <button
-                      key={book.id}
-                      className="flex w-full items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-3 text-left"
-                      onClick={() => selectBook(book.id)}
-                      type="button"
-                    >
-                      <div className="grid h-14 w-11 shrink-0 place-items-center rounded bg-green-500/10 text-xs font-semibold uppercase text-green-400">
-                        {book.fileType}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-semibold text-zinc-100">{book.title}</p>
-                          {book.isFavorite && <Heart className="shrink-0 fill-green-400 text-green-400" size={13} />}
-                        </div>
-                        <p className="truncate text-xs text-zinc-500">{book.author || book.fileName}</p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {book.fileType === "pdf" ? `Pagina ${book.currentPage}` : `${getProgress(book)}%`} · {book.category}
-                        </p>
-                      </div>
-                      <ChevronRight className="text-zinc-600" size={18} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-          */}
-
           {activeTab === "reader" && (
             <>
               {selectedBook && selectedBook.fileType === "epub" && selectedBookDataUrl ? (
                 <div className="h-dvh w-full">
                   <EpubPane
+                    key={selectedBook.id}
+                    bookId={selectedBook.id}
                     dataUrl={selectedBookDataUrl}
                     location={selectedBook.epubLocation}
                     onLocationChange={(location, progressPercent) => {
@@ -1650,6 +834,10 @@ function MobileApp() {
                     <div className={isEbookReader ? "overflow-hidden bg-zinc-900" : "overflow-hidden rounded border border-zinc-800 bg-zinc-900"}>
                         {selectedBook.fileType === "pdf" && selectedBookDataUrl ? (
                           <PdfPane
+                            key={selectedBook.id}
+                            bookId={selectedBook.id}
+                            initialRotation={selectedBook.pdfRotation || 0}
+                            onRotationChange={pdfRotation => setState(current => updateBook(current, selectedBook.id, { pdfRotation }))}
                             dataUrl={selectedBookDataUrl}
                             title={selectedBook.title}
                             fileName={selectedBook.fileName}
@@ -1681,10 +869,14 @@ function MobileApp() {
                             }}
                           />
                         ) : selectedBookDataUrl && selectedBook.fileType === "txt" ? (
-                          <TextReader
+                          <TextPane
+                            key={selectedBook.id}
+                            bookId={selectedBook.id}
+                            initialOffset={selectedBook.textOffset}
                             dataUrl={selectedBookDataUrl}
                             initialProgress={selectedBook.textScrollPercent || 0}
-                            onProgress={(progressPercent) => setState((current) => updateBook(current, selectedBook.id, {
+                            onProgress={(progressPercent, textOffset) => setState((current) => updateBook(current, selectedBook.id, {
+                              textOffset,
                               textScrollPercent: progressPercent,
                               progressPercent,
                               lastOpenedAt: new Date().toISOString(),
@@ -1748,6 +940,7 @@ function MobileApp() {
 
           {activeTab === "profile" && (
             <section className="space-y-5 p-4">
+              <MobileBackupPanel state={state} setState={setState} />
               <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
                 <p className="text-base font-semibold text-zinc-100">Lyceum Mobile</p>
                 <div className="mt-4 space-y-3 text-sm text-zinc-400">
@@ -1963,36 +1156,5 @@ function MobileApp() {
   );
 }
 
-function TextReader({ dataUrl, initialProgress, onProgress }: { dataUrl: string; initialProgress: number; onProgress: (progress: number) => void }) {
-  const [content, setContent] = useState("Carregando texto...");
-  const scrollRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    fetch(dataUrl)
-      .then((response) => response.text())
-      .then(setContent)
-      .catch(() => setContent("Nao foi possivel ler o arquivo de texto."));
-  }, [dataUrl]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element || content === "Carregando texto...") return;
-    element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight) * (initialProgress / 100);
-  }, [content, initialProgress]);
-
-  return (
-    <article
-      ref={scrollRef}
-      className="max-h-[560px] overflow-y-auto bg-zinc-100 p-5 text-base leading-8 text-zinc-950"
-      onScroll={(event) => {
-        const element = event.currentTarget;
-        const available = Math.max(1, element.scrollHeight - element.clientHeight);
-        onProgress(Math.round((element.scrollTop / available) * 100));
-      }}
-    >
-      <pre className="whitespace-pre-wrap font-sans">{content}</pre>
-    </article>
-  );
-}
 
 export default MobileApp;

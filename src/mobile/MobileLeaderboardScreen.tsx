@@ -1,3 +1,4 @@
+import { useMobileConfirm } from "./MobileConfirmDialog";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -181,6 +182,7 @@ function FriendRow({
 }
 
 function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
+  const confirm = useMobileConfirm();
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState("");
   const [friendNickname, setFriendNickname] = useState("");
@@ -374,8 +376,8 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               key={friend.user_id}
               friend={friend}
               busy={busy}
-              onRemove={(id) => {
-                if (window.confirm(`Remover @${friend.nickname}?`)) {
+              onRemove={async (id) => {
+                if (await confirm(`Remover @${friend.nickname}?`)) {
                   removeMutation.mutate(id);
                 }
               }}

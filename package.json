@@ -23,7 +23,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:mobile": "vitest run src/test/mobileLibrary.test.ts src/test/mobileReadingStats.test.ts src/test/mobileReleaseResolver.test.ts src/test/mobileOtaUpdater.test.ts src/test/mobileAuth.test.ts src/test/nativeApkUpdater.test.ts"
+    "test:mobile": "vitest run src/test/mobileLibrary.test.ts src/test/mobileReadingStats.test.ts src/test/mobileReleaseResolver.test.ts src/test/mobileReleaseWorkflow.test.ts src/test/mobileOtaUpdater.test.ts src/test/mobileAuth.test.ts src/test/nativeApkUpdater.test.ts src/test/pdfReaderModel.test.ts src/test/mobileReaderModel.test.ts src/test/mobileComponents.test.tsx"
   },
   "build": {
     "appId": "com.higino.lyceum",

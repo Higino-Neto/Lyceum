@@ -1,3 +1,4 @@
+import { useMobileConfirm } from "./MobileConfirmDialog";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -183,6 +184,7 @@ export default function MobileReadingEntryScreen({
   selectedBook,
   onOpenProfile,
 }: MobileReadingEntryScreenProps) {
+  const confirm = useMobileConfirm();
   const queryClient = useQueryClient();
   const enabled = getMobileReadingQueryEnabled(sessionEmail);
   const [bookId, setBookId] = useState(selectedBook?.id || "");
@@ -430,8 +432,8 @@ export default function MobileReadingEntryScreen({
               </button>
               <button
                 className="grid h-9 w-9 place-items-center rounded bg-red-950/40 text-red-300 disabled:opacity-50"
-                onClick={() => {
-                  if (window.confirm(`Remover leitura de "${reading.source_name}"?`)) {
+                onClick={async () => {
+                  if (await confirm(`Remover leitura de "${reading.source_name}"?`)) {
                     deleteMutation.mutate(reading.id);
                   }
                 }}

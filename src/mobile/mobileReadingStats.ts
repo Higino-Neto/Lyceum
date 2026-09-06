@@ -258,7 +258,11 @@ export function getFrequentMobileBooks(
       return right.latest - left.latest;
     })
     .slice(0, 4)
-    .map(({ latest: _latest, ...book }) => book);
+    .map((source) => {
+      const book = { ...source };
+      delete book.latest;
+      return book;
+    });
 }
 
 export function formatReadingMinutes(minutes: number): string {

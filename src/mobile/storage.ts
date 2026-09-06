@@ -8,7 +8,7 @@ import type {
   MobileSourceFolder,
 } from "./types";
 
-export const MOBILE_SCHEMA_VERSION = 4;
+export const MOBILE_SCHEMA_VERSION = 5;
 const STORAGE_KEY = "lyceum_mobile_library_state";
 const STORAGE_BACKUP_KEY = "lyceum_mobile_library_state_backup";
 const LEGACY_STORAGE_KEY = "lyceum_mobile_mvp_state";
@@ -30,12 +30,18 @@ export const emptyMobileState = (): MobileLibraryState => ({
 });
 
 function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
-  if (!value.id || !value.fileName || !value.title) return null;
+  if (!value || typeof value !== "object" || !value.id || !value.fileName || !value.title) return null;
   const fileType = value.fileType;
   if (fileType !== "pdf" && fileType !== "epub" && fileType !== "txt") return null;
 
   return {
     id: value.id,
+    readingStatus: ["want", "reading", "finished", "abandoned"].includes(value.readingStatus || "") ? value.readingStatus : "want",
+    tags: Array.isArray(value.tags) ? [...new Set(value.tags.filter(t => typeof t === "string").map(t => t.trim()).filter(Boolean))] : [],
+    seriesName: typeof value.seriesName === "string" ? value.seriesName : undefined,
+    seriesIndex: Number.isFinite(value.seriesIndex) ? value.seriesIndex : undefined,
+    language: value.language,
+    contentHash: /^[a-f0-9]{64}$/.test(value.contentHash || "") ? value.contentHash : undefined,
     title: value.title,
     author: value.author,
     description: value.description,
@@ -63,8 +69,10 @@ function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
     totalPages: Math.max(1, Number(value.totalPages) || 1),
     progressPercent: Math.min(100, Math.max(0, Number(value.progressPercent) || 0)),
     epubLocation: value.epubLocation,
+    textOffset: value.textOffset === undefined ? undefined : Math.max(0, Math.floor(Number(value.textOffset) || 0)),
     textScrollPercent: Math.min(100, Math.max(0, Number(value.textScrollPercent) || 0)),
     currentZoom: value.currentZoom,
+    pdfRotation: [0, 90, 180, 270].includes(value.pdfRotation || 0) ? value.pdfRotation : 0,
     category: value.category || "Geral",
     isFavorite: Boolean(value.isFavorite),
     rating: Math.min(5, Math.max(0, Number(value.rating) || 0)),
@@ -129,6 +137,7 @@ export function migrateMobileState(value: unknown): MobileLibraryState {
     folders,
     sourceFolders,
     categories,
+    collections: Array.isArray(parsed.collections) ? parsed.collections.filter(c => c && typeof c.id === "string" && typeof c.name === "string") : [],
     selectedBookId: books.some((book) => book.id === parsed.selectedBookId) ? parsed.selectedBookId : books[0]?.id,
     selectedFolderId: folders.some((folder) => folder.id === parsed.selectedFolderId) ? parsed.selectedFolderId : undefined,
   };

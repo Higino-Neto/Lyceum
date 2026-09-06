@@ -12,6 +12,8 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Re-import a source folder to discover new or changed books.
 - [x] Search title, author, filename, category, notes, folder, and source folder.
 - [x] Filter by file type, favorite state, folder, and source folder.
+- [x] Filter by reading status, tags, author, progress, language, and series.
+- [x] Create manual collections and saved smart collections.
 - [x] Sort by title, recent activity, progress, size, and import date.
 - [x] Switch between grid and list layouts.
 - [x] Create, rename, and delete managed folders.
@@ -24,7 +26,11 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Edit title, author, category, notes, description, ISBN, publisher, date,
       rating, and favorite state.
 - [x] Delete library records and their app-managed files safely.
-- [x] Detect likely duplicate imports by filename and file size.
+- [x] Detect duplicate imports by SHA-256 and offer ignore, merge, or replace.
+- [x] Edit tags, reading status, series, language, cover, and ISBN metadata.
+- [x] Look up metadata online by ISBN when a connection is available.
+- [x] Export an original book or hand it to Android's share chooser for Send to Kindle.
+- [x] Export and restore a versioned metadata, progress, and annotations backup with a conflict preview.
 - [x] Show real recent-reading and favorite surfaces.
 - [x] Persist PDF page, EPUB CFI/progress, and TXT scroll position.
 - [x] Remove reading-session and habit tracking from the mobile schema and UI.
@@ -53,7 +59,27 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Persist zoom and current page per book.
 - [x] Render a selectable PDF.js text layer.
 - [x] Search PDF text incrementally with cancellation.
+- [x] Preserve the visual anchor while zooming, pinching, rotating, and changing layout.
+- [x] Persist bookmarks, text highlights, notes, and reading history.
+- [x] Virtualize the thumbnail rail and support crop, contrast, night, and two-column focus modes.
+- [x] Keep freehand drawing disabled until a real coordinate-stable editor is available.
 - [x] Remove session timers, session registration, and synthetic reading time.
+
+## EPUB and TXT reader
+
+- [x] Paginate EPUB horizontally and preserve CFI across settings and orientation changes.
+- [x] Search EPUB progressively with cancellation and exact CFI destinations.
+- [x] Support EPUB footnote popups, bookmarks, highlights, notes, and chapter progress.
+- [x] Support TXT typography, themes, text search, character-offset progress, bookmarks, highlights, and notes.
+- [x] Read PDF, EPUB, and TXT aloud with Web Speech and native Android TTS.
+- [x] Expose a shared notebook with search, edit, delete, Markdown export, CSV export, and reading history.
+
+## Android reader controls
+
+- [x] Map volume buttons to page turns while the reader is open.
+- [x] Keep the screen awake during reading.
+- [x] Support orientation lock and temporary brightness control.
+- [x] Support configurable tap zones, auto-hidden chrome, and light haptic feedback.
 
 ## Mobile filesystem adaptation
 
@@ -70,7 +96,6 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Treat source folders as explicit user-selected snapshots on Android/iOS.
 - [x] Add Android Storage Access Framework bookmarks for persistent external
       folder rescans.
-- [ ] Add iOS security-scoped folder bookmarks where platform support allows it.
 
 ## Desktop features intentionally adapted
 
@@ -85,7 +110,7 @@ imports instead of unrestricted desktop filesystem access.
 
 - [x] Unit tests cover schema migration, folders, sorting/filtering, and
       duplicate detection.
-- [ ] Mobile component tests cover empty library, import, editing, and bulk mode.
+- [x] Mobile component tests cover confirmation, notebook export, and backup restore UI.
 - [x] `npm run build:mobile` passes.
 - [x] `npx tsc --noEmit` passes.
 - [x] `npm run cap:sync` passes.
@@ -95,4 +120,3 @@ imports instead of unrestricted desktop filesystem access.
       FolderTree, actions, breadcrumbs, and persistence.
 - [ ] Manual Android smoke test covers Open with Lyceum, Share Sheet, provider
       import, cancellation, PDF text selection/pinch, source folders, and moves.
-- [ ] Manual iOS smoke test covers the same workflow when Xcode is available.

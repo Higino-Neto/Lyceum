@@ -13,9 +13,20 @@ export type MobileLibrarySort =
   | "recent_desc"
   | "imported_desc"
   | "progress_desc"
-  | "size_desc";
+  | "size_desc"
+  | "status"
+  | "series";
+
+export type ReadingStatus = "want" | "reading" | "finished" | "abandoned";
+export interface MobileCollection { id: string; name: string; bookIds?: string[]; rule?: import("./libraryModel").MobileLibraryQuery; updatedAt: string }
 
 export interface MobileBook {
+  readingStatus?: ReadingStatus;
+  tags?: string[];
+  seriesName?: string;
+  seriesIndex?: number;
+  language?: string;
+  contentHash?: string;
   id: string;
   title: string;
   author?: string;
@@ -45,7 +56,9 @@ export interface MobileBook {
   progressPercent?: number;
   epubLocation?: string;
   textScrollPercent?: number;
+  textOffset?: number;
   currentZoom?: number;
+  pdfRotation?: number;
   category: string;
   isFavorite: boolean;
   rating?: number;
@@ -76,6 +89,7 @@ export interface MobileLibraryState {
   folders: MobileLibraryFolder[];
   sourceFolders: MobileSourceFolder[];
   categories: string[];
+  collections?: MobileCollection[];
   selectedBookId?: string;
   selectedFolderId?: string;
 }

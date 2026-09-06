@@ -1,3 +1,5 @@
+import { ReaderDataProvider } from "./ReaderData";
+import { MobileConfirmProvider } from "./MobileConfirmDialog";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -22,7 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <MobileErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <MobileApp />
+        <MobileConfirmProvider><ReaderDataProvider><MobileApp /></ReaderDataProvider></MobileConfirmProvider>
       </QueryClientProvider>
     </MobileErrorBoundary>
   </React.StrictMode>,

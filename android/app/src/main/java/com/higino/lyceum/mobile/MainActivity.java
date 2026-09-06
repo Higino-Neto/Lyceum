@@ -11,8 +11,14 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SourceFoldersPlugin.class);
         registerPlugin(IncomingBooksPlugin.class);
         registerPlugin(AppUpdaterPlugin.class);
+        registerPlugin(ReaderControlsPlugin.class);
         super.onCreate(savedInstanceState);
         IncomingBooksPlugin.queueIntent(getIntent());
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        return ReaderControlsPlugin.handleVolume(event) || super.dispatchKeyEvent(event);
     }
 
     @Override

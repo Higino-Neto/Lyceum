@@ -1,3 +1,9 @@
+import PdfThumbnails from "./PdfThumbnails";
+import { rotateReaderRect } from "./readerModel";
+import { capturePdfAnchor, restorePdfAnchor } from "./pdfViewport";
+import { ReaderTools, useReaderHistory } from "./ReaderTools";
+import { useReaderData } from "./ReaderData";
+import type { ReaderLocator } from "./readerModel";
 import {
   ArrowLeft,
   Bookmark,
@@ -24,8 +30,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   PDFDocumentLoadingTask,
   PDFDocumentProxy,
-  PDFPageProxy,
-  RenderTask,
 } from "pdfjs-dist";
 import type {
   EventBus,
@@ -53,6 +57,9 @@ import {
 } from "./pdfReaderModel";
 
 interface PdfPaneProps {
+  bookId?: string;
+  initialRotation?: number;
+  onRotationChange?: (rotation: number) => void;
   dataUrl?: string;
   title?: string;
   fileName?: string;
@@ -135,6 +142,7 @@ function getFindLabel(status: FindStatus, query: string) {
 }
 
 export default function PdfPane({
+  bookId, initialRotation = 0, onRotationChange,
   dataUrl,
   title,
   fileName,
@@ -165,7 +173,13 @@ export default function PdfPane({
   const [pageNumber, setPageNumber] = useState(Math.max(1, currentPage || 1));
   const [pageLabels, setPageLabels] = useState<string[] | null>(null);
   const [scale, setScale] = useState(clampPdfValue(initialZoom || 1, 0.5, 5));
-  const [rotation, setRotation] = useState(0);
+  const [rotation, setRotation] = useState(initialRotation);
+  const [selection, setSelection] = useState<{ locator: ReaderLocator; text: string }>();
+  const [crop, setCrop] = useState(0);
+  const [column, setColumn] = useState<"full" | "left" | "right">("full");
+  const [contrast, setContrast] = useState(100);
+  const { data: readerData, ready: annotationsReady, add: addAnnotation, edit: editAnnotation } = useReaderData();
+  const history = useReaderHistory({ format: "pdf", page: pageNumber }, (l) => { if (l.format === "pdf" && runtimeRef.current) runtimeRef.current.viewer.currentPageNumber = l.page; });
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +206,8 @@ export default function PdfPane({
   const progress = formatPdfProgress(pageNumber, pageCount);
   const currentLabel = pageLabels?.[pageNumber - 1] || String(pageNumber);
   const storageId = getPdfStorageId(fingerprint, `${fileName || title || "document"}-${fileSize || dataUrl?.length || 0}`);
-  const isBookmarked = bookmarks.includes(pageNumber);
+  const durableBookmarks = readerData.annotations.filter(a => !a.deletedAt && a.bookId === bookId && a.type === "bookmark" && a.locator.format === "pdf");
+  const isBookmarked = bookmarks.includes(pageNumber) || durableBookmarks.some(a => a.locator.format === "pdf" && a.locator.page === pageNumber);
 
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
@@ -232,6 +247,14 @@ export default function PdfPane({
       setBookmarks([]);
     }
   }, [pageCount, storageId]);
+
+  useEffect(() => {
+    if (!annotationsReady || !bookId || !bookmarks.length) return;
+    for (const page of bookmarks) {
+      const exists = readerData.annotations.some(a => a.bookId === bookId && a.type === "bookmark" && a.locator.format === "pdf" && a.locator.page === page);
+      if (!exists) addAnnotation(bookId, "bookmark", { format: "pdf", page }, `Página ${page}`);
+    }
+  }, [addAnnotation, annotationsReady, bookId, bookmarks, readerData.annotations]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -282,7 +305,7 @@ export default function PdfPane({
           findController,
           textLayerMode: 1,
           annotationMode: pdfjs.AnnotationMode.ENABLE_FORMS,
-          annotationEditorMode: pdfjs.AnnotationEditorType.NONE,
+          annotationEditorMode: pdfjs.AnnotationEditorType.DISABLE,
           enablePermissions: true,
           enableHWA: true,
           supportsPinchToZoom: true,
@@ -304,7 +327,7 @@ export default function PdfPane({
           zoomSaveTimerRef.current = window.setTimeout(() => onZoomChangeRef.current?.(nextScale), 240);
         });
         eventBus.on("rotationchanging", ({ pagesRotation }: { pagesRotation: number }) => {
-          if (!disposed) setRotation(pagesRotation);
+          if (!disposed) { setRotation(pagesRotation); onRotationChange?.(pagesRotation); }
         });
         eventBus.on("updatefindmatchescount", ({ matchesCount }: { matchesCount?: Partial<FindStatus> }) => {
           if (!disposed) setFindStatus((current) => ({ ...current, ...matchesCount }));
@@ -344,6 +367,7 @@ export default function PdfPane({
           if (disposed) return;
           viewer.scrollMode = preferences.layout === "page" ? viewerModule.ScrollMode.PAGE : viewerModule.ScrollMode.VERTICAL;
           viewer.currentScaleValue = initialZoom > 1.02 ? String(clampPdfValue(initialZoom, 0.5, 5)) : "page-width";
+          viewer.pagesRotation = initialRotation;
           viewer.currentPageNumber = clampPdfValue(initialPageRef.current, 1, loadedPdf.numPages);
           setIsLoading(false);
           scheduleControlsHide(5200);
@@ -403,28 +427,97 @@ export default function PdfPane({
       layoutInitializedRef.current = true;
       return;
     }
-    const preservedPage = viewer.currentPageNumber;
+    const anchor = viewportRef.current ? capturePdfAnchor(viewportRef.current) : undefined;
+    const preservedScale = viewer.currentScale;
+    const preservedPage = anchor?.page || viewer.currentPageNumber;
     viewer.scrollMode = preferences.layout === "page" ? 3 : 0;
-    viewer.currentScaleValue = preferences.layout === "page" ? "page-fit" : "page-width";
+    viewer.currentScale = preservedScale;
     viewer.currentPageNumber = preservedPage;
+    if (viewportRef.current) restorePdfAnchor(viewportRef.current, anchor);
   }, [pageCount, preferences.layout]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    let distance = 0;
+    const pinch = (event: TouchEvent) => {
+      if (event.touches.length !== 2) { distance = 0; return; }
+      event.preventDefault();
+      const [a, b] = Array.from(event.touches);
+      const next = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      const viewer = runtimeRef.current?.viewer;
+      if (distance && viewer) {
+        const anchor = capturePdfAnchor(viewport, { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+        viewer.updateScale({ scaleFactor: clampPdfValue(viewer.currentScale * next / distance, 0.5, 5) / viewer.currentScale, drawingDelay: 120 });
+        restorePdfAnchor(viewport, anchor);
+      }
+      distance = next;
+    };
+    const end = () => { distance = 0; };
+    viewport.addEventListener("touchstart", pinch, { passive: false });
+    viewport.addEventListener("touchmove", pinch, { passive: false });
+    viewport.addEventListener("touchend", end);
+    viewport.addEventListener("touchcancel", end);
+    return () => { viewport.removeEventListener("touchstart", pinch); viewport.removeEventListener("touchmove", pinch); viewport.removeEventListener("touchend", end); viewport.removeEventListener("touchcancel", end); };
+  }, []);
+
+  useEffect(() => {
+    const changed = () => {
+      const selected = window.getSelection();
+      if (!selected?.rangeCount || !selected.toString().trim()) return;
+      const range = selected.getRangeAt(0);
+      const element = range.startContainer.parentElement;
+      const page = element?.closest<HTMLElement>(".page[data-page-number]");
+      if (!page || !viewportRef.current?.contains(page) || !page.contains(range.endContainer)) return;
+      const bounds = page.getBoundingClientRect();
+      const rects = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 0).map(r => ({ x: Math.max(0, (r.left - bounds.left) / bounds.width), y: Math.max(0, (r.top - bounds.top) / bounds.height), width: Math.min(1, r.width / bounds.width), height: Math.min(1, r.height / bounds.height) }));
+      setSelection({ locator: { format: "pdf", page: Number(page.dataset.pageNumber), rotation: runtimeRef.current?.viewer.pagesRotation || 0, rects }, text: selected.toString() });
+    };
+    document.addEventListener("selectionchange", changed);
+    return () => document.removeEventListener("selectionchange", changed);
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const render = () => {
+      if (!viewport) return;
+      viewport.querySelectorAll(".lyceum-saved-highlight").forEach(el => el.remove());
+      readerData.annotations.filter(a => !a.deletedAt && a.bookId === bookId && a.locator.format === "pdf").forEach(a => {
+        if (a.locator.format !== "pdf") return;
+        const page = viewport.querySelector<HTMLElement>(`.page[data-page-number="${a.locator.page}"]`);
+        for (const sourceRect of a.locator.rects || []) {
+          const r = rotateReaderRect(sourceRect, (rotation - (a.locator.rotation || 0) + 360) % 360);
+          if (!page) continue;
+          const mark = document.createElement("span"); mark.className = "lyceum-saved-highlight";
+          Object.assign(mark.style, { position: "absolute", pointerEvents: "none", zIndex: "3", opacity: "0.3", backgroundColor: a.color, left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.width * 100}%`, height: `${r.height * 100}%` });
+          page.appendChild(mark);
+        }
+      });
+    };
+    render();
+    const bus = runtimeRef.current?.eventBus; bus?.on("pagerendered", render);
+    return () => bus?.off("pagerendered", render);
+  }, [bookId, readerData.annotations, pageCount, rotation]);
 
   const goToPage = useCallback((page: number) => {
     const viewer = runtimeRef.current?.viewer;
     if (!viewer || pageCount < 1) return;
     const nextPage = clampPdfValue(Math.round(page), 1, pageCount);
-    viewer.currentPageNumber = nextPage;
+    history.jump({ format: "pdf", page: nextPage });
     setPageNumber(nextPage);
     onPageChangeRef.current(nextPage);
     setJumpValue(String(nextPage));
     showControls();
-  }, [pageCount, showControls]);
+  }, [pageCount, showControls, history]);
 
   const changeZoom = useCallback((direction: -1 | 1) => {
     const viewer = runtimeRef.current?.viewer;
     if (!viewer) return;
     const factor = direction > 0 ? 1.2 : 1 / 1.2;
-    viewer.currentScale = clampPdfValue(viewer.currentScale * factor, 0.5, 5);
+    const viewport = viewportRef.current;
+    const anchor = viewport ? capturePdfAnchor(viewport) : undefined;
+    viewer.updateScale({ scaleFactor: clampPdfValue(viewer.currentScale * factor, 0.5, 5) / viewer.currentScale });
+    if (viewport) restorePdfAnchor(viewport, anchor);
     showControls();
   }, [showControls]);
 
@@ -478,6 +571,8 @@ export default function PdfPane({
   }, [scheduleControlsHide]);
 
   const toggleBookmark = useCallback(() => {
+    if (bookId && annotationsReady && isBookmarked) durableBookmarks.filter(a => a.locator.format === "pdf" && a.locator.page === pageNumber).forEach(a => editAnnotation(a.id, { deletedAt: new Date().toISOString() }));
+    if (bookId && annotationsReady && !isBookmarked) addAnnotation(bookId, "bookmark", { format: "pdf", page: pageNumber }, `Página ${pageNumber}`);
     setBookmarks((current) => {
       const next = current.includes(pageNumber)
         ? current.filter((page) => page !== pageNumber)
@@ -490,7 +585,7 @@ export default function PdfPane({
       return next;
     });
     showControls();
-  }, [pageNumber, showControls, storageId]);
+  }, [pageNumber, showControls, storageId, bookId, annotationsReady, isBookmarked, addAnnotation, durableBookmarks, editAnnotation]);
 
   const openOutlineDestination = useCallback((item: FlatPdfOutlineItem) => {
     if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
@@ -522,7 +617,9 @@ export default function PdfPane({
 
   const themeStyle = useMemo(() => ({
     "--pdf-reader-brightness": String(preferences.brightness / 100),
-  } as React.CSSProperties), [preferences.brightness]);
+    "--pdf-reader-contrast": String(contrast / 100),
+    "--pdf-reader-crop": `${crop}%`,
+  } as React.CSSProperties), [preferences.brightness, contrast, crop]);
 
   return (
     <div
@@ -537,6 +634,7 @@ export default function PdfPane({
         <div ref={viewerElementRef} className="lyceum-pdf-reader__viewer pdfViewer" />
       </div>
 
+      <ReaderTools onTurn={direction => goToPage(pageNumber + direction)} bookId={bookId} locator={{ format: "pdf", page: pageNumber }} selection={selection} clearSelection={() => { setSelection(undefined); window.getSelection()?.removeAllRanges(); }} history={history} navigate={l => { if (l.format === "pdf" && runtimeRef.current) runtimeRef.current.viewer.currentPageNumber = l.page; }} getText={async () => { const page = await runtimeRef.current?.pdf?.getPage(pageNumber); const text = await page?.getTextContent(); return text?.items.map(item => "str" in item ? item.str : "").join(" ") || ""; }} />
       {isLoading && !error && (
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-6 bg-[#171c22] px-8">
           <div className="lyceum-pdf-reader__skeleton-page" />
@@ -598,7 +696,7 @@ export default function PdfPane({
           <div className="grid grid-cols-3 gap-1 border-b border-white/8 p-2">{([ ["outline", "Sumario", ListTree], ["thumbnails", "Paginas", BookOpen], ["bookmarks", "Marcadores", Bookmark] ] as const).map(([id, label, Icon]) => <button key={id} className={`flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-semibold ${navigationTab === id ? "bg-emerald-500/15 text-emerald-300" : "text-slate-400"}`} onClick={() => setNavigationTab(id)} type="button"><Icon size={16} />{label}</button>)}</div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
             {navigationTab === "outline" && (outline.length ? <div className="space-y-0.5">{outline.map((item) => <button key={item.id} className="flex min-h-11 w-full items-center rounded-xl py-2 pr-3 text-left text-sm leading-5 text-slate-300 active:bg-white/8" style={{ paddingLeft: `${12 + Math.min(item.depth, 4) * 16}px` }} onClick={() => openOutlineDestination(item)} type="button">{item.depth > 0 && <span className="mr-2 h-1 w-1 shrink-0 rounded-full bg-slate-600" />}{item.title || "Secao sem titulo"}</button>)}</div> : <PanelEmpty icon={ListTree} title="Sem sumario" body="Este PDF nao inclui uma estrutura de capitulos. Use as miniaturas ou a busca para navegar." />)}
-            {navigationTab === "thumbnails" && <div className="grid grid-cols-2 gap-x-3 gap-y-5 pb-5">{Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => <button key={page} className={`rounded-lg border p-2 text-xs ${page === pageNumber ? "border-emerald-400 bg-emerald-500/10 text-emerald-300" : "border-transparent text-slate-500"}`} onClick={() => { goToPage(page); setNavigationOpen(false); }} type="button"><PdfThumbnail pdf={runtimeRef.current?.pdf} pageNumber={page} /><span className="mt-2 block">{pageLabels?.[page - 1] || page}</span></button>)}</div>}
+            {navigationTab === "thumbnails" && <PdfThumbnails pdf={runtimeRef.current?.pdf} pageCount={pageCount} currentPage={pageNumber} labels={pageLabels} onPage={page => { goToPage(page); setNavigationOpen(false); }} />}
             {navigationTab === "bookmarks" && (bookmarks.length ? <div className="space-y-2">{bookmarks.map((page) => <button key={page} className={`flex h-14 w-full items-center gap-3 rounded-xl border px-3 text-left ${page === pageNumber ? "border-emerald-500/40 bg-emerald-500/10" : "border-white/8 bg-white/[0.03]"}`} onClick={() => { goToPage(page); setNavigationOpen(false); }} type="button"><span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/12 text-emerald-300"><Bookmark size={16} /></span><span className="flex-1 text-sm text-slate-200">Pagina {pageLabels?.[page - 1] || page}</span><ChevronRight size={17} className="text-slate-600" /></button>)}</div> : <PanelEmpty icon={Bookmark} title="Nenhum marcador" body="Toque no marcador da barra superior para guardar paginas importantes." />)}
           </div>
         </aside>
@@ -613,6 +711,19 @@ export default function PdfPane({
             <div className="grid grid-cols-3 gap-2">{([ ["paper", "Papel", Sun, "bg-white text-slate-800"], ["sepia", "Sepia", BookOpen, "bg-[#e9dfc5] text-[#584b34]"], ["night", "Noite", Moon, "bg-[#17212b] text-slate-100"] ] as const).map(([id, label, Icon, preview]) => <button key={id} className={`relative rounded-2xl border p-2 text-left ${preferences.theme === id ? "border-emerald-400 bg-emerald-500/8" : "border-white/10 bg-white/[0.025]"}`} onClick={() => setPreferences((current) => ({ ...current, theme: id as PdfReaderTheme }))} type="button"><span className={`grid h-14 place-items-center rounded-xl ${preview}`}><Icon size={20} /></span><span className="mt-2 flex items-center justify-between px-1 text-xs font-semibold text-slate-300">{label}{preferences.theme === id && <Check size={14} className="text-emerald-400" />}</span></button>)}</div>
             <SettingLabel>Brilho do documento</SettingLabel>
             <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3"><Moon size={16} className="text-slate-500" /><input className="lyceum-pdf-reader__progress flex-1" min={55} max={100} style={{ "--pdf-progress": `${((preferences.brightness - 55) / 45) * 100}%` } as React.CSSProperties} type="range" value={preferences.brightness} onChange={(event) => setPreferences((current) => ({ ...current, brightness: Number(event.target.value) }))} aria-label="Brilho" /><Sun size={17} className="text-slate-300" /><span className="w-9 text-right text-xs tabular-nums text-slate-400">{preferences.brightness}%</span></div>
+            <SettingLabel>PDF digitalizado</SettingLabel>
+            <label className="block text-sm">Contraste {contrast}% <input type="range" min="75" max="200" value={contrast} onChange={e => setContrast(Number(e.target.value))} /></label>
+            <label className="block text-sm">Ocultar margens {crop}% <input type="range" min="0" max="15" value={crop} onChange={e => setCrop(Number(e.target.value))} /></label>
+            <div className="mt-3 flex gap-2">{([ ["full", "Página inteira"], ["left", "Coluna esquerda"], ["right", "Coluna direita"] ] as const).map(([value, label]) => <button className="rounded bg-zinc-800 p-2 text-xs" aria-pressed={column === value} key={value} onClick={() => {
+              setColumn(value);
+              const viewer = runtimeRef.current?.viewer, viewport = viewportRef.current;
+              if (!viewer || !viewport) return;
+              const anchor = capturePdfAnchor(viewport);
+              viewer.currentScaleValue = "page-width";
+              if (value !== "full") viewer.currentScale *= 2;
+              restorePdfAnchor(viewport, anchor);
+              viewport.scrollLeft = value === "right" ? viewport.scrollWidth - viewport.clientWidth : 0;
+            }}>{label}</button>)}</div>
             <SettingLabel>Fluxo de leitura</SettingLabel>
             <div className="grid grid-cols-2 gap-2"><LayoutButton active={preferences.layout === "continuous"} icon={ListTree} label="Continuo" detail="Role entre paginas" onClick={() => setPreferences((current) => ({ ...current, layout: "continuous" as PdfReaderLayout }))} /><LayoutButton active={preferences.layout === "page"} icon={FileText} label="Uma pagina" detail="Foco e encaixe" onClick={() => setPreferences((current) => ({ ...current, layout: "page" as PdfReaderLayout }))} /></div>
             <div className="mt-4 grid grid-cols-2 gap-2"><button className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] text-sm font-semibold text-slate-200" onClick={fitDocument} type="button"><BookOpen size={17} />Ajustar pagina</button><button className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] text-sm font-semibold text-slate-200" onClick={rotateDocument} type="button"><RotateCw size={17} />Girar {rotation}°</button></div>
@@ -626,48 +737,6 @@ export default function PdfPane({
       {passwordOpen && <div className="absolute inset-0 z-[60] grid place-items-center bg-[#0b0f13]/95 p-6" onClick={(event) => event.stopPropagation()}><form className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#151b22] p-6 shadow-2xl" onSubmit={(event) => { event.preventDefault(); submitPassword(); }}><div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-300"><FileText size={23} /></div><h2 className="mt-5 text-xl font-semibold text-white">PDF protegido</h2><p className="mt-2 text-sm leading-6 text-slate-400">Digite a senha para abrir este documento. Ela sera usada somente nesta sessao.</p>{passwordError && <p className="mt-3 text-sm font-medium text-red-300">Senha incorreta. Tente novamente.</p>}<input autoFocus className="mt-5 h-12 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 text-white outline-none focus:border-emerald-500" placeholder="Senha do PDF" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /><div className="mt-4 grid grid-cols-2 gap-2"><button className="h-11 rounded-xl border border-white/10 text-sm font-semibold text-slate-300" onClick={onClose} type="button">Cancelar</button><button className="h-11 rounded-xl bg-emerald-500 text-sm font-semibold text-emerald-950 disabled:opacity-40" disabled={!password} type="submit">Abrir</button></div></form></div>}
     </div>
   );
-}
-
-function PdfThumbnail({ pdf, pageNumber }: { pdf: PDFDocumentProxy | null | undefined; pageNumber: number }) {
-  const hostRef = useRef<HTMLSpanElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) { setVisible(true); observer.disconnect(); }
-    }, { rootMargin: "240px" });
-    observer.observe(host);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!visible || !pdf || !canvasRef.current) return;
-    let disposed = false;
-    let renderTask: RenderTask | undefined;
-    void pdf.getPage(pageNumber).then((page: PDFPageProxy) => {
-      if (disposed || !canvasRef.current) return;
-      const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: 132 / base.width });
-      const canvas = canvasRef.current;
-      const outputScale = Math.min(window.devicePixelRatio || 1, 1.5);
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-      const context = canvas.getContext("2d", { alpha: false });
-      if (!context) return;
-      context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-      renderTask = page.render({ canvasContext: context, viewport });
-      return renderTask.promise;
-    }).catch((thumbnailError: unknown) => {
-      if (!disposed && !(thumbnailError instanceof Error && thumbnailError.name === "RenderingCancelledException")) setFailed(true);
-    });
-    return () => { disposed = true; renderTask?.cancel?.(); };
-  }, [pageNumber, pdf, visible]);
-
-  return <span ref={hostRef} className="lyceum-pdf-reader__thumbnail">{visible && !failed ? <canvas ref={canvasRef} /> : <span className="grid min-h-[126px] place-items-center text-slate-600"><FileText size={24} /></span>}</span>;
 }
 
 function PanelEmpty({ icon: Icon, title, body }: { icon: typeof Bookmark; title: string; body: string }) {

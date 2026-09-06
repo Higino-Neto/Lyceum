@@ -1,4 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { EpubBook, EpubRendition, EpubSection, TocItem, SearchHit } from "./epubAdapter";
+import { loadSettings, persistSettings, FONT_MAP, FONT_LABELS, THEME_COLORS, MARGIN_CONTENT_WIDTH, MARGIN_LABELS, type ReaderSettings, type ReaderTheme, type FontFamily, type MarginLevel } from "./textReaderSettings";
+import { ReaderTools, useReaderHistory } from "./ReaderTools";
+import { useReaderData } from "./ReaderData";
+import type { ReaderLocator } from "./readerModel";
+import type { Contents, Location } from "epubjs";
 
 import {
   BookMarked,
@@ -15,111 +20,13 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface EpubPaneProps {
+  bookId?: string;
   dataUrl?: string;
   location?: string;
   onLocationChange: (location: string, progressPercent: number) => void;
   bookTitle: string;
   onBack: () => void;
 }
-
-interface TocItem {
-  label: string;
-  href: string;
-  subitems?: TocItem[];
-}
-
-interface SearchHit {
-  cfi: string;
-  href: string;
-  label: string;
-  excerpt: string;
-}
-
-type ReaderTheme = "paper" | "dark" | "sepia";
-
-type FontFamily = "georgia" | "serif" | "sans" | "opendyslexic";
-type MarginLevel = "compact" | "medium" | "wide";
-
-const MARGIN_CONTENT_WIDTH: Record<MarginLevel, number> = {
-  compact: 92,
-  medium: 84,
-  wide: 72,
-};
-
-const MARGIN_LABELS: Record<MarginLevel, string> = {
-  compact: "Compacto",
-  medium: "Medio",
-  wide: "Largo",
-};
-
-interface ReaderSettings {
-  theme: ReaderTheme;
-  fontSize: number;
-  lineHeight: number;
-  fontFamily: FontFamily;
-  marginLevel: MarginLevel;
-  letterSpacing: number;
-  paragraphSpacing: number;
-  textIndent: number;
-  fontWeight: number;
-  wordSpacing: number;
-}
-
-const FONT_MAP: Record<FontFamily, string> = {
-  georgia: "Georgia, 'Times New Roman', serif",
-  serif: "'Iowan Old Style', Palatino, 'Book Antiqua', Georgia, serif",
-  sans: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  opendyslexic: "'OpenDyslexic', 'Comic Sans MS', 'Trebuchet MS', sans-serif",
-};
-
-const FONT_LABELS: Record<FontFamily, string> = {
-  georgia: "Georgia",
-  serif: "Serif",
-  sans: "Sans",
-  opendyslexic: "Dyslexic",
-};
-
-const THEME_COLORS: Record<ReaderTheme, { background: string; foreground: string; accent: string; border: string }> = {
-  paper: { background: "#f7f3ea", foreground: "#18181b", accent: "#047857", border: "#e7e0d2" },
-  dark: { background: "#09090b", foreground: "#e4e4e7", accent: "#4ade80", border: "#27272a" },
-  sepia: { background: "#efe2c7", foreground: "#292524", accent: "#8a4b12", border: "#d6c9b0" },
-};
-
-const SETTINGS_STORAGE_KEY = "lyceum_mobile_reader_settings";
-
-function loadSettings(): ReaderSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<ReaderSettings>;
-      return { ...DEFAULT_SETTINGS, ...parsed };
-    }
-  } catch {
-    // ignore corrupt settings
-  }
-  return { ...DEFAULT_SETTINGS };
-}
-
-function persistSettings(settings: ReaderSettings) {
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // storage full or unavailable
-  }
-}
-
-const DEFAULT_SETTINGS: ReaderSettings = {
-  theme: "paper",
-  fontSize: 100,
-  lineHeight: 1.55,
-  fontFamily: "georgia",
-  marginLevel: "medium",
-  letterSpacing: 0,
-  paragraphSpacing: 1,
-  textIndent: 0,
-  fontWeight: 0,
-  wordSpacing: 0,
-};
 
 function dataUrlToArrayBuffer(dataUrl: string) {
   const [, base64 = ""] = dataUrl.split(",");
@@ -150,7 +57,7 @@ function flattenToc(items: TocItem[], depth = 0): Array<TocItem & { depth: numbe
   ]);
 }
 
-function getSectionText(section: any) {
+function getSectionText(section: EpubSection) {
   return section.document?.body?.textContent
     || section.document?.documentElement?.textContent
     || "";
@@ -210,16 +117,20 @@ function buildOverrideCss(settings: ReaderSettings) {
   `;
 }
 
-export default function EpubPane({ dataUrl, location, onLocationChange, bookTitle, onBack }: EpubPaneProps) {
+export default function EpubPane({ bookId, dataUrl, location, onLocationChange, bookTitle, onBack }: EpubPaneProps) {
+  const { data: readerData } = useReaderData();
+  const [selection, setSelection] = useState<{ locator: ReaderLocator; text: string }>();
+  const [footnote, setFootnote] = useState("");
+  const searchGeneration = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const bookRef = useRef<any>(null);
-  const renditionRef = useRef<any>(null);
+  const bookRef = useRef<EpubBook | null>(null);
+  const renditionRef = useRef<EpubRendition | null>(null);
   const currentCfiRef = useRef(location);
+  const history = useReaderHistory({ format: "epub", cfi: location || "epubcfi(/6/2!/4/1:0)" }, l => { if (l.format === "epub") void renditionRef.current?.display(l.cfi); });
   const onLocationChangeRef = useRef(onLocationChange);
   const loadIdRef = useRef(0);
   const searchResultsCacheRef = useRef<Map<string, SearchHit[]>>(new Map());
   const lastDisplayedRef = useRef<string | undefined>(location);
-  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settingsRef = useRef<ReaderSettings>(loadSettings());
   const scrollCleanupRef = useRef<(() => void) | null>(null);
 
@@ -253,7 +164,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
   const injectStylesToAllIframes = useCallback(() => {
     try {
-      const iframes = document.querySelectorAll<HTMLIFrameElement>('iframe');
+      const iframes = containerRef.current?.querySelectorAll<HTMLIFrameElement>('iframe') || [];
       for (const iframe of iframes) {
         const doc = iframe?.contentDocument;
         if (!doc?.head) continue;
@@ -280,7 +191,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
     setShowOverlay((v) => !v);
   }, []);
 
-  const applyReaderStyles = useCallback((rendition: any) => {
+  const applyReaderStyles = useCallback((rendition: EpubRendition) => {
     if (!rendition?.themes) return;
 
     const s = settingsRef.current;
@@ -340,18 +251,22 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
+    const anchor = currentCfiRef.current;
     applyReaderStyles(rendition);
+    rendition.flow(settings.paginated ? "paginated" : "scrolled-doc");
     injectStylesToAllIframes();
+    if (anchor) void rendition.display(anchor);
   }, [settings, applyReaderStyles, injectStylesToAllIframes]);
 
   useEffect(() => {
-    const rendition = renditionRef.current;
-    if (!rendition) return;
-
     const handleResize = () => {
+      const rendition = renditionRef.current;
+      if (!rendition) return;
+      const anchor = currentCfiRef.current;
       injectStylesRef.current?.();
       try {
-        (rendition as any).resize();
+        rendition.resize(containerRef.current?.clientWidth || window.innerWidth, containerRef.current?.clientHeight || window.innerHeight);
+        if (anchor) void rendition.display(anchor);
       } catch {
         // ignore
       }
@@ -369,7 +284,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
     let mounted = true;
     const loadId = loadIdRef.current + 1;
     loadIdRef.current = loadId;
-    let book: any;
+    let book: EpubBook;
 
     async function renderBook() {
       if (!containerRef.current) return;
@@ -396,8 +311,8 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
         const mod = await import("epubjs");
         if (!mounted || loadIdRef.current !== loadId) return;
-        const createEpub = (mod.default || mod) as any;
-        book = createEpub(dataUrlToArrayBuffer(dataUrl));
+        const createEpub = mod.default;
+        book = createEpub(dataUrlToArrayBuffer(dataUrl)) as unknown as EpubBook;
         bookRef.current = book;
 
         await book.ready;
@@ -406,22 +321,38 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
         const rendition = book.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
-          flow: "scrolled-doc",
+          flow: settingsRef.current.paginated ? "paginated" : "scrolled-doc",
           spread: "none",
-          manager: "continuous",
+          manager: "default",
           allowScriptedContent: false,
           resizeOnOrientationChange: true,
         });
         renditionRef.current = rendition;
         applyReaderStyles(rendition);
 
+        rendition.on("selected", (cfi: string, contents: Contents) => {
+          const text = contents.window.getSelection()?.toString() || "";
+          if (text.trim()) setSelection({ locator: { format: "epub", cfi }, text });
+        });
+        rendition.hooks.content.register((contents: Contents) => {
+          contents.document.addEventListener("click", (event: MouseEvent) => {
+            const link = (event.target as Element)?.closest("a");
+            if (!link) return;
+            const href = link.getAttribute("href") || "";
+            if (link.getAttribute("epub:type")?.includes("noteref") || link.getAttribute("role") === "doc-noteref") {
+              const id = href.split("#")[1];
+              const note = id && contents.document.getElementById(decodeURIComponent(id));
+              if (note) { event.preventDefault(); event.stopImmediatePropagation(); setFootnote(note.textContent || ""); }
+            }
+          }, true);
+        });
         rendition.on("rendered", () => {
           injectStylesRef.current?.();
 
           scrollCleanupRef.current?.();
 
           try {
-            const iframes = document.querySelectorAll<HTMLIFrameElement>("iframe");
+            const iframes = containerRef.current?.querySelectorAll<HTMLIFrameElement>("iframe") || [];
             const handlers: Array<() => void> = [];
             for (const iframe of iframes) {
               const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
@@ -445,7 +376,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
           }
         });
 
-        rendition.on("relocated", (section: any) => {
+        rendition.on("relocated", (section: Location) => {
           const cfi = section?.start?.cfi;
           if (!cfi) return;
           currentCfiRef.current = cfi;
@@ -454,17 +385,12 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
             : 0;
           onLocationChangeRef.current(cfi, percent);
           setProgress(percent);
-          setPositionLabel(percent > 0
-            ? `${percent}%`
-            : section?.start?.href
-              ? "Lendo"
-              : "Inicio");
+          setPositionLabel(section.start.displayed?.total ? `Capítulo: ${section.start.displayed.page}/${section.start.displayed.total} · ${percent}% do livro` : `${percent}% do livro`);
         });
 
         const navigation = await book.loaded.navigation.catch(() => null);
         if (mounted && loadIdRef.current === loadId) setToc((navigation?.toc || []) as TocItem[]);
 
-        await book.locations?.generate?.(900).catch(() => null);
         if (!mounted || loadIdRef.current !== loadId) return;
 
         const target = currentCfiRef.current || location || undefined;
@@ -480,6 +406,11 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
         if (mounted && loadIdRef.current === loadId) {
           setReady(true);
           setShowOverlay(true);
+          void book.locations.generate(900).then(() => {
+            if (!mounted || loadIdRef.current !== loadId || !currentCfiRef.current) return;
+            const percent = Math.round(book.locations.percentageFromCfi(currentCfiRef.current) * 100);
+            setProgress(percent); onLocationChangeRef.current(currentCfiRef.current, percent);
+          }).catch(() => undefined);
         }
       } catch (err) {
         if (mounted && loadIdRef.current === loadId) {
@@ -492,6 +423,8 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
     return () => {
       mounted = false;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      searchGeneration.current++;
       scrollCleanupRef.current?.();
       scrollCleanupRef.current = null;
       try {
@@ -506,11 +439,22 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataUrl]);
 
+  useEffect(() => {
+    const rendition = renditionRef.current;
+    if (!rendition || !ready) return;
+    const annotations = readerData.annotations.filter(a => a.bookId === bookId && !a.deletedAt && a.type !== "bookmark" && a.locator.format === "epub");
+    for (const a of annotations) {
+      if (a.locator.format === "epub") rendition.annotations.highlight(a.locator.cfi, {}, () => setSelection({ locator: a.locator, text: a.text }), "lyceum-highlight", { fill: a.color, "fill-opacity": "0.3", "mix-blend-mode": "multiply" });
+    }
+    return () => { for (const a of annotations) if (a.locator.format === "epub") { try { rendition.annotations.remove(a.locator.cfi, "highlight"); } catch { /* Destroyed. */ } } };
+  }, [readerData.annotations, bookId, ready]);
+
   const updateSetting = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   const displayTarget = async (target: string) => {
+    if (target.startsWith("epubcfi(")) history.record({ format: "epub", cfi: target });
     currentCfiRef.current = target;
     lastDisplayedRef.current = target;
     await renditionRef.current?.display?.(target);
@@ -526,6 +470,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
       return;
     }
 
+    const generation = ++searchGeneration.current;
     setIsSearching(true);
     try {
       const cacheKey = normalizeText(searchQuery);
@@ -535,8 +480,10 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
       if (!cached) {
         const spineItems = book.spine?.spineItems || [];
         for (const section of spineItems) {
+          if (generation !== searchGeneration.current) return;
           try {
             await section.load(book.load.bind(book));
+            if (generation !== searchGeneration.current) return;
             const text = getSectionText(section);
             if (!normalizeText(text).includes(cacheKey)) continue;
 
@@ -569,6 +516,9 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
             section.unload?.();
           }
 
+          if (generation !== searchGeneration.current) return;
+          setHits([...nextHits].slice(0, 80));
+          await new Promise(resolve => setTimeout(resolve, 0));
           if (nextHits.length >= 80) break;
         }
 
@@ -577,9 +527,11 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
       setHits(nextHits);
       setActiveHitIndex(0);
-      if (nextHits[0]) await displayTarget(nextHits[0].href || nextHits[0].cfi);
+      if (nextHits[0]) await displayTarget(nextHits[0].cfi || nextHits[0].href);
+    } catch {
+      if (generation === searchGeneration.current) setError("A busca não pôde examinar todos os capítulos.");
     } finally {
-      setIsSearching(false);
+      if (generation === searchGeneration.current) setIsSearching(false);
     }
   };
 
@@ -587,7 +539,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
     if (hits.length === 0) return;
     const nextIndex = (index + hits.length) % hits.length;
     setActiveHitIndex(nextIndex);
-    displayTarget(hits[nextIndex].href || hits[nextIndex].cfi);
+    displayTarget(hits[nextIndex].cfi || hits[nextIndex].href);
   };
 
   const tocItems = flattenToc(toc);
@@ -596,6 +548,9 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: colors.background, color: colors.foreground }}>
+      <ReaderTools onTurn={direction => { if (direction > 0) void renditionRef.current?.next(); else void renditionRef.current?.prev(); }} bookId={bookId} locator={currentCfiRef.current?.startsWith("epubcfi(") ? { format: "epub", cfi: currentCfiRef.current } : undefined} selection={selection} clearSelection={() => { setSelection(undefined); for (const iframe of containerRef.current?.querySelectorAll("iframe") || []) iframe.contentWindow?.getSelection()?.removeAllRanges(); }} history={history} navigate={l => { if (l.format === "epub") void renditionRef.current?.display(l.cfi); }} getText={async () => Array.from(containerRef.current?.querySelectorAll("iframe") || []).map(iframe => iframe.contentDocument?.body.textContent || "").join("\n")} />
+      {footnote && <div role="dialog" aria-label="Nota de rodapé" className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-zinc-900 p-4 text-zinc-100 shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>Fechar</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
+      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.prev()}>Anterior</button><span>{positionLabel}</span><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.next()}>Próxima</button></div>}
       {showOverlay && (
         <div className="absolute inset-0 z-30 flex flex-col bg-zinc-950/95 backdrop-blur shadow-2xl">
           {/* Header bar */}
@@ -648,18 +603,17 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
                   className="h-10 min-w-0 flex-1 rounded bg-zinc-900 px-3 text-sm text-zinc-100"
                   placeholder="Buscar no EPUB"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => { searchGeneration.current++; setIsSearching(false); setQuery(event.target.value); }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") runSearch();
                   }}
                 />
                 <button
                   className="rounded bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                  disabled={isSearching}
-                  onClick={runSearch}
+                  onClick={() => { if (isSearching) { searchGeneration.current++; setIsSearching(false); } else void runSearch(); }}
                   type="button"
                 >
-                  {isSearching ? "..." : "Ir"}
+                  {isSearching ? "Cancelar" : "Ir"}
                 </button>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-500">
@@ -693,6 +647,7 @@ export default function EpubPane({ dataUrl, location, onLocationChange, bookTitl
 
           {/* Settings */}
           <div className="flex-1 overflow-y-auto border-t border-zinc-800 px-3 py-4">
+            <label className="mb-4 flex gap-3 text-zinc-200"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> Paginação horizontal</label>
             {/* Font family */}
             <div className="mb-4">
               <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Fonte</label>

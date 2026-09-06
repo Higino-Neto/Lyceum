@@ -7,7 +7,7 @@ The mobile app has two update tracks:
 
 ## GitHub OTA
 
-On native Android/iOS startup the app queries the GitHub Releases API and finds
+On native Android startup the app queries the GitHub Releases API and finds
 the newest non-draft release tagged `mobile-v*` that contains:
 
 ```text
@@ -16,7 +16,7 @@ lyceum-mobile-ota.json
 
 If the manifest version is newer than the installed web bundle, the app downloads the matching `lyceum-mobile-ota-<version>.zip` from the same GitHub Release and schedules it for the next background/restart.
 
-OTA updates are only for the Capacitor web bundle: HTML, CSS, JavaScript, and bundled web assets. Native changes, including Capacitor plugin changes, Android Gradle changes, iOS project changes, permissions, entitlements, and app icons still require shipping a new native build.
+OTA updates are only for the Capacitor web bundle: HTML, CSS, JavaScript, and bundled web assets. Native changes, including Capacitor plugin changes, Android Gradle changes, permissions, and app icons still require shipping a new Android build.
 
 ## Android APK updater
 
@@ -91,9 +91,4 @@ Run the `Mobile Release` GitHub Actions workflow with the desired version. It:
 - builds the signed Android release APK with the configured release keystore;
 - creates `lyceum-mobile-latest.json` for native APK updates;
 - publishes the OTA manifest, OTA zip, APK manifest, and APKs to a GitHub Release tagged `mobile-v<version>`;
-- verifies the iOS project on macOS without code signing; this check is required,
-  rather than allowed to fail silently.
-
-## iOS signing
-
-GitHub cannot distribute a usable iOS app without Apple signing. To publish a real `.ipa`, add Apple Developer signing secrets and extend the `ios-native-check` job to archive/export with the provisioning profile, or ship via TestFlight/App Store.
+- publishes only Android APK and OTA assets. iOS is excluded from this workflow.

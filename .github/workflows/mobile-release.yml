@@ -9,7 +9,7 @@ on:
       version:
         description: "Mobile version to publish"
         required: true
-        default: "1.8.26"
+        default: "1.9.0"
 
 permissions:
   contents: write
@@ -82,6 +82,8 @@ jobs:
         run: node scripts/prepare-mobile-ota.mjs
 
       - name: Prepare native Android assets
+        env:
+          MOBILE_NATIVE_TARGET: android
         run: npm run mobile:native-assets
 
       - name: Restore signing keystore for release APK
@@ -117,7 +119,7 @@ jobs:
 
           OTA scope: HTML/CSS/JS bundle updates only.
           APK scope: native Android app updates through the in-app updater.
-          iOS distribution requires Apple signing/TestFlight/App Store credentials.
+          Distribution: Android APK and OTA only.
           EOF
 
       - name: Prepare APK update manifest
@@ -128,68 +130,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="mobile-v${MOBILE_RELEASE_VERSION}"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Lyceum Mobile ${MOBILE_RELEASE_VERSION}" --notes-file release-mobile/RELEASE_NOTES.md
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "Lyceum Mobile ${MOBILE_RELEASE_VERSION}" --notes-file release-mobile/RELEASE_NOTES.md
           gh release upload "$TAG" release-mobile/lyceum-mobile-ota.json release-mobile/lyceum-mobile-ota-${MOBILE_RELEASE_VERSION}.zip release-mobile/lyceum-mobile-latest.json release-mobile/android/*.apk --clobber
-
-  ios-native-check:
-    name: iOS native project check
-    runs-on: macos-latest
-    env:
-      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_AUTH_REDIRECT_BASE_URL: ${{ vars.VITE_AUTH_REDIRECT_BASE_URL || secrets.VITE_AUTH_REDIRECT_BASE_URL }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Resolve release version
-        shell: bash
-        env:
-          REQUESTED_VERSION: ${{ inputs.version }}
-        run: |
-          VERSION="$REQUESTED_VERSION"
-          if [ -z "$VERSION" ]; then
-            VERSION="${GITHUB_REF_NAME#mobile-v}"
-          fi
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid mobile version: $VERSION"
-            exit 1
-          fi
-          IFS='.' read -r MAJOR MINOR PATCH REST <<< "$VERSION"
-          MAJOR="${MAJOR:-0}"
-          MINOR="${MINOR:-0}"
-          PATCH="${PATCH%%[^0-9]*}"
-          PATCH="${PATCH:-0}"
-          VERSION_CODE=$((10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH))
-          echo "MOBILE_RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
-
-      - run: npm ci
-      - name: Verify mobile Supabase config
-        shell: bash
-        run: |
-          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY."
-            exit 1
-          fi
-      - run: npm run test:mobile
-      - run: npm run build:mobile
-      - name: Prepare native iOS assets
-        run: npm run mobile:native-assets
-
-      - name: Build iOS project without signing
-        run: |
-          xcodebuild \
-            -project ios/App/App.xcodeproj \
-            -scheme App \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            MARKETING_VERSION="${MOBILE_RELEASE_VERSION}" \
-            CURRENT_PROJECT_VERSION="${MOBILE_VERSION_CODE}" \
-            CODE_SIGNING_ALLOWED=NO \
-            build

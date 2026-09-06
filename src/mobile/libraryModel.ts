@@ -16,6 +16,12 @@ export interface MobileLibraryQuery {
   folderId?: string;
   sourceFolderId?: string;
   favoritesOnly?: boolean;
+  status?: import("./types").ReadingStatus;
+  tag?: string;
+  author?: string;
+  minProgress?: number;
+  maxProgress?: number;
+  bookIds?: string[];
 }
 
 export function getBookProgress(book: MobileBook) {
@@ -66,6 +72,12 @@ export function queryMobileBooks(
     if (query.scope === "managed" && book.sourceFolderId) return false;
     if (query.scope === "source" && !book.sourceFolderId) return false;
     if (query.fileType !== "all" && book.fileType !== query.fileType) return false;
+    if (query.status && (book.readingStatus || "want") !== query.status) return false;
+    if (query.tag && !book.tags?.includes(query.tag)) return false;
+    if (query.author && !book.author?.toLocaleLowerCase().includes(query.author.toLocaleLowerCase())) return false;
+    if (query.minProgress !== undefined && getBookProgress(book) < query.minProgress) return false;
+    if (query.maxProgress !== undefined && getBookProgress(book) > query.maxProgress) return false;
+    if (query.bookIds && !query.bookIds.includes(book.id)) return false;
     if (query.favoritesOnly && !book.isFavorite) return false;
     if (folderIds && (!book.folderId || !folderIds.has(book.folderId))) return false;
     if (query.sourceFolderId && book.sourceFolderId !== query.sourceFolderId) return false;
@@ -73,6 +85,8 @@ export function queryMobileBooks(
     const sourceName = sourceFolders.find((source) => source.id === book.sourceFolderId)?.name;
     const fields = [
       book.title,
+      book.tags?.join(" "),
+      book.seriesName,
       book.author,
       book.fileName,
       book.category,
@@ -86,6 +100,8 @@ export function queryMobileBooks(
 
   return filtered.sort((left, right) => {
     switch (query.sort) {
+      case "status": return ["want", "reading", "finished", "abandoned"].indexOf(left.readingStatus || "want") - ["want", "reading", "finished", "abandoned"].indexOf(right.readingStatus || "want");
+      case "series": return (left.seriesName || "").localeCompare(right.seriesName || "", "pt-BR") || (left.seriesIndex || 0) - (right.seriesIndex || 0) || left.title.localeCompare(right.title);
       case "title_desc":
         return right.title.localeCompare(left.title, "pt-BR");
       case "recent_desc":

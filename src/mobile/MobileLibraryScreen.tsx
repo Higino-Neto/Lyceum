@@ -1,3 +1,9 @@
+import { exportMobileBook } from "./bookExport";
+import { persistExtractedBookThumbnail } from "./thumbnailStorage";
+import { ReaderTools } from "./ReaderTools";
+import { makeMobileId, readFileAsDataUrl } from "./storage";
+import { searchAllBooks } from "../api/externalBooks";
+import toast from "react-hot-toast";
 import {
   ArrowDownAZ,
   BookOpen,
@@ -30,10 +36,11 @@ import {
   queryMobileBooks,
   type MobileLibraryQuery,
 } from "./libraryModel";
-import type { MobileBook, MobileLibraryFolder, MobileLibraryState, MobileSourceFolder } from "./types";
+import type { MobileBook, MobileLibraryFolder, MobileLibraryState } from "./types";
 
 interface MobileLibraryScreenProps {
   state: MobileLibraryState;
+  onCollectionsChange?: (collections: NonNullable<MobileLibraryState["collections"]>) => void;
   query: MobileLibraryQuery;
   view: "grid" | "list";
   onQueryChange: (query: MobileLibraryQuery) => void;
@@ -51,6 +58,8 @@ interface MobileLibraryScreenProps {
   onDeleteBooks: (bookIds: string[]) => Promise<void>;
 }
 
+const STATUS_LABELS = { want: "Quero ler", reading: "Lendo", finished: "Lido", abandoned: "Abandonado" };
+
 const sortLabels: Record<MobileLibraryQuery["sort"], string> = {
   title_asc: "Titulo A-Z",
   title_desc: "Titulo Z-A",
@@ -58,6 +67,8 @@ const sortLabels: Record<MobileLibraryQuery["sort"], string> = {
   imported_desc: "Importados recentemente",
   progress_desc: "Maior progresso",
   size_desc: "Maior arquivo",
+  status: "Status de leitura",
+  series: "Série e volume",
 };
 
 function getFolderTrail(folderId: string | undefined, folders: MobileLibraryFolder[]) {
@@ -157,6 +168,13 @@ function BookEditor({
         </div>
 
         <div className="mt-5 grid gap-3">
+          <label>Status <select className="ml-2 rounded-lg bg-zinc-800 p-2" value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <input className="rounded-lg bg-zinc-800 p-3" placeholder="Tags separadas por vírgula" value={draft.tags?.join(", ") || ""} onChange={e => update({ tags: e.target.value.split(",").map(t => t.trim()) })} />
+          <input className="rounded-lg bg-zinc-800 p-3" placeholder="Série" value={draft.seriesName || ""} onChange={e => update({ seriesName: e.target.value })} />
+          <input className="rounded-lg bg-zinc-800 p-3" aria-label="Volume da série" type="number" step="0.1" value={draft.seriesIndex ?? ""} onChange={e => update({ seriesIndex: e.target.value ? Number(e.target.value) : undefined })} />
+          <input className="rounded-lg bg-zinc-800 p-3" placeholder="Idioma" value={draft.language || ""} onChange={e => update({ language: e.target.value })} />
+          <label className="text-sm">Alterar capa <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { toast.error("Escolha uma capa de até 2 MB."); return; } try { update({ thumbnailUrl: await readFileAsDataUrl(file), thumbnailSource: "extracted", thumbnailExtractAttempted: true }); } catch { toast.error("Não foi possível ler a capa."); } }} /></label>
+          <button className="rounded-lg bg-zinc-800 p-3" disabled={!draft.isbn} onClick={async () => { try { const results = await searchAllBooks(`isbn:${draft.isbn}`, []); const result = results.find(r => r.source === "external")?.data; if (!result) { toast("ISBN não encontrado."); return; } update({ title: result.title, author: result.author || undefined }); toast.success("Metadados carregados. Revise antes de salvar."); } catch { toast.error("Não foi possível consultar o ISBN."); } }}>Consultar ISBN online</button>
           <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder="Titulo" />
           <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.author || ""} onChange={(event) => update({ author: event.target.value })} placeholder="Autor" />
           <div className="grid grid-cols-2 gap-3">
@@ -194,6 +212,8 @@ function BookEditor({
               setMoving(false);
             }
             onSave({
+              readingStatus: draft.readingStatus, tags: draft.tags?.filter(Boolean), seriesName: draft.seriesName, seriesIndex: draft.seriesIndex, language: draft.language,
+              thumbnailUrl: draft.thumbnailUrl, thumbnailSource: draft.thumbnailSource, thumbnailExtractAttempted: draft.thumbnailExtractAttempted,
               title: draft.title,
               author: draft.author,
               description: draft.description,
@@ -207,6 +227,8 @@ function BookEditor({
               updatedAt: new Date().toISOString(),
             });
           }} disabled={moving} type="button">{moving ? "Movendo..." : "Salvar alteracoes"}</button>
+          <button className="rounded-lg bg-zinc-800 p-3" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }}>Exportar arquivo do livro</button>
+          <button className="rounded-lg bg-zinc-800 p-3" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }}>Enviar ao Kindle / compartilhar</button>
           <button className="h-11 rounded-xl border border-red-900/70 bg-red-950/30 font-medium text-red-300" onClick={onDelete} type="button">Remover livro e arquivo gerenciado</button>
         </div>
       </div>
@@ -230,8 +252,10 @@ export default function MobileLibraryScreen({
   onDeleteSourceFolder,
   onUpdateBook,
   onMoveBooks,
-  onDeleteBooks,
+  onDeleteBooks, onCollectionsChange,
 }: MobileLibraryScreenProps) {
+  const [collectionName, setCollectionName] = useState("");
+  const [bulkTags, setBulkTags] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -293,6 +317,26 @@ export default function MobileLibraryScreen({
 
   return (
     <section className="min-h-screen bg-[#050607] px-4 pb-[calc(90px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-zinc-100">
+      <ReaderTools />
+      <details className="my-2 rounded-xl bg-zinc-900 p-3 text-sm"><summary>Organizar e filtrar biblioteca</summary>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <select aria-label="Filtrar status" className="rounded bg-zinc-800 p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">Todos os status</option>{Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          <select aria-label="Filtrar tag" className="rounded bg-zinc-800 p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">Todas as tags</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</select>
+          <input className="rounded bg-zinc-800 p-2" placeholder="Autor" value={query.author || ""} onChange={e => setQuery({ author: e.target.value || undefined })} />
+          <input className="w-24 rounded bg-zinc-800 p-2" aria-label="Progresso mínimo" placeholder="De %" type="number" min="0" max="100" value={query.minProgress ?? ""} onChange={e => setQuery({ minProgress: e.target.value ? Number(e.target.value) : undefined })} />
+          <input className="w-24 rounded bg-zinc-800 p-2" aria-label="Progresso máximo" placeholder="Até %" type="number" min="0" max="100" value={query.maxProgress ?? ""} onChange={e => setQuery({ maxProgress: e.target.value ? Number(e.target.value) : undefined })} />
+          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc", minProgress: 1, maxProgress: 99 })}>Continuar lendo</button>
+          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc" })}>Recentes</button>
+          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "imported_desc" })}>Adicionados</button>
+          <button className="rounded bg-zinc-800 p-2" onClick={() => setQuery({ favoritesOnly: !query.favoritesOnly })}>Favoritos</button>
+          <input className="rounded bg-zinc-800 p-2" placeholder="Nome da coleção" value={collectionName} onChange={e => setCollectionName(e.target.value)} />
+          <button disabled={!collectionName.trim()} className="rounded bg-emerald-800 p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), rule: { ...query }, updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>Salvar filtro automático</button>
+          <button disabled={!collectionName.trim() || !selectedIds.size} className="rounded bg-emerald-800 p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), bookIds: [...selectedIds], updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>Coleção dos selecionados</button>
+          {(state.collections || []).map(c => <button key={c.id} className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange(c.rule || { search: "", scope: "all", fileType: "all", sort: "title_asc", bookIds: c.bookIds })}>{c.name}</button>)}
+          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "title_asc" })}>Limpar filtros</button>
+          {bulkMode && <><input className="rounded bg-zinc-800 p-2" placeholder="Tags para os selecionados" value={bulkTags} onChange={e => setBulkTags(e.target.value)} /><button className="rounded bg-emerald-800 p-2" disabled={!selectedIds.size} onClick={() => selectedIds.forEach(id => { const b = state.books.find(b => b.id === id); onUpdateBook(id, { tags: [...new Set([...(b?.tags || []), ...bulkTags.split(",").map(t => t.trim()).filter(Boolean)])] }); })}>Aplicar tags em lote</button></>}
+        </div>
+      </details>
       <header className="flex h-12 items-center justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => setDrawerOpen(true)} aria-label="Menu da biblioteca" type="button"><Menu size={23} /></button>
@@ -367,7 +411,7 @@ export default function MobileLibraryScreen({
       ) : (
         <div className="mt-4 space-y-2">{books.map((book) => {
           const selected = selectedIds.has(book.id);
-          return <article key={book.id} className={`flex items-center gap-3 rounded-2xl border bg-zinc-900 p-2 ${selected ? "border-emerald-500" : "border-white/5"}`}><button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg"><BookCover book={book} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.author || book.fileName}</p><p className="mt-1 text-[11px] text-zinc-600">{folderPath(book.folderId, state.folders)} · {getBookProgress(book)}%</p></div></button>{bulkMode ? <button className={`grid h-9 w-9 place-items-center rounded-full ${selected ? "bg-emerald-500" : "bg-zinc-800"}`} onClick={() => toggleSelected(book.id)} type="button">{selected && <Check size={15} />}</button> : <button className="grid h-10 w-10 place-items-center" onClick={() => setEditingBookId(book.id)} aria-label={`Detalhes de ${book.title}`} type="button"><ChevronRight size={18} /></button>}</article>;
+          return <article key={book.id} className={`flex items-center gap-3 rounded-2xl border bg-zinc-900 p-2 ${selected ? "border-emerald-500" : "border-white/5"}`}><button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg"><BookCover book={book} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.seriesName ? `${book.seriesName} · ${book.seriesIndex || ""} · ` : ""}{book.author || book.fileName}</p><p className="mt-1 text-[11px] text-zinc-600">{folderPath(book.folderId, state.folders)} · {getBookProgress(book)}%</p></div></button>{bulkMode ? <button className={`grid h-9 w-9 place-items-center rounded-full ${selected ? "bg-emerald-500" : "bg-zinc-800"}`} onClick={() => toggleSelected(book.id)} type="button">{selected && <Check size={15} />}</button> : <button className="grid h-10 w-10 place-items-center" onClick={() => setEditingBookId(book.id)} aria-label={`Detalhes de ${book.title}`} type="button"><ChevronRight size={18} /></button>}</article>;
         })}</div>
       )}
 
@@ -394,7 +438,7 @@ export default function MobileLibraryScreen({
               {state.folders.filter((folder) => folder.id !== folderAction.id && !descendantFolderIds(folderAction.id, state.folders).has(folder.id)).map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}
             </select>
           </label>
-          <button className="flex h-12 items-center gap-3 rounded-xl bg-red-950/40 px-4 text-sm font-medium text-red-300" onClick={() => { if (window.confirm(`Excluir a pasta ${folderAction.name}?`)) onDeleteFolder(folderAction.id); setFolderActionId(undefined); }} type="button"><Trash2 size={18} />Excluir pasta</button>
+          <button className="flex h-12 items-center gap-3 rounded-xl bg-red-950/40 px-4 text-sm font-medium text-red-300" onClick={() => { onDeleteFolder(folderAction.id); setFolderActionId(undefined); }} type="button"><Trash2 size={18} />Excluir pasta</button>
         </div>
       </div></div>}
 
@@ -407,7 +451,7 @@ export default function MobileLibraryScreen({
 
       {bulkMode && selectedIds.size > 0 && <div className="fixed inset-x-3 bottom-[calc(78px+env(safe-area-inset-bottom))] z-30 rounded-2xl border border-zinc-700 bg-zinc-900 p-3 shadow-2xl"><div className="flex items-center gap-2"><span className="text-sm font-semibold">{selectedIds.size} selecionado(s)</span><select className="ml-auto h-9 min-w-0 rounded-lg bg-zinc-800 px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">Biblioteca</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</select><button className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-800 text-emerald-300" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label="Favoritar selecionados" type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label="Mover selecionados" type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-red-950 text-red-300" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label="Excluir selecionados" type="button"><Trash2 size={16} /></button></div></div>}
 
-      {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={(patch) => { onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { if (!window.confirm(`Remover ${editingBook.title} e o arquivo salvo pelo Lyceum?`)) return; await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} />}
+      {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={async (patch) => { try { if (patch.thumbnailUrl && patch.thumbnailUrl !== editingBook.thumbnailUrl) patch = { ...patch, ...await persistExtractedBookThumbnail(editingBook, patch.thumbnailUrl) }; onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); } catch { toast.error("Não foi possível salvar os detalhes."); } }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} />}
     </section>
   );
 }
