@@ -225,16 +225,23 @@ export async function renameBook(
 
     const dir = path.dirname(filePath);
     const ext = path.extname(filePath);
-    const newFileName = `${newTitle}${ext}`;
-    const newFilePath = getUniqueFilePath(dir, newFileName);
+    const safeTitle = newTitle
+      .replace(/[\\/:*?"<>|]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!safeTitle) return { success: false, error: "Titulo invalido para nome de arquivo" };
+    const newFileName = `${safeTitle}${ext}`;
+    const requestedPath = path.join(dir, newFileName);
+    const newFilePath = path.resolve(filePath) === path.resolve(requestedPath)
+      ? filePath
+      : getUniqueFilePath(dir, newFileName);
 
     if (filePath !== newFilePath) {
       fs.renameSync(filePath, newFilePath);
       updateDocumentPath(fileHash, newFilePath);
     }
 
-    const finalTitle = newTitle.toLowerCase().endsWith(".pdf") ? newTitle : `${newTitle}.pdf`;
-    updateTitle(fileHash, finalTitle);
+    updateTitle(fileHash, safeTitle);
     updateAuthor(fileHash, newAuthor || null);
 
     return { success: true };

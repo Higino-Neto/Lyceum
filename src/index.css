@@ -393,3 +393,93 @@ input[type="date"] {
 [data-reduced-effects="true"] .shadow-lg {
   box-shadow: none !important;
 }
+
+/* Feedback tactil curto para controles, preservado apenas no modo visual completo. */
+[data-reduced-effects="false"] .lyceum-app button:not(:disabled) {
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reduced-effects="false"] .lyceum-app button:not(:disabled):active {
+  transform: scale(0.975);
+}
+
+[data-reduced-effects="false"] .lyceum-library-shell,
+[data-reduced-effects="false"] .lyceum-library-sidebar,
+[data-reduced-effects="false"] .lyceum-library-detail {
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease-out,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reduced-effects="false"] .lyceum-interactive-card {
+  transition-property: border-color, background-color, box-shadow, transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reduced-effects="false"] .lyceum-interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    0 10px 24px rgb(0 0 0 / 0.2);
+}
+
+[data-reduced-effects="false"] .lyceum-interactive-card:active {
+  transform: translateY(0) scale(0.992);
+}
+
+[data-reduced-effects="false"] .lyceum-interactive-row {
+  transition-property: border-color, background-color, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+[data-reduced-effects="false"] .lyceum-interactive-row:hover {
+  transform: translateX(2px);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    0 4px 14px rgb(0 0 0 / 0.14);
+}
+
+[data-reduced-effects="false"] .lyceum-selection-mark {
+  animation: lyceum-selection-pop 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reduced-effects="false"] .lyceum-sidebar-item::before {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 22px;
+  border-radius: 0 999px 999px 0;
+  background: var(--accent-500);
+  content: "";
+  opacity: 0;
+  transform: scaleY(0.35);
+  transition: opacity 150ms ease-out, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reduced-effects="false"] .lyceum-sidebar-item[data-active="true"]::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+[data-reduced-effects="false"] .lyceum-app :where(input, textarea, select) {
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+
+[data-reduced-effects="false"] .lyceum-app :where(input, textarea, select):focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-500) 16%, transparent);
+}
+
+[data-reduced-effects="false"] .lyceum-app button:hover > svg:only-child {
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: scale(1.06);
+}
+
+@keyframes lyceum-selection-pop {
+  0% { opacity: 0; transform: scale(0.65); }
+  65% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}

@@ -54,7 +54,6 @@ exports.default = async function afterPack(context) {
 
   if (platform === "win32") {
     const winOnlyPrunes = [
-      path.join(unpackedNodeModules, "pdf-poppler", "lib", "osx"),
       path.join(unpackedNodeModules, "better-sqlite3", "deps"),
       path.join(unpackedNodeModules, "better-sqlite3", "src"),
       path.join(unpackedNodeModules, "sharp", "src"),

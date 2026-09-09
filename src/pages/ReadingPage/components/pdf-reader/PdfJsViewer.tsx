@@ -5,6 +5,7 @@ import useSessionTracker from "../../hooks/useSessionTracker";
 import { createPdfJsViewerUrl } from "./pdfRenderer";
 import { useChapterTracker } from "./chapters/useChapterTracker";
 import ChapterSidebar from "./chapters/ChapterSidebar";
+import { AnimatePresence, motion } from "motion/react";
 
 interface PdfJsViewerProps {
   pdfData: ArrayBuffer;
@@ -254,9 +255,20 @@ export default function PdfJsViewer({
   
   return (
     <div className="relative flex h-full w-full bg-zinc-950">
-      {showChapters && (
-        <ChapterSidebar tracker={chapterTracker} onClose={() => onCloseChapters?.()} />
-      )}
+      <AnimatePresence initial={false}>
+        {showChapters && (
+          <motion.div
+            key="pdf-chapters"
+            className="h-full flex-shrink-0 overflow-hidden"
+            initial={{ opacity: 0, x: -24, width: 0 }}
+            animate={{ opacity: 1, x: 0, width: "auto" }}
+            exit={{ opacity: 0, x: -18, width: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+          >
+            <ChapterSidebar tracker={chapterTracker} onClose={() => onCloseChapters?.()} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative min-w-0 flex-1">
         {loadError && (

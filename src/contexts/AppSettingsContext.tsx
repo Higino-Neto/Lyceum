@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import type { NavigationRouteId } from "../navigation/routes";
 
 export type AppTheme = "system" | "light" | "dark";
 export type EffectiveTheme = "light" | "dark";
@@ -142,7 +143,7 @@ export const ACCENT_COLORS: AccentColor[] = [
   },
 ];
 
-interface AppSettings {
+export interface AppSettings {
   theme: AppTheme;
   accentColor: AccentColorId;
   copyYesterdayReadings: boolean;
@@ -154,6 +155,13 @@ interface AppSettings {
   betaConversionEnabled: boolean;
   betaHabitsEnabled: boolean;
   reducedEffects: boolean;
+  hotkeysEnabled: boolean;
+  hotkeysCustomized: boolean;
+  hotkeyBindings: Partial<Record<NavigationRouteId, string>>;
+  weeklyBackupEnabled: boolean;
+  backupDocuments: boolean;
+  backupHabits: boolean;
+  backupCategories: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -170,6 +178,11 @@ interface AppSettingsContextValue {
   setBetaConversionEnabled: (value: boolean) => void;
   setBetaHabitsEnabled: (value: boolean) => void;
   setReducedEffects: (value: boolean) => void;
+  setHotkeysEnabled: (value: boolean) => void;
+  setHotkeyBinding: (routeId: NavigationRouteId, key: string) => void;
+  resetHotkeyBindings: () => void;
+  setWeeklyBackupEnabled: (value: boolean) => void;
+  setBackupSelection: (key: "backupDocuments" | "backupHabits" | "backupCategories", value: boolean) => void;
 }
 
 const SETTINGS_STORAGE_KEY = "lyceum:app-settings";
@@ -185,6 +198,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   betaConversionEnabled: true,
   betaHabitsEnabled: true,
   reducedEffects: false,
+  hotkeysEnabled: true,
+  hotkeysCustomized: false,
+  hotkeyBindings: {},
+  weeklyBackupEnabled: true,
+  backupDocuments: true,
+  backupHabits: true,
+  backupCategories: true,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -246,6 +266,13 @@ function loadSettings(): AppSettings {
         parsed.betaConversionEnabled ?? DEFAULT_SETTINGS.betaConversionEnabled,
       betaHabitsEnabled: parsed.betaHabitsEnabled ?? DEFAULT_SETTINGS.betaHabitsEnabled,
       reducedEffects: parsed.reducedEffects ?? DEFAULT_SETTINGS.reducedEffects,
+      hotkeysEnabled: parsed.hotkeysEnabled ?? DEFAULT_SETTINGS.hotkeysEnabled,
+      hotkeysCustomized: parsed.hotkeysCustomized ?? DEFAULT_SETTINGS.hotkeysCustomized,
+      hotkeyBindings: parsed.hotkeyBindings ?? DEFAULT_SETTINGS.hotkeyBindings,
+      weeklyBackupEnabled: parsed.weeklyBackupEnabled ?? DEFAULT_SETTINGS.weeklyBackupEnabled,
+      backupDocuments: parsed.backupDocuments ?? DEFAULT_SETTINGS.backupDocuments,
+      backupHabits: parsed.backupHabits ?? DEFAULT_SETTINGS.backupHabits,
+      backupCategories: parsed.backupCategories ?? DEFAULT_SETTINGS.backupCategories,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -379,6 +406,31 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
           ...current,
           reducedEffects: value,
         })),
+      setHotkeysEnabled: (value) =>
+        setSettings((current) => ({ ...current, hotkeysEnabled: value })),
+      setHotkeyBinding: (routeId, key) =>
+        setSettings((current) => {
+          const hotkeyBindings = Object.fromEntries(
+            Object.entries(current.hotkeyBindings).filter(
+              ([id, assignedKey]) => id === routeId || assignedKey !== key,
+            ),
+          );
+          return {
+            ...current,
+            hotkeysCustomized: true,
+            hotkeyBindings: { ...hotkeyBindings, [routeId]: key },
+          };
+        }),
+      resetHotkeyBindings: () =>
+        setSettings((current) => ({
+          ...current,
+          hotkeysCustomized: false,
+          hotkeyBindings: {},
+        })),
+      setWeeklyBackupEnabled: (value) =>
+        setSettings((current) => ({ ...current, weeklyBackupEnabled: value })),
+      setBackupSelection: (key, value) =>
+        setSettings((current) => ({ ...current, [key]: value })),
     }),
     [effectiveTheme, settings],
   );

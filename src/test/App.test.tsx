@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { renderWithProviders } from './helpers/renderWithProviders';
@@ -9,14 +9,21 @@ const mockWindowApi = {
   windowMaximize: vi.fn(),
   windowIsMaximized: vi.fn().mockResolvedValue(false),
   windowClose: vi.fn(),
+  backupInit: vi.fn().mockResolvedValue({ success: true }),
+  backupSetSession: vi.fn().mockResolvedValue({ success: true }),
+  backupClearSession: vi.fn().mockResolvedValue({ success: true }),
+  backupAllDocuments: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
+  backupAllHabits: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
+  backupAllCategories: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
 };
 
 const originalWindowApi = window.api;
 
-const { mockGetSession, mockOnAuthStateChange, mockSignOut } = vi.hoisted(() => ({
+const { mockGetSession, mockOnAuthStateChange, mockSignOut, mockGetSupabaseConfig } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
   mockSignOut: vi.fn(),
+  mockGetSupabaseConfig: vi.fn(),
 }));
 
 vi.mock('../lib/supabase', () => {
@@ -34,7 +41,7 @@ vi.mock('../lib/supabase', () => {
   };
 
   return {
-    getSupabaseConfig: vi.fn(() => null),
+    getSupabaseConfig: mockGetSupabaseConfig,
     supabase: {
       auth: {
         getUser: vi.fn(() => Promise.resolve({
@@ -63,7 +70,9 @@ async function flushBootstrap() {
 
 describe('App', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
+    window.history.replaceState({}, '', '/');
     vi.useRealTimers();
     mockGetSession.mockResolvedValue({
       data: {
@@ -83,6 +92,7 @@ describe('App', () => {
       },
     });
     mockSignOut.mockResolvedValue({ error: null });
+    mockGetSupabaseConfig.mockReturnValue(null);
     Object.defineProperty(window, 'api', {
       value: mockWindowApi,
       writable: true,
@@ -184,5 +194,39 @@ describe('App', () => {
     expect(sidebar).toHaveClass('w-13');
     expect(screen.queryByTestId('auto-hide-top-hitbox')).not.toBeInTheDocument();
     expect(screen.queryByTestId('auto-hide-left-hitbox')).not.toBeInTheDocument();
+  });
+
+  it('asks for confirmation before signing out', async () => {
+    renderWithProviders(<App />);
+    await flushBootstrap();
+    fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(screen.getByText('Deseja realmente encerrar sua sessão no Lyceum?')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sair' }));
+    await act(async () => {});
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows leaving the account settings tab after opening it from the sidebar', async () => {
+    renderWithProviders(<App />);
+    await flushBootstrap();
+    fireEvent.click(screen.getByRole('button', { name: 'Conta' }));
+    expect(screen.getByRole('heading', { name: 'Conta', level: 1 })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Geral' }));
+    expect(screen.getByRole('heading', { name: 'Geral', level: 1 })).toBeInTheDocument();
+  });
+
+  it('runs selected periodic backups only after the weekly gate and startup delay', async () => {
+    vi.useFakeTimers();
+    mockGetSupabaseConfig.mockReturnValue({ url: 'https://example.supabase.co', anonKey: 'test-key' });
+    renderWithProviders(<App />);
+    await flushBootstrap();
+    expect(mockWindowApi.backupAllDocuments).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(5_000); });
+    expect(mockWindowApi.backupAllDocuments).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(25_000); });
+    expect(mockWindowApi.backupAllDocuments).toHaveBeenCalledTimes(1);
+    expect(mockWindowApi.backupAllHabits).toHaveBeenCalledTimes(1);
+    expect(mockWindowApi.backupAllCategories).toHaveBeenCalledTimes(1);
   });
 });

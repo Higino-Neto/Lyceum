@@ -21,7 +21,8 @@ import FolderTreeToolbar from "./FolderTreeToolbar";
 import FolderTreeVirtualizer from "./FolderTreeVirtualizer";
 import {
   collectExpandablePaths,
-  countDocsInFolder,
+  buildFolderBookCountIndex,
+  countBooksFromIndex,
   filterFolders,
   flattenTree,
   normalizeAbsolutePath,
@@ -108,7 +109,8 @@ function FolderTreeFromQueries(props: FolderTreeProps) {
 function FolderTreeContainer({
   selectedFolder,
   onFolderSelect,
-  localDocuments,
+  localDocuments = [],
+  folderBookCounts = {},
   includeSubfolders = false,
   onFoldersChanged,
   onMoveBook,
@@ -176,7 +178,11 @@ function FolderTreeContainer({
 
   const allExpandablePaths = useMemo(() => collectExpandablePaths(filteredFolders), [filteredFolders]);
   const allExpanded = allExpandablePaths.size > 0 && [...allExpandablePaths].every((path) => expandedPaths.has(path));
-  const totalBooks = countDocsInFolder(null, libraryPath, localDocuments, includeSubfolders);
+  const folderCountIndex = useMemo(
+    () => buildFolderBookCountIndex(folderBookCounts, localDocuments),
+    [folderBookCounts, localDocuments],
+  );
+  const totalBooks = countBooksFromIndex(null, libraryPath, folderCountIndex, includeSubfolders);
 
   const toggleExpand = useCallback(async (folder: FolderInfo, event: MouseEvent) => {
     event.stopPropagation();
@@ -347,8 +353,8 @@ function FolderTreeContainer({
     }
     if (item.kind === "section") return <FolderTreeSection label={item.label} onAdd={item.onAdd} />;
     if (item.kind === "watch") return renderWatchItem(item);
-    const folderBookCount = countDocsInFolder(item.node.folder.path, libraryPath, localDocuments, false);
-    const itemTotalBooks = countDocsInFolder(item.node.folder.path, libraryPath, localDocuments, includeSubfolders);
+    const folderBookCount = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, false);
+    const itemTotalBooks = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, includeSubfolders);
     return (
       <FolderTreeNode
         node={item.node}

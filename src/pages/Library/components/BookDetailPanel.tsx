@@ -39,6 +39,7 @@ const getTitleWithoutExtension = (title: string, fileType?: string) => {
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
+import AnimatedModal from "../../../components/ui/AnimatedModal";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
@@ -48,6 +49,8 @@ interface BookDetailPanelProps {
   onConvert?: (book: BookWithThumbnail) => void;
   onDelete?: (deletedFileHash: string) => void | Promise<void>;
   onDissolve?: (book: BookWithThumbnail) => void | Promise<void>;
+  onRemoveVariant?: (book: BookWithThumbnail) => Promise<boolean>;
+  removeFromGroup?: boolean;
   onRefresh: (preferredFileHash?: string) => void | Promise<void>;
   readOnly?: boolean;
   previewOpen?: boolean;
@@ -92,11 +95,16 @@ export default function BookDetailPanel({
   onConvert,
   onDelete,
   onDissolve,
+  onRemoveVariant,
+  removeFromGroup = false,
   onRefresh,
   readOnly = false,
   previewOpen = false,
 }: BookDetailPanelProps) {
   const formatVariants = book.mergedBooks?.length ? book.mergedBooks : [book];
+  const canRemoveFromGroup = Boolean(
+    onRemoveVariant && (removeFromGroup || formatVariants.length > 1),
+  );
   const initialVariantHash = formatVariants[0]?.fileHash || book.fileHash;
   const [selectedVariantHash, setSelectedVariantHash] = useState(initialVariantHash);
   const selectedVariant =
@@ -252,10 +260,18 @@ export default function BookDetailPanel({
         author: newAuthor,
       });
       if (result.success) {
+        const metadataHash = result.fileHash || selectedVariant.fileHash;
+        if (editMode === "title") {
+          const renameResult = await window.api.renameBook(metadataHash, newTitle, newAuthor);
+          if (!renameResult.success) {
+            toast.error(renameResult.error || "Metadados atualizados, mas o arquivo nao pode ser renomeado");
+            return;
+          }
+        }
         toast.success("Metadados gravados no arquivo.");
         setEditMode(null);
         setEditValue("");
-        const nextHash = result.fileHash || selectedVariant.fileHash;
+        const nextHash = metadataHash;
         setSelectedVariantHash(nextHash);
         await onRefresh(nextHash);
       } else {
@@ -280,6 +296,15 @@ export default function BookDetailPanel({
     }
 
     const deletedHash = selectedVariant.fileHash;
+    if (canRemoveFromGroup && onRemoveVariant && !deleteFileAlso) {
+      const removed = await onRemoveVariant(selectedVariant);
+      if (removed) {
+        toast.success("Livro removido do agrupamento e mantido na biblioteca");
+        setShowDeleteDialog(false);
+        await onDelete?.(deletedHash);
+      }
+      return;
+    }
     const result = await window.api.deleteBook(deletedHash, deleteFileAlso);
     if (result.success) {
       toast.success(deleteFileAlso ? "Livro excluído do disco" : "Livro removido da biblioteca");
@@ -430,7 +455,7 @@ export default function BookDetailPanel({
         <div
           role="tablist"
           aria-label="Formatos do livro"
-          className="flex flex-shrink-0 gap-1 overflow-x-auto border-b border-zinc-800 bg-zinc-950/70 px-3 pt-2"
+          className={`flex flex-shrink-0 gap-2 overflow-x-auto border-b border-zinc-800 bg-zinc-950/70 px-3 py-2 ${formatVariants.length <= 3 ? "justify-center" : "justify-start"}`}
         >
           {formatVariants.map((variant, index) => {
             const formatLabel = getFileTypeLabel(variant.fileType, variant.filePath);
@@ -455,10 +480,10 @@ export default function BookDetailPanel({
                   setEditMode(null);
                   setSelectedVariantHash(variant.fileHash);
                 }}
-                className={`min-w-16 whitespace-nowrap border-b-2 px-3 py-2 text-xs font-semibold transition-colors ${
+                className={`min-w-16 whitespace-nowrap rounded border px-3 py-2 text-xs font-semibold transition-all ${
                   selectedVariant.fileHash === variant.fileHash
-                    ? "border-green-400 text-green-300"
-                    : "border-transparent text-zinc-500 hover:text-zinc-200"
+                    ? "border-green-500/50 bg-green-500/15 text-green-300 shadow-sm"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200"
                 }`}
               >
                 {label}
@@ -614,6 +639,7 @@ export default function BookDetailPanel({
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
+                  aria-label="Salvar edicao"
                   className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Save size={14} className="text-white" />
@@ -658,6 +684,7 @@ export default function BookDetailPanel({
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
+                  aria-label="Salvar edicao"
                   className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Save size={14} className="text-white" />
@@ -729,8 +756,8 @@ export default function BookDetailPanel({
             onClick={() => onOpenPreview(selectedVariant)}
             disabled={!canOpenInReader}
             className={`bg-zinc-800 text-zinc-300 hover:bg-zinc-600 hover:text-green-200 flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500`}
-            title={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
-            aria-label={previewOpen ? "Atualizar previa lateral" : "Abrir previa lateral"}
+            title={previewOpen ? "Fechar previa lateral" : "Abrir previa lateral"}
+            aria-label={previewOpen ? "Fechar previa lateral" : "Abrir previa lateral"}
           >
             <PanelRightOpen size={16} />
           </button>
@@ -800,7 +827,7 @@ export default function BookDetailPanel({
           <button
             onClick={handleDissolve}
             disabled={showDissolveDialog}
-            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-amber-500/10 py-2 text-xs text-amber-300 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-red-500/10 py-2 text-xs text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
           >
             <Unlink size={12} />
             Desmesclar e manter arquivos
@@ -815,14 +842,20 @@ export default function BookDetailPanel({
           Remover
         </button>
 
-        {showDeleteDialog && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <AnimatedModal
+          open={showDeleteDialog}
+          ariaLabel="Confirmar exclusao"
+          onBackdropClick={cancelDelete}
+          backdropClassName="px-4"
+          className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
+        >
               <h3 className="text-base font-medium mb-2">Confirmar exclusão</h3>
               <p className="text-sm text-zinc-400 mb-4">
-                Tem certeza que deseja remover a variante "{selectedVariant.title}" da biblioteca?
+                {canRemoveFromGroup
+                  ? `Deseja remover "${selectedVariant.title}" deste agrupamento? O arquivo sera mantido na biblioteca.`
+                  : `Tem certeza que deseja remover a variante "${selectedVariant.title}" da biblioteca?`}
               </p>
-              <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
+              {!canRemoveFromGroup && <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={deleteFileAlso}
@@ -830,7 +863,7 @@ export default function BookDetailPanel({
                   className="w-4 h-4 accent-green-500 cursor-pointer"
                 />
                 Também excluir arquivo do disco
-              </label>
+              </label>}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDelete}
@@ -842,15 +875,17 @@ export default function BookDetailPanel({
                   onClick={handleDelete}
                   className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors"
                 >
-                  Excluir
+                  {canRemoveFromGroup ? "Remover" : "Excluir"}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-        {showDissolveDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="mx-4 w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6">
+        </AnimatedModal>
+        <AnimatedModal
+          open={showDissolveDialog}
+          ariaLabel="Desmesclar livro"
+          onBackdropClick={() => setShowDissolveDialog(false)}
+          backdropClassName="px-4"
+          className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
+        >
               <h3 className="mb-2 text-base font-medium">Desmesclar livro</h3>
               <p className="mb-4 text-sm text-zinc-400">
                 Os {formatVariants.length} arquivos serão movidos para a pasta pai e continuarão na biblioteca como livros independentes.
@@ -864,14 +899,12 @@ export default function BookDetailPanel({
                 </button>
                 <button
                   onClick={handleDissolve}
-                  className="rounded-sm bg-amber-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-amber-400"
+                  className="rounded-sm bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-400"
                 >
                   Desmesclar
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+        </AnimatedModal>
         </div>
 
         <SetThumbnailDialog

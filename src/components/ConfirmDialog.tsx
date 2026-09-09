@@ -1,4 +1,5 @@
 import { X, AlertTriangle } from "lucide-react";
+import AnimatedModal from "./ui/AnimatedModal";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -21,11 +22,14 @@ export default function ConfirmDialog({
   onCancel,
   isDanger = false,
 }: ConfirmDialogProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-sm w-full max-w-md mx-4 shadow-2xl">
+    <AnimatedModal
+      open={isOpen}
+      ariaLabel={title}
+      onBackdropClick={onCancel}
+      backdropClassName="px-4"
+      className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+    >
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <div className="flex items-center gap-2">
             {isDanger && <AlertTriangle size={20} className="text-red-400" />}
@@ -61,7 +65,6 @@ export default function ConfirmDialog({
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

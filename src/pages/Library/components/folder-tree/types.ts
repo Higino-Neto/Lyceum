@@ -9,7 +9,8 @@ import type { DocumentRecord } from "../../../../types/ReadingTypes";
 export interface FolderTreeProps {
   selectedFolder: string | null;
   onFolderSelect: (folderPath: string | null) => void;
-  localDocuments: DocumentRecord[];
+  localDocuments?: DocumentRecord[];
+  folderBookCounts?: Record<string, number>;
   folderStructure?: FolderInfo[];
   libraryRoots?: LibraryRootInfo[];
   includeSubfolders?: boolean;

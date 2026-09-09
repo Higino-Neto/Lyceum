@@ -7,6 +7,7 @@ export default function SidebarItem({
   collapsed,
   onClick,
   badgeCount = 0,
+  routeId,
 }: {
   Icon: LucideIcon;
   label: string;
@@ -14,13 +15,17 @@ export default function SidebarItem({
   collapsed: boolean;
   onClick: () => void;
   badgeCount?: number;
+  routeId?: string;
 }) {
   return (
     <button
+      data-sidebar-route={routeId}
+      data-active={active}
+      tabIndex={routeId ? 0 : undefined}
       title={label}
       onClick={onClick}
       className={`
-        group relative flex items-center px-4 w-full h-12 cursor-pointer
+        lyceum-sidebar-item group relative flex items-center px-4 w-full h-12 cursor-pointer
         ${active ? "bg-zinc-800" : ""}
         ${collapsed ? "" : "justify-start"}
       `}

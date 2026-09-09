@@ -27,7 +27,14 @@ export default defineConfig({
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
-              external: ["better-sqlite3", "bindings", "adm-zip", "jsdom"],
+              external: [
+                "better-sqlite3",
+                "bindings",
+                "adm-zip",
+                "jsdom",
+                "@napi-rs/canvas",
+                "pdfjs-dist/legacy/build/pdf.mjs",
+              ],
               output: {
                 entryFileNames: "[name].js",
                 chunkFileNames: "chunks/[name].js",

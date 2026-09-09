@@ -11,6 +11,7 @@ import {
   getTitleWithoutExtension,
 } from "../../utils";
 import { useLazyThumbnail } from "./useLazyThumbnail";
+import { setBookDragImage } from "../../utils/bookDragPreview";
 
 export interface ExplorerColumns {
   name: number;
@@ -32,6 +33,7 @@ interface BookListItemProps {
   onClick?: (book: BookWithThumbnail) => void;
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
+  onDragMove?: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   isChecked?: boolean;
@@ -54,6 +56,7 @@ function BookListItem({
   onClick,
   isSelected = false,
   onDragStart,
+  onDragMove,
   onDragEnd,
   selectionMode = false,
   isChecked = false,
@@ -93,7 +96,7 @@ function BookListItem({
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      className={`grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-shadow ${
+      className={`lyceum-interactive-row grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-shadow ${
         isSelected
           ? "border-zinc-500 ring-1 ring-zinc-500"
           : "border-zinc-800 hover:border-zinc-700"
@@ -105,19 +108,12 @@ function BookListItem({
           e.preventDefault();
           return;
         }
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", book.fileHash);
-        if (isChecked && selectedCount > 1) {
-          const dragPreview = document.createElement("div");
-          dragPreview.className =
-            "fixed -top-96 left-0 rounded-sm border border-green-500/50 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-100 shadow-xl";
-          dragPreview.textContent = `${selectedCount} livros selecionados`;
-          document.body.appendChild(dragPreview);
-          e.dataTransfer.setDragImage(dragPreview, 12, 12);
-          window.setTimeout(() => dragPreview.remove(), 0);
-        }
+        e.dataTransfer.effectAllowed = "copyMove";
+        e.dataTransfer.setData("application/x-lyceum-book", book.fileHash);
+        setBookDragImage(e.dataTransfer, Math.max(1, selectedCount));
         onDragStart?.(book.fileHash);
       }}
+      onDrag={onDragMove}
       onDragEndCapture={() => onDragEnd?.()}
       onDragOver={(event) => {
         if (!canDropOnBook?.(book)) return;

@@ -1786,6 +1786,22 @@ export function getAllDocuments(): DocumentRecord[] {
   return db.prepare<[], DocumentRecord>(`select * from documents`).all();
 }
 
+export function getDocumentFolderCounts(): Record<string, number> {
+  const rows = db.prepare<[], { folderPath: string; count: number }>(`
+    SELECT LOWER(RTRIM(REPLACE(folderPath, '\\', '/'), '/')) AS folderPath,
+           COUNT(*) AS count
+    FROM documents
+    WHERE folderPath IS NOT NULL AND folderPath <> ''
+    GROUP BY LOWER(RTRIM(REPLACE(folderPath, '\\', '/'), '/'))
+  `).all();
+
+  return Object.fromEntries(
+    rows
+      .filter((row) => Boolean(row.folderPath))
+      .map((row) => [row.folderPath, row.count]),
+  );
+}
+
 export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
   const limit = Math.min(Math.max(query.limit ?? 60, 1), 200);
   const offset = Math.max(query.offset ?? 0, 0);

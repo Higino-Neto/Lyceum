@@ -57,7 +57,7 @@ export default function FolderContextMenu({
       {folderType !== "normal" && onDissolveFolder && (
         <button
           onClick={() => onDissolveFolder(folder)}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-amber-300 hover:bg-zinc-700"
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-400 hover:bg-red-500/10"
         >
           <Unlink size={14} />
           {folderType === "collection" ? "Remover colecao" : "Desmesclar"}

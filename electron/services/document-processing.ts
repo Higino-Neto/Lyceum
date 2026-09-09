@@ -5,6 +5,7 @@ import path from "node:path";
 import AdmZip from "adm-zip";
 import { PDFDocument } from "pdf-lib";
 import { extractFirstCbzImage, inspectCbzPageCount, parseCbzBuffer } from "../../src/lib/lyceum/importers/cbzImporter";
+import { renderPdfPageToPng } from "./pdf-page-renderer";
 
 const require = createRequire(import.meta.url);
 
@@ -226,22 +227,6 @@ export function isPdfMagicBytesValid(filePath: string): boolean {
   }
 }
 
-export function ensureAsciiPdfPath(filePath: string): { path: string; cleanup: () => void } {
-  const hasNonAscii = [...filePath].some(c => c.charCodeAt(0) > 127);
-  if (!hasNonAscii) {
-    return { path: filePath, cleanup: () => {} };
-  }
-  const safeName = `lyceum-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
-  const tempPath = path.join(os.tmpdir(), safeName);
-  fs.copyFileSync(filePath, tempPath);
-  return {
-    path: tempPath,
-    cleanup: () => {
-      try { fs.unlinkSync(tempPath); } catch { /* ignore */ }
-    },
-  };
-}
-
 export async function generateThumbnail(
   filePath: string,
   fileHash: string,
@@ -315,35 +300,16 @@ export async function generateThumbnail(
       return null;
     }
 
-    const { path: pdfPath, cleanup } = ensureAsciiPdfPath(filePath);
-    try {
-      const pdfRequire = require("pdf-poppler");
-      await pdfRequire.convert(pdfPath, {
-        format: "jpeg",
-        out_dir: thumbnailsDir,
-        out_prefix: fileHash,
-        page: 1,
-      });
-    } finally {
-      cleanup();
-    }
-
-    const generatedPath = findThumbnailByHash(thumbnailsDir, fileHash);
-    if (!generatedPath) {
-      const msg = `No thumbnail file found after generation for hash: ${fileHash}`;
-      options.onWarning?.(msg);
-      console.error(`${logPrefix} ${msg}`);
-      return null;
-    }
-
+    const rendered = await renderPdfPageToPng(filePath, 1, {
+      scale: 1.5,
+      maxDimension: 1800,
+    });
     const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
     const sharp = require("sharp");
-    const imageBuffer = fs.readFileSync(generatedPath);
-    await sharp(imageBuffer)
+    await sharp(rendered.data)
       .resize(THUMB_WIDTH, undefined, { fit: "inside", withoutEnlargement: true })
       .webp({ quality: THUMB_WEBP_QUALITY })
       .toFile(outputPath);
-    fs.unlinkSync(generatedPath);
     console.log(`${logPrefix} Thumbnail generated: ${outputPath}`);
     return outputPath;
   } catch (error) {

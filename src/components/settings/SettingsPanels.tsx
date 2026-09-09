@@ -19,6 +19,8 @@ import {
   Sun,
   Trash2,
   User,
+  Keyboard,
+  DatabaseBackup,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -40,6 +42,8 @@ import {
   useAppSettings,
 } from "../../contexts/AppSettingsContext";
 import type { AppTheme } from "../../contexts/AppSettingsContext";
+import ConfirmDialog from "../ConfirmDialog";
+import { getDefaultHotkeyBindings, getEnabledNavigationRoutes } from "../../navigation/routes";
 
 type DesktopUpdateStatus =
   | "idle"
@@ -398,6 +402,7 @@ export function AccountSettingsPanel({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["currentUser"],
@@ -646,9 +651,18 @@ export function AccountSettingsPanel({
         title="Sessão"
         description="Encerre o acesso deste usuario ao aplicativo."
       >
-        <DangerButton onClick={handleSignOut}>
+        <DangerButton onClick={() => setConfirmSignOut(true)}>
           Sair da conta
         </DangerButton>
+        <ConfirmDialog
+          isOpen={confirmSignOut}
+          title="Sair da conta"
+          message="Deseja realmente encerrar sua sessão no Lyceum?"
+          confirmLabel="Sair"
+          onConfirm={() => void handleSignOut()}
+          onCancel={() => setConfirmSignOut(false)}
+          isDanger
+        />
       </SettingsSection>
     </div>
   );
@@ -747,6 +761,154 @@ export function GeneralSettingsPanel() {
               }`}
             />
           </button>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
+export function HotkeysSettingsPanel() {
+  const {
+    settings,
+    setHotkeysEnabled,
+    setHotkeyBinding,
+    resetHotkeyBindings,
+  } = useAppSettings();
+  const routes = getEnabledNavigationRoutes(settings);
+  const bindings = settings.hotkeysCustomized
+    ? settings.hotkeyBindings
+    : getDefaultHotkeyBindings(settings);
+
+  return (
+    <div>
+      <SettingsSection
+        title="Navegacao por teclado"
+        description="Esc foca a rota atual na sidebar; as setas percorrem e abrem as rotas. Os numeros abrem uma rota diretamente."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-zinc-100">Ativar atalhos globais</p>
+              <p className="mt-1 text-xs text-zinc-500">Atalhos sao ignorados enquanto voce digita em um campo.</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Alternar atalhos globais"
+              aria-pressed={settings.hotkeysEnabled}
+              onClick={() => setHotkeysEnabled(!settings.hotkeysEnabled)}
+              className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${settings.hotkeysEnabled ? "bg-green-500" : "bg-zinc-700"}`}
+            >
+              <span className={`h-4 w-4 rounded-full bg-white transition-transform ${settings.hotkeysEnabled ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
+
+          
+
+          <div className="divide-y divide-zinc-800 rounded border border-zinc-800">
+            {routes.map((route) => (
+              <div key={route.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
+                <span className="text-sm text-zinc-200">{route.label}</span>
+                <select
+                  aria-label={`Atalho para ${route.label}`}
+                  value={bindings[route.id] || ""}
+                  onChange={(event) => setHotkeyBinding(route.id, event.target.value)}
+                  className="h-8 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200"
+                >
+                  <option value="">Sem atalho</option>
+                  {Array.from({ length: 9 }, (_, index) => String(index + 1)).map((key) => (
+                    <option key={key} value={key}>{key}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={resetHotkeyBindings}
+            className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 hover:bg-zinc-800"
+          >
+            <Keyboard size={15} />
+            Restaurar ordem automatica
+          </button>
+          <p className="text-xs leading-5 text-zinc-500">
+            Na ordem automatica, ativar ou desativar rotas Beta reorganiza os numeros. Depois de uma alteracao manual, sua configuracao e preservada.
+          </p>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
+const LAST_BACKUP_KEY = "lyceum:last-periodic-backup";
+
+export function BackupSettingsPanel() {
+  const { settings, setWeeklyBackupEnabled, setBackupSelection } = useAppSettings();
+  const [running, setRunning] = useState(false);
+  const [lastBackup, setLastBackup] = useState(() => Number(localStorage.getItem(LAST_BACKUP_KEY) || 0));
+
+  const runBackup = async () => {
+    const jobs: Promise<{ success: number; failed: number; errors: string[] }>[] = [];
+    if (settings.backupDocuments && window.api?.backupAllDocuments) jobs.push(window.api.backupAllDocuments());
+    if (settings.backupHabits && window.api?.backupAllHabits) jobs.push(window.api.backupAllHabits());
+    if (settings.backupCategories && window.api?.backupAllCategories) jobs.push(window.api.backupAllCategories());
+    if (jobs.length === 0) {
+      toast.error("Selecione ao menos um tipo de dado");
+      return;
+    }
+    setRunning(true);
+    try {
+      const results = await Promise.all(jobs);
+      const failed = results.reduce((sum, result) => sum + result.failed, 0);
+      if (failed > 0) {
+        toast.error(`Backup concluido com ${failed} falha${failed !== 1 ? "s" : ""}`);
+      } else {
+        const completedAt = Date.now();
+        localStorage.setItem(LAST_BACKUP_KEY, String(completedAt));
+        setLastBackup(completedAt);
+        toast.success("Backup concluido");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao executar backup");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const backupOptions = [
+    ["backupDocuments", "Biblioteca e progresso"],
+    ["backupHabits", "Habitos e marcacoes"],
+    ["backupCategories", "Categorias"],
+  ] as const;
+
+  return (
+    <div>
+      <SettingsSection
+        title="Backup semanal"
+        description="O Lyceum verifica uma vez por semana e envia somente os grupos selecionados. Abrir o app nao dispara um novo backup se o periodo ainda nao venceu."
+      >
+        <div className="space-y-4">
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-sm font-medium text-zinc-100">Ativar backup periodico</span>
+            <input type="checkbox" checked={settings.weeklyBackupEnabled} onChange={(event) => setWeeklyBackupEnabled(event.target.checked)} className="h-4 w-4 accent-green-500" />
+          </label>
+          <div className="space-y-2 rounded border border-zinc-800 p-3">
+            {backupOptions.map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3 text-sm text-zinc-300">
+                <input type="checkbox" checked={settings[key]} onChange={(event) => setBackupSelection(key, event.target.checked)} className="h-4 w-4 accent-green-500" />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-zinc-500">
+              {lastBackup ? `Ultimo backup: ${new Date(lastBackup).toLocaleString("pt-BR")}` : "Nenhum backup concluido neste dispositivo"}
+            </span>
+            <button type="button" disabled={running} onClick={() => void runBackup()} className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50">
+              <DatabaseBackup size={15} />
+              {running ? "Executando..." : "Fazer backup agora"}
+            </button>
+          </div>
         </div>
       </SettingsSection>
     </div>

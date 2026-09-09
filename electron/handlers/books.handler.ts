@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, shell } from "electron";
+import { ipcMain, BrowserWindow, clipboard, nativeImage, shell } from "electron";
 import { PDFDocument } from "pdf-lib";
 import {
   getDocumentByHash,
@@ -73,11 +73,31 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { copyWindowsFilesToClipboard } from "../services/windows-file-clipboard";
+import { buildLinuxFileClipboardPayload } from "../services/linux-file-clipboard";
 
 let win: Electron.BrowserWindow | null = null;
 
 export function setWindow(w: Electron.BrowserWindow | null) {
   win = w;
+}
+
+function resolveDraggedDocuments(fileHashes: string[]) {
+  return Array.from(new Set(fileHashes))
+    .map((fileHash) => getDocumentByHash(fileHash))
+    .filter((doc): doc is NonNullable<ReturnType<typeof getDocumentByHash>> =>
+      Boolean(doc?.filePath && fs.existsSync(doc.filePath)),
+    );
+}
+
+function dissolveDegenerateLogicalGroup(bookId: string | null | undefined) {
+  if (!bookId) return;
+  const remaining = getDocumentsByBookId(bookId);
+  if (remaining.length <= 1) {
+    for (const document of remaining) {
+      updateDocumentBookId(document.fileHash, null);
+    }
+  }
 }
 
 export function registerBookHandlers() {
@@ -652,8 +672,49 @@ export function registerBookHandlers() {
     return renameBook(fileHash, newTitle, newAuthor);
   });
 
+  ipcMain.handle("book:start-native-drag", (event, fileHashes: string[], dragImageDataUrl?: string) => {
+    const docs = resolveDraggedDocuments(fileHashes || []);
+    if (docs.length === 0) return { success: false, count: 0, error: "Nenhum arquivo encontrado" };
+    const iconPath = docs.find((doc) => doc.thumbnailPath && fs.existsSync(doc.thumbnailPath))?.thumbnailPath;
+    const customIcon = dragImageDataUrl ? nativeImage.createFromDataURL(dragImageDataUrl) : nativeImage.createEmpty();
+    const icon = !customIcon.isEmpty()
+      ? customIcon
+      : iconPath
+        ? nativeImage.createFromPath(iconPath)
+        : nativeImage.createEmpty();
+    event.sender.startDrag({
+      file: docs[0].filePath,
+      files: docs.map((doc) => doc.filePath),
+      icon,
+    });
+    return { success: true, count: docs.length };
+  });
+
+  ipcMain.handle("book:copy-files", async (_, fileHashes: string[]) => {
+    const docs = resolveDraggedDocuments(fileHashes || []);
+    const paths = docs.map((doc) => doc.filePath);
+    if (paths.length === 0) return { success: false, count: 0, error: "Nenhum arquivo encontrado" };
+    try {
+      if (process.platform === "win32") {
+        await copyWindowsFilesToClipboard(paths);
+      } else if (process.platform === "linux") {
+        const payload = buildLinuxFileClipboardPayload(paths);
+        clipboard.writeBuffer(payload.format, payload.data);
+      } else {
+        clipboard.writeText(paths.join("\n"));
+      }
+      return { success: true, count: paths.length };
+    } catch (error) {
+      clipboard.writeText(paths.join("\n"));
+      return { success: false, count: paths.length, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle("book:delete", (_, fileHash: string, deleteFile?: boolean) => {
-    return deleteBook(fileHash, deleteFile);
+    const previousBookId = getDocumentByHash(fileHash)?.bookId;
+    const result = deleteBook(fileHash, deleteFile);
+    if (result.success) dissolveDegenerateLogicalGroup(previousBookId);
+    return result;
   });
 
   ipcMain.handle("book:get-by-id", (_, id: number) => {
@@ -703,15 +764,36 @@ export function registerBookHandlers() {
     return { success: true };
   });
 
+  ipcMain.handle("book:remove-from-group", (_, fileHash: string) => {
+    const doc = getDocumentByHash(fileHash);
+    if (!doc) return { success: false, error: "Livro nao encontrado" };
+    const previousBookId = doc.bookId;
+    updateDocumentBookId(fileHash, null);
+    dissolveDegenerateLogicalGroup(previousBookId);
+    win?.webContents.send("library:updated");
+    return { success: true };
+  });
+
   ipcMain.handle("book:get-by-book-id", (_, bookId: string) => {
     return getDocumentsByBookId(bookId);
   });
 
   ipcMain.handle("book:merge", (_, fileHashes: string[]) => {
-    const docs = fileHashes.map((fileHash) => getDocumentByHash(fileHash)).filter(Boolean);
-    const existingBookId = docs.find((doc) => doc?.bookId)?.bookId;
+    const docsByHash = new Map<string, NonNullable<ReturnType<typeof getDocumentByHash>>>();
+    for (const fileHash of new Set(fileHashes)) {
+      const document = getDocumentByHash(fileHash);
+      if (!document) continue;
+      docsByHash.set(document.fileHash, document);
+      if (document.bookId) {
+        for (const groupedDocument of getDocumentsByBookId(document.bookId)) {
+          docsByHash.set(groupedDocument.fileHash, groupedDocument);
+        }
+      }
+    }
+    const docs = Array.from(docsByHash.values());
+    const existingBookId = docs.find((doc) => doc.bookId)?.bookId;
     const bookId = existingBookId || `local-${randomUUID()}`;
-    const result = mergeDocuments(fileHashes, bookId);
+    const result = mergeDocuments(docs.map((doc) => doc.fileHash), bookId);
     if (result.success) {
       win?.webContents.send("library:updated");
     }

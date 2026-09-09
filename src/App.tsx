@@ -27,6 +27,12 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { usePendingFriendRequestCount } from "./hooks/useFriends";
+import ConfirmDialog from "./components/ConfirmDialog";
+import {
+  getDefaultHotkeyBindings,
+  getEnabledNavigationRoutes,
+  type NavigationRouteId,
+} from "./navigation/routes";
 
 // import React from "react";
 // import ReactDOMClient from "react-dom/client";
@@ -46,6 +52,9 @@ const AUTO_HIDE_TRIGGER_SIZE = 18;
 const TITLE_BAR_HEIGHT = 40;
 const SIDEBAR_COLLAPSED_WIDTH = 52;
 const SIDEBAR_EXPANDED_WIDTH = 168;
+const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const BACKUP_START_DELAY_MS = 30_000;
+const LAST_BACKUP_KEY = "lyceum:last-periodic-backup";
 const AUTH_ROUTES = new Set([
   "/signin",
   "/signup",
@@ -57,15 +66,23 @@ function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, signOut: authSignOut, user } = useAuth();
-  const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } = useAppSettings();
-  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage("sidebarCollapsed", true);
+  const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } =
+    useAppSettings();
+  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage(
+    "sidebarCollapsed",
+    true,
+  );
   const [panelsVisible, setPanelsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conversionOpen, setConversionOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | undefined>();
+  const [settingsInitialTab, setSettingsInitialTab] = useState<
+    SettingsTabId | undefined
+  >();
   const [settingsFriendId, setSettingsFriendId] = useState<string | null>(null);
-  const { data: pendingFriendRequestCount = 0 } =
-    usePendingFriendRequestCount(isLoggedIn === true);
+  const [signOutConfirmationOpen, setSignOutConfirmationOpen] = useState(false);
+  const { data: pendingFriendRequestCount = 0 } = usePendingFriendRequestCount(
+    isLoggedIn === true,
+  );
   const hideTimerRef = useRef<number | null>(null);
   const showDelayTimerRef = useRef<number | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -86,22 +103,25 @@ function AppShell() {
     setPanelsVisible(true);
   }, [clearHideTimer]);
 
-   const hidePanels = useCallback((delay = AUTO_HIDE_DISMISS_DELAY_MS, resetTimer = true) => {
-     if (!resetTimer && hideTimerRef.current) {
-       return;
-     }
+  const hidePanels = useCallback(
+    (delay = AUTO_HIDE_DISMISS_DELAY_MS, resetTimer = true) => {
+      if (!resetTimer && hideTimerRef.current) {
+        return;
+      }
 
-     if (resetTimer) {
-       clearHideTimer();
-     }
+      if (resetTimer) {
+        clearHideTimer();
+      }
 
-     if (settings.autoHideEnabled) {
-       hideTimerRef.current = window.setTimeout(() => {
-         setPanelsVisible(false);
-         hideTimerRef.current = null;
-       }, delay);
-     }
-   }, [settings.autoHideEnabled, clearHideTimer]);
+      if (settings.autoHideEnabled) {
+        hideTimerRef.current = window.setTimeout(() => {
+          setPanelsVisible(false);
+          hideTimerRef.current = null;
+        }, delay);
+      }
+    },
+    [settings.autoHideEnabled, clearHideTimer],
+  );
 
   const showPanelsAfterEdgeIntent = useCallback(() => {
     if (showDelayTimerRef.current || panelsVisible) {
@@ -122,11 +142,12 @@ function AppShell() {
   }, []);
 
   const backupInitializedRef = useRef(false);
-  const backupScheduledRef = useRef(false);
-  const backupTimeoutsRef = useRef<number[]>([]);
+  const backupTimeoutRef = useRef<number | null>(null);
   const isAuthRoute = AUTH_ROUTES.has(location.pathname);
-  const showAppNavigation = isLoggedIn !== false && !isAuthRoute;
+  // const showAppNavigation = isLoggedIn !== false && !isAuthRoute;
+  const showAppNavigation = isLoggedIn !== false;
 
+  // Voltar para a última tela que você parou quando fechou o app.
   useEffect(() => {
     if (isLoggedIn === true && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
@@ -142,9 +163,11 @@ function AppShell() {
   }, [isLoggedIn, location.pathname, navigate]);
 
   useEffect(() => {
-    const unsubscribe = window.api?.onAuthDeepLink?.((payload: { route?: string }) => {
-      navigate(payload.route || "/reset-password", { replace: true });
-    });
+    const unsubscribe = window.api?.onAuthDeepLink?.(
+      (payload: { route?: string }) => {
+        navigate(payload.route || "/reset-password", { replace: true });
+      },
+    );
 
     return () => {
       unsubscribe?.();
@@ -164,43 +187,43 @@ function AppShell() {
     let isMounted = true;
 
     const clearBackupSchedule = () => {
-      backupTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      backupTimeoutsRef.current = [];
-      backupScheduledRef.current = false;
+      if (backupTimeoutRef.current !== null) {
+        window.clearTimeout(backupTimeoutRef.current);
+        backupTimeoutRef.current = null;
+      }
     };
 
     const scheduleBackups = () => {
-      if (backupScheduledRef.current) {
+      if (!settings.weeklyBackupEnabled || backupTimeoutRef.current !== null) {
         return;
       }
+      const lastBackup = Number(localStorage.getItem(LAST_BACKUP_KEY) || 0);
+      if (Date.now() - lastBackup < BACKUP_INTERVAL_MS) return;
 
-      backupScheduledRef.current = true;
-      backupTimeoutsRef.current = [
-        window.setTimeout(async () => {
-          try {
-            const result = await window.api.backupAllDocuments();
-            console.log("[Backup] Completed:", result);
-          } catch (err) {
-            console.error("[Backup] Error:", err);
+      backupTimeoutRef.current = window.setTimeout(async () => {
+        backupTimeoutRef.current = null;
+        try {
+          const jobs: Promise<{
+            success: number;
+            failed: number;
+            errors: string[];
+          }>[] = [];
+          if (settings.backupDocuments)
+            jobs.push(window.api.backupAllDocuments());
+          if (settings.backupHabits && window.api.backupAllHabits)
+            jobs.push(window.api.backupAllHabits());
+          if (settings.backupCategories && window.api.backupAllCategories)
+            jobs.push(window.api.backupAllCategories());
+          if (jobs.length === 0) return;
+          const results = await Promise.all(jobs);
+          if (results.every((result) => result.failed === 0)) {
+            localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
           }
-        }, 3000),
-        window.setTimeout(async () => {
-          try {
-            const result = await window.api.backupAllHabits?.();
-            console.log("[Backup] Habits completed:", result);
-          } catch (err) {
-            console.error("[Backup] Habits error:", err);
-          }
-        }, 4000),
-        window.setTimeout(async () => {
-          try {
-            const result = await window.api.backupAllCategories?.();
-            console.log("[Backup] Categories completed:", result);
-          } catch (err) {
-            console.error("[Backup] Categories error:", err);
-          }
-        }, 5000),
-      ];
+          console.log("[Backup] Periodic backup completed:", results);
+        } catch (err) {
+          console.error("[Backup] Periodic backup error:", err);
+        }
+      }, BACKUP_START_DELAY_MS);
     };
 
     const ensureBackupSession = async (session: Session | null) => {
@@ -210,7 +233,9 @@ function AppShell() {
           supabaseConfig.anonKey,
         );
         if (!initResult.success) {
-          throw new Error(initResult.error || "Failed to initialize backup client");
+          throw new Error(
+            initResult.error || "Failed to initialize backup client",
+          );
         }
         backupInitializedRef.current = true;
       }
@@ -228,7 +253,9 @@ function AppShell() {
 
       if (!setSessionResult.success) {
         clearBackupSchedule();
-        throw new Error(setSessionResult.error || "Failed to authenticate backup client");
+        throw new Error(
+          setSessionResult.error || "Failed to authenticate backup client",
+        );
       }
 
       return true;
@@ -273,29 +300,34 @@ function AppShell() {
       clearBackupSchedule();
       subscription.unsubscribe();
     };
-  }, []);
+  }, [
+    settings.backupCategories,
+    settings.backupDocuments,
+    settings.backupHabits,
+    settings.weeklyBackupEnabled,
+  ]);
 
   const isElectron =
     typeof window !== "undefined" && window.api?.windowMinimize;
 
-   useEffect(() => {
-     if (!isElectron) {
-       return;
-     }
+  useEffect(() => {
+    if (!isElectron) {
+      return;
+    }
 
-     if (settings.autoHideEnabled) {
-       showPanels();
-       hidePanels(1200);
-       return;
-     }
+    if (settings.autoHideEnabled) {
+      showPanels();
+      hidePanels(1200);
+      return;
+    }
 
-     showPanels();
-   }, [settings.autoHideEnabled, hidePanels, isElectron, showPanels]);
+    showPanels();
+  }, [settings.autoHideEnabled, hidePanels, isElectron, showPanels]);
 
-   useEffect(() => {
-     if (!settings.autoHideEnabled || !isElectron) {
-       return;
-     }
+  useEffect(() => {
+    if (!settings.autoHideEnabled || !isElectron) {
+      return;
+    }
 
     const handlePointerMove = (event: PointerEvent) => {
       const revealEdge = AUTO_HIDE_TRIGGER_SIZE;
@@ -329,18 +361,20 @@ function AppShell() {
       hidePanels(AUTO_HIDE_DISMISS_DELAY_MS, false);
     };
 
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("pointermove", handlePointerMove, {
+      passive: true,
+    });
     return () => window.removeEventListener("pointermove", handlePointerMove);
-   }, [
-     settings.autoHideEnabled,
-     cancelEdgeIntent,
-     hidePanels,
-     isElectron,
-     panelsVisible,
-     showPanels,
-     showPanelsAfterEdgeIntent,
-     sidebarCollapsed,
-   ]);
+  }, [
+    settings.autoHideEnabled,
+    cancelEdgeIntent,
+    hidePanels,
+    isElectron,
+    panelsVisible,
+    showPanels,
+    showPanelsAfterEdgeIntent,
+    sidebarCollapsed,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -373,119 +407,228 @@ function AppShell() {
     return unsubscribe;
   }, [isElectron, navigate]);
 
-   const handleAutoHideToggle = (enabled: boolean) => {
-     setAutoHideEnabled(enabled);
-     setPanelsVisible(true);
-   };
+  const handleAutoHideToggle = (enabled: boolean) => {
+    setAutoHideEnabled(enabled);
+    setPanelsVisible(true);
+  };
 
-   const handleAutoHideOverlayToggle = (enabled: boolean) => {
-     setAutoHideOverlay(enabled);
-   };
+  const handleAutoHideOverlayToggle = (enabled: boolean) => {
+    setAutoHideOverlay(enabled);
+  };
 
-   const openSettings = (tab?: SettingsTabId, friendId: string | null = null) => {
-     setSettingsInitialTab(tab);
-     setSettingsFriendId(friendId);
-     setSettingsOpen(true);
-   };
+  const openSettings = (
+    tab?: SettingsTabId,
+    friendId: string | null = null,
+  ) => {
+    setSettingsInitialTab(tab);
+    setSettingsFriendId(friendId);
+    setSettingsOpen(true);
+  };
 
-   useEffect(() => {
-     const handleOpenSettings = (event: Event) => {
-       const detail = (event as CustomEvent<{ tab?: SettingsTabId; friendId?: string }>).detail;
-       openSettings(detail?.tab, detail?.friendId || null);
-     };
+  useEffect(() => {
+    const handleOpenSettings = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ tab?: SettingsTabId; friendId?: string }>
+      ).detail;
+      openSettings(detail?.tab, detail?.friendId || null);
+    };
 
-     window.addEventListener("lyceum:open-settings", handleOpenSettings);
-     return () => window.removeEventListener("lyceum:open-settings", handleOpenSettings);
-   }, []);
+    window.addEventListener("lyceum:open-settings", handleOpenSettings);
+    return () =>
+      window.removeEventListener("lyceum:open-settings", handleOpenSettings);
+  }, []);
 
-   useEffect(() => {
-     const handleOpenConversion = () => {
-       setConversionOpen(true);
-     };
+  useEffect(() => {
+    const handleOpenConversion = () => {
+      setConversionOpen(true);
+    };
 
-     window.addEventListener("lyceum:open-conversion", handleOpenConversion);
-     return () => window.removeEventListener("lyceum:open-conversion", handleOpenConversion);
-   }, []);
+    window.addEventListener("lyceum:open-conversion", handleOpenConversion);
+    return () =>
+      window.removeEventListener(
+        "lyceum:open-conversion",
+        handleOpenConversion,
+      );
+  }, []);
 
-   useEffect(() => {
-     if (location.pathname === "/conversion") {
-       setConversionOpen(true);
-       navigate("/library", { replace: true });
-     }
-   }, [location.pathname, navigate]);
+  useEffect(() => {
+    if (location.pathname === "/conversion") {
+      setConversionOpen(true);
+      navigate("/library", { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
-   const handleOpenConverted = useCallback(async (item: ConversionQueueItem) => {
-     if (!item.outputHash || !item.outputPath) return;
-     const result = await window.api.openDocumentByHash(item.outputHash, item.outputPath);
-     if (!result) {
-       toast.error("Nao foi possivel abrir o arquivo convertido");
-       return;
-     }
-     if ("error" in result) {
-       toast.error(result.message || "Nao foi possivel abrir o arquivo convertido");
-       return;
-     }
-     setConversionOpen(false);
-     navigate("/reading", {
-       state: {
-         fileBuffer: result.fileBuffer,
-         fileHash: result.fileHash,
-         fileName: result.fileName,
-         filePath: result.foundAt || result.filePath || item.outputPath,
-         fileType: item.targetFormat,
-         source: "library",
-         navigationId: crypto.randomUUID(),
-       },
-     });
-   }, [navigate]);
-
-   const handleSidebarSignOut = async () => {
-     await authSignOut();
-     setSettingsOpen(false);
-     navigate("/signin", { replace: true });
-   };
-
-  const toasterStyle = effectiveTheme === "light"
-    ? {
-        background: "#f4f4f5",
-        color: "#18181b",
-        border: "1px solid #d4d4d8",
-        borderRadius: "4px",
-        padding: "12px 16px",
-        fontSize: "14px",
+  const handleOpenConverted = useCallback(
+    async (item: ConversionQueueItem) => {
+      if (!item.outputHash || !item.outputPath) return;
+      const result = await window.api.openDocumentByHash(
+        item.outputHash,
+        item.outputPath,
+      );
+      if (!result) {
+        toast.error("Nao foi possivel abrir o arquivo convertido");
+        return;
       }
-    : {
-        background: "#27272a",
-        color: "#e4e4e7",
-        border: "1px solid #27272a",
-        borderRadius: "4px",
-        padding: "12px 16px",
-        fontSize: "14px",
-      };
+      if ("error" in result) {
+        toast.error(
+          result.message || "Nao foi possivel abrir o arquivo convertido",
+        );
+        return;
+      }
+      setConversionOpen(false);
+      navigate("/reading", {
+        state: {
+          fileBuffer: result.fileBuffer,
+          fileHash: result.fileHash,
+          fileName: result.fileName,
+          filePath: result.foundAt || result.filePath || item.outputPath,
+          fileType: item.targetFormat,
+          source: "library",
+          navigationId: crypto.randomUUID(),
+        },
+      });
+    },
+    [navigate],
+  );
+
+  const handleSidebarSignOut = async () => {
+    await authSignOut();
+    setSignOutConfirmationOpen(false);
+    setSettingsOpen(false);
+    navigate("/signin", { replace: true });
+  };
+
+  useEffect(() => {
+    if (!showAppNavigation || !settings.hotkeysEnabled) return;
+
+    const enabledRoutes = getEnabledNavigationRoutes(settings);
+    const bindings = settings.hotkeysCustomized
+      ? settings.hotkeyBindings
+      : getDefaultHotkeyBindings(settings);
+
+    const activateRoute = (routeId: NavigationRouteId) => {
+      const route = enabledRoutes.find((candidate) => candidate.id === routeId);
+      if (!route) return;
+      if (route.id === "conversion") {
+        setConversionOpen(true);
+      } else if (route.path) {
+        navigate(route.path);
+      }
+    };
+
+    const handleHotkey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditable = target?.matches(
+        "input, textarea, select, [contenteditable='true']",
+      );
+      if (isEditable || event.ctrlKey || event.metaKey || event.altKey) return;
+
+      if (event.key === "Escape") {
+        if (settingsOpen || conversionOpen || signOutConfirmationOpen) return;
+        event.preventDefault();
+        showPanels();
+        const current =
+          enabledRoutes.find((route) => route.path === location.pathname) ||
+          enabledRoutes[0];
+        window.requestAnimationFrame(() => {
+          document
+            .querySelector<HTMLElement>(`[data-sidebar-route="${current.id}"]`)
+            ?.focus();
+        });
+        return;
+      }
+
+      const focusedRoute = target?.closest<HTMLElement>("[data-sidebar-route]");
+      if (
+        focusedRoute &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        const currentId = focusedRoute.dataset
+          .sidebarRoute as NavigationRouteId;
+        const currentIndex = enabledRoutes.findIndex(
+          (route) => route.id === currentId,
+        );
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex =
+          (currentIndex + direction + enabledRoutes.length) %
+          enabledRoutes.length;
+        const nextRoute = enabledRoutes[nextIndex];
+        activateRoute(nextRoute.id);
+        window.requestAnimationFrame(() => {
+          document
+            .querySelector<HTMLElement>(
+              `[data-sidebar-route="${nextRoute.id}"]`,
+            )
+            ?.focus();
+        });
+        return;
+      }
+
+      const binding = Object.entries(bindings).find(
+        ([, key]) => key === event.key,
+      );
+      if (binding) {
+        event.preventDefault();
+        activateRoute(binding[0] as NavigationRouteId);
+      }
+    };
+
+    window.addEventListener("keydown", handleHotkey);
+    return () => window.removeEventListener("keydown", handleHotkey);
+  }, [
+    conversionOpen,
+    location.pathname,
+    navigate,
+    settings,
+    settingsOpen,
+    showAppNavigation,
+    showPanels,
+    signOutConfirmationOpen,
+  ]);
+
+  const toasterStyle =
+    effectiveTheme === "light"
+      ? {
+          background: "#f4f4f5",
+          color: "#18181b",
+          border: "1px solid #d4d4d8",
+          borderRadius: "4px",
+          padding: "12px 16px",
+          fontSize: "14px",
+        }
+      : {
+          background: "#27272a",
+          color: "#e4e4e7",
+          border: "1px solid #27272a",
+          borderRadius: "4px",
+          padding: "12px 16px",
+          fontSize: "14px",
+        };
 
   return (
     <div
       className="lyceum-app relative h-screen w-screen overflow-hidden bg-zinc-800"
       style={{ padding: APP_FRAME_SIZE }}
     >
-       {settings.autoHideEnabled && isElectron && !panelsVisible && (
-         <div
-           data-testid="auto-hide-top-hitbox"
-           className="absolute left-0 right-0 top-0 z-[100]"
-           style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
-           onMouseEnter={showPanelsAfterEdgeIntent}
-           onMouseLeave={cancelEdgeIntent}
-         />
-       )}
-       {settings.autoHideEnabled && isElectron && !panelsVisible && (
-         <div
-           data-testid="auto-hide-left-hitbox"
-           className="absolute bottom-0 left-0 top-0 z-[100]"
-           style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
-           onMouseEnter={showPanelsAfterEdgeIntent}
-           onMouseLeave={cancelEdgeIntent}
-         />
-       )}
+      {settings.autoHideEnabled && isElectron && !panelsVisible && (
+        <div
+          data-testid="auto-hide-top-hitbox"
+          className="absolute left-0 right-0 top-0 z-[100]"
+          style={{ height: AUTO_HIDE_TRIGGER_SIZE }}
+          onMouseEnter={showPanelsAfterEdgeIntent}
+          onMouseLeave={cancelEdgeIntent}
+        />
+      )}
+      {settings.autoHideEnabled && isElectron && !panelsVisible && (
+        <div
+          data-testid="auto-hide-left-hitbox"
+          className="absolute bottom-0 left-0 top-0 z-[100]"
+          style={{ width: AUTO_HIDE_TRIGGER_SIZE }}
+          onMouseEnter={showPanelsAfterEdgeIntent}
+          onMouseLeave={cancelEdgeIntent}
+        />
+      )}
       <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-zinc-950 text-zinc-100">
         <Toaster
           position="top-center"
@@ -514,137 +657,153 @@ function AppShell() {
             },
           }}
         />
-         {isElectron && (
-           <TitleBar
-             collapsed={sidebarCollapsed}
-             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-             autoHideEnabled={settings.autoHideEnabled}
-             autoHideOverlay={settings.autoHideOverlay}
-             onAutoHideToggle={handleAutoHideToggle}
-             onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
-             panelsVisible={panelsVisible}
-             onShowPanels={showPanels}
-             onHidePanels={() => hidePanels()}
-           />
-         )}
-         <ConversionQueueProvider>
-         <div className="relative flex flex-1 overflow-hidden">
-           {showAppNavigation && (
-             <Sidebar
-               collapsed={sidebarCollapsed}
-               autoHideEnabled={settings.autoHideEnabled}
-               autoHideOverlay={settings.autoHideOverlay}
-               panelsVisible={panelsVisible}
-               onShowPanels={showPanels}
-               onHidePanels={() => hidePanels()}
-               settingsOpen={settingsOpen}
-               conversionOpen={conversionOpen}
-               onOpenSettings={() => openSettings()}
-               onOpenConversion={() => setConversionOpen(true)}
-               onOpenAccountSettings={() => openSettings("account")}
-               onSignOut={handleSidebarSignOut}
-               isLoggedIn
-               userEmail={user?.email ?? null}
-               friendRequestCount={pendingFriendRequestCount}
-             />
-           )}
-           <main
-             className="flex-1 overflow-y-auto"
-             onMouseEnter={() => settings.autoHideEnabled && hidePanels(250)}
-           >
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<Dashboard />}
-                  />
-                }
+        {isElectron && (
+          <TitleBar
+            collapsed={sidebarCollapsed}
+            isLoggedIn={isLoggedIn}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            autoHideEnabled={settings.autoHideEnabled}
+            autoHideOverlay={settings.autoHideOverlay}
+            onAutoHideToggle={handleAutoHideToggle}
+            onAutoHideOverlayToggle={handleAutoHideOverlayToggle}
+            panelsVisible={panelsVisible}
+            onShowPanels={showPanels}
+            onHidePanels={() => hidePanels()}
+          />
+        )}
+        <ConversionQueueProvider>
+          <div className="relative flex flex-1 overflow-hidden">
+            {/* {showAppNavigation && ( */}
+              <Sidebar
+                collapsed={sidebarCollapsed}
+                autoHideEnabled={settings.autoHideEnabled}
+                autoHideOverlay={settings.autoHideOverlay}
+                panelsVisible={panelsVisible}
+                onShowPanels={showPanels}
+                onHidePanels={() => hidePanels()}
+                settingsOpen={settingsOpen}
+                conversionOpen={conversionOpen}
+                onOpenSettings={() => openSettings()}
+                onOpenConversion={() => setConversionOpen(true)}
+                onOpenAccountSettings={() => openSettings("account")}
+                onSignOut={() => setSignOutConfirmationOpen(true)}
+                isLoggedIn
+                userEmail={user?.email ?? null}
+                friendRequestCount={pendingFriendRequestCount}
               />
+            {/* )} */}
+            <main
+              className="flex-1 overflow-y-auto"
+              onMouseEnter={() => settings.autoHideEnabled && hidePanels(250)}
+            >
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute
+                      isLoggedIn={isLoggedIn}
+                      children={<Dashboard />}
+                    />
+                  }
+                />
 
-              <Route
-                path="/add_reading"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<AddReadingPage />}
-                  />
-                }
-              />
+                <Route
+                  path="/add_reading"
+                  element={
+                    <ProtectedRoute
+                      isLoggedIn={isLoggedIn}
+                      children={<AddReadingPage />}
+                    />
+                  }
+                />
 
-              <Route
-                path="/reading"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<ReadingPage />}
-                  />
-                }
-              />
+                <Route
+                  path="/reading"
+                  // element={
+                  //   <ProtectedRoute
+                  //     isLoggedIn={isLoggedIn}
+                  //     children={<ReadingPage />}
+                  //   />
+                  // }
+                element={<ReadingPage />}
+                />
 
-              <Route
-                path="/library"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<Library />}
-                  />
-                }
-              />
+                <Route
+                  path="/library"
+                  // element={
+                  //   <ProtectedRoute
+                  //     isLoggedIn={isLoggedIn}
+                  //     children={<Library />}
+                  //   />
+                  // }
+                  element={<Library />}
+                />
 
-              <Route
-                path="/atlas"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<AtlasPage />}
-                  />
-                }
-              />
+                <Route
+                  path="/atlas"
+                  element={
+                    <ProtectedRoute
+                      isLoggedIn={isLoggedIn}
+                      children={<AtlasPage />}
+                    />
+                  }
+                />
 
-              <Route
-                path="/conversion"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<Dashboard />}
-                  />
-                }
-              />
+                <Route
+                  path="/conversion"
+                  // element={
+                  //   <ProtectedRoute
+                  //     isLoggedIn={isLoggedIn}
+                  //     children={<Dashboard />}
+                  //   />
+                  // }
+                  element={<Dashboard />}
+                />
 
-              <Route
-                path="/habit_tracker"
-                element={
-                  <ProtectedRoute
-                    isLoggedIn={isLoggedIn}
-                    children={<HabitTrackerPage />}
-                  />
-                }
-              />
+                <Route
+                  path="/habit_tracker"
+                  element={
+                    <ProtectedRoute
+                      isLoggedIn={isLoggedIn}
+                      children={<HabitTrackerPage />}
+                    />
+                  }
+                />
 
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-            </Routes>
-          </main>
-          {showAppNavigation && (
-            <>
-              <ConversionDialog
-                isOpen={conversionOpen}
-                onClose={() => setConversionOpen(false)}
-                onOpenConverted={handleOpenConverted}
-              />
-              <SettingsDialog
-                isOpen={settingsOpen}
-                onClose={() => setSettingsOpen(false)}
-                initialTab={settingsInitialTab}
-                initialFriendId={settingsFriendId}
-              />
-            </>
-          )}
-        </div>
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route
+                  path="/forgot-password"
+                  element={<ForgotPasswordPage />}
+                />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+              </Routes>
+            </main>
+            {/* {showAppNavigation && ( */}
+              {/* <> */}
+                <ConversionDialog
+                  isOpen={conversionOpen}
+                  onClose={() => setConversionOpen(false)}
+                  onOpenConverted={handleOpenConverted}
+                />
+                <SettingsDialog
+                  isOpen={settingsOpen}
+                  onClose={() => setSettingsOpen(false)}
+                  initialTab={settingsInitialTab}
+                  initialFriendId={settingsFriendId}
+                />
+                <ConfirmDialog
+                  isOpen={signOutConfirmationOpen}
+                  title="Sair da conta"
+                  message="Deseja realmente encerrar sua sessão no Lyceum?"
+                  confirmLabel="Sair"
+                  onConfirm={() => void handleSidebarSignOut()}
+                  onCancel={() => setSignOutConfirmationOpen(false)}
+                  isDanger
+                />
+              {/* </> */}
+            {/* )} */}
+          </div>
         </ConversionQueueProvider>
       </div>
     </div>

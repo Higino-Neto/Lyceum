@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, Download, FlaskConical, Gauge, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
+import { BookOpen, DatabaseBackup, Download, FlaskConical, Gauge, Keyboard, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import FriendsSettingsPanel from "./FriendsSettingsPanel";
@@ -13,14 +14,19 @@ import {
   GeneralSettingsPanel,
   LibrarySettingsPanel,
   PerformanceSettingsPanel,
+  BackupSettingsPanel,
+  HotkeysSettingsPanel,
   UpdatesSettingsPanel,
   ZoomSettingsPanel,
 } from "./SettingsPanels";
+import AnimatedModal from "../ui/AnimatedModal";
 
-export type SettingsTabId = "general" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
+export type SettingsTabId = "general" | "hotkeys" | "backup" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
 
 const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "general",
+  "hotkeys",
+  "backup",
   "library",
   "updates",
   "account",
@@ -58,6 +64,9 @@ export default function SettingsDialog({
   initialTab,
   initialFriendId = null,
 }: SettingsDialogProps) {
+  const osReducedMotion = useReducedMotion();
+  const reduceMotion = osReducedMotion ||
+    (typeof document !== "undefined" && document.documentElement.dataset.reducedEffects === "true");
   const [storedActiveTab, setStoredActiveTab] = useLocalStorage<SettingsTabId>(
     "settings_active_tab",
     "general",
@@ -88,7 +97,7 @@ export default function SettingsDialog({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [initialTab, isOpen, onClose, setStoredActiveTab, storedActiveTab]);
+  }, [initialTab, isOpen, onClose, setStoredActiveTab]);
 
   const tabs = useMemo<SettingsTab[]>(
     () => [
@@ -98,6 +107,20 @@ export default function SettingsDialog({
         description: "Configurações gerais do aplicativo.",
         icon: SlidersHorizontal,
         panel: <GeneralSettingsPanel />,
+      },
+      {
+        id: "hotkeys",
+        label: "Atalhos",
+        description: "Personalize a navegacao rapida pelo teclado.",
+        icon: Keyboard,
+        panel: <HotkeysSettingsPanel />,
+      },
+      {
+        id: "backup",
+        label: "Backups",
+        description: "Backups periodicos selecionados e execucao manual.",
+        icon: DatabaseBackup,
+        panel: <BackupSettingsPanel />,
       },
       {
         id: "beta",
@@ -169,20 +192,14 @@ export default function SettingsDialog({
 
   const activeSettingsTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 py-6"
-      onMouseDown={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-title"
+    <AnimatedModal
+      open={isOpen}
+      ariaLabelledBy="settings-title"
+      onBackdropClick={onClose}
+      backdropClassName="z-[90] px-4 py-6"
+      className="flex h-[min(760px,calc(100vh-48px))] w-full max-w-5xl overflow-hidden rounded border border-zinc-700/90 bg-zinc-900 text-zinc-100 shadow-2xl shadow-black/60"
     >
-      <div
-        className="flex h-[min(760px,calc(100vh-48px))] w-full max-w-5xl overflow-hidden rounded border border-zinc-700/90 bg-zinc-900 text-zinc-100 shadow-2xl shadow-black/60"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
         <aside className="hidden w-60 shrink-0 border-r border-zinc-800 bg-zinc-950/80 p-3 sm:block">
           <div className="mb-4 flex h-10 items-center gap-2 px-2">
             <SlidersHorizontal size={18} className="text-zinc-400" />
@@ -271,11 +288,20 @@ export default function SettingsDialog({
                 </p>
               </div>
 
-              {activeSettingsTab.panel}
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={activeSettingsTab.id}
+                  initial={reduceMotion ? false : { opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -6 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.14, ease: "easeOut" }}
+                >
+                  {activeSettingsTab.panel}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </main>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

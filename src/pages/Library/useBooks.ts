@@ -11,7 +11,7 @@ import {
   LibrarySortOption,
 } from "../../types/LibraryTypes";
 
-const PAGE_SIZE = 80;
+const PAGE_SIZE = 48;
 
 interface UseBooksOptions {
   section: LibrarySection;

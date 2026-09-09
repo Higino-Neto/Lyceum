@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow, shell } from "electron";
 import {
   listDocuments,
+  getDocumentFolderCounts,
   getDocumentsBySyncStatus,
   getDocumentByHash,
   getCategories,
@@ -59,6 +60,7 @@ import {
   addManagedWatchFolder,
   createManagedCollection,
   dissolveManagedFolder,
+  copyManagedBooks,
   createManagedFolder,
   deleteManagedFolder,
   getManagedWatchFolderBookCount,
@@ -139,6 +141,10 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:list-books", (_, query) => {
     return listDocuments(query);
+  });
+
+  ipcMain.handle("library:get-folder-book-counts", () => {
+    return getDocumentFolderCounts();
   });
 
   ipcMain.handle("library:open-folder", () => {
@@ -257,8 +263,9 @@ export function registerLibraryHandlers() {
   });
 
   ipcMain.handle("library:dissolve-folder", async (_, folderPath: string) => {
-    const result = dissolveManagedFolder(folderPath);
+    const result = await dissolveManagedFolder(folderPath);
     emitLibraryUpdated(result);
+    if (!result.success) notifyFolderChanged();
     return result;
   });
 
@@ -270,6 +277,12 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:move-book", async (_, fileHash: string, targetFolderPath: string | null) => {
     const result = moveManagedBook(fileHash, targetFolderPath);
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:copy-books", async (_, fileHashes: string[], targetFolderPath: string | null) => {
+    const result = await copyManagedBooks(fileHashes, targetFolderPath);
     emitLibraryUpdated(result);
     return result;
   });

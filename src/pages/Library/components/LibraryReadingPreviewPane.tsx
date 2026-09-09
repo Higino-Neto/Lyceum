@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { BookOpen, X } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { TabProvider } from "../../../contexts/TabContext";
 import {
   ReadingWorkspace,
@@ -23,8 +24,11 @@ export default function LibraryReadingPreviewPane({
   onResizeStart,
   drawer = false,
 }: LibraryReadingPreviewPaneProps) {
+  const osReducedMotion = useReducedMotion();
+  const reduceMotion = osReducedMotion ||
+    (typeof document !== "undefined" && document.documentElement.dataset.reducedEffects === "true");
   return (
-    <aside
+    <motion.aside
       data-library-preview
       className={`lyceum-library-reading-preview h-full overflow-hidden border-l border-zinc-800 bg-zinc-950 ${
         drawer ? "fixed bottom-0 right-0 top-0 z-50 shadow-2xl" : "relative flex-shrink-0"
@@ -35,6 +39,12 @@ export default function LibraryReadingPreviewPane({
         minWidth: drawer ? 0 : 380,
         maxWidth: drawer ? undefined : 900,
       }}
+      initial={reduceMotion ? false : { opacity: 0, x: 28 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+      transition={reduceMotion
+        ? { duration: 0 }
+        : { type: "spring", stiffness: 410, damping: 36, mass: 0.82 }}
     >
       <button
         type="button"
@@ -74,6 +84,6 @@ export default function LibraryReadingPreviewPane({
           </TabProvider>
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

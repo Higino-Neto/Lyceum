@@ -20,6 +20,7 @@ import {
   writeThumbnailFile,
 } from "../services/book-file-metadata";
 import { extractVocabularyFromEpub } from "../services/vocabulary-service";
+import { renderPdfPageToPng } from "../services/pdf-page-renderer";
 import type {
   FileConversionWorkerResult,
   HashFileResult,
@@ -141,18 +142,14 @@ function createPdfImageAssetRenderer(pdfPath: string, tempDir: string) {
   const renderPage = (pageNumber: number) => {
     if (!renderedPages.has(pageNumber)) {
       renderedPages.set(pageNumber, (async () => {
-        const pdfPoppler = require("pdf-poppler");
-        const sharp = require("sharp");
         await fs.promises.mkdir(tempDir, { recursive: true });
-        const outPrefix = `page-hq-${pageNumber}`;
-        await pdfPoppler.convert(pdfPath, { format: "png", out_dir: tempDir, out_prefix: outPrefix, page: pageNumber });
-        const renderedName = (await fs.promises.readdir(tempDir)).find((fileName) =>
-          fileName.toLowerCase().startsWith(outPrefix.toLowerCase()) && /\.(jpg|jpeg|png)$/i.test(fileName),
-        );
-        if (!renderedName) return null;
-        const renderedPath = path.join(tempDir, renderedName);
-        const metadata = await sharp(renderedPath).metadata();
-        return { path: renderedPath, width: metadata.width || 1, height: metadata.height || 1 };
+        const renderedPath = path.join(tempDir, `page-hq-${pageNumber}.png`);
+        const rendered = await renderPdfPageToPng(pdfPath, pageNumber, {
+          scale: 2,
+          maxDimension: 3200,
+        });
+        await fs.promises.writeFile(renderedPath, rendered.data);
+        return { path: renderedPath, width: rendered.width, height: rendered.height };
       })());
     }
     return renderedPages.get(pageNumber)!;

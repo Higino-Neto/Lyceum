@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BookCard from "../../pages/Library/components/BookGrid/BookCard";
 import {
@@ -83,5 +83,26 @@ describe("BookCard", () => {
 
     expect(screen.queryByAltText("Cached Book.epub")).not.toBeInTheDocument();
     expect(document.querySelector(".lucide-file-text")).toBeTruthy();
+  });
+
+  it("starts native file drag without exposing the hash as plain text", () => {
+    const onDragStart = vi.fn();
+    const setData = vi.fn();
+    const { container } = render(
+      <BookCard
+        book={createBook()}
+        onOpen={vi.fn()}
+        onDragStart={onDragStart}
+        showSyncActions={false}
+      />,
+    );
+
+    fireEvent.dragStart(container.firstElementChild as Element, {
+      dataTransfer: { effectAllowed: "none", setData },
+    });
+
+    expect(setData).toHaveBeenCalledWith("application/x-lyceum-book", "hash-1");
+    expect(setData).not.toHaveBeenCalledWith("text/plain", expect.anything());
+    expect(onDragStart).toHaveBeenCalledWith("hash-1");
   });
 });

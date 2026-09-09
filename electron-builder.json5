@@ -16,7 +16,9 @@
   "asarUnpack": [
     "node_modules/better-sqlite3/build/Release/*.node",
     "node_modules/sharp/**/*.{node,dll}",
-    "node_modules/pdf-poppler/lib/win/**"
+    "node_modules/@napi-rs/canvas*/**/*",
+    "dist-electron/workers/**",
+    "dist-electron/chunks/**"
   ],
   "directories": {
     "output": "release/${version}"
@@ -24,13 +26,13 @@
   "files": [
     "dist/**",
     "dist-electron/**",
+    "resources/icons/icon_512.png",
     "package.json",
     "!**/*.map",
     "!**/*.tsbuildinfo",
     "!**/node_modules/**/*.map",
     "!**/node_modules/**/*.md",
     "!**/node_modules/**/{test,tests,__tests__,example,examples,docs,doc}/**",
-    "!**/node_modules/pdf-poppler/lib/osx/**",
     "!**/node_modules/better-sqlite3/{deps,src}/**",
     "!**/node_modules/sharp/{src,install}/**"
   ],
@@ -61,6 +63,9 @@
     "target": [
       "AppImage"
     ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+    "artifactName": "${productName}-Linux-${version}-${arch}.${ext}",
+    "category": "Education",
+    "icon": "resources/icons/icon_512.png",
+    "executableName": "lyceum"
   }
 }

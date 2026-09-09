@@ -184,7 +184,7 @@ export default function FolderCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={[
-        "group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
+        "lyceum-interactive-card group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
         fluid ? "w-full" : "w-55",
         "hover:border-green-400/60 hover:bg-zinc-900/90",
         "",

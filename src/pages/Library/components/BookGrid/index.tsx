@@ -46,6 +46,7 @@ interface BookGridProps {
   onBookClick?: (book: BookWithThumbnail) => void;
   selectedBookId?: number;
   onDragStart?: (fileHash: string) => void;
+  onDragMove?: (event: ReactDragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   selectedHashes?: Set<string>;
@@ -114,8 +115,8 @@ const LIST_HEADERS_BY_LAYOUT: Record<ListLayoutMode, (keyof ExplorerColumns)[]> 
 };
 
 const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; gap: number }> = {
-  compact: { minWidth: 124, rowHeight: 238, gap: 16 },
-  comfortable: { minWidth: 158, rowHeight: 292, gap: 16 },
+  compact: { minWidth: 144, rowHeight: 238, gap: 16 },
+  comfortable: { minWidth: 178, rowHeight: 292, gap: 16 },
   large: { minWidth: 220, rowHeight: 374, gap: 24 },
 };
 
@@ -191,6 +192,7 @@ export default function BookGrid({
   onBookClick,
   selectedBookId,
   onDragStart,
+  onDragMove,
   onDragEnd,
   selectionMode = false,
   selectedHashes = new Set(),
@@ -744,6 +746,7 @@ export default function BookGrid({
                       onClick={onBookClick ? handleClickBook : undefined}
                       isSelected={selectedBookId === book.id}
                       onDragStart={onDragStart}
+                      onDragMove={onDragMove}
                       onDragEnd={onDragEnd}
                       selectionMode={selectionMode}
                       isChecked={selectedHashes.has(book.fileHash)}
@@ -815,6 +818,7 @@ export default function BookGrid({
                     onClick={onBookClick ? handleClickBook : undefined}
                     isSelected={selectedBookId === book.id}
                     onDragStart={onDragStart}
+                    onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
                     selectionMode={selectionMode}
                     isChecked={selectedHashes.has(book.fileHash)}

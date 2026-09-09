@@ -169,6 +169,9 @@ contextBridge.exposeInMainWorld("api", {
     offset?: number;
   }) => ipcRenderer.invoke("library:list-books", query),
 
+  getFolderBookCounts: () =>
+    ipcRenderer.invoke("library:get-folder-book-counts"),
+
   getUsbDevices: () => ipcRenderer.invoke("usb:get-devices"),
 
   listUsbBooks: (query: {
@@ -385,6 +388,12 @@ contextBridge.exposeInMainWorld("api", {
   renameBook: (fileHash: string, newTitle: string, newAuthor: string) =>
     ipcRenderer.invoke("book:rename", fileHash, newTitle, newAuthor),
 
+  startBookFileDrag: (fileHashes: string[], dragImageDataUrl?: string) =>
+    ipcRenderer.invoke("book:start-native-drag", fileHashes, dragImageDataUrl),
+
+  copyBookFiles: (fileHashes: string[]) =>
+    ipcRenderer.invoke("book:copy-files", fileHashes),
+
   deleteBook: (fileHash: string, deleteFile?: boolean) =>
     ipcRenderer.invoke("book:delete", fileHash, deleteFile),
 
@@ -408,6 +417,9 @@ contextBridge.exposeInMainWorld("api", {
 
   updateBookId: (fileHash: string, bookId: string) =>
     ipcRenderer.invoke("book:update-book-id", fileHash, bookId),
+
+  removeBookFromGroup: (fileHash: string) =>
+    ipcRenderer.invoke("book:remove-from-group", fileHash),
 
   getDocumentsByBookId: (bookId: string) =>
     ipcRenderer.invoke("book:get-by-book-id", bookId),
@@ -533,6 +545,9 @@ contextBridge.exposeInMainWorld("api", {
 
   moveBook: (fileHash: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-book", fileHash, targetFolderPath),
+
+  copyBooks: (fileHashes: string[], targetFolderPath: string | null) =>
+    ipcRenderer.invoke("library:copy-books", fileHashes, targetFolderPath),
 
   moveMergedBook: (bookId: string, targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:move-merged-book", bookId, targetFolderPath),

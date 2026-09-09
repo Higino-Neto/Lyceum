@@ -2,6 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import electron from "electron";
 import AdmZip from "adm-zip";
+import { extractNestedTarArchives } from "./services/dictionary-archive";
 
 const { app } = electron;
 
@@ -265,19 +266,9 @@ export class DictionaryManager {
       zip.extractAllTo(dictPath, true);
       fs.unlinkSync(tempPath);
 
-      // Extract any .tar files in the directory
-      const tarFile = fs.readdirSync(dictPath).find(f => f.endsWith(".tar"));
-      if (tarFile) {
-        const tarPath = path.join(dictPath, tarFile);
-        const { execSync } = await import("node:child_process");
-        const sevenZip = "C:\\Program Files\\7-Zip\\7z.exe";
-        try {
-          execSync(`"${sevenZip}" x -y "${tarPath}" -o"${dictPath}"`, { cwd: dictPath });
-          fs.unlinkSync(tarPath);
-        } catch (e) {
-          console.error("[DictionaryManager] Error extracting tar:", e);
-        }
-      }
+      // Some dictionary ZIPs contain a TAR/TAR.XZ payload. Extract it in-process
+      // so downloads work on Linux and do not depend on a system 7-Zip install.
+      await extractNestedTarArchives(dictPath);
 
       const metadata = {
         ...dict,

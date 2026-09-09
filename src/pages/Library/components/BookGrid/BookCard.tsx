@@ -9,6 +9,7 @@ import {
 } from "../../utils";
 import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
+import { setBookDragImage } from "../../utils/bookDragPreview";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -19,6 +20,7 @@ interface BookCardProps {
   onClick?: (book: BookWithThumbnail) => void;
   isSelected?: boolean;
   onDragStart?: (fileHash: string) => void;
+  onDragMove?: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
   isChecked?: boolean;
@@ -88,6 +90,7 @@ function BookCard({
   onClick,
   isSelected = false,
   onDragStart,
+  onDragMove,
   onDragEnd,
   selectionMode = false,
   isChecked = false,
@@ -124,7 +127,7 @@ function BookCard({
 
   return (
     <div
-      className={`bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
+      className={`lyceum-interactive-card bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
           isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
         } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""} ${
           isCollection ? "border border-dashed border-zinc-700/40 hover:border-green-500/40" : ""
@@ -142,19 +145,12 @@ function BookCard({
           e.preventDefault();
           return;
         }
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", book.fileHash);
-        if (isChecked && selectedCount > 1) {
-          const dragPreview = document.createElement("div");
-          dragPreview.className =
-            "fixed -top-96 left-0 rounded-sm border border-green-500/50 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-100 shadow-xl";
-          dragPreview.textContent = `${selectedCount} livros selecionados`;
-          document.body.appendChild(dragPreview);
-          e.dataTransfer.setDragImage(dragPreview, 12, 12);
-          window.setTimeout(() => dragPreview.remove(), 0);
-        }
+        e.dataTransfer.effectAllowed = "copyMove";
+        e.dataTransfer.setData("application/x-lyceum-book", book.fileHash);
+        setBookDragImage(e.dataTransfer, Math.max(1, selectedCount));
         onDragStart?.(book.fileHash);
       }}
+      onDrag={onDragMove}
       onDragEndCapture={() => onDragEnd?.()}
       onDragOver={(event) => {
         if (!canDropOnBook?.(book)) return;
@@ -170,7 +166,7 @@ function BookCard({
     >
       {(selectionMode || isChecked) && (
         <div
-          className={`absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
+          className={`lyceum-selection-mark absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
             isChecked
               ? "border-green-500 bg-green-500 text-zinc-950"
               : "border-zinc-600 bg-zinc-950/80 text-transparent"

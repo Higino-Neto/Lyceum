@@ -128,6 +128,7 @@ Connect a Kindle, choose books from the library, and let Lyceum prepare the righ
 </picture>
 
 - Detect Kindle devices through USB storage or Windows MTP.
+- On Linux, detect e-readers mounted under `/media`, `/run/media`, `/mnt`, or through GVFS MTP mounts.
 - Convert EPUB, PDF, TXT, HTML, and CBZ to KFX, AZW3, or MOBI before transfer when needed.
 - Organize output filenames by title and author.
 - Avoid unsupported direct transfers by guiding books through the conversion path.
@@ -151,6 +152,12 @@ Stay in the flow when a word interrupts you. Lyceum can look up words inside the
 
 Lyceum uses a simple desktop stack: Electron for native APIs, React and TypeScript for the interface, Tailwind for styling, SQLite for local library state, Supabase for optional cloud reading data, PDF.js and EPUB tooling for readers, sharp for thumbnails and image processing, and Vitest for tests.
 (Suggestions of new features are welcome!)
+
+### Linux
+
+Releases include a self-contained x64 AppImage. Download it, run `chmod +x Lyceum-Linux-*.AppImage`, and open it normally. PDF thumbnails and dictionary extraction do not require Poppler or 7-Zip to be installed on the system. Kindle and Kobo devices are detected after the desktop environment mounts them; this includes GVFS-backed MTP mounts used by GNOME.
+
+To build the Linux package locally, use `npm ci` followed by `npm run dist:linux` on a Linux host. Native dependencies are installed for that host, so Linux release artifacts should not be cross-built from Windows.
 
 
 ---

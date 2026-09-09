@@ -81,26 +81,33 @@ export default function Sidebar({
       onMouseLeave={onHidePanels}
     >
       <nav className="flex flex-col gap-2 mt-4">
+        {isLoggedIn && (
         <SidebarItem
           Icon={Home}
           label="Dashboard"
           active={pathname === "/"}
           onClick={() => navigate("/")}
           collapsed={collapsed}
+          routeId="dashboard"
         />
+        )}
+        {isLoggedIn && (
         <SidebarItem
           Icon={BookPlus}
           label="Registrar"
           active={pathname === "/add_reading"}
           onClick={() => navigate("/add_reading")}
           collapsed={collapsed}
+          routeId="register"
         />
+        )}
         <SidebarItem
           Icon={LibraryBig}
           label="Biblioteca"
           active={pathname === "/library"}
           onClick={() => navigate("/library")}
           collapsed={collapsed}
+          routeId="library"
         />
         <SidebarItem
           Icon={BookOpenText}
@@ -108,6 +115,7 @@ export default function Sidebar({
           active={pathname === "/reading"}
           onClick={() => navigate("/reading")}
           collapsed={collapsed}
+          routeId="reader"
         />
         {settings.betaAtlasEnabled && (
           <SidebarItem
@@ -116,6 +124,7 @@ export default function Sidebar({
             active={pathname === "/atlas"}
             onClick={() => navigate("/atlas")}
             collapsed={collapsed}
+            routeId="atlas"
           />
         )}
         {settings.betaConversionEnabled && (
@@ -125,6 +134,7 @@ export default function Sidebar({
             active={conversionOpen}
             onClick={() => onOpenConversion?.()}
             collapsed={collapsed}
+            routeId="conversion"
           />
         )}
         {settings.betaHabitsEnabled && (
@@ -134,6 +144,7 @@ export default function Sidebar({
             active={pathname === "/habit_tracker"}
             onClick={() => navigate("/habit_tracker")}
             collapsed={collapsed}
+            routeId="habits"
           />
         )}
       </nav>

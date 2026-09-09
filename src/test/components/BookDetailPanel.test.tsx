@@ -167,4 +167,68 @@ describe("BookDetailPanel", () => {
 
     await waitFor(() => expect(onDissolve).toHaveBeenCalledWith(mergedBook));
   });
+
+  it("writes title metadata and renames the physical file", async () => {
+    window.api.updateMetadata = vi.fn().mockResolvedValue({ success: true, fileHash: "next-hash" });
+    window.api.renameBook = vi.fn().mockResolvedValue({ success: true });
+    const onRefresh = vi.fn();
+    render(
+      <BookDetailPanel book={createBook()} onClose={vi.fn()} onOpenReader={vi.fn()} onRefresh={onRefresh} />,
+    );
+
+    fireEvent.click(screen.getByTitle("Editar título"));
+    fireEvent.change(screen.getByDisplayValue("Preview Book"), { target: { value: "Novo Nome" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar edicao" }));
+
+    await waitFor(() => {
+      expect(window.api.updateMetadata).toHaveBeenCalledWith("hash-epub", expect.objectContaining({ title: "Novo Nome" }));
+      expect(window.api.renameBook).toHaveBeenCalledWith("next-hash", "Novo Nome", "");
+      expect(onRefresh).toHaveBeenCalledWith("next-hash");
+    });
+  });
+
+  it("removes one variant from a group without deleting its file", async () => {
+    const first = createBook();
+    const second = createBook({ id: 2, fileHash: "hash-pdf", fileType: "pdf", title: "Preview Book.pdf" });
+    const onRemoveVariant = vi.fn().mockResolvedValue(true);
+    const onDelete = vi.fn();
+    render(
+      <BookDetailPanel
+        book={{ ...first, mergedBooks: [first, second] }}
+        onClose={vi.fn()}
+        onOpenReader={vi.fn()}
+        onRefresh={vi.fn()}
+        onDelete={onDelete}
+        onRemoveVariant={onRemoveVariant}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
+    expect(screen.getByText(/arquivo sera mantido na biblioteca/i)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Remover" }).at(-1)!);
+    await waitFor(() => expect(onRemoveVariant).toHaveBeenCalledWith(first));
+    expect(window.api.deleteBook).toBeUndefined();
+    expect(onDelete).toHaveBeenCalledWith("hash-epub");
+  });
+
+  it("removes a single book from a collection folder without deleting it", async () => {
+    const book = createBook();
+    const onRemoveVariant = vi.fn().mockResolvedValue(true);
+    render(
+      <BookDetailPanel
+        book={book}
+        onClose={vi.fn()}
+        onOpenReader={vi.fn()}
+        onRefresh={vi.fn()}
+        onRemoveVariant={onRemoveVariant}
+        removeFromGroup
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
+    expect(screen.getByText(/remover .* deste agrupamento/i)).toBeInTheDocument();
+    expect(screen.queryByText(/também excluir arquivo do disco/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Remover" }).at(-1)!);
+
+    await waitFor(() => expect(onRemoveVariant).toHaveBeenCalledWith(book));
+  });
 });

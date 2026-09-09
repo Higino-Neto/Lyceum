@@ -50,6 +50,8 @@ interface FolderGridProps {
     fileHashes: string[],
     targetFolder: string | null,
   ) => Promise<boolean>;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 interface FolderGridContextMenuState {
@@ -164,6 +166,8 @@ export function FolderGrid({
   isFolderReadOnly,
   onMoveBook,
   onMoveBooks,
+  collapsed = false,
+  onCollapsedChange,
 }: FolderGridProps) {
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<FolderGridContextMenuState>({
@@ -223,24 +227,30 @@ export function FolderGrid({
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Pastas
         </h2>
-        <span className="text-[11px] text-zinc-600">
-          {folders.length} pasta{folders.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-600">
+            {folders.length} pasta{folders.length !== 1 ? "s" : ""}
+          </span>
+          {onCollapsedChange && folders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onCollapsedChange(!collapsed)}
+              className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? "Mostrar" : "Ocultar"}
+            </button>
+          )}
+        </div>
       </div>
 
-      {folders.length === 0 ? (
+      {collapsed ? null : folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-zinc-800 bg-zinc-950/30 py-10 text-zinc-500">
           <Folder size={32} strokeWidth={1.2} className="mb-3" />
           <p className="text-sm">Nenhuma subpasta</p>
         </div>
       ) : (
-        <div
-          className={`grid gap-3 pr-1 ${
-            folders.length <= 4
-              ? "justify-start grid-cols-[repeat(auto-fill,220px)]"
-              : "grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
-          }`}
-        >
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-2 pr-1">
           {folders.map((folder) => {
             const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
             const bookCount = getFolderBookCount(folder) || indexedInfo.bookCount;
@@ -250,8 +260,8 @@ export function FolderGrid({
             const readOnly = isFolderReadOnly?.(folder) ?? false;
 
             return (
+              <div key={folder.path} className="w-[220px] min-w-[220px] snap-start">
               <FolderCard
-                key={folder.path}
                 id={folder.path}
                 name={folder.name}
                 detail={isAbsoluteFolderPath(folder.path) ? folder.fullPath : undefined}
@@ -282,6 +292,7 @@ export function FolderGrid({
                   handleDrop(folder.path);
                 }}
               />
+              </div>
             );
           })}
         </div>

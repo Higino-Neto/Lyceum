@@ -29,6 +29,8 @@ import {
   sanitizeFolderName,
 } from "./file-service";
 import { processFile, resolveManagedFolderPath } from "./library-service";
+import { randomUUID } from "node:crypto";
+import { isSameOrNestedPath, relocatePathWithinFolder } from "./managed-folder-paths";
 
 interface FolderOperationResult {
   success: boolean;
@@ -52,6 +54,43 @@ interface DissolveFolderResult extends FolderOperationResult {
   targetPath?: string;
 }
 
+export interface CopyBooksResult extends FolderOperationResult {
+  copied: number;
+  failed: number;
+  errors: string[];
+}
+
+function stampSafeLibraryCopy(filePath: string) {
+  const extension = path.extname(filePath).toLowerCase();
+  const copyId = `lyceum-copy:${randomUUID()}`;
+  if (extension === ".pdf") {
+    fs.appendFileSync(filePath, `\n% ${copyId}\n`);
+    return;
+  }
+  if (extension === ".epub" || extension === ".cbz") {
+    const archive = fs.readFileSync(filePath);
+    const minimumOffset = Math.max(0, archive.length - 65_557);
+    let eocdOffset = -1;
+    for (let index = archive.length - 22; index >= minimumOffset; index -= 1) {
+      if (archive.readUInt32LE(index) === 0x06054b50) {
+        eocdOffset = index;
+        break;
+      }
+    }
+    if (eocdOffset < 0) throw new Error("Arquivo ZIP sem diretorio central valido");
+    const existingLength = archive.readUInt16LE(eocdOffset + 20);
+    const existingComment = archive.subarray(eocdOffset + 22, eocdOffset + 22 + existingLength);
+    const marker = Buffer.from(`${existingLength ? "\n" : ""}${copyId}`, "utf8");
+    const comment = Buffer.concat([existingComment, marker]);
+    if (comment.length > 65_535) throw new Error("Comentario ZIP excede o limite");
+    const output = Buffer.concat([archive.subarray(0, eocdOffset + 22), comment]);
+    output.writeUInt16LE(comment.length, eocdOffset + 20);
+    fs.writeFileSync(filePath, output);
+    return;
+  }
+  throw new Error(`Copiar dentro da biblioteca ainda nao e seguro para ${extension || "este formato"}`);
+}
+
 function permissionError(defaultMessage: string, error: unknown) {
   const err = error as Error & { code?: string };
   if (err.code === "EBUSY" || err.code === "ENOTEMPTY") return "Pasta esta sendo usada";
@@ -68,6 +107,34 @@ function bookMoveError(defaultMessage: string, error: unknown) {
 
 function folderOperationError(defaultMessage: string, error: unknown) {
   return permissionError(defaultMessage, error);
+}
+
+async function retryTransientFileOperation(operation: () => void, attempts = 5) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      operation();
+      return;
+    } catch (error) {
+      lastError = error;
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!["EBUSY", "EPERM", "EACCES", "ENOTEMPTY"].includes(code || "") || attempt === attempts - 1) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
+function dissolveDegenerateLogicalGroup(bookId: string | null | undefined) {
+  if (!bookId) return;
+  const remaining = getDocumentsByBookId(bookId);
+  if (remaining.length <= 1) {
+    for (const document of remaining) {
+      updateDocumentBookId(document.fileHash, null);
+    }
+  }
 }
 
 function findExactSourceFolder(folderPath: string) {
@@ -201,12 +268,15 @@ export function renameManagedFolder(
     );
     const sourceRoot = findExactSourceFolder(safeOldPath);
 
+    if (path.resolve(safeOldPath) === path.resolve(newPath)) {
+      return { success: true };
+    }
     if (fs.existsSync(newPath)) {
       return { success: false, error: "Ja existe uma pasta com este nome" };
     }
 
     const docsInFolder = getAllDocuments().filter((doc) =>
-      doc.filePath && doc.filePath.startsWith(safeOldPath),
+      doc.filePath && isSameOrNestedPath(safeOldPath, doc.filePath),
     );
     fs.renameSync(safeOldPath, newPath);
     if (sourceRoot) {
@@ -216,7 +286,8 @@ export function renameManagedFolder(
 
     for (const doc of docsInFolder) {
       if (doc.filePath) {
-        updateDocumentPath(doc.fileHash, doc.filePath.replace(safeOldPath, newPath));
+        const nextPath = relocatePathWithinFolder(safeOldPath, newPath, doc.filePath);
+        if (nextPath) updateDocumentPath(doc.fileHash, nextPath);
       }
     }
 
@@ -267,7 +338,7 @@ export function deleteManagedFolder(
  * filesystem is changed first and rolled back if any move fails; database
  * paths are only updated after all entries have been moved successfully.
  */
-export function dissolveManagedFolder(folderPath: string): DissolveFolderResult {
+export async function dissolveManagedFolder(folderPath: string): Promise<DissolveFolderResult> {
   const moved: Array<{
     from: string;
     to: string;
@@ -298,14 +369,22 @@ export function dissolveManagedFolder(folderPath: string): DissolveFolderResult 
         : getUniqueFilePath(parentDir, entry.name);
 
       if (entry.isDirectory()) {
-        fs.renameSync(sourcePath, destinationPath);
+        await retryTransientFileOperation(() => fs.renameSync(sourcePath, destinationPath));
       } else {
-        moveFileAcrossDevices(sourcePath, destinationPath);
+        await retryTransientFileOperation(() => moveFileAcrossDevices(sourcePath, destinationPath));
       }
       moved.push({ from: sourcePath, to: destinationPath, isDirectory: entry.isDirectory() });
     }
 
-    fs.rmdirSync(sourceDir);
+    await retryTransientFileOperation(
+      () => fs.rmSync(sourceDir, {
+        recursive: true,
+        force: false,
+        maxRetries: 8,
+        retryDelay: 150,
+      }),
+      8,
+    );
 
     for (const doc of documents) {
       if (!doc.filePath) continue;
@@ -342,9 +421,9 @@ export function dissolveManagedFolder(folderPath: string): DissolveFolderResult 
       try {
         if (!fs.existsSync(item.to) || fs.existsSync(item.from)) continue;
         if (item.isDirectory) {
-          fs.renameSync(item.to, item.from);
+          await retryTransientFileOperation(() => fs.renameSync(item.to, item.from));
         } else {
-          moveFileAcrossDevices(item.to, item.from);
+          await retryTransientFileOperation(() => moveFileAcrossDevices(item.to, item.from));
         }
       } catch (rollbackError) {
         console.error("[FolderService] Error rolling back dissolve operation:", rollbackError);
@@ -374,16 +453,18 @@ export function moveManagedFolder(
     const folderName = path.basename(safeSourcePath);
     let destinationPath = path.join(targetDir, folderName);
     const sourceRoot = findExactSourceFolder(safeSourcePath);
+    if (path.resolve(safeSourcePath) === path.resolve(destinationPath)) {
+      return { success: true };
+    }
     if (fs.existsSync(destinationPath)) {
       destinationPath = getUniqueDirPath(targetDir, folderName);
     }
-    if (safeSourcePath === destinationPath) return { success: true };
     if (isPathWithin(safeSourcePath, destinationPath)) {
       return { success: false, error: "Nao pode mover uma pasta para dentro de si mesma" };
     }
 
     const docsInFolder = getAllDocuments().filter((doc) =>
-      doc.filePath && doc.filePath.startsWith(safeSourcePath),
+      doc.filePath && isSameOrNestedPath(safeSourcePath, doc.filePath),
     );
     fs.renameSync(safeSourcePath, destinationPath);
     if (sourceRoot) {
@@ -393,10 +474,8 @@ export function moveManagedFolder(
 
     for (const doc of docsInFolder) {
       if (doc.filePath) {
-        updateDocumentPath(
-          doc.fileHash,
-          doc.filePath.replace(safeSourcePath, destinationPath),
-        );
+        const nextPath = relocatePathWithinFolder(safeSourcePath, destinationPath, doc.filePath);
+        if (nextPath) updateDocumentPath(doc.fileHash, nextPath);
       }
     }
 
@@ -430,11 +509,62 @@ export function moveManagedBook(
     moveFileAcrossDevices(doc.filePath, newFilePath);
     updateDocumentPath(fileHash, newFilePath);
     updateDocumentSyncStatus(fileHash, true, target.category);
+    if (path.basename(currentDir).startsWith("_") && path.resolve(currentDir) !== path.resolve(target.targetDir)) {
+      const previousBookId = doc.bookId;
+      updateDocumentBookId(fileHash, null);
+      dissolveDegenerateLogicalGroup(previousBookId);
+    }
 
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: bookMoveError("Erro ao mover livro", error) };
   }
+}
+
+export async function copyManagedBooks(
+  fileHashes: string[],
+  targetFolderPath: string | null,
+): Promise<CopyBooksResult> {
+  const target = resolveManagedFolderPath(targetFolderPath);
+  const errors: string[] = [];
+  let copied = 0;
+  let failed = 0;
+
+  for (const fileHash of Array.from(new Set(fileHashes.filter(Boolean)))) {
+    const doc = getDocumentByHash(fileHash);
+    if (!doc?.filePath || !fs.existsSync(doc.filePath)) {
+      failed += 1;
+      errors.push("Livro nao encontrado");
+      continue;
+    }
+    const destinationPath = getUniqueFilePath(target.targetDir, path.basename(doc.filePath));
+    try {
+      fs.copyFileSync(doc.filePath, destinationPath);
+      try {
+        stampSafeLibraryCopy(destinationPath);
+        await processFile(destinationPath, {
+          rootPath: target.rootPath,
+          isSynced: true,
+          generateThumbnail: false,
+        });
+        copied += 1;
+      } catch (error) {
+        if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
+        throw error;
+      }
+    } catch (error) {
+      failed += 1;
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  return {
+    success: failed === 0,
+    copied,
+    failed,
+    errors,
+    error: failed > 0 ? errors.join("; ") : undefined,
+  };
 }
 
 export function moveMergedManagedBook(

@@ -8,7 +8,6 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { cachePdfBuffer, getCachedPdfBuffer } from "./services/pdfCache";
 import path from "node:path";
-import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import chokidar, { FSWatcher } from "chokidar";
@@ -106,6 +105,7 @@ import {
   registerUpdateHandlers,
   setUpdateWindow,
 } from "./services/update-service";
+import { getCandidateVolumeRoots } from "./services/removable-volumes";
 
 const {
   app,
@@ -477,34 +477,6 @@ function isDirectory(targetPath: string): boolean {
   } catch {
     return false;
   }
-}
-
-function getCandidateVolumeRoots(): string[] {
-  if (process.platform === "win32") {
-    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      .split("")
-      .map((letter) => `${letter}:\\`)
-      .filter((root) => isDirectory(root));
-  }
-
-  const roots = new Set<string>();
-  const username = os.userInfo().username;
-  const parentDirs = [
-    "/Volumes",
-    path.join("/media", username),
-    path.join("/run/media", username),
-    "/mnt",
-  ];
-
-  for (const parentDir of parentDirs) {
-    for (const item of safeReadDir(parentDir)) {
-      if (item.isDirectory()) {
-        roots.add(path.join(parentDir, item.name));
-      }
-    }
-  }
-
-  return Array.from(roots).filter((root) => isDirectory(root));
 }
 
 function getReadableRootNames(rootPath: string): Set<string> {
@@ -2635,7 +2607,9 @@ function createAppWindow(
   options: BrowserWindowConstructorOptions = {}
 ) {
   const appWindow = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC!, "logo.ico"),
+    icon: process.platform === "win32"
+      ? path.join(process.env.VITE_PUBLIC!, "logo.ico")
+      : path.join(process.env.APP_ROOT!, "resources", "icons", "icon_512.png"),
     title: "Lyceum",
     width: 1200,
     height: 800,

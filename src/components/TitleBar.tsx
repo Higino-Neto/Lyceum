@@ -8,6 +8,7 @@ interface TitleBarProps {
   autoHideOverlay: boolean;
   onAutoHideToggle: (enabled: boolean) => void;
   onAutoHideOverlayToggle: (enabled: boolean) => void;
+  isLoggedIn: boolean;
   panelsVisible: boolean;
   onShowPanels: () => void;
   onHidePanels: () => void;
@@ -21,6 +22,7 @@ export default function TitleBar({
   onAutoHideToggle,
   onAutoHideOverlayToggle,
   panelsVisible,
+  isLoggedIn,
   onShowPanels,
   onHidePanels,
 }: TitleBarProps) {
@@ -111,6 +113,12 @@ export default function TitleBar({
           <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">
             Lyceum
           </span>
+          {!isLoggedIn && (
+            <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">
+              (Offline)
+            </span>
+          )
+          }
         </div>
 
         <div

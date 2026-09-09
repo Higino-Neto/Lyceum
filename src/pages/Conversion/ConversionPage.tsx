@@ -49,6 +49,8 @@ import {
   getTitleWithoutExtension,
 } from "../Library/utils";
 import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnail";
+import AnimatedModal from "../../components/ui/AnimatedModal";
+import { AnimatePresence } from "motion/react";
 
 const outputFormats: {
   value: ConversionOutputFormat;

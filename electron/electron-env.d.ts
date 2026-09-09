@@ -320,6 +320,8 @@ interface Window {
     }) => Promise<{ success: boolean; fileHash?: string; warnings?: string[]; error?: string }>;
     updateTitle: (fileHash: string, newTitle: string) => Promise<boolean>;
     renameBook: (fileHash: string, newTitle: string, newAuthor: string) => Promise<{ success: boolean; error?: string }>;
+    startBookFileDrag: (fileHashes: string[], dragImageDataUrl?: string) => Promise<{ success: boolean; count: number; error?: string }>;
+    copyBookFiles: (fileHashes: string[]) => Promise<{ success: boolean; count: number; error?: string }>;
     deleteBook: (fileHash: string, deleteFile?: boolean) => Promise<{ success: boolean; error?: string }>;
     getBookById: (id: number) => Promise<DocumentRecord | null>;
     getFavorites: () => Promise<DocumentRecord[]>;
@@ -328,6 +330,7 @@ interface Window {
     setThumbnail: (fileHash: string, imagePath: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
     setThumbnailFromUrl: (fileHash: string, imageUrl: string, mode: "replace" | "prepend") => Promise<{ success: boolean; fileHash?: string; thumbnailPath?: string; warnings?: string[]; error?: string }>;
     updateBookId: (fileHash: string, bookId: string) => Promise<{ success: boolean }>;
+    removeBookFromGroup: (fileHash: string) => Promise<{ success: boolean; error?: string }>;
     getDocumentsByBookId: (bookId: string) => Promise<DocumentRecord[]>;
     mergeBooks: (fileHashes: string[]) => Promise<{ success: boolean; bookId: string; mergedCount: number; documents: DocumentRecord[]; error?: string }>;
     unmergeBooks: (bookId: string) => Promise<{ success: boolean; documents: DocumentRecord[]; error?: string }>;
@@ -352,6 +355,7 @@ interface Window {
     categoryImportFromFolders: () => Promise<{ imported: number }>;
 
     getFolderStructure: (rootPath?: string | null) => Promise<FolderInfo[]>;
+    getFolderBookCounts: () => Promise<Record<string, number>>;
     getFolderStructureCached: (rootPath?: string | null) => Promise<FolderInfo[]>;
     getFolderChildren: (parentPath?: string | null) => Promise<FolderInfo[]>;
     getFolderStats: (folderPath?: string | null) => Promise<FolderStats>;
@@ -367,6 +371,7 @@ interface Window {
     dissolveFolder: (folderPath: string) => Promise<{ success: boolean; moved?: number; movedFolders?: number; targetPath?: string; error?: string }>;
     moveFolder: (sourcePath: string, targetPath: string | null) => Promise<{ success: boolean; error?: string }>;
     moveBook: (fileHash: string, targetFolderPath: string | null) => Promise<{ success: boolean; error?: string }>;
+    copyBooks: (fileHashes: string[], targetFolderPath: string | null) => Promise<{ success: boolean; copied: number; failed: number; errors: string[]; error?: string }>;
     moveMergedBook: (bookId: string, targetFolderPath: string | null) => Promise<{ success: boolean; moved?: number; error?: string }>;
 
     selectFolder: () => Promise<{ canceled: boolean; filePaths: string[] }>;

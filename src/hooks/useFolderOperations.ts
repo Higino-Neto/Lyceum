@@ -61,11 +61,13 @@ export function useFolderOperations(options: UseFolderOperationsOptions = {}) {
   );
 
   const dissolveFolder = useCallback(
-    (folderPath: string) =>
-      runWithRefresh(
-        () => window.api.dissolveFolder(folderPath),
-        onChanged,
-      ),
+    async (folderPath: string) => {
+      const result = await window.api.dissolveFolder(folderPath);
+      // A failed dissolve may have emitted transient filesystem events before
+      // its rollback. Always reload so the tree mirrors the final disk state.
+      await onChanged?.();
+      return result;
+    },
     [onChanged],
   );
 

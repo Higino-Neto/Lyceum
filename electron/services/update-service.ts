@@ -1,8 +1,33 @@
 import electron, { type BrowserWindow as ElectronBrowserWindow, type IpcMain } from "electron";
 import { autoUpdater } from "electron-updater";
 import type { ProgressInfo, UpdateInfo } from "electron-updater";
+import { resolveDesktopRelease, type GithubRelease } from "./desktop-release-resolver";
 
 const { app } = electron;
+const GITHUB_OWNER = "Higino-Neto";
+const GITHUB_REPOSITORY = "Lyceum";
+
+async function configureDesktopReleaseFeed() {
+  const response = await fetch(
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPOSITORY}/releases?per_page=30`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": `Lyceum-Desktop/${app.getVersion()}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`GitHub respondeu ${response.status} ao buscar versoes desktop`);
+  }
+  const releases = await response.json() as GithubRelease[];
+  const desktopRelease = resolveDesktopRelease(releases);
+  if (!desktopRelease) {
+    throw new Error("Nenhuma versao desktop com metadados de atualizacao foi encontrada");
+  }
+  autoUpdater.setFeedURL({ provider: "generic", url: desktopRelease.feedUrl });
+}
 
 export type LyceumUpdateStatus =
   | "idle"
@@ -211,6 +236,7 @@ export async function checkForAppUpdates() {
 
   try {
     patchState({ status: "checking", error: undefined, progress: undefined });
+    await configureDesktopReleaseFeed();
     await autoUpdater.checkForUpdates();
   } catch (error) {
     patchState({

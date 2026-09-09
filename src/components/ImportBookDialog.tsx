@@ -1,4 +1,5 @@
 import { X, FilePlus, Copy, ArrowRight } from "lucide-react";
+import AnimatedModal from "./ui/AnimatedModal";
 
 interface ImportBookDialogProps {
   isOpen: boolean;
@@ -13,11 +14,14 @@ export default function ImportBookDialog({
   onImport,
   onClose,
 }: ImportBookDialogProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-sm w-full max-w-md mx-4 shadow-2xl">
+    <AnimatedModal
+      open={isOpen}
+      ariaLabel="Adicionar livro"
+      onBackdropClick={onClose}
+      backdropClassName="px-4"
+      className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+    >
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <div className="flex items-center gap-2">
             <FilePlus size={20} className="text-green-400" />
@@ -56,7 +60,6 @@ export default function ImportBookDialog({
             Mover
           </button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

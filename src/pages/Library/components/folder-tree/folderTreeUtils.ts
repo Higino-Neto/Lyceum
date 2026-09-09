@@ -46,6 +46,65 @@ export function countDocsInFolder(
   }).length;
 }
 
+export interface FolderBookCountIndex {
+  direct: Record<string, number>;
+  nested: Record<string, number>;
+}
+
+export function buildFolderBookCountIndex(
+  folderCounts: Record<string, number> = {},
+  documents: DocumentRecord[] = [],
+): FolderBookCountIndex {
+  const direct: Record<string, number> = {};
+
+  for (const [folderPath, count] of Object.entries(folderCounts)) {
+    const normalizedPath = normalizeAbsolutePath(folderPath);
+    if (normalizedPath) direct[normalizedPath] = (direct[normalizedPath] || 0) + count;
+  }
+
+  if (Object.keys(direct).length === 0) {
+    for (const document of documents) {
+      if (!document.filePath) continue;
+      const normalizedFilePath = normalizeAbsolutePath(document.filePath);
+      const lastSlash = normalizedFilePath.lastIndexOf("/");
+      if (lastSlash < 0) continue;
+      const folderPath = normalizedFilePath.slice(0, lastSlash);
+      direct[folderPath] = (direct[folderPath] || 0) + 1;
+    }
+  }
+
+  const nested: Record<string, number> = {};
+  for (const [folderPath, count] of Object.entries(direct)) {
+    let currentPath = folderPath;
+    while (currentPath) {
+      nested[currentPath] = (nested[currentPath] || 0) + count;
+      const lastSlash = currentPath.lastIndexOf("/");
+      if (lastSlash < 0) break;
+      const parentPath = currentPath.slice(0, lastSlash);
+      if (!parentPath || parentPath === currentPath || /^[a-z]:$/.test(parentPath)) break;
+      currentPath = parentPath;
+    }
+  }
+
+  return { direct, nested };
+}
+
+export function countBooksFromIndex(
+  folderPath: string | null,
+  libraryPath: string,
+  index: FolderBookCountIndex,
+  includeNested = true,
+) {
+  if (!libraryPath) return 0;
+  const targetPath = folderPath
+    ? isAbsoluteLike(folderPath)
+      ? folderPath
+      : `${libraryPath}\\${folderPath.replace(/\//g, "\\")}`
+    : libraryPath;
+  const normalizedTarget = normalizeAbsolutePath(targetPath);
+  return (includeNested ? index.nested : index.direct)[normalizedTarget] || 0;
+}
+
 export function filterFolders(folders: FolderInfo[], searchTerm: string): FolderInfo[] {
   if (!searchTerm) return folders;
   const term = searchTerm.toLowerCase();

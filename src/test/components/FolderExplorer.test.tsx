@@ -152,6 +152,20 @@ describe("FolderExplorer", () => {
     expect(onDeleteFolder).toHaveBeenCalledWith(folders[0]);
   });
 
+  it("collapses the folder carousel without hiding its summary", () => {
+    const onCollapsedChange = vi.fn();
+    const { rerender } = render(
+      <FolderGrid folders={folders} onFolderSelect={vi.fn()} collapsed onCollapsedChange={onCollapsedChange} />,
+    );
+    expect(screen.queryByRole("button", { name: "Abrir pasta Computer Science" })).not.toBeInTheDocument();
+    expect(screen.getByText("1 pasta")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar" }));
+    expect(onCollapsedChange).toHaveBeenCalledWith(false);
+
+    rerender(<FolderGrid folders={folders} onFolderSelect={vi.fn()} collapsed={false} onCollapsedChange={onCollapsedChange} />);
+    expect(screen.getByRole("button", { name: "Abrir pasta Computer Science" })).toBeInTheDocument();
+  });
+
   it("does not expose folder actions for read-only folders", () => {
     const onDeleteFolder = vi.fn();
     render(
