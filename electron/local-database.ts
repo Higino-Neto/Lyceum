@@ -3,6 +3,11 @@ import electron from "electron";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "node:crypto";
+import {
+  CURRENT_SQLITE_SCHEMA_VERSION,
+  getSqliteSchemaVersion,
+  runDatabaseMigrations,
+} from "./database-migrations";
 import type {
   BookFileType,
   DocumentRecord,
@@ -205,6 +210,7 @@ function rebuildDocumentSearchIndex(): void {
 }
 
 export function initDatabase() {
+  const startedAt = Date.now();
   const dbPath = path.join(app.getPath("userData"), "app.db");
   db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
@@ -247,6 +253,7 @@ export function initDatabase() {
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
     lastOpenedAt TEXT DEFAULT CURRENT_TIMESTAMP,
     isSynced INTEGER DEFAULT 0,
+    category TEXT,
     isFavorite INTEGER DEFAULT 0,
     rating REAL DEFAULT 0,
     notes TEXT,
@@ -276,41 +283,18 @@ export function initDatabase() {
   )
   `);
 
-  const migrationColumns = [
-    "isSynced", "isFavorite", "rating", "notes", "author",
-    "description", "isbn", "publisher", "publishDate", "language", "identifier", "asin", "subject",
-    "series", "seriesIndex", "authorSort", "titleSort", "fileSize", "processingStatus", "bookId", "fileType",
-    "fileName", "folderPath", "fileMtime", "importedAt", "updatedAt", "readingStatus", "completedAt"
-  ];
-
-  for (const col of migrationColumns) {
-    const sql = `ALTER TABLE documents ADD COLUMN ${col} ${
-      col === "isSynced" || col === "isFavorite" ? "INTEGER DEFAULT 0" :
-      col === "rating" ? "REAL DEFAULT 0" :
-      col === "fileSize" ? "INTEGER DEFAULT 0" :
-      col === "fileType" ? "TEXT DEFAULT 'pdf'" :
-      col === "fileMtime" ? "INTEGER" :
-      col === "importedAt" || col === "updatedAt" ? "TEXT" :
-      col === "readingStatus" || col === "completedAt" ? "TEXT" :
-      "TEXT"
-    }`;
-    try {
-      db.exec(sql);
-    } catch {
-      // Column already exists
-    }
-  }
-
   try {
-    db.exec(`ALTER TABLE categories ADD COLUMN color TEXT NOT NULL DEFAULT '#6b7280'`);
-  } catch {
-    // Column already exists
-  }
-
-  try {
-    db.exec(`ALTER TABLE categories ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP`);
-  } catch {
-    // Column already exists
+    runDatabaseMigrations(db, 1, ({ version, name }) => {
+      console.info(`[DB] Applied SQLite migration ${version}: ${name}`);
+    });
+  } catch (error) {
+    console.error("[DB] Core SQLite migration failed:", {
+      dbPath,
+      schemaVersion: getSqliteSchemaVersion(db),
+      error,
+    });
+    db.close();
+    throw error;
   }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_doc ON document_categories(documentId)`);
@@ -393,26 +377,6 @@ export function initDatabase() {
       updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  const readingStatusItemColumns: Array<[string, string]> = [
-    ["description", "TEXT"],
-    ["isbn", "TEXT"],
-    ["publisher", "TEXT"],
-    ["publishDate", "TEXT"],
-    ["subject", "TEXT"],
-    ["isPrimary", "INTEGER NOT NULL DEFAULT 0"],
-    ["manualBasePage", "INTEGER NOT NULL DEFAULT 0"],
-    ["notePath", "TEXT"],
-    ["notesMarkdown", "TEXT"],
-    ["rating", "INTEGER NOT NULL DEFAULT 0"],
-  ];
-  for (const [column, definition] of readingStatusItemColumns) {
-    try {
-      db.exec(`ALTER TABLE reading_status_items ADD COLUMN ${column} ${definition}`);
-    } catch {
-      // Column already exists
-    }
-  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS reading_status_progress_events (
@@ -544,9 +508,17 @@ export function initDatabase() {
   `);
 
   try {
-    db.exec(`ALTER TABLE watch_folders ADD COLUMN type TEXT NOT NULL DEFAULT 'watch'`);
-  } catch {
-    // Column already exists
+    runDatabaseMigrations(db, CURRENT_SQLITE_SCHEMA_VERSION, ({ version, name }) => {
+      console.info(`[DB] Applied SQLite migration ${version}: ${name}`);
+    });
+  } catch (error) {
+    console.error("[DB] SQLite migration failed:", {
+      dbPath,
+      schemaVersion: getSqliteSchemaVersion(db),
+      error,
+    });
+    db.close();
+    throw error;
   }
 
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
@@ -599,6 +571,12 @@ export function initDatabase() {
   hydrateDocumentFileMetadata();
 
   rebuildDocumentSearchIndex();
+  console.info("[DB] SQLite ready", {
+    dbPath,
+    schemaVersion: getSqliteSchemaVersion(db),
+    expectedSchemaVersion: CURRENT_SQLITE_SCHEMA_VERSION,
+    durationMs: Date.now() - startedAt,
+  });
 }
 
 export function createCategory(name: string, color?: string): BookCategory | null {

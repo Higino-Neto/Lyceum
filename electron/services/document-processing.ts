@@ -391,10 +391,13 @@ async function generateAzw3Thumbnail(
 }
 
 function findKfxlibRoot() {
+  const appRoot = process.env.APP_ROOT;
   const candidates = [
     process.env.LYCEUM_KFXLIB_PATH,
     process.env.LYCEUM_KFX_OUTPUT_PLUGIN,
-    path.join(process.cwd(), ".tmp", "calibre-kfx-output"),
+    appRoot && !appRoot.includes("app.asar")
+      ? path.join(appRoot, ".tmp", "calibre-kfx-output")
+      : undefined,
   ].filter((candidate): candidate is string => Boolean(candidate));
   return candidates.map((candidate) => path.resolve(candidate)).find((candidate) =>
     fs.existsSync(path.join(candidate, "kfxlib", "yj_book.py")),

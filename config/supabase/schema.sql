@@ -31,11 +31,17 @@ CREATE TABLE IF NOT EXISTS public.documents_backup (
     category TEXT,
     processing_status TEXT DEFAULT 'pending',
     book_id TEXT,
-    categories_json TEXT
+    categories_json TEXT,
+    file_type TEXT
 );
 
 ALTER TABLE public.documents_backup
     ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE public.documents_backup
+    ADD COLUMN IF NOT EXISTS category TEXT,
+    ADD COLUMN IF NOT EXISTS categories_json TEXT,
+    ADD COLUMN IF NOT EXISTS file_type TEXT;
 
 ALTER TABLE public.documents_backup
     ALTER COLUMN user_id SET DEFAULT auth.uid();
@@ -53,7 +59,23 @@ CREATE INDEX IF NOT EXISTS idx_documents_backup_user_synced
 CREATE INDEX IF NOT EXISTS idx_documents_backup_user_last_opened
     ON public.documents_backup(user_id, last_opened_at);
 
-CREATE OR REPLACE FUNCTION public.upsert_document_backup(
+DO $$
+DECLARE
+    function_signature regprocedure;
+BEGIN
+    FOR function_signature IN
+        SELECT p.oid::regprocedure
+        FROM pg_proc AS p
+        JOIN pg_namespace AS n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND p.proname = 'upsert_document_backup'
+    LOOP
+        EXECUTE format('DROP FUNCTION %s', function_signature);
+    END LOOP;
+END;
+$$;
+
+CREATE FUNCTION public.upsert_document_backup(
     p_local_id INTEGER,
     p_file_hash TEXT,
     p_title TEXT,
@@ -79,7 +101,8 @@ CREATE OR REPLACE FUNCTION public.upsert_document_backup(
     p_category TEXT,
     p_processing_status TEXT,
     p_book_id TEXT,
-    p_categories_json TEXT
+    p_categories_json TEXT,
+    p_file_type TEXT
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -116,7 +139,8 @@ BEGIN
         category,
         processing_status,
         book_id,
-        categories_json
+        categories_json,
+        file_type
     )
     VALUES (
         auth.uid(),
@@ -145,7 +169,8 @@ BEGIN
         p_category,
         p_processing_status,
         p_book_id,
-        p_categories_json
+        p_categories_json,
+        p_file_type
     )
     ON CONFLICT (user_id, file_hash) DO UPDATE SET
         local_id = EXCLUDED.local_id,
@@ -172,7 +197,8 @@ BEGIN
         category = EXCLUDED.category,
         processing_status = EXCLUDED.processing_status,
         book_id = EXCLUDED.book_id,
-        categories_json = EXCLUDED.categories_json;
+        categories_json = EXCLUDED.categories_json,
+        file_type = EXCLUDED.file_type;
 END;
 $$;
 

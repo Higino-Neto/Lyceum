@@ -1,7 +1,6 @@
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import {
   extractEpubMetadata,
@@ -28,8 +27,14 @@ import type {
   WorkerTaskPayloads,
   WorkerTaskResults,
 } from "./protocol";
+import {
+  getProcessingWorkerPathCandidates,
+  resolveProcessingWorkerPath as resolveWorkerPath,
+} from "./workerPath";
 
-const STARTUP_TIMEOUT_MS = 20_000;
+const STARTUP_TIMEOUT_MS = 5_000;
+const HEALTH_CHECK_TIMEOUT_MS = 3_000;
+const WORKER_RETRY_COOLDOWN_MS = 10_000;
 const DEFAULT_TASK_TIMEOUT_MS = 2 * 60_000;
 const CONVERSION_TIMEOUT_MS = 45 * 60_000;
 
@@ -41,15 +46,27 @@ export class WorkerTaskError extends Error {
 }
 
 export function resolveProcessingWorkerPath(): string {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const appRoot = process.env.APP_ROOT;
-  const candidates = [
-    path.resolve(currentDir, "../workers/processing.worker.js"),
-    path.resolve(currentDir, "processing.worker.js"),
-    appRoot ? path.resolve(appRoot, "dist-electron/workers/processing.worker.js") : "",
-    path.resolve(process.cwd(), "dist-electron/workers/processing.worker.js"),
-  ].filter(Boolean);
-  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+  return resolveWorkerPath({
+    moduleUrl: import.meta.url,
+    resourcesPath: (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath,
+    appRoot: process.env.APP_ROOT,
+  });
+}
+
+export function getProcessingWorkerDiagnostics() {
+  const environment = {
+    moduleUrl: import.meta.url,
+    resourcesPath: (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath,
+    appRoot: process.env.APP_ROOT,
+  };
+  const candidates = getProcessingWorkerPathCandidates(environment);
+  const resolvedPath = resolveWorkerPath(environment);
+  return {
+    resolvedPath,
+    exists: fs.existsSync(resolvedPath),
+    insideAsar: resolvedPath.includes("app.asar"),
+    candidates: candidates.map((candidate) => ({ path: candidate, exists: fs.existsSync(candidate) })),
+  };
 }
 
 interface RunOptions {
@@ -82,6 +99,8 @@ class ProcessingWorkerPool {
   private queue: PendingTask[] = [];
   private counter = 0;
   private disposed = false;
+  private retryAfter = 0;
+  private lastFailure: Error | null = null;
 
   constructor(private readonly size: number, private readonly workerPath: string) {
     if (!fs.existsSync(workerPath)) throw new Error(`Processing worker bundle not found: ${workerPath}`);
@@ -89,11 +108,16 @@ class ProcessingWorkerPool {
   }
 
   get available() {
-    return !this.disposed && this.slots.size > 0;
+    return !this.disposed;
   }
 
   run<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPayloads[K], options: RunOptions = {}): Promise<WorkerTaskResults[K]> {
     if (this.disposed) return Promise.reject(new Error("Processing worker pool is disposed"));
+    if (Date.now() < this.retryAfter) {
+      return Promise.reject(new Error(
+        `Processing worker is temporarily unavailable after startup failure: ${this.lastFailure?.message || "unknown error"}`,
+      ));
+    }
     const requestId = `worker-${process.pid}-${Date.now().toString(36)}-${++this.counter}`;
     return new Promise<WorkerTaskResults[K]>((resolve, reject) => {
       const timeoutMs = options.timeoutMs ?? (kind.startsWith("convert-") ? CONVERSION_TIMEOUT_MS : DEFAULT_TASK_TIMEOUT_MS);
@@ -154,6 +178,8 @@ class ProcessingWorkerPool {
     if (message.type === "ready") {
       clearTimeout(slot.startupTimeout);
       slot.ready = true;
+      this.retryAfter = 0;
+      this.lastFailure = null;
       this.pump();
       return;
     }
@@ -175,14 +201,13 @@ class ProcessingWorkerPool {
     clearTimeout(slot.startupTimeout);
     if (slot.current) this.finishTask(slot.current, error);
     void slot.worker.terminate().catch(() => undefined);
-    if (!this.disposed) {
-      setTimeout(() => {
-        if (!this.disposed && this.slots.size < this.size) {
-          this.spawnWorker();
-          this.scaleToDemand();
-        }
-      }, 100);
+    this.lastFailure = error;
+    this.retryAfter = Date.now() + WORKER_RETRY_COOLDOWN_MS;
+    for (const task of this.queue) {
+      this.finishTask(task, new Error(`Processing worker failed before it could run ${task.request.kind}: ${error.message}`));
     }
+    this.queue = [];
+    console.error("[processingClient] Processing worker stopped; retries are temporarily paused:", error);
   }
 
   private cancelTask(requestId: string, error: Error) {
@@ -250,7 +275,7 @@ export function runProcessingTask<K extends WorkerTaskKind>(kind: K, payload: Wo
 }
 
 export async function checkProcessingWorkers() {
-  const result = await runProcessingTask("ping", {}, { timeoutMs: STARTUP_TIMEOUT_MS });
+  const result = await runProcessingTask("ping", {}, { timeoutMs: HEALTH_CHECK_TIMEOUT_MS });
   return result.pong;
 }
 

@@ -3,24 +3,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { PDFDocument } from "pdf-lib";
-import {
-  extractEpubMetadata,
-  extractPdfMetadata,
-  generateThumbnail,
-  getCbzPageCount,
-  getEpubChapterCount,
-  getPdfPageCount,
-  validateCbzFile,
-} from "../services/document-processing";
-import {
-  setBookCoverInFile,
-  writeBookMetadataToFile,
-  writeCoverImageFile,
-  writeThumbnailFile,
-} from "../services/book-file-metadata";
-import { extractVocabularyFromEpub } from "../services/vocabulary-service";
-import { renderPdfPageToPng } from "../services/pdf-page-renderer";
 import type {
   FileConversionWorkerResult,
   HashFileResult,
@@ -109,6 +91,15 @@ async function findFileByHash(fileHash: string, searchPaths: string[]) {
 }
 
 async function inspectBook(payload: WorkerTaskPayloads["inspect-book"]): Promise<InspectBookResult> {
+  const {
+    extractEpubMetadata,
+    extractPdfMetadata,
+    generateThumbnail,
+    getCbzPageCount,
+    getEpubChapterCount,
+    getPdfPageCount,
+    validateCbzFile,
+  } = await import("../services/document-processing");
   if (payload.fileType === "cbz") await validateCbzFile(payload.filePath);
   const base = await hashPath(payload.filePath, payload.includeBuffer === true);
   const metadataPromise = payload.includeMetadata
@@ -142,6 +133,7 @@ function createPdfImageAssetRenderer(pdfPath: string, tempDir: string) {
   const renderPage = (pageNumber: number) => {
     if (!renderedPages.has(pageNumber)) {
       renderedPages.set(pageNumber, (async () => {
+        const { renderPdfPageToPng } = await import("../services/pdf-page-renderer");
         await fs.promises.mkdir(tempDir, { recursive: true });
         const renderedPath = path.join(tempDir, `page-hq-${pageNumber}.png`);
         const rendered = await renderPdfPageToPng(pdfPath, pageNumber, {
@@ -190,6 +182,7 @@ type ConversionProgress = (progress: number, message: string) => void;
 
 async function convertViaLyceum(payload: WorkerTaskPayloads["convert-via-lyceum"], onProgress?: ConversionProgress): Promise<FileConversionWorkerResult> {
   const { convertViaLyceum: convert, flattenConversionStats } = await import("../../src/lib/lyceum");
+  const { generateThumbnail, getEpubChapterCount, getPdfPageCount } = await import("../services/document-processing");
   const stagedPdfPath = payload.sourceFormat === "pdf" && payload.pdfImageTempDir
     ? path.join(payload.pdfImageTempDir, "source.pdf")
     : null;
@@ -249,6 +242,7 @@ async function convertViaLyceum(payload: WorkerTaskPayloads["convert-via-lyceum"
 
 async function convertPdfToEpub(payload: WorkerTaskPayloads["convert-pdf-to-epub"], onProgress?: ConversionProgress): Promise<FileConversionWorkerResult> {
   const { convertPdfToEpub: convert } = await import("../../src/lib/pdf-to-epub");
+  const { generateThumbnail, getEpubChapterCount } = await import("../services/document-processing");
   const stagedPdfPath = path.join(payload.pdfImageTempDir, "source.pdf");
   try {
     await fs.promises.rm(payload.pdfImageTempDir, { recursive: true, force: true });
@@ -274,6 +268,7 @@ async function convertPdfToEpub(payload: WorkerTaskPayloads["convert-pdf-to-epub
 
 async function convertEpubToPdf(payload: WorkerTaskPayloads["convert-epub-to-pdf"]): Promise<FileConversionWorkerResult> {
   const { convertEpubToPdf: convert } = await import("../../src/lib/epub-to-pdf");
+  const { generateThumbnail } = await import("../services/document-processing");
   const bytes = Uint8Array.from(await fs.promises.readFile(payload.sourcePath));
   const converted = await convert(bytes.buffer, payload.metadata);
   await fs.promises.writeFile(payload.outputPath, Buffer.from(converted.pdf));
@@ -287,6 +282,10 @@ async function convertEpubToPdf(payload: WorkerTaskPayloads["convert-epub-to-pdf
 }
 
 async function applyPdfCover(payload: WorkerTaskPayloads["apply-book-cover"]): Promise<MetadataMutationWorkerResult> {
+  const [{ PDFDocument }, { generateThumbnail }] = await Promise.all([
+    import("pdf-lib"),
+    import("../services/document-processing"),
+  ]);
   const pdfDoc = await PDFDocument.load(await fs.promises.readFile(payload.filePath));
   const imageBytes = await fs.promises.readFile(payload.imagePath);
   const extension = path.extname(payload.imagePath).toLowerCase();
@@ -320,6 +319,7 @@ async function applyPdfCover(payload: WorkerTaskPayloads["apply-book-cover"]): P
 async function applyBookCover(payload: WorkerTaskPayloads["apply-book-cover"]): Promise<MetadataMutationWorkerResult> {
   const fileType = (payload.fileType || path.extname(payload.filePath).slice(1)).toLowerCase();
   if (fileType === "pdf") return applyPdfCover(payload);
+  const { setBookCoverInFile, writeThumbnailFile } = await import("../services/book-file-metadata");
   const fileResult = await setBookCoverInFile(payload.filePath, fileType, payload.imagePath, payload.metadata);
   const hashed = fileResult.success ? await hashPath(payload.filePath) : undefined;
   const thumbnailHash = hashed?.fileHash || payload.currentFileHash || crypto.createHash("sha256").update(payload.filePath).digest("hex");
@@ -342,6 +342,7 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
     case "inspect-book": return await inspectBook(payload as WorkerTaskPayloads["inspect-book"]) as WorkerTaskResults[K];
     case "generate-thumbnail": {
       const input = payload as WorkerTaskPayloads["generate-thumbnail"];
+      const { generateThumbnail } = await import("../services/document-processing");
       const thumbnailPath = await generateThumbnail(input.filePath, input.fileHash, {
         thumbnailsDir: input.thumbnailsDir, fileType: input.fileType, force: input.force, logPrefix: "[Worker]",
       });
@@ -352,10 +353,12 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
     case "convert-epub-to-pdf": return await convertEpubToPdf(payload as WorkerTaskPayloads["convert-epub-to-pdf"]) as WorkerTaskResults[K];
     case "extract-vocabulary": {
       const input = payload as WorkerTaskPayloads["extract-vocabulary"];
+      const { extractVocabularyFromEpub } = await import("../services/vocabulary-service");
       return { words: extractVocabularyFromEpub(input.filePath) } as WorkerTaskResults[K];
     }
     case "write-book-metadata": {
       const input = payload as WorkerTaskPayloads["write-book-metadata"];
+      const { writeBookMetadataToFile } = await import("../services/book-file-metadata");
       const fileResult = await writeBookMetadataToFile(input.filePath, input.fileType, input.metadata);
       const hashed = fileResult.success ? await hashPath(input.filePath) : undefined;
       return { fileResult, ...(hashed || {}) } as WorkerTaskResults[K];
@@ -363,6 +366,7 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
     case "apply-book-cover": return await applyBookCover(payload as WorkerTaskPayloads["apply-book-cover"]) as WorkerTaskResults[K];
     case "prepare-cover-image": {
       const input = payload as WorkerTaskPayloads["prepare-cover-image"];
+      const { writeCoverImageFile } = await import("../services/book-file-metadata");
       await writeCoverImageFile(input.sourcePath, input.outputPath);
       return { outputPath: input.outputPath } as WorkerTaskResults[K];
     }

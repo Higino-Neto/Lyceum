@@ -79,7 +79,7 @@ export interface BackupDocument {
   file_type?: string;
 }
 
-export async function backupDocument(doc: {
+export interface BackupDocumentInput {
   id: number;
   fileHash: string;
   title: string;
@@ -107,41 +107,47 @@ export async function backupDocument(doc: {
   bookId: string | null;
   categoryIds: number[];
   fileType?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}
+
+export function buildDocumentBackupRpcParams(doc: BackupDocumentInput) {
+  return {
+    p_local_id: doc.id,
+    p_file_hash: doc.fileHash,
+    p_title: doc.title?.replace(/\.pdf$/i, "").replace(/\.epub$/i, ""),
+    p_file_path: doc.filePath,
+    p_file_size: doc.fileSize,
+    p_num_pages: doc.numPages,
+    p_current_page: doc.currentPage,
+    p_current_zoom: doc.currentZoom,
+    p_current_scroll: doc.currentScroll,
+    p_annotations: doc.annotations,
+    p_thumbnail_path: doc.thumbnailPath,
+    p_created_at: doc.createdAt,
+    p_last_opened_at: doc.lastOpenedAt,
+    p_is_synced: doc.isSynced,
+    p_is_favorite: doc.isFavorite,
+    p_rating: doc.rating,
+    p_notes: doc.notes,
+    p_author: doc.author,
+    p_description: doc.description,
+    p_isbn: doc.isbn,
+    p_publisher: doc.publisher,
+    p_publish_date: doc.publishDate,
+    p_category: doc.category,
+    p_processing_status: doc.processingStatus,
+    p_book_id: doc.bookId,
+    p_categories_json: JSON.stringify(doc.categoryIds),
+    p_file_type: doc.fileType || null,
+  };
+}
+
+export async function backupDocument(doc: BackupDocumentInput): Promise<{ success: boolean; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase client not initialized" };
   }
 
   try {
-    const { error } = await supabase.rpc("upsert_document_backup", {
-      p_local_id: doc.id,
-      p_file_hash: doc.fileHash,
-      p_title: doc.title?.replace(/\.pdf$/i, "").replace(/\.epub$/i, ""),
-      p_file_path: doc.filePath,
-      p_file_size: doc.fileSize,
-      p_num_pages: doc.numPages,
-      p_current_page: doc.currentPage,
-      p_current_zoom: doc.currentZoom,
-      p_current_scroll: doc.currentScroll,
-      p_annotations: doc.annotations,
-      p_thumbnail_path: doc.thumbnailPath,
-      p_created_at: doc.createdAt,
-      p_last_opened_at: doc.lastOpenedAt,
-      p_is_synced: doc.isSynced,
-      p_is_favorite: doc.isFavorite,
-      p_rating: doc.rating,
-      p_notes: doc.notes,
-      p_author: doc.author,
-      p_description: doc.description,
-      p_isbn: doc.isbn,
-      p_publisher: doc.publisher,
-      p_publish_date: doc.publishDate,
-      p_category: doc.category,
-      p_processing_status: doc.processingStatus,
-      p_book_id: doc.bookId,
-      p_categories_json: JSON.stringify(doc.categoryIds),
-      p_file_type: doc.fileType || null,
-    });
+    const { error } = await supabase.rpc("upsert_document_backup", buildDocumentBackupRpcParams(doc));
 
     if (error) {
       console.error("[Backup] Error backing up document:", error);

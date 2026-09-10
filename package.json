@@ -30,6 +30,8 @@
     "appId": "com.higino.lyceum",
     "productName": "Lyceum",
     "asar": true,
+    "npmRebuild": true,
+    "buildDependenciesFromSource": false,
     "compression": "maximum",
     "electronLanguages": [
       "pt-BR",
@@ -38,10 +40,9 @@
     "afterPack": "scripts/electron-after-pack.cjs",
     "asarUnpack": [
       "node_modules/better-sqlite3/build/Release/*.node",
-      "node_modules/sharp/**/*.{node,dll}",
-      "node_modules/@napi-rs/canvas*/**/*",
-      "dist-electron/workers/**",
-      "dist-electron/chunks/**"
+      "node_modules/sharp/**",
+      "node_modules/@img/**",
+      "node_modules/@napi-rs/canvas*/**/*"
     ],
     "fileAssociations": [
       {

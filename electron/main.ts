@@ -84,6 +84,7 @@ import {
   convertViaLyceumInWorker,
   disposeProcessingWorkers,
   generateThumbnailInWorker,
+  getProcessingWorkerDiagnostics,
   hashFile,
   inspectBookFile,
   openAndProcess as openAndProcessInWorker,
@@ -170,6 +171,55 @@ const LIBRARY_PATH = () => path.join(app.getPath("userData"), "library");
 const USER_DATA_PATH = () => app.getPath("userData");
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 const USB_SCAN_INTERVAL_MS = 4000;
+
+function logStartupEnvironment() {
+  const worker = getProcessingWorkerDiagnostics();
+  console.info("[Startup] Environment", {
+    platform: process.platform,
+    arch: process.arch,
+    release: process.getSystemVersion?.(),
+    appVersion: app.getVersion(),
+    packaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appRoot: process.env.APP_ROOT,
+    mainDirectory: __dirname,
+    insideAsar: __dirname.includes("app.asar"),
+    worker,
+  });
+}
+
+function runStartupStage<T>(name: string, task: () => T): T {
+  const startedAt = Date.now();
+  try {
+    return task();
+  } finally {
+    console.info(`[Startup] ${name} completed`, { durationMs: Date.now() - startedAt });
+  }
+}
+
+function runBackgroundStartupStage(name: string, task: () => unknown | Promise<unknown>) {
+  const startedAt = Date.now();
+  void Promise.resolve()
+    .then(task)
+    .then(() => console.info(`[Startup] ${name} completed`, { durationMs: Date.now() - startedAt }))
+    .catch((error) => console.error(`[Startup] ${name} failed`, {
+      durationMs: Date.now() - startedAt,
+      error,
+    }));
+}
+
+async function showOpenDialogSafe(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> {
+  try {
+    return await dialog.showOpenDialog(options);
+  } catch (error) {
+    console.warn("[DesktopIntegration] File dialog is unavailable; continuing without it.", {
+      platform: process.platform,
+      desktop: process.env.XDG_CURRENT_DESKTOP || process.env.DESKTOP_SESSION || undefined,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { canceled: true, filePaths: [] };
+  }
+}
 
 async function inspectOnWorker(filePath: string, fileType: "pdf" | "epub" | "cbz") {
   try {
@@ -2984,7 +3034,7 @@ ipcMain.handle("native-pdf-viewer:get-outline", async (event, sourceUrl: string)
 });
 
 ipcMain.handle("dialog:open-pdf", async () => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openFile"],
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
@@ -2993,7 +3043,7 @@ ipcMain.handle("dialog:open-pdf", async () => {
 });
 
 ipcMain.handle("dialog:open-epub", async () => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openFile"],
     filters: [{ name: "EPUB", extensions: ["epub"] }],
   });
@@ -3002,7 +3052,7 @@ ipcMain.handle("dialog:open-epub", async () => {
 });
 
 ipcMain.handle("dialog:open-readable-file", async () => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openFile"],
     filters: [
       { name: "PDF e EPUB", extensions: ["pdf", "epub"] },
@@ -3555,7 +3605,7 @@ ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
 });
 
 ipcMain.handle("dialog:open-image", async () => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openFile"],
     filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png"] }],
   });
@@ -3576,7 +3626,7 @@ ipcMain.handle("read-image-data-url", async (_, filePath: string) => {
 });
 
 ipcMain.handle("dialog:select-folder", async () => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openDirectory"],
   });
   return {
@@ -3586,7 +3636,7 @@ ipcMain.handle("dialog:select-folder", async () => {
 });
 
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
-  const result = await dialog.showOpenDialog({
+  const result = await showOpenDialogSafe({
     properties: ["openFile", "multiSelections"],
     filters: [{ name: "Livros", extensions: ["pdf", "epub", "cbz"] }],
   });
@@ -4101,17 +4151,25 @@ protocol.registerSchemesAsPrivileged([
   { scheme: "pdf-resource", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
+app.on("child-process-gone", (_, details) => {
+  const level = details.reason === "clean-exit" ? "info" : "warn";
+  console[level]("[Main] Electron child process exited", {
+    type: details.type,
+    reason: details.reason,
+    exitCode: details.exitCode,
+    serviceName: details.serviceName,
+    name: details.name,
+  });
+});
+
 function parseThumbUrlHash(requestUrl: string): string {
   const url = new URL(requestUrl);
   return (url.hostname || url.pathname.replace(/^\/+/, "")).replace(/\/+$/, "");
 }
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   const fs = require("fs");
-
-  void checkProcessingWorkers()
-    .then(() => console.info("[Main] Processing workers are ready."))
-    .catch((error) => console.error("[Main] Processing worker health check failed:", error));
+  logStartupEnvironment();
 
   protocol.handle("thumb", (request) => {
     const fileHash = parseThumbUrlHash(request.url);
@@ -4177,12 +4235,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  initDatabase();
-  ensureLibraryFolder();
-  setupFileWatcher();
-  setupUsbDeviceWatcher();
-
-  importCategoriesFromFolders();
+  runStartupStage("SQLite initialization", () => initDatabase());
+  runStartupStage("library directory initialization", () => ensureLibraryFolder());
 
   const initialAuthDeepLink = pendingAuthDeepLink ?? startupAuthDeepLink;
   const initialAuthRoute = initialAuthDeepLink ? parseAuthDeepLink(initialAuthDeepLink) : null;
@@ -4200,11 +4254,21 @@ app.whenReady().then(async () => {
   setFileWatcherRefresh(setupFileWatcher);
   registerBookHandlers();
   registerLibraryHandlers();
-  void checkForAppUpdates();
 
-  void queueLibraryScan().catch((error) => {
-    console.error("[Main] Background library scan failed:", error);
+  const startSecondaryServices = () => setImmediate(() => {
+    runBackgroundStartupStage("processing worker health check", async () => {
+      await checkProcessingWorkers();
+      console.info("[Main] Processing workers are ready.");
+    });
+    runBackgroundStartupStage("file watcher", () => setupFileWatcher());
+    runBackgroundStartupStage("USB watcher", () => setupUsbDeviceWatcher());
+    runBackgroundStartupStage("category import", () => importCategoriesFromFolders());
+    runBackgroundStartupStage("update check", () => checkForAppUpdates());
+    runBackgroundStartupStage("library scan", () => queueLibraryScan());
   });
+
+  if (win?.webContents.isLoading()) win.webContents.once("did-finish-load", startSecondaryServices);
+  else startSecondaryServices();
 
   if (!initialAuthRoute && startupFile) {
     console.log("[Main] Startup file detected, waiting for window to load...");

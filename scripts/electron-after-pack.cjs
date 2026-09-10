@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const asar = require("@electron/asar");
 
 const KEEP_LOCALES = new Set(["pt-BR.pak", "en-US.pak"]);
 
@@ -29,6 +30,51 @@ function removeMaps(targetDir) {
   }
 
   return removed;
+}
+
+function listFilesRecursive(targetDir) {
+  if (!fs.existsSync(targetDir)) return [];
+  const files = [];
+  for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
+    const entryPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) files.push(...listFilesRecursive(entryPath));
+    else files.push(entryPath);
+  }
+  return files;
+}
+
+function verifyPackagedRuntime(appOutDir) {
+  const resourcesDir = path.join(appOutDir, "resources");
+  const asarPath = path.join(resourcesDir, "app.asar");
+  if (!fs.existsSync(asarPath)) throw new Error(`[afterPack] app.asar is missing: ${asarPath}`);
+
+  const archiveFiles = new Set(
+    asar.listPackage(asarPath).map((file) => file.replace(/\\/g, "/").replace(/^\/+/, "")),
+  );
+  const workerEntry = "dist-electron/workers/processing.worker.js";
+  if (!archiveFiles.has(workerEntry)) {
+    throw new Error(`[afterPack] processing worker is missing from app.asar: ${workerEntry}`);
+  }
+
+  const workerSource = asar.extractFile(asarPath, path.join(...workerEntry.split("/"))).toString("utf8");
+  const chunkImports = [...workerSource.matchAll(/(?:from\s+|import\()["']\.\.\/chunks\/([^"']+)["']/g)]
+    .map((match) => `dist-electron/chunks/${match[1]}`);
+  for (const importedChunk of chunkImports) {
+    if (!archiveFiles.has(importedChunk)) {
+      throw new Error(`[afterPack] worker dependency is missing from app.asar: ${importedChunk}`);
+    }
+  }
+
+  const unpackedModules = path.join(resourcesDir, "app.asar.unpacked", "node_modules");
+  const nativeFiles = listFilesRecursive(unpackedModules).filter((file) => file.endsWith(".node"));
+  const requiredNativeFamilies = ["better-sqlite3", `${path.sep}@img${path.sep}`, `${path.sep}@napi-rs${path.sep}`];
+  for (const family of requiredNativeFamilies) {
+    if (!nativeFiles.some((file) => file.includes(family))) {
+      throw new Error(`[afterPack] unpacked native runtime is missing for ${family}`);
+    }
+  }
+
+  console.log(`[afterPack] verified worker bundle and ${nativeFiles.length} unpacked native module(s)`);
 }
 
 exports.default = async function afterPack(context) {
@@ -75,4 +121,6 @@ exports.default = async function afterPack(context) {
   if (removed.length > 0) {
     console.log(`[afterPack] pruned ${removed.length} packaging artifact(s)`);
   }
+
+  verifyPackagedRuntime(appOutDir);
 };
