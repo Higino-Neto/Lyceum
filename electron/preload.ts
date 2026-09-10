@@ -10,6 +10,14 @@ import type {
   ReadingStatus,
   ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
+import type {
+  AnnotatedPage,
+  AnnotationResult,
+  ConceptGraphPayload,
+  CreateKeyConceptInput,
+  KeyConcept,
+  UpdateKeyConceptInput,
+} from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
 
 const { ipcRenderer, contextBridge } = electron;
@@ -331,6 +339,25 @@ contextBridge.exposeInMainWorld("api", {
 
   updateReadingStatus: (fileHash: string, status: ReadingStatus) =>
     ipcRenderer.invoke("book:update-reading-status", fileHash, status),
+
+  getConceptGraph: (bookId: string) =>
+    ipcRenderer.invoke("annotations:get-graph", bookId),
+  getPageKeyConcepts: (bookId: string, page: number) =>
+    ipcRenderer.invoke("annotations:get-page-concepts", bookId, page),
+  getAnnotatedPages: (bookId: string) =>
+    ipcRenderer.invoke("annotations:get-annotated-pages", bookId),
+  createKeyConcept: (input: CreateKeyConceptInput) =>
+    ipcRenderer.invoke("annotations:create-concept", input),
+  updateKeyConcept: (id: string, updates: UpdateKeyConceptInput) =>
+    ipcRenderer.invoke("annotations:update-concept", id, updates),
+  deleteKeyConcept: (id: string, bookId: string) =>
+    ipcRenderer.invoke("annotations:delete-concept", id, bookId),
+  createConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) =>
+    ipcRenderer.invoke("annotations:create-relation", bookId, conceptAId, conceptBId),
+  deleteConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) =>
+    ipcRenderer.invoke("annotations:delete-relation", bookId, conceptAId, conceptBId),
+  getAnnotationPageThumbnail: (bookId: string, page: number) =>
+    ipcRenderer.invoke("annotations:get-page-thumbnail", bookId, page),
 
   getReadingStatusItems: () =>
     ipcRenderer.invoke("atlas:get-status-items"),

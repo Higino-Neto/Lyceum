@@ -124,6 +124,8 @@ describe("SQLite migrations", () => {
     expect(getTableColumns(database, "documents")).toContain("fileType");
     expect(getTableColumns(database, "reading_status_items")).toContain("rating");
     expect(getTableColumns(database, "watch_folders")).toContain("type");
+    expect(getTableColumns(database, "key_concepts")).toContain("bookId");
+    expect(getTableColumns(database, "concept_relations")).toContain("conceptBId");
   });
 
   it("upgrades a legacy database to exactly the same columns as a new database", () => {
@@ -135,7 +137,7 @@ describe("SQLite migrations", () => {
     createLegacyCore(legacy);
     migrateLikeApplication(legacy, false);
 
-    for (const table of ["documents", "categories", "reading_status_items", "watch_folders"]) {
+    for (const table of ["documents", "categories", "reading_status_items", "watch_folders", "key_concepts", "concept_relations"]) {
       expect(getTableColumns(legacy, table)).toEqual(getTableColumns(fresh, table));
     }
   });

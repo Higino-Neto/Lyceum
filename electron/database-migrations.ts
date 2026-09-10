@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-export const CURRENT_SQLITE_SCHEMA_VERSION = 2;
+export const CURRENT_SQLITE_SCHEMA_VERSION = 3;
 
 type SqliteDatabase = Database.Database;
 
@@ -104,6 +104,44 @@ const migrations: Migration[] = [
         addColumnIfMissing(database, "reading_status_items", column, definition);
       }
       addColumnIfMissing(database, "watch_folders", "type", "TEXT NOT NULL DEFAULT 'watch'");
+    },
+  },
+  {
+    version: 3,
+    name: "key-concepts-and-relations",
+    up(database) {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS key_concepts (
+          id TEXT PRIMARY KEY,
+          bookId TEXT NOT NULL,
+          title TEXT NOT NULL,
+          note TEXT,
+          page INTEGER NOT NULL CHECK (page >= 1),
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS concept_relations (
+          bookId TEXT NOT NULL,
+          conceptAId TEXT NOT NULL,
+          conceptBId TEXT NOT NULL,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (conceptAId, conceptBId),
+          CHECK (conceptAId <> conceptBId),
+          CHECK (conceptAId < conceptBId),
+          FOREIGN KEY (conceptAId) REFERENCES key_concepts(id) ON DELETE CASCADE,
+          FOREIGN KEY (conceptBId) REFERENCES key_concepts(id) ON DELETE CASCADE
+        )
+      `);
+
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_key_concepts_book ON key_concepts(bookId, updatedAt DESC)`);
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_key_concepts_book_page ON key_concepts(bookId, page, title COLLATE NOCASE)`);
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_key_concepts_title ON key_concepts(bookId, title COLLATE NOCASE)`);
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_book ON concept_relations(bookId)`);
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_a ON concept_relations(conceptAId)`);
+      database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_b ON concept_relations(conceptBId)`);
     },
   },
 ];

@@ -7,6 +7,12 @@ type ReadingStatus = import("../src/types/LibraryTypes").ReadingStatus;
 type ReadingMapPayload = import("../src/types/LibraryTypes").ReadingMapPayload;
 type ReadingStatusPayload = import("../src/types/LibraryTypes").ReadingStatusPayload;
 type ReadingStatusNotePayload = import("../src/types/LibraryTypes").ReadingStatusNotePayload;
+type AnnotatedPage = import("../src/types/AnnotationTypes").AnnotatedPage;
+type AnnotationResult<T> = import("../src/types/AnnotationTypes").AnnotationResult<T>;
+type ConceptGraphPayload = import("../src/types/AnnotationTypes").ConceptGraphPayload;
+type CreateKeyConceptInput = import("../src/types/AnnotationTypes").CreateKeyConceptInput;
+type KeyConcept = import("../src/types/AnnotationTypes").KeyConcept;
+type UpdateKeyConceptInput = import("../src/types/AnnotationTypes").UpdateKeyConceptInput;
 
 interface BookCategory {
   id: number;
@@ -273,6 +279,15 @@ interface Window {
     updateRating: (fileHash: string, rating: number) => Promise<boolean>;
     updateNotes: (fileHash: string, notes: string) => Promise<boolean>;
     updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
+    getConceptGraph: (bookId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    getPageKeyConcepts: (bookId: string, page: number) => Promise<AnnotationResult<KeyConcept[]>>;
+    getAnnotatedPages: (bookId: string) => Promise<AnnotationResult<AnnotatedPage[]>>;
+    createKeyConcept: (input: CreateKeyConceptInput) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    updateKeyConcept: (id: string, updates: UpdateKeyConceptInput) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    deleteKeyConcept: (id: string, bookId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    createConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    deleteConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    getAnnotationPageThumbnail: (bookId: string, page: number) => Promise<AnnotationResult<string>>;
     getReadingStatusItems: () => Promise<AtlasStatusResult>;
     addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;
@@ -542,6 +557,15 @@ interface Window {
     windowClose: () => Promise<void>;
     windowIsMaximized: () => Promise<boolean>;
     updateReadingStatus: (fileHash: string, status: ReadingStatus) => Promise<{ success: boolean; error?: string }>;
+    getConceptGraph: (bookId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    getPageKeyConcepts: (bookId: string, page: number) => Promise<AnnotationResult<KeyConcept[]>>;
+    getAnnotatedPages: (bookId: string) => Promise<AnnotationResult<AnnotatedPage[]>>;
+    createKeyConcept: (input: CreateKeyConceptInput) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    updateKeyConcept: (id: string, updates: UpdateKeyConceptInput) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    deleteKeyConcept: (id: string, bookId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    createConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    deleteConceptRelation: (bookId: string, conceptAId: string, conceptBId: string) => Promise<AnnotationResult<ConceptGraphPayload>>;
+    getAnnotationPageThumbnail: (bookId: string, page: number) => Promise<AnnotationResult<string>>;
     getReadingStatusItems: () => Promise<AtlasStatusResult>;
     addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) => Promise<AtlasStatusResult>;
     addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) => Promise<AtlasStatusResult>;

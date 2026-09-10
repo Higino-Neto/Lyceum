@@ -8,6 +8,10 @@ import {
   getSqliteSchemaVersion,
   runDatabaseMigrations,
 } from "./database-migrations";
+import {
+  createAnnotationRepository,
+  ensureAnnotationSchema,
+} from "./annotation-repository";
 import type {
   BookFileType,
   DocumentRecord,
@@ -25,6 +29,14 @@ import type {
   ReadingStatusItem,
   ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
+import type {
+  AnnotatedPage,
+  ConceptGraphPayload,
+  ConceptRelation,
+  CreateKeyConceptInput,
+  KeyConcept,
+  UpdateKeyConceptInput,
+} from "../src/types/AnnotationTypes";
 
 const { app } = electron;
 
@@ -89,6 +101,7 @@ const DEFAULT_COLORS = [
 ];
 
 let db: Database.Database;
+let annotations: ReturnType<typeof createAnnotationRepository>;
 
 function normalizeStoredPath(filePath: string | null | undefined): string | null {
   return filePath ? filePath.replace(/\\/g, "/") : null;
@@ -521,6 +534,9 @@ export function initDatabase() {
     throw error;
   }
 
+  ensureAnnotationSchema(db);
+  annotations = createAnnotationRepository(db);
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
 
@@ -831,6 +847,50 @@ export function updateReadingStatus(fileHash: string, status: ReadingStatus): bo
   `).run(status, status, fileHash);
 
   return result.changes > 0;
+}
+
+export function createKeyConcept(input: CreateKeyConceptInput): KeyConcept {
+  return annotations.createConcept(input);
+}
+
+export function updateKeyConcept(id: string, updates: UpdateKeyConceptInput): KeyConcept {
+  return annotations.updateConcept(id, updates);
+}
+
+export function deleteKeyConcept(id: string): boolean {
+  return annotations.deleteConcept(id);
+}
+
+export function createConceptRelation(
+  bookId: string,
+  conceptAId: string,
+  conceptBId: string,
+): ConceptRelation {
+  return annotations.createRelation(bookId, conceptAId, conceptBId);
+}
+
+export function deleteConceptRelation(conceptAId: string, conceptBId: string): boolean {
+  return annotations.deleteRelation(conceptAId, conceptBId);
+}
+
+export function getKeyConceptsByBook(bookId: string): KeyConcept[] {
+  return annotations.getConceptsByBook(bookId);
+}
+
+export function getKeyConceptsByPage(bookId: string, page: number): KeyConcept[] {
+  return annotations.getConceptsByPage(bookId, page);
+}
+
+export function getConceptGraph(bookId: string): ConceptGraphPayload {
+  return annotations.getGraph(bookId);
+}
+
+export function getAnnotatedPages(bookId: string): AnnotatedPage[] {
+  return annotations.getAnnotatedPages(bookId);
+}
+
+export function getRelatedKeyConcepts(conceptId: string): KeyConcept[] {
+  return annotations.getRelatedConcepts(conceptId);
 }
 
 function toReadingMapSection(row: ReadingMapSectionRow): ReadingMapSection {

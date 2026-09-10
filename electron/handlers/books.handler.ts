@@ -17,6 +17,14 @@ import {
   updateRating,
   updateNotes,
   updateReadingStatus,
+  createConceptRelation,
+  createKeyConcept,
+  deleteConceptRelation,
+  deleteKeyConcept,
+  getAnnotatedPages,
+  getConceptGraph,
+  getKeyConceptsByPage,
+  updateKeyConcept,
   addLibraryBookToReadingMapSection,
   addManualBookToReadingMapSection,
   createReadingMap,
@@ -57,6 +65,7 @@ import { reopenDocument, renameBook, deleteBook } from "../services/document-ser
 import { cachePdfBuffer } from "../services/pdfCache";
 import { mergeBooksIntoManagedFolder } from "../services/folder-service";
 import { notifyFolderChanged } from "../services/library-service";
+import { renderPdfPageToPng } from "../services/pdf-page-renderer";
 import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
 import { LIBRARY_PATH, USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
 import { extractVocabularyFromEpub } from "../services/vocabulary-service";
@@ -98,6 +107,16 @@ function dissolveDegenerateLogicalGroup(bookId: string | null | undefined) {
       updateDocumentBookId(document.fileHash, null);
     }
   }
+}
+
+function getAnnotationsDirectory() {
+  return path.join(USER_DATA_PATH(), "annotations");
+}
+
+function getAnnotationPageThumbnailPath(bookId: string, page: number) {
+  const safeBookId = bookId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 96) || "book";
+  const pageFile = `p-${String(page).padStart(5, "0")}.png`;
+  return path.join(getAnnotationsDirectory(), "page-thumbnails", safeBookId, pageFile);
 }
 
 export function registerBookHandlers() {
@@ -355,6 +374,103 @@ export function registerBookHandlers() {
   ipcMain.handle("book:update-reading-status", (_, fileHash: string, status) => {
     try {
       return { success: updateReadingStatus(fileHash, status) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:get-graph", (_, bookId: string) => {
+    try {
+      return { success: true, payload: getConceptGraph(bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:get-page-concepts", (_, bookId: string, page: number) => {
+    try {
+      return { success: true, payload: getKeyConceptsByPage(bookId, page) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:get-annotated-pages", (_, bookId: string) => {
+    try {
+      return { success: true, payload: getAnnotatedPages(bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:create-concept", (_, input: Parameters<typeof createKeyConcept>[0]) => {
+    try {
+      const concept = createKeyConcept(input);
+      return { success: true, payload: getConceptGraph(concept.bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:update-concept", (_, id: string, updates: Parameters<typeof updateKeyConcept>[1]) => {
+    try {
+      const concept = updateKeyConcept(id, updates);
+      return { success: true, payload: getConceptGraph(concept.bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:delete-concept", (_, id: string, bookId: string) => {
+    try {
+      deleteKeyConcept(id);
+      return { success: true, payload: getConceptGraph(bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:create-relation", (_, bookId: string, conceptAId: string, conceptBId: string) => {
+    try {
+      createConceptRelation(bookId, conceptAId, conceptBId);
+      return { success: true, payload: getConceptGraph(bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:delete-relation", (_, bookId: string, conceptAId: string, conceptBId: string) => {
+    try {
+      deleteConceptRelation(conceptAId, conceptBId);
+      return { success: true, payload: getConceptGraph(bookId) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("annotations:get-page-thumbnail", async (_, bookId: string, page: number) => {
+    try {
+      const cleanPage = Math.max(1, Math.round(Number(page) || 1));
+      const doc = getDocumentByHash(bookId);
+      if (!doc?.filePath || doc.fileType !== "pdf") {
+        return { success: false, error: "Thumbnail de pagina disponivel apenas para PDFs da biblioteca" };
+      }
+      if (!fs.existsSync(doc.filePath)) {
+        return { success: false, error: "Arquivo PDF nao encontrado" };
+      }
+
+      const thumbnailPath = getAnnotationPageThumbnailPath(bookId, cleanPage);
+      if (!fs.existsSync(thumbnailPath)) {
+        fs.mkdirSync(path.dirname(thumbnailPath), { recursive: true });
+        const rendered = await renderPdfPageToPng(doc.filePath, cleanPage, {
+          scale: 0.4,
+          maxDimension: 320,
+        });
+        fs.writeFileSync(thumbnailPath, rendered.data);
+      }
+
+      const data = fs.readFileSync(thumbnailPath).toString("base64");
+      return { success: true, payload: `data:image/png;base64,${data}` };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

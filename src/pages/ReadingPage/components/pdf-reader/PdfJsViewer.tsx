@@ -6,6 +6,8 @@ import { createPdfJsViewerUrl } from "./pdfRenderer";
 import { useChapterTracker } from "./chapters/useChapterTracker";
 import ChapterSidebar from "./chapters/ChapterSidebar";
 import { AnimatePresence, motion } from "motion/react";
+import { BookMarked } from "lucide-react";
+import AnnotationPanel from "./annotations/AnnotationPanel";
 
 interface PdfJsViewerProps {
   pdfData: ArrayBuffer;
@@ -55,6 +57,8 @@ export default function PdfJsViewer({
   const restoreStartedRef = useRef(false);
   const restoreGenRef = useRef(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentPageConceptCount, setCurrentPageConceptCount] = useState(0);
+  const [showAnnotations, setShowAnnotations] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
 
@@ -92,6 +96,18 @@ export default function PdfJsViewer({
   }, []);
 
   const chapterTracker = useChapterTracker(sourceUrl, fileHash, handleChapterNavigate);
+
+  const goToPage = useCallback(
+    async (page: number) => {
+      if (!page || !sourceUrl || !window.api?.applyNativePdfViewerState) {
+        return;
+      }
+      restoreGenRef.current += 1;
+      await window.api.applyNativePdfViewerState(sourceUrl, { page });
+      setCurrentPage(page);
+    },
+    [sourceUrl],
+  );
 
   const readViewerState = useCallback(async () => {
     if (!sourceUrl || !window.api?.getNativePdfViewerState) {
@@ -205,9 +221,40 @@ export default function PdfJsViewer({
   }, [syncChapterButtonState]);
 
   useEffect(() => {
+    if (!fileHash || !currentPage || !window.api?.getPageKeyConcepts) {
+      setCurrentPageConceptCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    const refreshCount = async () => {
+      const result = await window.api.getPageKeyConcepts(fileHash, currentPage);
+      if (!cancelled) {
+        setCurrentPageConceptCount(result.success && result.payload ? result.payload.length : 0);
+      }
+    };
+
+    void refreshCount();
+    const handleUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ bookId?: string }>).detail;
+      if (!detail?.bookId || detail.bookId === fileHash) {
+        void refreshCount();
+      }
+    };
+    window.addEventListener("lyceum:annotations-updated", handleUpdated);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("lyceum:annotations-updated", handleUpdated);
+    };
+  }, [currentPage, fileHash]);
+
+  useEffect(() => {
     restoreStartedRef.current = false;
     lastStateRef.current = null;
     setCurrentPage(1);
+    setCurrentPageConceptCount(0);
+    setShowAnnotations(false);
     setLoadError(null);
   }, [fileHash, sourceUrl]);
 
@@ -271,6 +318,20 @@ export default function PdfJsViewer({
       </AnimatePresence>
 
       <div className="relative min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setShowAnnotations((value) => !value)}
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/85 text-zinc-300 shadow-lg backdrop-blur transition hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
+          title="Key concepts"
+          aria-label="Key concepts"
+        >
+          <BookMarked size={17} />
+          {currentPageConceptCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-zinc-950">
+              {Math.min(9, currentPageConceptCount)}
+            </span>
+          )}
+        </button>
         {loadError && (
           <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-red-900/70 bg-red-950/90 px-3 py-2 text-sm text-red-100 shadow-lg">
             {loadError}
@@ -294,6 +355,28 @@ export default function PdfJsViewer({
           }}
         />
       </div>
+
+      <AnimatePresence initial={false}>
+        {showAnnotations && (
+          <motion.div
+            key="pdf-annotations"
+            className="h-full flex-shrink-0 overflow-hidden"
+            initial={{ opacity: 0, x: 24, width: 0 }}
+            animate={{ opacity: 1, x: 0, width: "auto" }}
+            exit={{ opacity: 0, x: 18, width: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+          >
+            <AnnotationPanel
+              bookId={fileHash}
+              currentPage={currentPage}
+              totalPages={lastStateRef.current?.totalPages ?? 0}
+              chapters={chapterTracker.outline}
+              onClose={() => setShowAnnotations(false)}
+              onGoToPage={goToPage}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
