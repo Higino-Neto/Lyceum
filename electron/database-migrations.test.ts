@@ -1,5 +1,4 @@
-import { createRequire } from "node:module";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CURRENT_SQLITE_SCHEMA_VERSION,
@@ -8,65 +7,12 @@ import {
   runDatabaseMigrations,
 } from "./database-migrations";
 
-const require = createRequire(import.meta.url);
-const { DatabaseSync } = require("node:sqlite") as {
-  DatabaseSync: new (path: string) => {
-    exec(sql: string): void;
-    prepare(sql: string): {
-      all(...params: unknown[]): unknown[];
-      get(...params: unknown[]): unknown;
-      run(...params: unknown[]): unknown;
-    };
-    close(): void;
-  };
-};
-
-class TestDatabase {
-  readonly inner = new DatabaseSync(":memory:");
-
-  exec(sql: string) {
-    this.inner.exec(sql);
-  }
-
-  prepare(sql: string) {
-    return this.inner.prepare(sql);
-  }
-
-  pragma(source: string, options?: { simple?: boolean }) {
-    if (/^user_version\s*=/.test(source)) {
-      this.inner.exec(`PRAGMA ${source}`);
-      return;
-    }
-    const rows = this.inner.prepare(`PRAGMA ${source}`).all() as Array<Record<string, unknown>>;
-    if (options?.simple) return Number(rows[0]?.user_version ?? 0);
-    return rows;
-  }
-
-  transaction<T>(task: () => T) {
-    return () => {
-      this.inner.exec("BEGIN");
-      try {
-        const result = task();
-        this.inner.exec("COMMIT");
-        return result;
-      } catch (error) {
-        this.inner.exec("ROLLBACK");
-        throw error;
-      }
-    };
-  }
-
-  close() {
-    this.inner.close();
-  }
-}
-
-const databases: TestDatabase[] = [];
+const databases: Database.Database[] = [];
 
 function createDatabase() {
-  const database = new TestDatabase();
+  const database = new Database(":memory:");
   databases.push(database);
-  return database as unknown as Database.Database;
+  return database;
 }
 
 function createLegacyCore(database: Database.Database) {

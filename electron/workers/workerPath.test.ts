@@ -5,10 +5,10 @@ import { getProcessingWorkerPathCandidates, toAsarUnpackedPath } from "./workerP
 
 describe("processing worker path resolution", () => {
   it("derives the worker from import.meta.url without using the working directory", () => {
-    const mainPath = path.join("C:\\", "app", "dist-electron", "main.js");
+    const mainPath = path.resolve(path.sep, "app", "dist-electron", "main.js");
     const candidates = getProcessingWorkerPathCandidates({ moduleUrl: pathToFileURL(mainPath).href });
 
-    expect(candidates[0]).toBe(path.join("C:\\", "app", "dist-electron", "workers", "processing.worker.js"));
+    expect(candidates[0]).toBe(path.resolve(path.sep, "app", "dist-electron", "workers", "processing.worker.js"));
   });
 
   it("covers packed, unpacked, and unpackaged Linux layouts", () => {
