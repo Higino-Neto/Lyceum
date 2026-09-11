@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-export const CURRENT_SQLITE_SCHEMA_VERSION = 3;
+export const CURRENT_SQLITE_SCHEMA_VERSION = 4;
 
 type SqliteDatabase = Database.Database;
 
@@ -116,6 +116,9 @@ const migrations: Migration[] = [
           bookId TEXT NOT NULL,
           title TEXT NOT NULL,
           note TEXT,
+          excerpt TEXT,
+          locatorJson TEXT,
+          highlightJson TEXT,
           page INTEGER NOT NULL CHECK (page >= 1),
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
@@ -142,6 +145,15 @@ const migrations: Migration[] = [
       database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_book ON concept_relations(bookId)`);
       database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_a ON concept_relations(conceptAId)`);
       database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_b ON concept_relations(conceptBId)`);
+    },
+  },
+  {
+    version: 4,
+    name: "key-concept-selection-locators",
+    up(database) {
+      addColumnIfMissing(database, "key_concepts", "excerpt", "TEXT");
+      addColumnIfMissing(database, "key_concepts", "locatorJson", "TEXT");
+      addColumnIfMissing(database, "key_concepts", "highlightJson", "TEXT");
     },
   },
 ];

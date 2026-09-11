@@ -27,7 +27,17 @@ class TestDatabase {
     return this.inner.prepare(sql);
   }
 
-  pragma(source: string) {
+  pragma(source: string, options?: { simple?: boolean }) {
+    if (/^user_version\s*=/.test(source)) {
+      this.inner.exec(`PRAGMA ${source}`);
+      return;
+    }
+    const rows = this.inner.prepare(`PRAGMA ${source}`).all() as Array<Record<string, unknown>>;
+    if (options?.simple) return Number(rows[0]?.user_version ?? 0);
+    return rows;
+  }
+
+  runPragma(source: string) {
     this.inner.exec(`PRAGMA ${source}`);
   }
 
@@ -54,7 +64,7 @@ const databases: TestDatabase[] = [];
 
 function createRepository() {
   const database = new TestDatabase();
-  database.pragma("foreign_keys = ON");
+  database.runPragma("foreign_keys = ON");
   databases.push(database);
   return createAnnotationRepository(database as unknown as Database.Database);
 }
@@ -77,6 +87,9 @@ describe("key concept annotations", () => {
       bookId: "book-hash",
       title: "Replication Lag",
       note: null,
+      excerpt: null,
+      locatorJson: null,
+      highlightJson: null,
       page: 183,
     });
 
@@ -89,6 +102,33 @@ describe("key concept annotations", () => {
 
     expect(repository.deleteConcept(concept.id)).toBe(true);
     expect(repository.getConceptsByBook("book-hash")).toEqual([]);
+  });
+
+  it("persists selected text locators and highlight geometry", () => {
+    const repository = createRepository();
+    const highlightJson = JSON.stringify({
+      rects: [{ page: 7, left: 0.12, top: 0.24, width: 0.3, height: 0.02 }],
+    });
+    const locatorJson = JSON.stringify({ source: "pdf-selection", page: 7 });
+
+    const concept = repository.createConcept({
+      bookId: "book-hash",
+      title: "Consensus",
+      excerpt: "Consensus is reached when replicas agree.",
+      locatorJson,
+      highlightJson,
+      page: 7,
+    });
+
+    expect(concept).toMatchObject({
+      excerpt: "Consensus is reached when replicas agree.",
+      locatorJson,
+      highlightJson,
+    });
+
+    const updated = repository.updateConcept(concept.id, { excerpt: "Updated excerpt" });
+    expect(updated.excerpt).toBe("Updated excerpt");
+    expect(updated.highlightJson).toBe(highlightJson);
   });
 
   it("creates simple bidirectional relations and prevents duplicates and self-relations", () => {
@@ -141,5 +181,22 @@ describe("key concept annotations", () => {
     expect(() => repository.createRelation("book-a", a.id, b.id)).toThrow(
       "Relacao so pode conectar conceitos do mesmo livro",
     );
+  });
+
+  it("rejects duplicate concept titles inside the same book", () => {
+    const repository = createRepository();
+    repository.createConcept({ bookId: "book-a", title: "Distributed Transactions", page: 1 });
+    repository.createConcept({ bookId: "book-b", title: "Distributed Transactions", page: 1 });
+
+    expect(() => repository.createConcept({
+      bookId: "book-a",
+      title: " distributed   transactions ",
+      page: 2,
+    })).toThrow("Ja existe um Key Concept com esse nome neste livro");
+
+    const other = repository.createConcept({ bookId: "book-a", title: "Consensus", page: 2 });
+    expect(() => repository.updateConcept(other.id, {
+      title: "Distributed Transactions",
+    })).toThrow("Ja existe um Key Concept com esse nome neste livro");
   });
 });

@@ -46,14 +46,40 @@ body {
 
 #toolbarContainer :is(.toolbarButton, .dropdownToolbarButton):is(:hover, :focus-visible),
 #toolbarContainer .toolbarButton.toggled,
-#toolbarContainer .lyceumChapterToggle[aria-expanded="true"] {
+#toolbarContainer .lyceumChapterToggle[aria-expanded="true"],
+#toolbarContainer .lyceumAnnotationToggle[aria-expanded="true"] {
   background-color: #27272a;
   color: #dcfce7;
 }
 
 #toolbarContainer .toolbarButton.toggled::before,
-#toolbarContainer .lyceumChapterToggle[aria-expanded="true"]::before {
+#toolbarContainer .lyceumChapterToggle[aria-expanded="true"]::before,
+#toolbarContainer .lyceumAnnotationToggle[aria-expanded="true"]::before {
   background-color: #22c55e;
+}
+
+#toolbarContainer .lyceumAnnotationToggle {
+  position: relative;
+}
+
+#toolbarContainer .lyceumAnnotationToggle::before {
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 3h9.5A2.5 2.5 0 0 1 18 5.5V21l-6-3.5L6 21V3Zm2 2v12.5l4-2.35 4 2.35v-12A.5.5 0 0 0 15.5 5H8Z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 3h9.5A2.5 2.5 0 0 1 18 5.5V21l-6-3.5L6 21V3Zm2 2v12.5l4-2.35 4 2.35v-12A.5.5 0 0 0 15.5 5H8Z'/%3E%3C/svg%3E");
+}
+
+#toolbarContainer .lyceumAnnotationBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #22c55e;
+  color: #052e16;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
 }
 
 #toolbarContainer input,
@@ -111,9 +137,52 @@ body {
   border-radius: 2px;
 }
 
+.lyceumCreateConceptButton {
+  position: fixed;
+  z-index: 10000;
+  height: 32px;
+  max-width: 104px;
+  border: 1px solid #34d399;
+  border-radius: 4px;
+  padding: 0 10px;
+  background: #052e16;
+  color: #d1fae5;
+  font: 600 11px/30px system-ui, sans-serif;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.36);
+  cursor: pointer;
+}
+
+.lyceumCreateConceptButton:hover,
+.lyceumCreateConceptButton:focus-visible {
+  background: #065f46;
+  color: #ecfdf5;
+  outline: none;
+}
+
+.page .lyceumKeyConceptHighlightLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  forced-color-adjust: none;
+}
+
+.page .lyceumKeyConceptHighlightRect {
+  position: absolute;
+  min-width: 1px;
+  border-radius: 2px;
+  background: rgba(34, 197, 94, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+}
+
 @media (forced-colors: active) {
   .textLayer .lyceumSelectionRect {
     background: Highlight;
     opacity: 0.45;
+  }
+
+  .page .lyceumKeyConceptHighlightRect {
+    background: Highlight;
+    opacity: 0.25;
   }
 }

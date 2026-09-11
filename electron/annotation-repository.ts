@@ -29,6 +29,10 @@ function assertBookId(bookId: string): string {
   return clean;
 }
 
+function optionalTrimmed(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
 function orderedConceptPair(conceptAId: string, conceptBId: string): [string, string] {
   const a = String(conceptAId || "").trim();
   const b = String(conceptBId || "").trim();
@@ -44,6 +48,9 @@ export function ensureAnnotationSchema(database: SqliteDatabase): void {
       bookId TEXT NOT NULL,
       title TEXT NOT NULL,
       note TEXT,
+      excerpt TEXT,
+      locatorJson TEXT,
+      highlightJson TEXT,
       page INTEGER NOT NULL CHECK (page >= 1),
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
       updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
@@ -70,6 +77,18 @@ export function ensureAnnotationSchema(database: SqliteDatabase): void {
   database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_book ON concept_relations(bookId)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_a ON concept_relations(conceptAId)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_concept_relations_b ON concept_relations(conceptBId)`);
+
+  const existingColumns = (database.pragma("table_info(key_concepts)") as Array<{ name: string }>)
+    .map((column) => column.name);
+  for (const [column, definition] of [
+    ["excerpt", "TEXT"],
+    ["locatorJson", "TEXT"],
+    ["highlightJson", "TEXT"],
+  ] as const) {
+    if (!existingColumns.includes(column)) {
+      database.exec(`ALTER TABLE key_concepts ADD COLUMN ${column} ${definition}`);
+    }
+  }
 }
 
 export function createAnnotationRepository(database: SqliteDatabase) {
@@ -97,6 +116,19 @@ export function createAnnotationRepository(database: SqliteDatabase) {
     ).all(assertBookId(bookId), normalizePage(page));
   }
 
+  function assertUniqueConceptTitle(bookId: string, title: string, exceptId?: string) {
+    const existing = database.prepare<[string, string, string | null, string | null], KeyConcept>(
+      `SELECT * FROM key_concepts
+       WHERE bookId = ?
+         AND lower(title) = lower(?)
+         AND (? IS NULL OR id <> ?)
+       LIMIT 1`,
+    ).get(bookId, title, exceptId ?? null, exceptId ?? null);
+    if (existing) {
+      throw new Error("Ja existe um Key Concept com esse nome neste livro");
+    }
+  }
+
   function getRelationsByBook(bookId: string): ConceptRelation[] {
     return database.prepare<[string], ConceptRelation>(
       `SELECT * FROM concept_relations
@@ -116,14 +148,18 @@ export function createAnnotationRepository(database: SqliteDatabase) {
     const bookId = assertBookId(input.bookId);
     const title = normalizeTitle(input.title);
     if (!title) throw new Error("Titulo do conceito e obrigatorio");
+    assertUniqueConceptTitle(bookId, title);
     const page = normalizePage(input.page);
     const id = `concept-${randomUUID()}`;
-    const note = input.note?.trim() || null;
+    const note = optionalTrimmed(input.note);
+    const excerpt = optionalTrimmed(input.excerpt);
+    const locatorJson = optionalTrimmed(input.locatorJson);
+    const highlightJson = optionalTrimmed(input.highlightJson);
 
     database.prepare(`
-      INSERT INTO key_concepts (id, bookId, title, note, page)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, bookId, title, note, page);
+      INSERT INTO key_concepts (id, bookId, title, note, excerpt, locatorJson, highlightJson, page)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, bookId, title, note, excerpt, locatorJson, highlightJson, page);
 
     return getConceptById(id)!;
   }
@@ -136,17 +172,24 @@ export function createAnnotationRepository(database: SqliteDatabase) {
       ? normalizeTitle(updates.title)
       : existing.title;
     if (!title) throw new Error("Titulo do conceito e obrigatorio");
+    assertUniqueConceptTitle(existing.bookId, title, id);
     const page = updates.page !== undefined ? normalizePage(updates.page) : existing.page;
-    const note = updates.note !== undefined ? updates.note?.trim() || null : existing.note;
+    const note = updates.note !== undefined ? optionalTrimmed(updates.note) : existing.note;
+    const excerpt = updates.excerpt !== undefined ? optionalTrimmed(updates.excerpt) : existing.excerpt;
+    const locatorJson = updates.locatorJson !== undefined ? optionalTrimmed(updates.locatorJson) : existing.locatorJson;
+    const highlightJson = updates.highlightJson !== undefined ? optionalTrimmed(updates.highlightJson) : existing.highlightJson;
 
     database.prepare(`
       UPDATE key_concepts
       SET title = ?,
           note = ?,
+          excerpt = ?,
+          locatorJson = ?,
+          highlightJson = ?,
           page = ?,
           updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(title, note, page, id);
+    `).run(title, note, excerpt, locatorJson, highlightJson, page, id);
 
     return getConceptById(id)!;
   }

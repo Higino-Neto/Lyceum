@@ -1,10 +1,4 @@
 import fs from "node:fs";
-import {
-  createCanvas,
-  DOMMatrix,
-  ImageData,
-  Path2D,
-} from "@napi-rs/canvas";
 
 export interface RenderPdfPageOptions {
   scale?: number;
@@ -18,8 +12,24 @@ export interface RenderedPdfPage {
 }
 
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null = null;
+let canvasPromise: Promise<typeof import("@napi-rs/canvas")> | null = null;
 
-function loadPdfJs() {
+async function loadCanvas() {
+  try {
+    canvasPromise ||= import("@napi-rs/canvas");
+    return await canvasPromise;
+  } catch (error) {
+    canvasPromise = null;
+    throw new Error(
+      `Nao foi possivel carregar o renderer nativo de thumbnails PDF: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
+
+async function loadPdfJs() {
+  const { DOMMatrix, ImageData, Path2D } = await loadCanvas();
   if (!("DOMMatrix" in globalThis)) {
     Object.defineProperty(globalThis, "DOMMatrix", { configurable: true, value: DOMMatrix });
   }
@@ -43,6 +53,7 @@ export async function renderPdfPageToPng(
   }
 
   const pdfjs = await loadPdfJs();
+  const { createCanvas } = await loadCanvas();
   const bytes = new Uint8Array(await fs.promises.readFile(pdfPath));
   const loadingTask = pdfjs.getDocument({
     data: bytes,

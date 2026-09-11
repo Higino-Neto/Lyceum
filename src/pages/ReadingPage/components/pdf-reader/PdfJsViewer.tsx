@@ -6,8 +6,8 @@ import { createPdfJsViewerUrl } from "./pdfRenderer";
 import { useChapterTracker } from "./chapters/useChapterTracker";
 import ChapterSidebar from "./chapters/ChapterSidebar";
 import { AnimatePresence, motion } from "motion/react";
-import { BookMarked } from "lucide-react";
 import AnnotationPanel from "./annotations/AnnotationPanel";
+import type { PdfSelectionPayload, PdfSelectionRect } from "../../../../types/AnnotationTypes";
 
 interface PdfJsViewerProps {
   pdfData: ArrayBuffer;
@@ -59,6 +59,7 @@ export default function PdfJsViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageConceptCount, setCurrentPageConceptCount] = useState(0);
   const [showAnnotations, setShowAnnotations] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<PdfSelectionPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
 
@@ -68,18 +69,6 @@ export default function PdfJsViewer({
   );
 
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
-  const viewerOrigin = useMemo(() => {
-    if (!viewerUrls?.viewerUrl) {
-      return null;
-    }
-
-    try {
-      const origin = new URL(viewerUrls.viewerUrl).origin;
-      return origin === "null" ? null : origin;
-    } catch {
-      return null;
-    }
-  }, [viewerUrls?.viewerUrl]);
 
   const syncChapterButtonState = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -87,9 +76,30 @@ export default function PdfJsViewer({
         type: "lyceum-pdfjs:chapters-state",
         open: showChapters,
       },
-      viewerOrigin ?? "*",
+      "*",
     );
-  }, [showChapters, viewerOrigin]);
+  }, [showChapters]);
+
+  const syncAnnotationButtonState = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      {
+        type: "lyceum-pdfjs:annotations-state",
+        open: showAnnotations,
+        count: currentPageConceptCount,
+      },
+      "*",
+    );
+  }, [currentPageConceptCount, showAnnotations]);
+
+  const syncKeyConceptHighlights = useCallback((highlights: Array<{ id: string; title: string; rects: PdfSelectionRect[] }>) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      {
+        type: "lyceum-pdfjs:key-concept-highlights",
+        highlights,
+      },
+      "*",
+    );
+  }, []);
 
   const handleChapterNavigate = useCallback(() => {
     restoreGenRef.current += 1;
@@ -103,8 +113,8 @@ export default function PdfJsViewer({
         return;
       }
       restoreGenRef.current += 1;
-      await window.api.applyNativePdfViewerState(sourceUrl, { page });
-      setCurrentPage(page);
+      const nextState = await window.api.applyNativePdfViewerState(sourceUrl, { page });
+      setCurrentPage(nextState?.page || page);
     },
     [sourceUrl],
   );
@@ -207,18 +217,32 @@ export default function PdfJsViewer({
 
       if (data.type === "lyceum-pdfjs:toggle-chapters") {
         onToggleChapters?.();
+      } else if (data.type === "lyceum-pdfjs:toggle-annotations") {
+        setShowAnnotations((value) => !value);
+      } else if (data.type === "lyceum-pdfjs:create-concept-from-selection") {
+        const payload = data.payload as PdfSelectionPayload | undefined;
+        if (payload?.text?.trim()) {
+          setPendingSelection(payload);
+          setCurrentPage(payload.page || currentPage);
+          setShowAnnotations(true);
+        }
       } else if (data.type === "lyceum-pdfjs:ready") {
         syncChapterButtonState();
+        syncAnnotationButtonState();
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onToggleChapters, syncChapterButtonState]);
+  }, [currentPage, onToggleChapters, syncAnnotationButtonState, syncChapterButtonState]);
 
   useEffect(() => {
     syncChapterButtonState();
   }, [syncChapterButtonState]);
+
+  useEffect(() => {
+    syncAnnotationButtonState();
+  }, [syncAnnotationButtonState]);
 
   useEffect(() => {
     if (!fileHash || !currentPage || !window.api?.getPageKeyConcepts) {
@@ -255,6 +279,7 @@ export default function PdfJsViewer({
     setCurrentPage(1);
     setCurrentPageConceptCount(0);
     setShowAnnotations(false);
+    setPendingSelection(null);
     setLoadError(null);
   }, [fileHash, sourceUrl]);
 
@@ -318,20 +343,6 @@ export default function PdfJsViewer({
       </AnimatePresence>
 
       <div className="relative min-w-0 flex-1">
-        <button
-          type="button"
-          onClick={() => setShowAnnotations((value) => !value)}
-          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/85 text-zinc-300 shadow-lg backdrop-blur transition hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
-          title="Key concepts"
-          aria-label="Key concepts"
-        >
-          <BookMarked size={17} />
-          {currentPageConceptCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-zinc-950">
-              {Math.min(9, currentPageConceptCount)}
-            </span>
-          )}
-        </button>
         {loadError && (
           <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-red-900/70 bg-red-950/90 px-3 py-2 text-sm text-red-100 shadow-lg">
             {loadError}
@@ -349,6 +360,7 @@ export default function PdfJsViewer({
             void restoreViewerState();
             void saveViewerState("schedule");
             syncChapterButtonState();
+            syncAnnotationButtonState();
           }}
           onError={() => {
             setLoadError("O Mozilla PDF.js Viewer nao conseguiu carregar.");
@@ -371,6 +383,9 @@ export default function PdfJsViewer({
               currentPage={currentPage}
               totalPages={lastStateRef.current?.totalPages ?? 0}
               chapters={chapterTracker.outline}
+              initialSelection={pendingSelection}
+              onSelectionConsumed={() => setPendingSelection(null)}
+              onHighlightsChange={syncKeyConceptHighlights}
               onClose={() => setShowAnnotations(false)}
               onGoToPage={goToPage}
             />

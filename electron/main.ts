@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { cachePdfBuffer, getCachedPdfBuffer } from "./services/pdfCache";
 import path from "node:path";
+import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import chokidar, { FSWatcher } from "chokidar";
@@ -141,6 +142,14 @@ const PASSWORD_RESET_DEEP_LINK_ROUTE = "/reset-password";
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
   : RENDERER_DIST;
+
+if (VITE_DEV_SERVER_URL) {
+  app.commandLine.appendSwitch(
+    "disk-cache-dir",
+    path.join(os.tmpdir(), `lyceum-electron-dev-cache-${process.pid}`),
+  );
+  app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+}
 
 let win: ElectronBrowserWindow | null = null;
 let fileWatcher: FSWatcher | null = null;
@@ -2379,8 +2388,9 @@ async function applyNativePdfViewerState(
     const result = (await frame.executeJavaScript(
       `
         (async () => {
+          const nextState = ${payload};
           if (globalThis.LyceumPdfJs?.applyState) {
-            return await globalThis.LyceumPdfJs.applyState(${payload}, { restore });
+            return await globalThis.LyceumPdfJs.applyState(nextState, { restore: !!nextState.restore });
           }
 
           const app = globalThis.PDFViewerApplication;
@@ -2394,14 +2404,28 @@ async function applyNativePdfViewerState(
 
           const viewer = app.pdfViewer;
           const container = viewer?.container;
-          const nextState = ${payload};
+          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
+          const targetPage = Number.isFinite(nextState.page) && nextState.page > 0
+            ? Math.min(Math.max(Math.round(nextState.page), 1), totalPages > 0 ? totalPages : Math.round(nextState.page))
+            : null;
 
           if (Number.isFinite(nextState.page) && nextState.page > 0) {
-            app.page = nextState.page;
+            try {
+              app.pdfLinkService?.goToPage?.(targetPage);
+            } catch {}
+            try {
+              if (viewer) viewer.currentPageNumber = targetPage;
+            } catch {}
+            try {
+              app.page = targetPage;
+            } catch {}
+            try {
+              viewer?.scrollPageIntoView?.({ pageNumber: targetPage });
+            } catch {}
           }
 
           if (viewer && Number.isFinite(nextState.currentScale) && nextState.currentScale > 0) {
-            viewer.currentScale = nextState.currentScale;
+            viewer.currentScaleValue = String(nextState.currentScale);
           }
 
           if (container && Number.isFinite(nextState.scrollTop) && nextState.scrollTop >= 0) {
@@ -2409,12 +2433,17 @@ async function applyNativePdfViewerState(
             container.scrollTop = nextState.scrollTop;
             await new Promise((resolve) => setTimeout(resolve, 50));
             container.scrollTop = nextState.scrollTop;
+          } else if (container && targetPage) {
+            await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+            const pageElement = document.querySelector('.page[data-page-number="' + targetPage + '"]');
+            if (pageElement instanceof HTMLElement) {
+              container.scrollTop = Math.max(0, pageElement.offsetTop - 8);
+            }
           }
 
-          const page = Number(app.page ?? viewer?.currentPageNumber ?? nextState.page ?? 1);
+          const page = Number(targetPage ?? app.page ?? viewer?.currentPageNumber ?? nextState.page ?? 1);
           const currentScale = Number(viewer?.currentScale ?? nextState.currentScale ?? 1);
           const scrollTop = Number(container?.scrollTop ?? nextState.scrollTop ?? 0);
-          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
 
           return {
             page: Number.isFinite(page) && page > 0 ? page : 1,

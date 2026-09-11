@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const optionalCanvasStub = path.resolve(__dirname, "scripts/shims/canvas-optional.cjs");
+const browserEvents = path.resolve(__dirname, "node_modules/events/events.js");
 
 export default defineConfig({
   plugins: [
@@ -72,7 +73,9 @@ export default defineConfig({
     global: "globalThis",
   },
   optimizeDeps: {
+    entries: ["index.html"],
     exclude: ["crypto"],
+    include: ["events", "graphology", "graphology-layout-forceatlas2", "sigma"],
   },
   build: {
     sourcemap: false,
@@ -118,6 +121,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       canvas: optionalCanvasStub,
       crypto: "node:crypto",
+      events: browserEvents,
     },
   },
   test: {

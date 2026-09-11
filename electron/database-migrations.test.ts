@@ -125,6 +125,7 @@ describe("SQLite migrations", () => {
     expect(getTableColumns(database, "reading_status_items")).toContain("rating");
     expect(getTableColumns(database, "watch_folders")).toContain("type");
     expect(getTableColumns(database, "key_concepts")).toContain("bookId");
+    expect(getTableColumns(database, "key_concepts")).toContain("highlightJson");
     expect(getTableColumns(database, "concept_relations")).toContain("conceptBId");
   });
 

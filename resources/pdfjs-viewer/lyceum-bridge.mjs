@@ -23,6 +23,41 @@ function finiteNonNegative(value, fallback) {
   return Number.isFinite(number) && number >= 0 ? number : fallback;
 }
 
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readPageCount(app) {
+  return finiteNonNegative(app?.pagesCount ?? app?.pdfViewer?.pagesCount, 0);
+}
+
+function readCurrentPage(app) {
+  return finitePositive(app?.page ?? app?.pdfViewer?.currentPageNumber, 1);
+}
+
+function clampPage(app, page) {
+  const rounded = Math.round(finitePositive(page, 1));
+  const totalPages = readPageCount(app);
+  return totalPages > 0 ? Math.min(Math.max(rounded, 1), totalPages) : Math.max(rounded, 1);
+}
+
+function getPageElement(page) {
+  return document.querySelector(`.page[data-page-number="${page}"]`);
+}
+
+async function waitForPageElement(page) {
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    const element = getPageElement(page);
+    if (element) return element;
+    await (attempt < 6 ? nextFrame() : wait(50));
+  }
+  return null;
+}
+
 async function whenReady() {
   const app = getApp();
   if (!app) {
@@ -54,19 +89,55 @@ async function whenDocumentReady() {
   return app;
 }
 
-function applyPageAndScroll(app, state) {
+async function applyScrollTop(container, scrollTop) {
+  if (!container || !Number.isFinite(scrollTop) || scrollTop < 0) {
+    return;
+  }
+
+  await nextFrame();
+  container.scrollTop = scrollTop;
+  await nextFrame();
+  container.scrollTop = scrollTop;
+}
+
+async function applyPageAndScroll(app, state) {
   const linkService = getLinkService(app);
   const viewer = app.pdfViewer;
   const container = getViewerContainer(app);
+  let appliedPage = null;
 
   if (Number.isFinite(state.page) && state.page > 0) {
-    // Replicate the viewer's own "go to page" path exactly.
-    if (linkService?.goToPage) {
-      linkService.goToPage(Math.round(state.page));
-    } else if (viewer?.scrollPageIntoView) {
-      viewer.scrollPageIntoView({ pageNumber: Math.round(state.page) });
-    } else {
-      app.page = Math.round(state.page);
+    const targetPage = clampPage(app, state.page);
+    appliedPage = targetPage;
+
+    // PDF.js has a few valid navigation entry points depending on load timing,
+    // sidebar state and build target. Use all stable APIs, then verify below.
+    try {
+      linkService?.goToPage?.(targetPage);
+    } catch {}
+    try {
+      if (viewer) viewer.currentPageNumber = targetPage;
+    } catch {}
+    try {
+      app.page = targetPage;
+    } catch {}
+    try {
+      viewer?.scrollPageIntoView?.({ pageNumber: targetPage });
+    } catch {}
+
+    await nextFrame();
+    await nextFrame();
+
+    if (readCurrentPage(app) !== targetPage) {
+      try {
+        linkService?.goToPage?.(targetPage);
+      } catch {}
+      try {
+        app.page = targetPage;
+      } catch {}
+      try {
+        viewer?.scrollPageIntoView?.({ pageNumber: targetPage });
+      } catch {}
     }
   }
 
@@ -75,13 +146,15 @@ function applyPageAndScroll(app, state) {
   }
 
   if (container && Number.isFinite(state.scrollTop) && state.scrollTop >= 0) {
-    requestAnimationFrame(() => {
-      container.scrollTop = state.scrollTop;
-      requestAnimationFrame(() => {
-        container.scrollTop = state.scrollTop;
-      });
-    });
+    await applyScrollTop(container, state.scrollTop);
+  } else if (container && appliedPage) {
+    const pageElement = await waitForPageElement(appliedPage);
+    if (pageElement instanceof HTMLElement) {
+      await applyScrollTop(container, Math.max(0, pageElement.offsetTop - 8));
+    }
   }
+
+  return appliedPage;
 }
 
 async function getState() {
@@ -159,9 +232,10 @@ async function applyState(state, { restore = false } = {}) {
   pending = null;
   pendingHandlerAttached = false;
 
-  applyPageAndScroll(app, state);
+  const appliedPage = await applyPageAndScroll(app, state);
 
-  return getState();
+  const nextState = await getState();
+  return appliedPage && nextState ? { ...nextState, page: appliedPage } : nextState;
 }
 
 globalThis.LyceumPdfJs = {
@@ -196,9 +270,37 @@ function updateLyceumChapterButton(open) {
   }
 }
 
+function updateLyceumAnnotationButton(open, count = 0) {
+  const button = document.getElementById("lyceumAnnotationToggleButton");
+  if (!button) {
+    return;
+  }
+
+  button.classList.toggle("toggled", !!open);
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  button.setAttribute("aria-pressed", open ? "true" : "false");
+
+  const badge = button.querySelector(".lyceumAnnotationBadge");
+  const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Math.round(Number(count))) : 0;
+  if (safeCount > 0) {
+    badge.textContent = String(Math.min(99, safeCount));
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+
 function sendChapterToggleRequest() {
   try {
     window.parent?.postMessage({ type: "lyceum-pdfjs:toggle-chapters" }, "*");
+  } catch {
+    // Cross-frame messaging is best-effort; the PDF reader remains usable.
+  }
+}
+
+function sendAnnotationToggleRequest() {
+  try {
+    window.parent?.postMessage({ type: "lyceum-pdfjs:toggle-annotations" }, "*");
   } catch {
     // Cross-frame messaging is best-effort; the PDF reader remains usable.
   }
@@ -254,10 +356,80 @@ function installChapterToggleBridge() {
   }
 }
 
+function createLyceumAnnotationButton() {
+  const existing = document.getElementById("lyceumAnnotationToggleButton");
+  if (existing) {
+    return existing;
+  }
+
+  const referenceButton = document.getElementById("sidebarToggleButton");
+  const toolbarGroup = referenceButton?.parentElement ?? document.getElementById("toolbarViewerLeft");
+  if (!toolbarGroup) {
+    return null;
+  }
+
+  const button = document.createElement("button");
+  button.id = "lyceumAnnotationToggleButton";
+  button.type = "button";
+  button.className = "toolbarButton lyceumAnnotationToggle";
+  button.title = "Key Concepts";
+  button.setAttribute("aria-label", "Key Concepts");
+  button.setAttribute("aria-expanded", "false");
+  button.setAttribute("aria-pressed", "false");
+
+  const label = document.createElement("span");
+  label.textContent = "Key Concepts";
+  button.append(label);
+
+  const badge = document.createElement("span");
+  badge.className = "lyceumAnnotationBadge";
+  badge.hidden = true;
+  button.append(badge);
+
+  button.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    sendAnnotationToggleRequest();
+  }, true);
+
+  referenceButton?.after(button);
+  if (!referenceButton) {
+    toolbarGroup.prepend(button);
+  }
+
+  return button;
+}
+
+function installAnnotationToggleBridge() {
+  const button = createLyceumAnnotationButton();
+  if (!button || button.__lyceumAnnotationToggleInstalled) {
+    return;
+  }
+
+  button.__lyceumAnnotationToggleInstalled = true;
+  updateLyceumAnnotationButton(false, 0);
+
+  window.addEventListener("message", event => {
+    if (event.source !== window.parent) {
+      return;
+    }
+
+    const data = event.data;
+    if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:annotations-state") {
+      return;
+    }
+
+    updateLyceumAnnotationButton(!!data.open, data.count);
+  });
+}
+
 const SELECTABLE_TEXT_SPAN_SELECTOR = ".textLayer span:not([role='img'])";
 const TEXT_LAYER_SELECTOR = ".textLayer";
 const SELECTION_LAYER_CLASS = "lyceumSelectionLayer";
 const SELECTION_RECT_CLASS = "lyceumSelectionRect";
+const CREATE_CONCEPT_BUTTON_ID = "lyceumCreateConceptButton";
+const HIGHLIGHT_LAYER_CLASS = "lyceumKeyConceptHighlightLayer";
+const HIGHLIGHT_RECT_CLASS = "lyceumKeyConceptHighlightRect";
 
 const HIT_TEST_PADDING = 1.5;
 const LINE_CLAMP_PADDING = 2;
@@ -265,7 +437,10 @@ const LINE_CLAMP_PADDING = 2;
 let activeSelectionDrag = null;
 let customSelection = null;
 let customSelectionRenderQueued = false;
+let currentSelectionPayload = null;
 let selectedTextForClipboard = "";
+let keyConceptHighlights = [];
+let highlightBridgeInstalled = false;
 
 const textLayerModelCache = new WeakMap();
 
@@ -320,12 +495,19 @@ function clearSelectionOverlays() {
   }
 }
 
+function clearCreateConceptButton() {
+  document.getElementById(CREATE_CONCEPT_BUTTON_ID)?.remove();
+  currentSelectionPayload = null;
+}
+
 function clearCustomSelection() {
   activeSelectionDrag = null;
   customSelection = null;
+  currentSelectionPayload = null;
   selectedTextForClipboard = "";
   clearNativeSelection();
   clearSelectionOverlays();
+  clearCreateConceptButton();
 }
 
 function getRenderedTextLayers() {
@@ -744,6 +926,73 @@ function mergeSelectionRects(rects) {
   return merged;
 }
 
+function getPageElementForTextLayer(textLayer) {
+  return textLayer.closest?.(".page") ?? null;
+}
+
+function getPageNumberForTextLayer(textLayer) {
+  const pageElement = getPageElementForTextLayer(textLayer);
+  const pageNumber = Number(pageElement?.dataset?.pageNumber);
+  return Number.isFinite(pageNumber) && pageNumber > 0
+    ? Math.round(pageNumber)
+    : finitePositive(getApp()?.page, 1);
+}
+
+function toPageRatioRect(rect, textLayer, pageElement) {
+  const layerBounds = textLayer.getBoundingClientRect();
+  const pageBounds = pageElement.getBoundingClientRect();
+  if (pageBounds.width <= 0 || pageBounds.height <= 0) {
+    return null;
+  }
+
+  return {
+    page: getPageNumberForTextLayer(textLayer),
+    left: (layerBounds.left + rect.left - pageBounds.left) / pageBounds.width,
+    top: (layerBounds.top + rect.top - pageBounds.top) / pageBounds.height,
+    width: rect.width / pageBounds.width,
+    height: rect.height / pageBounds.height,
+  };
+}
+
+function renderCreateConceptButton(payload, anchorRect) {
+  clearCreateConceptButton();
+  if (!payload?.text || !anchorRect) {
+    return;
+  }
+
+  currentSelectionPayload = payload;
+
+  const button = document.createElement("button");
+  button.id = CREATE_CONCEPT_BUTTON_ID;
+  button.type = "button";
+  button.className = "lyceumCreateConceptButton";
+  button.textContent = "+ Concept";
+  button.title = "Criar Key Concept";
+  button.setAttribute("aria-label", "Criar Key Concept a partir da selecao");
+
+  const left = Math.min(window.innerWidth - 112, Math.max(8, anchorRect.right + 8));
+  const top = Math.min(window.innerHeight - 42, Math.max(8, anchorRect.top + anchorRect.height / 2 - 16));
+  button.style.left = `${left}px`;
+  button.style.top = `${top}px`;
+
+  button.addEventListener("pointerdown", stopSelectionEvent, true);
+  button.addEventListener("mousedown", stopSelectionEvent, true);
+  button.addEventListener("click", event => {
+    stopSelectionEvent(event);
+    try {
+      window.parent?.postMessage({
+        type: "lyceum-pdfjs:create-concept-from-selection",
+        payload: currentSelectionPayload,
+      }, "*");
+      button.remove();
+    } catch {
+      // Ignore; the selection itself remains available for copying.
+    }
+  }, true);
+
+  document.body.append(button);
+}
+
 function getSelectedLayerRects(textLayer, startOffset, endOffset) {
   const model = getTextLayerModel(textLayer);
   const rects = [];
@@ -789,6 +1038,7 @@ function getSelectedTextForLayer(textLayer, startOffset, endOffset) {
 
 function renderCustomSelection() {
   clearSelectionOverlays();
+  clearCreateConceptButton();
 
   const normalized = getNormalizedSelection();
   if (!normalized || comparePositions(normalized.start, normalized.end) === 0) {
@@ -800,6 +1050,9 @@ function renderCustomSelection() {
   const startLayerIndex = textLayers.indexOf(normalized.start.textLayer);
   const endLayerIndex = textLayers.indexOf(normalized.end.textLayer);
   const textParts = [];
+  const payloadRects = [];
+  let payloadPage = null;
+  let buttonAnchorRect = null;
 
   if (startLayerIndex < 0 || endLayerIndex < 0) {
     selectedTextForClipboard = "";
@@ -818,6 +1071,7 @@ function renderCustomSelection() {
 
     const rects = getSelectedLayerRects(textLayer, startOffset, endOffset);
     const layer = getOrCreateSelectionLayer(textLayer);
+    const pageElement = getPageElementForTextLayer(textLayer);
     for (const rect of rects) {
       const selectionRect = document.createElement("div");
       selectionRect.className = SELECTION_RECT_CLASS;
@@ -826,6 +1080,23 @@ function renderCustomSelection() {
       selectionRect.style.width = `${rect.width}px`;
       selectionRect.style.height = `${rect.height}px`;
       layer.append(selectionRect);
+
+      if (pageElement) {
+        const ratioRect = toPageRatioRect(rect, textLayer, pageElement);
+        if (ratioRect) {
+          payloadRects.push(ratioRect);
+          payloadPage ??= ratioRect.page;
+          const bounds = textLayer.getBoundingClientRect();
+          buttonAnchorRect = {
+            left: bounds.left + rect.left,
+            top: bounds.top + rect.top,
+            right: bounds.left + rect.left + rect.width,
+            bottom: bounds.top + rect.top + rect.height,
+            width: rect.width,
+            height: rect.height,
+          };
+        }
+      }
     }
 
     const layerText = getSelectedTextForLayer(textLayer, startOffset, endOffset);
@@ -838,6 +1109,14 @@ function renderCustomSelection() {
   }
 
   selectedTextForClipboard = textParts.join("");
+  const text = selectedTextForClipboard.trim();
+  if (text && payloadRects.length > 0) {
+    renderCreateConceptButton({
+      text,
+      page: payloadPage ?? finitePositive(getApp()?.page, 1),
+      rects: payloadRects,
+    }, buttonAnchorRect);
+  }
 }
 
 function updateCustomSelection(focus) {
@@ -863,6 +1142,10 @@ function installTextSelectionGuards() {
     pointerStartEvent,
     event => {
       if (event.button !== 0) {
+        return;
+      }
+
+      if (event.target?.closest?.(`#${CREATE_CONCEPT_BUTTON_ID}`)) {
         return;
       }
 
@@ -1015,6 +1298,76 @@ function wrapSetInitialView() {
   };
 }
 
+function clearHighlightLayers() {
+  for (const layer of document.querySelectorAll(`.${HIGHLIGHT_LAYER_CLASS}`)) {
+    layer.remove();
+  }
+}
+
+function getOrCreateHighlightLayer(pageElement) {
+  let layer = pageElement.querySelector(`:scope > .${HIGHLIGHT_LAYER_CLASS}`);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.className = HIGHLIGHT_LAYER_CLASS;
+    layer.setAttribute("aria-hidden", "true");
+    pageElement.append(layer);
+  }
+  return layer;
+}
+
+function renderKeyConceptHighlights() {
+  clearHighlightLayers();
+  for (const item of keyConceptHighlights) {
+    const rects = Array.isArray(item?.rects) ? item.rects : [];
+    for (const rect of rects) {
+      const page = Number(rect?.page);
+      const pageElement = Number.isFinite(page)
+        ? document.querySelector(`.page[data-page-number="${Math.round(page)}"]`)
+        : null;
+      if (!pageElement) {
+        continue;
+      }
+
+      const highlightRect = document.createElement("div");
+      highlightRect.className = HIGHLIGHT_RECT_CLASS;
+      highlightRect.title = item.title || "Key Concept";
+      highlightRect.dataset.conceptId = item.id || "";
+      highlightRect.style.left = `${Math.max(0, Math.min(1, Number(rect.left) || 0)) * 100}%`;
+      highlightRect.style.top = `${Math.max(0, Math.min(1, Number(rect.top) || 0)) * 100}%`;
+      highlightRect.style.width = `${Math.max(0, Math.min(1, Number(rect.width) || 0)) * 100}%`;
+      highlightRect.style.height = `${Math.max(0, Math.min(1, Number(rect.height) || 0)) * 100}%`;
+      getOrCreateHighlightLayer(pageElement).append(highlightRect);
+    }
+  }
+}
+
+function installHighlightBridge() {
+  if (!highlightBridgeInstalled) {
+    highlightBridgeInstalled = true;
+    window.addEventListener("message", event => {
+      if (event.source !== window.parent) {
+        return;
+      }
+
+      const data = event.data;
+      if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:key-concept-highlights") {
+        return;
+      }
+
+      keyConceptHighlights = Array.isArray(data.highlights) ? data.highlights : [];
+      renderKeyConceptHighlights();
+    });
+  }
+
+  const app = getApp();
+  if (app?.eventBus && !app.__lyceumHighlightEventsInstalled) {
+    app.__lyceumHighlightEventsInstalled = true;
+    app.eventBus._on?.("pagerendered", renderKeyConceptHighlights);
+    app.eventBus._on?.("scalechanging", renderKeyConceptHighlights);
+    app.eventBus._on?.("pagesinit", renderKeyConceptHighlights);
+  }
+}
+
 function wrapNativeSidebarToggle() {
   const app = getApp();
   const sidebar = app?.pdfSidebar;
@@ -1049,6 +1402,8 @@ document.addEventListener(
     configureBeforeRun();
     installTextSelectionGuards();
     installChapterToggleBridge();
+    installAnnotationToggleBridge();
+    installHighlightBridge();
     wrapSetInitialView();
     applyLyceumTitle();
 
@@ -1056,6 +1411,8 @@ document.addEventListener(
     app?.initializedPromise?.then(() => {
       applyLyceumTitle();
       installChapterToggleBridge();
+      installAnnotationToggleBridge();
+      installHighlightBridge();
       wrapNativeSidebarToggle();
       closeNativeSidebar(app);
       app.eventBus?._on?.("documentloaded", applyLyceumTitle);
