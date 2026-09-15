@@ -161,15 +161,17 @@ function BookEditor({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/70 backdrop-blur-sm">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label="Detalhes do livro">
         <div className="flex items-center justify-between">
           <div><p className="text-xs uppercase tracking-wider text-emerald-400">Detalhes do livro</p><h2 className="mt-1 text-lg font-semibold">{book.title}</h2></div>
-          <button className="grid h-10 w-10 place-items-center rounded-full bg-zinc-900" onClick={onClose} aria-label="Fechar detalhes" type="button"><X size={18} /></button>
+          <button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={onClose} aria-label="Fechar detalhes" type="button"><X size={18} /></button>
         </div>
 
         <div className="mt-5 grid gap-3">
-          <label>Status <select className="ml-2 rounded-lg bg-zinc-800 p-2" value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <input className="rounded-lg bg-zinc-800 p-3" placeholder="Tags separadas por vírgula" value={draft.tags?.join(", ") || ""} onChange={e => update({ tags: e.target.value.split(",").map(t => t.trim()) })} />
+          <label className="grid gap-2 text-sm font-semibold">Status de leitura<select className="mobile-field" value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <button className={`flex h-12 items-center justify-center gap-2 rounded-xl border ${draft.isFavorite ? "border-emerald-500 bg-emerald-500/15 text-emerald-300" : "border-zinc-800 bg-zinc-900"}`} onClick={() => update({ isFavorite: !draft.isFavorite })} type="button"><Heart className={draft.isFavorite ? "fill-current" : ""} size={17} /> {draft.isFavorite ? "Favorito" : "Adicionar aos favoritos"}</button>
+          <details className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">Metadados e notas</summary><div className="mt-4 grid gap-3">
+          <input className="rounded-lg bg-zinc-800 p-3" aria-label="Tags separadas por vírgula" placeholder="Tags separadas por vírgula" value={draft.tags?.join(", ") || ""} onChange={e => update({ tags: e.target.value.split(",").map(t => t.trim()) })} />
           <input className="rounded-lg bg-zinc-800 p-3" placeholder="Série" value={draft.seriesName || ""} onChange={e => update({ seriesName: e.target.value })} />
           <input className="rounded-lg bg-zinc-800 p-3" aria-label="Volume da série" type="number" step="0.1" value={draft.seriesIndex ?? ""} onChange={e => update({ seriesIndex: e.target.value ? Number(e.target.value) : undefined })} />
           <input className="rounded-lg bg-zinc-800 p-3" placeholder="Idioma" value={draft.language || ""} onChange={e => update({ language: e.target.value })} />
@@ -193,11 +195,8 @@ function BookEditor({
             <input className="mt-2 w-full accent-emerald-500" type="range" min="0" max="5" step="1" value={draft.rating || 0} onChange={(event) => update({ rating: Number(event.target.value) })} />
           </label>
           <textarea className="min-h-24 rounded-xl border border-zinc-800 bg-zinc-900 p-3" value={draft.description || ""} onChange={(event) => update({ description: event.target.value })} placeholder="Descricao" />
-          <textarea className="min-h-28 rounded-xl border border-zinc-800 bg-zinc-900 p-3" value={draft.notes || ""} onChange={(event) => update({ notes: event.target.value })} placeholder="Notas" />
-
-          <button className={`flex h-11 items-center justify-center gap-2 rounded-xl border ${draft.isFavorite ? "border-emerald-500 bg-emerald-500/15 text-emerald-300" : "border-zinc-800 bg-zinc-900"}`} onClick={() => update({ isFavorite: !draft.isFavorite })} type="button">
-            <Heart className={draft.isFavorite ? "fill-current" : ""} size={17} /> {draft.isFavorite ? "Favorito" : "Adicionar aos favoritos"}
-          </button>
+          <textarea className="min-h-28 rounded-xl border border-zinc-800 bg-zinc-900 p-3" aria-label="Notas" value={draft.notes || ""} onChange={(event) => update({ notes: event.target.value })} placeholder="Notas" />
+          </div></details>
 
           <label className="text-sm text-zinc-400">Pasta gerenciada</label>
           <select className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.folderId || ""} onChange={(event) => update({ folderId: event.target.value || undefined })}>
@@ -227,8 +226,7 @@ function BookEditor({
               updatedAt: new Date().toISOString(),
             });
           }} disabled={moving} type="button">{moving ? "Movendo..." : "Salvar alteracoes"}</button>
-          <button className="rounded-lg bg-zinc-800 p-3" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }}>Exportar arquivo do livro</button>
-          <button className="rounded-lg bg-zinc-800 p-3" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }}>Enviar ao Kindle / compartilhar</button>
+          <details className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">Arquivo e compartilhamento</summary><div className="mt-3 grid gap-2"><button className="min-h-11 rounded-xl bg-zinc-800 px-3 text-sm" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }} type="button">Exportar arquivo do livro</button><button className="min-h-11 rounded-xl bg-zinc-800 px-3 text-sm" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }} type="button">Enviar ao Kindle / compartilhar</button></div></details>
           <button className="h-11 rounded-xl border border-red-900/70 bg-red-950/30 font-medium text-red-300" onClick={onDelete} type="button">Remover livro e arquivo gerenciado</button>
         </div>
       </div>
@@ -259,6 +257,7 @@ export default function MobileLibraryScreen({
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingBookId, setEditingBookId] = useState<string>();
@@ -318,8 +317,8 @@ export default function MobileLibraryScreen({
   return (
     <section className="min-h-screen bg-[#050607] px-4 pb-[calc(90px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-zinc-100">
       <ReaderTools />
-      <details className="my-2 rounded-xl bg-zinc-900 p-3 text-sm"><summary>Organizar e filtrar biblioteca</summary>
-        <div className="mt-3 flex flex-wrap gap-2">
+      {advancedOpen && <div className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={() => setAdvancedOpen(false)}><div className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border border-zinc-700 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label="Filtros e coleções" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Biblioteca</p><h2 className="mt-1 text-xl font-semibold">Filtros e coleções</h2></div><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" aria-label="Fechar filtros" onClick={() => setAdvancedOpen(false)} type="button"><X size={19} /></button></div>
+        <div className="mt-5 grid gap-3 text-sm">
           <select aria-label="Filtrar status" className="rounded bg-zinc-800 p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">Todos os status</option>{Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select aria-label="Filtrar tag" className="rounded bg-zinc-800 p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">Todas as tags</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</select>
           <input className="rounded bg-zinc-800 p-2" placeholder="Autor" value={query.author || ""} onChange={e => setQuery({ author: e.target.value || undefined })} />
@@ -336,7 +335,7 @@ export default function MobileLibraryScreen({
           <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "title_asc" })}>Limpar filtros</button>
           {bulkMode && <><input className="rounded bg-zinc-800 p-2" placeholder="Tags para os selecionados" value={bulkTags} onChange={e => setBulkTags(e.target.value)} /><button className="rounded bg-emerald-800 p-2" disabled={!selectedIds.size} onClick={() => selectedIds.forEach(id => { const b = state.books.find(b => b.id === id); onUpdateBook(id, { tags: [...new Set([...(b?.tags || []), ...bulkTags.split(",").map(t => t.trim()).filter(Boolean)])] }); })}>Aplicar tags em lote</button></>}
         </div>
-      </details>
+      </div></div>}
       <header className="flex h-12 items-center justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => setDrawerOpen(true)} aria-label="Menu da biblioteca" type="button"><Menu size={23} /></button>
@@ -344,27 +343,29 @@ export default function MobileLibraryScreen({
         </div>
         <div className="flex gap-1">
           <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => searchRef.current?.focus()} aria-label="Buscar" type="button"><Search size={20} /></button>
-          <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => setSortOpen((value) => !value)} aria-label="Ordenar e filtrar" type="button"><SlidersHorizontal size={20} /></button>
+          {state.books.length > 0 && <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => setSortOpen((value) => !value)} aria-label="Ordenar e filtrar" type="button"><SlidersHorizontal size={20} /></button>}
         </div>
       </header>
 
-      <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto rounded-xl bg-zinc-900/80 px-2 py-1 text-xs" aria-label="Caminho da pasta">
+      {(folderTrail.length > 0 || currentSource) && <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto rounded-xl bg-zinc-900/80 px-2 py-1 text-xs" aria-label="Caminho da pasta">
         <button className={`shrink-0 rounded-lg px-2.5 py-2 ${!currentFolder && !currentSource ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400"}`} onClick={() => setQuery({ folderId: undefined, sourceFolderId: undefined })} type="button">Biblioteca</button>
         {folderTrail.map((folder) => <span className="flex shrink-0 items-center" key={folder.id}><ChevronRight size={13} className="text-zinc-700" /><button className={`rounded-lg px-2.5 py-2 ${folder.id === query.folderId ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400"}`} onClick={() => openFolder(folder)} type="button">{folder.name}</button></span>)}
         {currentSource && <span className="flex shrink-0 items-center"><ChevronRight size={13} className="text-zinc-700" /><span className="rounded-lg bg-emerald-500/15 px-2.5 py-2 text-emerald-300">Fonte: {currentSource.name}</span></span>}
-      </nav>
+      </nav>}
 
       <div className="relative mt-3">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
         <input ref={searchRef} className="h-11 w-full rounded-2xl border border-white/5 bg-[#17181c] pl-11 pr-4 text-sm outline-none focus:border-emerald-500/50" placeholder="Livros, autores, notas, pastas..." value={query.search} onChange={(event) => setQuery({ search: event.target.value })} />
       </div>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {(["all", "managed", "source"] as const).map((scope) => <button key={scope} className={`h-8 shrink-0 rounded-full px-4 text-xs font-semibold ${query.scope === scope ? "bg-emerald-600 text-white" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ scope })} type="button">{scope === "all" ? "Todos" : scope === "managed" ? "Gerenciados" : "Fontes"}</button>)}
-        {(["pdf", "epub", "txt"] as const).map((fileType) => <button key={fileType} className={`h-8 shrink-0 rounded-full px-4 text-xs font-semibold uppercase ${query.fileType === fileType ? "bg-zinc-100 text-zinc-950" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ fileType: query.fileType === fileType ? "all" : fileType })} type="button">{fileType}</button>)}
-      </div>
+      {state.books.length > 0 && <div className="mt-3 flex gap-2">{state.books.some((book) => getBookProgress(book) > 0 && getBookProgress(book) < 100) && <button className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc", minProgress: 1, maxProgress: 99 })} type="button"><BookOpen size={17} />Continuar lendo</button>}<button className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-3 text-sm font-semibold text-zinc-200" onClick={() => setAdvancedOpen(true)} type="button"><SlidersHorizontal size={17} />Filtros e coleções</button></div>}
 
-      <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+      {state.books.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        {(["all", "managed", "source"] as const).map((scope) => <button key={scope} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold ${query.scope === scope ? "bg-emerald-600 text-white" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ scope })} type="button">{scope === "all" ? "Todos" : scope === "managed" ? "Gerenciados" : "Fontes"}</button>)}
+        {(["pdf", "epub", "txt"] as const).map((fileType) => <button key={fileType} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold uppercase ${query.fileType === fileType ? "bg-zinc-100 text-zinc-950" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ fileType: query.fileType === fileType ? "all" : fileType })} type="button">{fileType}</button>)}
+      </div>}
+
+      {state.books.length > 0 && <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
         <span>{books.length} resultado(s) · {sortLabels[query.sort]}</span>
         <div className="flex gap-1">
           <button className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-900 text-emerald-400" onClick={() => openFolderDialog("create", undefined, query.folderId)} aria-label="Nova pasta" type="button"><Plus size={17} /></button>
@@ -372,7 +373,7 @@ export default function MobileLibraryScreen({
           <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "grid" ? "bg-zinc-700 text-white" : "bg-zinc-900"}`} onClick={() => onViewChange("grid")} aria-label="Grade" type="button"><Grid2X2 size={16} /></button>
           <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "list" ? "bg-zinc-700 text-white" : "bg-zinc-900"}`} onClick={() => onViewChange("list")} aria-label="Lista" type="button"><List size={17} /></button>
         </div>
-      </div>
+      </div>}
 
       {visibleChildFolders.length > 0 && (
         <div className="mt-4">
@@ -415,7 +416,7 @@ export default function MobileLibraryScreen({
         })}</div>
       )}
 
-      <button className="fixed bottom-[calc(82px+env(safe-area-inset-bottom))] right-5 z-20 grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white shadow-xl shadow-black/40" onClick={onImportFiles} aria-label="Importar livros" type="button"><FilePlus2 size={24} /></button>
+      {state.books.length > 0 && <button className="fixed bottom-[calc(82px+env(safe-area-inset-bottom))] right-5 z-20 grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white shadow-xl shadow-black/40" onClick={onImportFiles} aria-label="Importar livros" type="button"><FilePlus2 size={24} /></button>}
 
       {sortOpen && <div className="fixed inset-0 z-40 flex items-end bg-black/60" onClick={() => setSortOpen(false)}><div className="w-full rounded-t-3xl bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-semibold">Ordenar e exibir</h2><button onClick={() => setSortOpen(false)} type="button"><X /></button></div><div className="mt-4 grid gap-2">{Object.entries(sortLabels).map(([value, label]) => <button key={value} className={`flex h-11 items-center justify-between rounded-xl px-3 text-sm ${query.sort === value ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-900"}`} onClick={() => { setQuery({ sort: value as MobileLibraryQuery["sort"] }); setSortOpen(false); }} type="button"><span className="flex items-center gap-2"><ArrowDownAZ size={16} />{label}</span>{query.sort === value && <Check size={16} />}</button>)}</div></div></div>}
 

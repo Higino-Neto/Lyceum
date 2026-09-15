@@ -120,7 +120,7 @@ function RequestRow({
       {incoming ? (
         <div className="flex gap-1">
           <button
-            className="grid h-9 w-9 place-items-center rounded bg-emerald-600 text-white disabled:opacity-60"
+            className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white disabled:opacity-60"
             disabled={busy}
             onClick={() => onAccept(request.id)}
             type="button"
@@ -129,7 +129,7 @@ function RequestRow({
             <Check size={16} />
           </button>
           <button
-            className="grid h-9 w-9 place-items-center rounded bg-red-950/60 text-red-300 disabled:opacity-60"
+            className="grid h-11 w-11 place-items-center rounded-xl bg-red-950/60 text-red-300 disabled:opacity-60"
             disabled={busy}
             onClick={() => onDecline(request.id)}
             type="button"
@@ -140,7 +140,7 @@ function RequestRow({
         </div>
       ) : (
         <button
-          className="h-9 rounded border border-zinc-800 bg-zinc-950 px-3 text-xs font-semibold text-zinc-300 disabled:opacity-60"
+          className="h-11 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-xs font-semibold text-zinc-300 disabled:opacity-60"
           disabled={busy}
           onClick={() => onCancel(request.id)}
           type="button"
@@ -169,7 +169,7 @@ function FriendRow({
         <p className="truncate text-xs text-zinc-500">@{friend.nickname} · {friend.total_pages}p</p>
       </div>
       <button
-        className="grid h-9 w-9 place-items-center rounded bg-zinc-950 text-red-300 disabled:opacity-60"
+        className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-950 text-red-300 disabled:opacity-60"
         disabled={busy}
         onClick={() => onRemove(friend.user_id)}
         type="button"
@@ -524,7 +524,7 @@ export default function MobileLeaderboardScreen({
         </button>
       </div>
 
-      {showFriends && <MobileFriendsPanel enabled={enabled} />}
+      {showFriends && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label="Gerenciar amigos" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-zinc-100">Gerenciar amigos</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={() => setShowFriends(false)} aria-label="Fechar amigos" type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
 
       <section className="overflow-hidden rounded border border-zinc-800 bg-zinc-900">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">

@@ -31,6 +31,7 @@ describe("mobile library screen", () => {
   it("filters by reading status and exposes bulk selection", () => {
     const p = props(); p.state = migrateMobileState({ books: [{ id: "b", title: "Teste", fileType: "txt", fileName: "test.txt" }] });
     render(<MobileConfirmProvider><ReaderDataProvider><MobileLibraryScreen {...p} /></ReaderDataProvider></MobileConfirmProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Filtros e coleções" }));
     fireEvent.change(screen.getByLabelText("Filtrar status"), { target: { value: "reading" } });
     expect(p.onQueryChange).toHaveBeenCalledWith(expect.objectContaining({ status: "reading" }));
     fireEvent.click(screen.getByLabelText("Selecao em lote"));

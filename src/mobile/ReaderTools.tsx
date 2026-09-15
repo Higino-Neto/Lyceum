@@ -104,18 +104,18 @@ export function ReaderTools({ bookId, locator, selection, clearSelection, naviga
   };
   const items = data.annotations.filter(a => !a.deletedAt && (!bookId || a.bookId === bookId)
     && (tab !== "Marcadores" || a.type === "bookmark") && `${a.text} ${a.note} ${a.bookId}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-  const cls = "rounded-lg bg-zinc-800 px-3 py-2 text-sm text-white disabled:opacity-40";
+  const cls = "min-h-11 rounded-xl bg-zinc-800 px-3 py-2 text-sm text-white disabled:opacity-40";
   return <div onClick={e => e.stopPropagation()}>
     {bookId && !open && controls.tapZones && onTurn && <><button className="absolute bottom-[25%] left-0 z-20 h-[40%] w-[6%]" aria-label="Página anterior" onClick={() => onTurn(-1)} /><button className="absolute bottom-[25%] right-0 z-20 h-[40%] w-[6%]" aria-label="Próxima página" onClick={() => onTurn(1)} /></>}
     {bookId && native && !open && <div className="absolute bottom-[25%] left-0 z-30 h-[40%] w-3 touch-none" onTouchStart={e => { brightnessTouch.current = e.touches[0].clientY; }} onTouchMove={e => { const y = e.touches[0].clientY; const delta = (brightnessTouch.current - y) / 400; brightnessTouch.current = y; setControls(c => ({ ...c, brightness: Math.max(0.1, Math.min(1, (c.brightness < 0 ? 1 : c.brightness) + delta)) })); }} />}
 
-    <button className="absolute bottom-36 right-3 z-30 rounded-full bg-emerald-700 px-4 py-3 text-sm text-white shadow-lg" onClick={() => setOpen(true)} aria-label={bookId ? "Anotações e histórico" : "Todas as notas"}>{bookId ? "Notas" : "Todas as notas"}</button>
+    {(bookId || data.annotations.some((item) => !item.deletedAt)) && <button className={`${bookId ? "absolute bottom-36 right-3" : "fixed bottom-[calc(160px+env(safe-area-inset-bottom))] right-5"} z-30 min-h-11 rounded-full bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-lg`} onClick={() => setOpen(true)} aria-label={bookId ? "Anotações e histórico" : "Todas as notas"}>{bookId ? "Notas" : "Todas as notas"}</button>}
     {selection && bookId && <div className="absolute inset-x-3 top-20 z-50 flex gap-2 rounded-xl bg-zinc-950 p-3 text-white shadow-xl">
       <button disabled={!ready} className={cls} onClick={() => { add(bookId, "highlight", selection.locator, selection.text); clearSelection?.(); }}>Destacar</button>
       <button disabled={!ready} className={cls} onClick={() => { add(bookId, "note", selection.locator, selection.text); clearSelection?.(); setOpen(true); }}>Anotar</button>
       <button className={cls} onClick={clearSelection}>Fechar</button>
     </div>}
-    {open && <div className="fixed inset-0 z-[90] flex flex-col bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] text-zinc-100" role="dialog" aria-modal="true" aria-label="Caderno de leitura">
+    {open && <div className="fixed inset-0 z-[90] flex flex-col bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))] text-zinc-100" role="dialog" aria-modal="true" aria-label="Caderno de leitura">
       <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{bookId ? "Caderno de leitura" : "Todas as notas"}</h2><button className={cls} onClick={() => setOpen(false)}>Fechar</button></div>
       <div className="my-3 flex flex-wrap gap-2">{["Anotações", "Marcadores", "Histórico", "Ouvir"].map(t => <button className={cls} aria-pressed={tab === t} key={t} onClick={() => setTab(t)}>{t}</button>)}</div>
       {tab === "Histórico" ? <div className="overflow-auto">

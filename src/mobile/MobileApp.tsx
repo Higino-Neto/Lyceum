@@ -241,6 +241,7 @@ function MobileApp() {
   const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
   const { sessionEmail, authReady, authBusy, authError, authEmail, setAuthEmail, authPassword, setAuthPassword, signIn, signOut, requestPasswordReset } = useMobileAuth();
   const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { selectedBook, selectedBookDataUrl, isEbookReader, setReaderDataUrls, readerFileLoading, selectBook } = useMobileReaderState(state, setState, setActiveTab);
   const { nativeApkUpdate, nativeApkUpdateBusy, refreshNativeApkUpdate, installNativeUpdate, openNativeInstallSettings } = useMobileUpdater();
   useEffect(() => {
@@ -251,6 +252,14 @@ function MobileApp() {
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
     };
+  }, []);
+
+  useEffect(() => {
+    const updateKeyboard = () => setKeyboardOpen(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLSelectElement);
+    document.addEventListener("focusin", updateKeyboard);
+    const onFocusOut = () => window.setTimeout(updateKeyboard, 0);
+    document.addEventListener("focusout", onFocusOut);
+    return () => { document.removeEventListener("focusin", updateKeyboard); document.removeEventListener("focusout", onFocusOut); };
   }, []);
 
   useEffect(() => {
@@ -717,7 +726,7 @@ function MobileApp() {
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) || keyboardOpen ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
           <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-zinc-500">Carregando...</div>}>
           {activeTab === "dashboard" && (
             <MobileDashboardScreen
@@ -728,12 +737,14 @@ function MobileApp() {
                 setActiveTab("readings");
               }}
               onOpenLeaderboard={() => setActiveTab("leaderboard")}
+              books={state.books}
+              onOpenBook={selectBook}
             />
           )}
 
           {activeTab === "readings" && (
             <MobileReadingEntryScreen
-              key={readingSeedBookId || "manual-reading"}
+              key={`${sessionEmail || "guest"}:${readingSeedBookId || "manual-reading"}`}
               books={state.books}
               sessionEmail={sessionEmail}
               selectedBook={readingSeedBookId ? state.books.find((book) => book.id === readingSeedBookId) || null : null}
@@ -780,6 +791,7 @@ function MobileApp() {
                     }}
                     bookTitle={selectedBook.title}
                     onBack={() => setActiveTab("library")}
+                    onRegister={() => { setReadingSeedBookId(selectedBook.id); setActiveTab("readings"); }}
                   />
                 </div>
               ) : selectedBook && selectedBook.fileType === "epub" ? (
@@ -845,6 +857,7 @@ function MobileApp() {
                             currentPage={selectedBook.currentPage}
                             initialZoom={selectedBook.currentZoom || 1}
                             onClose={() => setActiveTab("library")}
+                            onRegister={() => { setReadingSeedBookId(selectedBook.id); setActiveTab("readings"); }}
                             onPageChange={(page) => {
                               setState((current) => {
                                 const book = current.books.find((item) => item.id === selectedBook.id);
@@ -940,9 +953,8 @@ function MobileApp() {
 
           {activeTab === "profile" && (
             <section className="space-y-5 p-4">
-              <MobileBackupPanel state={state} setState={setState} />
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">Lyceum Mobile</p>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-base font-semibold text-zinc-100">Sua conta e dispositivo</p>
                 <div className="mt-4 space-y-3 text-sm text-zinc-400">
                   <p>Versao: {import.meta.env.VITE_APP_VERSION || "desenvolvimento"}</p>
                   <p>Biblioteca: armazenamento local persistente no aparelho.</p>
@@ -961,7 +973,7 @@ function MobileApp() {
                 )}
               </div>
 
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-base font-semibold text-zinc-100">Atualizacoes</p>
@@ -1047,8 +1059,8 @@ function MobileApp() {
                 </div>
               </div>
 
-              <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">Login Supabase</p>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-base font-semibold text-zinc-100">{sessionEmail ? "Conta conectada" : "Entrar na conta"}</p>
                 {getMobileSupabaseConfigError() ? (
                   <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
                     {getMobileSupabaseConfigError()}
@@ -1060,7 +1072,9 @@ function MobileApp() {
                   </p>
                 ) : null}
                 <div className="mt-4 space-y-3">
+                  <label className="block text-sm font-medium text-zinc-300" htmlFor="mobile-auth-email">Email</label>
                   <input
+                    id="mobile-auth-email"
                     className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
                     placeholder="email"
                     autoComplete="email"
@@ -1069,7 +1083,9 @@ function MobileApp() {
                     value={authEmail}
                     onChange={(event) => setAuthEmail(event.target.value)}
                   />
+                  <label className="block text-sm font-medium text-zinc-300" htmlFor="mobile-auth-password">Senha</label>
                   <input
+                    id="mobile-auth-password"
                     className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
                     placeholder="senha"
                     type="password"
@@ -1118,13 +1134,14 @@ function MobileApp() {
                   )}
                 </div>
               </div>
+              <div><h2 className="mb-3 text-base font-semibold text-zinc-100">Dados e backup</h2><MobileBackupPanel state={state} setState={setState} /></div>
             </section>
           )}
           </Suspense>
         </main>
 
-        {activeTab === "reader" && isEbookReader ? null : (
-          <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        {activeTab === "reader" && isEbookReader || keyboardOpen ? null : (
+          <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
             <div className="grid grid-cols-5 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -1132,9 +1149,10 @@ function MobileApp() {
                 return (
                   <button
                     key={tab.id}
-                    className={`flex h-12 flex-col items-center justify-center gap-1 rounded text-[10px] font-semibold transition active:scale-95 ${
-                      active ? "text-emerald-500" : "text-zinc-500"
+                    className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold transition active:scale-95 ${
+                      active ? "bg-emerald-500/10 text-emerald-400" : "text-zinc-400"
                     }`}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => {
                       if (tab.id === "readings") {
                         setReadingSeedBookId(undefined);
@@ -1143,7 +1161,7 @@ function MobileApp() {
                     }}
                     type="button"
                   >
-                    <Icon size={20} />
+                    <Icon size={21} />
                     <span>{tab.label}</span>
                   </button>
                 );

@@ -12,6 +12,7 @@ import {
   List,
   Minus,
   Moon,
+  NotebookPen,
   Plus,
   Search,
   Sun,
@@ -26,6 +27,7 @@ interface EpubPaneProps {
   onLocationChange: (location: string, progressPercent: number) => void;
   bookTitle: string;
   onBack: () => void;
+  onRegister?: () => void;
 }
 
 function dataUrlToArrayBuffer(dataUrl: string) {
@@ -117,7 +119,7 @@ function buildOverrideCss(settings: ReaderSettings) {
   `;
 }
 
-export default function EpubPane({ bookId, dataUrl, location, onLocationChange, bookTitle, onBack }: EpubPaneProps) {
+export default function EpubPane({ bookId, dataUrl, location, onLocationChange, bookTitle, onBack, onRegister }: EpubPaneProps) {
   const { data: readerData } = useReaderData();
   const [selection, setSelection] = useState<{ locator: ReaderLocator; text: string }>();
   const [footnote, setFootnote] = useState("");
@@ -569,6 +571,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 <div className="h-full rounded bg-green-500" style={{ width: `${progress}%` }} />
               </div>
             </div>
+            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-zinc-900 text-emerald-300" onClick={onRegister} type="button" aria-label="Registrar leitura deste livro"><NotebookPen size={19} /></button>}
             <button
               className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={() => setTocOpen((value) => !value)}

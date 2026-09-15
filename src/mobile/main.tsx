@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "../index.css";
+import "./mobile.css";
 import MobileApp from "./MobileApp";
 import MobileErrorBoundary from "./MobileErrorBoundary";
 import { initializeMobileUpdater } from "./mobileUpdater";

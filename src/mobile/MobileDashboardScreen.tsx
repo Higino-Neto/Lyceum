@@ -40,12 +40,15 @@ import {
   summarizeMobileReadings,
   toLocalIsoDate,
 } from "./mobileReadingStats";
+import type { MobileBook } from "./types";
 
 interface MobileDashboardScreenProps {
   sessionEmail: string | null;
   onOpenProfile: () => void;
   onOpenRegister: () => void;
   onOpenLeaderboard: () => void;
+  books: MobileBook[];
+  onOpenBook: (bookId: string) => void;
 }
 
 type ChartMode = "daily" | "category";
@@ -62,7 +65,7 @@ function StatTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
         <div className="text-zinc-500">{icon}</div>
@@ -99,6 +102,8 @@ export default function MobileDashboardScreen({
   onOpenProfile,
   onOpenRegister,
   onOpenLeaderboard,
+  books,
+  onOpenBook,
 }: MobileDashboardScreenProps) {
   const enabled = getMobileReadingQueryEnabled(sessionEmail);
   const [chartMode, setChartMode] = useState<ChartMode>("daily");
@@ -140,6 +145,7 @@ export default function MobileDashboardScreen({
   const monthPages = stats?.readingStats.month_pages ?? summary.monthPages;
   const currentStreak = stats?.userStreak ?? summary.currentStreak;
   const hasAnyReading = readings.length > 0;
+  const recentBook = useMemo(() => [...books].filter((book) => book.lastOpenedAt).sort((a, b) => String(b.lastOpenedAt).localeCompare(String(a.lastOpenedAt)))[0], [books]);
 
   if (!enabled) {
     return (
@@ -171,7 +177,7 @@ export default function MobileDashboardScreen({
         error={readingsError || statsError}
         onRetry={() => { void Promise.all([refetchReadings(), refetchStats()]); }}
       />
-      <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Hoje no Lyceum</p>
@@ -205,6 +211,8 @@ export default function MobileDashboardScreen({
         </div>
       </div>
 
+      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Continue lendo</p><p className="mt-1 truncate text-sm font-semibold text-zinc-100">{recentBook.title}</p><p className="mt-0.5 text-xs text-zinc-400">{Math.round(recentBook.progressPercent || 0)}% concluído</p></div></button>}
+
       <div className="grid grid-cols-2 gap-3">
         <StatTile
           label="Total"
@@ -232,7 +240,7 @@ export default function MobileDashboardScreen({
         />
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-100">Ritmo da semana</h2>
           <span className="text-xs text-zinc-500">{summary.weekPages}p</span>
@@ -249,6 +257,8 @@ export default function MobileDashboardScreen({
                       : "border-zinc-800 bg-zinc-950 text-zinc-600"
                 }`}
                 title={`${day.date}: ${day.pages}p`}
+                role="img"
+                aria-label={`${day.date}: ${day.pages} páginas`}
               >
                 {day.hasRead ? day.pages : day.dayNumber}
               </div>
@@ -258,7 +268,7 @@ export default function MobileDashboardScreen({
         </div>
       </div>
 
-      <div className="rounded border border-zinc-800 bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900">
         <div className="flex border-b border-zinc-800">
           {([
             ["daily", "Diario"],
@@ -279,7 +289,7 @@ export default function MobileDashboardScreen({
           ))}
         </div>
 
-        <div className="p-3">
+        <div className="p-3" role="img" aria-label={chartMode === "daily" ? `Páginas lidas nos últimos 14 dias: ${dailyData.map((item) => `${formatShortDate(item.date)} ${item.pages}`).join(", ")}` : `Páginas por categoria: ${categoryTotals.map((item) => `${item.name} ${item.pages}`).join(", ")}`}>
           {!hasAnyReading ? (
             <EmptyChart />
           ) : chartMode === "daily" ? (

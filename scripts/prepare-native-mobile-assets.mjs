@@ -1,5 +1,6 @@
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { generateMobileIcons } from "./generate-mobile-icons.mjs";
 
 const root = process.cwd();
 const webDir = path.join(root, "dist-mobile");
@@ -168,5 +169,6 @@ function writeIosAssets() {
 
 if (requestedTarget === "all" || requestedTarget === "android") writeAndroidAssets();
 if (requestedTarget === "all" || requestedTarget === "ios") writeIosAssets();
+await generateMobileIcons(requestedTarget);
 
 console.log(`Prepared native mobile assets for ${requestedTarget === "all" ? "Android and iOS" : requestedTarget}.`);

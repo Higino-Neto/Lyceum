@@ -18,6 +18,7 @@ import {
   Minus,
   Moon,
   MoreHorizontal,
+  NotebookPen,
   PanelRight,
   Plus,
   RotateCw,
@@ -70,6 +71,7 @@ interface PdfPaneProps {
   onPageCountChange: (pageCount: number) => void;
   onZoomChange?: (zoom: number) => void;
   onClose?: () => void;
+  onRegister?: () => void;
 }
 
 type NavigationTab = "outline" | "thumbnails" | "bookmarks";
@@ -153,6 +155,7 @@ export default function PdfPane({
   onPageCountChange,
   onZoomChange,
   onClose,
+  onRegister,
 }: PdfPaneProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -662,6 +665,7 @@ export default function PdfPane({
           <button className="lyceum-pdf-reader__icon-button" onClick={onClose} type="button" aria-label="Voltar para a biblioteca"><ArrowLeft size={21} /></button>
           <div className="min-w-0 flex-1 px-2"><p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-white">{documentTitle}</p><p className="mt-0.5 truncate text-[11px] text-slate-400">{metadata.author || `${pageCount || "-"} paginas${fileSize ? ` · ${formatPdfFileSize(fileSize)}` : ""}`}</p></div>
           <button className="lyceum-pdf-reader__icon-button" aria-pressed={isBookmarked} onClick={toggleBookmark} type="button" aria-label={isBookmarked ? "Remover marcador" : "Marcar pagina"}>{isBookmarked ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}</button>
+          {onRegister && <button className="lyceum-pdf-reader__icon-button" onClick={onRegister} type="button" aria-label="Registrar leitura deste livro"><NotebookPen size={20} /></button>}
           <button className="lyceum-pdf-reader__icon-button" onClick={() => { setSettingsOpen(true); setControlsVisible(true); }} type="button" aria-label="Mais opcoes"><MoreHorizontal size={22} /></button>
         </div>
         {searchOpen && (
