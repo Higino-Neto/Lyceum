@@ -18,14 +18,14 @@ dist-ssr
 *.local
 release
 release-mobile
+!scripts/release/
+!scripts/release/**
 dist-electron
 /supabase
 coverage
 AGENTS.md
 .tmp/
 /public/pdfjs/
-/vendor/pdfjs-*-dist/**/*.map
-/vendor/pdfjs-*-dist/web/compressed.tracemonkey-pldi-09.pdf
 
 
 # Editor directories and files
@@ -44,3 +44,5 @@ AGENTS.md
 /vendor/pdfjs-4.10.38/node_modules/
 
 nul
+
+FEATURES.md

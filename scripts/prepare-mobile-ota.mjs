@@ -5,9 +5,12 @@ import path from "node:path";
 const root = process.cwd();
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const version = process.env.MOBILE_RELEASE_VERSION || packageJson.version;
+if (version !== packageJson.version) {
+  throw new Error(`MOBILE_RELEASE_VERSION ${version} does not match package.json ${packageJson.version}`);
+}
 const appId = "com.higino.lyceum.mobile";
 const artifactDir = path.join(root, "release-mobile");
-const zipName = `lyceum-mobile-ota-${version}.zip`;
+const zipName = `Lyceum-${version}-Android-OTA.zip`;
 const manifestName = "lyceum-mobile-ota.json";
 const zipPath = path.join(artifactDir, zipName);
 const manifestPath = path.join(artifactDir, manifestName);
@@ -50,7 +53,7 @@ if (generatedPath !== zipPath) {
   }
 }
 
-const releaseBaseUrl = `https://github.com/higino-neto/lyceum/releases/download/mobile-v${version}`;
+const releaseBaseUrl = `https://github.com/Higino-Neto/Lyceum/releases/download/v${version}`;
 const manifest = {
   version,
   url: `${releaseBaseUrl}/${zipName}`,

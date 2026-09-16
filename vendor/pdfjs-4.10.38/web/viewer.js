@@ -246,17 +246,8 @@ function webViewerLoad() {
         source: window,
       },
     });
-    try {
-      // Attempt to dispatch the event at the embedding `document`,
-      // in order to support cases where the viewer is embedded in
-      // a *dynamically* created <iframe> element.
-      parent.document.dispatchEvent(event);
-    } catch (ex) {
-      // The viewer could be in e.g. a cross-origin <iframe> element,
-      // fallback to dispatching the event at the current `document`.
-      console.error("webviewerloaded:", ex);
-      document.dispatchEvent(event);
-    }
+    // Lyceum's cross-origin iframe bridge listens on this document.
+    document.dispatchEvent(event);
   }
   PDFViewerApplication.run(config);
 }

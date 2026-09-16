@@ -464,6 +464,7 @@ function AppShell() {
       const result = await window.api.openDocumentByHash(
         item.outputHash,
         item.outputPath,
+        item.targetFormat === "pdf",
       );
       if (!result) {
         toast.error("Nao foi possivel abrir o arquivo convertido");

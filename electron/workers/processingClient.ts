@@ -1,6 +1,7 @@
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { Worker } from "node:worker_threads";
 import {
   extractEpubMetadata,
@@ -14,7 +15,7 @@ import {
   type GenerateThumbnailOptions,
   type PdfMetadata,
 } from "../services/document-processing";
-import { generateFileHash, generateFileHashFromBuffer } from "../services/file-service";
+import { generateFileHashFromBuffer } from "../services/file-service";
 import type { EditableBookMetadata } from "../services/book-file-metadata";
 import type {
   FileConversionWorkerResult,
@@ -298,8 +299,13 @@ export async function hashFile(filePath: string): Promise<HashFileResult> {
     return await runProcessingTask("hash-file", { filePath });
   } catch (error) {
     console.warn("[processingClient] hash worker failed; using main-thread fallback:", error);
-    const stats = await fs.promises.stat(filePath);
-    return { fileHash: generateFileHash(filePath), fileSize: stats.size };
+    const hash = crypto.createHash("sha256");
+    let fileSize = 0;
+    for await (const chunk of fs.createReadStream(filePath)) {
+      hash.update(chunk);
+      fileSize += chunk.byteLength;
+    }
+    return { fileHash: hash.digest("hex"), fileSize };
   }
 }
 

@@ -18,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 import MobileAccountGate from "./MobileAccountGate";
 import MobileQueryError from "./MobileQueryError";
+import { MobileCard, MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
 import {
   acceptMobileFriendRequest,
   cancelMobileFriendRequest,
@@ -268,7 +269,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-4">
-      <section className="rounded border border-zinc-800 bg-zinc-900 p-4">
+      <MobileCard className="p-5">
         <div className="flex items-center gap-2">
           <Users size={17} className="text-zinc-500" />
           <h2 className="text-sm font-semibold text-zinc-100">Amigos</h2>
@@ -286,10 +287,11 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             nicknameMutation.mutate();
           }}
         >
-          <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Seu nickname</label>
+          <MobileFieldFrame label="Seu nickname" htmlFor="mobile-nickname" hint="É assim que seus amigos encontram você.">
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <input
-              className="h-11 min-w-0 rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
+            <MobileInput
+              id="mobile-nickname"
+              icon={User}
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
               placeholder="ex: leitor_2026"
@@ -302,6 +304,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               Salvar
             </button>
           </div>
+          </MobileFieldFrame>
         </form>
 
         <form
@@ -311,10 +314,11 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             sendMutation.mutate();
           }}
         >
-          <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Adicionar por nickname</label>
+          <MobileFieldFrame label="Adicionar por nickname" htmlFor="mobile-friend-nickname">
           <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-            <input
-              className="h-11 min-w-0 rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
+            <MobileInput
+              id="mobile-friend-nickname"
+              icon={Search}
               value={friendNickname}
               onChange={(event) => {
                 setFriendNickname(event.target.value);
@@ -340,11 +344,12 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               {sendMutation.isPending ? <Loader2 className="animate-spin" size={17} /> : <Send size={17} />}
             </button>
           </div>
+          </MobileFieldFrame>
           {searchResult && <p className="text-xs text-zinc-500">{searchResult}</p>}
         </form>
-      </section>
+      </MobileCard>
 
-      <section className="overflow-hidden rounded border border-zinc-800 bg-zinc-900">
+      <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
           <h2 className="text-sm font-semibold text-zinc-100">Convites</h2>
           {requestsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
@@ -363,9 +368,9 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
         ) : (
           <p className="p-4 text-sm text-zinc-500">Nenhum convite pendente.</p>
         )}
-      </section>
+      </MobileCard>
 
-      <section className="overflow-hidden rounded border border-zinc-800 bg-zinc-900">
+      <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
           <h2 className="text-sm font-semibold text-zinc-100">Sua rede</h2>
           {friendsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
@@ -386,7 +391,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
         ) : (
           <p className="p-4 text-sm text-zinc-500">Adicione amigos para comparar leituras no ranking.</p>
         )}
-      </section>
+      </MobileCard>
     </div>
   );
 }
@@ -471,11 +476,11 @@ export default function MobileLeaderboardScreen({
   return (
     <section className="space-y-4 p-4">
       <MobileQueryError error={rankingError} onRetry={() => { void refetchRanking(); }} />
-      <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+      <MobileCard className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Leaderboard</p>
-            <h1 className="mt-1 text-xl font-semibold text-zinc-50">Voce e seus amigos</h1>
+            <h1 className="mt-1 text-xl font-semibold text-zinc-50">Você e seus amigos</h1>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               O mobile usa a mesma rede da conta desktop.
             </p>
@@ -485,12 +490,12 @@ export default function MobileLeaderboardScreen({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-4 gap-1 rounded bg-zinc-950 p-1">
+        <div className="mt-5 grid grid-cols-4 gap-1 rounded-2xl border border-white/[0.05] bg-zinc-950/80 p-1.5">
           {PERIODS.map((item) => (
             <button
               key={item.key}
-              className={`h-9 rounded text-xs font-semibold ${
-                period === item.key ? "bg-emerald-600 text-white" : "text-zinc-500"
+              className={`min-h-10 rounded-xl text-xs font-semibold transition active:scale-95 ${
+                period === item.key ? "bg-emerald-500/15 text-emerald-300 shadow-sm" : "text-zinc-500"
               }`}
               onClick={() => setPeriod(item.key)}
               type="button"
@@ -500,10 +505,11 @@ export default function MobileLeaderboardScreen({
           ))}
         </div>
 
-        <div className="mt-3 grid grid-cols-[auto_1fr] items-center gap-2">
-          <Filter size={16} className="text-zinc-500" />
-          <select
-            className="h-10 min-w-0 rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
+        <div className="mt-4">
+          <MobileFieldFrame label="Categoria" htmlFor="ranking-category">
+          <MobileSelect
+            id="ranking-category"
+            icon={Filter}
             value={categoryId}
             onChange={(event) => setCategoryId(event.target.value)}
           >
@@ -511,7 +517,8 @@ export default function MobileLeaderboardScreen({
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
-          </select>
+          </MobileSelect>
+          </MobileFieldFrame>
         </div>
 
         <button
@@ -522,11 +529,11 @@ export default function MobileLeaderboardScreen({
           <UserPlus size={17} />
           {showFriends ? "Ocultar amigos" : "Gerenciar amigos"}
         </button>
-      </div>
+      </MobileCard>
 
       {showFriends && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label="Gerenciar amigos" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-zinc-100">Gerenciar amigos</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={() => setShowFriends(false)} aria-label="Fechar amigos" type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
 
-      <section className="overflow-hidden rounded border border-zinc-800 bg-zinc-900">
+      <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
           <div className="flex items-center gap-2">
             <Trophy size={16} className="text-zinc-500" />
@@ -553,7 +560,7 @@ export default function MobileLeaderboardScreen({
             </p>
           </div>
         )}
-      </section>
+      </MobileCard>
     </section>
   );
 }

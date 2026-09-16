@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -53,21 +55,29 @@ if (installedPdfjsPackage.version !== pdfjsVersion) {
   );
 }
 
-// Prefer the viewer built from the official PDF.js source tree
-// (vendor/pdfjs-<version>/build/generic) when it exists; fall back to the
-// prebuilt Mozilla distribution (vendor/pdfjs-<version>-dist) otherwise.
-// The source build is regenerated with `gulp generic` from vendor/pdfjs-<version>.
-const sourceViewerBuildDir = path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}`, "build", "generic");
-const viewerSourceDir = fs.existsSync(path.join(sourceViewerBuildDir, "web", "viewer.html"))
-  ? sourceViewerBuildDir
-  : path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}-dist`);
-
-if (!fs.existsSync(viewerSourceDir)) {
-  throw new Error(`Vendored Mozilla PDF.js viewer was not found at ${viewerSourceDir}.`);
+// Always build from the tracked source. A pre-existing, ignored build output
+// must never change which PDF.js implementation is shipped.
+const sourceDir = path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}`);
+const viewerSourceDir = path.join(sourceDir, "build", "generic");
+const gulpBinary = path.join(sourceDir, "node_modules", ".bin", process.platform === "win32" ? "gulp.cmd" : "gulp");
+const dependencyMarker = path.join(sourceDir, "node_modules", ".lyceum-lock-hash");
+const lockHash = createHash("sha256")
+  .update(fs.readFileSync(path.join(sourceDir, "package-lock.json")))
+  .digest("hex");
+if (!fs.existsSync(gulpBinary) || !fs.existsSync(dependencyMarker) ||
+    fs.readFileSync(dependencyMarker, "utf8") !== lockHash) {
+  console.log("[prepare-pdfjs] Installing vendored PDF.js build dependencies");
+  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--ignore-scripts"], {
+    cwd: sourceDir,
+    stdio: "inherit",
+  });
+  fs.writeFileSync(dependencyMarker, lockHash);
 }
-
-const usingSourceBuild = viewerSourceDir === sourceViewerBuildDir;
-console.log(`[prepare-pdfjs] Viewer source: ${path.relative(rootDir, viewerSourceDir)} (source build: ${usingSourceBuild})`);
+console.log("[prepare-pdfjs] Building vendored PDF.js from source");
+execFileSync(gulpBinary, ["generic"], { cwd: sourceDir, stdio: "inherit" });
+if (!fs.existsSync(path.join(viewerSourceDir, "web", "viewer.html"))) {
+  throw new Error(`PDF.js source build did not produce ${viewerSourceDir}.`);
+}
 
 fs.rmSync(targetDir, { recursive: true, force: true });
 fs.mkdirSync(targetDir, { recursive: true });
@@ -84,77 +94,22 @@ copyDirectory(lyceumViewerDir, path.join(targetDir, "lyceum"), {
 
 const viewerHtmlPath = path.join(targetDir, "web", "viewer.html");
 let viewerHtml = fs.readFileSync(viewerHtmlPath, "utf8");
-viewerHtml = viewerHtml.replace(
+function replaceOnce(source, before, after, label) {
+  if (!source.includes(before)) {
+    throw new Error(`PDF.js ${label} integration point changed; update the Lyceum adapter.`);
+  }
+  return source.replace(before, after);
+}
+viewerHtml = replaceOnce(viewerHtml,
   '<link rel="stylesheet" href="viewer.css">',
   '<link rel="stylesheet" href="viewer.css">\n<link rel="stylesheet" href="../lyceum/lyceum-pdfjs.css">',
+  "viewer stylesheet",
 );
-viewerHtml = viewerHtml.replace(
+viewerHtml = replaceOnce(viewerHtml,
   '<script src="viewer.mjs" type="module"></script>',
   '<script src="../lyceum/lyceum-bridge.mjs" type="module"></script>\n  <script src="viewer.mjs" type="module"></script>',
+  "viewer script",
 );
 fs.writeFileSync(viewerHtmlPath, viewerHtml);
-
-const viewerScriptPath = path.join(targetDir, "web", "viewer.mjs");
-let viewerScript = fs.readFileSync(viewerScriptPath, "utf8");
-const lyceumValidateFileUrlGuard = `      const fileUrl = new URL(file, window.location.href);
-      if (fileUrl.protocol === "lyceum-pdf:") {
-        return;
-      }
-
-      const fileOrigin = fileUrl.origin;
-      if (fileOrigin !== viewerOrigin) {
-        throw new Error("file origin does not match viewer's");
-      }`;
-
-const validateFileUrlGuardPattern =
-  /      const fileOrigin = new URL\(file, window\.location\.href\)\.origin;\r?\n      if \(fileOrigin !== viewerOrigin\) \{\r?\n        throw new Error\("file origin does not match viewer's"\);\r?\n      \}/;
-
-if (!viewerScript.includes(lyceumValidateFileUrlGuard)) {
-  if (!validateFileUrlGuardPattern.test(viewerScript)) {
-    const validationIndex = viewerScript.indexOf(`throw new Error("file origin does not match viewer's");`);
-    const validationSnippet = validationIndex >= 0
-      ? viewerScript.slice(Math.max(0, validationIndex - 240), validationIndex + 120)
-      : "validation guard not found";
-    throw new Error(
-      "Could not patch Mozilla PDF.js viewer URL validation for Lyceum.\n" +
-        `Nearby viewer.mjs snippet:\n${validationSnippet}`,
-    );
-  }
-
-  viewerScript = viewerScript.replace(validateFileUrlGuardPattern, lyceumValidateFileUrlGuard);
-}
-
-if (!viewerScript.includes(lyceumValidateFileUrlGuard)) {
-  throw new Error("Could not patch Mozilla PDF.js viewer URL validation for Lyceum.");
-}
-
-const crossFrameWebViewerLoadedDispatch = `  try {
-    parent.document.dispatchEvent(event);
-  } catch (ex) {
-    console.error("webviewerloaded:", ex);
-    document.dispatchEvent(event);
-  }`;
-const localWebViewerLoadedDispatch = `  document.dispatchEvent(event);`;
-const crossFrameWebViewerLoadedDispatchPattern =
-  /  try \{\r?\n    parent\.document\.dispatchEvent\(event\);\r?\n  \} catch \(ex\) \{\r?\n    console\.error\("webviewerloaded:", ex\);\r?\n    document\.dispatchEvent\(event\);\r?\n  \}/;
-
-if (crossFrameWebViewerLoadedDispatchPattern.test(viewerScript)) {
-  viewerScript = viewerScript.replace(
-    crossFrameWebViewerLoadedDispatchPattern,
-    localWebViewerLoadedDispatch,
-  );
-}
-
-if (crossFrameWebViewerLoadedDispatchPattern.test(viewerScript) || !viewerScript.includes(localWebViewerLoadedDispatch)) {
-  const webViewerLoadedIndex = viewerScript.indexOf(`webviewerloaded`);
-  const webViewerLoadedSnippet = webViewerLoadedIndex >= 0
-    ? viewerScript.slice(Math.max(0, webViewerLoadedIndex - 240), webViewerLoadedIndex + 360)
-    : "webviewerloaded dispatch not found";
-  throw new Error(
-    "Could not patch Mozilla PDF.js webviewerloaded dispatch for Lyceum.\n" +
-      `Nearby viewer.mjs snippet:\n${webViewerLoadedSnippet}`,
-  );
-}
-fs.writeFileSync(viewerScriptPath, viewerScript);
 
 console.log(`[prepare-pdfjs] PDF.js viewer assets written to ${path.relative(rootDir, targetDir)}`);

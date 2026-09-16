@@ -42,7 +42,7 @@ export function findLatestMobileReleaseAsset(value: unknown, assetName: string) 
 
   const releases = (value as GitHubRelease[])
     .filter((release) => release && release.draft !== true)
-    .filter((release) => typeof release.tag_name === "string" && release.tag_name.startsWith("mobile-v"))
+    .filter((release) => typeof release.tag_name === "string" && /^v\d+\.\d+\.\d+$/.test(release.tag_name))
     .sort((left, right) => releaseTimestamp(right) - releaseTimestamp(left));
 
   for (const release of releases) {

@@ -6,9 +6,18 @@ def packageMetadata = new JsonSlurper().parse(file('../../package.json'))
 def packageVersion = (packageMetadata.version ?: '1.0.0').toString()
 def versionParts = packageVersion.tokenize('.').collect { (it.find(/^\d+/) ?: '0').toInteger() }
 while (versionParts.size() < 3) versionParts.add(0)
-def defaultMobileVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+if (versionParts[1] > 999 || versionParts[2] > 999) {
+    throw new GradleException('Lyceum minor and patch versions must be <= 999 for Android versionCode')
+}
+def defaultMobileVersionCode = versionParts[0] * 1000000 + versionParts[1] * 1000 + versionParts[2]
 def mobileVersionName = System.getenv("MOBILE_RELEASE_VERSION") ?: packageVersion
 def mobileVersionCode = (System.getenv("MOBILE_VERSION_CODE") ?: defaultMobileVersionCode.toString()).toInteger()
+if (mobileVersionName != packageVersion) {
+    throw new GradleException("Android versionName ${mobileVersionName} does not match package.json ${packageVersion}")
+}
+if (mobileVersionCode != defaultMobileVersionCode) {
+    throw new GradleException("Android versionCode ${mobileVersionCode} does not match global version ${defaultMobileVersionCode}")
+}
 
 def releaseKeystorePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
 def releaseKeystorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")
@@ -40,6 +49,14 @@ android {
                 keyAlias releaseKeyAlias
                 keyPassword releaseKeyPassword
             }
+        }
+    }
+    splits {
+        abi {
+            enable System.getenv("LYCEUM_ANDROID_ABI_SPLITS") == "true"
+            reset()
+            include "arm64-v8a"
+            universalApk true
         }
     }
     buildTypes {

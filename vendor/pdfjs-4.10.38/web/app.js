@@ -2265,7 +2265,16 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
         // Hosted or local viewer, allow for any file locations
         return;
       }
-      const fileOrigin = new URL(file, window.location.href).origin;
+      const fileUrl = new URL(file, window.location.href);
+      // Lyceum serves opened documents through a restricted Electron protocol.
+      if (
+        fileUrl.protocol === "lyceum-pdf:" &&
+        fileUrl.hostname === "document" &&
+        /^\/[a-f0-9]{64}\.pdf$/i.test(fileUrl.pathname)
+      ) {
+        return;
+      }
+      const fileOrigin = fileUrl.origin;
       // Removing of the following line will not guarantee that the viewer will
       // start accepting URLs from foreign origin -- CORS headers on the remote
       // server must be properly configured.

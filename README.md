@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Higino-Neto/Lyceum?style=for-the-badge">&nbsp</a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f?style=for-the-badge">&nbsp</a>
-  <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0969da?style=for-the-badge">
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android-0969da?style=for-the-badge">
   <a href="https://github.com/Higino-Neto/Lyceum/stargazers">&nbsp<img alt="GitHub stars" src="https://img.shields.io/github/stars/Higino-Neto/Lyceum?style=for-the-badge"></a>
 </p>
 
@@ -28,11 +28,7 @@ It is built for readers who want one place to collect, read, understand, convert
 ---
 ## Download
 
-<p>
-  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-.exe%20%2F%20NSIS-0078d4?style=for-the-badge">&nbsp&nbsp&nbsp</a>
-  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for macOS" src="https://img.shields.io/badge/macOS-.dmg-000000?style=for-the-badge">&nbsp&nbsp&nbsp</a>
-  <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-.AppImage-fcc624?style=for-the-badge">&nbsp&nbsp&nbsp</a>
-</p>
+[Download the latest Lyceum release](https://github.com/Higino-Neto/Lyceum/releases/latest) for Windows 10/11, Windows Legacy, Linux, or Android. The release page lists the correct versioned file for each platform and includes SHA-256 checksums.
 
 <img alt="Full workflow — import EPUB, read, convert to AZW3, send to Kindle" src="public/images/lyceum-flow-v1.gif" width="100%">
 
@@ -155,9 +151,9 @@ Lyceum uses a simple desktop stack: Electron for native APIs, React and TypeScri
 
 ### Linux
 
-Releases include a self-contained x64 AppImage. Download it, run `chmod +x Lyceum-Linux-*.AppImage`, and open it normally. PDF thumbnails and dictionary extraction do not require Poppler or 7-Zip to be installed on the system. Kindle and Kobo devices are detected after the desktop environment mounts them; this includes GVFS-backed MTP mounts used by GNOME.
+Releases include AppImage, DEB, and RPM packages for x86_64. For the AppImage, run `chmod +x Lyceum-*-Linux-x86_64.AppImage` and open it normally. PDF thumbnails and dictionary extraction do not require Poppler or 7-Zip to be installed on the system. Kindle and Kobo devices are detected after the desktop environment mounts them; this includes GVFS-backed MTP mounts used by GNOME.
 
-To build the Linux package locally, use `npm ci` followed by `npm run dist:linux` on a Linux host. Native dependencies are installed for that host, so Linux release artifacts should not be cross-built from Windows.
+To build the Linux package locally, use `npm ci` followed by `npm run dist:linux` on a Linux host. Native dependencies are installed for that host, so Linux release artifacts should not be cross-built from Windows. The Linux AppImage build uses gzip compression to avoid slow xz-mounted startup; the package is larger as a result.
 
 
 ---

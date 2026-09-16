@@ -2,67 +2,276 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (vX.Y.Z)"
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: lyceum-release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
+env:
+  NODE_VERSION: 20
+
 jobs:
-  release-windows:
+  validate-release:
+    name: Validate global version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      android_version_code: ${{ steps.version.outputs.android_version_code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - id: version
+        name: Require tag and package.json to match
+        run: node scripts/release/validate-version.mjs "${{ inputs.tag || github.ref_name }}"
+      - name: Ensure the manual tag resolves to this commit
+        if: github.event_name == 'workflow_dispatch'
+        run: git show-ref --verify --quiet "refs/tags/${{ inputs.tag }}"
+
+  build-windows:
+    name: Windows 10/11 (x64 + ARM64)
+    needs: validate-release
     runs-on: windows-latest
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
-
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - run: npm ci
-      - name: Verify Supabase release config
+      - name: Verify public runtime configuration
+        shell: pwsh
         run: |
           if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
-            Write-Error "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them as GitHub repository variables or secrets before publishing Lyceum."
-            exit 1
+            throw "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY"
           }
+      - run: npx vitest run src/test/desktopReleaseResolver.test.ts
       - run: npm run build
-      - run: npx electron-builder --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package x64 without publishing
+        run: npx electron-builder --config electron-builder.json5 --win nsis --x64 --publish never -c.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-x64
+      - name: Package ARM64 with an architecture-specific update feed
+        shell: pwsh
+        run: |
+          npx electron-builder --config electron-builder.json5 --win nsis --arm64 --publish never -c.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-arm64
+          Move-Item "release/${{ needs.validate-release.outputs.version }}/windows-arm64/latest.yml" "release/${{ needs.validate-release.outputs.version }}/windows-arm64/latest-arm64.yml"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          if-no-files-found: error
+          retention-days: 3
+          path: |
+            release/${{ needs.validate-release.outputs.version }}/windows-*/*.exe
+            release/${{ needs.validate-release.outputs.version }}/windows-*/*.blockmap
+            release/${{ needs.validate-release.outputs.version }}/windows-x64/latest.yml
+            release/${{ needs.validate-release.outputs.version }}/windows-arm64/latest-arm64.yml
 
-  release-linux:
-    needs: release-windows
+  build-windows-legacy:
+    name: Windows 7/8/8.1 Legacy (x64)
+    needs: validate-release
+    runs-on: windows-latest
+    env:
+      LYCEUM_LEGACY_WINDOWS: "1"
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Node 16-compatible runtime dependencies
+        run: node scripts/release/prepare-legacy-dependencies.mjs
+      - name: Verify public runtime configuration
+        shell: pwsh
+        run: |
+          if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
+            throw "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY"
+          }
+      - run: npx vitest run src/test/desktopReleaseResolver.test.ts
+      - run: npm run build
+      - run: npm run release:verify-legacy
+      - name: Package Electron 22 without updater metadata
+        run: npx electron-builder --config electron-builder.legacy.json5 --win nsis --x64 --publish never
+      - name: Start the packaged legacy application and verify native modules
+        shell: powershell
+        run: |
+          $installer = (Get-ChildItem "release/legacy/${{ needs.validate-release.outputs.version }}/*-Windows-Legacy-x64-Setup.exe").FullName
+          ./scripts/release/test-windows-legacy.ps1 -Installer $installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-legacy
+          if-no-files-found: error
+          retention-days: 3
+          path: release/legacy/${{ needs.validate-release.outputs.version }}/*.exe
+
+  build-linux:
+    name: Linux x86_64
+    needs: validate-release
     runs-on: ubuntu-22.04
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
-
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - run: npm ci
-      - name: Verify Supabase release config
+      - name: Verify public runtime configuration
         run: |
-          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them as GitHub repository variables or secrets before publishing Lyceum." >&2
+          test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" || {
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" >&2
             exit 1
-          fi
+          }
       - run: npm run test:run
       - run: npm run build
-      - run: npx electron-builder --linux AppImage --publish always
+      - name: Package without publishing
+        run: npx electron-builder --config electron-builder.json5 --linux AppImage deb rpm --x64 -c.compression=normal --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          if-no-files-found: error
+          retention-days: 3
+          path: |
+            release/${{ needs.validate-release.outputs.version }}/*.AppImage
+            release/${{ needs.validate-release.outputs.version }}/*.deb
+            release/${{ needs.validate-release.outputs.version }}/*.rpm
+            release/${{ needs.validate-release.outputs.version }}/*.blockmap
+            release/${{ needs.validate-release.outputs.version }}/latest-linux.yml
+
+  build-android:
+    name: Android (ARM64 + universal)
+    needs: validate-release
+    runs-on: ubuntu-22.04
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_AUTH_REDIRECT_BASE_URL: ${{ vars.VITE_AUTH_REDIRECT_BASE_URL || secrets.VITE_AUTH_REDIRECT_BASE_URL }}
+      MOBILE_RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+      MOBILE_VERSION_CODE: ${{ needs.validate-release.outputs.android_version_code }}
+      LYCEUM_ANDROID_ABI_SPLITS: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: Verify public runtime configuration
+        run: |
+          test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" || {
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" >&2
+            exit 1
+          }
+      - run: npm run test:mobile
+      - run: npm run build:mobile
+      - run: node scripts/prepare-mobile-ota.mjs
+      - name: Prepare native Android assets
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MOBILE_NATIVE_TARGET: android
+        run: npm run mobile:native-assets
+      - name: Restore Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_SIGNING_STORE_PASSWORD" \
+            && test -n "$ANDROID_SIGNING_KEY_ALIAS" && test -n "$ANDROID_SIGNING_KEY_PASSWORD" || {
+              echo "Missing Android signing secrets" >&2
+              exit 1
+            }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/release.keystore"
+          echo "ANDROID_SIGNING_STORE_FILE=${RUNNER_TEMP}/release.keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_STORE_PASSWORD=$ANDROID_SIGNING_STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_ALIAS=$ANDROID_SIGNING_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_SIGNING_KEY_PASSWORD=$ANDROID_SIGNING_KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Build signed APKs
+        working-directory: android
+        run: chmod +x ./gradlew && ./gradlew assembleRelease
+      - name: Collect named Android assets
+        run: |
+          mkdir -p release-mobile/android
+          cp android/app/build/outputs/apk/release/app-arm64-v8a-release.apk "release-mobile/android/Lyceum-${MOBILE_RELEASE_VERSION}-Android-arm64.apk"
+          cp android/app/build/outputs/apk/release/app-universal-release.apk "release-mobile/android/Lyceum-${MOBILE_RELEASE_VERSION}-Android-universal.apk"
+      - run: node scripts/prepare-mobile-apk-manifest.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          if-no-files-found: error
+          retention-days: 3
+          path: release-mobile
+
+  publish-release:
+    name: Publish one atomic GitHub Release
+    needs: [validate-release, build-windows, build-windows-legacy, build-linux, build-android]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+      RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: downloaded-artifacts
+          merge-multiple: true
+      - name: Flatten and reject duplicate filenames
+        run: node scripts/release/flatten-artifacts.mjs downloaded-artifacts release-assets
+      - name: Validate complete artifact set
+        run: node scripts/release/validate-artifacts.mjs release-assets "$RELEASE_VERSION"
+      - name: Generate checksums and centralized release notes
+        run: |
+          node scripts/release/generate-checksums.mjs release-assets
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f tag_name="$RELEASE_TAG" --jq .body > generated-changelog.md
+          node scripts/release/generate-notes.mjs "$RELEASE_VERSION" release-notes.md generated-changelog.md
+      - name: Create draft, upload every asset, then publish as Latest
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "Lyceum ${RELEASE_VERSION}" --notes-file release-notes.md
+          gh release upload "$RELEASE_TAG" release-assets/*
+          LOCAL_COUNT=$(find release-assets -maxdepth 1 -type f | wc -l)
+          REMOTE_COUNT=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets | length')
+          test "$LOCAL_COUNT" -eq "$REMOTE_COUNT" || {
+            echo "Uploaded asset count mismatch: local=$LOCAL_COUNT remote=$REMOTE_COUNT" >&2
+            exit 1
+          }
+          gh release edit "$RELEASE_TAG" --draft=false --latest

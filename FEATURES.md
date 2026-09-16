@@ -39,11 +39,25 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 - [x] O Mostrar ocultar Painel de Capítulos no PDF.js não faz motion quando o modo desempenho está desligado. Resolva isso e procure outros pontos de microinterações cujo feedback com movimento para o usuário não impactaria muito no processamento mas seria bonito, assim como a Apple faz nos sistemas dela para parecer muito fluido. Eu sinto falta disso no lyceum.
 
-
 #### 1.1.1 Mobile
 
-- [ ] Quando eu estou com o Desenho ativado na aba de leitura de PDF. Quando eu faço um desenho em um canto da tela e faço outro desenho no outro canto da tela, ele considera os dois como o mesmo objeto e não me permite desenhar nada na página inteira, apenas mover isso de lugar.
+- [x] O leitor de PDF atual do Mobile não suporta zoom nativo do mobile, aquele que você afasta os dedos em formato de pinça.
 
-- [ ] Quando eu faço um desenho em uma página e tento dar zoom entre duas páginas, ele altera o scroll da tela para fittar uma página certa (isso é uma inconsistência e atrapalha o fluxo de leitura).
+- [x] Quando eu abro o aplicativo, ao invés de aparecer um skeleton rodando e esperando os componentes carregarem, ele aparece para fazer login e depois aparece a tela quando ele consegue buscar os dados. Isso causa uma certa estranheza para o usuário.
 
-- [ ] Eu quero remover por enquanto o deploy no github releases de versões iOS mobile, porque elas não estão funcionando e eu não quero lidar com isso agora. Então no mobile, ele só deve subir o deploy do Android.
+- [x] Quando eu abro um livro por fora do aplicativo, tipo no explorador de arquivos do celular ou no whatsapp, ao invés de abrir o arquivo e mostrar para o usuário (Como deveria ser o fluxo normal), ele importa o arquivo (Isso poderia até acontecer, mas em segundo plano). E nem abre o arquivo. Além disso, o Toast de IMPORTACOES não tem um timeout para sair da tela, então ele fica lá até eu clicar para tirar ele.
+
+- [x] Nenhum arquivo está abrindo no mobile. Quando eu tento abrir eles, aparece só Nao foi possivel abrir. Cannot destructure property 'AbortException' of 'globalThis.pdfjsLib' as it is undefined. Resolva isso.
+
+- [x] Na aba Hoje do mobile, ao invés de ter esses cards inúteis de Leaderboard ou N Amigos, seria mais inteligente ter mais gráficos, assim como tem muitos na versão desktop, e também colocar o Heatmap que funciona tão bem no desktop.
+
+- [x] Todos os componentes que não são botões do mobile, como Select ou Input, estão bem sucateados e poderiam ser muito melhores do que são atualmente. Tanto na aba de Registrar Leituras quanto na aba de Leaderboard, eu sinto falta de componentes Selects (Aqueles que abrem e mostram várias opções) mais bonitos. Na aba de registrar leituras, está tão estranho o design que até os ícones estão inconsistentes, o ícone de livro aberto e a lupa de pesquisa por exemplo estão em cima da label. E aquela seta para baixo está em baixo da label ao invés de estar do lado. Isso tem que ser resolvido criando componentes mais bonitos e condizentes com o design do aplicativo.
+
+- [x] O sistema de notas nos pdfs está sucateado também. Aparece um ícone de criação de nota estranho no canto direito da tela que não deveria existir. Quando eu seleciono um texto ele mostra um pop up chato pedindo para adicionar uma nova nota. Eu não quero nada disso. Eu não quero que apareça nada quando um usuário selecionar um texto na tela. A única opção que eu quero preservar é aquela opção no topo de marcar a página com um marca página (Ela é útil). Toda essa parte de caderno de leitura pode sumir. Ela não é útil.
+
+
+#### 1.1.1 PDF Viewer
+
+- [x] Quando eu estou com o Desenho ativado na aba de leitura de PDF. Quando eu faço um desenho em um canto da tela e faço outro desenho no outro canto da tela, ele considera os dois como o mesmo objeto e não me permite desenhar nada na página inteira, apenas mover isso de lugar.
+
+- [x] Quando eu faço um desenho em uma página e tento dar zoom entre duas páginas, ele altera o scroll da tela para fittar uma página certa (isso é uma inconsistência e atrapalha o fluxo de leitura).

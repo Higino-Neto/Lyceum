@@ -3,6 +3,7 @@ import fs from "node:fs";
 import electron from "electron";
 import AdmZip from "adm-zip";
 import { extractNestedTarArchives } from "./services/dictionary-archive";
+import { downloadHttpBuffer } from "./services/http-download";
 
 const { app } = electron;
 
@@ -228,37 +229,12 @@ export class DictionaryManager {
 
       const tempPath = path.join(this.dictionariesPath, `${dictId}.zip`);
 
-      const response = await fetch(dict.url);
-      if (!response.ok) {
-        throw new Error(`Failed to download dictionary: ${response.status}`);
-      }
-
-      const contentLength = parseInt(response.headers.get("content-length") || "0");
-      let downloaded = 0;
-      const chunks: Uint8Array[] = [];
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Failed to read response body");
-      }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        if (value) {
-          chunks.push(value);
-          downloaded += value.length;
-          
-          if (contentLength > 0 && onProgress) {
-            const progress = Math.round((downloaded / contentLength) * 100);
-            this.downloadProgress.set(dictId, progress);
-            onProgress(progress);
-          }
-        }
-      }
-
-      const buffer = Buffer.concat(chunks.map(c => new Uint8Array(c)));
+      const buffer = await downloadHttpBuffer(dict.url, {
+        onProgress: (progress) => {
+          this.downloadProgress.set(dictId, progress);
+          onProgress?.(progress);
+        },
+      });
       fs.writeFileSync(tempPath, buffer);
 
       // Extract ZIP (works cross-platform with adm-zip)

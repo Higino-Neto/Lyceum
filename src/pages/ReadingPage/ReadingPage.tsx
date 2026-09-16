@@ -51,6 +51,7 @@ function ReadingContent() {
   const { activeTab } = useTabContext();
   const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [totalBookPages, setTotalBookPages] = useState(0);
 
   useEffect(() => {
     const checkFocusMode = () => {
@@ -68,6 +69,10 @@ function ReadingContent() {
     setActiveType(activeTab?.fileType ?? null);
   }, [activeTab]);
 
+  useEffect(() => {
+    setTotalBookPages(0);
+  }, [activeTab?.fileHash]);
+
   const renderViewer = () => {
     if (!activeTab) {
       return null;
@@ -84,7 +89,7 @@ function ReadingContent() {
       );
     }
 
-    if (!activeTab.buffer || activeTab.isLoading) {
+    if (activeTab.isLoading || (activeTab.fileType === "epub" && !activeTab.buffer)) {
       return (
         <div className="flex h-full items-center justify-center text-zinc-500">
           Carregando {activeTab.fileType.toUpperCase()}...
@@ -104,26 +109,23 @@ function ReadingContent() {
 
     return (
       <PdfViewer
-        pdfData={activeTab.buffer}
         fileHash={activeTab.fileHash}
         fileName={activeTab.fileName}
         hasSessionStarted={session.sessionStart}
         hasSessionFinished={session.sessionFinish}
         onReadingInfo={session.handleReadingInfo}
-        onTotalBookPages={() => {}}
+        onTotalBookPages={setTotalBookPages}
       />
     );
   };
 
   const hasOpenTab = Boolean(activeTab);
-  const hasLoadedContent = Boolean(activeTab?.buffer);
-
   return (
     <>
       {session.showModal && (
         <ReadingSessionCompletedModal
           session={session.session}
-          totalBookPages={0}
+          totalBookPages={totalBookPages}
           onReset={session.handleReset}
           onClose={() => session.setShowModal(false)}
           onSubmit={session.handleSubmit}
@@ -153,7 +155,7 @@ function ReadingContent() {
               </div> */}
 
               {/* <div className="flex items-center gap-2">
-                {hasLoadedContent && (
+                {activeTab && !activeTab.isLoading && (activeTab.fileType === "pdf" || activeTab.buffer) && (
                   <ReadingSessionTimer
                     fileName={activeTab?.fileName || ""}
                     onSessionStart={session.handleSessionStart}

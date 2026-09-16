@@ -14,6 +14,7 @@ export interface DocumentTab {
   isActive: boolean;
   source: "library" | "local";
   isLoading?: boolean;
+  isResolved?: boolean;
   loadError?: string;
 }
 

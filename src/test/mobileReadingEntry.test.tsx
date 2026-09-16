@@ -39,7 +39,9 @@ describe("mobile reading entry", () => {
     renderScreen();
     await screen.findByRole("option", { name: "Ficção" });
     fireEvent.click(screen.getByRole("button", { name: /Escolher livro ou digitar título/ }));
-    fireEvent.change(screen.getByPlaceholderText("Buscar na biblioteca ou no histórico"), { target: { value: "Livro manual" } });
+    const bookSearch = screen.getByPlaceholderText("Buscar na biblioteca ou no histórico");
+    expect(bookSearch).toHaveClass("mobile-field-with-icon");
+    fireEvent.change(bookSearch, { target: { value: "Livro manual" } });
     fireEvent.click(screen.getByRole("button", { name: /Usar “Livro manual”/ }));
     fireEvent.change(screen.getByLabelText("Páginas lidas"), { target: { value: "24" } });
     fireEvent.change(screen.getByLabelText("Tempo de leitura"), { target: { value: "30" } });

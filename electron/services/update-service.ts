@@ -1,11 +1,28 @@
 import electron, { type BrowserWindow as ElectronBrowserWindow, type IpcMain } from "electron";
 import { autoUpdater } from "electron-updater";
 import type { ProgressInfo, UpdateInfo } from "electron-updater";
-import { resolveDesktopRelease, type GithubRelease } from "./desktop-release-resolver";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { desktopUpdateChannel, resolveDesktopRelease, type GithubRelease } from "./desktop-release-resolver";
 
 const { app } = electron;
 const GITHUB_OWNER = "Higino-Neto";
 const GITHUB_REPOSITORY = "Lyceum";
+
+function isLegacyBuild() {
+  if (!app.isPackaged) return false;
+  try {
+    const metadata = JSON.parse(readFileSync(path.join(app.getAppPath(), "package.json"), "utf8"));
+    return metadata.lyceumBuildFlavor === "legacy";
+  } catch {
+    // Older packages did not have a flavor marker and remain on the modern feed.
+    return false;
+  }
+}
+
+function updatesEnabled() {
+  return app.isPackaged && !isLegacyBuild();
+}
 
 async function configureDesktopReleaseFeed() {
   const response = await fetch(
@@ -26,6 +43,7 @@ async function configureDesktopReleaseFeed() {
   if (!desktopRelease) {
     throw new Error("Nenhuma versao desktop com metadados de atualizacao foi encontrada");
   }
+  autoUpdater.channel = desktopUpdateChannel(process.platform, process.arch);
   autoUpdater.setFeedURL({ provider: "generic", url: desktopRelease.feedUrl });
 }
 
@@ -70,15 +88,17 @@ export interface LyceumUpdateState {
 let updateWindow: ElectronBrowserWindow | null = null;
 let initialized = false;
 let state: LyceumUpdateState = {
-  status: app.isPackaged ? "idle" : "disabled",
+  status: updatesEnabled() ? "idle" : "disabled",
   currentVersion: app.getVersion(),
   source: "github",
-  canCheck: app.isPackaged,
+  canCheck: updatesEnabled(),
   canInstall: false,
   updateAvailable: false,
-  error: app.isPackaged
-    ? undefined
-    : "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
+  error: isLegacyBuild()
+    ? "Atualizacoes automaticas estao desativadas no build Legacy para evitar pacotes incompativeis."
+    : app.isPackaged
+      ? undefined
+      : "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
 };
 
 function normalizeReleaseNotes(notes: unknown): string | null {
@@ -124,7 +144,7 @@ function patchState(patch: Partial<LyceumUpdateState>) {
     ...state,
     ...patch,
     currentVersion: app.getVersion(),
-    canCheck: app.isPackaged && nextStatus !== "checking",
+    canCheck: updatesEnabled() && nextStatus !== "checking",
   };
 
   if (nextStatus === "checking") {
@@ -166,6 +186,8 @@ export function getUpdateState(): LyceumUpdateState {
 export function initializeUpdateService() {
   if (initialized) return;
   initialized = true;
+
+  if (!updatesEnabled()) return;
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -226,10 +248,12 @@ export function initializeUpdateService() {
 export async function checkForAppUpdates() {
   initializeUpdateService();
 
-  if (!app.isPackaged) {
+  if (!updatesEnabled()) {
     patchState({
       status: "disabled",
-      error: "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
+      error: isLegacyBuild()
+        ? "Atualizacoes automaticas estao desativadas no build Legacy para evitar pacotes incompativeis."
+        : "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
     });
     return state;
   }
@@ -251,10 +275,12 @@ export async function checkForAppUpdates() {
 export async function downloadAppUpdate() {
   initializeUpdateService();
 
-  if (!app.isPackaged) {
+  if (!updatesEnabled()) {
     patchState({
       status: "disabled",
-      error: "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
+      error: isLegacyBuild()
+        ? "Atualizacoes automaticas estao desativadas no build Legacy para evitar pacotes incompativeis."
+        : "Atualizacoes automaticas ficam disponiveis apenas no aplicativo instalado.",
     });
     return state;
   }

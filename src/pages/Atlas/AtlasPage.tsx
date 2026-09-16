@@ -110,7 +110,9 @@ export default function AtlasPage() {
     }
 
     try {
-      const result = await window.api.openDocumentByHash(book.fileHash, book.filePath);
+      const result = await window.api.openDocumentByHash(
+        book.fileHash, book.filePath, book.filePath.toLowerCase().endsWith(".pdf"),
+      );
       if (!result) {
         toast.error("Erro ao abrir o arquivo");
         return;

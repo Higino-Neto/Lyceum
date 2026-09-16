@@ -10,10 +10,14 @@ export interface GithubRelease {
   assets?: GithubReleaseAsset[];
 }
 
-function desktopMetadataName(platform: NodeJS.Platform) {
+export function desktopUpdateChannel(platform: NodeJS.Platform, arch: string) {
+  return platform === "win32" && arch === "arm64" ? "latest-arm64" : "latest";
+}
+
+function desktopMetadataName(platform: NodeJS.Platform, arch: string) {
   if (platform === "darwin") return "latest-mac.yml";
   if (platform === "linux") return "latest-linux.yml";
-  return "latest.yml";
+  return `${desktopUpdateChannel(platform, arch)}.yml`;
 }
 
 function hasDesktopArtifact(release: GithubRelease, platform: NodeJS.Platform) {
@@ -26,10 +30,12 @@ function hasDesktopArtifact(release: GithubRelease, platform: NodeJS.Platform) {
 export function resolveDesktopRelease(
   releases: GithubRelease[],
   platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
 ) {
-  const metadataName = desktopMetadataName(platform);
+  const metadataName = desktopMetadataName(platform, arch);
   for (const release of releases) {
     if (release.draft || release.prerelease) continue;
+    if (!/^v\d+\.\d+\.\d+$/.test(release.tag_name)) continue;
     const metadata = (release.assets || []).find(
       (asset) => asset.name.toLowerCase() === metadataName && asset.browser_download_url,
     );

@@ -1334,11 +1334,17 @@ class PDFViewer {
           null,
         ];
       }
-      this.scrollPageIntoView({
-        pageNumber: page,
-        destArray: dest,
-        allowNegativeOffset: true,
-      });
+      // Pinch/trackpad zoom supplies an origin. Scrolling the current page into
+      // view first makes a gesture performed in the gap between two pages snap
+      // to one of them. In that case the origin correction below is sufficient
+      // and preserves the reader's exact position.
+      if (!Array.isArray(origin)) {
+        this.scrollPageIntoView({
+          pageNumber: page,
+          destArray: dest,
+          allowNegativeOffset: true,
+        });
+      }
       if (Array.isArray(origin)) {
         // If the origin of the scaling transform is specified, preserve its
         // location on screen. If not specified, scaling will fix the top-left

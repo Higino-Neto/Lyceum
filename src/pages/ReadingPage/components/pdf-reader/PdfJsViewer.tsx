@@ -8,9 +8,9 @@ import ChapterSidebar from "./chapters/ChapterSidebar";
 import { AnimatePresence, motion } from "motion/react";
 import AnnotationPanel from "./annotations/AnnotationPanel";
 import type { PdfSelectionPayload, PdfSelectionRect } from "../../../../types/AnnotationTypes";
+import { parsePdfViewerMessage, postToPdfViewer, type PdfViewState } from "./pdfBridgeProtocol";
 
 interface PdfJsViewerProps {
-  pdfData: ArrayBuffer;
   fileHash: string;
   fileName?: string;
   hasSessionStarted: boolean;
@@ -22,18 +22,9 @@ interface PdfJsViewerProps {
   onCloseChapters?: () => void;
 }
 
-interface NativePdfViewerState {
-  page: number;
-  currentScale: number;
-  scrollTop: number;
-  totalPages: number;
-  canAccess: boolean;
-}
-
-const POLL_INTERVAL_MS = 1200;
 const SAVE_NOW_INTERVAL_MS = 15000;
 
-function toReadingState(state: NativePdfViewerState) {
+function toReadingState(state: PdfViewState) {
   return {
     currentPage: state.page,
     currentZoom: state.currentScale,
@@ -53,14 +44,16 @@ export default function PdfJsViewer({
   onCloseChapters,
 }: PdfJsViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const lastStateRef = useRef<NativePdfViewerState | null>(null);
+  const lastStateRef = useRef<PdfViewState | null>(null);
   const restoreStartedRef = useRef(false);
+  const restoreCompletedRef = useRef(false);
   const restoreGenRef = useRef(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageConceptCount, setCurrentPageConceptCount] = useState(0);
   const [showAnnotations, setShowAnnotations] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<PdfSelectionPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [documentReady, setDocumentReady] = useState(false);
   const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
 
   const viewerUrls = useMemo(
@@ -71,41 +64,32 @@ export default function PdfJsViewer({
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
 
   const syncChapterButtonState = useCallback(() => {
-    iframeRef.current?.contentWindow?.postMessage(
-      {
-        type: "lyceum-pdfjs:chapters-state",
-        open: showChapters,
-      },
-      "*",
-    );
+    postToPdfViewer(iframeRef.current?.contentWindow, {
+      type: "lyceum-pdfjs:chapters-state",
+      open: showChapters,
+    });
   }, [showChapters]);
 
   const syncAnnotationButtonState = useCallback(() => {
-    iframeRef.current?.contentWindow?.postMessage(
-      {
-        type: "lyceum-pdfjs:annotations-state",
-        open: showAnnotations,
-        count: currentPageConceptCount,
-      },
-      "*",
-    );
+    postToPdfViewer(iframeRef.current?.contentWindow, {
+      type: "lyceum-pdfjs:annotations-state",
+      open: showAnnotations,
+      count: currentPageConceptCount,
+    });
   }, [currentPageConceptCount, showAnnotations]);
 
   const syncKeyConceptHighlights = useCallback((highlights: Array<{ id: string; title: string; rects: PdfSelectionRect[] }>) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      {
-        type: "lyceum-pdfjs:key-concept-highlights",
-        highlights,
-      },
-      "*",
-    );
+    postToPdfViewer(iframeRef.current?.contentWindow, {
+      type: "lyceum-pdfjs:key-concept-highlights",
+      highlights,
+    });
   }, []);
 
   const handleChapterNavigate = useCallback(() => {
     restoreGenRef.current += 1;
   }, []);
 
-  const chapterTracker = useChapterTracker(sourceUrl, fileHash, handleChapterNavigate);
+  const chapterTracker = useChapterTracker(sourceUrl, fileHash, handleChapterNavigate, documentReady);
 
   const goToPage = useCallback(
     async (page: number) => {
@@ -118,26 +102,6 @@ export default function PdfJsViewer({
     },
     [sourceUrl],
   );
-
-  const readViewerState = useCallback(async () => {
-    if (!sourceUrl || !window.api?.getNativePdfViewerState) {
-      return null;
-    }
-
-    const state = await window.api.getNativePdfViewerState(sourceUrl);
-    if (!state?.canAccess) {
-      return null;
-    }
-
-    lastStateRef.current = state;
-    setCurrentPage(state.page);
-
-    if (state.totalPages > 0) {
-      onTotalBookPages(state.totalPages);
-    }
-
-    return state as NativePdfViewerState;
-  }, [onTotalBookPages, sourceUrl]);
 
   const restoreViewerState = useCallback(async () => {
     if (
@@ -154,6 +118,7 @@ export default function PdfJsViewer({
     try {
       const saved = await loadState();
       if (gen !== restoreGenRef.current) {
+        restoreCompletedRef.current = true;
         return;
       }
       await window.api.applyNativePdfViewerState(sourceUrl, {
@@ -162,29 +127,14 @@ export default function PdfJsViewer({
         scrollTop: saved.currentScroll,
         restore: true,
       });
+      restoreCompletedRef.current = true;
     } catch (error) {
+      restoreCompletedRef.current = true;
       if (import.meta.env.DEV) {
         console.warn("[PDF.js] Failed to restore viewer state:", error);
       }
     }
   }, [loadState, sourceUrl]);
-
-  const saveViewerState = useCallback(
-    async (mode: "now" | "schedule") => {
-      const state = await readViewerState();
-      if (!state) {
-        return;
-      }
-
-      const readingState = toReadingState(state);
-      if (mode === "now") {
-        await saveNow(readingState);
-      } else {
-        scheduleSave(readingState);
-      }
-    },
-    [readViewerState, saveNow, scheduleSave],
-  );
 
   const handleSessionFinished = useCallback(
     (info: { initialPage: number; finalPage: number }) => {
@@ -206,12 +156,8 @@ export default function PdfJsViewer({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.source !== iframeRef.current?.contentWindow) {
-        return;
-      }
-
-      const data = event.data;
-      if (!data || typeof data !== "object") {
+      const data = parsePdfViewerMessage(event, iframeRef.current?.contentWindow);
+      if (!data) {
         return;
       }
 
@@ -220,21 +166,28 @@ export default function PdfJsViewer({
       } else if (data.type === "lyceum-pdfjs:toggle-annotations") {
         setShowAnnotations((value) => !value);
       } else if (data.type === "lyceum-pdfjs:create-concept-from-selection") {
-        const payload = data.payload as PdfSelectionPayload | undefined;
-        if (payload?.text?.trim()) {
-          setPendingSelection(payload);
-          setCurrentPage(payload.page || currentPage);
+        if (data.payload.text.trim()) {
+          setPendingSelection(data.payload);
+          setCurrentPage(data.payload.page);
           setShowAnnotations(true);
         }
       } else if (data.type === "lyceum-pdfjs:ready") {
         syncChapterButtonState();
         syncAnnotationButtonState();
+      } else if (data.type === "lyceum-pdfjs:document-ready") {
+        setDocumentReady(true);
+        void restoreViewerState();
+      } else if (data.type === "lyceum-pdfjs:state-changed") {
+        lastStateRef.current = data.state;
+        setCurrentPage(data.state.page);
+        if (data.state.totalPages > 0) onTotalBookPages(data.state.totalPages);
+        if (restoreCompletedRef.current) scheduleSave(toReadingState(data.state));
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [currentPage, onToggleChapters, syncAnnotationButtonState, syncChapterButtonState]);
+  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncChapterButtonState]);
 
   useEffect(() => {
     syncChapterButtonState();
@@ -275,7 +228,9 @@ export default function PdfJsViewer({
 
   useEffect(() => {
     restoreStartedRef.current = false;
+    restoreCompletedRef.current = false;
     lastStateRef.current = null;
+    setDocumentReady(false);
     setCurrentPage(1);
     setCurrentPageConceptCount(0);
     setShowAnnotations(false);
@@ -288,17 +243,14 @@ export default function PdfJsViewer({
       return;
     }
 
-    const pollInterval = setInterval(() => {
-      void saveViewerState("schedule");
-    }, POLL_INTERVAL_MS);
-
     const saveInterval = setInterval(() => {
-      void saveViewerState("now");
+      const state = lastStateRef.current;
+      if (state && restoreCompletedRef.current) void saveNow(toReadingState(state));
     }, SAVE_NOW_INTERVAL_MS);
 
     const handleBeforeUnload = () => {
       const state = lastStateRef.current;
-      if (state) {
+      if (state && restoreCompletedRef.current) {
         void saveNow(toReadingState(state));
       }
     };
@@ -306,16 +258,15 @@ export default function PdfJsViewer({
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      clearInterval(pollInterval);
       clearInterval(saveInterval);
       window.removeEventListener("beforeunload", handleBeforeUnload);
 
       const state = lastStateRef.current;
-      if (state) {
+      if (state && restoreCompletedRef.current) {
         void saveNow(toReadingState(state));
       }
     };
-  }, [saveNow, saveViewerState, sourceUrl]);
+  }, [saveNow, sourceUrl]);
 
   if (!viewerUrls) {
     return (
@@ -357,8 +308,6 @@ export default function PdfJsViewer({
           className="h-full w-full border-0 bg-zinc-950"
           sandbox="allow-scripts allow-same-origin allow-downloads"
           onLoad={() => {
-            void restoreViewerState();
-            void saveViewerState("schedule");
             syncChapterButtonState();
             syncAnnotationButtonState();
           }}

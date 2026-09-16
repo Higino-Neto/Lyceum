@@ -37,7 +37,7 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
     setImportJobs((current) => current.map((job) => job.id === jobId ? { ...job, ...patch } : job));
   };
 
-  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId) => {
+  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId, openFirstAfterImport = false) => {
     if (!candidates.length) return;
     const imported: MobileBook[] = [];
     const existing = [...stateRef.current.books];
@@ -128,6 +128,7 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
         selectedBookId: imported[0].id,
       }));
       toast.success(imported.length === 1 ? "Livro importado" : `${imported.length} livros importados`);
+      if (openFirstAfterImport) setActiveTab("reader");
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -142,7 +143,7 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
     })), folderId);
   };
 
-  const importNativeFiles = async (files: NativeImportFile[], folderId = libraryQuery.folderId) => {
+  const importNativeFiles = async (files: NativeImportFile[], folderId = libraryQuery.folderId, openFirstAfterImport = false) => {
     const candidates = files.filter((file) => {
       if (incomingProcessingRef.current.has(file.uri)) return false;
       incomingProcessingRef.current.add(file.uri);
@@ -154,7 +155,7 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
       loadFile: (signal, onProgress) => loadNativeBook(nativeFile, onProgress, signal),
       acknowledge: () => acknowledgeNativeBook(nativeFile.uri),
     }));
-    await importCandidates(candidates, folderId);
+    await importCandidates(candidates, folderId, openFirstAfterImport);
   };
 
   const openFileImporter = async () => {
@@ -179,8 +180,7 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
       try {
         const pending = await getPendingNativeBooks();
         if (!disposed && pending.length) {
-          setActiveTab("library");
-          await importNativeFiles(pending);
+          await importNativeFiles(pending, undefined, true);
         }
       } catch (error) {
         if (!disposed) toast.error(error instanceof Error ? error.message : "Falha ao receber arquivo compartilhado");
@@ -197,6 +197,14 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
   // The native bridge is subscribed once per repository lifecycle. Mutable callbacks read current state through stateRef.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositoryReady]);
+
+  useEffect(() => {
+    if (!importJobs.some((job) => job.status === "done" || job.status === "cancelled")) return;
+    const timeout = window.setTimeout(() => {
+      setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing" || job.status === "error"));
+    }, 4500);
+    return () => window.clearTimeout(timeout);
+  }, [importJobs]);
 
   return { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter };
 }

@@ -89,7 +89,10 @@ class InkEditor extends DrawingEditor {
 
   /** @inheritdoc */
   static get supportMultipleDrawings() {
-    return true;
+    // A pen lift finishes one annotation. Keeping several distant strokes in
+    // the same editor creates an enormous selection box and makes the whole
+    // page behave like one movable object.
+    return false;
   }
 
   /** @inheritdoc */

@@ -1,13 +1,27 @@
 import fs from "node:fs";
 import path from "node:path";
+import { ReadableStream } from "node:stream/web";
 import { extract } from "tar";
 import { XzReadableStream } from "xz-decompress";
 
 async function decompressXzToTar(sourcePath: string, targetPath: string) {
   const source = await fs.promises.readFile(sourcePath);
-  const stream = new XzReadableStream(new Blob([source]).stream() as ReadableStream<Uint8Array>);
-  const decompressed = await new Response(stream).arrayBuffer();
-  await fs.promises.writeFile(targetPath, Buffer.from(decompressed));
+  const input = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(source);
+      controller.close();
+    },
+  });
+  const stream = new XzReadableStream(input as globalThis.ReadableStream<Uint8Array>);
+  const reader = stream.getReader();
+  const chunks: Buffer[] = [];
+  let reading = true;
+  while (reading) {
+    const { done, value } = await reader.read();
+    if (done) reading = false;
+    else chunks.push(Buffer.from(value));
+  }
+  await fs.promises.writeFile(targetPath, Buffer.concat(chunks));
 }
 
 export async function extractNestedTarArchives(directoryPath: string): Promise<number> {

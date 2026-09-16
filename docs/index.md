@@ -6,6 +6,7 @@ This documentation explains Lyceum from end to end: product behavior, architectu
 
 - [Architecture](architecture.md)
 - [Library and Reader](library-reader.md)
+- [PDF Reader Architecture](pdf-reader-architecture.md)
 - [Data and Sync](data-and-sync.md)
 - [Development Guide](development.md)
 - [Release Guide](release.md)
@@ -72,4 +73,3 @@ The repository includes `.github/workflows/docs.yml`, which publishes this `docs
 2. Go to Pages.
 3. Set Source to GitHub Actions.
 4. Push documentation changes to `main`.
-

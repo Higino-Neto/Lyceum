@@ -286,10 +286,11 @@ export default function PdfPane({
       layoutInitializedRef.current = false;
 
       try {
-        const [pdfjs, viewerModule] = await Promise.all([
-          import("pdfjs-dist/build/pdf.mjs"),
-          import("pdfjs-dist/web/pdf_viewer.mjs"),
-        ]);
+        // pdf_viewer.mjs reads globalThis.pdfjsLib while the module is being
+        // evaluated. Import the core first so slow Android WebViews cannot win
+        // the race and initialize the viewer before that global exists.
+        const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+        const viewerModule = await import("pdfjs-dist/web/pdf_viewer.mjs");
         if (disposed) return;
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 

@@ -1,3 +1,5 @@
+import { isParentMessage, postToParent } from "./lyceum-messaging.mjs";
+
 const params = new URLSearchParams(window.location.search);
 const title = params.get("title")?.trim() || "";
 
@@ -213,7 +215,7 @@ async function applyState(state, { restore = false } = {}) {
       }
       if (!pendingHandlerAttached) {
         pendingHandlerAttached = true;
-        getApp().eventBus._on?.("documentloaded", flushPending);
+        getApp().eventBus.on?.("documentloaded", flushPending);
       }
     }
     return null;
@@ -241,7 +243,41 @@ async function applyState(state, { restore = false } = {}) {
 globalThis.LyceumPdfJs = {
   applyState,
   getState,
+  getOutline,
 };
+
+async function getOutline() {
+  const app = await whenReady();
+  if (!app?.pdfDocument) return null;
+  const outline = await app.pdfDocument.getOutline().catch(() => null);
+  if (!outline) return [];
+
+  async function resolvePage(destination) {
+    if (!destination) return null;
+    try {
+      const explicit = typeof destination === "string"
+        ? await app.pdfDocument.getDestination(destination)
+        : destination;
+      if (!Array.isArray(explicit) || explicit.length === 0) return null;
+      const target = explicit[0];
+      if (typeof target === "number") return target + 1;
+      const index = await app.pdfDocument.getPageIndex(target);
+      return Number.isInteger(index) ? index + 1 : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function walk(items) {
+    return Promise.all(items.map(async item => ({
+      title: item.title || "(sem título)",
+      page: await resolvePage(item.dest),
+      items: await walk(item.items || []),
+    })));
+  }
+
+  return walk(outline);
+}
 
 function applyLyceumTitle() {
   if (title) {
@@ -292,7 +328,7 @@ function updateLyceumAnnotationButton(open, count = 0) {
 
 function sendChapterToggleRequest() {
   try {
-    window.parent?.postMessage({ type: "lyceum-pdfjs:toggle-chapters" }, "*");
+    postToParent("lyceum-pdfjs:toggle-chapters");
   } catch {
     // Cross-frame messaging is best-effort; the PDF reader remains usable.
   }
@@ -300,7 +336,7 @@ function sendChapterToggleRequest() {
 
 function sendAnnotationToggleRequest() {
   try {
-    window.parent?.postMessage({ type: "lyceum-pdfjs:toggle-annotations" }, "*");
+    postToParent("lyceum-pdfjs:toggle-annotations");
   } catch {
     // Cross-frame messaging is best-effort; the PDF reader remains usable.
   }
@@ -336,21 +372,17 @@ function installChapterToggleBridge() {
   );
 
   window.addEventListener("message", event => {
-    if (event.source !== window.parent) {
+    if (!isParentMessage(event, "lyceum-pdfjs:chapters-state")) {
       return;
     }
-
     const data = event.data;
-    if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:chapters-state") {
-      return;
-    }
 
     closeNativeSidebar();
     updateLyceumChapterButton(!!data.open);
   });
 
   try {
-    window.parent?.postMessage({ type: "lyceum-pdfjs:ready" }, "*");
+    postToParent("lyceum-pdfjs:ready");
   } catch {
     // Ignore: Lyceum also syncs state from the iframe load handler.
   }
@@ -410,14 +442,10 @@ function installAnnotationToggleBridge() {
   updateLyceumAnnotationButton(false, 0);
 
   window.addEventListener("message", event => {
-    if (event.source !== window.parent) {
+    if (!isParentMessage(event, "lyceum-pdfjs:annotations-state")) {
       return;
     }
-
     const data = event.data;
-    if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:annotations-state") {
-      return;
-    }
 
     updateLyceumAnnotationButton(!!data.open, data.count);
   });
@@ -980,10 +1008,9 @@ function renderCreateConceptButton(payload, anchorRect) {
   button.addEventListener("click", event => {
     stopSelectionEvent(event);
     try {
-      window.parent?.postMessage({
-        type: "lyceum-pdfjs:create-concept-from-selection",
+      postToParent("lyceum-pdfjs:create-concept-from-selection", {
         payload: currentSelectionPayload,
-      }, "*");
+      });
       button.remove();
     } catch {
       // Ignore; the selection itself remains available for copying.
@@ -1276,28 +1303,6 @@ function installTextSelectionGuards() {
   );
 }
 
-// Wrap PDF.js's `setInitialView` so the *late* re-apply of the stored view
-// (viewer.mjs:13992, for PDFs with unequal page sizes, firing on `pagesloaded`)
-// is skipped once the reader has navigated on its own. This keeps PDF.js's
-// "remember last page" memory (re-enabled via the default `viewOnLoad`) while
-// preventing the chapter-click snap-back. The first `setInitialView` (which
-// restores the saved page on reopen) still runs because `userNavigated` is
-// false at that point.
-function wrapSetInitialView() {
-  const app = getApp();
-  if (!app || typeof app.setInitialView !== "function" || app.__lyceumSetInitialViewWrapped) {
-    return;
-  }
-  const original = app.setInitialView.bind(app);
-  app.__lyceumSetInitialViewWrapped = true;
-  app.setInitialView = function (hash, options) {
-    if (userNavigated) {
-      return;
-    }
-    return original(hash, options);
-  };
-}
-
 function clearHighlightLayers() {
   for (const layer of document.querySelectorAll(`.${HIGHLIGHT_LAYER_CLASS}`)) {
     layer.remove();
@@ -1345,14 +1350,10 @@ function installHighlightBridge() {
   if (!highlightBridgeInstalled) {
     highlightBridgeInstalled = true;
     window.addEventListener("message", event => {
-      if (event.source !== window.parent) {
+      if (!isParentMessage(event, "lyceum-pdfjs:key-concept-highlights")) {
         return;
       }
-
       const data = event.data;
-      if (!data || typeof data !== "object" || data.type !== "lyceum-pdfjs:key-concept-highlights") {
-        return;
-      }
 
       keyConceptHighlights = Array.isArray(data.highlights) ? data.highlights : [];
       renderKeyConceptHighlights();
@@ -1362,10 +1363,38 @@ function installHighlightBridge() {
   const app = getApp();
   if (app?.eventBus && !app.__lyceumHighlightEventsInstalled) {
     app.__lyceumHighlightEventsInstalled = true;
-    app.eventBus._on?.("pagerendered", renderKeyConceptHighlights);
-    app.eventBus._on?.("scalechanging", renderKeyConceptHighlights);
-    app.eventBus._on?.("pagesinit", renderKeyConceptHighlights);
+    app.eventBus.on?.("pagerendered", renderKeyConceptHighlights);
+    app.eventBus.on?.("scalechanging", renderKeyConceptHighlights);
+    app.eventBus.on?.("pagesinit", renderKeyConceptHighlights);
   }
+}
+
+function installStateEvents(app) {
+  if (!app?.eventBus || app.__lyceumStateEventsInstalled) return;
+  app.__lyceumStateEventsInstalled = true;
+  let timer = null;
+  const sendState = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const state = await getState();
+      if (state) postToParent("lyceum-pdfjs:state-changed", { state });
+    }, 200);
+  };
+  app.eventBus.on("pagechanging", sendState);
+  app.eventBus.on("scalechanging", sendState);
+  app.eventBus.on("updateviewarea", sendState);
+  let announcedDocument = false;
+  const announceDocument = () => {
+    if (!app.pdfDocument || !(app.pdfViewer?.pagesCount > 0)) return;
+    if (!announcedDocument) {
+      announcedDocument = true;
+      postToParent("lyceum-pdfjs:document-ready");
+    }
+    sendState();
+  };
+  app.eventBus.on("pagesinit", announceDocument);
+  app.eventBus.on("documentloaded", announceDocument);
+  announceDocument();
 }
 
 function wrapNativeSidebarToggle() {
@@ -1391,9 +1420,9 @@ function configureBeforeRun() {
   options.set("disablePreferences", true);
   options.set("disableHistory", true);
   options.set("historyUpdateUrl", false);
-  // Keep PDF.js's own "remember last page" (ViewHistory/`viewOnLoad` defaults to
-  // STORED), so reopening a book restores the saved page. The chapter-click
-  // snap-back that this previously caused is prevented by `wrapSetInitialView`.
+  // Lyceum owns the persisted position. PDF.js must not restore a competing
+  // ViewHistory position after the user or Lyceum navigates.
+  options.set("viewOnLoad", 1); // ViewOnLoad.INITIAL in PDF.js 4.10.
 }
 
 document.addEventListener(
@@ -1404,7 +1433,6 @@ document.addEventListener(
     installChapterToggleBridge();
     installAnnotationToggleBridge();
     installHighlightBridge();
-    wrapSetInitialView();
     applyLyceumTitle();
 
     const app = getApp();
@@ -1413,9 +1441,10 @@ document.addEventListener(
       installChapterToggleBridge();
       installAnnotationToggleBridge();
       installHighlightBridge();
+      installStateEvents(app);
       wrapNativeSidebarToggle();
       closeNativeSidebar(app);
-      app.eventBus?._on?.("documentloaded", applyLyceumTitle);
+      app.eventBus?.on?.("documentloaded", applyLyceumTitle);
     });
   },
   true,

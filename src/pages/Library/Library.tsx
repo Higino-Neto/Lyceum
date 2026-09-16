@@ -703,7 +703,7 @@ function LibraryContent() {
     const isUsbBook = activeSection === "usb";
     const result: OpenBookResult | null = isUsbBook
       ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
-      : await window.api.reopenPdf(filePath, fileHash);
+      : await window.api.reopenPdf(filePath, fileHash, filePath.toLowerCase().endsWith(".pdf"));
 
     if (isUsbBook && result && "success" in result && !result.success) {
       toast.error(

@@ -14,6 +14,8 @@ import {
   Download,
   Heart,
   Library,
+  LockKeyhole,
+  Mail,
   NotebookPen,
   RefreshCw,
   Settings,
@@ -60,6 +62,7 @@ import {
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
+import { MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
 
 const EpubPane = lazy(() => import("./EpubPane"));
 const MobileDashboardScreen = lazy(() => import("./MobileDashboardScreen"));
@@ -94,6 +97,21 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
         <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
         {action && <div className="mt-5">{action}</div>}
       </div>
+    </div>
+  );
+}
+
+function MobileStartupSkeleton() {
+  return (
+    <div className="mobile-app-skeleton mx-auto flex w-full max-w-[480px] flex-col px-4 pb-28 pt-[max(22px,env(safe-area-inset-top))]" role="status" aria-label="Carregando o Lyceum">
+      <div className="flex items-center gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-300"><BookOpen size={22} /></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-400">Lyceum</p><p className="mt-1 text-sm text-zinc-500">Preparando sua biblioteca</p></div>
+      </div>
+      <div className="mobile-skeleton-block mt-8 h-40 rounded-3xl" />
+      <div className="mt-4 grid grid-cols-2 gap-3"><div className="mobile-skeleton-block h-28 rounded-2xl" /><div className="mobile-skeleton-block h-28 rounded-2xl" /></div>
+      <div className="mobile-skeleton-block mt-4 h-52 rounded-3xl" />
+      <span className="sr-only">Carregando sessão e dados locais…</span>
     </div>
   );
 }
@@ -632,11 +650,14 @@ function MobileApp() {
   const nativeUpdatePublishedAt = formatMobileDate(nativeApkUpdate.manifest?.publishedAt);
   const nativeUpdateSize = formatMobileBytes(nativeApkUpdate.manifest?.sizeBytes);
 
+  if (!repositoryReady || !authReady) return <MobileStartupSkeleton />;
+
   return (
     <div className="lyceum-app min-h-screen bg-zinc-950 text-zinc-100">
       <Toaster
         position="top-center"
         toastOptions={{
+          duration: 4200,
           style: {
             background: "#18181b",
             border: "1px solid #27272a",
@@ -918,16 +939,18 @@ function MobileApp() {
                           <NotebookPen size={17} />
                           Registrar leitura deste livro
                         </button>
-                        <label className="text-sm font-medium text-zinc-100">Categoria</label>
-                        <select
-                          className="mt-2 h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
+                        <MobileFieldFrame label="Categoria" htmlFor="reader-book-category">
+                        <MobileSelect
+                          id="reader-book-category"
+                          icon={Library}
                           value={selectedBook.category}
                           onChange={(event) => setBookCategory(selectedBook.id, event.target.value)}
                         >
                           {state.categories.map((category) => (
                             <option key={category}>{category}</option>
                           ))}
-                        </select>
+                        </MobileSelect>
+                        </MobileFieldFrame>
                         <label className="mt-4 block text-sm font-medium text-zinc-100">Notas</label>
                         <textarea
                           className="mt-2 min-h-24 w-full resize-none rounded border border-zinc-800 bg-zinc-950 p-3 text-sm"
@@ -1072,28 +1095,12 @@ function MobileApp() {
                   </p>
                 ) : null}
                 <div className="mt-4 space-y-3">
-                  <label className="block text-sm font-medium text-zinc-300" htmlFor="mobile-auth-email">Email</label>
-                  <input
-                    id="mobile-auth-email"
-                    className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
-                    placeholder="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    disabled={authBusy || Boolean(sessionEmail)}
-                    value={authEmail}
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                  />
-                  <label className="block text-sm font-medium text-zinc-300" htmlFor="mobile-auth-password">Senha</label>
-                  <input
-                    id="mobile-auth-password"
-                    className="h-11 w-full rounded border border-zinc-800 bg-zinc-950 px-3 text-sm"
-                    placeholder="senha"
-                    type="password"
-                    autoComplete={sessionEmail ? "off" : "current-password"}
-                    disabled={authBusy || Boolean(sessionEmail)}
-                    value={authPassword}
-                    onChange={(event) => setAuthPassword(event.target.value)}
-                  />
+                  <MobileFieldFrame label="Email" htmlFor="mobile-auth-email">
+                    <MobileInput id="mobile-auth-email" icon={Mail} placeholder="voce@exemplo.com" autoComplete="email" inputMode="email" disabled={authBusy || Boolean(sessionEmail)} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+                  </MobileFieldFrame>
+                  <MobileFieldFrame label="Senha" htmlFor="mobile-auth-password">
+                    <MobileInput id="mobile-auth-password" icon={LockKeyhole} placeholder="Sua senha" type="password" autoComplete={sessionEmail ? "off" : "current-password"} disabled={authBusy || Boolean(sessionEmail)} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+                  </MobileFieldFrame>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       className="rounded bg-green-600 px-3 py-3 text-sm font-semibold text-white"
@@ -1125,7 +1132,7 @@ function MobileApp() {
                   {sessionEmail && (
                     <button
                       className="h-11 w-full rounded border border-zinc-800 text-sm font-medium text-zinc-300"
-                      onClick={signOut}
+                      onClick={async () => { if (await confirm("Deseja realmente sair da sua conta?")) await signOut(); }}
                       disabled={authBusy}
                       type="button"
                     >

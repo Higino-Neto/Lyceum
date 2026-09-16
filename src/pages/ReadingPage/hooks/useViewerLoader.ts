@@ -18,7 +18,7 @@ export default function useViewerLoader() {
       const result = await window.api.reopenPdf(last.filePath, last.fileHash);
       if (!result || "error" in result) return;
 
-      setPdfData(result.fileBuffer);
+      setPdfData(result.fileBuffer ?? null);
       setFileName(last.title);
       setFileHash(result.fileHash);
     };
@@ -32,7 +32,7 @@ export default function useViewerLoader() {
         toast.error("Falha ao abrir arquivo");
         return;
       }
-      setPdfData(document.fileBuffer);
+      setPdfData(document.fileBuffer ?? null);
       setFileName(document.title);
       setFileHash(document.fileHash);
     } catch (error) {

@@ -7,6 +7,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 const optionalCanvasStub = path.resolve(__dirname, "scripts/shims/canvas-optional.cjs");
 const browserEvents = path.resolve(__dirname, "node_modules/events/events.js");
+const isLegacyWindowsBuild = process.env.LYCEUM_LEGACY_WINDOWS === "1";
+const rendererTarget = isLegacyWindowsBuild ? "chrome108" : "es2022";
+const electronTarget = isLegacyWindowsBuild ? "node16.17" : "node20";
 
 export default defineConfig({
   plugins: [
@@ -25,6 +28,7 @@ export default defineConfig({
             },
           },
           build: {
+            target: electronTarget,
             emptyOutDir: true,
             sourcemap: false,
             rollupOptions: {
@@ -52,6 +56,7 @@ export default defineConfig({
         input: path.join(__dirname, "electron/preload.ts"),
         vite: {
           build: {
+            target: electronTarget,
             emptyOutDir: false,
             rollupOptions: {
               output: {
@@ -79,7 +84,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
-    target: "es2022",
+    target: rendererTarget,
     rollupOptions: {
       output: {
         manualChunks(id) {

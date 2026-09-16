@@ -63,6 +63,8 @@ import {
 } from "../local-database";
 import { reopenDocument, renameBook, deleteBook } from "../services/document-service";
 import { cachePdfBuffer } from "../services/pdfCache";
+import { registerPdfSource } from "../services/pdfSourceRegistry";
+import { downloadHttpBuffer } from "../services/http-download";
 import { mergeBooksIntoManagedFolder } from "../services/folder-service";
 import { notifyFolderChanged } from "../services/library-service";
 import { renderPdfPageToPng } from "../services/pdf-page-renderer";
@@ -282,19 +284,14 @@ export function registerBookHandlers() {
       throw new Error("URL de capa invalida.");
     }
 
-    const response = await fetch(url.toString(), {
+    const buffer = await downloadHttpBuffer(url.toString(), {
       headers: { "User-Agent": "Lyceum/1.0 book metadata search" },
+      maxBytes: 15 * 1024 * 1024,
     });
-    if (!response.ok) throw new Error(`Falha ao baixar capa: HTTP ${response.status}`);
-
-    const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > 15 * 1024 * 1024) throw new Error("Imagem de capa muito grande.");
 
     const workspace = await fs.promises.mkdtemp(path.join(os.tmpdir(), "lyceum-cover-url-"));
     const rawPath = path.join(workspace, "source-cover");
     const coverPath = path.join(workspace, "cover.jpg");
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > 15 * 1024 * 1024) throw new Error("Imagem de capa muito grande.");
     await fs.promises.writeFile(rawPath, buffer);
     await prepareCoverImageInWorker(rawPath, coverPath);
     return { workspace, coverPath };
@@ -977,9 +974,12 @@ export function registerBookHandlers() {
     return { success: true };
   });
 
-  ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string) => {
-    const result = await reopenDocument(filePath, fileHash);
-    if (result?.fileBuffer && result.fileHash) {
+  ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string, metadataOnly = false) => {
+    const result = await reopenDocument(filePath, fileHash, metadataOnly);
+    if (result?.fileType === "pdf" && result.fileHash && result.filePath) {
+      registerPdfSource(result.fileHash, result.filePath);
+    }
+    if (result?.fileBuffer && result.fileHash && !result.filePath) {
       cachePdfBuffer(result.fileHash, result.fileBuffer);
     }
     win?.webContents.send("library:updated");

@@ -84,11 +84,13 @@ describe("TabProvider", () => {
       expect(window.api.openDocumentByHash).toHaveBeenCalledWith(
         "hash-restored-tab",
         "C:\\Books\\Restored.pdf",
+        true,
       );
     });
     await waitFor(() => {
-      expect(screen.getByTestId("active-buffer")).toHaveTextContent("loaded");
+      expect(screen.getByTestId("active-buffer")).toHaveTextContent("missing");
     });
+    expect(window.api.openDocumentByHash).toHaveBeenCalledTimes(1);
   });
 
   it("keeps incoming buffers available after leaving and returning to reading", async () => {

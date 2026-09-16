@@ -65,9 +65,6 @@ function findSubtreeIds(nodes: ChapterNode[], targetId: string): string[] | null
   return null;
 }
 
-const MAX_OUTLINE_ATTEMPTS = 80;
-const OUTLINE_POLL_INTERVAL_MS = 500;
-
 export interface ChapterTracker {
   outline: ChapterNode[] | null;
   loading: boolean;
@@ -88,6 +85,7 @@ export function useChapterTracker(
   sourceUrl: string,
   fileHash: string,
   onBeforeNavigate?: () => void,
+  documentReady = false,
 ): ChapterTracker {
   const [outline, setOutline] = useState<ChapterNode[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -114,16 +112,15 @@ export function useChapterTracker(
   }, [fileHash]);
 
   useEffect(() => {
-    if (!sourceUrl || !fileHash) {
+    if (!sourceUrl || !fileHash || !documentReady) {
       return;
     }
 
     let cancelled = false;
-    let attempts = 0;
     setLoading(true);
     setError(null);
 
-    const poll = async () => {
+    const load = async () => {
       if (cancelled || !window.api?.getPdfOutline) {
         return;
       }
@@ -140,11 +137,6 @@ export function useChapterTracker(
       }
 
       if (raw === null) {
-        if (attempts < MAX_OUTLINE_ATTEMPTS) {
-          attempts += 1;
-          window.setTimeout(poll, OUTLINE_POLL_INTERVAL_MS);
-          return;
-        }
         setError("Não foi possível ler a estrutura de capítulos deste PDF.");
         setLoading(false);
         return;
@@ -154,12 +146,12 @@ export function useChapterTracker(
       setLoading(false);
     };
 
-    void poll();
+    void load();
 
     return () => {
       cancelled = true;
     };
-  }, [sourceUrl, fileHash]);
+  }, [sourceUrl, fileHash, documentReady]);
 
   useEffect(() => {
     if (!fileHash) {

@@ -25,8 +25,7 @@ import {
   inferFileTypeFromPath,
   toReadableFileType,
 } from "./file-service";
-import { findFileByHashInWorker, readAndHash, openAndProcess } from "../workers/processingClient";
-import { cachePdfBuffer } from "./pdfCache";
+import { findFileByHashInWorker, hashFile, readAndHash, openAndProcess } from "../workers/processingClient";
 
 const { app } = electron;
 
@@ -52,8 +51,7 @@ export async function openReadableFile(
   if (existingByPath) {
     const { buffer, fileHash } = await readAndHash(filePath);
     updateLastOpened(existingByPath.fileHash);
-    cachePdfBuffer(fileHash, buffer);
-    return { ...existingByPath, filePath, fileBuffer: buffer, fileType, title };
+    return { ...existingByPath, fileHash, filePath, fileBuffer: buffer, fileType, title };
   }
 
   const { buffer, fileHash, thumbnailPath, numPages } = await openAndProcess({
@@ -65,7 +63,6 @@ export async function openReadableFile(
   const existingByHash = getDocumentByHash(fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
-    cachePdfBuffer(fileHash, buffer);
     return { ...existingByHash, filePath, fileBuffer: buffer, fileType, title };
   }
 
@@ -73,7 +70,6 @@ export async function openReadableFile(
 
   const doc = getDocumentByHash(fileHash);
   if (!doc) return null;
-  cachePdfBuffer(fileHash, buffer);
   return { ...doc, filePath, fileBuffer: buffer, fileType, title };
 }
 
@@ -107,6 +103,7 @@ function formatOpenedDocumentResult(
 export async function reopenDocument(
   filePath?: string,
   fileHash?: string,
+  metadataOnly = false,
 ): Promise<ReopenedDocumentResult> {
   try {
     if (!fileHash && !filePath) {
@@ -132,14 +129,19 @@ export async function reopenDocument(
         if (!openedDocument) {
           return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
         }
-        return formatOpenedDocumentResult(openedDocument);
+        const result = formatOpenedDocumentResult(openedDocument);
+        if (metadataOnly && result.fileType === "pdf") result.fileBuffer = undefined;
+        return result;
       }
 
-      const { buffer, fileHash: hash } = await readAndHash(existingCandidatePath);
       const inferredFileType = inferFileTypeFromPath(
         existingCandidatePath,
         toReadableFileType(knownDocument.fileType),
       );
+      const file = metadataOnly && inferredFileType === "pdf"
+        ? await hashFile(existingCandidatePath)
+        : await readAndHash(existingCandidatePath);
+      const hash = file.fileHash;
 
       if (existingCandidatePath !== knownDocument.filePath && hash === knownDocument.fileHash) {
         updateDocumentPath(knownDocument.fileHash, existingCandidatePath);
@@ -152,7 +154,7 @@ export async function reopenDocument(
       updateLastOpened(knownDocument.fileHash);
 
       return {
-        fileBuffer: buffer,
+        fileBuffer: "buffer" in file ? file.buffer : undefined,
         fileHash: hash,
         filePath: existingCandidatePath,
         fileType: inferredFileType,
@@ -176,7 +178,9 @@ export async function reopenDocument(
       if (!openedDocument) {
         return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
       }
-      return formatOpenedDocumentResult(openedDocument, foundPath);
+      const result = formatOpenedDocumentResult(openedDocument, foundPath);
+      if (metadataOnly && result.fileType === "pdf") result.fileBuffer = undefined;
+      return result;
     }
 
     updateDocumentPath(fileHash, foundPath);
@@ -186,10 +190,12 @@ export async function reopenDocument(
       updateDocumentFileType(fileHash, inferredFileType);
     }
 
-    const { buffer, fileHash: foundHash } = await readAndHash(foundPath);
+    const file = metadataOnly && inferredFileType === "pdf"
+      ? await hashFile(foundPath)
+      : await readAndHash(foundPath);
     return {
-      fileBuffer: buffer,
-      fileHash: foundHash,
+      fileBuffer: "buffer" in file ? file.buffer : undefined,
+      fileHash: file.fileHash,
       filePath: foundPath,
       fileType: inferredFileType,
       fileName: knownDocument.title,

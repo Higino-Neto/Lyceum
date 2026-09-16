@@ -31,7 +31,14 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ```bash
 npm run dev
+npm run dev:mobile
 ```
+
+The desktop command prepares PDF.js and temporarily installs the `better-sqlite3`
+binary matching Electron's ABI. When the development server exits, it restores the
+host Node.js binary used by Vitest and other CLI tools. If a previous process was
+terminated forcefully, `npm run dev` and the test scripts repair the expected ABI
+automatically; `npm run native:node` is also available as a manual recovery command.
 
 ## Build
 
@@ -69,4 +76,3 @@ npm run lint
 3. Add TypeScript declarations in `electron/electron-env.d.ts`.
 4. Call it from the relevant React page or hook.
 5. Return `{ success, error }` when the renderer needs user feedback.
-

@@ -4,6 +4,11 @@
   "appId": "com.higino.lyceum",
   "asar": true,
   "productName": "Lyceum",
+  "npmRebuild": true,
+  "buildDependenciesFromSource": false,
+  "extraMetadata": {
+    "lyceumBuildFlavor": "modern"
+  },
   "compression": "maximum",
   "electronLanguages": ["pt-BR", "en-US"],
   "afterPack": "scripts/electron-after-pack.cjs",
@@ -13,9 +18,24 @@
       "schemes": ["lyceum"]
     }
   ],
+  "fileAssociations": [
+    {
+      "ext": "pdf",
+      "name": "PDF Document",
+      "description": "PDF Document",
+      "icon": "pdf-icon"
+    },
+    {
+      "ext": "epub",
+      "name": "EPUB Book",
+      "description": "EPUB Book",
+      "icon": "epub-icon"
+    }
+  ],
   "asarUnpack": [
     "node_modules/better-sqlite3/build/Release/*.node",
     "node_modules/sharp/**/*.{node,dll}",
+    "node_modules/@img/**",
     "node_modules/@napi-rs/canvas*/**/*",
     "dist-electron/workers/**",
     "dist-electron/chunks/**"
@@ -40,18 +60,12 @@
     "target": [
       "dmg"
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-${version}-macOS-${arch}.${ext}"
   },
   "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
-    ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    "target": ["nsis"],
+    "icon": "resources/icons/icon.ico",
+    "artifactName": "${productName}-${version}-Windows-${arch}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -61,11 +75,22 @@
   },
   "linux": {
     "target": [
-      "AppImage"
+      "AppImage",
+      "deb",
+      "rpm"
     ],
-    "artifactName": "${productName}-Linux-${version}-${arch}.${ext}",
+    "artifactName": "${productName}-${version}-Linux-x86_64.${ext}",
     "category": "Education",
     "icon": "resources/icons/icon_512.png",
     "executableName": "lyceum"
-  }
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Higino-Neto",
+      "repo": "Lyceum",
+      "releaseType": "release",
+      "publishAutoUpdate": true
+    }
+  ]
 }

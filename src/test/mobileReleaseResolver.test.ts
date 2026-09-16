@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import { findLatestMobileReleaseAsset, MobileReleaseError } from "../mobile/githubReleaseResolver";
 
 describe("mobile release resolution", () => {
-  it("finds the newest mobile asset even when a desktop release is newer", () => {
+  it("finds the mobile asset in the newest global release", () => {
     const url = findLatestMobileReleaseAsset([
       {
-        tag_name: "v9.0.0",
+        tag_name: "mobile-v9.0.0",
         published_at: "2026-08-20T00:00:00Z",
-        assets: [{ name: "Lyceum-Setup.exe", browser_download_url: "https://example.com/desktop" }],
+        assets: [{ name: "lyceum-mobile-latest.json", browser_download_url: "https://example.com/old-track" }],
       },
       {
-        tag_name: "mobile-v2.0.0",
+        tag_name: "v2.0.0",
         published_at: "2026-08-19T00:00:00Z",
         assets: [{ name: "lyceum-mobile-latest.json", browser_download_url: "https://example.com/mobile" }],
       },
@@ -28,6 +28,10 @@ describe("mobile release resolution", () => {
     expect(() => findLatestMobileReleaseAsset([{
       tag_name: "mobile-v2.0.0",
       published_at: "2026-08-19T00:00:00Z",
+      assets: [{ name: "lyceum-mobile-latest.json", browser_download_url: "http://example.com/mobile" }],
+    }, {
+      tag_name: "v2.0.0",
+      published_at: "2026-08-20T00:00:00Z",
       assets: [{ name: "lyceum-mobile-latest.json", browser_download_url: "http://example.com/mobile" }],
     }], "lyceum-mobile-latest.json")).toThrow("Ainda nao existe");
   });

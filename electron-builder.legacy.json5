@@ -1,0 +1,21 @@
+{
+  "extends": "./electron-builder.json5",
+  "electronVersion": "22.3.27",
+  "extraMetadata": {
+    "lyceumBuildFlavor": "legacy"
+  },
+  "directories": {
+    "output": "release/legacy/${version}"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "resources/icons/icon.ico",
+    "artifactName": "${productName}-${version}-Windows-Legacy-x64-Setup.${ext}"
+  },
+  "publish": []
+}

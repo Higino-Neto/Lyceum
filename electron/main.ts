@@ -2,11 +2,12 @@ import electron, {
   type BrowserWindow as ElectronBrowserWindow,
   type BrowserWindowConstructorOptions,
   type IpcMainInvokeEvent,
-  net,
 } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { cachePdfBuffer, getCachedPdfBuffer } from "./services/pdfCache";
+import { getCachedPdfBuffer } from "./services/pdfCache";
+import { getPdfSource, registerPdfSource } from "./services/pdfSourceRegistry";
+import { parseByteRange } from "./services/pdfByteRange";
 import path from "node:path";
 import os from "node:os";
 import { execFile } from "node:child_process";
@@ -452,17 +453,17 @@ async function openReadableFile(filePath: string): Promise<(DocumentRecord & { f
     thumbnailsDir: THUMBNAILS_DIR(),
   });
   const { fileHash, buffer: fileBuffer, thumbnailPath, numPages } = processed;
+  if (fileType === "pdf") registerPdfSource(fileHash, filePath);
 
   const existingByPath = getDocumentByFilePath(filePath);
   if (existingByPath) {
     updateLastOpened(existingByPath.fileHash);
-    return { ...existingByPath, filePath, fileBuffer, fileType, title };
+    return { ...existingByPath, fileHash, filePath, fileBuffer, fileType, title };
   }
 
   const existingByHash = getDocumentByHash(fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
-    cachePdfBuffer(fileHash, fileBuffer);
     return { ...existingByHash, filePath, fileBuffer, fileType, title };
   }
 
@@ -473,7 +474,6 @@ async function openReadableFile(filePath: string): Promise<(DocumentRecord & { f
     return null;
   }
 
-  cachePdfBuffer(fileHash, fileBuffer);
   return { ...doc, filePath, fileBuffer, fileType, title };
 }
 
@@ -2255,46 +2255,13 @@ async function getNativePdfViewerState(
   sourceUrl: string,
   targetWindow: ElectronBrowserWindow | null = win,
 ): Promise<NativePdfViewerState | null> {
-  const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
+  const frame = findNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
-
   try {
-    const result = (await frame.executeJavaScript(
-      `
-        (async () => {
-          if (globalThis.LyceumPdfJs?.getState) {
-            return await globalThis.LyceumPdfJs.getState();
-          }
-
-          const app = globalThis.PDFViewerApplication;
-          if (!app) {
-            return null;
-          }
-
-          try {
-            await app.initializedPromise;
-          } catch {}
-
-          const viewer = app.pdfViewer;
-          const container = viewer?.container;
-          const page = Number(app.page ?? viewer?.currentPageNumber ?? 1);
-          const currentScale = Number(viewer?.currentScale ?? 1);
-          const scrollTop = Number(container?.scrollTop ?? 0);
-          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
-
-          return {
-            page: Number.isFinite(page) && page > 0 ? page : 1,
-            currentScale: Number.isFinite(currentScale) && currentScale > 0 ? currentScale : 1,
-            scrollTop: Number.isFinite(scrollTop) && scrollTop >= 0 ? scrollTop : 0,
-            totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 0,
-            canAccess: true,
-          };
-        })();
-      `,
+    return (await frame.executeJavaScript(
+      "globalThis.LyceumPdfJs?.getState() ?? null",
       true,
     )) as NativePdfViewerState | null;
-
-    return result ?? null;
   } catch (error) {
     console.error("[native-pdf-viewer:get-state] Error:", error);
     return null;
@@ -2311,57 +2278,13 @@ async function getNativePdfOutline(
   sourceUrl: string,
   targetWindow: ElectronBrowserWindow | null = win,
 ): Promise<PdfOutlineNode[] | null> {
-  const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
+  const frame = findNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
-
   try {
-    const result = (await frame.executeJavaScript(
-      `
-        (async () => {
-          const app = globalThis.PDFViewerApplication;
-          if (!app) return null;
-          try { await app.initializedPromise; } catch {}
-          if (!app.pdfDocument) return null;
-
-          const outline = await app.pdfDocument.getOutline().catch(() => null);
-          if (!outline) return [];
-
-          async function resolvePage(dest) {
-            if (!dest) return null;
-            try {
-              let explicit = dest;
-              if (typeof dest === "string") {
-                explicit = await app.pdfDocument.getDestination(dest);
-              }
-              if (!Array.isArray(explicit) || explicit.length === 0) return null;
-              const target = explicit[0];
-              if (typeof target === "number") {
-                return target + 1;
-              }
-              const pageIndex = await app.pdfDocument.getPageIndex(target);
-              return Number.isInteger(pageIndex) ? pageIndex + 1 : null;
-            } catch (e) { return null; }
-          }
-
-          async function walk(items) {
-            const out = [];
-            for (const item of items) {
-              out.push({
-                title: item.title || "(sem título)",
-                page: await resolvePage(item.dest),
-                items: item.items ? await walk(item.items) : [],
-              });
-            }
-            return out;
-          }
-
-          return await walk(outline);
-        })();
-      `,
+    return (await frame.executeJavaScript(
+      "globalThis.LyceumPdfJs?.getOutline() ?? null",
       true,
     )) as PdfOutlineNode[] | null;
-
-    return result ?? null;
   } catch (error) {
     console.error("[native-pdf-viewer:get-outline] Error:", error);
     return null;
@@ -2376,88 +2299,12 @@ async function applyNativePdfViewerState(
 ): Promise<NativePdfViewerState | null> {
   const frame = await waitForNativePdfViewerFrame(sourceUrl, targetWindow);
   if (!frame) return null;
-
   try {
-    const payload = JSON.stringify({
-      page: state.page,
-      currentScale: state.currentScale,
-      scrollTop: state.scrollTop,
-      restore,
-    });
-
-    const result = (await frame.executeJavaScript(
-      `
-        (async () => {
-          const nextState = ${payload};
-          if (globalThis.LyceumPdfJs?.applyState) {
-            return await globalThis.LyceumPdfJs.applyState(nextState, { restore: !!nextState.restore });
-          }
-
-          const app = globalThis.PDFViewerApplication;
-          if (!app) {
-            return null;
-          }
-
-          try {
-            await app.initializedPromise;
-          } catch {}
-
-          const viewer = app.pdfViewer;
-          const container = viewer?.container;
-          const totalPages = Number(app.pagesCount ?? viewer?.pagesCount ?? 0);
-          const targetPage = Number.isFinite(nextState.page) && nextState.page > 0
-            ? Math.min(Math.max(Math.round(nextState.page), 1), totalPages > 0 ? totalPages : Math.round(nextState.page))
-            : null;
-
-          if (Number.isFinite(nextState.page) && nextState.page > 0) {
-            try {
-              app.pdfLinkService?.goToPage?.(targetPage);
-            } catch {}
-            try {
-              if (viewer) viewer.currentPageNumber = targetPage;
-            } catch {}
-            try {
-              app.page = targetPage;
-            } catch {}
-            try {
-              viewer?.scrollPageIntoView?.({ pageNumber: targetPage });
-            } catch {}
-          }
-
-          if (viewer && Number.isFinite(nextState.currentScale) && nextState.currentScale > 0) {
-            viewer.currentScaleValue = String(nextState.currentScale);
-          }
-
-          if (container && Number.isFinite(nextState.scrollTop) && nextState.scrollTop >= 0) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            container.scrollTop = nextState.scrollTop;
-            await new Promise((resolve) => setTimeout(resolve, 50));
-            container.scrollTop = nextState.scrollTop;
-          } else if (container && targetPage) {
-            await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-            const pageElement = document.querySelector('.page[data-page-number="' + targetPage + '"]');
-            if (pageElement instanceof HTMLElement) {
-              container.scrollTop = Math.max(0, pageElement.offsetTop - 8);
-            }
-          }
-
-          const page = Number(targetPage ?? app.page ?? viewer?.currentPageNumber ?? nextState.page ?? 1);
-          const currentScale = Number(viewer?.currentScale ?? nextState.currentScale ?? 1);
-          const scrollTop = Number(container?.scrollTop ?? nextState.scrollTop ?? 0);
-
-          return {
-            page: Number.isFinite(page) && page > 0 ? page : 1,
-            currentScale: Number.isFinite(currentScale) && currentScale > 0 ? currentScale : 1,
-            scrollTop: Number.isFinite(scrollTop) && scrollTop >= 0 ? scrollTop : 0,
-            totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 0,
-            canAccess: true,
-          };
-        })();
-      `,
+    const payload = JSON.stringify({ ...state, restore });
+    return (await frame.executeJavaScript(
+      `globalThis.LyceumPdfJs?.applyState(${payload}, { restore: ${restore} }) ?? null`,
       true,
     )) as NativePdfViewerState | null;
-
-    return result ?? null;
   } catch (error) {
     console.error("[native-pdf-viewer:apply-state] Error:", error);
     return null;
@@ -2540,61 +2387,46 @@ function getPdfjsAssetPath(requestUrl: string): string | null {
 async function createLocalFileResponse(
   filePath: string,
   contentType?: string,
-  request?: Request,
-): Promise<Response> {
-  const headers = new Headers();
+  request?: Electron.ProtocolRequest,
+): Promise<Electron.ProtocolResponse> {
+  const headers: Record<string, string> = {};
   if (contentType) {
-    headers.set("Content-Type", contentType);
+    headers["Content-Type"] = contentType;
   }
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-  headers.set("Accept-Ranges", "bytes");
+  headers["Access-Control-Allow-Origin"] = "*";
+  headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+  headers["Accept-Ranges"] = "bytes";
 
   const stat = await fs.promises.stat(filePath);
   const fileSize = stat.size;
-  headers.set("Content-Length", String(fileSize));
+  headers["Content-Length"] = String(fileSize);
 
-  const rangeHeader = request?.headers.get("range");
-  const rangeMatch = rangeHeader && /bytes=(\d*)-(\d*)/.exec(rangeHeader);
-  if (rangeMatch) {
-    const start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
-    const end = rangeMatch[2]
-      ? parseInt(rangeMatch[2], 10)
-      : fileSize - 1;
-
-    if (
-      Number.isNaN(start) ||
-      Number.isNaN(end) ||
-      start > end ||
-      end >= fileSize
-    ) {
-      return new Response(null, {
-        status: 416,
-        headers: { "Content-Range": `bytes */${fileSize}` },
-      });
-    }
+  const rangeHeader = Object.entries(request?.headers ?? {}).find(
+    ([name]) => name.toLowerCase() === "range",
+  )?.[1] ?? null;
+  const range = parseByteRange(rangeHeader, fileSize);
+  if (range && "unsatisfiable" in range) {
+    return {
+      statusCode: 416,
+      headers: { "Content-Range": `bytes */${fileSize}` },
+    };
+  }
+  if (range && "start" in range) {
+    const { start, end } = range;
 
     const length = end - start + 1;
-    const chunk = Buffer.alloc(length);
-    const fd = await fs.promises.open(filePath, "r");
-    try {
-      await fd.read(chunk, 0, length, start);
-    } finally {
-      await fd.close();
-    }
-
-    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
-    headers.set("Content-Length", String(length));
-    return new Response(chunk, { status: 206, headers });
+    headers["Content-Range"] = `bytes ${start}-${end}/${fileSize}`;
+    headers["Content-Length"] = String(length);
+    return { data: fs.createReadStream(filePath, { start, end }), statusCode: 206, headers };
   }
 
-  return new Response(await fs.promises.readFile(filePath), { headers });
+  return { data: fs.createReadStream(filePath), statusCode: 200, headers };
 }
 
-async function handlePdfjsAssetRequest(request: Request): Promise<Response> {
+async function handlePdfjsAssetRequest(request: Electron.ProtocolRequest): Promise<Electron.ProtocolResponse> {
   const assetPath = getPdfjsAssetPath(request.url);
   if (!assetPath || !fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
-    return new Response(null, { status: 404 });
+    return { statusCode: 404 };
   }
 
   const contentType =
@@ -2614,13 +2446,18 @@ function parseLyceumPdfHash(requestUrl: string): string | null {
   }
 }
 
-async function handleLyceumPdfRequest(request: Request): Promise<Response> {
+async function handleLyceumPdfRequest(request: Electron.ProtocolRequest): Promise<Electron.ProtocolResponse> {
   const fileHash = parseLyceumPdfHash(request.url);
   if (!fileHash) {
-    return new Response(null, { status: 404 });
+    return { statusCode: 404 };
   }
 
-  // Prefer the in-memory buffer that was read when the document was opened.
+  const openedPath = getPdfSource(fileHash);
+  if (openedPath && fs.existsSync(openedPath)) {
+    return createLocalFileResponse(openedPath, "application/pdf", request);
+  }
+
+  // Fall back to an in-memory buffer when no source file is available.
   // This mirrors how the previous renderer loaded the PDF directly from memory
   // and guarantees the bytes are served even when the database hash is stale or
   // the file is no longer resolvable by path on disk.
@@ -2642,44 +2479,43 @@ async function handleLyceumPdfRequest(request: Request): Promise<Response> {
     return createLocalFileResponse(foundPath, "application/pdf", request);
   }
 
-  return new Response(null, { status: 404 });
+  return { statusCode: 404 };
 }
 
-function createLocalFileResponseFromBuffer(buffer: Buffer, request?: Request): Response {
-  const headers = new Headers();
-  headers.set("Content-Type", "application/pdf");
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-  headers.set("Accept-Ranges", "bytes");
+function createLocalFileResponseFromBuffer(
+  buffer: Buffer,
+  request?: Electron.ProtocolRequest,
+): Electron.ProtocolResponse {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/pdf",
+    "Access-Control-Allow-Origin": "*",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Accept-Ranges": "bytes",
+  };
 
   const fileSize = buffer.length;
-  headers.set("Content-Length", String(fileSize));
+  headers["Content-Length"] = String(fileSize);
 
-  const rangeHeader = request?.headers.get("range");
-  const rangeMatch = rangeHeader && /bytes=(\d*)-(\d*)/.exec(rangeHeader);
-  if (rangeMatch) {
-    const start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
-    const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
-
-    if (
-      Number.isNaN(start) ||
-      Number.isNaN(end) ||
-      start > end ||
-      end >= fileSize
-    ) {
-      return new Response(null, {
-        status: 416,
-        headers: { "Content-Range": `bytes */${fileSize}` },
-      });
-    }
+  const rangeHeader = Object.entries(request?.headers ?? {}).find(
+    ([name]) => name.toLowerCase() === "range",
+  )?.[1] ?? null;
+  const range = parseByteRange(rangeHeader, fileSize);
+  if (range && "unsatisfiable" in range) {
+    return {
+      statusCode: 416,
+      headers: { "Content-Range": `bytes */${fileSize}` },
+    };
+  }
+  if (range && "start" in range) {
+    const { start, end } = range;
 
     const slice = buffer.subarray(start, end + 1);
-    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
-    headers.set("Content-Length", String(slice.length));
-    return new Response(new Uint8Array(slice), { status: 206, headers });
+    headers["Content-Range"] = `bytes ${start}-${end}/${fileSize}`;
+    headers["Content-Length"] = String(slice.length);
+    return { data: slice, statusCode: 206, headers };
   }
 
-  return new Response(new Uint8Array(buffer), { headers });
+  return { data: buffer, statusCode: 200, headers };
 }
 
 function createAppWindow(
@@ -2984,7 +2820,9 @@ ipcMain.handle("usb:open-book", async (_, filePath: string) => {
       return { success: false, error: "NÃ£o foi possÃ­vel abrir o livro" };
     }
 
-    return { success: true, ...document };
+    return isPdf
+      ? { success: true, ...document, fileBuffer: undefined }
+      : { success: true, ...document };
   } catch (error) {
     console.error("[usb:open-book] Error:", error);
     return { success: false, error: String(error) };
@@ -3068,7 +2906,8 @@ ipcMain.handle("dialog:open-pdf", async () => {
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (result.canceled || !result.filePaths[0]) return null;
-  return openReadableFile(result.filePaths[0]);
+  const document = await openReadableFile(result.filePaths[0]);
+  return document ? { ...document, fileBuffer: undefined } : null;
 });
 
 ipcMain.handle("dialog:open-epub", async () => {
@@ -3088,7 +2927,8 @@ ipcMain.handle("dialog:open-readable-file", async () => {
     ],
   });
   if (result.canceled || !result.filePaths[0]) return null;
-  return openReadableFile(result.filePaths[0]);
+  const document = await openReadableFile(result.filePaths[0]);
+  return document?.fileType === "pdf" ? { ...document, fileBuffer: undefined } : document;
 });
 
 ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
@@ -4113,7 +3953,9 @@ if (!gotTheLock) {
     if (filePath && fs.existsSync(filePath)) {
       const document = await openReadableFile(filePath);
       if (document) {
-        win?.webContents.send("file-opened", document);
+        win?.webContents.send("file-opened", document.fileType === "pdf"
+          ? { ...document, fileBuffer: undefined }
+          : document);
         console.log("[Main] Sent file-opened event to renderer");
       } else {
         console.log("[Main] Failed to open document:", filePath);
@@ -4156,7 +3998,9 @@ async function handleFileArg(filePath: string) {
   try {
     const document = await openReadableFile(filePath);
     if (document) {
-      win.webContents.send("file-opened", document);
+      win.webContents.send("file-opened", document.fileType === "pdf"
+        ? { ...document, fileBuffer: undefined }
+        : document);
       return;
     }
 
@@ -4196,46 +4040,127 @@ function parseThumbUrlHash(requestUrl: string): string {
   return (url.hostname || url.pathname.replace(/^\/+/, "")).replace(/\/+$/, "");
 }
 
-app.whenReady().then(() => {
-  const fs = require("fs");
+function registerStreamProtocol(
+  scheme: string,
+  handler: (request: Electron.ProtocolRequest) => Electron.ProtocolResponse | Promise<Electron.ProtocolResponse>,
+) {
+  const registered = protocol.registerStreamProtocol(scheme, (request, callback) => {
+    void Promise.resolve(handler(request))
+      .then(callback)
+      .catch((error) => {
+        console.error(`[Protocol] ${scheme}: request failed`, error);
+        callback({ statusCode: 500 });
+      });
+  });
+  if (!registered) {
+    throw new Error(`Could not register ${scheme}: protocol handler`);
+  }
+}
+
+async function runPackagedSmokeTest() {
+  const reportPath = process.env.LYCEUM_SMOKE_TEST_REPORT;
+  const report: Record<string, unknown> = {
+    platform: process.platform,
+    arch: process.arch,
+    osVersion: process.getSystemVersion?.(),
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+    appVersion: app.getVersion(),
+  };
+
+  try {
+    runStartupStage("SQLite smoke test", () => initDatabase());
+    runStartupStage("library directory smoke test", () => ensureLibraryFolder());
+
+    type SmokeSharp = ((input: {
+      create: { width: number; height: number; channels: 4; background: string };
+    }) => { png(): { toBuffer(): Promise<Buffer> } }) & { versions?: Record<string, string> };
+    const sharp = require("sharp") as SmokeSharp;
+    await sharp({
+      create: { width: 1, height: 1, channels: 4, background: "#000000" },
+    }).png().toBuffer();
+    report.sharp = sharp.versions?.sharp ?? "loaded";
+
+    const canvas = await import("@napi-rs/canvas");
+    canvas.createCanvas(1, 1).getContext("2d").fillRect(0, 0, 1, 1);
+    report.canvas = "loaded";
+
+    await checkProcessingWorkers();
+    const smokePdfPath = path.join(app.getPath("userData"), "compatibility-smoke.pdf");
+    const smokePdf = await PDFDocument.create();
+    smokePdf.addPage([72, 72]);
+    fs.writeFileSync(smokePdfPath, await smokePdf.save());
+    try {
+      const inspection = await inspectBookFile({
+        filePath: smokePdfPath,
+        fileType: "pdf",
+        includeMetadata: true,
+      });
+      if (inspection.numPages !== 1) {
+        throw new Error(`PDF worker returned ${inspection.numPages} pages for the one-page smoke document`);
+      }
+    } finally {
+      fs.rmSync(smokePdfPath, { force: true });
+    }
+    report.processingWorker = "ready (PDF parsed)";
+    report.ok = true;
+    console.info("[SmokeTest] PASS", report);
+    if (reportPath) fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    disposeProcessingWorkers();
+    app.exit(0);
+  } catch (error) {
+    report.ok = false;
+    report.error = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error("[SmokeTest] FAIL", report);
+    if (reportPath) fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    disposeProcessingWorkers();
+    app.exit(1);
+  }
+}
+
+app.whenReady().then(async () => {
   logStartupEnvironment();
 
-  protocol.handle("thumb", (request) => {
+  if (process.argv.includes("--lyceum-smoke-test")) {
+    await runPackagedSmokeTest();
+    return;
+  }
+
+  registerStreamProtocol("thumb", (request) => {
     const fileHash = parseThumbUrlHash(request.url);
     if (!SHA256_HEX_PATTERN.test(fileHash)) {
-      return new Response(null, { status: 404 });
+      return { statusCode: 404 };
     }
     const thumbPath = findThumbnailByHash(THUMBNAILS_DIR(), fileHash);
     if (!thumbPath) {
-      return new Response(null, { status: 404 });
+      return { statusCode: 404 };
     }
-    return net.fetch(pathToFileURL(thumbPath).toString());
+    return createLocalFileResponse(thumbPath);
   });
 
-  protocol.handle("img-preview", async (request) => {
+  registerStreamProtocol("img-preview", async (request) => {
     try {
       const filePath = decodeURIComponent(request.url.replace(/^img-preview:/, ""));
-      const buffer = await fs.promises.readFile(filePath);
       const ext = path.extname(filePath).toLowerCase();
       const mimeType = ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : "image/jpeg";
-      return new Response(buffer, { headers: { "Content-Type": mimeType } });
+      return await createLocalFileResponse(filePath, mimeType, request);
     } catch {
-      return new Response(null, { status: 404 });
+      return { statusCode: 404 };
     }
   });
 
-  protocol.handle("lyceum-pdfjs", (request) => {
+  registerStreamProtocol("lyceum-pdfjs", (request) => {
     return handlePdfjsAssetRequest(request);
   });
 
-  protocol.handle("lyceum-pdf", (request) => {
+  registerStreamProtocol("lyceum-pdf", (request) => {
     return handleLyceumPdfRequest(request);
   });
 
-  protocol.handle("pdf-resource", async (request) => {
+  registerStreamProtocol("pdf-resource", async (request) => {
     const filePath = request.url.replace(/^pdf-resource:\/\//, "");
-    const fileBuffer = await fs.promises.readFile(decodeURIComponent(filePath));
-    return new Response(fileBuffer, { headers: { "Content-Type": "application/pdf" } });
+    return createLocalFileResponse(decodeURIComponent(filePath), "application/pdf", request);
   });
 
   const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: img-preview: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";

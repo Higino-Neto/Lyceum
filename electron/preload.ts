@@ -285,10 +285,10 @@ contextBridge.exposeInMainWorld("api", {
 
   getLastDocument: () => ipcRenderer.invoke("app:get-last-document"),
 
-  reopenPdf: (filePath?: string, fileHash?: string) =>
-    ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
-  openDocumentByHash: (fileHash: string, filePath?: string) =>
-    ipcRenderer.invoke("pdf:reopen", filePath, fileHash),
+  reopenPdf: (filePath?: string, fileHash?: string, metadataOnly = false) =>
+    ipcRenderer.invoke("pdf:reopen", filePath, fileHash, metadataOnly),
+  openDocumentByHash: (fileHash: string, filePath?: string, metadataOnly = false) =>
+    ipcRenderer.invoke("pdf:reopen", filePath, fileHash, metadataOnly),
 
   getThumbnail: (thumbnailPath: string) =>
     ipcRenderer.invoke("thumbnail:get", thumbnailPath),

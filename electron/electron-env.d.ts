@@ -29,7 +29,7 @@ type FolderStats = import("../src/types/LibraryTypes").FolderStats;
 type FolderChangedPayload = import("../src/types/LibraryTypes").FolderChangedPayload;
 
 interface OpenPdfResult extends DocumentRecord {
-  fileBuffer: ArrayBuffer;
+  fileBuffer?: ArrayBuffer;
 }
 
 interface NativePdfViewerState {
@@ -232,16 +232,16 @@ interface Window {
     openImageDialog: () => Promise<string | null>;
     readImageDataUrl: (filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
     getLastDocument: () => Promise<DocumentRecord | null>;
-    reopenPdf: (filePath?: string, fileHash?: string) => Promise<{
-      fileBuffer: ArrayBuffer;
+    reopenPdf: (filePath?: string, fileHash?: string, metadataOnly?: boolean) => Promise<{
+      fileBuffer?: ArrayBuffer;
       fileHash: string;
       filePath?: string;
       fileType?: "pdf" | "epub";
       fileName?: string;
       foundAt?: string;
     } | { error: string; message: string } | null>;
-    openDocumentByHash: (fileHash: string, filePath?: string) => Promise<{
-      fileBuffer: ArrayBuffer;
+    openDocumentByHash: (fileHash: string, filePath?: string, metadataOnly?: boolean) => Promise<{
+      fileBuffer?: ArrayBuffer;
       fileHash: string;
       filePath?: string;
       fileType?: "pdf" | "epub";

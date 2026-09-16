@@ -26,11 +26,13 @@ const MAX_STATE_BUFFERS = 3;
 // this survives tab switches, so re-activating a book reuses its bytes instead
 // of re-reading the file from disk and re-cloning it over IPC.
 const MAX_CACHED_BUFFERS = 6;
+const MAX_CACHED_BUFFER_BYTES = 128 * 1024 * 1024;
 
 class BookBufferCache {
   private entries = new Map<string, ArrayBuffer>();
+  private totalBytes = 0;
 
-  constructor(private readonly capacity: number) {}
+  constructor(private readonly capacity: number, private readonly maxBytes: number) {}
 
   get(fileHash: string): ArrayBuffer | undefined {
     const buffer = this.entries.get(fileHash);
@@ -44,23 +46,26 @@ class BookBufferCache {
   }
 
   set(fileHash: string, buffer: ArrayBuffer): void {
-    if (this.entries.has(fileHash)) {
-      this.entries.delete(fileHash);
-    }
+    const previous = this.entries.get(fileHash);
+    if (previous) this.totalBytes -= previous.byteLength;
+    this.entries.delete(fileHash);
+    if (buffer.byteLength > this.maxBytes) return;
 
     this.entries.set(fileHash, buffer);
+    this.totalBytes += buffer.byteLength;
 
-    while (this.entries.size > this.capacity) {
+    while (this.entries.size > this.capacity || this.totalBytes > this.maxBytes) {
       const oldest = this.entries.keys().next().value as string | undefined;
       if (oldest === undefined) {
         break;
       }
+      this.totalBytes -= this.entries.get(oldest)?.byteLength ?? 0;
       this.entries.delete(oldest);
     }
   }
 }
 
-const bookBufferCache = new BookBufferCache(MAX_CACHED_BUFFERS);
+const bookBufferCache = new BookBufferCache(MAX_CACHED_BUFFERS, MAX_CACHED_BUFFER_BYTES);
 
 function evictExcessBuffers(
   tabs: DocumentTab[],
@@ -169,6 +174,7 @@ function createTab(
     isActive?: boolean;
     position?: number;
     isLoading?: boolean;
+    isResolved?: boolean;
     loadError?: string;
   }
 ): DocumentTab {
@@ -188,6 +194,7 @@ function createTab(
     isActive: options?.isActive ?? false,
     source: data.source ?? "local",
     isLoading: options?.isLoading ?? false,
+    isResolved: options?.isResolved ?? Boolean(options?.buffer),
     loadError: options?.loadError,
   };
 }
@@ -345,6 +352,7 @@ function createInitialState(scope: TabScope, initialTab?: InitialTabData | null)
       createTab(tab, {
         id: tab.id,
         position: tab.position,
+        isLoading: tab.fileType === "pdf",
       })
     ),
     stored.activeTabId
@@ -519,6 +527,7 @@ export function TabProvider({
                     source: options?.source ?? tab.source,
                     buffer: options?.buffer ?? tab.buffer,
                     isLoading: false,
+                    isResolved: true,
                     loadError: undefined,
                   }
                 : tab
@@ -544,7 +553,8 @@ export function TabProvider({
         {
           buffer: options?.buffer,
           isActive: true,
-          isLoading: !options?.buffer,
+          isLoading: fileType === "epub" && !options?.buffer,
+          isResolved: true,
         }
       );
 
@@ -634,6 +644,7 @@ export function TabProvider({
               ...tab,
               buffer,
               isLoading: false,
+              isResolved: true,
               loadError: undefined,
             }
           : tab
@@ -660,6 +671,7 @@ export function TabProvider({
                 ...candidate,
                 buffer: cachedBuffer,
                 isLoading: false,
+                isResolved: true,
                 loadError: undefined,
               }
             : candidate
@@ -682,19 +694,23 @@ export function TabProvider({
     );
 
     try {
-      const reopened = await window.api.openDocumentByHash(tab.fileHash, tab.filePath);
-      if (!reopened || "error" in reopened || !reopened.fileBuffer) {
+      const reopened = await window.api.openDocumentByHash(tab.fileHash, tab.filePath, tab.fileType === "pdf");
+      if (!reopened || "error" in reopened || !reopened.fileHash ||
+          (tab.fileType === "epub" && !reopened.fileBuffer)) {
         throw new Error("Nao foi possivel reabrir o documento");
       }
 
-      bookBufferCache.set(tab.fileHash, reopened.fileBuffer);
+      if (reopened.fileBuffer && reopened.fileType !== "pdf") {
+        bookBufferCache.set(tab.fileHash, reopened.fileBuffer);
+      }
 
       setTabs((previousTabs) =>
         previousTabs.map((candidate) =>
           candidate.id === tab.id
             ? {
                 ...candidate,
-                buffer: reopened.fileBuffer,
+                buffer: reopened.fileType === "pdf" ? undefined : reopened.fileBuffer,
+                fileHash: reopened.fileHash,
                 fileName: reopened.fileName || candidate.fileName,
                 fileType: inferTabFileType(
                   reopened.foundAt || reopened.filePath || candidate.filePath,
@@ -703,6 +719,7 @@ export function TabProvider({
                 ),
                 filePath: reopened.foundAt || reopened.filePath || candidate.filePath,
                 isLoading: false,
+                isResolved: true,
                 loadError: undefined,
               }
             : candidate
@@ -730,7 +747,7 @@ export function TabProvider({
 
   useEffect(() => {
     const activeTab = tabs.find((tab) => tab.id === activeTabId);
-    if (!activeTab || activeTab.buffer || activeTab.loadError) {
+    if (!activeTab || activeTab.buffer || activeTab.isResolved || activeTab.loadError) {
       return;
     }
 

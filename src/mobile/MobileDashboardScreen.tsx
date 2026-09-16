@@ -9,7 +9,6 @@ import {
   Loader2,
   Plus,
   Trophy,
-  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -27,7 +26,6 @@ import MobileAccountGate from "./MobileAccountGate";
 import MobileQueryError from "./MobileQueryError";
 import {
   getMobileCategories,
-  getMobileFriends,
   getMobileReadingQueryEnabled,
   getMobileReadingStats,
   getMobileUserReadings,
@@ -89,6 +87,11 @@ function formatShortDate(value: string) {
   return `${day}/${month}`;
 }
 
+function dateLabelForHeatmap(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short" }).format(date);
+}
+
 function getTodayReadingsText(readings: Array<{ source_name: string; pages: number; reading_date: string }>) {
   const today = toLocalIsoDate(new Date());
   const todayReadings = readings.filter((reading) => reading.reading_date === today);
@@ -126,14 +129,9 @@ export default function MobileDashboardScreen({
     enabled,
   });
 
-  const { data: friends = [] } = useQuery({
-    queryKey: ["mobile-friends"],
-    queryFn: getMobileFriends,
-    enabled,
-  });
-
   const summary = useMemo(() => summarizeMobileReadings(readings), [readings]);
   const dailyData = useMemo(() => buildDailyReadingData(readings, 14), [readings]);
+  const heatmapData = useMemo(() => buildDailyReadingData(readings, 84), [readings]);
   const categoryTotals = useMemo(
     () => buildCategoryTotals(readings, categories).slice(0, 6),
     [categories, readings],
@@ -146,6 +144,7 @@ export default function MobileDashboardScreen({
   const currentStreak = stats?.userStreak ?? summary.currentStreak;
   const hasAnyReading = readings.length > 0;
   const recentBook = useMemo(() => [...books].filter((book) => book.lastOpenedAt).sort((a, b) => String(b.lastOpenedAt).localeCompare(String(a.lastOpenedAt)))[0], [books]);
+  const heatmapMax = Math.max(1, ...heatmapData.map((day) => day.pages));
 
   if (!enabled) {
     return (
@@ -211,36 +210,7 @@ export default function MobileDashboardScreen({
         </div>
       </div>
 
-      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Continue lendo</p><p className="mt-1 truncate text-sm font-semibold text-zinc-100">{recentBook.title}</p><p className="mt-0.5 text-xs text-zinc-400">{Math.round(recentBook.progressPercent || 0)}% concluído</p></div></button>}
-
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile
-          label="Total"
-          value={`${totalPages}p`}
-          helper={formatReadingMinutes(Number(totalMinutes || 0))}
-          icon={<BookOpen size={17} />}
-        />
-        <StatTile
-          label="Mes"
-          value={`${monthPages}p`}
-          helper={`${summary.readingDays} dias com leitura`}
-          icon={<CalendarDays size={17} />}
-        />
-        <StatTile
-          label="Sequencia"
-          value={`${currentStreak}d`}
-          helper={summary.todayPages > 0 ? "Leitura feita hoje" : "Hoje ainda vazio"}
-          icon={<Flame size={17} />}
-        />
-        <StatTile
-          label="Semana"
-          value={`${summary.weekPages}p`}
-          helper={`${summary.averagePagesPerReading}p por registro`}
-          icon={<BarChart3 size={17} />}
-        />
-      </div>
-
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-100">Ritmo da semana</h2>
           <span className="text-xs text-zinc-500">{summary.weekPages}p</span>
@@ -321,26 +291,51 @@ export default function MobileDashboardScreen({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          className="rounded border border-zinc-800 bg-zinc-900 p-4 text-left"
-          onClick={onOpenLeaderboard}
-          type="button"
-        >
-          <Trophy size={18} className="text-emerald-400" />
-          <p className="mt-3 text-sm font-semibold text-zinc-100">Leaderboard</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">Veja sua posicao entre amigos.</p>
-        </button>
-        <button
-          className="rounded border border-zinc-800 bg-zinc-900 p-4 text-left"
-          onClick={onOpenLeaderboard}
-          type="button"
-        >
-          <Users size={18} className="text-emerald-400" />
-          <p className="mt-3 text-sm font-semibold text-zinc-100">{friends.length} amigos</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">Convites e perfis no mobile.</p>
-        </button>
+      <div className="mobile-card p-4">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div><h2 className="text-sm font-semibold text-zinc-100">Constância de leitura</h2><p className="mt-1 text-xs text-zinc-500">Suas últimas 12 semanas</p></div>
+          <CalendarDays size={18} className="text-emerald-400" />
+        </div>
+        <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-hidden" role="img" aria-label={`Mapa de leitura das últimas 12 semanas. ${summary.readingDays} dias com leitura no total.`}>
+          {heatmapData.map((day) => {
+            const intensity = day.pages <= 0 ? 0 : Math.max(1, Math.ceil((day.pages / heatmapMax) * 4));
+            const tones = ["bg-zinc-800", "bg-emerald-950", "bg-emerald-800", "bg-emerald-600", "bg-emerald-400"];
+            return <span key={day.date} className={`aspect-square min-w-0 rounded-[4px] ${tones[intensity]}`} title={`${dateLabelForHeatmap(day.date)}: ${day.pages} páginas`} aria-label={`${dateLabelForHeatmap(day.date)}, ${day.pages} páginas`} />;
+          })}
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-zinc-500"><span>Menos</span>{["bg-zinc-800", "bg-emerald-950", "bg-emerald-800", "bg-emerald-600", "bg-emerald-400"].map((tone) => <span key={tone} className={`h-2.5 w-2.5 rounded-[3px] ${tone}`} />)}<span>Mais</span></div>
       </div>
+
+      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Continue lendo</p><p className="mt-1 truncate text-sm font-semibold text-zinc-100">{recentBook.title}</p><p className="mt-0.5 text-xs text-zinc-400">{Math.round(recentBook.progressPercent || 0)}% concluído</p></div></button>}
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatTile
+          label="Total"
+          value={`${totalPages}p`}
+          helper={formatReadingMinutes(Number(totalMinutes || 0))}
+          icon={<BookOpen size={17} />}
+        />
+        <StatTile
+          label="Mes"
+          value={`${monthPages}p`}
+          helper={`${summary.readingDays} dias com leitura`}
+          icon={<CalendarDays size={17} />}
+        />
+        <StatTile
+          label="Sequencia"
+          value={`${currentStreak}d`}
+          helper={summary.todayPages > 0 ? "Leitura feita hoje" : "Hoje ainda vazio"}
+          icon={<Flame size={17} />}
+        />
+        <StatTile
+          label="Semana"
+          value={`${summary.weekPages}p`}
+          helper={`${summary.averagePagesPerReading}p por registro`}
+          icon={<BarChart3 size={17} />}
+        />
+      </div>
+
+      <button className="flex min-h-12 w-full items-center justify-center gap-2 text-sm font-semibold text-zinc-400" onClick={onOpenLeaderboard} type="button"><Trophy size={17} className="text-emerald-400" />Ver ranking e amigos</button>
     </section>
   );
 }
