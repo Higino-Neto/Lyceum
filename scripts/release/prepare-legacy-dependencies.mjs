@@ -11,5 +11,7 @@ const packages = [
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const result = spawnSync(npm, ["install", "--no-save", "--package-lock=false", ...packages], {
   stdio: "inherit",
+  shell: process.platform === "win32",
 });
+if (result.error) throw result.error;
 if (result.status !== 0) throw new Error(`Could not prepare Electron 22 dependencies (exit ${result.status})`);

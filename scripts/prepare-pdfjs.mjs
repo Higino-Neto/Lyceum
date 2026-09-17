@@ -70,11 +70,16 @@ if (!fs.existsSync(gulpBinary) || !fs.existsSync(dependencyMarker) ||
   execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--ignore-scripts"], {
     cwd: sourceDir,
     stdio: "inherit",
+    shell: process.platform === "win32",
   });
   fs.writeFileSync(dependencyMarker, lockHash);
 }
 console.log("[prepare-pdfjs] Building vendored PDF.js from source");
-execFileSync(gulpBinary, ["generic"], { cwd: sourceDir, stdio: "inherit" });
+execFileSync(gulpBinary, ["generic"], {
+  cwd: sourceDir,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
 if (!fs.existsSync(path.join(viewerSourceDir, "web", "viewer.html"))) {
   throw new Error(`PDF.js source build did not produce ${viewerSourceDir}.`);
 }

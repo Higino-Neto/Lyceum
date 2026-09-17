@@ -22,6 +22,7 @@ export function run(command, args, options = {}) {
     cwd: root,
     stdio: "inherit",
     ...options,
+    shell: options.shell ?? (process.platform === "win32" && command.toLowerCase().endsWith(".cmd")),
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
