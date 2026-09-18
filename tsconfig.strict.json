@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
+  },
+  "include": [
+    "src/vite-env.d.ts",
+    "src/types/adm-zip.d.ts",
+    "electron/electron-env.d.ts",
+    "src/core/**/*.ts",
+    "src/features/**/*.ts",
+    "src/features/**/*.tsx",
+    "electron/app/**/*.ts",
+    "electron/handlers/habits.handler.ts",
+    "electron/handlers/backup.handler.ts",
+    "electron/handlers/categories.handler.ts",
+    "electron/handlers/dictionary.handler.ts",
+    "electron/handlers/platform.handler.ts",
+    "electron/infrastructure/**/*.ts",
+    "electron/ipc/**/*.ts",
+    "electron/database-migrations.ts",
+    "electron/annotation-repository.ts"
+  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

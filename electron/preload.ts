@@ -1,26 +1,30 @@
 import electron from "electron";
 import type {
   BookFormat,
+  DocumentRecord,
   FolderChangedPayload,
-  LibraryFileTypeFilter,
-  LibrarySection,
+  LibraryListQuery,
   LibrarySortOption,
-  ReadingMapPayload,
-  ReadingStatusNotePayload,
   ReadingStatus,
-  ReadingStatusPayload,
 } from "../src/types/LibraryTypes";
 import type {
-  AnnotatedPage,
-  AnnotationResult,
-  ConceptGraphPayload,
   CreateKeyConceptInput,
-  KeyConcept,
   UpdateKeyConceptInput,
 } from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
+import type { BookCategory } from "../src/core/library/category";
+import type {
+  Habit,
+  HabitCompletion,
+  HabitUpdate,
+  NewHabit,
+} from "../src/core/habits/model";
 
 const { ipcRenderer, contextBridge } = electron;
+
+function invoke<Result>(channel: string, ...args: unknown[]): Promise<Result> {
+  return ipcRenderer.invoke(channel, ...args);
+}
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getFilePath: () => {
@@ -45,14 +49,6 @@ interface ReadingState {
     currentScroll: number;
     annotations: string;
   };
-}
-
-interface NativePdfViewerState {
-  page: number;
-  currentScale: number;
-  scrollTop: number;
-  totalPages: number;
-  canAccess: boolean;
 }
 
 interface NativePdfViewerApplyState {
@@ -83,40 +79,13 @@ interface MetadataUpdate {
 type MetadataSearchSource = "openlibrary" | "google" | "loc" | "all";
 type MetadataSearchField = "title" | "author" | "isbn";
 
-interface BookMetadataCandidate {
-  id: string;
-  source: "openlibrary" | "google" | "loc";
-  sourceLabel: string;
-  title: string;
-  subtitle?: string;
-  authors: string[];
-  publisher?: string;
-  publishedDate?: string;
-  language?: string;
-  isbn10?: string;
-  isbn13?: string;
-  pageCount?: number;
-  categories: string[];
-  description?: string;
-  thumbnailUrl?: string;
-  externalUrl?: string;
-}
-
-interface BookCategory {
-  id: number;
-  name: string;
-  color: string;
-  bookCount: number;
-  createdAt: string;
-}
-
-contextBridge.exposeInMainWorld("api", {
+const api = {
   openExternalFile: (filePath: string) => ipcRenderer.invoke("file:open-external", filePath),
 
-  onFileOpened: (callback: (data: any) => void) => {
-    const listener = (_: Electron.IpcRendererEvent, data: any) => callback(data);
+  onFileOpened: (callback: (data: DocumentRecord & { fileType: "pdf" | "epub"; fileBuffer?: ArrayBuffer }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, data: DocumentRecord & { fileType: "pdf" | "epub"; fileBuffer?: ArrayBuffer }) => callback(data);
     ipcRenderer.on("file-opened", listener);
-    return () => ipcRenderer.removeListener("file-opened", listener);
+    return () => { ipcRenderer.removeListener("file-opened", listener); };
   },
 
   onReadingShortcut: (callback: (data: { key: string; shift?: boolean }) => void) => {
@@ -125,7 +94,7 @@ contextBridge.exposeInMainWorld("api", {
       data: { key: string; shift?: boolean },
     ) => callback(data);
     ipcRenderer.on("reading-shortcut", listener);
-    return () => ipcRenderer.removeListener("reading-shortcut", listener);
+    return () => { ipcRenderer.removeListener("reading-shortcut", listener); };
   },
 
   zoomIn: () => ipcRenderer.invoke("zoom:in"),
@@ -134,9 +103,9 @@ contextBridge.exposeInMainWorld("api", {
   getZoomFactor: () => ipcRenderer.invoke("zoom:get-factor"),
   setZoomFactor: (factor: number) => ipcRenderer.invoke("zoom:set-factor", factor),
   onZoomFactorChanged: (callback: (factor: number) => void) => {
-    const listener = (_: any, factor: number) => callback(factor);
+    const listener = (_: Electron.IpcRendererEvent, factor: number) => callback(factor);
     ipcRenderer.on("zoom-factor-changed", listener);
-    return () => ipcRenderer.removeListener("zoom-factor-changed", listener);
+    return () => { ipcRenderer.removeListener("zoom-factor-changed", listener); };
   },
 
   updatesGetStatus: () => ipcRenderer.invoke("updates:get-status"),
@@ -146,7 +115,7 @@ contextBridge.exposeInMainWorld("api", {
   onUpdatesStatusChanged: (callback: (state: unknown) => void) => {
     const listener = (_: Electron.IpcRendererEvent, state: unknown) => callback(state);
     ipcRenderer.on("updates:status-changed", listener);
-    return () => ipcRenderer.removeListener("updates:status-changed", listener);
+    return () => { ipcRenderer.removeListener("updates:status-changed", listener); };
   },
 
   openDefaultAppsSettings: () => ipcRenderer.invoke("settings:open-default-apps"),
@@ -159,23 +128,14 @@ contextBridge.exposeInMainWorld("api", {
       payload: { route: string; params: Record<string, string> },
     ) => callback(payload);
     ipcRenderer.on("auth:deep-link", listener);
-    return () => ipcRenderer.removeListener("auth:deep-link", listener);
+    return () => { ipcRenderer.removeListener("auth:deep-link", listener); };
   },
 
   addDocument: (data: DocumentData) => ipcRenderer.invoke("add-document", data),
 
   getDocuments: () => ipcRenderer.invoke("get-documents"),
 
-  listBooks: (query: {
-    section?: LibrarySection;
-    search?: string;
-    folderPath?: string | null;
-    includeSubfolders?: boolean;
-    fileType?: LibraryFileTypeFilter;
-    sort?: LibrarySortOption;
-    limit?: number;
-    offset?: number;
-  }) => ipcRenderer.invoke("library:list-books", query),
+  listBooks: (query: LibraryListQuery) => ipcRenderer.invoke("library:list-books", query),
 
   getFolderBookCounts: () =>
     ipcRenderer.invoke("library:get-folder-book-counts"),
@@ -184,7 +144,7 @@ contextBridge.exposeInMainWorld("api", {
 
   listUsbBooks: (query: {
     search?: string;
-    fileType?: LibraryFileTypeFilter;
+    fileType?: string;
     sort?: LibrarySortOption;
     limit?: number;
     offset?: number;
@@ -273,7 +233,7 @@ contextBridge.exposeInMainWorld("api", {
   onConversionProgress: (callback: (payload: { jobId: string; progress: number; message?: string }) => void) => {
     const listener = (_: Electron.IpcRendererEvent, payload: { jobId: string; progress: number; message?: string }) => callback(payload);
     ipcRenderer.on("conversion:progress", listener);
-    return () => ipcRenderer.removeListener("conversion:progress", listener);
+    return () => { ipcRenderer.removeListener("conversion:progress", listener); };
   },
 
   importPdf: (targetFolder: string | null, action?: "move" | "copy") =>
@@ -304,11 +264,6 @@ contextBridge.exposeInMainWorld("api", {
   scanLibrary: () => ipcRenderer.invoke("library:scan"),
 
   resyncLibrary: () => ipcRenderer.invoke("library:resync"),
-
-  moveToLibrary: (filePath: string) =>
-    ipcRenderer.invoke("library:move", filePath),
-
-  openFileDialog: () => ipcRenderer.invoke("dialog:open-file"),
 
   getDocumentsBySyncStatus: (synced: boolean) =>
     ipcRenderer.invoke("library:get-sync-status", synced),
@@ -471,56 +426,56 @@ contextBridge.exposeInMainWorld("api", {
 
   onLibraryUpdated: (callback: () => void) => {
     ipcRenderer.on("library:updated", callback);
-    return () => ipcRenderer.removeListener("library:updated", callback);
+    return () => { ipcRenderer.removeListener("library:updated", callback); };
   },
 
   onLibraryNotification: (callback: (notification: { type: "success" | "error" | "warning"; message: string }) => void) => {
     const listener = (_: Electron.IpcRendererEvent, notification: { type: "success" | "error" | "warning"; message: string }) => callback(notification);
     ipcRenderer.on("library:notification", listener);
-    return () => ipcRenderer.removeListener("library:notification", listener);
+    return () => { ipcRenderer.removeListener("library:notification", listener); };
   },
 
   onUsbDevicesUpdated: (callback: () => void) => {
     const listener = () => callback();
     ipcRenderer.on("usb:devices-updated", listener);
-    return () => ipcRenderer.removeListener("usb:devices-updated", listener);
+    return () => { ipcRenderer.removeListener("usb:devices-updated", listener); };
   },
 
   categoryCreate: (name: string, color?: string) =>
-    ipcRenderer.invoke("category:create", name, color),
+    invoke<BookCategory | null>("category:create", name, color),
 
   categoryUpdate: (id: number, name: string, color: string) =>
-    ipcRenderer.invoke("category:update", id, name, color),
+    invoke<boolean>("category:update", id, name, color),
 
   categoryDelete: (id: number) =>
-    ipcRenderer.invoke("category:delete", id),
+    invoke<boolean>("category:delete", id),
 
   categoryGetAll: () =>
-    ipcRenderer.invoke("category:get-all"),
+    invoke<BookCategory[]>("category:get-all"),
 
   categoryGetById: (id: number) =>
-    ipcRenderer.invoke("category:get-by-id", id),
+    invoke<BookCategory | null>("category:get-by-id", id),
 
   categoryGetForDocument: (documentId: number) =>
-    ipcRenderer.invoke("category:get-for-document", documentId),
+    invoke<BookCategory[]>("category:get-for-document", documentId),
 
   categoryGetForDocumentByHash: (fileHash: string) =>
-    ipcRenderer.invoke("category:get-for-document-by-hash", fileHash),
+    invoke<BookCategory[]>("category:get-for-document-by-hash", fileHash),
 
   categorySetForDocument: (documentId: number, categoryIds: number[]) =>
-    ipcRenderer.invoke("category:set-for-document", documentId, categoryIds),
+    invoke<boolean>("category:set-for-document", documentId, categoryIds),
 
   categoryAddToDocument: (documentId: number, categoryId: number) =>
-    ipcRenderer.invoke("category:add-to-document", documentId, categoryId),
+    invoke<boolean>("category:add-to-document", documentId, categoryId),
 
   categoryRemoveFromDocument: (documentId: number, categoryId: number) =>
-    ipcRenderer.invoke("category:remove-from-document", documentId, categoryId),
+    invoke<boolean>("category:remove-from-document", documentId, categoryId),
 
   categoryGetColors: () =>
-    ipcRenderer.invoke("category:get-colors"),
+    invoke<string[]>("category:get-colors"),
 
   categoryImportFromFolders: () =>
-    ipcRenderer.invoke("category:import-from-folders"),
+    invoke<{ imported: number }>("category:import-from-folders"),
 
   getFolderStructure: (rootPath?: string | null) =>
     ipcRenderer.invoke("library:get-folder-structure", rootPath),
@@ -540,7 +495,7 @@ contextBridge.exposeInMainWorld("api", {
   onFolderChanged: (callback: (payload: FolderChangedPayload) => void) => {
     const listener = (_: Electron.IpcRendererEvent, payload: FolderChangedPayload) => callback(payload);
     ipcRenderer.on("folder:changed", listener);
-    return () => ipcRenderer.removeListener("folder:changed", listener);
+    return () => { ipcRenderer.removeListener("folder:changed", listener); };
   },
 
   getLibraryRoots: () =>
@@ -615,27 +570,29 @@ contextBridge.exposeInMainWorld("api", {
   backupAllDocuments: () =>
     ipcRenderer.invoke("backup:all-documents"),
 
-  habitsGetAll: () => ipcRenderer.invoke("habits:get-all"),
+  habitsGetAll: () => invoke<Habit[]>("habits:get-all"),
 
-  habitsGetById: (id: string) => ipcRenderer.invoke("habits:get-by-id", id),
+  habitsGetById: (id: string) => invoke<Habit | undefined>("habits:get-by-id", id),
 
-  habitsAdd: (habit: { id: string; name: string; unit: string | null; valueMode: string }) =>
-    ipcRenderer.invoke("habits:add", habit),
+  habitsAdd: (habit: NewHabit) =>
+    invoke<{ success: true }>("habits:add", habit),
 
-  habitsUpdate: (id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) =>
-    ipcRenderer.invoke("habits:update", id, updates),
+  habitsUpdate: (id: string, updates: HabitUpdate) =>
+    invoke<{ success: true }>("habits:update", id, updates),
 
-  habitsDelete: (id: string) => ipcRenderer.invoke("habits:delete", id),
+  habitsDelete: (id: string) => invoke<{ success: true }>("habits:delete", id),
 
-  habitsGetCompletions: (habitId: string) => ipcRenderer.invoke("habits:get-completions", habitId),
+  habitsGetCompletions: (habitId: string) =>
+    invoke<HabitCompletion[]>("habits:get-completions", habitId),
 
-  habitsGetAllCompletions: () => ipcRenderer.invoke("habits:get-all-completions"),
+  habitsGetAllCompletions: () =>
+    invoke<HabitCompletion[]>("habits:get-all-completions"),
 
   habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) =>
-    ipcRenderer.invoke("habits:set-completion", habitId, dateKey, value),
+    invoke<{ success: true }>("habits:set-completion", habitId, dateKey, value),
 
   habitsDeleteCompletion: (habitId: string, dateKey: string) =>
-    ipcRenderer.invoke("habits:delete-completion", habitId, dateKey),
+    invoke<{ success: true }>("habits:delete-completion", habitId, dateKey),
 
   backupAllHabits: () =>
     ipcRenderer.invoke("backup:all-habits"),
@@ -682,6 +639,15 @@ openInNewWindow: (data: {
   onDictionaryDownloadProgress: (callback: (data: { dictId: string; progress: number }) => void) => {
     const listener = (_: Electron.IpcRendererEvent, data: { dictId: string; progress: number }) => callback(data);
     ipcRenderer.on("dictionary:download-progress", listener);
-    return () => ipcRenderer.removeListener("dictionary:download-progress", listener);
+    return () => { ipcRenderer.removeListener("dictionary:download-progress", listener); };
   },
-});
+};
+
+/**
+ * The renderer contract is derived from the actual bridge implementation.
+ * Keep this as the single source of truth instead of maintaining a parallel
+ * handwritten Window.api declaration.
+ */
+export type LyceumApi = typeof api;
+
+contextBridge.exposeInMainWorld("api", api);

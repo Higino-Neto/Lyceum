@@ -93,9 +93,6 @@ export function getLookupEngine(dictId: string): LookupEngine {
 }
 
 export function closeAllEngines(): void {
-  for (const engine of engineCache.values()) {
-    engineCache.delete(engineCache.keys().next().value);
-  }
   engineCache.clear();
 }
 

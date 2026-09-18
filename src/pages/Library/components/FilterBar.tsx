@@ -1,33 +1,15 @@
 import { ChevronDown, FileText, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type {
+  LibraryFileTypeFilter,
+  LibrarySortOption,
+} from "../../../types/LibraryTypes";
 
 const ICON_SIZE = 15;
 const STROKE_WIDTH = 1.6;
 
-export type SortOption =
-  | "title_asc"
-  | "title_desc"
-  | "recent_desc"
-  | "recent_asc"
-  | "pages_desc"
-  | "pages_asc"
-  | "size_desc"
-  | "size_asc";
-export type FileTypeFilter =
-  | "all"
-  | "pdf"
-  | "epub"
-  | "docx"
-  | "html"
-  | "cbz"
-  | "mobi"
-  | "azw"
-  | "azw3"
-  | "azw4"
-  | "kfx"
-  | "prc"
-  | "txt"
-  | "lyceum";
+export type SortOption = Exclude<LibrarySortOption, "title" | "recent" | "pages" | "size">;
+export type FileTypeFilter = LibraryFileTypeFilter;
 
 interface FilterBarProps {
   search: string;

@@ -37,16 +37,4 @@ interface LookupResult {
   found: boolean;
 }
 
-declare global {
-  interface Window {
-    api: {
-      [key: string]: any;
-      consumeAuthDeepLinkParams?: () => Promise<Record<string, string> | null>;
-      onAuthDeepLink?: (
-        callback: (payload: { route: string; params: Record<string, string> }) => void,
-      ) => () => void;
-    };
-  }
-}
-
 export {};

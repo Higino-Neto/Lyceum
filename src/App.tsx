@@ -19,9 +19,6 @@ import SettingsDialog from "./components/settings/SettingsDialog";
 import type { SettingsTabId } from "./components/settings/SettingsDialog";
 import toast, { Toaster } from "react-hot-toast";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Session } from "@supabase/supabase-js";
-import { getLastRoute } from "./hooks/useRouteState";
-import { getSupabaseConfig, supabase } from "./lib/supabase";
 import { useAppSettings } from "./contexts/AppSettingsContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
@@ -33,6 +30,8 @@ import {
   getEnabledNavigationRoutes,
   type NavigationRouteId,
 } from "./navigation/routes";
+import { usePeriodicBackup } from "./features/backup/usePeriodicBackup";
+import { useNavigationBootstrap } from "./features/navigation/useNavigationBootstrap";
 
 // import React from "react";
 // import ReactDOMClient from "react-dom/client";
@@ -52,16 +51,6 @@ const AUTO_HIDE_TRIGGER_SIZE = 18;
 const TITLE_BAR_HEIGHT = 40;
 const SIDEBAR_COLLAPSED_WIDTH = 52;
 const SIDEBAR_EXPANDED_WIDTH = 168;
-const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
-const BACKUP_START_DELAY_MS = 30_000;
-const LAST_BACKUP_KEY = "lyceum:last-periodic-backup";
-const AUTH_ROUTES = new Set([
-  "/signin",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-]);
-
 function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,7 +74,12 @@ function AppShell() {
   );
   const hideTimerRef = useRef<number | null>(null);
   const showDelayTimerRef = useRef<number | null>(null);
-  const hasNavigatedRef = useRef(false);
+  usePeriodicBackup(settings);
+  useNavigationBootstrap({
+    isLoggedIn,
+    pathname: location.pathname,
+    navigate,
+  });
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
@@ -141,171 +135,7 @@ function AppShell() {
     }
   }, []);
 
-  const backupInitializedRef = useRef(false);
-  const backupTimeoutRef = useRef<number | null>(null);
-  const isAuthRoute = AUTH_ROUTES.has(location.pathname);
-  // const showAppNavigation = isLoggedIn !== false && !isAuthRoute;
   const showAppNavigation = isLoggedIn !== false;
-
-  // Voltar para a última tela que você parou quando fechou o app.
-  useEffect(() => {
-    if (isLoggedIn === true && !hasNavigatedRef.current) {
-      hasNavigatedRef.current = true;
-      if (AUTH_ROUTES.has(location.pathname)) {
-        return;
-      }
-
-      const lastRoute = getLastRoute();
-      if (lastRoute && !AUTH_ROUTES.has(lastRoute)) {
-        navigate(lastRoute, { replace: true });
-      }
-    }
-  }, [isLoggedIn, location.pathname, navigate]);
-
-  useEffect(() => {
-    const unsubscribe = window.api?.onAuthDeepLink?.(
-      (payload: { route?: string }) => {
-        navigate(payload.route || "/reset-password", { replace: true });
-      },
-    );
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!window.api?.backupInit || !window.api?.backupSetSession) return;
-
-    const supabaseConfig = getSupabaseConfig();
-
-    if (!supabaseConfig) {
-      console.log("[Backup] Supabase credentials not configured");
-      return;
-    }
-
-    let isMounted = true;
-
-    const clearBackupSchedule = () => {
-      if (backupTimeoutRef.current !== null) {
-        window.clearTimeout(backupTimeoutRef.current);
-        backupTimeoutRef.current = null;
-      }
-    };
-
-    const scheduleBackups = () => {
-      if (!settings.weeklyBackupEnabled || backupTimeoutRef.current !== null) {
-        return;
-      }
-      const lastBackup = Number(localStorage.getItem(LAST_BACKUP_KEY) || 0);
-      if (Date.now() - lastBackup < BACKUP_INTERVAL_MS) return;
-
-      backupTimeoutRef.current = window.setTimeout(async () => {
-        backupTimeoutRef.current = null;
-        try {
-          const jobs: Promise<{
-            success: number;
-            failed: number;
-            errors: string[];
-          }>[] = [];
-          if (settings.backupDocuments)
-            jobs.push(window.api.backupAllDocuments());
-          if (settings.backupHabits && window.api.backupAllHabits)
-            jobs.push(window.api.backupAllHabits());
-          if (settings.backupCategories && window.api.backupAllCategories)
-            jobs.push(window.api.backupAllCategories());
-          if (jobs.length === 0) return;
-          const results = await Promise.all(jobs);
-          if (results.every((result) => result.failed === 0)) {
-            localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
-          }
-          console.log("[Backup] Periodic backup completed:", results);
-        } catch (err) {
-          console.error("[Backup] Periodic backup error:", err);
-        }
-      }, BACKUP_START_DELAY_MS);
-    };
-
-    const ensureBackupSession = async (session: Session | null) => {
-      if (!backupInitializedRef.current) {
-        const initResult = await window.api.backupInit(
-          supabaseConfig.url,
-          supabaseConfig.anonKey,
-        );
-        if (!initResult.success) {
-          throw new Error(
-            initResult.error || "Failed to initialize backup client",
-          );
-        }
-        backupInitializedRef.current = true;
-      }
-
-      if (!session?.access_token || !session.refresh_token) {
-        clearBackupSchedule();
-        await window.api.backupClearSession?.();
-        return false;
-      }
-
-      const setSessionResult = await window.api.backupSetSession(
-        session.access_token,
-        session.refresh_token,
-      );
-
-      if (!setSessionResult.success) {
-        clearBackupSchedule();
-        throw new Error(
-          setSessionResult.error || "Failed to authenticate backup client",
-        );
-      }
-
-      return true;
-    };
-
-    const bootstrapBackup = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!isMounted) {
-          return;
-        }
-
-        const isReady = await ensureBackupSession(session);
-        if (isReady) {
-          scheduleBackups();
-        }
-      } catch (err) {
-        console.error("[Backup] Init error:", err);
-      }
-    };
-
-    bootstrapBackup();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        const isReady = await ensureBackupSession(session);
-        if (isReady) {
-          scheduleBackups();
-        }
-      } catch (error) {
-        console.error("[Backup] Session sync error:", error);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      clearBackupSchedule();
-      subscription.unsubscribe();
-    };
-  }, [
-    settings.backupCategories,
-    settings.backupDocuments,
-    settings.backupHabits,
-    settings.weeklyBackupEnabled,
-  ]);
 
   const isElectron =
     typeof window !== "undefined" && window.api?.windowMinimize;

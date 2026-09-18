@@ -290,7 +290,7 @@ function saveSettings(settings: AppSettings): void {
 function getAccentColor(accentColor: AccentColorId): AccentColor {
   return (
     ACCENT_COLORS.find((color) => color.id === accentColor) ||
-    ACCENT_COLORS[0]
+    ACCENT_COLORS[0]!
   );
 }
 

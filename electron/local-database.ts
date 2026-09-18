@@ -3,6 +3,8 @@ import electron from "electron";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "node:crypto";
+import type { Habit, HabitCompletion } from "../src/core/habits/model";
+import type { BookCategory } from "../src/core/library/category";
 import {
   CURRENT_SQLITE_SCHEMA_VERSION,
   getSqliteSchemaVersion,
@@ -12,6 +14,11 @@ import {
   createAnnotationRepository,
   ensureAnnotationSchema,
 } from "./annotation-repository";
+import {
+  ensureApplicationSchema,
+  ensureBootstrapSchema,
+  ensurePostMigrationSchema,
+} from "./infrastructure/sqlite-schema";
 import type {
   BookFileType,
   DocumentRecord,
@@ -50,13 +57,7 @@ export type {
   LibrarySortOption,
 };
 
-export interface BookCategory {
-  id: number;
-  name: string;
-  color: string;
-  bookCount: number;
-  createdAt: string;
-}
+export type { BookCategory } from "../src/core/library/category";
 
 export interface DocumentWithCategories extends DocumentRecord {
   categories: BookCategory[];
@@ -232,69 +233,7 @@ export function initDatabase() {
   db.pragma("busy_timeout = 5000");
   db.pragma("temp_store = MEMORY");
 
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    color TEXT NOT NULL DEFAULT '#6b7280',
-    createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-  )
-  `);
-
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS document_categories (
-    documentId INTEGER NOT NULL,
-    categoryId INTEGER NOT NULL,
-    PRIMARY KEY (documentId, categoryId),
-    FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE,
-    FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
-  )
-  `);
-
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    numPages INTEGER DEFAULT 1,
-    filePath TEXT,
-    fileHash TEXT UNIQUE,
-    currentPage INTEGER DEFAULT 1,
-    currentZoom REAL,
-    currentScroll REAL,
-    annotations TEXT,
-    thumbnailPath TEXT,
-    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-    lastOpenedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-    isSynced INTEGER DEFAULT 0,
-    category TEXT,
-    isFavorite INTEGER DEFAULT 0,
-    rating REAL DEFAULT 0,
-    notes TEXT,
-    author TEXT,
-    description TEXT,
-    isbn TEXT,
-    publisher TEXT,
-    publishDate TEXT,
-    language TEXT,
-    identifier TEXT,
-    asin TEXT,
-    subject TEXT,
-    series TEXT,
-    seriesIndex TEXT,
-    authorSort TEXT,
-    titleSort TEXT,
-    fileSize INTEGER DEFAULT 0,
-    processingStatus TEXT DEFAULT 'pending',
-    bookId TEXT,
-    fileName TEXT,
-    folderPath TEXT,
-    fileMtime INTEGER,
-    importedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-    readingStatus TEXT,
-    completedAt TEXT
-  )
-  `);
+  ensureBootstrapSchema(db);
 
   try {
     runDatabaseMigrations(db, 1, ({ version, name }) => {
@@ -310,215 +249,8 @@ export function initDatabase() {
     throw error;
   }
 
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_doc ON document_categories(documentId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_categories_cat ON document_categories(categoryId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(fileHash)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_path ON documents(filePath)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_folder_path ON documents(folderPath)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents(fileType)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_is_synced ON documents(isSynced)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_last_opened ON documents(lastOpenedAt DESC)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_title ON documents(title COLLATE NOCASE)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author COLLATE NOCASE)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_processing ON documents(processingStatus)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_reading_status ON documents(readingStatus)`);
+  ensureApplicationSchema(db);
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reading_maps (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reading_map_sections (
-      id TEXT PRIMARY KEY,
-      mapId TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      orderIndex INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (mapId) REFERENCES reading_maps(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reading_map_items (
-      id TEXT PRIMARY KEY,
-      sectionId TEXT NOT NULL,
-      bookId TEXT,
-      title TEXT NOT NULL,
-      author TEXT,
-      coverPath TEXT,
-      status TEXT NOT NULL DEFAULT 'want_to_read',
-      orderIndex INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (sectionId) REFERENCES reading_map_sections(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_maps_updated ON reading_maps(updatedAt DESC)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_map_sections_map ON reading_map_sections(mapId, orderIndex)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_map_items_section ON reading_map_items(sectionId, orderIndex)`);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reading_status_items (
-      id TEXT PRIMARY KEY,
-      bookId TEXT,
-      title TEXT NOT NULL,
-      author TEXT,
-      coverPath TEXT,
-      description TEXT,
-      isbn TEXT,
-      publisher TEXT,
-      publishDate TEXT,
-      subject TEXT,
-      status TEXT NOT NULL DEFAULT 'want_to_read',
-      orderIndex INTEGER NOT NULL DEFAULT 0,
-      isPrimary INTEGER NOT NULL DEFAULT 0,
-      manualBasePage INTEGER NOT NULL DEFAULT 0,
-      manualCurrentPage INTEGER NOT NULL DEFAULT 0,
-      manualTotalPages INTEGER,
-      notePath TEXT,
-      notesMarkdown TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS reading_status_progress_events (
-      id TEXT PRIMARY KEY,
-      statusItemId TEXT NOT NULL,
-      pages INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (statusItemId) REFERENCES reading_status_items(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_status ON reading_status_items(status, orderIndex)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_items_book ON reading_status_items(bookId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_reading_status_events_item ON reading_status_progress_events(statusItemId, createdAt)`);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS atlas_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS local_books (
-      id TEXT PRIMARY KEY,
-      canonicalTitle TEXT NOT NULL,
-      sortTitle TEXT,
-      description TEXT,
-      isbn TEXT,
-      publisher TEXT,
-      publishDate TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS authors (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      sortName TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS document_authors (
-      documentId INTEGER NOT NULL,
-      authorId INTEGER NOT NULL,
-      role TEXT DEFAULT 'author',
-      PRIMARY KEY (documentId, authorId, role),
-      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE,
-      FOREIGN KEY (authorId) REFERENCES authors(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      color TEXT NOT NULL DEFAULT '#6b7280',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS document_tags (
-      documentId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      PRIMARY KEY (documentId, tagId),
-      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE,
-      FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS processing_jobs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      documentId INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      priority INTEGER NOT NULL DEFAULT 0,
-      attempts INTEGER NOT NULL DEFAULT 0,
-      error TEXT,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(documentId, type),
-      FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_authors_doc ON document_authors(documentId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_authors_author ON document_authors(authorId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_tags_doc ON document_tags(documentId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON document_tags(tagId)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_processing_jobs_status ON processing_jobs(status, priority DESC, createdAt)`);
-
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
-      documentId UNINDEXED,
-      title,
-      author,
-      folderPath,
-      fileType,
-      tokenize = 'unicode61 remove_diacritics 2'
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS book_word_index (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      fileHash TEXT NOT NULL,
-      word TEXT NOT NULL,
-      count INTEGER NOT NULL,
-      UNIQUE(fileHash, word)
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS watch_folders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      label TEXT,
-      type TEXT NOT NULL DEFAULT 'watch',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
 
   try {
     runDatabaseMigrations(db, CURRENT_SQLITE_SCHEMA_VERSION, ({ version, name }) => {
@@ -537,30 +269,7 @@ export function initDatabase() {
   ensureAnnotationSchema(db);
   annotations = createAnnotationRepository(db);
 
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word)`);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS habits (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      unit TEXT,
-      valueMode TEXT DEFAULT 'toggle'
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS habit_completions (
-      habitId TEXT NOT NULL,
-      dateKey TEXT NOT NULL,
-      value TEXT,
-      PRIMARY KEY (habitId, dateKey),
-      FOREIGN KEY (habitId) REFERENCES habits(id) ON DELETE CASCADE
-    )
-  `);
-
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_habit_completions_habit ON habit_completions(habitId)`);
+  ensurePostMigrationSchema(db);
 
   const updateStmt = db.prepare(`
     UPDATE documents
@@ -596,7 +305,7 @@ export function initDatabase() {
 }
 
 export function createCategory(name: string, color?: string): BookCategory | null {
-  const finalColor = color || DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)];
+  const finalColor = color || DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)] || "#6b7280";
   
   try {
     const result = db.prepare(
@@ -749,7 +458,7 @@ export function importCategoriesFromFolders(): number {
     const pathParts = relativePath.split(path.sep);
     
     if (pathParts.length > 1) {
-      const folderName = pathParts[0];
+      const folderName = pathParts[0]!;
       
       let category = db.prepare<[string], { id: number }>(
         `SELECT id FROM categories WHERE name = ?`
@@ -758,7 +467,7 @@ export function importCategoriesFromFolders(): number {
       if (!category) {
         const result = db.prepare(`INSERT INTO categories (name, color) VALUES (?, ?)`).run(
           folderName,
-          DEFAULT_COLORS[imported % DEFAULT_COLORS.length]
+          DEFAULT_COLORS[imported % DEFAULT_COLORS.length] || "#6b7280"
         );
         category = { id: result.lastInsertRowid as number };
       }
@@ -1226,8 +935,9 @@ export function reorderReadingMapItem(
   }
 
   const update = db.prepare(`UPDATE reading_map_items SET orderIndex = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`);
-  update.run(items[targetIndex].orderIndex, item.id);
-  update.run(item.orderIndex, items[targetIndex].id);
+  const target = items[targetIndex]!;
+  update.run(target.orderIndex, item.id);
+  update.run(item.orderIndex, target.id);
   normalizeReadingMapItemOrder(item.sectionId);
   touchReadingMapBySection(item.sectionId);
 
@@ -2059,7 +1769,7 @@ export function mergeDocuments(fileHashes: string[], bookId: string): {
   }
 
   const allDocs = Array.from(allDocsByHash.values());
-  const canonical = selectedDocs[0];
+  const canonical = selectedDocs[0]!;
   const sharedMetadata = SHARED_METADATA_FIELDS.reduce((metadata, field) => {
     const canonicalValue = canonical[field];
     const fallbackValue = allDocs.find((doc) => hasMeaningfulValue(doc[field]))?.[field] ?? null;
@@ -2259,7 +1969,7 @@ export function updateMetadata(
   }
 ): void {
   const sets: string[] = [];
-  const values: any[] = [];
+  const values: string[] = [];
   
   if (metadata.title !== undefined) {
     sets.push("title = ?");
@@ -2455,19 +2165,8 @@ export function getDocumentsForBackup(): {
   });
 }
 
-export interface HabitRecord {
-  id: string;
-  name: string;
-  createdAt: string;
-  unit: string | null;
-  valueMode: string;
-}
-
-export interface HabitCompletionRecord {
-  habitId: string;
-  dateKey: string;
-  value: string | null;
-}
+export type HabitRecord = Habit;
+export type HabitCompletionRecord = HabitCompletion;
 
 export function getAllHabits(): HabitRecord[] {
   return db.prepare<[], HabitRecord>(`SELECT * FROM habits ORDER BY createdAt`).all();

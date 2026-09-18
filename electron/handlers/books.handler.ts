@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, clipboard, nativeImage, shell } from "electron";
+import { ipcMain, clipboard, nativeImage, shell } from "electron";
 import { PDFDocument } from "pdf-lib";
 import {
   getDocumentByHash,
@@ -12,7 +12,6 @@ import {
   updateThumbnailPath,
   getAtlasNotesVaultPath,
   updateTitle,
-  updateAuthor,
   toggleFavorite,
   updateRating,
   updateNotes,
@@ -56,7 +55,6 @@ import {
   getDocumentByTitle,
   updateDocumentNumPages,
   saveWordIndex,
-  getWordIndex,
   getWordCount,
   getBookStats,
   deleteWordIndex,
@@ -69,10 +67,9 @@ import { mergeBooksIntoManagedFolder } from "../services/folder-service";
 import { notifyFolderChanged } from "../services/library-service";
 import { renderPdfPageToPng } from "../services/pdf-page-renderer";
 import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
-import { LIBRARY_PATH, USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
-import { extractVocabularyFromEpub } from "../services/vocabulary-service";
+import { USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
 import { processFile as processLibraryFile } from "../services/library-service";
-import { setBookCoverInFile, writeBookMetadataToFile, writeCoverImageFile, writeThumbnailFile, type EditableBookMetadata } from "../services/book-file-metadata";
+import { setBookCoverInFile, writeThumbnailFile, type EditableBookMetadata } from "../services/book-file-metadata";
 import {
   applyBookCoverInWorker,
   extractVocabularyInWorker,
@@ -301,6 +298,8 @@ export function registerBookHandlers() {
     return value
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      // Filename sanitization intentionally covers ASCII control characters.
+      // eslint-disable-next-line no-control-regex
       .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
       .replace(/\s+/g, " ")
       .trim()

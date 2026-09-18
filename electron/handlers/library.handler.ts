@@ -5,22 +5,14 @@ import {
   getDocumentsBySyncStatus,
   getDocumentByHash,
   getCategories,
-  getCategoryColors,
-  importCategoriesFromFolders,
   updateDocumentPath,
   updateDocumentSyncStatus,
   updateThumbnailPath,
-  updateDocumentFileType,
-  updateLastOpened,
-  deleteDocument,
   searchDocuments,
-  type DocumentRecord,
-  type WatchFolderRecord,
 } from "../local-database";
 import {
   scanLibrary,
   resyncLibrary,
-  processFile,
   queueThumbnailGeneration,
   queueAllThumbnailRegeneration,
   setLibraryChangeEmitter,
@@ -29,9 +21,6 @@ import {
   getAllFoldersFlatAsync,
   getBooksInFolder,
   getLibraryRoots,
-  getFolderStructureCached,
-  getFolderChildren,
-  getFolderStats,
   getFolderChildrenAsync,
   getFolderStatsAsync,
   folderExists,
@@ -49,8 +38,6 @@ import {
   getUniqueFilePath,
   moveFileAcrossDevices,
   inferBookFileTypeFromPath,
-  inferFileTypeFromPath,
-  toReadableFileType,
 } from "../services/file-service";
 import { type BookFileType } from "../services/document-processing";
 import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";

@@ -28,53 +28,16 @@ import {
   updateMetadata,
   updateProcessingStatus,
   updateFileSize,
-  updateTitle,
   deleteDocument,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  getAllCategories,
-  getCategoryById,
-  getCategoriesForDocument,
-  getCategoriesForDocumentByHash,
-  setDocumentCategories,
-  addCategoryToDocument,
-  removeCategoryFromDocument,
-  getCategoryColors,
-  importCategoriesFromFolders,
   getDocumentByPath,
-  getDocumentsForBackup,
-  getAllHabits,
-  getHabitById,
-  addHabit,
-  updateHabit,
-  deleteHabit,
-  getHabitCompletions,
-  getAllHabitCompletions,
-setHabitCompletion,
-  deleteHabitCompletion,
-  getAllDocumentCategories,
   getDocumentByFilePath,
   getSourceFolders,
 } from "./local-database";
-import {
-  initBackupClient,
-  backupAllDocuments,
-  backupAllHabits,
-  backupAllCategories,
-  setBackupSession,
-  clearBackupSession,
-} from "./backup";
-import { dictionaryManager } from "./dictionary-manager";
-import { quickLookup } from "./lookup-engine";
-import { closeAllStorage } from "./dictionary-storage";
 import {
   isPdfMagicBytesValid,
   THUMBNAIL_EXTENSIONS,
   extractEpubMetadata as extractEpubMetadataMainThread,
   extractPdfMetadata as extractMetadataMainThread,
-  getCbzPageCount as getCbzPageCountMainThread,
-  getEpubChapterCount as getEpubChapterCountMainThread,
   getPdfPageCount as getPdfPageCountMainThread,
   validateCbzFile as validateCbzFileMainThread,
   type BookFileType,
@@ -109,6 +72,14 @@ import {
   setUpdateWindow,
 } from "./services/update-service";
 import { getCandidateVolumeRoots } from "./services/removable-volumes";
+import { installContentSecurityPolicy } from "./app/security-policy";
+import { registerHabitHandlers } from "./handlers/habits.handler";
+import { sqliteHabitRepository } from "./infrastructure/sqlite-habit-repository";
+import { registerBackupHandlers } from "./handlers/backup.handler";
+import { registerCategoryHandlers } from "./handlers/categories.handler";
+import { sqliteCategoryRepository } from "./infrastructure/sqlite-category-repository";
+import { registerDictionaryHandlers } from "./handlers/dictionary.handler";
+import { registerPlatformHandlers } from "./handlers/platform.handler";
 
 const {
   app,
@@ -116,17 +87,20 @@ const {
   ipcMain,
   dialog,
   protocol,
-  session,
 } = electron;
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const __filename = fileURLToPath(import.meta.url);
-(globalThis as any).__filename = __filename;
+Object.defineProperty(globalThis, "__filename", {
+  value: __filename,
+  configurable: true,
+});
 import crypto from "crypto";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { BookFormat, LyceumConversionOptions } from "../src/lib/lyceum";
+import type { DocumentRecord, LibraryListResult } from "../src/types/LibraryTypes";
 import type { ConversionRequestOptions } from "./workers/protocol";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
@@ -240,18 +214,6 @@ async function inspectOnWorker(filePath: string, fileType: "pdf" | "epub" | "cbz
   }
 }
 
-async function getPdfPageCount(filePath: string) {
-  return (await inspectOnWorker(filePath, "pdf"))?.numPages ?? getPdfPageCountMainThread(filePath);
-}
-
-async function getEpubChapterCount(filePath: string) {
-  return (await inspectOnWorker(filePath, "epub"))?.numPages ?? getEpubChapterCountMainThread(filePath);
-}
-
-async function getCbzPageCount(filePath: string) {
-  return (await inspectOnWorker(filePath, "cbz"))?.numPages ?? getCbzPageCountMainThread(filePath);
-}
-
 async function extractMetadata(filePath: string) {
   const metadata = (await inspectOnWorker(filePath, "pdf"))?.metadata;
   return metadata ?? extractMetadataMainThread(filePath);
@@ -309,14 +271,6 @@ const PDFJS_ASSET_MIME_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-interface FolderInfo {
-  name: string;
-  path: string;
-  fullPath: string;
-  bookCount: number;
-  subfolders: FolderInfo[];
-}
-
 function isPathWithin(basePath: string, targetPath: string): boolean {
   const relative = path.relative(path.resolve(basePath), path.resolve(targetPath));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -356,20 +310,6 @@ function resolveLibraryRelativePath(targetPath: string | null | undefined): stri
   );
 }
 
-function sanitizeFolderName(folderName: string): string {
-  const trimmedName = folderName.trim();
-  if (
-    !trimmedName ||
-    trimmedName === "." ||
-    trimmedName === ".." ||
-    /[\\/:*?"<>|]/.test(trimmedName)
-  ) {
-    throw new Error("Nome de pasta inválido");
-  }
-
-  return trimmedName;
-}
-
 function inferFileTypeFromPath(
   filePath?: string | null,
   fallback: "pdf" | "epub" = "pdf"
@@ -379,10 +319,6 @@ function inferFileTypeFromPath(
   }
 
   return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
-}
-
-function toReadableFileType(fileType?: string | null): "pdf" | "epub" {
-  return fileType === "epub" ? "epub" : "pdf";
 }
 
 function moveFileAcrossDevices(sourcePath: string, targetPath: string): void {
@@ -419,25 +355,6 @@ function getUniqueFilePath(targetDir: string, fileName: string): string {
   let uniquePath: string;
   do {
     uniquePath = path.join(targetDir, `${cleanBase} (${counter})${ext}`);
-    counter += 1;
-  } while (fs.existsSync(uniquePath));
-
-  return uniquePath;
-}
-
-function getUniqueDirPath(targetDir: string, folderName: string): string {
-  const destPath = path.join(targetDir, folderName);
-  if (!fs.existsSync(destPath)) {
-    return destPath;
-  }
-
-  const nameHasSuffix = /^(.+)\s\((\d+)\)$/.exec(folderName);
-  const cleanBase = nameHasSuffix ? nameHasSuffix[1] : folderName;
-  let counter = nameHasSuffix ? parseInt(nameHasSuffix[2], 10) : 1;
-
-  let uniquePath: string;
-  do {
-    uniquePath = path.join(targetDir, `${cleanBase} (${counter})`);
     counter += 1;
   } while (fs.existsSync(uniquePath));
 
@@ -1693,75 +1610,6 @@ function setupUsbDeviceWatcher() {
   usbDeviceWatcher = setInterval(() => void emitIfChanged(), USB_SCAN_INTERVAL_MS);
 }
 
-function getFolderStructure(libraryPath: string): FolderInfo[] {
-  if (!fs.existsSync(libraryPath)) return [];
-
-  const buildTree = (dirPath: string, relativeTo: string): FolderInfo[] => {
-    if (!fs.existsSync(dirPath)) return [];
-
-    const items = fs.readdirSync(dirPath, { withFileTypes: true });
-    const folders: FolderInfo[] = [];
-
-    for (const item of items) {
-      if (item.isDirectory() && !item.name.startsWith(".")) {
-        const itemFullPath = path.join(dirPath, item.name);
-        const relativePath = path.relative(relativeTo, itemFullPath);
-        
-        const bookFiles = getAllBookFiles(itemFullPath);
-        if (bookFiles.length === 0) continue;
-        
-        folders.push({
-          name: item.name,
-          path: relativePath,
-          fullPath: itemFullPath,
-          bookCount: bookFiles.length,
-          subfolders: buildTree(itemFullPath, relativeTo),
-        });
-      }
-    }
-
-    return folders.sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  return buildTree(libraryPath, libraryPath);
-}
-
-function getAllFoldersFlat(libraryPath: string): string[] {
-  const folders: string[] = [];
-  
-  const scan = (dir: string) => {
-    if (!fs.existsSync(dir)) return;
-    const items = fs.readdirSync(dir, { withFileTypes: true });
-    for (const item of items) {
-      if (item.isDirectory() && !item.name.startsWith(".")) {
-        const fullPath = path.join(dir, item.name);
-        const relativePath = path.relative(libraryPath, fullPath);
-        folders.push(relativePath);
-        scan(fullPath);
-      }
-    }
-  };
-  
-  scan(libraryPath);
-  return folders.sort((a, b) => a.localeCompare(b));
-}
-
-function getBooksInFolder(folderPath: string | null): DocumentRecord[] {
-  const libraryPath = LIBRARY_PATH();
-  const allDocs = getAllDocuments();
-  
-  if (folderPath === null) {
-    return allDocs.filter(d => d.filePath && d.filePath.startsWith(libraryPath));
-  }
-  
-  const targetPath = path.join(libraryPath, folderPath);
-  return allDocs.filter(d => {
-    if (!d.filePath) return false;
-    const docDir = path.dirname(d.filePath);
-    return docDir === targetPath || docDir.startsWith(targetPath + path.sep);
-  });
-}
-
 async function processFile(filePath: string): Promise<void> {
   try {
     if (!fs.existsSync(filePath)) return;
@@ -1902,7 +1750,7 @@ function setupFileWatcher() {
       stabilityThreshold: 1000,
       pollInterval: 100,
     },
-  } as any);
+  });
 
   fileWatcher.on("add", (filePath) => {
     const isBook = [".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4", ".kfx", ".prc", ".cbz"]
@@ -1953,85 +1801,6 @@ function setupFileWatcher() {
   console.log("[Main] File watcher setup for:", watchedPaths);
 }
 
-async function scanLibrary() {
-  const roots = [
-    LIBRARY_PATH(),
-    ...getSourceFolders().map((folder) => folder.path),
-  ].filter((rootPath) => fs.existsSync(rootPath));
-
-  for (const rootPath of roots) {
-    const bookFiles = getAllBookFiles(rootPath);
-
-    for (const filePath of bookFiles) {
-      try {
-        const { fileHash } = await hashFile(filePath);
-        const existing = getDocumentByHash(fileHash);
-
-        if (existing && existing.filePath && existing.processingStatus === "completed" && path.resolve(existing.filePath).toLowerCase() === path.resolve(filePath).toLowerCase()) {
-          continue;
-        }
-
-        await processFile(filePath);
-      } catch (error) {
-        console.error("Error scanning:", filePath, error);
-      }
-    }
-  }
-}
-
-async function resyncLibrary(): Promise<{ added: number; removed: number; updated: number }> {
-  const roots = [
-    LIBRARY_PATH(),
-    ...getSourceFolders().map((folder) => folder.path),
-  ].filter((rootPath) => fs.existsSync(rootPath));
-  let added = 0, removed = 0, updated = 0;
-
-  if (roots.length === 0) {
-    return { added: 0, removed: 0, updated: 0 };
-  }
-
-  const bookFiles = roots.flatMap((rootPath) => getAllBookFiles(rootPath));
-  const bookFileSet = new Set(bookFiles.map(f => f.toLowerCase()));
-
-  const allDocs = getAllDocuments();
-  const docsInLibrary = allDocs.filter(d => d.filePath && d.isSynced === 1 && roots.some((rootPath) => isPathInside(rootPath, d.filePath)));
-
-  for (const doc of docsInLibrary) {
-    if (doc.filePath && !bookFileSet.has(doc.filePath.toLowerCase())) {
-      console.log("[Main] Resync: book no longer exists, removing from DB:", doc.filePath);
-      deleteDocument(doc.fileHash);
-      removed++;
-    }
-  }
-
-  const processInBatches = async (files: string[], batchSize: number) => {
-    for (let i = 0; i < files.length; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (filePath) => {
-        try {
-          const { fileHash } = await hashFile(filePath);
-          const existing = getDocumentByHash(fileHash);
-
-          if (!existing) {
-            await processFile(filePath);
-            added++;
-          } else if (existing.filePath !== filePath) {
-            updateDocumentPath(fileHash, filePath);
-            updated++;
-          }
-        } catch (error) {
-          console.error("[Main] Resync error:", filePath, error);
-        }
-      }));
-    }
-  };
-
-  await processInBatches(bookFiles, 10);
-
-  console.log(`[Main] Resync complete: added=${added}, removed=${removed}, updated=${updated}`);
-  return { added, removed, updated };
-}
-
 function ensureLibraryFolder() {
   const libraryPath = path.join(app.getPath("userData"), "library");
 
@@ -2040,10 +1809,6 @@ function ensureLibraryFolder() {
   }
 
   return libraryPath;
-}
-
-function toArrayBuffer(buffer: Buffer): ArrayBuffer {
-  return Uint8Array.from(buffer).buffer;
 }
 
 function createUniqueConvertedEpubPath(pdfPath: string): string {
@@ -2666,7 +2431,8 @@ function isAuthDeepLink(candidate: string) {
 
 function registerDefaultAppProtocol() {
   try {
-    if ((process as any).defaultApp && process.argv.length >= 2) {
+    const isDefaultApp = (process as NodeJS.Process & { defaultApp?: boolean }).defaultApp;
+    if (isDefaultApp && process.argv.length >= 2) {
       app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath, [
         path.resolve(process.argv[1]),
       ]);
@@ -3670,253 +3436,6 @@ ipcMain.handle(
 
 
 
-ipcMain.handle("category:create", (_, name: string, color?: string) => {
-  return createCategory(name, color);
-});
-
-ipcMain.handle("category:update", (_, id: number, name: string, color: string) => {
-  return updateCategory(id, name, color);
-});
-
-ipcMain.handle("category:delete", (_, id: number) => {
-  return deleteCategory(id);
-});
-
-ipcMain.handle("category:get-all", () => {
-  return getAllCategories();
-});
-
-ipcMain.handle("category:get-by-id", (_, id: number) => {
-  return getCategoryById(id);
-});
-
-ipcMain.handle("category:get-for-document", (_, documentId: number) => {
-  return getCategoriesForDocument(documentId);
-});
-
-ipcMain.handle("category:get-for-document-by-hash", (_, fileHash: string) => {
-  return getCategoriesForDocumentByHash(fileHash);
-});
-
-ipcMain.handle("category:set-for-document", (_, documentId: number, categoryIds: number[]) => {
-  return setDocumentCategories(documentId, categoryIds);
-});
-
-ipcMain.handle("category:add-to-document", (_, documentId: number, categoryId: number) => {
-  return addCategoryToDocument(documentId, categoryId);
-});
-
-ipcMain.handle("category:remove-from-document", (_, documentId: number, categoryId: number) => {
-  return removeCategoryFromDocument(documentId, categoryId);
-});
-
-ipcMain.handle("category:get-colors", () => {
-  return getCategoryColors();
-});
-
-ipcMain.handle("category:import-from-folders", () => {
-  const count = importCategoriesFromFolders();
-  return { imported: count };
-});
-
-ipcMain.handle("backup:init", (_, supabaseUrl: string, supabaseAnonKey: string) => {
-  try {
-    initBackupClient(supabaseUrl, supabaseAnonKey);
-    console.log("[Backup] Supabase client initialized");
-    return { success: true };
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Error initializing:", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle("backup:set-session", async (_, accessToken: string, refreshToken: string) => {
-  try {
-    return await setBackupSession(accessToken, refreshToken);
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Error setting session:", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle("backup:clear-session", async () => {
-  try {
-    return await clearBackupSession();
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Error clearing session:", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle("backup:all-documents", async () => {
-  try {
-    const docs = getDocumentsForBackup();
-    const result = await backupAllDocuments(docs);
-    console.log(`[Backup] Completed: ${result.success} succeeded, ${result.failed} failed`);
-    return result;
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Error:", err);
-    return { success: 0, failed: 0, errors: [err.message] };
-  }
-});
-
-ipcMain.handle("backup:all-habits", async () => {
-  try {
-    const habits = getAllHabits();
-    const completions = getAllHabitCompletions();
-    const result = await backupAllHabits(habits, completions);
-    console.log(`[Backup] Habits completed: ${result.success} succeeded, ${result.failed} failed`);
-    return result;
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Habits error:", err);
-    return { success: 0, failed: 0, errors: [err.message] };
-  }
-});
-
-ipcMain.handle("backup:all-categories", async () => {
-  try {
-    const categories = getAllCategories();
-    const documentCategories = getAllDocumentCategories();
-    const result = await backupAllCategories(categories, documentCategories);
-    console.log(`[Backup] Categories completed: ${result.success} succeeded, ${result.failed} failed`);
-    return result;
-  } catch (error) {
-    const err = error as Error & { message?: string };
-    console.error("[Backup] Categories error:", err);
-    return { success: 0, failed: 0, errors: [err.message] };
-  }
-});
-
-ipcMain.handle("habits:get-all", () => {
-  return getAllHabits();
-});
-
-ipcMain.handle("habits:get-by-id", (_, id: string) => {
-  return getHabitById(id);
-});
-
-ipcMain.handle("habits:add", (_, habit: { id: string; name: string; unit: string | null; valueMode: string }) => {
-  addHabit(habit);
-  return { success: true };
-});
-
-ipcMain.handle("habits:update", (_, id: string, updates: { name?: string; unit?: string | null; valueMode?: string }) => {
-  updateHabit(id, updates);
-  return { success: true };
-});
-
-ipcMain.handle("habits:delete", (_, id: string) => {
-  deleteHabit(id);
-  return { success: true };
-});
-
-ipcMain.handle("habits:get-completions", (_, habitId: string) => {
-  return getHabitCompletions(habitId);
-});
-
-ipcMain.handle("habits:get-all-completions", () => {
-  return getAllHabitCompletions();
-});
-
-ipcMain.handle("habits:set-completion", (_, habitId: string, dateKey: string, value: string | null) => {
-  setHabitCompletion(habitId, dateKey, value);
-  return { success: true };
-});
-
-ipcMain.handle("habits:delete-completion", (_, habitId: string, dateKey: string) => {
-  deleteHabitCompletion(habitId, dateKey);
-  return { success: true };
-});
-
-ipcMain.handle("settings:open-default-apps", async () => {
-  const { shell } = require("electron");
-  await shell.openExternal("ms-settings:defaultapps");
-  return { success: true };
-});
-
-ipcMain.handle("dictionary:get-index", async () => {
-  const index = await dictionaryManager.loadLocalIndex();
-  return index.dictionaries;
-});
-
-ipcMain.handle("dictionary:fetch-index", async () => {
-  const index = await dictionaryManager.fetchIndex();
-  return index.dictionaries;
-});
-
-ipcMain.handle("dictionary:download", async (_, dictId: string) => {
-  try {
-    const progress = (p: number) => {
-      win?.webContents.send("dictionary:download-progress", { dictId, progress: p });
-    };
-    await dictionaryManager.downloadDictionary(dictId, progress);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: String(error) };
-  }
-});
-
-ipcMain.handle("dictionary:delete", async (_, dictId: string) => {
-  // Close storage first before deleting
-  closeAllStorage();
-  const success = await dictionaryManager.deleteDictionary(dictId);
-  return { success };
-});
-
-ipcMain.handle("dictionary:lookup", async (_, word: string, dictId: string = "eng-por") => {
-  try {
-    const result = await quickLookup(word, dictId);
-    return result;
-  } catch (error) {
-    return { found: false, word, lemma: word, content: "", source: "fallback", error: String(error) };
-  }
-});
-
-ipcMain.handle("dictionary:get-info", (_, dictId: string) => {
-  const info = dictionaryManager.getDictionaryInfo(dictId);
-  return info || null;
-});
-
-ipcMain.handle("zoom:in", () => {
-  const win = BrowserWindow.getFocusedWindow();
-  if (!win) return;
-  const current = win.webContents.getZoomFactor();
-  win.webContents.setZoomFactor(Math.min(3.0, current + 0.1));
-  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
-});
-
-ipcMain.handle("zoom:out", () => {
-  const win = BrowserWindow.getFocusedWindow();
-  if (!win) return;
-  const current = win.webContents.getZoomFactor();
-  win.webContents.setZoomFactor(Math.max(0.3, current - 0.1));
-  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
-});
-
-ipcMain.handle("zoom:reset", () => {
-  const win = BrowserWindow.getFocusedWindow();
-  if (!win) return;
-  win.webContents.setZoomFactor(1.0);
-  win.webContents.send("zoom-factor-changed", 1.0);
-});
-
-ipcMain.handle("zoom:get-factor", () => {
-  const win = BrowserWindow.getFocusedWindow();
-  return win?.webContents.getZoomFactor() ?? 1.0;
-});
-
-ipcMain.handle("zoom:set-factor", (_, factor: number) => {
-  const win = BrowserWindow.getFocusedWindow();
-  if (!win) return;
-  win.webContents.setZoomFactor(Math.max(0.3, Math.min(3.0, factor)));
-  win.webContents.send("zoom-factor-changed", win.webContents.getZoomFactor());
-});
-
 ipcMain.handle("auth:consume-deep-link-params", () => {
   const params = pendingAuthDeepLinkParams;
   pendingAuthDeepLinkParams = null;
@@ -3925,7 +3444,7 @@ ipcMain.handle("auth:consume-deep-link-params", () => {
 
 registerUpdateHandlers(ipcMain);
 
-const gotTheLock = (app as any).requestSingleInstanceLock();
+const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   app.quit();
@@ -4163,34 +3682,18 @@ app.whenReady().then(async () => {
     return createLocalFileResponse(decodeURIComponent(filePath), "application/pdf", request);
   });
 
-  const cspDev = "default-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: img-preview: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: http://localhost:* https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov ws: wss:; object-src 'none'; base-uri 'self';";
-  const cspProd = "default-src 'self'; script-src 'self'; worker-src 'self' blob: lyceum-pdfjs:; frame-src 'self' blob: pdf-resource: lyceum-pdfjs: lyceum-pdf: thumb:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: thumb: img-preview: lyceum-pdfjs: https://*.supabase.co https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://www.loc.gov https://tile.loc.gov; font-src 'self' data: lyceum-pdfjs:; connect-src 'self' blob: lyceum-pdf: lyceum-pdfjs: https://*.supabase.co https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://books.google.com https://www.loc.gov https://loc.gov; object-src 'none'; base-uri 'self';";
-
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const url = details.url;
-    if (url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")) {
-      callback({ responseHeaders: details.responseHeaders });
-      return;
-    }
-    if (url.startsWith("file://") || url.startsWith("pdf-resource://")) {
-      callback({ responseHeaders: details.responseHeaders });
-      return;
-    }
-    if (url.startsWith("blob:") || url.startsWith("data:")) {
-      callback({ responseHeaders: details.responseHeaders });
-      return;
-    }
-    const csp = process.env.VITE_DEV_SERVER_URL ? cspDev : cspProd;
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        "Content-Security-Policy": [csp],
-      },
-    });
-  });
+  installContentSecurityPolicy(
+    electron.session.defaultSession,
+    Boolean(process.env.VITE_DEV_SERVER_URL),
+  );
 
   runStartupStage("SQLite initialization", () => initDatabase());
   runStartupStage("library directory initialization", () => ensureLibraryFolder());
+  registerHabitHandlers(ipcMain, sqliteHabitRepository);
+  registerBackupHandlers(ipcMain);
+  registerCategoryHandlers(ipcMain, sqliteCategoryRepository);
+  registerDictionaryHandlers(ipcMain, () => win);
+  registerPlatformHandlers(ipcMain);
 
   const initialAuthDeepLink = pendingAuthDeepLink ?? startupAuthDeepLink;
   const initialAuthRoute = initialAuthDeepLink ? parseAuthDeepLink(initialAuthDeepLink) : null;
@@ -4216,7 +3719,7 @@ app.whenReady().then(async () => {
     });
     runBackgroundStartupStage("file watcher", () => setupFileWatcher());
     runBackgroundStartupStage("USB watcher", () => setupUsbDeviceWatcher());
-    runBackgroundStartupStage("category import", () => importCategoriesFromFolders());
+    runBackgroundStartupStage("category import", () => sqliteCategoryRepository.importFromFolders());
     runBackgroundStartupStage("update check", () => checkForAppUpdates());
     runBackgroundStartupStage("library scan", () => queueLibraryScan());
   });

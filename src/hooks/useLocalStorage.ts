@@ -33,7 +33,7 @@ export function useLocalStorage<T>(
         return valueToStore;
       });
     },
-    [prefixedKey]
+    [key, prefixedKey]
   );
 
   const remove = useCallback(() => {
@@ -42,7 +42,7 @@ export function useLocalStorage<T>(
     } catch (error) {
       console.warn(`Error removing from localStorage (${key}):`, error);
     }
-  }, [prefixedKey]);
+  }, [key, prefixedKey]);
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

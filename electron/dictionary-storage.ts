@@ -48,7 +48,7 @@ export class DictionaryStorage {
     });
     
     if (subDirs.length > 0) {
-      searchPath = path.join(dictPath, subDirs[0]);
+      searchPath = path.join(dictPath, subDirs[0]!);
     }
     
     const idxGzPath = path.join(searchPath, `${this.dictId}.idx.gz`);
