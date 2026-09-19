@@ -222,3 +222,53 @@ body {
 #sidebarToggleButton.pdfSidebarNotification::after {
   display: none !important;
 }
+
+/* BookEdge: page grain, proportional chapter cuts, and an opening in the mass. */
+#lyceumBookEdge {
+  position: fixed; z-index: 80; right: 18px; top: 74px; bottom: 28px;
+  width: 22px; padding: 0; border: 1px solid #b4ab8c66; border-radius: 3px;
+  background: repeating-linear-gradient(to bottom, transparent 0 3px, #13171355 3px 4px),
+    linear-gradient(to bottom, #979a80 0 var(--opened), #d4cbb0 var(--opened) 100%);
+  box-shadow: 3px 0 0 #a39c8580, 6px 0 0 #6e6d6050; cursor: pointer;
+  transition: width 160ms, box-shadow 160ms; opacity: .8;
+}
+#lyceumBookEdge[hidden] { display: none; }
+#lyceumBookEdge:hover, #lyceumBookEdge:focus-visible, #lyceumBookEdge.isExpanded { width: 38px; opacity: 1; }
+#lyceumBookEdge:focus-visible { outline: 2px solid #c8dfb3; outline-offset: 5px; }
+.bookEdgeSection { position: absolute; left: 0; right: 0; border-top: 2px solid #242a25b0; box-sizing: border-box; }
+.bookEdgeNotch { position: absolute; top: var(--opened); left: -5px; right: -5px; height: 5px; background: #151b17; border-bottom: 1px solid #e4efcd; transform: translateY(-50%); box-shadow: 0 2px 4px #0008; }
+.bookEdgeBookmark { position: absolute; right: -9px; width: 14px; height: 5px; background: #ddb77a; border-radius: 0 2px 2px 0; }
+#lyceumRiffle { color-scheme: dark; position: fixed; inset: 58px 64px 16px auto; margin: 0; width: min(1160px, calc(100vw - 88px)); height: calc(100vh - 100px); max-height: none; max-width: none; padding: 20px; box-sizing: border-box; border: 1px solid #7d806255; border-right: 4px solid #c4bea4; border-radius: 12px 3px 3px 12px; background: #20251ff5; color: #e8e5d8; box-shadow: -16px 12px 80px #0008; font: 13px/1.5 system-ui, sans-serif; }
+#lyceumRiffle[open] { display: flex; flex-direction: column; gap: 14px; }
+#lyceumRiffle::backdrop { background: #10161188; }
+#lyceumRiffle header, #lyceumRiffle footer, .riffleActions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#lyceumRiffle h2 { margin: 0; font-size: 19px; font-weight: 500; }
+#lyceumRiffle p { margin: 4px 0 0; color: #b8bbab; }
+#lyceumRiffle button { font: inherit; color: inherit; border: 1px solid #8e927455; background: #ffffff08; border-radius: 5px; padding: 7px 10px; cursor: pointer; }
+#lyceumRiffle button:focus-visible { outline: 2px solid #dcebbd; outline-offset: 3px; }
+#lyceumRiffle button:hover { background: #ffffff12; }
+#lyceumRiffle button:disabled { opacity: .35; cursor: default; }
+.riffleBody { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; min-height: 0; flex: 1; }
+.riffleGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 12px; min-height: 0; touch-action: pan-y; }
+#lyceumRiffle .riffleTile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; min-height: 0; border-color: transparent; font-size: 11px; }
+#lyceumRiffle .riffleTile[aria-pressed="true"] { background: #c6d5a922; border-color: #bdce9a; }
+.riffleSheet { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; width: 100%; color: #b8bbab; }
+.riffleSheet canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 2px 3px 4px #0005; }
+.riffleLook { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.rifflePreview { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #121710; padding: 12px; border-radius: 5px; overflow: auto; }
+.rifflePreview canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+#lyceumRiffle [data-action="open"] { background: #cbd9b4; color: #20271d; }
+#lyceumRiffle .riffleHelp { font-size: 11px; text-align: center; }
+@media (max-width: 1100px) { .riffleGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .riffleBody { gap: 12px; } }
+@media (max-width: 640px) {
+  #lyceumBookEdge { right: 10px; width: 18px; }
+  #lyceumRiffle { inset: 48px 36px 8px 6px; width: auto; height: auto; padding: 10px; gap: 8px; }
+  #lyceumRiffle header { align-items: start; } #lyceumRiffle h2 { font-size: 16px; }
+  .riffleBody { grid-template-columns: 1fr; grid-template-rows: 1fr 1.2fr; }
+  .riffleGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .riffleActions { justify-content: center; } #lyceumRiffle .riffleHelp { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { #lyceumBookEdge { transition: none; } }
+.bookEdgeLandmark { position: absolute; left: 1px; pointer-events: none; }
+.bookEdgeLandmark.highlight { width: 65%; height: 1px; background: #52623b; }
+.bookEdgeLandmark.note { left: -3px; width: 4px; height: 4px; border-radius: 50%; background: #c4d1ef; }

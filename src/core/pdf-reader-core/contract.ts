@@ -103,3 +103,10 @@ export function isNavigateState(value: unknown): value is NavigateState {
     (value.currentScale === undefined || isFiniteNumber(value.currentScale, { min: 0 })) &&
     (value.scrollTop === undefined || isFiniteNumber(value.scrollTop, { min: 0 }));
 }
+// Additive BookEdge landmark command; existing version-1 clients remain compatible.
+export const CMD_SET_BOOK_LANDMARKS = "lyceum-pdfjs:book-landmarks";
+export interface BookLandmark { page: number; kind: "highlight" | "note" }
+export function isBookLandmark(value: unknown): value is BookLandmark {
+  return isRecord(value) && Number.isInteger(value.page) && (value.page as number) > 0 &&
+    (value.kind === "highlight" || value.kind === "note");
+}

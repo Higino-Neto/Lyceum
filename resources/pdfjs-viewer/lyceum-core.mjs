@@ -47,6 +47,10 @@ function isOutlineNode(value) {
 function isNavigateState(value) {
   return isRecord(value) && isFiniteNumber(value.page, { min: 1 }) && (value.currentScale === void 0 || isFiniteNumber(value.currentScale, { min: 0 })) && (value.scrollTop === void 0 || isFiniteNumber(value.scrollTop, { min: 0 }));
 }
+var CMD_SET_BOOK_LANDMARKS = "lyceum-pdfjs:book-landmarks";
+function isBookLandmark(value) {
+  return isRecord(value) && Number.isInteger(value.page) && value.page > 0 && (value.kind === "highlight" || value.kind === "note");
+}
 
 // src/core/pdf-reader-core/geometry.ts
 function makeLayerRect(rect, layerBounds) {
@@ -275,12 +279,29 @@ function findWordBounds(text, index) {
   }
   return { start, end };
 }
+
+// src/core/pdf-reader-core/book-edge.ts
+function edgePage(fraction, total) {
+  return Math.max(1, Math.min(total, Math.floor(Math.max(0, fraction) * total) + 1));
+}
+function rifflePages(page, total, count) {
+  const size = Math.min(total, count);
+  const first = Math.max(1, Math.min(page - Math.floor(size / 2), total - size + 1));
+  return Array.from({ length: size }, (_, index) => first + index);
+}
+function bookSections(outline, total) {
+  const usable = (items) => items.flatMap((item) => item.page && item.page >= 1 && item.page <= total ? [item] : usable(item.items ?? []));
+  const starts = [...new Map(usable(outline).sort((a, b) => a.page - b.page).map((item) => [item.page, item])).values()];
+  if (!starts.length || starts[0]?.page !== 1) starts.unshift({ page: 1, title: starts.length ? "In\xEDcio" : "Livro" });
+  return starts.map((item, index) => ({ title: item.title, page: item.page, end: (starts[index + 1]?.page ?? total + 1) - 1 }));
+}
 export {
   CMD_GET_OUTLINE,
   CMD_GET_STATE,
   CMD_NAVIGATE,
   CMD_RESTORE,
   CMD_SET_ANNOTATIONS_STATE,
+  CMD_SET_BOOK_LANDMARKS,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
   EVT_CREATE_CONCEPT,
@@ -293,10 +314,13 @@ export {
   EVT_TOGGLE_CHAPTERS,
   PDF_BRIDGE_VERSION,
   PDF_VIEWER_ORIGIN,
+  bookSections,
   buildTextLayerModel,
   clusterIntoLines,
   createNavigationGuard,
+  edgePage,
   findWordBounds,
+  isBookLandmark,
   isNavigateState,
   isOutlineNode,
   isPdfSelectionPayload,
@@ -306,5 +330,6 @@ export {
   isWordCharacter,
   makeLayerRect,
   mergeSelectionRects,
-  projectRectsToPage
+  projectRectsToPage,
+  rifflePages
 };

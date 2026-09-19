@@ -26,6 +26,8 @@ import {
   type PdfViewState,
 } from "./pdfBridgeProtocol";
 
+import { CMD_SET_BOOK_LANDMARKS, type BookLandmark } from "../../../../core/pdf-reader-core/contract";
+
 interface PdfJsViewerProps {
   fileHash: string;
   fileName?: string;
@@ -239,6 +241,31 @@ export default function PdfJsViewer({
     hot.on("lyceum:pdfjs-overlay-changed", refreshViewer);
     return () => hot.off("lyceum:pdfjs-overlay-changed", refreshViewer);
   }, []);
+
+  useEffect(() => {
+    if (!documentReady || !window.api?.getConceptGraph) return;
+    let cancelled = false;
+    let revision = 0;
+    const refresh = async () => {
+      const request = ++revision;
+      try {
+        const result = await window.api.getConceptGraph(fileHash);
+        if (cancelled || request !== revision || !result.success || !result.payload) return;
+        const landmarks: BookLandmark[] = result.payload.concepts.flatMap(concept => [
+          ...(concept.highlightJson ? [{ page: concept.page, kind: "highlight" as const }] : []),
+          ...(concept.note ? [{ page: concept.page, kind: "note" as const }] : []),
+        ]);
+        postToViewer(CMD_SET_BOOK_LANDMARKS, { landmarks });
+      } catch { /* Landmarks must not prevent reading. */ }
+    };
+    const onUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ bookId?: string }>).detail;
+      if (!detail?.bookId || detail.bookId === fileHash) void refresh();
+    };
+    void refresh();
+    window.addEventListener("lyceum:annotations-updated", onUpdate);
+    return () => { cancelled = true; window.removeEventListener("lyceum:annotations-updated", onUpdate); };
+  }, [documentReady, fileHash, postToViewer]);
 
   useEffect(() => {
     if (!fileHash || !currentPage || !window.api?.getPageKeyConcepts) {

@@ -15,6 +15,8 @@ import { installOutlineFeature } from "./features/outline/index.mjs";
 import { installZoomFeature } from "./features/zoom/index.mjs";
 import { installStateEventsFeature } from "./features/state-events/index.mjs";
 
+import { installBookEdgeFeature } from "./features/book-edge/index.mjs";
+
 const params = new URLSearchParams(window.location.search);
 const title = params.get("title")?.trim() || "";
 
@@ -46,6 +48,7 @@ document.addEventListener(
 
     onViewerBooted(app => {
       toolbarHandle.onAppReady(app);
+      installBookEdgeFeature({ facade: fac, app, bus });
       installAnnotationsFeature({ bus, state, app });
       installStateEventsFeature({ bus, facade: fac, app });
     });

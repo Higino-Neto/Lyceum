@@ -3,3 +3,4 @@ export * from "./geometry";
 export * from "./navigation-policy";
 export * from "./textModel";
 export * from "./words";
+export * from "./book-edge";
