@@ -61,6 +61,7 @@ export default function PdfJsViewer({
 }: PdfJsViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<PdfViewState | null>(null);
+  const devRestoreStateRef = useRef<PdfViewState | null>(null);
   const restoreStartedRef = useRef(false);
   const restoreCompletedRef = useRef(false);
   const restoreGenRef = useRef(0);
@@ -71,6 +72,7 @@ export default function PdfJsViewer({
   const [pendingSelection, setPendingSelection] = useState<PdfSelectionPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [documentReady, setDocumentReady] = useState(false);
+  const [viewerRevision, setViewerRevision] = useState(0);
   const { loadState, saveNow, scheduleSave } = useReadingStatePersistence(fileHash);
 
   const viewerUrls = useMemo(
@@ -143,7 +145,9 @@ export default function PdfJsViewer({
     restoreStartedRef.current = true;
 
     try {
-      const saved = await loadState();
+      const snapshot = devRestoreStateRef.current;
+      devRestoreStateRef.current = null;
+      const saved = snapshot ? toReadingState(snapshot) : await loadState();
       postToViewer(CMD_RESTORE, {
         page: saved.currentPage,
         currentScale: saved.currentZoom,
@@ -223,6 +227,20 @@ export default function PdfJsViewer({
   }, [syncAnnotationButtonState]);
 
   useEffect(() => {
+    const hot = import.meta.hot;
+    if (!hot) return;
+    const refreshViewer = () => {
+      devRestoreStateRef.current = lastStateRef.current;
+      restoreStartedRef.current = false;
+      restoreCompletedRef.current = false;
+      setDocumentReady(false);
+      setViewerRevision((revision) => revision + 1);
+    };
+    hot.on("lyceum:pdfjs-overlay-changed", refreshViewer);
+    return () => hot.off("lyceum:pdfjs-overlay-changed", refreshViewer);
+  }, []);
+
+  useEffect(() => {
     if (!fileHash || !currentPage || !window.api?.getPageKeyConcepts) {
       setCurrentPageConceptCount(0);
       return;
@@ -255,6 +273,7 @@ export default function PdfJsViewer({
     restoreStartedRef.current = false;
     restoreCompletedRef.current = false;
     lastStateRef.current = null;
+    devRestoreStateRef.current = null;
     setDocumentReady(false);
     setCurrentPage(1);
     setCurrentPageConceptCount(0);
@@ -301,6 +320,9 @@ export default function PdfJsViewer({
     );
   }
 
+  const viewerUrl = new URL(viewerUrls.viewerUrl);
+  if (import.meta.env.DEV) viewerUrl.searchParams.set("devrev", String(viewerRevision));
+
   return (
     <div className="relative flex h-full w-full bg-zinc-950">
       <AnimatePresence initial={false}>
@@ -327,8 +349,8 @@ export default function PdfJsViewer({
 
         <iframe
           ref={iframeRef}
-          key={viewerUrls.viewerUrl}
-          src={viewerUrls.viewerUrl}
+          key={viewerUrl.toString()}
+          src={viewerUrl.toString()}
           title={fileName ? `${fileName} - PDF.js` : "Mozilla PDF.js Viewer"}
           className="h-full w-full border-0 bg-zinc-950"
           sandbox="allow-scripts allow-same-origin allow-downloads"

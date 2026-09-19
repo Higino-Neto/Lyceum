@@ -99,7 +99,7 @@ body {
 }
 
 .textLayer {
-  --lyceum-selection-color: rgba(82, 145, 255, 0.34);
+  --lyceum-selection-color: rgba(147, 170, 198, 0.32);
   user-select: none;
 }
 
@@ -134,29 +134,47 @@ body {
   position: absolute;
   min-width: 1px;
   background: var(--lyceum-selection-color);
-  border-radius: 2px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(190, 209, 230, 0.12);
 }
 
-.lyceumCreateConceptButton {
+.lyceumSelectionToolbar {
   position: fixed;
   z-index: 10000;
-  height: 32px;
-  max-width: 104px;
-  border: 1px solid #34d399;
-  border-radius: 4px;
-  padding: 0 10px;
-  background: #052e16;
-  color: #d1fae5;
-  font: 600 11px/30px system-ui, sans-serif;
-  box-shadow: 0 12px 30px rgb(0 0 0 / 0.36);
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #52525b;
+  border-radius: 9px;
+  background: rgba(39, 39, 42, 0.97);
+  color: #f4f4f5;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.3);
+  font: 500 12px/1.2 system-ui, sans-serif;
+}
+
+.lyceumSelectionAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: #e4e4e7;
   cursor: pointer;
 }
 
-.lyceumCreateConceptButton:hover,
-.lyceumCreateConceptButton:focus-visible {
-  background: #065f46;
-  color: #ecfdf5;
-  outline: none;
+.lyceumSelectionAction:hover,
+.lyceumSelectionAction:focus-visible {
+  background: #3f3f46;
+  color: #fff;
+  outline: 2px solid transparent;
+}
+
+.lyceumSelectionAction:focus-visible {
+  box-shadow: inset 0 0 0 2px #a1a1aa;
 }
 
 .page .lyceumKeyConceptHighlightLayer {

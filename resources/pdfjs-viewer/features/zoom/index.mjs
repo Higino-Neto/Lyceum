@@ -1,107 +1,143 @@
 import { onViewerBooted } from "../../core/lifecycle.mjs";
 
-// Touchpad/mouse-wheel zoom with Ctrl/Meta. The stock viewer gates its own
-// ctrl+wheel handler behind scroll-tracking that, in practice, suppresses
-// pinch zoom (Linux Chromium synthesizes pinch as ctrl+wheel pixel deltas and
-// the "recently scrolled" flag stays true). Lyceum's reader needs pinch zoom,
-// so this feature owns ctrl/meta+wheel at capture time — before the stock
-// handler can swallow it — and drives the same public updateZoom() API the
-// stock handler uses, preserving cursor-anchored zooming and scale smoothing.
-//
-// PDF.js's _accumulateFactor/_accumulateTicks keep a per-prop residual on the
-// app object. The stock viewer initializes only its own props ("_wheelUnused*",
-// "_touchUnused*"); a custom prop starts as `undefined` and produces NaN in
-// _accumulateFactor on the very first gesture, silently killing pinch zoom.
-// Lyceum seeds and resets its own props and guards every computed value.
+// Chromium reports a touchpad pinch as a Ctrl+wheel event even though the
+// Control key is not held. Distinguish that synthetic modifier from a real
+// Ctrl+mouse-wheel gesture before asking PDF.js to zoom.
 const FACTOR_KEY = "_lyceumWheelUnusedFactor";
-const TICKS_KEY = "_lyceumWheelUnusedTicks";
-const PIXELS_PER_LINE_SCALE = 30;
+const WHEEL_FACTOR = 1.1;
+const heldModifiers = new Set();
+let activeZoomListener = null;
+let activeKeyDownListener = null;
+let activeKeyUpListener = null;
+let activeBlurListener = null;
+let anchorGeneration = 0;
 
-function seedAccumulators(app) {
-  if (!app) {
-    return;
-  }
-  if (typeof app[FACTOR_KEY] !== "number" || !Number.isFinite(app[FACTOR_KEY])) {
+function seedAccumulator(app) {
+  if (app && (!Number.isFinite(app[FACTOR_KEY]) || app[FACTOR_KEY] <= 0)) {
     app[FACTOR_KEY] = 1;
-  }
-  if (typeof app[TICKS_KEY] !== "number" || !Number.isFinite(app[TICKS_KEY])) {
-    app[TICKS_KEY] = 0;
   }
 }
 
+function isLikelyMouseWheel(event) {
+  if (event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return true;
+  // Chromium on Linux also reports a clicky wheel in pixel mode, typically
+  // near 100px per notch. Prefer its legacy wheelDelta when available so a
+  // fast two-finger swipe is not mistaken for a clicky wheel.
+  const delta = Math.abs(event.deltaY);
+  const legacyDelta = Math.abs(Number(event.wheelDeltaY) || 0);
+  if (legacyDelta > 0) return delta >= 70 && legacyDelta >= 120 && legacyDelta % 120 === 0;
+  return [100, 120].some(step => delta >= step && Math.abs(delta / step - Math.round(delta / step)) < 0.02);
+}
+
+function getPageAnchor(app, origin) {
+  const viewer = app.pdfViewer;
+  const container = viewer?.container ?? document.getElementById("viewerContainer");
+  const pageNumber = viewer?.currentPageNumber;
+  if (!container || !Number.isInteger(pageNumber) || pageNumber < 1) return null;
+  const page = viewer?.getPageView?.(pageNumber - 1)?.div ??
+    document.querySelector(`.page[data-page-number="${pageNumber}"]`);
+  if (!page) return null;
+  const rect = page.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const x = Math.max(rect.left + 1, Math.min(rect.right - 1, origin[0]));
+  const y = Math.max(rect.top + 1, Math.min(rect.bottom - 1, origin[1]));
+  return {
+    container, page, pageNumber,
+    x, y,
+    ratioX: (x - rect.left) / rect.width,
+    ratioY: (y - rect.top) / rect.height,
+  };
+}
+
+function restorePageAnchor(anchor, viewer) {
+  if (!anchor.page.isConnected) return;
+  const rect = anchor.page.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  anchor.container.scrollLeft += rect.left + rect.width * anchor.ratioX - anchor.x;
+  anchor.container.scrollTop += rect.top + rect.height * anchor.ratioY - anchor.y;
+  viewer.update?.();
+  // PDF.js may have selected another page before the scroll correction. Keep
+  // the page that was active when the user began the zoom gesture.
+  if (viewer.currentPageNumber !== anchor.pageNumber) {
+    viewer._setCurrentPageNumber?.(anchor.pageNumber);
+  }
+}
+
+function zoomKeepingPage(app, factor, origin) {
+  const anchor = getPageAnchor(app, origin);
+  const generation = ++anchorGeneration;
+  app.updateZoom(null, factor, origin);
+  if (!anchor) return;
+  restorePageAnchor(anchor, app.pdfViewer);
+  requestAnimationFrame(() => {
+    if (generation === anchorGeneration) restorePageAnchor(anchor, app.pdfViewer);
+  });
+}
+
 export function installZoomFeature({ facade }) {
-  // The application is a long-lived singleton across documents; a fresh
-  // document must not inherit a leftover zoom residual from the previous one.
-  // eventBus only exists after the viewer boots, so wire the reset there.
+  anchorGeneration += 1;
+  if (activeZoomListener) window.removeEventListener("wheel", activeZoomListener, true);
+  if (activeKeyDownListener) window.removeEventListener("keydown", activeKeyDownListener, true);
+  if (activeKeyUpListener) window.removeEventListener("keyup", activeKeyUpListener, true);
+  if (activeBlurListener) window.removeEventListener("blur", activeBlurListener, true);
+  heldModifiers.clear();
+
+  activeKeyDownListener = event => {
+    if (event.key === "Control" || event.key === "Meta") heldModifiers.add(event.key);
+  };
+  activeKeyUpListener = event => {
+    if (event.key === "Control" || event.key === "Meta") heldModifiers.delete(event.key);
+  };
+  activeBlurListener = () => heldModifiers.clear();
+  window.addEventListener("keydown", activeKeyDownListener, true);
+  window.addEventListener("keyup", activeKeyUpListener, true);
+  window.addEventListener("blur", activeBlurListener, true);
+
   onViewerBooted(app => {
-    app?.eventBus?.on?.("documentloaded", () => seedAccumulators(facade.getApp?.()));
-    seedAccumulators(app);
+    app?.eventBus?.on?.("documentloaded", () => {
+      const current = facade.getApp?.();
+      if (current) current[FACTOR_KEY] = 1;
+    });
+    seedAccumulator(facade.getApp?.());
   });
 
-  window.addEventListener(
-    "wheel",
-    event => {
-      if (!event.ctrlKey && !event.metaKey) {
-        return;
+  activeZoomListener = event => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    const app = facade.getApp?.();
+    if (!app?.pdfViewer || typeof app.updateZoom !== "function" || app.pdfViewer.isInPresentationMode) return;
+
+    const physicallyHeld = heldModifiers.size > 0;
+    const mouseWheel = isLikelyMouseWheel(event);
+    const pinch = event.ctrlKey && !physicallyHeld && !mouseWheel &&
+      event.deltaMode === WheelEvent.DOM_DELTA_PIXEL && event.deltaX === 0 && event.deltaZ === 0;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const origin = [event.clientX, event.clientY];
+
+    if (pinch) {
+      seedAccumulator(app);
+      // A missed keydown must never turn one large wheel event into a huge
+      // scale jump. Ordinary pinch deltas are much smaller than this bound.
+      const scaleFactor = Math.exp(-Math.max(-12, Math.min(12, event.deltaY)) / 100);
+      const factor = typeof app._accumulateFactor === "function"
+        ? app._accumulateFactor(app.pdfViewer.currentScale, scaleFactor, FACTOR_KEY)
+        : scaleFactor;
+      if (Number.isFinite(factor) && factor > 0 && factor !== 1) {
+        zoomKeepingPage(app, factor, origin);
       }
+      return;
+    }
 
-      const app = facade.getApp?.();
-      if (!app?.pdfViewer || typeof app.updateZoom !== "function") {
-        return;
-      }
-      if (app.pdfViewer.isInPresentationMode) {
-        return;
-      }
+    if (physicallyHeld && !mouseWheel) {
+      // Ctrl plus a two-finger swipe is neither a zoom command nor navigation.
+      return;
+    }
 
-      event.preventDefault();
-      event.stopPropagation();
-
-      seedAccumulators(app);
-
-      const { deltaX, deltaY, deltaMode } = event;
-      const origin = [event.clientX, event.clientY];
-      const scaleFactor = Math.exp(-deltaY / 100);
-      const isPinch =
-        deltaMode === WheelEvent.DOM_DELTA_PIXEL &&
-        deltaX === 0 &&
-        Math.abs(scaleFactor - 1) < 0.05;
-
-      if (isPinch) {
-        const factor =
-          typeof app._accumulateFactor === "function"
-            ? app._accumulateFactor(app.pdfViewer.currentScale, scaleFactor, FACTOR_KEY)
-            : scaleFactor;
-        const resolvedFactor = Number.isFinite(factor) && factor !== 1 ? factor : scaleFactor;
-        if (resolvedFactor !== 1) {
-          app.updateZoom(null, resolvedFactor, origin);
-        }
-        return;
-      }
-
-      // Mirror the stock viewer's direction convention (negative = scroll
-      // down/right) so ctrl+wheel mouse zoom behaves exactly like the native
-      // viewer instead of being inverted.
-      const hypot = Math.hypot(deltaX, deltaY);
-      const angle = Math.atan2(deltaY, deltaX);
-      const delta = -0.25 * Math.PI < angle && angle < 0.75 * Math.PI ? -hypot : hypot;
-      let ticks = 0;
-      if (deltaMode === WheelEvent.DOM_DELTA_LINE || deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-        ticks = Math.abs(delta) >= 1
-          ? Math.sign(delta)
-          : typeof app._accumulateTicks === "function"
-            ? app._accumulateTicks(delta, TICKS_KEY)
-            : delta;
-      } else if (typeof app._accumulateTicks === "function") {
-        ticks = app._accumulateTicks(delta / PIXELS_PER_LINE_SCALE, TICKS_KEY);
-      } else {
-        ticks = delta / PIXELS_PER_LINE_SCALE;
-      }
-
-      const resolvedTicks = Number.isFinite(ticks) && ticks !== 0 ? ticks : 0;
-      if (resolvedTicks !== 0) {
-        app.updateZoom(resolvedTicks, null, origin);
-      }
-    },
-    { passive: false, capture: true },
-  );
+    if (event.deltaY !== 0) {
+      // One wheel notch is one 10% step, irrespective of its raw pixel delta.
+      zoomKeepingPage(app, event.deltaY < 0 ? WHEEL_FACTOR : 1 / WHEEL_FACTOR, origin);
+    }
+  };
+  window.addEventListener("wheel", activeZoomListener, { passive: false, capture: true });
 }

@@ -53,7 +53,7 @@ export default function ConceptEditor({
   );
 
   if (!selected) {
-    return <AnnotationEmptyState>Selecione um Key Concept para editar.</AnnotationEmptyState>;
+    return <AnnotationEmptyState>Selecione uma nota para editar.</AnnotationEmptyState>;
   }
 
   const pageNumber = clampConceptPage(page, totalPages);
@@ -67,17 +67,17 @@ export default function ConceptEditor({
   const selectedLinkIds = new Set(related.map((concept) => concept.id));
 
   return (
-    <section className="space-y-3 rounded-sm border border-zinc-800 bg-zinc-950/70 p-3">
+    <section className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Detalhe</div>
-          <div className="mt-0.5 truncate text-sm font-semibold text-zinc-100">{selected.title}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Editar nota</div>
+          <div className="mt-1 truncate text-base font-semibold text-zinc-100">{selected.title}</div>
         </div>
         <div className="flex gap-1.5">
           <button
             type="button"
             onClick={() => onGoToPage(selected.page)}
-            className="flex h-8 w-8 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-emerald-800 hover:text-emerald-300"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
             title="Ir para pagina"
             aria-label="Ir para pagina"
           >
@@ -95,46 +95,46 @@ export default function ConceptEditor({
                 ? "border-red-700 bg-red-900/50 text-red-100"
                 : "border-red-950 bg-red-950/30 text-red-300 hover:border-red-800 hover:bg-red-950",
             ].join(" ")}
-            title="Excluir concept"
-            aria-label="Excluir concept"
+            title="Excluir nota"
+            aria-label="Excluir nota"
           >
             {deleteArmed ? "Confirmar" : <Trash2 size={14} />}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_76px] gap-2">
-        <input
+      <div className="grid grid-cols-[1fr_76px] gap-3">
+        <label className="block space-y-2 text-sm text-zinc-300"><span>Título</span><input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          className="h-9 min-w-0 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-sm font-semibold text-zinc-100 outline-none focus:border-emerald-500"
-          aria-label="Titulo do concept"
-        />
-        <input
+          className="h-10 w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-zinc-100 outline-none focus:border-zinc-400"
+          aria-label="Título da nota"
+        /></label>
+        <label className="block space-y-2 text-sm text-zinc-300"><span>Página</span><input
           value={page}
           onChange={(event) => setPage(event.target.value)}
           inputMode="numeric"
-          className="h-9 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-sm text-zinc-100 outline-none focus:border-emerald-500"
-          aria-label="Pagina do concept"
-        />
+          className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100 outline-none focus:border-zinc-400"
+          aria-label="Página da nota"
+        /></label>
       </div>
 
       {selected.excerpt && (
-        <blockquote className="max-h-24 overflow-y-auto border-l border-emerald-700 pl-3 text-xs leading-relaxed text-zinc-400">
+        <blockquote className="max-h-24 overflow-y-auto border-l-2 border-zinc-600 pl-3 text-sm leading-relaxed text-zinc-400">
           {selected.excerpt}
         </blockquote>
       )}
 
-      <textarea
+      <label className="block space-y-2 text-sm text-zinc-300"><span>Conteúdo</span><textarea
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        rows={4}
+        rows={7}
         placeholder="Nota opcional"
-        className="w-full resize-none rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-      />
+        className="w-full resize-y rounded-md border border-zinc-700 bg-zinc-900 px-3 py-3 text-sm leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-400"
+      /></label>
 
-      {duplicate && <div className="text-xs text-amber-300">Ja existe um Key Concept com esse nome.</div>}
-      {pageNumber === null && <div className="text-xs text-amber-300">Informe uma pagina valida.</div>}
+      {duplicate && <div className="text-xs text-amber-300">Já existe uma nota com esse título.</div>}
+      {pageNumber === null && <div className="text-xs text-amber-300">Informe uma página válida.</div>}
 
       {dirty && title.trim() && (
         <button
@@ -145,18 +145,15 @@ export default function ConceptEditor({
               void onUpdate(selected.id, { title, note: nextNote, page: pageNumber });
             }
           }}
-          className="inline-flex h-8 items-center gap-2 rounded-sm border border-emerald-900 bg-emerald-950/50 px-3 text-xs font-medium text-emerald-200 transition hover:border-emerald-700 hover:bg-emerald-900/60 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-zinc-200 px-3 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save size={14} />
-          Salvar
+          Salvar alterações
         </button>
       )}
 
-      <div className="space-y-2 border-t border-zinc-800 pt-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-zinc-300">Links</span>
-          <span className="text-zinc-500">{related.length}</span>
-        </div>
+      <details className="space-y-2 border-t border-zinc-800 pt-3">
+        <summary className="cursor-pointer select-none text-sm font-medium text-zinc-300">Vínculos · {related.length}</summary>
         {related.length > 0 && (
           <div className="space-y-1.5">
             {related.map((concept) => {
@@ -193,7 +190,7 @@ export default function ConceptEditor({
           title="Adicionar link"
           onToggle={onToggleRelation}
         />
-      </div>
+      </details>
     </section>
   );
 }

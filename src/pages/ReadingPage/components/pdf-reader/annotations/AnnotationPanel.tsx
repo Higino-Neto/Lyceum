@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, Network, Plus, X } from "lucide-react";
 import type {
   PdfSelectionPayload,
   PdfSelectionRect,
@@ -22,11 +22,7 @@ import {
 import ConceptComposer from "./ConceptComposer";
 import ConceptEditor from "./ConceptEditor";
 import ConceptList from "./ConceptList";
-import CurrentPageConcepts from "./CurrentPageConcepts";
 import GraphDialog from "./GraphDialog";
-import KnowledgeMapPreview from "./KnowledgeMapPreview";
-import PageContextCard from "./PageContextCard";
-import RelatedPagesStrip from "./RelatedPagesStrip";
 import { useKeyConcepts } from "./useKeyConcepts";
 
 interface AnnotationPanelProps {
@@ -56,8 +52,7 @@ export default function AnnotationPanel({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [creationSelection, setCreationSelection] = useState<PdfSelectionPayload | null>(initialSelection);
-  const [composerOpen, setComposerOpen] = useState(Boolean(initialSelection?.text?.trim()));
-  const [currentPageSectionCollapsed, setCurrentPageSectionCollapsed] = useState(false);
+  const [panelView, setPanelView] = useState<"list" | "compose" | "detail">(initialSelection?.text?.trim() ? "compose" : "list");
   const [pendingLinkedIds, setPendingLinkedIds] = useState<Set<string>>(new Set());
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState("all");
@@ -65,6 +60,7 @@ export default function AnnotationPanel({
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [query, setQuery] = useState("");
   const [graphOpen, setGraphOpen] = useState(false);
+  const closeGraph = useCallback(() => setGraphOpen(false), []);
   const [actionError, setActionError] = useState<string | null>(null);
   const concepts = useKeyConcepts(bookId, currentPage);
 
@@ -75,7 +71,7 @@ export default function AnnotationPanel({
     setDraftNote("");
     setPendingLinkedIds(new Set());
     setSelectedConceptId(null);
-    setComposerOpen(true);
+    setPanelView("compose");
     setFilterScope("page");
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [initialSelection]);
@@ -127,7 +123,6 @@ export default function AnnotationPanel({
   const draftPage = clampConceptPage(creationSelection?.page || currentPage, totalPages) ?? 1;
   const draftDuplicate = findDuplicateTitle(concepts.graph.concepts, draftTitle);
   const draftValid = Boolean(draftTitle.trim()) && draftPage >= 1 && !draftDuplicate;
-  const currentPageConceptCount = concepts.currentPageConcepts.length;
 
   const visibleConcepts = useMemo(
     () => filterAndSortConcepts({
@@ -181,11 +176,11 @@ export default function AnnotationPanel({
           await concepts.createRelation(created.id, relatedId);
         }
         setSelectedConceptId(created.id);
+        setPanelView("detail");
       }
       setDraftTitle("");
       setDraftNote("");
       setCreationSelection(null);
-      setComposerOpen(false);
       setPendingLinkedIds(new Set());
       onSelectionConsumed();
     });
@@ -206,6 +201,7 @@ export default function AnnotationPanel({
   const deleteSelectedConcept = (id: string) => runAction(async () => {
     await concepts.deleteConcept(id);
     setSelectedConceptId(null);
+    setPanelView("list");
   });
 
   const handleFilterScopeChange = (scope: FilterScope) => {
@@ -229,14 +225,8 @@ export default function AnnotationPanel({
 
   const openBlankComposer = () => {
     setCreationSelection(null);
-    setComposerOpen(true);
+    setPanelView("compose");
     onSelectionConsumed();
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  const openSelectionComposer = () => {
-    if (!creationSelection) return;
-    setComposerOpen(true);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -245,27 +235,21 @@ export default function AnnotationPanel({
     setDraftNote("");
     setPendingLinkedIds(new Set());
     setCreationSelection(null);
-    setComposerOpen(false);
+    setPanelView("list");
     onSelectionConsumed();
   };
 
   return (
-    <aside className="flex h-full w-[370px] min-w-[340px] max-w-[44vw] flex-col border-l border-zinc-800 bg-zinc-950 text-zinc-100 shadow-2xl">
+    <aside className="flex h-full w-[390px] min-w-[340px] max-w-[44vw] flex-col border-l border-zinc-800 bg-zinc-950 text-zinc-100 shadow-2xl">
       <header className="shrink-0 border-b border-zinc-800 px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold leading-tight">Key Concepts</h2>
+            <h2 className="text-lg font-semibold leading-tight">Notas</h2>
             <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-zinc-400">
               <BookOpen size={12} />
               <span className="truncate">{currentChapter?.title ?? "Livro inteiro"}</span>
             </div>
-            <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-zinc-500">
-              <span>{concepts.graph.concepts.length} conceitos</span>
-              <span>·</span>
-              <span>{concepts.graph.relations.length} links</span>
-              <span>·</span>
-              <span>{concepts.annotatedPages.length} paginas</span>
-            </div>
+            <div className="mt-1 text-xs text-zinc-500">{concepts.graph.concepts.length} notas · página {currentPage}</div>
           </div>
           <button
             type="button"
@@ -279,10 +263,18 @@ export default function AnnotationPanel({
         </div>
       </header>
 
+      <nav className="flex shrink-0 items-center gap-2 border-b border-zinc-800 px-3 py-2" aria-label="Navegação das notas">
+        <button type="button" onClick={() => setPanelView("list")} className={`rounded-md px-3 py-2 text-sm ${panelView === "list" ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900"}`}>Todas</button>
+        <button type="button" onClick={() => setGraphOpen(true)} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"><Network size={15} /> Mapa</button>
+        <button type="button" onClick={() => {
+          if (draftTitle || draftNote) setPanelView("compose");
+          else openBlankComposer();
+        }} className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-white"><Plus size={15} /> {draftTitle || draftNote ? "Rascunho" : "Nova nota"}</button>
+      </nav>
+
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <ConceptComposer
+        {panelView === "compose" && <ConceptComposer
           inputRef={inputRef}
-          open={composerOpen}
           title={draftTitle}
           note={draftNote}
           page={draftPage}
@@ -291,9 +283,6 @@ export default function AnnotationPanel({
           pendingLinkedIds={pendingLinkedIds}
           duplicateTitle={Boolean(draftDuplicate)}
           valid={draftValid}
-          hasPendingSelection={Boolean(creationSelection?.text?.trim())}
-          onOpenBlank={openBlankComposer}
-          onOpenFromSelection={openSelectionComposer}
           onCloseDraft={closeComposer}
           onTitleChange={setDraftTitle}
           onNoteChange={setDraftNote}
@@ -303,26 +292,9 @@ export default function AnnotationPanel({
             onSelectionConsumed();
           }}
           onTogglePendingLink={togglePendingLink}
-        />
+        />}
 
-        <div className="space-y-4 px-3 py-3">
-          <PageContextCard
-            page={currentPage}
-            conceptCount={currentPageConceptCount}
-            chapter={currentChapter}
-            onOpenPageConcepts={() => {
-              setFilterScope("page");
-              setCurrentPageSectionCollapsed(false);
-            }}
-          />
-
-          <CurrentPageConcepts
-            concepts={concepts.currentPageConcepts}
-            collapsed={currentPageSectionCollapsed}
-            onToggleCollapsed={() => setCurrentPageSectionCollapsed((value) => !value)}
-            onSelectConcept={setSelectedConceptId}
-          />
-
+        <div className="space-y-4 px-4 py-4">
           {(actionError || concepts.error) && (
             <div className="flex items-start justify-between gap-2 rounded-sm border border-red-950 bg-red-950/30 px-2 py-1.5 text-xs text-red-200">
               <span>{actionError || concepts.error}</span>
@@ -332,7 +304,7 @@ export default function AnnotationPanel({
             </div>
           )}
 
-          <ConceptList
+          {panelView === "list" && <ConceptList
             concepts={visibleConcepts}
             loading={concepts.loading}
             selectedConceptId={selectedConceptId}
@@ -347,11 +319,13 @@ export default function AnnotationPanel({
             onSortModeChange={setSortMode}
             onFilterScopeChange={handleFilterScopeChange}
             onSelectedChapterChange={setSelectedChapterId}
-            onSelectConcept={setSelectedConceptId}
+            onSelectConcept={(id) => { setSelectedConceptId(id); setPanelView("detail"); }}
             onGoToPage={onGoToPage}
-          />
+          />}
 
-          {selectedConcept && (
+          {panelView === "detail" && selectedConcept && (
+            <div>
+              <button type="button" onClick={() => setPanelView("list")} className="mb-4 text-sm text-zinc-400 hover:text-zinc-100">← Todas as notas</button>
             <ConceptEditor
               selected={selectedConcept}
               concepts={concepts.graph.concepts}
@@ -368,19 +342,8 @@ export default function AnnotationPanel({
               onToggleRelation={toggleExistingLink}
               onGoToPage={onGoToPage}
             />
+            </div>
           )}
-
-          <KnowledgeMapPreview
-            concepts={concepts.graph.concepts}
-            relations={concepts.graph.relations}
-            onOpenGraph={() => setGraphOpen(true)}
-          />
-
-          <RelatedPagesStrip
-            pages={concepts.annotatedPages}
-            currentPage={currentPage}
-            onGoToPage={onGoToPage}
-          />
         </div>
       </div>
 
@@ -394,7 +357,8 @@ export default function AnnotationPanel({
         selectedChapterId={selectedChapterId}
         onSelectedChapterChange={setSelectedChapterId}
         onSelectConcept={setSelectedConceptId}
-        onClose={() => setGraphOpen(false)}
+        onOpenConcept={(id) => { setSelectedConceptId(id); setPanelView("detail"); setGraphOpen(false); }}
+        onClose={closeGraph}
         onGoToPage={onGoToPage}
       />
     </aside>

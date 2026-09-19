@@ -4,17 +4,14 @@ import { installZoomFeature } from "../../../resources/pdfjs-viewer/features/zoo
 function createApp(options: {
   updateZoom?: unknown;
   accumulateFactor?: unknown;
-  accumulateTicks?: unknown;
 } = {}) {
   const {
     updateZoom,
     accumulateFactor,
-    accumulateTicks,
   } = options;
   return {
     updateZoom: updateZoom ?? vi.fn(),
     _accumulateFactor: accumulateFactor ?? undefined,
-    _accumulateTicks: accumulateTicks ?? undefined,
     pdfViewer: {
       currentScale: 1,
       isInPresentationMode: false,
@@ -22,21 +19,9 @@ function createApp(options: {
   };
 }
 
-// Faithful copy of PDF.js's PDFViewerApplication._accumulateTicks/_accumulateFactor
-// (public/pdfjs/web/viewer.mjs). Operating on an unseeded custom prop produces
-// NaN on the first gesture (undefined arithmetic); the zoom feature must seed
-// the props before relying on them.
+// Faithful copy of PDF.js's _accumulateFactor. An unseeded custom property
+// produces NaN on the first pinch gesture.
 function installRealStockAccumulators(app: Record<string, unknown>): void {
-  app._accumulateTicks = function (this: Record<string, unknown>, ticks: number, prop: string) {
-    const before = this[prop] as number;
-    if ((before > 0 && ticks < 0) || (before < 0 && ticks > 0)) {
-      this[prop] = 0;
-    }
-    this[prop] = (this[prop] as number) + ticks;
-    const wholeTicks = Math.trunc(this[prop] as number);
-    this[prop] = (this[prop] as number) - wholeTicks;
-    return wholeTicks;
-  };
   app._accumulateFactor = function (this: Record<string, unknown>, previousScale: number, factor: number, prop: string) {
     if (factor === 1) {
       return 1;
@@ -68,12 +53,14 @@ const dispatchWheel = (overrides = {}) => {
   return event;
 };
 
+const holdControl = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Control", bubbles: true }));
+
 describe("viewer zoom feature", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("applies cursor-anchored pinch zoom for ctrl+wheel pixel deltas and prevents the event", () => {
+  it("zooms on a two-finger pinch without the user holding Ctrl", () => {
     const updateZoom = vi.fn();
     const accumulateFactor = vi.fn((_scale: number, factor: number) => factor);
     const app = createApp({ updateZoom, accumulateFactor });
@@ -89,19 +76,107 @@ describe("viewer zoom feature", () => {
     expect(updateZoom.mock.calls[0][2]).toEqual([40, 60]);
   });
 
-  it("zooms by steps for ctrl+wheel line-mode deltas (mouse wheel)", () => {
+  it("zooms exactly one 10% step for a Ctrl plus mouse-wheel notch", () => {
     const updateZoom = vi.fn();
-    const app = createApp({
-      updateZoom,
-      accumulateTicks: (ticks: number) => ticks,
-    });
+    const app = createApp({ updateZoom });
     installZoomFeature({ facade: { getApp: () => app } });
-
-    // Wheel down reports a positive deltaY, which the stock viewer maps to a
-    // negative step (zoom out); wheel up maps to +1 (zoom in).
+    holdControl();
     dispatchWheel({ ctrlKey: true, deltaY: 120, deltaMode: WheelEvent.DOM_DELTA_LINE });
+    expect(updateZoom).toHaveBeenCalledWith(null, 1 / 1.1, [40, 60]);
+  });
 
-    expect(updateZoom).toHaveBeenCalledWith(-1, null, [40, 60]);
+  it("caps a pixel-mode mouse-wheel notch to a single 10% step", () => {
+    const updateZoom = vi.fn();
+    const app = createApp({ updateZoom });
+    installZoomFeature({ facade: { getApp: () => app } });
+    holdControl();
+    dispatchWheel({ ctrlKey: true, deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(updateZoom).toHaveBeenCalledTimes(1);
+    expect(updateZoom).toHaveBeenCalledWith(null, 1.1, [40, 60]);
+  });
+
+  it("recognizes a pixel-mode mouse notch when Ctrl was pressed before the iframe gained focus", () => {
+    const updateZoom = vi.fn();
+    const app = createApp({ updateZoom });
+    installZoomFeature({ facade: { getApp: () => app } });
+    dispatchWheel({ ctrlKey: true, deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(updateZoom).toHaveBeenCalledWith(null, 1.1, [40, 60]);
+  });
+
+  it("ignores Ctrl plus a two-finger vertical swipe", () => {
+    const updateZoom = vi.fn();
+    const viewport = document.createElement("div");
+    viewport.id = "viewerContainer";
+    document.body.append(viewport);
+    const app = createApp({ updateZoom });
+    installZoomFeature({ facade: { getApp: () => app } });
+    holdControl();
+    const downstreamWheel = vi.fn();
+    window.addEventListener("wheel", downstreamWheel);
+    const event = dispatchWheel({ ctrlKey: true, deltaY: 12, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(event.defaultPrevented).toBe(true);
+    expect(downstreamWheel).not.toHaveBeenCalled();
+    expect(viewport.scrollTop).toBe(0);
+    expect(updateZoom).not.toHaveBeenCalled();
+    window.removeEventListener("wheel", downstreamWheel);
+    viewport.remove();
+  });
+
+  it.each([
+    ["mouse wheel", { ctrlKey: true, deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_LINE }, true],
+    ["touchpad pinch", { ctrlKey: true, deltaY: -3, deltaMode: WheelEvent.DOM_DELTA_PIXEL }, false],
+  ])("keeps the same page and visual anchor when zooming by %s", (_name, wheel, holdCtrl) => {
+    const viewport = document.createElement("div");
+    const page = document.createElement("div");
+    viewport.append(page);
+    document.body.append(viewport);
+    viewport.scrollTop = 650;
+    let scale = 1;
+    page.getBoundingClientRect = () => ({
+      left: 20,
+      right: 20 + 200 * scale,
+      top: 600 * scale - viewport.scrollTop,
+      bottom: 1600 * scale - viewport.scrollTop,
+      width: 200 * scale,
+      height: 1000 * scale,
+    }) as DOMRect;
+    const viewer = {
+      container: viewport,
+      currentScale: 1,
+      currentPageNumber: 1,
+      isInPresentationMode: false,
+      getPageView: () => ({ div: page }),
+      update: vi.fn(),
+      _setCurrentPageNumber: vi.fn((value: number) => { viewer.currentPageNumber = value; }),
+    };
+    const updateZoom = vi.fn((_steps: null, factor: number) => {
+      scale *= factor;
+      viewer.currentScale = scale;
+      // PDF.js adjusts for the cursor but omits the resized preceding pages.
+      viewport.scrollTop += 60 * (factor - 1);
+      viewer.currentPageNumber = 2;
+    });
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    try {
+      installZoomFeature({ facade: { getApp: () => ({ pdfViewer: viewer, updateZoom }) } });
+      if (holdCtrl) holdControl();
+      dispatchWheel(wheel);
+      expect(updateZoom).toHaveBeenCalledTimes(1);
+      const rect = page.getBoundingClientRect();
+      const anchorY = rect.top + rect.height * 0.11;
+      expect(anchorY).toBeCloseTo(60, 5);
+      expect(viewer.currentPageNumber).toBe(1);
+      expect(viewer._setCurrentPageNumber).toHaveBeenCalledWith(1);
+      frames.forEach(callback => callback(0));
+      expect(page.getBoundingClientRect().top + page.getBoundingClientRect().height * 0.11).toBeCloseTo(60, 5);
+    } finally {
+      vi.unstubAllGlobals();
+      viewport.remove();
+    }
   });
 
   it("does not react to plain scrolling (no ctrl/meta)", () => {
@@ -109,7 +184,7 @@ describe("viewer zoom feature", () => {
     const app = createApp({ updateZoom });
     installZoomFeature({ facade: { getApp: () => app } });
 
-    const event = dispatchWheel({ deltaY: 60, deltaMode: WheelEvent.DOM_DELTA_LINE });
+    const event = dispatchWheel({ deltaY: 60, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
 
     expect(event.defaultPrevented).toBe(false);
     expect(updateZoom).not.toHaveBeenCalled();
@@ -144,29 +219,23 @@ describe("viewer zoom feature", () => {
       expect(Number.isFinite(factor)).toBe(true);
       expect(factor).toBeGreaterThan(1);
     }
-    // The props are seeded into finite, valid seeds (factor 1, ticks 0).
+    // The accumulator is seeded to a finite value.
     expect(app._lyceumWheelUnusedFactor).toEqual(expect.any(Number));
     expect(Number.isFinite(app._lyceumWheelUnusedFactor)).toBe(true);
-    expect(app._lyceumWheelUnusedTicks).toBe(0);
   });
 
-  it("accumulates tiny pixel deltas into whole zoom steps with the real stock accumulator", () => {
+  it("keeps touchpad pixel deltas continuous even when a gesture exceeds the old pinch threshold", () => {
     const updateZoom = vi.fn();
     const app = createApp({ updateZoom }) as Record<string, unknown>;
     installRealStockAccumulators(app);
     installZoomFeature({ facade: { getApp: () => app as never } });
 
-    // Not a pinch (factor jump too large): falls into the ticks path, which for
-    // pixel mode accumulates delta/30 into whole steps. With an unseeded prop
-    // the first _accumulateTicks returns NaN and no zoom step ever fires.
-    for (let i = 0; i < 35; i += 1) {
-      dispatchWheel({ ctrlKey: true, deltaY: 6 });
-    }
+    dispatchWheel({ ctrlKey: true, deltaY: 6 });
 
-    expect(updateZoom).toHaveBeenCalled();
-    const anyTicks = updateZoom.mock.calls.some((call: unknown[]) => typeof call[0] === "number");
-    expect(anyTicks).toBe(true);
-    expect(Number.isFinite(app._lyceumWheelUnusedTicks)).toBe(true);
+    expect(updateZoom).toHaveBeenCalledTimes(1);
+    expect(updateZoom.mock.calls[0][0]).toBeNull();
+    expect(updateZoom.mock.calls[0][1]).toBeGreaterThan(0.9);
+    expect(updateZoom.mock.calls[0][1]).toBeLessThan(1);
   });
 
   it("re-seeds the accumulators when a new document loads", async () => {
@@ -192,12 +261,10 @@ describe("viewer zoom feature", () => {
 
       // Corrupt the seeds as if the previous document left a NaN behind.
       (app as Record<string, unknown>)._lyceumWheelUnusedFactor = NaN;
-      (app as Record<string, unknown>)._lyceumWheelUnusedTicks = NaN;
 
       events.documentloaded?.();
 
       expect((app as Record<string, unknown>)._lyceumWheelUnusedFactor).toBe(1);
-      expect((app as Record<string, unknown>)._lyceumWheelUnusedTicks).toBe(0);
     } finally {
       delete globalThis.PDFViewerApplication;
     }

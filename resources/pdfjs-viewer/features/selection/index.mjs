@@ -1,6 +1,7 @@
 // Custom text selection over PDF.js text layers. Lyceum renders its own
-// selection overlay so the reader can offer "create Key Concept" from a clean,
-// zoom-independent payload while native selection stays available for copying.
+// selection overlay so the reader can offer actions from a clean,
+// zoom-independent payload while copying remains available.
+import { onViewerBooted } from "../../core/lifecycle.mjs";
 import {
   buildTextLayerModel,
   findWordBounds,
@@ -14,13 +15,13 @@ const SELECTABLE_TEXT_SPAN_SELECTOR = ".textLayer span:not([role='img'])";
 const TEXT_LAYER_SELECTOR = ".textLayer";
 const SELECTION_LAYER_CLASS = "lyceumSelectionLayer";
 const SELECTION_RECT_CLASS = "lyceumSelectionRect";
-const CREATE_CONCEPT_BUTTON_ID = "lyceumCreateConceptButton";
+const SELECTION_TOOLBAR_ID = "lyceumSelectionToolbar";
 
 const HIT_TEST_PADDING = 1.5;
 const LINE_CLAMP_PADDING = 2;
 
 export function installSelectionFeature({ bus, facade, state }) {
-  const modelCache = new WeakMap();
+  let modelCache = new WeakMap();
 
   const getApp = () => facade.getApp();
   const finitePositive = (value, fallback) => {
@@ -51,7 +52,7 @@ export function installSelectionFeature({ bus, facade, state }) {
   function getTextLayerModel(textLayer) {
     const bounds = textLayer.getBoundingClientRect();
     const signature = [
-      textLayer.childElementCount,
+      textLayer.querySelectorAll(SELECTABLE_TEXT_SPAN_SELECTOR).length,
       textLayer.textContent?.length ?? 0,
       Math.round(bounds.width * 100),
       Math.round(bounds.height * 100),
@@ -119,16 +120,13 @@ export function installSelectionFeature({ bus, facade, state }) {
     return Array.from(document.querySelectorAll(TEXT_LAYER_SELECTOR));
   }
 
-  function getLayerIndex(textLayer) {
-    return getRenderedTextLayers().indexOf(textLayer);
+  function getTextLayerForPage(page) {
+    return document.querySelector(`.page[data-page-number="${page}"] .textLayer`);
   }
 
   function comparePositions(first, second) {
-    const firstIndex = getLayerIndex(first.textLayer);
-    const secondIndex = getLayerIndex(second.textLayer);
-
-    if (firstIndex !== secondIndex) {
-      return firstIndex - secondIndex;
+    if (first.page !== second.page) {
+      return first.page - second.page;
     }
 
     return first.offset - second.offset;
@@ -163,12 +161,27 @@ export function installSelectionFeature({ bus, facade, state }) {
   }
 
   function estimateOffsetInItem(item, rect, x) {
-    if (item.text.length <= 1 || rect.width <= 0) {
+    if (item.text.length <= 1 || rect.width <= 0 || !item.node) {
       return item.start;
     }
-
-    const ratio = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
-    return item.start + Math.round(ratio * item.text.length);
+    // PDF text spans may use kerning and variable-width glyphs. Read actual
+    // character boxes instead of assuming each character occupies equal space.
+    const range = document.createRange();
+    const bounds = item.span.closest(TEXT_LAYER_SELECTOR).getBoundingClientRect();
+    let nearest = { distance: Infinity, offset: 0 };
+    for (let index = 0; index < item.text.length; index++) {
+      range.setStart(item.node, index);
+      range.setEnd(item.node, index + 1);
+      const charRect = range.getBoundingClientRect();
+      const left = charRect.left - bounds.left;
+      const right = charRect.right - bounds.left;
+      const before = Math.abs(x - left);
+      const after = Math.abs(x - right);
+      if (before < nearest.distance) nearest = { distance: before, offset: index };
+      if (after < nearest.distance) nearest = { distance: after, offset: index + 1 };
+    }
+    range.detach?.();
+    return item.start + nearest.offset;
   }
 
   function getLineClampedPosition(textLayer, model, x, y) {
@@ -181,17 +194,17 @@ export function installSelectionFeature({ bus, facade, state }) {
     }
 
     if (x <= line.left) {
-      return { textLayer, offset: line.items[0].start };
+      return { page: getPageNumberForTextLayer(textLayer), offset: line.items[0].start };
     }
     if (x >= line.right) {
-      return { textLayer, offset: line.items[line.items.length - 1].end };
+      return { page: getPageNumberForTextLayer(textLayer), offset: line.items[line.items.length - 1].end };
     }
 
     let closest = null;
     for (const item of line.items) {
       for (const rect of item.rects) {
         if (x >= rect.left && x <= rect.right) {
-          return { textLayer, offset: estimateOffsetInItem(item, rect, x) };
+          return { page: getPageNumberForTextLayer(textLayer), offset: estimateOffsetInItem(item, rect, x) };
         }
 
         const leftDistance = Math.abs(x - rect.left);
@@ -207,12 +220,11 @@ export function installSelectionFeature({ bus, facade, state }) {
       }
     }
 
-    return closest ? { textLayer, offset: closest.offset } : null;
+    return closest ? { page: getPageNumberForTextLayer(textLayer), offset: closest.offset } : null;
   }
 
   function getTextPositionFromPoint(event, { allowLineClamp = false } = {}) {
     const textLayer =
-      getTextLayerFromTarget(event.target) ??
       getRenderedTextLayers().find(layer => {
         const bounds = layer.getBoundingClientRect();
         return (
@@ -221,7 +233,7 @@ export function installSelectionFeature({ bus, facade, state }) {
           event.clientY >= bounds.top &&
           event.clientY <= bounds.bottom
         );
-      });
+      }) ?? getTextLayerFromTarget(event.target);
 
     if (!textLayer) {
       return null;
@@ -233,7 +245,7 @@ export function installSelectionFeature({ bus, facade, state }) {
     const hit = findItemAtLayerPoint(model, x, y);
 
     if (hit) {
-      return { textLayer, offset: estimateOffsetInItem(hit.item, hit.rect, x) };
+      return { page: getPageNumberForTextLayer(textLayer), offset: estimateOffsetInItem(hit.item, hit.rect, x) };
     }
 
     return allowLineClamp ? getLineClampedPosition(textLayer, model, x, y) : null;
@@ -245,7 +257,7 @@ export function installSelectionFeature({ bus, facade, state }) {
       return null;
     }
 
-    const model = getTextLayerModel(point.textLayer);
+    const model = getTextLayerModel(getTextLayerForPage(point.page));
     const item = model.items.find(candidate => point.offset >= candidate.start && point.offset <= candidate.end);
     if (!item) {
       return null;
@@ -257,8 +269,8 @@ export function installSelectionFeature({ bus, facade, state }) {
     }
 
     return {
-      anchor: { textLayer: point.textLayer, offset: item.start + bounds.start },
-      focus: { textLayer: point.textLayer, offset: item.start + bounds.end },
+      anchor: { page: point.page, offset: item.start + bounds.start },
+      focus: { page: point.page, offset: item.start + bounds.end },
     };
   }
 
@@ -291,19 +303,20 @@ export function installSelectionFeature({ bus, facade, state }) {
     }
   }
 
-  function clearCreateConceptButton() {
-    document.getElementById(CREATE_CONCEPT_BUTTON_ID)?.remove();
-    state.set("currentSelectionPayload", null);
+  function clearSelectionToolbar() {
+    document.getElementById(SELECTION_TOOLBAR_ID)?.remove();
   }
 
   function clearCustomSelection() {
     state.set("activeSelectionDrag", null);
     state.set("customSelection", null);
+    state.set("selectionComplete", false);
+    state.set("toolbarDismissed", false);
     state.set("currentSelectionPayload", null);
     state.set("selectedTextForClipboard", "");
     clearNativeSelection();
     clearSelectionOverlays();
-    clearCreateConceptButton();
+    clearSelectionToolbar();
   }
 
   function getPageElementForTextLayer(textLayer) {
@@ -389,46 +402,102 @@ export function installSelectionFeature({ bus, facade, state }) {
     return pieces.join("");
   }
 
-  function renderCreateConceptButton(payload, anchorRect) {
-    clearCreateConceptButton();
-    if (!payload?.text || !anchorRect) {
+  function positionSelectionToolbar() {
+    const toolbar = document.getElementById(SELECTION_TOOLBAR_ID);
+    const selection = getNormalizedSelection();
+    const layer = selection && getTextLayerForPage(selection.end.page);
+    const rects = layer?.querySelectorAll(`.${SELECTION_RECT_CLASS}`);
+    const lastRect = rects?.[rects.length - 1]?.getBoundingClientRect();
+    if (!toolbar || !lastRect) {
+      clearSelectionToolbar();
       return;
     }
+    const gap = 12;
+    const width = toolbar.offsetWidth;
+    const height = toolbar.offsetHeight;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, lastRect.left));
+    const below = lastRect.bottom + gap;
+    let top = below;
+    if (below + height + 8 > window.innerHeight) {
+      const startLayer = getTextLayerForPage(selection.start.page);
+      const firstRect = startLayer?.querySelector(`.${SELECTION_RECT_CLASS}`)?.getBoundingClientRect();
+      if (!firstRect || firstRect.top < height + gap + 8) {
+        clearSelectionToolbar();
+        return;
+      }
+      top = firstRect.top - height - gap;
+    }
+    toolbar.style.left = `${left}px`;
+    toolbar.style.top = `${top}px`;
+  }
 
-    state.set("currentSelectionPayload", payload);
-
+  function createAction(label, icon, action) {
     const button = document.createElement("button");
-    button.id = CREATE_CONCEPT_BUTTON_ID;
     button.type = "button";
-    button.className = "lyceumCreateConceptButton";
-    button.textContent = "+ Concept";
-    button.title = "Criar Key Concept";
-    button.setAttribute("aria-label", "Criar Key Concept a partir da selecao");
-
-    const left = Math.min(window.innerWidth - 112, Math.max(8, anchorRect.right + 8));
-    const top = Math.min(window.innerHeight - 42, Math.max(8, anchorRect.top + anchorRect.height / 2 - 16));
-    button.style.left = `${left}px`;
-    button.style.top = `${top}px`;
-
-    button.addEventListener("pointerdown", stopSelectionEvent, true);
-    button.addEventListener("mousedown", stopSelectionEvent, true);
+    button.className = "lyceumSelectionAction";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", icon);
+    svg.append(path);
+    const text = document.createElement("span");
+    text.textContent = label;
+    button.append(svg, text);
     button.addEventListener("click", event => {
       stopSelectionEvent(event);
-      try {
-        const payloadToSend = state.get("currentSelectionPayload");
-        bus.emit(EVT_CREATE_CONCEPT, { payload: payloadToSend });
-        button.remove();
-      } catch {
-        // Ignore; the selection itself remains available for copying.
-      }
-    }, true);
+      void action();
+    });
+    return button;
+  }
 
-    document.body.append(button);
+  function renderSelectionToolbar(payload) {
+    clearSelectionToolbar();
+    if (!payload?.text || !state.get("selectionComplete") || state.get("toolbarDismissed")) return;
+    const toolbar = document.createElement("div");
+    toolbar.id = SELECTION_TOOLBAR_ID;
+    toolbar.className = "lyceumSelectionToolbar";
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "Ações do texto selecionado");
+    toolbar.append(
+      createAction("Adicionar nota", "M12 5v14 M5 12h14", () => {
+        bus.emit(EVT_CREATE_CONCEPT, { payload });
+        state.set("toolbarDismissed", true);
+        clearSelectionToolbar();
+      }),
+      createAction("Copiar texto", "M8 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z M4 17H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h11", async () => {
+        try {
+          await navigator.clipboard.writeText(payload.text);
+        } catch {
+          const temporary = document.createElement("textarea");
+          temporary.value = payload.text;
+          temporary.style.position = "fixed";
+          temporary.style.opacity = "0";
+          document.body.append(temporary);
+          temporary.select();
+          document.execCommand("copy");
+          temporary.remove();
+        }
+        state.set("toolbarDismissed", true);
+        clearSelectionToolbar();
+      }),
+    );
+    toolbar.addEventListener("pointerdown", event => event.stopPropagation());
+    document.body.append(toolbar);
+    positionSelectionToolbar();
   }
 
   function renderCustomSelection() {
     clearSelectionOverlays();
-    clearCreateConceptButton();
+    clearSelectionToolbar();
 
     const normalized = getNormalizedSelection();
     if (!normalized || comparePositions(normalized.start, normalized.end) === 0) {
@@ -437,23 +506,19 @@ export function installSelectionFeature({ bus, facade, state }) {
     }
 
     const textLayers = getRenderedTextLayers();
-    const startLayerIndex = textLayers.indexOf(normalized.start.textLayer);
-    const endLayerIndex = textLayers.indexOf(normalized.end.textLayer);
     const textParts = [];
     const payloadRects = [];
     let payloadPage = null;
-    let buttonAnchorRect = null;
-
-    if (startLayerIndex < 0 || endLayerIndex < 0) {
-      state.set("selectedTextForClipboard", "");
+    if (!getTextLayerForPage(normalized.start.page) || !getTextLayerForPage(normalized.end.page)) {
       return;
     }
 
-    for (let index = startLayerIndex; index <= endLayerIndex; index++) {
-      const textLayer = textLayers[index];
+    for (const textLayer of textLayers) {
+      const pageNumber = getPageNumberForTextLayer(textLayer);
+      if (pageNumber < normalized.start.page || pageNumber > normalized.end.page) continue;
       const model = getTextLayerModel(textLayer);
-      const startOffset = index === startLayerIndex ? normalized.start.offset : 0;
-      const endOffset = index === endLayerIndex ? normalized.end.offset : model.textLength;
+      const startOffset = pageNumber === normalized.start.page ? normalized.start.offset : 0;
+      const endOffset = pageNumber === normalized.end.page ? normalized.end.offset : model.textLength;
 
       if (startOffset >= endOffset) {
         continue;
@@ -473,14 +538,6 @@ export function installSelectionFeature({ bus, facade, state }) {
         selectionRect.style.height = `${rect.height}px`;
         layer.append(selectionRect);
 
-        buttonAnchorRect = {
-          left: layerBounds.left + rect.left,
-          top: layerBounds.top + rect.top,
-          right: layerBounds.left + rect.left + rect.width,
-          bottom: layerBounds.top + rect.top + rect.height,
-          width: rect.width,
-          height: rect.height,
-        };
       }
 
       if (pageElement) {
@@ -506,11 +563,13 @@ export function installSelectionFeature({ bus, facade, state }) {
     state.set("selectedTextForClipboard", textParts.join(""));
     const text = state.get("selectedTextForClipboard").trim();
     if (text && payloadRects.length > 0) {
-      renderCreateConceptButton({
+      const payload = {
         text,
         page: payloadPage ?? finitePositive(getApp()?.page, 1),
         rects: payloadRects,
-      }, buttonAnchorRect);
+      };
+      state.set("currentSelectionPayload", payload);
+      renderSelectionToolbar(payload);
     }
   }
 
@@ -552,7 +611,7 @@ export function installSelectionFeature({ bus, facade, state }) {
           return;
         }
 
-        if (event.target?.closest?.(`#${CREATE_CONCEPT_BUTTON_ID}`)) {
+        if (event.target?.closest?.(`#${SELECTION_TOOLBAR_ID}`)) {
           return;
         }
 
@@ -576,6 +635,8 @@ export function installSelectionFeature({ bus, facade, state }) {
           focus: point,
         });
         state.set("customSelection", { anchor: point, focus: point });
+        state.set("selectionComplete", false);
+        state.set("toolbarDismissed", false);
 
         clearNativeSelection();
         clearSelectionOverlays();
@@ -610,7 +671,11 @@ export function installSelectionFeature({ bus, facade, state }) {
           return;
         }
 
+        const finalPoint = getTextPositionFromPoint(event, { allowLineClamp: true });
+        if (finalPoint) updateCustomSelection(finalPoint);
         state.set("activeSelectionDrag", null);
+        state.set("selectionComplete", true);
+        state.set("toolbarDismissed", false);
         scheduleCustomSelectionRender();
         stopSelectionEvent(event);
       },
@@ -633,6 +698,8 @@ export function installSelectionFeature({ bus, facade, state }) {
 
         state.set("activeSelectionDrag", null);
         state.set("customSelection", wordSelection);
+        state.set("selectionComplete", true);
+        state.set("toolbarDismissed", false);
         clearNativeSelection();
         scheduleCustomSelectionRender();
         stopSelectionEvent(event);
@@ -677,6 +744,7 @@ export function installSelectionFeature({ bus, facade, state }) {
       "blur",
       () => {
         state.set("activeSelectionDrag", null);
+        state.set("selectionComplete", Boolean(state.get("customSelection")));
         scheduleCustomSelectionRender();
       },
       true,
@@ -684,4 +752,22 @@ export function installSelectionFeature({ bus, facade, state }) {
   }
 
   installTextSelectionGuards();
+  const viewport = document.getElementById("viewerContainer");
+  viewport?.addEventListener("scroll", () => {
+    state.set("toolbarDismissed", true);
+    clearSelectionToolbar();
+  }, { passive: true });
+  window.addEventListener("resize", () => {
+    modelCache = new WeakMap();
+    scheduleCustomSelectionRender();
+  });
+  onViewerBooted(app => {
+    for (const event of ["scalechanging", "pagerendered", "textlayerrendered", "rotationchanging"]) {
+      app.eventBus?.on?.(event, () => {
+        modelCache = new WeakMap();
+        scheduleCustomSelectionRender();
+      });
+    }
+    app.eventBus?.on?.("documentloaded", clearCustomSelection);
+  });
 }

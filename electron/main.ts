@@ -76,6 +76,7 @@ import {
 } from "./services/update-service";
 import { getCandidateVolumeRoots } from "./services/removable-volumes";
 import { installContentSecurityPolicy } from "./app/security-policy";
+import { resolvePdfjsAssetPath } from "./app/pdfjs-asset-path";
 import { registerHabitHandlers } from "./handlers/habits.handler";
 import { createSqliteHabitRepository } from "./infrastructure/sqlite-habit-repository";
 import { registerBackupHandlers } from "./handlers/backup.handler";
@@ -2021,18 +2022,13 @@ function getPdfjsAssetsRoot(): string {
 }
 
 function getPdfjsAssetPath(requestUrl: string): string | null {
-  try {
-    const url = new URL(requestUrl);
-    const relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, "")) || "viewer.html";
-    if (!isSafeRelativePath(relativePath)) {
-      return null;
-    }
-
-    const assetPath = path.resolve(getPdfjsAssetsRoot(), relativePath);
-    return isPathWithin(getPdfjsAssetsRoot(), assetPath) ? assetPath : null;
-  } catch {
-    return null;
-  }
+  // The Electron protocol bypasses Vite. In dev, serve the Lyceum overlay
+  // from source so the iframe sees the same edits as the HMR watcher.
+  return resolvePdfjsAssetPath(
+    requestUrl,
+    getPdfjsAssetsRoot(),
+    VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT!, "resources", "pdfjs-viewer") : undefined,
+  );
 }
 
 async function createLocalFileResponse(
@@ -2084,7 +2080,11 @@ async function handlePdfjsAssetRequest(request: Electron.ProtocolRequest): Promi
     PDFJS_ASSET_MIME_TYPES[path.extname(assetPath).toLowerCase()] ||
     "application/octet-stream";
 
-  return createLocalFileResponse(assetPath, contentType, request);
+  const response = await createLocalFileResponse(assetPath, contentType, request);
+  if (VITE_DEV_SERVER_URL) {
+    response.headers = { ...response.headers, "Cache-Control": "no-store" };
+  }
+  return response;
 }
 
 const lyceumPdfDiagnosed = new Set<string>();

@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  GitFork,
-  MoreVertical,
+  ExternalLink,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
@@ -11,7 +10,6 @@ import type { KeyConcept } from "../../../../../types/AnnotationTypes";
 import type { ChapterRange } from "./chapterRanges";
 import AnnotationEmptyState from "./AnnotationEmptyState";
 import {
-  conceptAccent,
   CONCEPT_LIST_PAGE_SIZE,
   type FilterScope,
   formatRelativeUpdatedAt,
@@ -55,14 +53,12 @@ const sortTabs: Array<{ value: SortMode; label: string }> = [
 function ConceptRow({
   concept,
   selected,
-  accent,
   relationCount,
   onSelect,
   onGoToPage,
 }: {
   concept: KeyConcept;
   selected: boolean;
-  accent: string;
   relationCount: number;
   onSelect: () => void;
   onGoToPage: () => void;
@@ -72,7 +68,7 @@ function ConceptRow({
       className={[
         "grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm border px-2 py-2 transition",
         selected
-          ? "border-emerald-500 bg-emerald-500/10"
+          ? "border-zinc-500 bg-zinc-800"
           : "border-zinc-800 bg-zinc-900/70 hover:border-zinc-700",
       ].join(" ")}
     >
@@ -81,7 +77,7 @@ function ConceptRow({
         onClick={onSelect}
         className="grid min-w-0 grid-cols-[14px_1fr] items-center gap-2 text-left"
       >
-        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: accent }} aria-hidden="true" />
+        <span className={`h-2.5 w-2.5 rounded-full ${concept.highlightJson ? "bg-zinc-300" : "bg-zinc-600"}`} aria-hidden="true" />
         <span className="min-w-0">
           <span className="block truncate text-xs font-semibold text-zinc-100">{concept.title}</span>
           <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
@@ -90,6 +86,7 @@ function ConceptRow({
         </span>
       </button>
       <div className="flex items-center gap-1 text-zinc-500">
+        {relationCount > 0 && <span className="text-[11px]" title={`${relationCount} vínculos`}>{relationCount} links</span>}
         <button
           type="button"
           onClick={onGoToPage}
@@ -97,17 +94,8 @@ function ConceptRow({
           title="Ir para pagina"
           aria-label="Ir para pagina"
         >
-          <GitFork size={13} />
-          {relationCount}
-        </button>
-        <button
-          type="button"
-          onClick={onSelect}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-zinc-800 hover:text-zinc-100"
-          title="Editar"
-          aria-label="Editar concept"
-        >
-          <MoreVertical size={14} />
+          <ExternalLink size={13} />
+          p. {concept.page}
         </button>
       </div>
     </article>
@@ -166,7 +154,7 @@ export default function ConceptList({
           className={[
             "flex h-9 w-9 items-center justify-center rounded-sm border text-zinc-300",
             filtersOpen || filterScope !== "all"
-              ? "border-emerald-700 bg-emerald-950/40"
+              ? "border-zinc-500 bg-zinc-800"
               : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
           ].join(" ")}
           title="Filtros"
@@ -187,7 +175,7 @@ export default function ConceptList({
                 className={[
                   "h-7 rounded-sm border px-2 text-[11px]",
                   filterScope === filter.value
-                    ? "border-emerald-700 bg-emerald-950/50 text-emerald-200"
+                    ? "border-zinc-500 bg-zinc-800 text-zinc-100"
                     : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700",
                 ].join(" ")}
               >
@@ -232,31 +220,11 @@ export default function ConceptList({
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-1.5">
-        {sortTabs.map((tab) => {
-          const isChapterTab = tab.value === "page";
-          const active = sortMode === tab.value && (!isChapterTab || filterScope === "chapter");
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => {
-                onSortModeChange(tab.value);
-                if (isChapterTab) onFilterScopeChange("chapter");
-                else if (filterScope === "chapter") onFilterScopeChange("all");
-              }}
-              className={[
-                "h-8 truncate rounded-sm border px-2 text-[11px] transition",
-                active
-                  ? "border-emerald-700 bg-emerald-950/50 text-emerald-200"
-                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200",
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <label className="flex items-center gap-2 text-xs text-zinc-500">Ordenar por
+        <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as SortMode)} className="ml-auto h-8 rounded-md border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300">
+          {sortTabs.map((tab) => <option key={tab.value} value={tab.value}>{tab.label}</option>)}
+        </select>
+      </label>
 
       {loading ? (
         <div className="py-8 text-center text-xs text-zinc-500">Carregando concepts...</div>
@@ -264,12 +232,11 @@ export default function ConceptList({
         <AnnotationEmptyState>Nenhum Key Concept neste filtro.</AnnotationEmptyState>
       ) : (
         <div className="space-y-1.5">
-          {paginated.items.map((concept, index) => (
+          {paginated.items.map((concept) => (
             <ConceptRow
               key={concept.id}
               concept={concept}
               selected={concept.id === selectedConceptId}
-              accent={conceptAccent(index)}
               relationCount={relationCounts.get(concept.id) ?? 0}
               onSelect={() => onSelectConcept(concept.id)}
               onGoToPage={() => onGoToPage(concept.page)}

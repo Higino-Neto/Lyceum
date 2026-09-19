@@ -54,7 +54,7 @@ export function buildConceptGraphModel(
         label: concept.title,
         page: concept.page,
         degree: conceptDegree,
-        color: conceptDegree > 0 ? "#22c55e" : "#71717a",
+        color: conceptDegree > 0 ? "#a1a1aa" : "#52525b",
         size: 7 + Math.min(10, conceptDegree * 2.5),
       };
     }),
