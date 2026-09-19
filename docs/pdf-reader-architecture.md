@@ -7,26 +7,47 @@
 2. React opens `lyceum-pdfjs://viewer/web/viewer.html` in an iframe. The viewer
    loads the PDF from `lyceum-pdf://document/<sha256>.pdf`; the Electron
    protocol handles range requests and streams whole-file responses.
-3. `resources/pdfjs-viewer/lyceum-bridge.mjs` adapts PDF.js to Lyceum.
-   `lyceum-messaging.mjs` owns cross-frame transport; the matching typed parser
-   is `src/pages/ReadingPage/components/pdf-reader/pdfBridgeProtocol.ts`.
-   Messages carry protocol version 1. `document-ready` starts state restore
-   and outline loading; `state-changed` drives page display and persistence.
-4. Electron's native viewer handlers call only `LyceumPdfJs` operations in the
-   iframe. They do not reimplement PDF.js navigation or outline extraction.
+3. `resources/pdfjs-viewer/index.mjs` bootstraps the viewer and installs feature
+   modules under `resources/pdfjs-viewer/features/`. A single typed contract —
+   `src/core/pdf-reader-core/contract.ts`, built into
+   `resources/pdfjs-viewer/lyceum-core.mjs` — owns every message name, payload
+   guard and the protocol version, so the React parser
+   (`pdfBridgeProtocol.ts`) and the viewer frame can never drift apart.
+   `lyceum-messaging.mjs` implements the versioned cross-frame transport.
+4. All host-to-viewer communication flows through one versioned
+   `postMessage` channel: commands (`cmd-navigate`, `cmd-restore`,
+   `cmd-get-outline`, …) and events (`ready`, `document-ready`,
+   `state-changed`, `restore-complete`, `outline-loaded`, …).
+   `document-ready` starts state restore and outline loading; `state-changed`
+   drives page display and persistence. There is no `executeJavaScript` or IPC
+   round trip for reader features. `globalThis.LyceumPdfJs` is kept only as a
+   read-only diagnostics surface for the Electron smoke test.
+
+## Modules
+
+| Module | Responsibility |
+| --- | --- |
+| `src/core/pdf-reader-core/` | Pure, testable viewer-side logic: contract, geometry, text model, word bounds, navigation policy. Bundled into `lyceum-core.mjs`. |
+| `resources/pdfjs-viewer/core/` | Viewer-side wiring: message bus, state store, app lifecycle, PDF.js facade. |
+| `resources/pdfjs-viewer/features/` | One module per feature: toolbar, navigation, outline, state events, annotations, text selection. |
+| `pdfBridgeProtocol.ts` | React-side parser/writer for the same versioned messages, re-exporting the contract. |
 
 ## Where new features go
 
 | Change | Primary location |
 | --- | --- |
 | Reader UI, controls, concepts, study tools | React components and the bridge overlay |
-| Frame messages | Both protocol modules; increment the protocol version for breaking changes |
+| Viewer-frame behaviour | A new module in `resources/pdfjs-viewer/features/`, wired in `index.mjs` |
+| Frame messages | `src/core/pdf-reader-core/contract.ts`; increment the protocol version for breaking changes |
+| Pure logic (geometry, layout, scoring) | `src/core/pdf-reader-core/`, with unit tests in `src/test/pdfReaderCore/` |
 | File access, OS integration, export | Electron services and a narrow preload API |
 | PDF.js viewer internals unavailable through the overlay | `vendor/pdfjs-4.10.38/web/`, with a documented isolated patch |
 | Rendering, extraction, parsing | Vendored `src/display/` or `src/core/`, plus upstream tests |
 | Persisted annotations or locators | Explicit format version and migration before release |
 
-Do not edit generated `public/pdfjs/` or a compiled `viewer.mjs`. Keep
+Do not edit generated `public/pdfjs/`, `resources/pdfjs-viewer/lyceum-core.mjs`,
+or a compiled `viewer.mjs`; the core bundle is produced by
+`scripts/build-lyceum-core.mjs` from `src/core/pdf-reader-core/`. Keep
 `pdfjs-dist` pinned to the same release as the vendored source; its mobile,
 thumbnail and conversion consumers must be checked during any upgrade.
 

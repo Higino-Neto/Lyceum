@@ -11,19 +11,9 @@ export interface KeyConcept {
   updatedAt: string;
 }
 
-export interface PdfSelectionRect {
-  page: number;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-export interface PdfSelectionPayload {
-  text: string;
-  page: number;
-  rects: PdfSelectionRect[];
-}
+// Defined once in the shared PDF.js core contract so the host and the viewer
+// frame never drift apart.
+export type { PdfSelectionPayload, PdfSelectionRect } from "../core/pdf-reader-core/contract";
 
 export interface ConceptRelation {
   bookId: string;

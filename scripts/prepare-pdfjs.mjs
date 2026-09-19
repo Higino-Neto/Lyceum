@@ -55,6 +55,15 @@ if (installedPdfjsPackage.version !== pdfjsVersion) {
   );
 }
 
+// Regenerate the shared, pure viewer core (protocol + geometry/text-model logic)
+// before the overlay directory is copied into the build output.
+console.log("[prepare-pdfjs] Building shared Lyceum PDF.js core");
+execFileSync(process.platform === "win32" ? "node.exe" : "node", ["scripts/build-lyceum-core.mjs"], {
+  cwd: rootDir,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+
 // Always build from the tracked source. A pre-existing, ignored build output
 // must never change which PDF.js implementation is shipped.
 const sourceDir = path.join(rootDir, "vendor", `pdfjs-${pdfjsVersion}`);
@@ -112,7 +121,7 @@ viewerHtml = replaceOnce(viewerHtml,
 );
 viewerHtml = replaceOnce(viewerHtml,
   '<script src="viewer.mjs" type="module"></script>',
-  '<script src="../lyceum/lyceum-bridge.mjs" type="module"></script>\n  <script src="viewer.mjs" type="module"></script>',
+  '<script src="../lyceum/index.mjs" type="module"></script>\n  <script src="viewer.mjs" type="module"></script>',
   "viewer script",
 );
 fs.writeFileSync(viewerHtmlPath, viewerHtml);

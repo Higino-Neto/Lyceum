@@ -5,7 +5,7 @@ import {
   parsePdfViewerMessage,
 } from "../pages/ReadingPage/components/pdf-reader/pdfBridgeProtocol";
 
-function message(data: unknown, origin = PDF_VIEWER_ORIGIN, source: Window | null = window) {
+function message(data: unknown, origin: string = PDF_VIEWER_ORIGIN, source: Window | null = window) {
   return new MessageEvent("message", { data, origin, source });
 }
 

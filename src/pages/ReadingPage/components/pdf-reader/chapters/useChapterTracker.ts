@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadChapterState, saveChapterState } from "./ChapterStorage";
+import {
+  CMD_GET_OUTLINE,
+  CMD_NAVIGATE,
+  EVT_OUTLINE_LOADED,
+  type OutlineNode,
+  type PdfViewerEvent,
+} from "../pdfBridgeProtocol";
 
 export interface ChapterNode {
   id: string;
@@ -10,13 +17,7 @@ export interface ChapterNode {
   children: ChapterNode[];
 }
 
-interface RawOutlineNode {
-  title: string;
-  page: number | null;
-  items: RawOutlineNode[];
-}
-
-function buildTree(nodes: RawOutlineNode[], parentId: string, depth: number): ChapterNode[] {
+function buildTree(nodes: OutlineNode[], parentId: string, depth: number): ChapterNode[] {
   return nodes.map((node, index) => {
     const id = parentId ? `${parentId}/${index}` : `${index}`;
     const children = Array.isArray(node.items)
@@ -81,11 +82,17 @@ export interface ChapterTracker {
   progress: number;
 }
 
+export interface ChapterTrackerChannelOptions {
+  postToViewer: (type: string, payload?: Record<string, unknown>) => void;
+  subscribeToViewerEvents: (handler: (data: PdfViewerEvent) => void) => () => void;
+}
+
 export function useChapterTracker(
   sourceUrl: string,
   fileHash: string,
-  onBeforeNavigate?: () => void,
+  channel: ChapterTrackerChannelOptions,
   documentReady = false,
+  onBeforeNavigate?: () => void,
 ): ChapterTracker {
   const [outline, setOutline] = useState<ChapterNode[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -97,6 +104,7 @@ export function useChapterTracker(
     fileHash ? loadChapterState(fileHash).expanded : {},
   );
   const outlineRef = useRef<ChapterNode[] | null>(null);
+  const requestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     outlineRef.current = outline;
@@ -116,42 +124,27 @@ export function useChapterTracker(
       return;
     }
 
-    let cancelled = false;
+    const requestId = String(Date.now());
+    requestIdRef.current = requestId;
     setLoading(true);
     setError(null);
+    channel.postToViewer(CMD_GET_OUTLINE, { requestId });
+  }, [sourceUrl, fileHash, documentReady, channel]);
 
-    const load = async () => {
-      if (cancelled || !window.api?.getPdfOutline) {
+  useEffect(
+    () => channel.subscribeToViewerEvents((data) => {
+      if (data.type !== EVT_OUTLINE_LOADED) {
         return;
       }
-
-      let raw: RawOutlineNode[] | null = null;
-      try {
-        raw = (await window.api.getPdfOutline(sourceUrl)) as RawOutlineNode[] | null;
-      } catch {
-        raw = null;
-      }
-
-      if (cancelled) {
+      if (data.requestId !== undefined && data.requestId !== requestIdRef.current) {
         return;
       }
-
-      if (raw === null) {
-        setError("Não foi possível ler a estrutura de capítulos deste PDF.");
-        setLoading(false);
-        return;
-      }
-
-      setOutline(buildTree(raw ?? [], "", 0));
+      setOutline(buildTree(data.outline ?? [], "", 0));
       setLoading(false);
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sourceUrl, fileHash, documentReady]);
+      setError(null);
+    }),
+    [channel],
+  );
 
   useEffect(() => {
     if (!fileHash) {
@@ -181,14 +174,14 @@ export function useChapterTracker(
   }, []);
 
   const goToPage = useCallback(
-    async (page: number | null) => {
-      if (!page || !sourceUrl || !window.api?.applyNativePdfViewerState) {
+    (page: number | null) => {
+      if (!page) {
         return;
       }
       onBeforeNavigate?.();
-      void window.api.applyNativePdfViewerState(sourceUrl, { page });
+      channel.postToViewer(CMD_NAVIGATE, { page });
     },
-    [sourceUrl, onBeforeNavigate],
+    [channel, onBeforeNavigate],
   );
 
   const totalCount = useMemo(() => (outline ? countNodes(outline) : 0), [outline]);

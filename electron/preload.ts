@@ -51,13 +51,6 @@ interface ReadingState {
   };
 }
 
-interface NativePdfViewerApplyState {
-  page: number;
-  currentScale?: number;
-  scrollTop?: number;
-  restore?: boolean;
-}
-
 interface MetadataUpdate {
   title?: string;
   author?: string;
@@ -188,17 +181,6 @@ const api = {
 
   getReadingState: (fileHash: string) =>
     ipcRenderer.invoke("reading:get", fileHash),
-
-  getNativePdfViewerState: (sourceUrl: string) =>
-    ipcRenderer.invoke("native-pdf-viewer:get-state", sourceUrl),
-
-  applyNativePdfViewerState: (
-    sourceUrl: string,
-    state: NativePdfViewerApplyState,
-  ) => ipcRenderer.invoke("native-pdf-viewer:apply-state", sourceUrl, state),
-
-  getPdfOutline: (sourceUrl: string) =>
-    ipcRenderer.invoke("native-pdf-viewer:get-outline", sourceUrl),
 
   openPdf: () => ipcRenderer.invoke("dialog:open-pdf"),
 

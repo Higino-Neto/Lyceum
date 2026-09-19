@@ -3,12 +3,28 @@ import type { SessionPdfData } from "../../../../types/ReadingTypes";
 import useReadingStatePersistence from "../../hooks/useReadingStatePersistence";
 import useSessionTracker from "../../hooks/useSessionTracker";
 import { createPdfJsViewerUrl } from "./pdfRenderer";
-import { useChapterTracker } from "./chapters/useChapterTracker";
+import { useChapterTracker, type ChapterTrackerChannelOptions } from "./chapters/useChapterTracker";
 import ChapterSidebar from "./chapters/ChapterSidebar";
 import { AnimatePresence, motion } from "motion/react";
 import AnnotationPanel from "./annotations/AnnotationPanel";
 import type { PdfSelectionPayload, PdfSelectionRect } from "../../../../types/AnnotationTypes";
-import { parsePdfViewerMessage, postToPdfViewer, type PdfViewState } from "./pdfBridgeProtocol";
+import {
+  CMD_NAVIGATE,
+  CMD_RESTORE,
+  CMD_SET_ANNOTATIONS_STATE,
+  CMD_SET_CHAPTERS_STATE,
+  CMD_SET_HIGHLIGHTS,
+  EVT_DOCUMENT_READY,
+  EVT_CREATE_CONCEPT,
+  EVT_RESTORE_COMPLETE,
+  EVT_STATE_CHANGED,
+  EVT_TOGGLE_ANNOTATIONS,
+  EVT_TOGGLE_CHAPTERS,
+  parsePdfViewerMessage,
+  postToPdfViewer,
+  type PdfViewerEvent,
+  type PdfViewState,
+} from "./pdfBridgeProtocol";
 
 interface PdfJsViewerProps {
   fileHash: string;
@@ -48,6 +64,7 @@ export default function PdfJsViewer({
   const restoreStartedRef = useRef(false);
   const restoreCompletedRef = useRef(false);
   const restoreGenRef = useRef(0);
+  const viewerSubscribersRef = useRef(new Set<(data: PdfViewerEvent) => void>());
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageConceptCount, setCurrentPageConceptCount] = useState(0);
   const [showAnnotations, setShowAnnotations] = useState(false);
@@ -63,78 +80,82 @@ export default function PdfJsViewer({
 
   const sourceUrl = viewerUrls?.sourceUrl ?? "";
 
+  const postToViewer = useCallback((type: string, payload: Record<string, unknown> = {}) => {
+    postToPdfViewer(iframeRef.current?.contentWindow, type, payload);
+  }, []);
+
+  const subscribeToViewerEvents = useCallback((handler: (data: PdfViewerEvent) => void) => {
+    viewerSubscribersRef.current.add(handler);
+    return () => {
+      viewerSubscribersRef.current.delete(handler);
+    };
+  }, []);
+
+  const viewerChannel = useMemo<ChapterTrackerChannelOptions>(
+    () => ({ postToViewer, subscribeToViewerEvents }),
+    [postToViewer, subscribeToViewerEvents],
+  );
+
   const syncChapterButtonState = useCallback(() => {
-    postToPdfViewer(iframeRef.current?.contentWindow, {
-      type: "lyceum-pdfjs:chapters-state",
-      open: showChapters,
-    });
-  }, [showChapters]);
+    postToViewer(CMD_SET_CHAPTERS_STATE, { open: showChapters });
+  }, [postToViewer, showChapters]);
 
   const syncAnnotationButtonState = useCallback(() => {
-    postToPdfViewer(iframeRef.current?.contentWindow, {
-      type: "lyceum-pdfjs:annotations-state",
+    postToViewer(CMD_SET_ANNOTATIONS_STATE, {
       open: showAnnotations,
       count: currentPageConceptCount,
     });
-  }, [currentPageConceptCount, showAnnotations]);
+  }, [currentPageConceptCount, postToViewer, showAnnotations]);
 
   const syncKeyConceptHighlights = useCallback((highlights: Array<{ id: string; title: string; rects: PdfSelectionRect[] }>) => {
-    postToPdfViewer(iframeRef.current?.contentWindow, {
-      type: "lyceum-pdfjs:key-concept-highlights",
-      highlights,
-    });
-  }, []);
+    postToViewer(CMD_SET_HIGHLIGHTS, { highlights });
+  }, [postToViewer]);
 
   const handleChapterNavigate = useCallback(() => {
     restoreGenRef.current += 1;
   }, []);
 
-  const chapterTracker = useChapterTracker(sourceUrl, fileHash, handleChapterNavigate, documentReady);
+  const chapterTracker = useChapterTracker(
+    sourceUrl,
+    fileHash,
+    viewerChannel,
+    documentReady,
+    handleChapterNavigate,
+  );
 
   const goToPage = useCallback(
-    async (page: number) => {
-      if (!page || !sourceUrl || !window.api?.applyNativePdfViewerState) {
+    (page: number) => {
+      if (!page || !sourceUrl) {
         return;
       }
       restoreGenRef.current += 1;
-      const nextState = await window.api.applyNativePdfViewerState(sourceUrl, { page });
-      setCurrentPage(nextState?.page || page);
+      postToViewer(CMD_NAVIGATE, { page });
+      setCurrentPage(page);
     },
-    [sourceUrl],
+    [postToViewer, sourceUrl],
   );
 
   const restoreViewerState = useCallback(async () => {
-    if (
-      !sourceUrl ||
-      restoreStartedRef.current ||
-      !window.api?.applyNativePdfViewerState
-    ) {
+    if (!sourceUrl || restoreStartedRef.current) {
       return;
     }
 
     restoreStartedRef.current = true;
-    const gen = restoreGenRef.current;
 
     try {
       const saved = await loadState();
-      if (gen !== restoreGenRef.current) {
-        restoreCompletedRef.current = true;
-        return;
-      }
-      await window.api.applyNativePdfViewerState(sourceUrl, {
+      postToViewer(CMD_RESTORE, {
         page: saved.currentPage,
         currentScale: saved.currentZoom,
         scrollTop: saved.currentScroll,
-        restore: true,
       });
-      restoreCompletedRef.current = true;
     } catch (error) {
       restoreCompletedRef.current = true;
       if (import.meta.env.DEV) {
         console.warn("[PDF.js] Failed to restore viewer state:", error);
       }
     }
-  }, [loadState, sourceUrl]);
+  }, [loadState, postToViewer, sourceUrl]);
 
   const handleSessionFinished = useCallback(
     (info: { initialPage: number; finalPage: number }) => {
@@ -161,23 +182,27 @@ export default function PdfJsViewer({
         return;
       }
 
-      if (data.type === "lyceum-pdfjs:toggle-chapters") {
+      viewerSubscribersRef.current.forEach((handler) => handler(data));
+
+      if (data.type === EVT_TOGGLE_CHAPTERS) {
         onToggleChapters?.();
-      } else if (data.type === "lyceum-pdfjs:toggle-annotations") {
+      } else if (data.type === EVT_TOGGLE_ANNOTATIONS) {
         setShowAnnotations((value) => !value);
-      } else if (data.type === "lyceum-pdfjs:create-concept-from-selection") {
+      } else if (data.type === EVT_CREATE_CONCEPT) {
         if (data.payload.text.trim()) {
           setPendingSelection(data.payload);
           setCurrentPage(data.payload.page);
           setShowAnnotations(true);
         }
+      } else if (data.type === EVT_RESTORE_COMPLETE) {
+        restoreCompletedRef.current = true;
       } else if (data.type === "lyceum-pdfjs:ready") {
         syncChapterButtonState();
         syncAnnotationButtonState();
-      } else if (data.type === "lyceum-pdfjs:document-ready") {
+      } else if (data.type === EVT_DOCUMENT_READY) {
         setDocumentReady(true);
         void restoreViewerState();
-      } else if (data.type === "lyceum-pdfjs:state-changed") {
+      } else if (data.type === EVT_STATE_CHANGED) {
         lastStateRef.current = data.state;
         setCurrentPage(data.state.page);
         if (data.state.totalPages > 0) onTotalBookPages(data.state.totalPages);
@@ -275,7 +300,7 @@ export default function PdfJsViewer({
       </div>
     );
   }
-  
+
   return (
     <div className="relative flex h-full w-full bg-zinc-950">
       <AnimatePresence initial={false}>

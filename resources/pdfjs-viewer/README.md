@@ -6,5 +6,14 @@ Files in this directory are Lyceum-specific runtime overlays copied into
 
 The viewer is built from source on every prepare/build. Keep upstream changes
 small and documented; put Lyceum protocol, reading-state, and visual integration
-code here. `lyceum-messaging.mjs` owns the frame protocol. See
-`docs/pdf-reader-architecture.md` for feature placement and validation.
+code here.
+
+- `index.mjs` bootstraps the viewer and installs the feature modules in
+  `features/`, backed by the wiring in `core/`. It also exposes a read-only
+  `globalThis.LyceumPdfJs` diagnostics surface for the Electron smoke test.
+- `lyceum-messaging.mjs` owns the versioned cross-frame transport.
+- `lyceum-core.mjs` is a generated bundle (do not edit) produced by
+  `scripts/build-lyceum-core.mjs` from `src/core/pdf-reader-core/`; it is the
+  single source of truth for protocol names, payload guards and the version.
+
+See `docs/pdf-reader-architecture.md` for feature placement and validation.
