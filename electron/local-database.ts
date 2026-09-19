@@ -3,8 +3,13 @@ import electron from "electron";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "node:crypto";
-import type { Habit, HabitCompletion } from "../src/core/habits/model";
-import type { BookCategory } from "../src/core/library/category";
+import type { BookCategory, CategoryRepository } from "../src/core/library/category";
+import type {
+  DocumentMetadataPatch,
+  DocumentMetadataRepository,
+} from "../src/core/library/document-metadata";
+import type { DocumentFileRepository } from "../src/core/library/document-files";
+import { assertReadingStatus, type ReaderProgressRepository, type ReadingPosition } from "../src/core/reader/progress";
 import {
   CURRENT_SQLITE_SCHEMA_VERSION,
   getSqliteSchemaVersion,
@@ -19,6 +24,29 @@ import {
   ensureBootstrapSchema,
   ensurePostMigrationSchema,
 } from "./infrastructure/sqlite-schema";
+import {
+  createSqliteDocumentQueryRepository,
+  type DocumentQueryRepository,
+} from "./infrastructure/sqlite-document-query";
+import {
+  createSqliteDocumentSearchIndex,
+  type DocumentSearchIndex,
+} from "./infrastructure/sqlite-document-search-index";
+import { createSqliteDocumentMetadataRepository } from "./infrastructure/sqlite-document-metadata-repository";
+import { createSqliteDocumentFileRepository } from "./infrastructure/sqlite-document-file-repository";
+import { createSqliteReaderProgressRepository } from "./infrastructure/sqlite-reader-progress-repository";
+import { getFileMtime, getFileName, getFolderPath } from "./infrastructure/document-file-metadata";
+import { createSqliteCategoryRepository } from "./infrastructure/sqlite-category-repository";
+import {
+  createSqliteWordIndexRepository,
+  type WordIndexEntry,
+  type WordIndexRepository,
+} from "./infrastructure/sqlite-word-index-repository";
+import {
+  createSqliteWatchFolderRepository,
+  type WatchFolderRecord,
+  type WatchFolderRepository,
+} from "./infrastructure/sqlite-watch-folder-repository";
 import type {
   BookFileType,
   DocumentRecord,
@@ -96,34 +124,19 @@ const DEFAULT_READING_MAP_SECTIONS = [
   },
 ];
 
-const DEFAULT_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
-  "#3b82f6", "#8b5cf6", "#ec4899", "#6b7280", "#14b8a6",
-];
-
 let db: Database.Database;
 let annotations: ReturnType<typeof createAnnotationRepository>;
+let documentQueries: DocumentQueryRepository;
+let documentSearchIndex: DocumentSearchIndex;
+let documentMetadata: DocumentMetadataRepository;
+let documentFiles: DocumentFileRepository;
+let readerProgress: ReaderProgressRepository;
+let categories: CategoryRepository;
+let wordIndex: WordIndexRepository;
+let watchFolders: WatchFolderRepository;
 
 function normalizeStoredPath(filePath: string | null | undefined): string | null {
   return filePath ? filePath.replace(/\\/g, "/") : null;
-}
-
-function getFileName(filePath: string | null | undefined): string | null {
-  return filePath ? path.basename(filePath) : null;
-}
-
-function getFolderPath(filePath: string | null | undefined): string | null {
-  if (!filePath) return null;
-  return normalizeStoredPath(path.dirname(filePath));
-}
-
-function getFileMtime(filePath: string | null | undefined): number | null {
-  if (!filePath) return null;
-  try {
-    return Math.round(fs.statSync(filePath).mtimeMs);
-  } catch {
-    return null;
-  }
 }
 
 function hydrateDocumentFileMetadata(): void {
@@ -158,71 +171,6 @@ function hydrateDocumentFileMetadata(): void {
   }
 }
 
-function tokenizeSearch(query: string): string {
-  const tokens = query
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .match(/[a-z0-9]+/g);
-
-  return tokens?.map((token) => `${token}*`).join(" ") || "";
-}
-
-function refreshDocumentSearchIndexById(documentId: number): void {
-  try {
-    const doc = db.prepare<[number], DocumentRecord>(
-      `SELECT * FROM documents WHERE id = ?`
-    ).get(documentId);
-
-    db.prepare(`DELETE FROM documents_fts WHERE documentId = ?`).run(documentId);
-
-    if (!doc) return;
-
-    db.prepare(
-      `INSERT INTO documents_fts (documentId, title, author, folderPath, fileType)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      doc.id,
-      doc.title || "",
-      doc.author || "",
-      doc.folderPath || getFolderPath(doc.filePath) || "",
-      doc.fileType || "",
-    );
-  } catch (error) {
-    console.error("[DB] Error refreshing document search index:", error);
-  }
-}
-
-function refreshDocumentSearchIndex(fileHash: string): void {
-  const doc = getDocumentByHash(fileHash);
-  if (doc) refreshDocumentSearchIndexById(doc.id);
-}
-
-function rebuildDocumentSearchIndex(): void {
-  try {
-    db.prepare(`DELETE FROM documents_fts`).run();
-    const docs = getAllDocuments();
-    const insert = db.prepare(
-      `INSERT INTO documents_fts (documentId, title, author, folderPath, fileType)
-       VALUES (?, ?, ?, ?, ?)`
-    );
-    const insertMany = db.transaction((items: DocumentRecord[]) => {
-      for (const doc of items) {
-        insert.run(
-          doc.id,
-          doc.title || "",
-          doc.author || "",
-          doc.folderPath || getFolderPath(doc.filePath) || "",
-          doc.fileType || "",
-        );
-      }
-    });
-    insertMany(docs);
-  } catch (error) {
-    console.error("[DB] Error rebuilding document search index:", error);
-  }
-}
-
 export function initDatabase() {
   const startedAt = Date.now();
   const dbPath = path.join(app.getPath("userData"), "app.db");
@@ -232,6 +180,10 @@ export function initDatabase() {
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
   db.pragma("temp_store = MEMORY");
+  documentQueries = createSqliteDocumentQueryRepository(
+    db,
+    path.join(app.getPath("userData"), "library"),
+  );
 
   ensureBootstrapSchema(db);
 
@@ -270,6 +222,12 @@ export function initDatabase() {
   annotations = createAnnotationRepository(db);
 
   ensurePostMigrationSchema(db);
+  categories = createSqliteCategoryRepository(
+    db,
+    path.join(app.getPath("userData"), "library"),
+  );
+  wordIndex = createSqliteWordIndexRepository(db);
+  watchFolders = createSqliteWatchFolderRepository(db);
 
   const updateStmt = db.prepare(`
     UPDATE documents
@@ -295,139 +253,66 @@ export function initDatabase() {
 
   hydrateDocumentFileMetadata();
 
-  rebuildDocumentSearchIndex();
+  documentSearchIndex = createSqliteDocumentSearchIndex(db);
+  documentSearchIndex.rebuild();
+  documentMetadata = createSqliteDocumentMetadataRepository(db, documentSearchIndex);
+  documentFiles = createSqliteDocumentFileRepository(db, documentSearchIndex);
+  readerProgress = createSqliteReaderProgressRepository(db);
   console.info("[DB] SQLite ready", {
     dbPath,
     schemaVersion: getSqliteSchemaVersion(db),
     expectedSchemaVersion: CURRENT_SQLITE_SCHEMA_VERSION,
     durationMs: Date.now() - startedAt,
   });
+  return db;
 }
 
-export function createCategory(name: string, color?: string): BookCategory | null {
-  const finalColor = color || DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)] || "#6b7280";
-  
-  try {
-    const result = db.prepare(
-      `INSERT INTO categories (name, color) VALUES (?, ?)`
-    ).run(name.trim(), finalColor);
-    
-    return {
-      id: result.lastInsertRowid as number,
-      name: name.trim(),
-      color: finalColor,
-      bookCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error("[DB] Error creating category:", error);
-    return null;
-  }
-}
-
-export function updateCategory(id: number, name: string, color: string): boolean {
-  try {
-    db.prepare(`UPDATE categories SET name = ?, color = ? WHERE id = ?`).run(name.trim(), color, id);
-    return true;
-  } catch (error) {
-    console.error("[DB] Error updating category:", error);
-    return false;
-  }
-}
-
-export function deleteCategory(id: number): boolean {
-  try {
-    db.prepare(`DELETE FROM document_categories WHERE categoryId = ?`).run(id);
-    db.prepare(`DELETE FROM categories WHERE id = ?`).run(id);
-    return true;
-  } catch (error) {
-    console.error("[DB] Error deleting category:", error);
-    return false;
-  }
-}
-
-export function getAllCategories(): BookCategory[] {
-  const categories = db.prepare<[], { id: number; name: string; color: string; createdAt: string; bookCount: number }>(
-    `SELECT c.id, c.name, c.color, c.createdAt,
-     (SELECT COUNT(*) FROM document_categories dc WHERE dc.categoryId = c.id) as bookCount
-     FROM categories c ORDER BY c.name`
-  ).all();
-  
+export function getCategoryRepository(): CategoryRepository {
   return categories;
 }
 
+export function getDocumentMetadataRepository(): DocumentMetadataRepository {
+  return documentMetadata;
+}
+
+export function createCategory(name: string, color?: string): BookCategory | null {
+  return categories.create(name, color);
+}
+
+export function updateCategory(id: number, name: string, color: string): boolean {
+  return categories.update(id, name, color);
+}
+
+export function deleteCategory(id: number): boolean {
+  return categories.remove(id);
+}
+
+export function getAllCategories(): BookCategory[] {
+  return categories.list();
+}
+
 export function getCategoryById(id: number): BookCategory | null {
-  const result = db.prepare<[number], { id: number; name: string; color: string; createdAt: string; bookCount: number }>(
-    `SELECT c.id, c.name, c.color, c.createdAt,
-     (SELECT COUNT(*) FROM document_categories dc WHERE dc.categoryId = c.id) as bookCount
-     FROM categories c WHERE c.id = ?`
-  ).get(id);
-  
-  return result || null;
+  return categories.find(id);
 }
 
 export function getCategoriesForDocument(documentId: number): BookCategory[] {
-  return db.prepare<[number], BookCategory>(
-    `SELECT c.id, c.name, c.color, c.createdAt,
-     (SELECT COUNT(*) FROM document_categories dc WHERE dc.categoryId = c.id) as bookCount
-     FROM categories c
-     INNER JOIN document_categories dc ON c.id = dc.categoryId
-     WHERE dc.documentId = ?
-     ORDER BY c.name`
-  ).all(documentId);
+  return categories.listForDocument(documentId);
 }
 
 export function getCategoriesForDocumentByHash(fileHash: string): BookCategory[] {
-  return db.prepare<[string], BookCategory>(
-    `SELECT c.id, c.name, c.color, c.createdAt,
-     (SELECT COUNT(*) FROM document_categories dc WHERE dc.categoryId = c.id) as bookCount
-     FROM categories c
-     INNER JOIN document_categories dc ON c.id = dc.categoryId
-     INNER JOIN documents d ON dc.documentId = d.id
-     WHERE d.fileHash = ?
-     ORDER BY c.name`
-  ).all(fileHash);
+  return categories.listForDocumentHash(fileHash);
 }
 
 export function setDocumentCategories(documentId: number, categoryIds: number[]): boolean {
-  try {
-    db.prepare(`DELETE FROM document_categories WHERE documentId = ?`).run(documentId);
-    
-    for (const catId of categoryIds) {
-      db.prepare(
-        `INSERT OR IGNORE INTO document_categories (documentId, categoryId) VALUES (?, ?)`
-      ).run(documentId, catId);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("[DB] Error setting document categories:", error);
-    return false;
-  }
+  return categories.setForDocument(documentId, categoryIds);
 }
 
 export function addCategoryToDocument(documentId: number, categoryId: number): boolean {
-  try {
-    db.prepare(
-      `INSERT OR IGNORE INTO document_categories (documentId, categoryId) VALUES (?, ?)`
-    ).run(documentId, categoryId);
-    return true;
-  } catch (error) {
-    console.error("[DB] Error adding category to document:", error);
-    return false;
-  }
+  return categories.addToDocument(documentId, categoryId);
 }
 
 export function removeCategoryFromDocument(documentId: number, categoryId: number): boolean {
-  try {
-    db.prepare(
-      `DELETE FROM document_categories WHERE documentId = ? AND categoryId = ?`
-    ).run(documentId, categoryId);
-    return true;
-  } catch (error) {
-    console.error("[DB] Error removing category from document:", error);
-    return false;
-  }
+  return categories.removeFromDocument(documentId, categoryId);
 }
 
 export function getDocumentsByCategory(categoryId: number): DocumentRecord[] {
@@ -440,122 +325,23 @@ export function getDocumentsByCategory(categoryId: number): DocumentRecord[] {
 }
 
 export function getCategoryColors(): string[] {
-  return [...DEFAULT_COLORS];
+  return categories.listColors();
 }
 
 export function importCategoriesFromFolders(): number {
-  const docs = db.prepare<[], { id: number; filePath: string }>(
-    `SELECT id, filePath FROM documents WHERE filePath IS NOT NULL`
-  ).all();
-  
-  let imported = 0;
-  
-  for (const doc of docs) {
-    const relativePath = path.relative(
-      path.join(app.getPath("userData"), "library"),
-      doc.filePath
-    );
-    const pathParts = relativePath.split(path.sep);
-    
-    if (pathParts.length > 1) {
-      const folderName = pathParts[0]!;
-      
-      let category = db.prepare<[string], { id: number }>(
-        `SELECT id FROM categories WHERE name = ?`
-      ).get(folderName);
-      
-      if (!category) {
-        const result = db.prepare(`INSERT INTO categories (name, color) VALUES (?, ?)`).run(
-          folderName,
-          DEFAULT_COLORS[imported % DEFAULT_COLORS.length] || "#6b7280"
-        );
-        category = { id: result.lastInsertRowid as number };
-      }
-      
-      const existing = db.prepare<[number, number], { documentId: number }>(
-        `SELECT documentId FROM document_categories WHERE documentId = ? AND categoryId = ?`
-      ).get(doc.id, category.id);
-      
-      if (!existing) {
-        db.prepare(
-          `INSERT INTO document_categories (documentId, categoryId) VALUES (?, ?)`
-        ).run(doc.id, category.id);
-        imported++;
-      }
-    }
-  }
-  
-  return imported;
+  return categories.importFromFolders();
 }
 
 export function updateLastOpened(fileHash: string) {
-  db.prepare(
-    `
-    UPDATE documents SET lastOpenedAt = CURRENT_TIMESTAMP WHERE fileHash = ?
-  `,
-  ).run(fileHash);
+  readerProgress.markOpened(fileHash);
 }
 
-export function updateReadingState(
-  fileHash: string,
-  state: {
-    currentPage: number;
-    currentZoom: number;
-    currentScroll: number;
-    annotations: string;
-  },
-) {
-  const statement = db.prepare(`
-    UPDATE documents
-    SET currentPage = ?,
-        currentZoom = ?,
-        currentScroll = ?,
-        annotations = ?,
-        readingStatus = CASE
-          WHEN readingStatus IS NULL AND COALESCE(numPages, 0) > 1 AND ? >= numPages THEN 'read'
-          WHEN readingStatus IS NULL AND ? > 1 THEN 'reading'
-          ELSE readingStatus
-        END,
-        completedAt = CASE
-          WHEN readingStatus IS NULL AND COALESCE(numPages, 0) > 1 AND ? >= numPages THEN COALESCE(completedAt, CURRENT_TIMESTAMP)
-          ELSE completedAt
-        END
-    WHERE fileHash = ?
-    `);
-
-  statement.run(
-    state.currentPage,
-    state.currentZoom,
-    state.currentScroll,
-    state.annotations,
-    state.currentPage,
-    state.currentPage,
-    state.currentPage,
-    fileHash,
-  );
-}
-
-function assertReadingStatus(status: ReadingStatus): void {
-  if (status !== "want_to_read" && status !== "reading" && status !== "paused" && status !== "read") {
-    throw new Error("Invalid reading status");
-  }
+export function updateReadingState(fileHash: string, state: ReadingPosition) {
+  readerProgress.savePosition(fileHash, state);
 }
 
 export function updateReadingStatus(fileHash: string, status: ReadingStatus): boolean {
-  assertReadingStatus(status);
-
-  const result = db.prepare(`
-    UPDATE documents
-    SET readingStatus = ?,
-        completedAt = CASE
-          WHEN ? = 'read' THEN COALESCE(completedAt, CURRENT_TIMESTAMP)
-          ELSE NULL
-        END,
-        updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `).run(status, status, fileHash);
-
-  return result.changes > 0;
+  return readerProgress.updateStatus(fileHash, status);
 }
 
 export function createKeyConcept(input: CreateKeyConceptInput): KeyConcept {
@@ -1527,146 +1313,34 @@ export function addDocument(
     fileType,
     isSynced,
   );
-  refreshDocumentSearchIndexById(result.lastInsertRowid as number);
+  documentSearchIndex.refreshById(result.lastInsertRowid as number);
   return result;
 }
 export function getAllDocuments(): DocumentRecord[] {
-  return db.prepare<[], DocumentRecord>(`select * from documents`).all();
+  return documentQueries.all();
 }
 
 export function getDocumentFolderCounts(): Record<string, number> {
-  const rows = db.prepare<[], { folderPath: string; count: number }>(`
-    SELECT LOWER(RTRIM(REPLACE(folderPath, '\\', '/'), '/')) AS folderPath,
-           COUNT(*) AS count
-    FROM documents
-    WHERE folderPath IS NOT NULL AND folderPath <> ''
-    GROUP BY LOWER(RTRIM(REPLACE(folderPath, '\\', '/'), '/'))
-  `).all();
-
-  return Object.fromEntries(
-    rows
-      .filter((row) => Boolean(row.folderPath))
-      .map((row) => [row.folderPath, row.count]),
-  );
+  return documentQueries.folderCounts();
 }
 
 export function listDocuments(query: LibraryListQuery = {}): LibraryListResult {
-  const limit = Math.min(Math.max(query.limit ?? 60, 1), 200);
-  const offset = Math.max(query.offset ?? 0, 0);
-  const where: string[] = [];
-  const values: unknown[] = [];
-  let join = "";
-
-  if (query.section === "synced") {
-    where.push("d.isSynced = 1");
-  } else if (query.section === "unsynced") {
-    where.push("(d.isSynced IS NULL OR d.isSynced <> 1)");
-  }
-
-  if (query.fileType && query.fileType !== "all") {
-    const fileTypes = String(query.fileType).split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
-    if (fileTypes.length === 1) {
-      where.push("LOWER(COALESCE(d.fileType, '')) = ?");
-      values.push(fileTypes[0]);
-    } else if (fileTypes.length > 1) {
-      where.push(`LOWER(COALESCE(d.fileType, '')) IN (${fileTypes.map(() => "?").join(",")})`);
-      values.push(...fileTypes);
-    }
-  }
-
-  if (query.folderPath !== undefined && query.folderPath !== null) {
-    const absoluteFolder = path.isAbsolute(query.folderPath)
-      ? query.folderPath
-      : path.join(app.getPath("userData"), "library", query.folderPath);
-    const normalizedFolder = normalizeStoredPath(absoluteFolder);
-    const normalizedFilePath = "REPLACE(d.filePath, '\\', '/')";
-
-    if (query.includeSubfolders === false) {
-      where.push(
-        `(d.folderPath = ? OR (${normalizedFilePath} LIKE ? AND ${normalizedFilePath} NOT LIKE ?))`,
-      );
-      values.push(
-        normalizedFolder,
-        `${normalizedFolder}/%`,
-        `${normalizedFolder}/%/%`,
-      );
-    } else {
-      where.push(`(d.folderPath = ? OR d.folderPath LIKE ? OR ${normalizedFilePath} LIKE ?)`);
-      values.push(normalizedFolder, `${normalizedFolder}/%`, `${normalizedFolder}/%`);
-    }
-  }
-
-  const ftsQuery = query.search ? tokenizeSearch(query.search) : "";
-  if (ftsQuery) {
-    join = "INNER JOIN documents_fts fts ON fts.documentId = d.id";
-    where.push("documents_fts MATCH ?");
-    values.push(ftsQuery);
-  }
-
-  const orderBy: Record<LibrarySortOption, string> = {
-    title: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
-    recent: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) DESC, d.id DESC",
-    pages: "COALESCE(d.numPages, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-    size: "COALESCE(d.fileSize, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-    title_asc: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
-    title_desc: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) DESC, d.id DESC",
-    recent_desc: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) DESC, d.id DESC",
-    recent_asc: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) ASC, d.id ASC",
-    pages_desc: "COALESCE(d.numPages, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-    pages_asc: "COALESCE(d.numPages, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-    size_desc: "COALESCE(d.fileSize, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-    size_asc: "COALESCE(d.fileSize, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
-  };
-
-  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const baseSql = `FROM documents d ${join} ${whereSql}`;
-  const total = db.prepare<unknown[], { total: number }>(
-    `SELECT COUNT(*) as total ${baseSql}`
-  ).get(...values)?.total ?? 0;
-
-  const items = db.prepare<unknown[], DocumentRecord>(
-    `SELECT d.* ${baseSql}
-     ORDER BY ${orderBy[query.sort || "title"]}
-     LIMIT ? OFFSET ?`
-  ).all(...values, limit, offset);
-
-  return {
-    items,
-    total,
-    limit,
-    offset,
-    hasMore: offset + items.length < total,
-  };
+  return documentQueries.list(query);
 }
 export function getDocumentByHash(
   fileHash: string,
 ): DocumentRecord | undefined {
-  return db
-    .prepare<
-      [string],
-      DocumentRecord
-    >(`select * from documents where fileHash = ?`)
-    .get(fileHash);
+  return documentQueries.byHash(fileHash);
 }
 
 export function getDocumentByFilePath(
   filePath: string,
 ): DocumentRecord | undefined {
-  return db
-    .prepare<
-      [string],
-      DocumentRecord
-    >(`select * from documents where filePath = ?`)
-    .get(filePath);
+  return documentQueries.byFilePath(filePath);
 }
 
 export function getLastDocument(): DocumentRecord | undefined {
-  return db
-    .prepare<
-      [],
-      DocumentRecord
-    >(`SELECT * FROM documents ORDER BY lastOpenedAt DESC LIMIT 1`)
-    .get();
+  return documentQueries.lastOpened();
 }
 
 export function updateDocumentBookId(fileHash: string, bookId: string | null): void {
@@ -1676,9 +1350,7 @@ export function updateDocumentBookId(fileHash: string, bookId: string | null): v
 }
 
 export function getDocumentsByBookId(bookId: string): DocumentRecord[] {
-  return db.prepare<[string], DocumentRecord>(
-    `SELECT * FROM documents WHERE bookId = ?`
-  ).all(bookId);
+  return documentQueries.byBookId(bookId);
 }
 
 export function unmergeDocuments(bookId: string): DocumentRecord[] {
@@ -1693,7 +1365,7 @@ export function unmergeDocuments(bookId: string): DocumentRecord[] {
     `);
     for (const document of items) {
       update.run(document.fileHash);
-      refreshDocumentSearchIndex(document.fileHash);
+      documentSearchIndex.refreshByHash(document.fileHash);
     }
   });
   clearGroup(documents);
@@ -1827,7 +1499,7 @@ export function mergeDocuments(fileHashes: string[], bookId: string): {
         sharedThumbnailPath,
         doc.fileHash,
       );
-      refreshDocumentSearchIndex(doc.fileHash);
+      documentSearchIndex.refreshByHash(doc.fileHash);
     }
   });
 
@@ -1842,216 +1514,77 @@ export function mergeDocuments(fileHashes: string[], bookId: string): {
 }
 
 export function getDocumentByTitle(title: string): DocumentRecord | undefined {
-  return db.prepare<[string], DocumentRecord>(
-    `SELECT * FROM documents WHERE title = ? LIMIT 1`
-  ).get(title);
+  return documentQueries.byTitle(title);
 }
 
 export function getDocumentByPath(filePath: string): DocumentRecord | undefined {
-  return db.prepare<[string], DocumentRecord>(
-    `SELECT * FROM documents WHERE filePath = ? LIMIT 1`
-  ).get(filePath);
+  return documentQueries.byFilePath(filePath);
 }
 
 export function updateDocumentPath(fileHash: string, newPath: string) {
-  db.prepare(
-    `
-    UPDATE documents
-    SET filePath = ?,
-        fileName = ?,
-        folderPath = ?,
-        fileMtime = ?,
-        updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `,
-  ).run(newPath, getFileName(newPath), getFolderPath(newPath), getFileMtime(newPath), fileHash);
-  refreshDocumentSearchIndex(fileHash);
+  documentFiles.updatePath(fileHash, newPath);
 }
 
 export function updateDocumentFileType(
   fileHash: string,
   fileType: BookFileType
 ) {
-  db.prepare(
-    `
-    UPDATE documents
-    SET fileType = ?,
-        updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `,
-  ).run(fileType, fileHash);
-  refreshDocumentSearchIndex(fileHash);
+  documentFiles.updateFileType(fileHash, fileType);
 }
 
 export function updateDocumentNumPages(fileHash: string, numPages: number) {
-  db.prepare(
-    `
-    UPDATE documents
-    SET numPages = ?
-    WHERE fileHash = ?
-  `,
-  ).run(numPages, fileHash);
+  documentFiles.updateNumPages(fileHash, numPages);
 }
 
 export function updateDocumentSyncStatus(fileHash: string, isSynced: boolean, category?: string) {
-  db.prepare(
-    `
-    UPDATE documents
-    SET isSynced = ?, category = ?, updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `,
-  ).run(isSynced ? 1 : 0, category || null, fileHash);
+  documentFiles.updateSyncStatus(fileHash, isSynced, category);
 }
 
 export function updateThumbnailPath(fileHash: string, thumbnailPath: string) {
-  db.prepare(
-    `
-    UPDATE documents
-    SET thumbnailPath = ?, updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `,
-  ).run(thumbnailPath, fileHash);
+  documentFiles.updateThumbnailPath(fileHash, thumbnailPath);
 }
 
 export function getDocumentsBySyncStatus(synced: boolean): DocumentRecord[] {
-  return db.prepare<[number], DocumentRecord>(
-    `SELECT * FROM documents WHERE isSynced = ?`
-  ).all(synced ? 1 : 0);
+  return documentQueries.bySyncStatus(synced);
 }
 
 export function getCategories(): string[] {
-  const results = db.prepare<[], { category: string }>(
-    `SELECT DISTINCT category FROM documents WHERE category IS NOT NULL`
-  ).all();
-  return results.map(r => r.category);
+  return documentQueries.legacyCategories();
 }
 
 export function searchDocuments(query: string): DocumentRecord[] {
-  return db.prepare<[string], DocumentRecord>(
-    `SELECT * FROM documents WHERE title LIKE ? LIMIT 10`
-  ).all(`%${query}%`);
+  return documentQueries.searchTitles(query);
 }
 
 export function toggleFavorite(fileHash: string): boolean {
-  const doc = getDocumentByHash(fileHash);
-  if (!doc) return false;
-  
-  const newValue = doc.isFavorite === 1 ? 0 : 1;
-  db.prepare(`UPDATE documents SET isFavorite = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(newValue, fileHash);
-  return newValue === 1;
+  return documentMetadata.toggleFavorite(fileHash);
 }
 
 export function updateRating(fileHash: string, rating: number): void {
-  db.prepare(`UPDATE documents SET rating = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(rating, fileHash);
+  documentMetadata.updateRating(fileHash, rating);
 }
 
 export function updateNotes(fileHash: string, notes: string): void {
-  db.prepare(`UPDATE documents SET notes = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(notes, fileHash);
+  documentMetadata.updateNotes(fileHash, notes);
 }
 
-export function updateMetadata(
-  fileHash: string,
-  metadata: {
-    title?: string;
-    author?: string;
-    description?: string;
-    isbn?: string;
-    publisher?: string;
-    publishDate?: string;
-    language?: string;
-    identifier?: string;
-    asin?: string;
-    subject?: string;
-    series?: string;
-    seriesIndex?: string;
-    authorSort?: string;
-    titleSort?: string;
-  }
-): void {
-  const sets: string[] = [];
-  const values: string[] = [];
-  
-  if (metadata.title !== undefined) {
-    sets.push("title = ?");
-    values.push(metadata.title);
-  }
-
-  if (metadata.author !== undefined) {
-    sets.push("author = ?");
-    values.push(metadata.author);
-  }
-  if (metadata.description !== undefined) {
-    sets.push("description = ?");
-    values.push(metadata.description);
-  }
-  if (metadata.isbn !== undefined) {
-    sets.push("isbn = ?");
-    values.push(metadata.isbn);
-  }
-  if (metadata.publisher !== undefined) {
-    sets.push("publisher = ?");
-    values.push(metadata.publisher);
-  }
-  if (metadata.publishDate !== undefined) {
-    sets.push("publishDate = ?");
-    values.push(metadata.publishDate);
-  }
-  if (metadata.language !== undefined) {
-    sets.push("language = ?");
-    values.push(metadata.language);
-  }
-  if (metadata.identifier !== undefined) {
-    sets.push("identifier = ?");
-    values.push(metadata.identifier);
-  }
-  if (metadata.asin !== undefined) {
-    sets.push("asin = ?");
-    values.push(metadata.asin);
-  }
-  if (metadata.subject !== undefined) {
-    sets.push("subject = ?");
-    values.push(metadata.subject);
-  }
-  if (metadata.series !== undefined) {
-    sets.push("series = ?");
-    values.push(metadata.series);
-  }
-  if (metadata.seriesIndex !== undefined) {
-    sets.push("seriesIndex = ?");
-    values.push(metadata.seriesIndex);
-  }
-  if (metadata.authorSort !== undefined) {
-    sets.push("authorSort = ?");
-    values.push(metadata.authorSort);
-  }
-  if (metadata.titleSort !== undefined) {
-    sets.push("titleSort = ?");
-    values.push(metadata.titleSort);
-  }
-  
-  if (sets.length > 0) {
-    sets.push("updatedAt = CURRENT_TIMESTAMP");
-    values.push(fileHash);
-    db.prepare(`UPDATE documents SET ${sets.join(", ")} WHERE fileHash = ?`).run(...values);
-    refreshDocumentSearchIndex(fileHash);
-  }
+export function updateMetadata(fileHash: string, metadata: DocumentMetadataPatch): void {
+  documentMetadata.updateMetadata(fileHash, metadata);
 }
 
 export function updateProcessingStatus(
   fileHash: string,
   status: "pending" | "processing" | "completed" | "failed"
 ): void {
-  db.prepare(`UPDATE documents SET processingStatus = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(status, fileHash);
+  documentFiles.updateProcessingStatus(fileHash, status);
 }
 
 export function getDocumentsPendingProcessing(): DocumentRecord[] {
-  return db.prepare<[], DocumentRecord>(
-    `SELECT * FROM documents WHERE processingStatus = 'pending' OR processingStatus = 'failed'`
-  ).all();
+  return documentQueries.pendingProcessing();
 }
 
 export function updateFileSize(fileHash: string, fileSize: number): void {
-  db.prepare(`UPDATE documents SET fileSize = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(fileSize, fileHash);
+  documentFiles.updateFileSize(fileHash, fileSize);
 }
 
 export function updateDocumentFileIdentity(
@@ -2060,55 +1593,27 @@ export function updateDocumentFileIdentity(
   filePath: string,
   fileSize: number,
 ): void {
-  db.prepare(
-    `
-    UPDATE documents
-    SET fileHash = ?,
-        filePath = ?,
-        fileName = ?,
-        folderPath = ?,
-        fileMtime = ?,
-        fileSize = ?,
-        updatedAt = CURRENT_TIMESTAMP
-    WHERE fileHash = ?
-  `,
-  ).run(newFileHash, filePath, getFileName(filePath), getFolderPath(filePath), getFileMtime(filePath), fileSize, oldFileHash);
-  refreshDocumentSearchIndex(newFileHash);
+  documentFiles.updateIdentity(oldFileHash, newFileHash, filePath, fileSize);
 }
 
 export function updateTitle(fileHash: string, newTitle: string): void {
-  db.prepare(`UPDATE documents SET title = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(newTitle, fileHash);
-  refreshDocumentSearchIndex(fileHash);
+  documentMetadata.updateTitle(fileHash, newTitle);
 }
 
 export function updateAuthor(fileHash: string, author: string | null): void {
-  db.prepare(`UPDATE documents SET author = ?, updatedAt = CURRENT_TIMESTAMP WHERE fileHash = ?`).run(author, fileHash);
-  refreshDocumentSearchIndex(fileHash);
+  documentMetadata.updateAuthor(fileHash, author);
 }
 
 export function deleteDocument(fileHash: string): { success: boolean; error?: string } {
-  try {
-    const doc = getDocumentByHash(fileHash);
-    if (!doc) return { success: false, error: "Document not found" };
-    
-    db.prepare(`DELETE FROM documents_fts WHERE documentId = ?`).run(doc.id);
-    db.prepare(`DELETE FROM documents WHERE fileHash = ?`).run(fileHash);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: String(error) };
-  }
+  return documentFiles.remove(fileHash);
 }
 
 export function getDocumentById(id: number): DocumentRecord | undefined {
-  return db.prepare<[number], DocumentRecord>(
-    `SELECT * FROM documents WHERE id = ?`
-  ).get(id);
+  return documentQueries.byId(id);
 }
 
 export function getFavoriteDocuments(): DocumentRecord[] {
-  return db.prepare<[], DocumentRecord>(
-    `SELECT * FROM documents WHERE isFavorite = 1`
-  ).all();
+  return documentMetadata.getFavorites();
 }
 
 export function getAllDocumentsWithCategories(): (DocumentRecord & { categories: BookCategory[] })[] {
@@ -2165,75 +1670,6 @@ export function getDocumentsForBackup(): {
   });
 }
 
-export type HabitRecord = Habit;
-export type HabitCompletionRecord = HabitCompletion;
-
-export function getAllHabits(): HabitRecord[] {
-  return db.prepare<[], HabitRecord>(`SELECT * FROM habits ORDER BY createdAt`).all();
-}
-
-export function getHabitById(id: string): HabitRecord | undefined {
-  return db.prepare<[string], HabitRecord>(`SELECT * FROM habits WHERE id = ?`).get(id);
-}
-
-export function addHabit(habit: Omit<HabitRecord, "createdAt">): void {
-  db.prepare(
-    `INSERT INTO habits (id, name, unit, valueMode) VALUES (?, ?, ?, ?)`
-  ).run(habit.id, habit.name, habit.unit, habit.valueMode);
-}
-
-export function updateHabit(id: string, updates: Partial<Omit<HabitRecord, "id" | "createdAt">>): void {
-  const sets: string[] = [];
-  const values: unknown[] = [];
-
-  if (updates.name !== undefined) {
-    sets.push("name = ?");
-    values.push(updates.name);
-  }
-  if (updates.unit !== undefined) {
-    sets.push("unit = ?");
-    values.push(updates.unit);
-  }
-  if (updates.valueMode !== undefined) {
-    sets.push("valueMode = ?");
-    values.push(updates.valueMode);
-  }
-
-  if (sets.length > 0) {
-    values.push(id);
-    db.prepare(`UPDATE habits SET ${sets.join(", ")} WHERE id = ?`).run(...values);
-  }
-}
-
-export function deleteHabit(id: string): void {
-  db.prepare(`DELETE FROM habit_completions WHERE habitId = ?`).run(id);
-  db.prepare(`DELETE FROM habits WHERE id = ?`).run(id);
-}
-
-export function getHabitCompletions(habitId: string): HabitCompletionRecord[] {
-  return db.prepare<[string], HabitCompletionRecord>(
-    `SELECT * FROM habit_completions WHERE habitId = ?`
-  ).all(habitId);
-}
-
-export function getAllHabitCompletions(): HabitCompletionRecord[] {
-  return db.prepare<[], HabitCompletionRecord>(`SELECT * FROM habit_completions`).all();
-}
-
-export function setHabitCompletion(habitId: string, dateKey: string, value: string | null): void {
-  if (value === null) {
-    db.prepare(`DELETE FROM habit_completions WHERE habitId = ? AND dateKey = ?`).run(habitId, dateKey);
-  } else {
-    db.prepare(
-      `INSERT OR REPLACE INTO habit_completions (habitId, dateKey, value) VALUES (?, ?, ?)`
-    ).run(habitId, dateKey, value);
-  }
-}
-
-export function deleteHabitCompletion(habitId: string, dateKey: string): void {
-  db.prepare(`DELETE FROM habit_completions WHERE habitId = ? AND dateKey = ?`).run(habitId, dateKey);
-}
-
 export interface DocumentCategoryRecord {
   documentId: number;
   categoryId: number;
@@ -2243,88 +1679,40 @@ export function getAllDocumentCategories(): DocumentCategoryRecord[] {
   return db.prepare<[], DocumentCategoryRecord>(`SELECT documentId, categoryId FROM document_categories`).all();
 }
 
-export interface WordIndexEntry {
-  word: string;
-  count: number;
-}
+export type { WordIndexEntry };
 
 export function saveWordIndex(fileHash: string, words: WordIndexEntry[]): void {
-  db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
-  
-  const insertStmt = db.prepare(`INSERT INTO book_word_index (fileHash, word, count) VALUES (?, ?, ?)`);
-  const insertMany = db.transaction((entries: WordIndexEntry[]) => {
-    for (const entry of entries) {
-      insertStmt.run(fileHash, entry.word, entry.count);
-    }
-  });
-  
-  insertMany(words);
+  wordIndex.save(fileHash, words);
 }
 
 export function getWordIndex(fileHash: string): WordIndexEntry[] {
-  return db.prepare<[string], WordIndexEntry>(
-    `SELECT word, count FROM book_word_index WHERE fileHash = ? ORDER BY count DESC`
-  ).all(fileHash);
+  return wordIndex.list(fileHash);
 }
 
 export function getWordCount(fileHash: string, word: string): number {
-  const result = db.prepare<[string, string], { count: number }>(
-    `SELECT count FROM book_word_index WHERE fileHash = ? AND word = ?`
-  ).get(fileHash, word.toLowerCase());
-  return result?.count || 0;
+  return wordIndex.count(fileHash, word);
 }
 
 export function getBookStats(fileHash: string): { totalWords: number; uniqueWords: number } | null {
-  const result = db.prepare<[string], { totalWords: number; uniqueWords: number }>(
-    `SELECT COALESCE(SUM(count), 0) as totalWords, COUNT(*) as uniqueWords FROM book_word_index WHERE fileHash = ?`
-  ).get(fileHash);
-  return result || null;
+  return wordIndex.stats(fileHash);
 }
 
 export function hasWordIndex(fileHash: string): boolean {
-  const result = db.prepare<[string], { exists: number }>(
-    `SELECT 1 as exists FROM book_word_index WHERE fileHash = ? LIMIT 1`
-  ).get(fileHash);
-  return result !== undefined;
+  return wordIndex.has(fileHash);
 }
 
 export function deleteWordIndex(fileHash: string): void {
-  db.prepare(`DELETE FROM book_word_index WHERE fileHash = ?`).run(fileHash);
+  wordIndex.remove(fileHash);
 }
 
-export interface WatchFolderRecord {
-  id: number;
-  path: string;
-  label: string | null;
-  type: "watch" | "source";
-  createdAt: string;
-}
+export type { WatchFolderRecord } from "./infrastructure/sqlite-watch-folder-repository";
 
 export function getWatchFolders(type: "watch" | "source" = "watch"): WatchFolderRecord[] {
-  return db.prepare<[string], WatchFolderRecord>(
-    `SELECT * FROM watch_folders WHERE type = ? ORDER BY label, path`
-  ).all(type);
+  return watchFolders.list(type);
 }
 
 function addTypedWatchFolder(folderPath: string, label: string | undefined, type: "watch" | "source"): WatchFolderRecord {
-  const cleanLabel = label || folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
-  db.prepare(
-    `INSERT INTO watch_folders (path, label, type)
-     VALUES (?, ?, ?)
-     ON CONFLICT(path) DO UPDATE SET label = excluded.label, type = excluded.type`
-  ).run(folderPath, cleanLabel, type);
-
-  const record = db.prepare<[string], WatchFolderRecord>(
-    `SELECT * FROM watch_folders WHERE path = ?`
-  ).get(folderPath);
-
-  if (!record) {
-    return db.prepare<[], WatchFolderRecord>(
-      `SELECT * FROM watch_folders ORDER BY id DESC LIMIT 1`
-    ).get()!;
-  }
-
-  return record;
+  return watchFolders.add(folderPath, label, type);
 }
 
 export function addWatchFolder(folderPath: string, label?: string): WatchFolderRecord {
@@ -2340,16 +1728,11 @@ export function addSourceFolder(folderPath: string, label?: string): WatchFolder
 }
 
 export function removeWatchFolder(id: number): void {
-  db.prepare(`DELETE FROM watch_folders WHERE id = ?`).run(id);
+  watchFolders.remove(id);
 }
 
 export function removeSourceFolder(id: number): WatchFolderRecord | undefined {
-  const record = db.prepare<[number], WatchFolderRecord>(
-    `SELECT * FROM watch_folders WHERE id = ? AND type = 'source'`
-  ).get(id);
-  if (!record) return undefined;
-  removeWatchFolder(id);
-  return record;
+  return watchFolders.removeSource(id);
 }
 
 export function deleteDocumentsUnderPath(rootPath: string): number {
@@ -2369,23 +1752,13 @@ export function deleteDocumentsUnderPath(rootPath: string): number {
 }
 
 export function getWatchFolderBooks(folderPath: string): DocumentRecord[] {
-  const normalizedPath = folderPath.replace(/\\/g, "/");
-  return db.prepare<[string], DocumentRecord>(
-    `SELECT * FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
-  ).all(normalizedPath);
+  return watchFolders.books(folderPath);
 }
 
 export function getUnsyncedFolderPaths(): string[] {
-  const rows = db.prepare<[], { folderPath: string }>(
-    `SELECT DISTINCT REPLACE(folderPath, '\\', '/') as folderPath FROM documents WHERE isSynced = 0 AND folderPath IS NOT NULL`
-  ).all();
-  return rows.map(r => r.folderPath).filter(Boolean);
+  return watchFolders.unsyncedPaths();
 }
 
 export function getUnsyncedBookCount(folderPath: string): number {
-  const normalizedPath = folderPath.replace(/\\/g, "/");
-  const result = db.prepare<[string], { count: number }>(
-    `SELECT COUNT(*) as count FROM documents WHERE isSynced = 0 AND REPLACE(folderPath, '\\', '/') = ?`
-  ).get(normalizedPath);
-  return result?.count || 0;
+  return watchFolders.unsyncedBookCount(folderPath);
 }

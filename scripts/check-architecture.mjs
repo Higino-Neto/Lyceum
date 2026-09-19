@@ -39,6 +39,13 @@ for (const file of walk("src/features").filter((entry) => /\.(ts|tsx)$/.test(ent
   }
 }
 
+for (const file of walk("electron/infrastructure").filter((entry) => /\.(ts|tsx)$/.test(entry))) {
+  const contents = read(file);
+  if (/from\s+["'][^"']*(?:local-database|\/main|\/handlers\/)["']/.test(contents)) {
+    failures.push(`${file}: infrastructure must not depend on the database facade, main entry, or IPC handlers`);
+  }
+}
+
 const preload = read("electron/preload.ts");
 const envDeclaration = read("electron/electron-env.d.ts");
 if (!preload.includes("export type LyceumApi = typeof api")) {
@@ -51,12 +58,13 @@ if (/\[key:\s*string\]\s*:\s*any/.test(envDeclaration + read("src/types/api.d.ts
   failures.push("Window.api must not contain an any-valued index signature");
 }
 
-const handlerChannels = new Set(
-  walk("electron")
-    .filter((file) => file.endsWith(".ts"))
-    .flatMap((file) => [...read(file).matchAll(/ipcMain\.handle\(\s*["'`]([^"'`]+)/g)])
-    .map((match) => match[1]),
-);
+const allHandlerChannels = walk("electron")
+  .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+  .flatMap((file) => [...read(file).matchAll(/ipcMain\.handle\(\s*["'`]([^"'`]+)/g)].map((match) => match[1]));
+const handlerChannels = new Set(allHandlerChannels);
+if (handlerChannels.size !== allHandlerChannels.length) {
+  failures.push("Electron IPC channels must be registered exactly once");
+}
 const invokedChannels = new Set(
   [...preload.matchAll(/(?:ipcRenderer\.invoke|\binvoke(?:<[^>]+>)?)\(\s*["'`]([^"'`]+)/g)]
     .map((match) => match[1]),

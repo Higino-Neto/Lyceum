@@ -162,7 +162,7 @@ export async function backupDocument(doc: BackupDocumentInput): Promise<{ succes
   }
 }
 
-export async function backupAllDocuments(docs: Awaited<ReturnType<typeof import("./local-database").getDocumentsForBackup>>): Promise<{ success: number; failed: number; errors: string[] }> {
+export async function backupAllDocuments(docs: BackupDocumentInput[]): Promise<{ success: number; failed: number; errors: string[] }> {
   let success = 0;
   let failed = 0;
   const errors: string[] = [];

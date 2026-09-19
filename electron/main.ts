@@ -1,7 +1,6 @@
 import electron, {
   type BrowserWindow as ElectronBrowserWindow,
   type BrowserWindowConstructorOptions,
-  type IpcMainInvokeEvent,
 } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -16,8 +15,12 @@ import chokidar, { FSWatcher } from "chokidar";
 import {
   addDocument,
   getAllDocuments,
+  getAllDocumentCategories,
+  getCategoryRepository,
+  getDocumentMetadataRepository,
   getDocumentByHash,
   getLastDocument,
+  getDocumentsForBackup,
   initDatabase,
   updateDocumentPath,
   updateDocumentNumPages,
@@ -74,12 +77,13 @@ import {
 import { getCandidateVolumeRoots } from "./services/removable-volumes";
 import { installContentSecurityPolicy } from "./app/security-policy";
 import { registerHabitHandlers } from "./handlers/habits.handler";
-import { sqliteHabitRepository } from "./infrastructure/sqlite-habit-repository";
+import { createSqliteHabitRepository } from "./infrastructure/sqlite-habit-repository";
 import { registerBackupHandlers } from "./handlers/backup.handler";
 import { registerCategoryHandlers } from "./handlers/categories.handler";
-import { sqliteCategoryRepository } from "./infrastructure/sqlite-category-repository";
 import { registerDictionaryHandlers } from "./handlers/dictionary.handler";
 import { registerPlatformHandlers } from "./handlers/platform.handler";
+import { registerWindowHandlers } from "./handlers/windows.handler";
+import { registerFileDialogHandlers } from "./handlers/file-dialogs.handler";
 
 const {
   app,
@@ -2396,10 +2400,6 @@ function handleAuthDeepLink(rawUrl: string) {
   return true;
 }
 
-function getTargetWindow(event: IpcMainInvokeEvent): ElectronBrowserWindow | null {
-  return BrowserWindow.fromWebContents(event.sender);
-}
-
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
@@ -2510,37 +2510,6 @@ ipcMain.handle("reading:save", (_, payload) => {
 
 ipcMain.handle("reading:get", (_, fileHash) => {
   return getDocumentByHash(fileHash);
-});
-
-ipcMain.handle("dialog:open-pdf", async () => {
-  const result = await showOpenDialogSafe({
-    properties: ["openFile"],
-    filters: [{ name: "PDF", extensions: ["pdf"] }],
-  });
-  if (result.canceled || !result.filePaths[0]) return null;
-  const document = await openReadableFile(result.filePaths[0]);
-  return document ? { ...document, fileBuffer: undefined } : null;
-});
-
-ipcMain.handle("dialog:open-epub", async () => {
-  const result = await showOpenDialogSafe({
-    properties: ["openFile"],
-    filters: [{ name: "EPUB", extensions: ["epub"] }],
-  });
-  if (result.canceled || !result.filePaths[0]) return null;
-  return openReadableFile(result.filePaths[0]);
-});
-
-ipcMain.handle("dialog:open-readable-file", async () => {
-  const result = await showOpenDialogSafe({
-    properties: ["openFile"],
-    filters: [
-      { name: "PDF e EPUB", extensions: ["pdf", "epub"] },
-    ],
-  });
-  if (result.canceled || !result.filePaths[0]) return null;
-  const document = await openReadableFile(result.filePaths[0]);
-  return document?.fileType === "pdf" ? { ...document, fileBuffer: undefined } : document;
 });
 
 ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
@@ -3085,15 +3054,6 @@ ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
   }
 });
 
-ipcMain.handle("dialog:open-image", async () => {
-  const result = await showOpenDialogSafe({
-    properties: ["openFile"],
-    filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png"] }],
-  });
-  if (result.canceled || !result.filePaths[0]) return null;
-  return result.filePaths[0];
-});
-
 ipcMain.handle("read-image-data-url", async (_, filePath: string) => {
   try {
     const buffer = await fs.promises.readFile(filePath);
@@ -3104,16 +3064,6 @@ ipcMain.handle("read-image-data-url", async (_, filePath: string) => {
   } catch (error) {
     return { success: false, error: String(error) };
   }
-});
-
-ipcMain.handle("dialog:select-folder", async () => {
-  const result = await showOpenDialogSafe({
-    properties: ["openDirectory"],
-  });
-  return {
-    canceled: result.canceled,
-    filePaths: result.filePaths,
-  };
 });
 
 ipcMain.handle("dialog:import-pdf", async (_, targetFolder: string | null, action: "move" | "copy" = "copy") => {
@@ -3222,45 +3172,14 @@ async function findFileByHash(fileHash: string, searchPaths: string[]): Promise<
 
 
 
-ipcMain.handle("window:minimize", (event) => {
-  getTargetWindow(event)?.minimize();
+registerFileDialogHandlers(ipcMain, {
+  showOpenDialog: showOpenDialogSafe,
+  openReadableFile,
 });
 
-ipcMain.handle("window:maximize", (event) => {
-  const targetWindow = getTargetWindow(event);
-  if (!targetWindow) {
-    return;
-  }
-
-  if (targetWindow.isMaximized()) {
-    targetWindow.unmaximize();
-  } else {
-    targetWindow.maximize();
-  }
-});
-
-ipcMain.handle("window:close", (event) => {
-  getTargetWindow(event)?.close();
-});
-
-ipcMain.handle("window:isMaximized", (event) => {
-  return getTargetWindow(event)?.isMaximized() ?? false;
-});
-
-ipcMain.handle(
-  "window:open-new",
-  async (
-    _,
-    data: {
-      fileHash: string;
-      fileName: string;
-      fileType: "pdf" | "epub";
-      filePath?: string;
-      libraryDocumentId?: string;
-      pdfRenderer?: "pdfjs";
-      source?: "library" | "local";
-    }
-  ) => {
+registerWindowHandlers(ipcMain, {
+  resolveWindow: (event) => BrowserWindow.fromWebContents(event.sender),
+  openReadingWindow: (data) => {
     const newWindow = createAppWindow({
       title: `${data.fileName} - Lyceum`,
     });
@@ -3275,8 +3194,8 @@ ipcMain.handle(
       source: data.source,
       libraryDocumentId: data.libraryDocumentId,
     });
-  }
-);
+  },
+});
 
 
 
@@ -3533,11 +3452,16 @@ app.whenReady().then(async () => {
     Boolean(process.env.VITE_DEV_SERVER_URL),
   );
 
-  runStartupStage("SQLite initialization", () => initDatabase());
+  const database = runStartupStage("SQLite initialization", () => initDatabase());
   runStartupStage("library directory initialization", () => ensureLibraryFolder());
-  registerHabitHandlers(ipcMain, sqliteHabitRepository);
-  registerBackupHandlers(ipcMain);
-  registerCategoryHandlers(ipcMain, sqliteCategoryRepository);
+  const habits = createSqliteHabitRepository(database);
+  const categories = getCategoryRepository();
+  registerHabitHandlers(ipcMain, habits);
+  registerBackupHandlers(ipcMain, habits, categories, {
+    listDocuments: getDocumentsForBackup,
+    listDocumentCategories: getAllDocumentCategories,
+  });
+  registerCategoryHandlers(ipcMain, categories);
   registerDictionaryHandlers(ipcMain, () => win);
   registerPlatformHandlers(ipcMain);
 
@@ -3555,7 +3479,7 @@ app.whenReady().then(async () => {
   setLibraryWindow(win);
   setLibraryChangeEmitter(() => win?.webContents.send("library:updated"));
   setFileWatcherRefresh(setupFileWatcher);
-  registerBookHandlers();
+  registerBookHandlers(getDocumentMetadataRepository());
   registerLibraryHandlers();
 
   const startSecondaryServices = () => setImmediate(() => {
@@ -3565,7 +3489,7 @@ app.whenReady().then(async () => {
     });
     runBackgroundStartupStage("file watcher", () => setupFileWatcher());
     runBackgroundStartupStage("USB watcher", () => setupUsbDeviceWatcher());
-    runBackgroundStartupStage("category import", () => sqliteCategoryRepository.importFromFolders());
+    runBackgroundStartupStage("category import", () => categories.importFromFolders());
     runBackgroundStartupStage("update check", () => checkForAppUpdates());
     runBackgroundStartupStage("library scan", () => queueLibraryScan());
   });

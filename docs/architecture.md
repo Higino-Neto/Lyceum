@@ -34,10 +34,37 @@ Key files:
 - `electron/preload.ts`
 - `electron/local-database.ts`
 - `electron/infrastructure/sqlite-schema.ts`
+- `electron/infrastructure/sqlite-document-query.ts`
+- `electron/infrastructure/sqlite-document-search-index.ts`
 - `electron/backup.ts`
 - `electron/dictionary-manager.ts`
 
 The main process registers IPC handlers for document operations, library management, reader state, categories, habits, backup, dictionary lookup, and native window controls.
+The document-query adapter owns library filtering, FTS search, sorting, folder
+counts, pagination, identity lookups, and legacy status queries. A separate adapter maintains the FTS index as document
+metadata changes; `local-database.ts` retains compatibility exports while
+other database responsibilities are migrated. Window-control IPC is registered
+by `electron/handlers/windows.handler.ts`, with window creation injected by the
+main process.
+User-editable document metadata follows a domain repository contract and a
+SQLite adapter, including the search-index refresh after title/author changes.
+Document file identity, location, lifecycle status, and removal follow a
+separate repository contract; both adapters are composed after SQLite startup.
+Reader position and reading-status transitions use a format-independent
+repository with SQLite as the desktop adapter.
+File-open dialogs are registered by `electron/handlers/file-dialogs.handler.ts`;
+file processing and the native dialog are injected, keeping IPC orchestration
+testable without starting Electron.
+Habits and categories use SQLite repository instances created after database
+startup and injected into their IPC handlers and backup. Compatibility exports
+in `local-database.ts` delegate to the categories repository; the adapters no
+longer depend on the legacy database facade.
+Backup IPC receives document snapshots through an injected data source; its
+handler no longer imports the database facade at runtime.
+EPUB vocabulary counts use a dedicated word-index repository while the public
+database functions remain as compatibility delegates.
+Watch/source folder configuration and unsynced-folder queries likewise use an
+isolated SQLite repository behind the compatibility facade.
 
 SQLite schema creation is isolated from database startup. The startup sequence is
 bootstrap schema, bootstrap migration, application schema, remaining versioned
@@ -61,6 +88,8 @@ Key areas:
 - `src/App.tsx`: route shell, title bar, sidebar, auto-hide behavior, auth bootstrap, backup bootstrap.
 - `src/pages/Library/`: local library UI and document management.
 - `src/features/library/model/`: framework-independent library view rules.
+- The library display projection (special folders, variant grouping, and cache
+  reuse) lives in that model and is covered without rendering the page.
 - `src/pages/ReadingPage/`: PDF and EPUB readers, tabs, persistence, session tools.
 - `src/pages/DashboardPage/`: statistics and visualizations.
 - `src/pages/AddReadingPage.tsx`: manual reading entries and book history tools.
@@ -68,6 +97,9 @@ Key areas:
 The renderer should not access Node APIs directly. All native behavior should go through `window.api`.
 Feature modules must not import page components; pages compose feature behavior,
 not the reverse. The architecture check enforces this dependency direction.
+Infrastructure adapters may not import the database facade, Electron entry
+point, or IPC handlers; the architecture check also rejects duplicate IPC
+registrations.
 
 ## Tabs and Reading
 

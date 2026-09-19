@@ -69,15 +69,12 @@ import { createBookDragPreview } from "./utils/bookDragPreview";
 import { buildLibraryQuery } from "../../features/library/application/libraryQuery";
 import {
   buildSpecialFolderBook,
+  buildDisplayBooks,
   collectSpecialFoldersForDisplay,
-  getMergedBookSignature,
   getPathLeaf,
   isAbsoluteFolderPath,
-  matchesLibraryFileTypes,
-  matchesLibrarySearch,
-  normalizeAbsoluteFolderPath,
   pickRepresentativeBook,
-  sortBooksForLibraryView,
+  type MergedBookCacheEntry,
 } from "../../features/library/model/libraryView";
 import { useLibraryEvents } from "../../features/library/ui/useLibraryEvents";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -140,12 +137,6 @@ function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: (
       </div>
     </button>
   );
-}
-
-interface MergedBookCacheEntry {
-  representative: BookWithThumbnail;
-  signature: string;
-  value: BookWithThumbnail;
 }
 
 function LibraryContent() {
@@ -1327,77 +1318,19 @@ function LibraryContent() {
   ]);
 
   const displayBooks = useMemo(() => {
-    if (activeSection === "usb") return books;
-    const filteredSpecialFolderBooks =
-      activeSection === "synced"
-        ? specialFolderBooks.filter((book) =>
-            matchesLibrarySearch(book, deferredSearch) &&
-            matchesLibraryFileTypes(book, fileTypeFilter),
-          )
-        : [];
-    const collapsedSpecialFolderPaths = currentFolderType === "normal"
-      ? new Set(
-          visibleSpecialFolders.map(({ folder }) =>
-            normalizeAbsoluteFolderPath(folder.fullPath),
-          ),
-        )
-      : new Set<string>();
-    const booksForDisplay =
-      collapsedSpecialFolderPaths.size === 0
-        ? books
-        : books.filter(
-            (book) => {
-              const folderPath = normalizeAbsoluteFolderPath(book.folderPath);
-              return !Array.from(collapsedSpecialFolderPaths).some(
-                (collapsedPath) =>
-                  folderPath === collapsedPath ||
-                  folderPath.startsWith(`${collapsedPath}/`),
-              );
-            },
-          );
-    const booksForGrouping = sortBooksForLibraryView(
-      [...booksForDisplay, ...filteredSpecialFolderBooks],
+    const result = buildDisplayBooks({
+      section: activeSection,
+      books,
+      specialFolderBooks,
+      specialFolderPaths: visibleSpecialFolders.map(({ folder }) => folder.fullPath),
+      collapseSpecialFolders: currentFolderType === "normal",
+      search: deferredSearch,
+      fileTypes: fileTypeFilter,
       sort,
-    );
-
-    const grouped = new Map<string, BookWithThumbnail[]>();
-    const orderedKeys: string[] = [];
-
-    for (const book of booksForGrouping) {
-      const groupKey = book.syntheticFolderType
-        ? book.fileHash
-        : book.bookId || book.fileHash;
-      if (!grouped.has(groupKey)) {
-        grouped.set(groupKey, []);
-        orderedKeys.push(groupKey);
-      }
-      grouped.get(groupKey)?.push(book);
-    }
-
-    const nextCache = new Map<string, MergedBookCacheEntry>();
-    const result = orderedKeys.map((groupKey) => {
-      const group = grouped.get(groupKey) || [];
-      const representative = pickRepresentativeBook(group);
-      if (group.length <= 1 || representative.syntheticFolderType) return representative;
-
-      const signature = getMergedBookSignature(group);
-      const cached = mergedBookCacheRef.current.get(groupKey);
-      if (
-        cached &&
-        cached.representative === representative &&
-        cached.signature === signature
-      ) {
-        nextCache.set(groupKey, cached);
-        return cached.value;
-      }
-
-      const value = { ...representative, mergedBooks: group };
-      nextCache.set(groupKey, { representative, signature, value });
-      return value;
+      previousCache: mergedBookCacheRef.current,
     });
-
-    mergedBookCacheRef.current = nextCache;
-    return result;
+    mergedBookCacheRef.current = result.cache;
+    return result.books;
   }, [
     activeSection,
     books,

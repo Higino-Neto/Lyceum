@@ -1,20 +1,16 @@
 import { ipcMain, clipboard, nativeImage, shell } from "electron";
 import { PDFDocument } from "pdf-lib";
+import type { DocumentMetadataRepository } from "../../src/core/library/document-metadata";
 import {
   getDocumentByHash,
   getDocumentByPath,
   getDocumentById,
-  getFavoriteDocuments,
   getDocumentsPendingProcessing,
   addLibraryBookToReadingStatus,
   addManualBookToReadingStatus,
   addReadingStatusProgressEvent,
   updateThumbnailPath,
   getAtlasNotesVaultPath,
-  updateTitle,
-  toggleFavorite,
-  updateRating,
-  updateNotes,
   updateReadingStatus,
   createConceptRelation,
   createKeyConcept,
@@ -46,7 +42,6 @@ import {
   updateReadingStatusItemNotes,
   updateReadingStatusItemProgress,
   updateReadingStatusItemStatus,
-  updateMetadata,
   mergeDocuments,
   unmergeDocuments,
   updateDocumentBookId,
@@ -118,13 +113,13 @@ function getAnnotationPageThumbnailPath(bookId: string, page: number) {
   return path.join(getAnnotationsDirectory(), "page-thumbnails", safeBookId, pageFile);
 }
 
-export function registerBookHandlers() {
+export function registerBookHandlers(documentMetadata: DocumentMetadataRepository) {
   function syncMergedBookMetadata(bookId: string | null | undefined, primaryHash: string, metadata: EditableBookMetadata) {
     if (!bookId) return;
     const groupDocs = getDocumentsByBookId(bookId);
     for (const groupDoc of groupDocs) {
       if (groupDoc.fileHash !== primaryHash) {
-        updateMetadata(groupDoc.fileHash, metadata);
+        documentMetadata.updateMetadata(groupDoc.fileHash, metadata);
       }
     }
   }
@@ -354,16 +349,16 @@ export function registerBookHandlers() {
   }
 
   ipcMain.handle("book:toggle-favorite", (_, fileHash: string) => {
-    return toggleFavorite(fileHash);
+    return documentMetadata.toggleFavorite(fileHash);
   });
 
   ipcMain.handle("book:update-rating", (_, fileHash: string, rating: number) => {
-    updateRating(fileHash, rating);
+    documentMetadata.updateRating(fileHash, rating);
     return true;
   });
 
   ipcMain.handle("book:update-notes", (_, fileHash: string, notes: string) => {
-    updateNotes(fileHash, notes);
+    documentMetadata.updateNotes(fileHash, notes);
     return true;
   });
 
@@ -749,7 +744,7 @@ export function registerBookHandlers() {
       if (!fileResult.success) {
         warnings.push(fileResult.error || `Edicao de metadados nao suportada para ${String(doc.fileType || "este formato").toUpperCase()}. Dados salvos apenas na biblioteca.`);
       }
-      updateMetadata(fileHash, mergedMetadata);
+      documentMetadata.updateMetadata(fileHash, mergedMetadata);
       const nextHash = mutation.fileHash || fileHash;
       if (fileResult.success) {
         updateDocumentFileIdentity(fileHash, nextHash, doc.filePath, mutation.fileSize || fs.statSync(doc.filePath).size);
@@ -761,7 +756,7 @@ export function registerBookHandlers() {
       win?.webContents.send("library:updated");
       return { success: true, fileHash: nextHash, warnings };
     } catch (error) {
-      updateMetadata(fileHash, mergedMetadata);
+      documentMetadata.updateMetadata(fileHash, mergedMetadata);
       syncMergedBookMetadata(doc.bookId, fileHash, mergedMetadata);
       if (metadata.pageCount && Number.isFinite(metadata.pageCount)) {
         updateDocumentNumPages(fileHash, metadata.pageCount);
@@ -776,7 +771,7 @@ export function registerBookHandlers() {
   });
 
   ipcMain.handle("book:update-title", (_, fileHash: string, newTitle: string) => {
-    updateTitle(fileHash, newTitle);
+    documentMetadata.updateTitle(fileHash, newTitle);
     return true;
   });
 
@@ -834,7 +829,7 @@ export function registerBookHandlers() {
   });
 
   ipcMain.handle("book:get-favorites", () => {
-    return getFavoriteDocuments();
+    return documentMetadata.getFavorites();
   });
 
   ipcMain.handle("book:process-pending", async () => {

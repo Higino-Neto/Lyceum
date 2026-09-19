@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BookWithThumbnail, FolderInfo } from "../../../types/LibraryTypes";
 import {
+  buildDisplayBooks,
   buildSpecialFolderBook,
   collectSpecialFoldersForDisplay,
   getPathLeaf,
@@ -99,5 +100,45 @@ describe("library view model", () => {
     expect(synthetic.fileHash).toBe("merged-folder:/library/_clássicos");
     expect(synthetic.mergedBooks).toEqual([epub, pdf]);
     expect(synthetic.id).toBeLessThan(0);
+  });
+
+  it("groups variants, collapses special-folder descendants, and reuses unchanged projections", () => {
+    const pdf = book({ id: 1, fileHash: "pdf", bookId: "merged", title: "A", folderPath: "/library" });
+    const epub = book({ id: 2, fileHash: "epub", bookId: "merged", title: "A", fileType: "epub", folderPath: "/library" });
+    const nested = book({ id: 3, fileHash: "nested", folderPath: "/library/_special/nested" });
+    const special = book({ id: -1, fileHash: "merged-folder:/library/_special", syntheticFolderType: "merged" });
+    const input = {
+      section: "synced" as const,
+      books: [pdf, epub, nested],
+      specialFolderBooks: [special],
+      specialFolderPaths: ["/library/_special"],
+      collapseSpecialFolders: true,
+      search: "",
+      fileTypes: ["all" as const],
+      sort: "title_asc" as const,
+      previousCache: new Map(),
+    };
+    const first = buildDisplayBooks(input);
+    expect(first.books.map(({ fileHash }) => fileHash)).toEqual(["pdf", special.fileHash]);
+    expect(first.books[0].mergedBooks).toEqual([pdf, epub]);
+    const second = buildDisplayBooks({ ...input, previousCache: first.cache });
+    expect(second.books[0]).toBe(first.books[0]);
+  });
+
+  it("leaves USB books untouched and does not include special folders outside the synced section", () => {
+    const original = [book()];
+    const input = {
+      section: "usb" as const,
+      books: original,
+      specialFolderBooks: [book({ fileHash: "special" })],
+      specialFolderPaths: [],
+      collapseSpecialFolders: false,
+      search: "",
+      fileTypes: ["all" as const],
+      sort: "title_asc" as const,
+      previousCache: new Map(),
+    };
+    expect(buildDisplayBooks(input).books).toBe(original);
+    expect(buildDisplayBooks({ ...input, section: "unsynced" }).books).toEqual(original);
   });
 });
