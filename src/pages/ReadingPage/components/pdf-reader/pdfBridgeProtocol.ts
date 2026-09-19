@@ -53,7 +53,7 @@ export type PdfViewerEvent =
   | { version: 1; type: typeof EVT_STATE_CHANGED; state: PdfViewState }
   | { version: 1; type: typeof EVT_RESTORE_COMPLETE; state: PdfViewState | null }
   | { version: 1; type: typeof EVT_CREATE_CONCEPT; payload: PdfSelectionPayload }
-  | { version: 1; type: typeof EVT_OUTLINE_LOADED; outline: OutlineNode[]; requestId?: string };
+  | { version: 1; type: typeof EVT_OUTLINE_LOADED; outline: OutlineNode[]; requestId?: string; error?: boolean; message?: string };
 
 function isOutlineList(value: unknown): value is OutlineNode[] {
   return Array.isArray(value) && value.every(isOutlineNode);

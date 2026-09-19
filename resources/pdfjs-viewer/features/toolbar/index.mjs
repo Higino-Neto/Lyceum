@@ -5,6 +5,9 @@ import { EVT_READY, EVT_TOGGLE_ANNOTATIONS, EVT_TOGGLE_CHAPTERS, CMD_SET_ANNOTAT
 // Mirrors the flag used by the CSS to show the annotation toggle button.
 export const ANNOTATION_BUTTON_ID = "lyceumAnnotationToggleButton";
 
+// PDF.js SidebarView.NONE (module-scoped in the viewer; never imported here).
+const SIDEBAR_VIEW_NONE = 0;
+
 export function installToolbarFeature({ bus, facade, title = "" }) {
   let chapterInstalled = false;
   let annotationInstalled = false;
@@ -16,6 +19,51 @@ export function installToolbarFeature({ bus, facade, title = "" }) {
     }
 
     document.getElementById("outerContainer")?.classList.remove("sidebarMoving", "sidebarOpen");
+  }
+
+  // Lyceum owns the chapter panel, so the native PDF.js sidebar must never
+  // open: PDF.js auto-opens it through setInitialView/preferences and through
+  // page-mode hashes (switchView with forceOpen), so both are neutralized.
+  function neutralizeNativeSidebar(app) {
+    const sidebar = app?.pdfSidebar;
+    if (!sidebar || app.__lyceumSidebarNeutralized) {
+      return;
+    }
+    app.__lyceumSidebarNeutralized = true;
+
+    const closeAndStayClosed = () => {
+      closeNativeSidebar(app);
+      if (typeof sidebar.switchView === "function" && sidebar.active !== SIDEBAR_VIEW_NONE) {
+        try {
+          sidebar.switchView(SIDEBAR_VIEW_NONE);
+        } catch {
+          // Best-effort: the overlay must never break during viewer lifecycle.
+        }
+      }
+    };
+
+    const originalSwitchView = sidebar.switchView.bind(sidebar);
+    sidebar.switchView = function (view, forceOpen = false, ...rest) {
+      if (forceOpen === true) {
+        return originalSwitchView(SIDEBAR_VIEW_NONE);
+      }
+      return originalSwitchView(view, false, ...rest);
+    };
+
+    if (typeof sidebar.setInitialView === "function") {
+      const originalSetInitialView = sidebar.setInitialView.bind(sidebar);
+      sidebar.setInitialView = function (view = SIDEBAR_VIEW_NONE) {
+        if (view === SIDEBAR_VIEW_NONE) {
+          return originalSetInitialView(view);
+        }
+        closeAndStayClosed();
+        return undefined;
+      };
+    }
+
+    closeAndStayClosed();
+    app.eventBus?.on?.("documentloaded", closeAndStayClosed);
+    app.eventBus?.on?.("pagesinit", closeAndStayClosed);
   }
 
   function updateLyceumChapterButton(open) {
@@ -202,6 +250,7 @@ export function installToolbarFeature({ bus, facade, title = "" }) {
       installChapterToggleBridge();
       installAnnotationToggleBridge();
       wrapNativeSidebarToggle();
+      neutralizeNativeSidebar(readyApp);
       closeNativeSidebar(readyApp);
       readyApp.eventBus?.on?.("documentloaded", () => facade.applyLyceumTitle(title));
     },

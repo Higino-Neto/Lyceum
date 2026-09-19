@@ -60,10 +60,12 @@ export function createBus({ post = null, matchesParent = isParentEvent } = {}) {
         try {
           const result = handler(data);
           if (result && typeof result.then === "function") {
-            result.catch(() => {});
+            result.catch(error => {
+              console.warn(`[lyceum-bus] command "${data.type}" rejected:`, error);
+            });
           }
-        } catch {
-          // A misbehaving feature must not take the whole reader down.
+        } catch (error) {
+          console.warn(`[lyceum-bus] command "${data.type}" threw:`, error);
         }
       }
     },

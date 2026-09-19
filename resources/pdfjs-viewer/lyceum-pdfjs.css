@@ -186,3 +186,21 @@ body {
     opacity: 0.25;
   }
 }
+
+/* Native PDF.js sidebar neutralization.
+   Lyceum owns the chapter panel: the built-in outline/thumbnails sidebar and
+   its secondary-toolbar buttons are never useful, so they are removed from
+   the layout. The sidebar toggle button is kept (it is repurposed as the
+   "Capítulos" control). */
+#sidebarContainer,
+#viewThumbnail,
+#viewOutline,
+#viewAttachments,
+#viewLayers,
+#currentOutlineItem {
+  display: none !important;
+}
+
+#sidebarToggleButton.pdfSidebarNotification::after {
+  display: none !important;
+}

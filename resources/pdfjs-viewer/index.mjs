@@ -12,6 +12,7 @@ import { installSelectionFeature } from "./features/selection/index.mjs";
 import { installAnnotationsFeature } from "./features/annotations/index.mjs";
 import { installNavigationFeature } from "./features/navigation/index.mjs";
 import { installOutlineFeature } from "./features/outline/index.mjs";
+import { installZoomFeature } from "./features/zoom/index.mjs";
 import { installStateEventsFeature } from "./features/state-events/index.mjs";
 
 const params = new URLSearchParams(window.location.search);
@@ -33,6 +34,7 @@ document.addEventListener(
     installAnnotationsFeature({ bus, state });
     const navigationHandle = installNavigationFeature({ bus, facade: fac });
     installOutlineFeature({ bus, facade: fac });
+    installZoomFeature({ facade: fac });
 
     // Diagnostics kept for scripts/smoke-pdfjs-electron.cjs.
     globalThis.LyceumPdfJs = {

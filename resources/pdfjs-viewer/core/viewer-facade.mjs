@@ -179,37 +179,127 @@ export function createViewerFacade({
     };
   }
 
-  async function getOutline() {
-    const app = await whenReady();
-    if (!app?.pdfDocument) return null;
-    const outline = await app.pdfDocument.getOutline().catch(() => null);
-    if (!outline) return [];
+  // Walks raw PDF.js outline items (title + dest + items) into the Lyceum
+  // tree shape, resolving each destination to a 1-based page number.
+  async function walkRawOutline(app, items) {
+    const document = app?.pdfDocument;
+    if (!document) {
+      return [];
+    }
 
     async function resolvePage(destination) {
       if (!destination) return null;
       try {
         const explicit = typeof destination === "string"
-          ? await app.pdfDocument.getDestination(destination)
+          ? await document.getDestination(destination)
           : destination;
         if (!Array.isArray(explicit) || explicit.length === 0) return null;
         const target = explicit[0];
         if (typeof target === "number") return target + 1;
-        const index = await app.pdfDocument.getPageIndex(target);
+        const index = await document.getPageIndex(target);
         return Number.isInteger(index) ? index + 1 : null;
       } catch {
         return null;
       }
     }
 
-    async function walk(items) {
-      return Promise.all(items.map(async item => ({
+    async function walk(list) {
+      return Promise.all(list.map(async item => ({
         title: item.title || "(sem título)",
         page: await resolvePage(item.dest),
-        items: await walk(item.items || []),
+        items: await walk(Array.isArray(item.items) ? item.items : []),
       })));
     }
 
-    return walk(outline);
+    return walk(items);
+  }
+
+  async function getOutline() {
+    const app = await whenReady();
+    if (!app?.pdfDocument) return null;
+    const outline = await app.pdfDocument.getOutline().catch(() => null);
+    if (!outline) return [];
+    return walkRawOutline(app, outline);
+  }
+
+  // Second source: the OutlineView widget already rendered an outline for the
+  // current document (pdfDocument.getOutline() parsed just-in-time at that
+  // point). Used when the direct read is empty but the viewer clearly owns one.
+  async function getOutlineFromOutlineView(app) {
+    const raw = app?.pdfOutlineViewer?._outline;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return null;
+    }
+    return walkRawOutline(app, raw);
+  }
+
+  // Re-reads the outline until it is available. The viewer dispatches
+  // "outlineloaded" for every document once the first page renders, with an
+  // outlineCount of 0 for documents without bookmarks and > 0 for those that
+  // have one. A count of 0 is authoritative: the document finished rendering
+  // and simply has no outline, so we answer immediately instead of retrying.
+  // A positive count that contradicts an empty direct read is suspicious, so we
+  // retry and fall back to the already-rendered OutlineView widget.
+  async function getOutlineWhenReady({ timeoutMs = 9000, signalSeen = false } = {}) {
+    const read = async () => {
+      const outline = await getOutline();
+      return Array.isArray(outline) && outline.length > 0 ? outline : null;
+    };
+
+    // Second source used when the direct read stays empty but the viewer
+    // clearly rendered an outline for the current document.
+    const readOrFallback = async () => {
+      const outline = await read();
+      if (outline) {
+        return outline;
+      }
+      const app = await whenReady();
+      const rendered = await getOutlineFromOutlineView(app);
+      return rendered && rendered.length > 0 ? rendered : null;
+    };
+
+    let resolved = await read();
+
+    if (!resolved && !signalSeen) {
+      const app = await whenReady();
+      if (app?.eventBus) {
+        resolved = await new Promise(resolve => {
+          let settled = false;
+          const cleanup = () => {
+            if (typeof app.eventBus.off === "function") {
+              app.eventBus.off("outlineloaded", onSignal);
+            }
+            clearTimeout(timer);
+          };
+          const onSignal = async ({ outlineCount } = {}) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (outlineCount === 0) {
+              // The viewer rendered the outline and it is empty: the document
+              // has no bookmarks, so an empty direct read is authoritative.
+              resolve(await read());
+              return;
+            }
+            resolve(await readOrFallback());
+          };
+          app.eventBus.on("outlineloaded", onSignal);
+          const timer = setTimeout(async () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(await readOrFallback());
+          }, timeoutMs);
+        });
+      }
+    }
+
+    for (let attempt = 0; !resolved && attempt < 4; attempt += 1) {
+      await wait(120 * (attempt + 1));
+      resolved = await readOrFallback();
+    }
+
+    return resolved ?? [];
   }
 
   function applyLyceumTitle(title) {
@@ -232,6 +322,8 @@ export function createViewerFacade({
     applyPageAndScroll,
     getState,
     getOutline,
+    getOutlineFromOutlineView,
+    getOutlineWhenReady,
     applyLyceumTitle,
   };
 }

@@ -63,6 +63,11 @@ thumbnail and conversion consumers must be checked during any upgrade.
 - [x] Serve normal PDFs by path/range without requiring a React ArrayBuffer.
 - [x] Bound remaining byte caches and stream non-range file responses.
 - [x] Add contract and cache regression tests.
+- [x] Harden the outline read: never trust an empty result before the viewer
+      signals `outlineloaded`; surface failures over an `error` channel instead
+      of silently reporting "no chapters"; the tracker retries once on empty.
+- [x] Disable the native PDF.js sidebar (layout + `PDFSidebar` JS neutralization);
+      the "Capítulos" button is the repurposed `#sidebarToggleButton`.
 - [x] Add an Electron smoke test that checks a real browser PDF.js worker.
 - [ ] Run the packaged reader smoke test on Windows and Linux before release.
 

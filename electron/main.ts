@@ -2087,6 +2087,8 @@ async function handlePdfjsAssetRequest(request: Electron.ProtocolRequest): Promi
   return createLocalFileResponse(assetPath, contentType, request);
 }
 
+const lyceumPdfDiagnosed = new Set<string>();
+
 function parseLyceumPdfHash(requestUrl: string): string | null {
   try {
     const url = new URL(requestUrl);
@@ -2101,6 +2103,22 @@ async function handleLyceumPdfRequest(request: Electron.ProtocolRequest): Promis
   const fileHash = parseLyceumPdfHash(request.url);
   if (!fileHash) {
     return { statusCode: 404 };
+  }
+
+  if (!lyceumPdfDiagnosed.has(fileHash)) {
+    const openedPath = getPdfSource(fileHash);
+    const sourcePreview = openedPath && fs.existsSync(openedPath)
+      ? `path=${openedPath}`
+      : `buffer=${getCachedPdfBuffer(fileHash)?.length ?? "none"}`;
+    try {
+      const size = openedPath && fs.existsSync(openedPath)
+        ? (await fs.promises.stat(openedPath)).size
+        : getCachedPdfBuffer(fileHash)?.length ?? 0;
+      console.warn(`[lyceum-pdf] serving ${fileHash} -> ${sourcePreview} size=${size}`);
+    } catch {
+      console.warn(`[lyceum-pdf] serving ${fileHash} -> ${sourcePreview} size=unknown`);
+    }
+    lyceumPdfDiagnosed.add(fileHash);
   }
 
   const openedPath = getPdfSource(fileHash);

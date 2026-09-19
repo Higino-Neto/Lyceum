@@ -105,6 +105,7 @@ export function useChapterTracker(
   );
   const outlineRef = useRef<ChapterNode[] | null>(null);
   const requestIdRef = useRef<string | null>(null);
+  const retriedOnceRef = useRef<boolean>(false);
 
   useEffect(() => {
     outlineRef.current = outline;
@@ -126,6 +127,7 @@ export function useChapterTracker(
 
     const requestId = String(Date.now());
     requestIdRef.current = requestId;
+    retriedOnceRef.current = false;
     setLoading(true);
     setError(null);
     channel.postToViewer(CMD_GET_OUTLINE, { requestId });
@@ -139,11 +141,29 @@ export function useChapterTracker(
       if (data.requestId !== undefined && data.requestId !== requestIdRef.current) {
         return;
       }
+
+      if (data.error) {
+        setOutline([]);
+        setLoading(false);
+        setError(data.message || "Não foi possível ler a estrutura de capítulos deste PDF.");
+        return;
+      }
+
+      if (data.outline.length === 0 && !retriedOnceRef.current && documentReady) {
+        // The bridge may have answered before the outline was parsed. Ask once
+        // again, idempotently, before concluding the document has no chapters.
+        retriedOnceRef.current = true;
+        const retryId = `${requestIdRef.current ?? ""}:retry`;
+        requestIdRef.current = retryId;
+        channel.postToViewer(CMD_GET_OUTLINE, { requestId: retryId });
+        return;
+      }
+
       setOutline(buildTree(data.outline ?? [], "", 0));
       setLoading(false);
       setError(null);
     }),
-    [channel],
+    [channel, documentReady],
   );
 
   useEffect(() => {

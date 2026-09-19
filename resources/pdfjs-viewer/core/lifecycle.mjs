@@ -16,5 +16,8 @@ export function configureBeforeRun() {
 
 export function onViewerBooted(callback) {
   const app = globalThis.PDFViewerApplication ?? null;
-  app?.initializedPromise?.then(callback).catch(() => {});
+  // PDF.js resolves initializedPromise with no value, so hand the app object
+  // to the callback explicitly. Callers in this overlay rely on receiving it
+  // (eventBus wiring, reset of per-document state like the zoom accumulators).
+  app?.initializedPromise?.then(() => callback(app)).catch(() => {});
 }
