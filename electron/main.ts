@@ -118,6 +118,10 @@ const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 const PRELOAD_ENTRY = path.join(MAIN_DIST, "preload.cjs");
 const APP_PROTOCOL = "lyceum";
 const PASSWORD_RESET_DEEP_LINK_ROUTE = "/reset-password";
+// NSIS/Windows may not preserve custom command-line arguments when launching
+// the installed executable. The release smoke test sets this environment flag
+// explicitly, while retaining the argument for local manual invocations.
+const isPackagedSmokeTest = process.env.LYCEUM_SMOKE_TEST === "1" || process.argv.includes("--lyceum-smoke-test");
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -129,6 +133,14 @@ if (VITE_DEV_SERVER_URL) {
     path.join(os.tmpdir(), `lyceum-electron-dev-cache-${process.pid}`),
   );
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+}
+
+if (isPackagedSmokeTest) {
+  // GitHub's Windows runner has no interactive desktop. These must be set
+  // before app.whenReady() so Electron can initialize the real main process.
+  app.commandLine.appendSwitch("headless");
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-software-rasterizer");
 }
 
 let win: ElectronBrowserWindow | null = null;
@@ -3448,7 +3460,7 @@ async function runPackagedSmokeTest() {
 app.whenReady().then(async () => {
   logStartupEnvironment();
 
-  if (process.argv.includes("--lyceum-smoke-test")) {
+  if (isPackagedSmokeTest) {
     await runPackagedSmokeTest();
     return;
   }

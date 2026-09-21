@@ -15,7 +15,9 @@ $report = Join-Path $testRoot "report.json"
 New-Item -ItemType Directory -Path $userData -Force | Out-Null
 
 $previousReport = $env:LYCEUM_SMOKE_TEST_REPORT
+$previousSmokeTest = $env:LYCEUM_SMOKE_TEST
 $env:LYCEUM_SMOKE_TEST_REPORT = $report
+$env:LYCEUM_SMOKE_TEST = "1"
 try {
   if (-not [string]::IsNullOrEmpty($Installer)) {
     $resolvedInstaller = (Resolve-Path $Installer).Path
@@ -41,7 +43,7 @@ try {
 
   $userDataArgument = '--user-data-dir="' + $userData + '"'
   $process = Start-Process -FilePath $resolvedExecutable `
-    -ArgumentList "--lyceum-smoke-test",$userDataArgument `
+    -ArgumentList $userDataArgument `
     -PassThru
 
   if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
@@ -70,6 +72,7 @@ try {
   Write-Host "Windows compatibility smoke test passed: $reportText"
 } finally {
   $env:LYCEUM_SMOKE_TEST_REPORT = $previousReport
+  $env:LYCEUM_SMOKE_TEST = $previousSmokeTest
   $uninstaller = Join-Path $testRoot "installed\Uninstall Lyceum.exe"
   if (Test-Path $uninstaller) {
     $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList "/S" -PassThru
