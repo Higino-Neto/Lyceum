@@ -9,7 +9,10 @@ const packages = [
   "tar@6.2.1",
 ];
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const result = spawnSync(npm, ["install", "--no-save", "--package-lock=false", ...packages], {
+// Do not compile against the runner's Node.js version. electron-builder rebuilds
+// native modules for Electron 22 during packaging; compiling here would target
+// Node 22 instead and requires a host-specific Visual Studio toolchain.
+const result = spawnSync(npm, ["install", "--no-save", "--package-lock=false", "--ignore-scripts", ...packages], {
   stdio: "inherit",
   shell: process.platform === "win32",
 });

@@ -89,7 +89,9 @@ jobs:
   build-windows-legacy:
     name: Windows 7/8/8.1 Legacy (x64)
     needs: validate-release
-    runs-on: windows-latest
+    # windows-2022 retains the Visual Studio 2022 toolchain required when
+    # electron-builder rebuilds native modules for Electron 22.
+    runs-on: windows-2022
     env:
       LYCEUM_LEGACY_WINDOWS: "1"
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
