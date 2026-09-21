@@ -282,7 +282,7 @@ Reader	epubjs
 Testing	vitest 1.4, @vitest/coverage-v8, @testing-library/react, @testing-library/jest-dom, @testing-library/user-event, jsdom
 Linting	eslint 8, @typescript-eslint/*, eslint-plugin-react-hooks, eslint-plugin-react-refresh
 Types	@types/react, @types/react-dom, @types/better-sqlite3, @types/chokidar
-Electron	electron 30, electron-icon-builder
+Electron	electron 30
 7. Platform-Specific Code and Configurations
 The project has significant platform-specific code across three target platforms:
 Desktop -- Windows:

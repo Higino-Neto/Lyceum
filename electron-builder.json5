@@ -56,12 +56,6 @@
     "!**/node_modules/better-sqlite3/{deps,src}/**",
     "!**/node_modules/sharp/{src,install}/**"
   ],
-  "mac": {
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-${version}-macOS-${arch}.${ext}"
-  },
   "win": {
     "target": ["nsis"],
     "icon": "resources/icons/icon.ico",
@@ -81,6 +75,7 @@
     ],
     "artifactName": "${productName}-${version}-Linux-x86_64.${ext}",
     "category": "Education",
+    "maintainer": "Higino-Neto <tawl.tack@gmail.com>",
     "icon": "resources/icons/icon_512.png",
     "executableName": "lyceum"
   },

@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: 20
+  NODE_VERSION: 22
 
 jobs:
   validate-release:
@@ -69,11 +69,11 @@ jobs:
       - run: npx vitest run src/test/desktopReleaseResolver.test.ts
       - run: npm run build
       - name: Package x64 without publishing
-        run: npx electron-builder --config electron-builder.json5 --win nsis --x64 --publish never -c.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-x64
+        run: npx electron-builder --config electron-builder.json5 --win nsis --x64 --publish never --config.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-x64
       - name: Package ARM64 with an architecture-specific update feed
         shell: pwsh
         run: |
-          npx electron-builder --config electron-builder.json5 --win nsis --arm64 --publish never -c.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-arm64
+          npx electron-builder --config electron-builder.json5 --win nsis --arm64 --publish never --config.directories.output=release/${{ needs.validate-release.outputs.version }}/windows-arm64
           Move-Item "release/${{ needs.validate-release.outputs.version }}/windows-arm64/latest.yml" "release/${{ needs.validate-release.outputs.version }}/windows-arm64/latest-arm64.yml"
       - uses: actions/upload-artifact@v4
         with:
@@ -103,8 +103,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Install Node 16-compatible runtime dependencies
-        run: node scripts/release/prepare-legacy-dependencies.mjs
       - name: Verify public runtime configuration
         shell: pwsh
         run: |
@@ -113,6 +111,8 @@ jobs:
           }
       - run: npx vitest run src/test/desktopReleaseResolver.test.ts
       - run: npm run build
+      - name: Install Node 16-compatible runtime dependencies
+        run: node scripts/release/prepare-legacy-dependencies.mjs
       - run: npm run release:verify-legacy
       - name: Package Electron 22 without updater metadata
         run: npx electron-builder --config electron-builder.legacy.json5 --win nsis --x64 --publish never
@@ -165,43 +165,6 @@ jobs:
             release/${{ needs.validate-release.outputs.version }}/*.rpm
             release/${{ needs.validate-release.outputs.version }}/*.blockmap
             release/${{ needs.validate-release.outputs.version }}/latest-linux.yml
-
-  build-macos:
-    name: "macOS (universal: Intel + Apple silicon)"
-    needs: validate-release
-    runs-on: macos-latest
-    env:
-      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.validate-release.outputs.tag }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - name: Verify public runtime configuration
-        run: |
-          test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" || {
-            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" >&2
-            exit 1
-          }
-      - run: npx vitest run src/test/desktopReleaseResolver.test.ts
-      - run: npm run build
-      - name: Package universal application without publishing
-        run: npx electron-builder --config electron-builder.json5 --mac dmg --universal --publish never
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-macos
-          if-no-files-found: error
-          retention-days: 3
-          path: |
-            release/${{ needs.validate-release.outputs.version }}/*.dmg
-            release/${{ needs.validate-release.outputs.version }}/*.zip
-            release/${{ needs.validate-release.outputs.version }}/*.blockmap
-            release/${{ needs.validate-release.outputs.version }}/latest-mac.yml
 
   build-android:
     name: Android (ARM64 + universal)
@@ -275,7 +238,7 @@ jobs:
 
   publish-release:
     name: Publish one atomic GitHub Release
-    needs: [validate-release, build-windows, build-windows-legacy, build-linux, build-macos, build-android]
+    needs: [validate-release, build-windows, build-windows-legacy, build-linux, build-android]
     runs-on: ubuntu-22.04
     permissions:
       contents: write

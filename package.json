@@ -2,7 +2,11 @@
   "name": "lyceum",
   "private": true,
   "version": "1.8.29",
-  "author": "Higino-Neto",
+  "author": {
+    "name": "Higino-Neto",
+    "email": "tawl.tack@gmail.com"
+  },
+  "description": "Lyceum is a desktop and mobile reading companion.",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-electron.mjs",
@@ -100,7 +104,6 @@
     "autoprefixer": "^10.4.24",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
-    "electron-icon-builder": "^2.0.1",
     "epubjs": "^0.3.93",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",

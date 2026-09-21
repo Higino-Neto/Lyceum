@@ -62,19 +62,6 @@ describe("desktop release resolution", () => {
     expect(result?.feedUrl).toBe("https://example.test/release");
   });
 
-  it("selects the macOS update feed only when a macOS package is present", () => {
-    const result = resolveDesktopRelease([{
-      tag_name: "v1.9.0",
-      assets: [
-        { name: "latest-mac.yml", browser_download_url: "https://example.test/release/latest-mac.yml" },
-        { name: "Lyceum-1.9.0-macOS-universal.dmg", browser_download_url: "https://example.test/release/app.dmg" },
-      ],
-    }], "darwin");
-
-    expect(result?.metadata.name).toBe("latest-mac.yml");
-    expect(result?.feedUrl).toBe("https://example.test/release");
-  });
-
   it("keeps Windows ARM64 on its own metadata feed", () => {
     const result = resolveDesktopRelease([{
       tag_name: "v1.9.0",
