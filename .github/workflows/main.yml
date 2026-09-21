@@ -167,7 +167,7 @@ jobs:
             release/${{ needs.validate-release.outputs.version }}/latest-linux.yml
 
   build-macos:
-    name: macOS (universal: Intel + Apple silicon)
+    name: "macOS (universal: Intel + Apple silicon)"
     needs: validate-release
     runs-on: macos-latest
     env:
