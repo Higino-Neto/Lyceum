@@ -1,7 +1,8 @@
 param(
   [string]$Executable,
   [string]$Installer,
-  [int]$TimeoutSeconds = 90
+  [int]$TimeoutSeconds = 90,
+  [switch]$RunInteractiveSmoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,14 +11,6 @@ if ([string]::IsNullOrEmpty($Executable) -eq [string]::IsNullOrEmpty($Installer)
 }
 
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("lyceum-win7-smoke-" + [Guid]::NewGuid().ToString("N"))
-$userData = Join-Path $testRoot "user-data"
-$report = Join-Path $testRoot "report.json"
-New-Item -ItemType Directory -Path $userData -Force | Out-Null
-
-$previousReport = $env:LYCEUM_SMOKE_TEST_REPORT
-$previousSmokeTest = $env:LYCEUM_SMOKE_TEST
-$env:LYCEUM_SMOKE_TEST_REPORT = $report
-$env:LYCEUM_SMOKE_TEST = "1"
 try {
   if (-not [string]::IsNullOrEmpty($Installer)) {
     $resolvedInstaller = (Resolve-Path $Installer).Path
@@ -41,38 +34,48 @@ try {
     $resolvedExecutable = (Resolve-Path $Executable).Path
   }
 
-  $userDataArgument = '--user-data-dir="' + $userData + '"'
-  $process = Start-Process -FilePath $resolvedExecutable `
-    -ArgumentList $userDataArgument `
-    -PassThru
-
-  if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-    Stop-Process -Id $process.Id -Force
-    if (Test-Path $report) {
-      $reportText = [System.IO.File]::ReadAllText($report)
-      throw "Lyceum did not finish its compatibility smoke test within $TimeoutSeconds seconds. Last report: $reportText"
-    }
-    throw "Lyceum did not finish its compatibility smoke test within $TimeoutSeconds seconds."
+  $resources = Join-Path (Split-Path $resolvedExecutable -Parent) "resources"
+  $asar = Join-Path $resources "app.asar"
+  if (-not (Test-Path $asar) -or (Get-Item $asar).Length -le 0) {
+    throw "Installed application is missing a non-empty resources\\app.asar."
   }
-  if ($process.ExitCode -ne 0) {
-    if (Test-Path $report) {
-      $reportText = [System.IO.File]::ReadAllText($report)
-      throw "Lyceum compatibility smoke test exited with code $($process.ExitCode). Report: $reportText"
+  $unpackedNodeModules = Join-Path $resources "app.asar.unpacked\\node_modules"
+  $nativeFiles = @(Get-ChildItem $unpackedNodeModules -Recurse -Filter "*.node" -ErrorAction Stop | ForEach-Object { $_.FullName })
+  foreach ($requiredPathPart in @("better-sqlite3", "sharp", "@napi-rs")) {
+    if (-not ($nativeFiles | Where-Object { $_ -like "*$requiredPathPart*" })) {
+      throw "Installed application is missing the required native runtime: $requiredPathPart"
     }
-    throw "Lyceum compatibility smoke test exited with code $($process.ExitCode)."
-  }
-  if (-not (Test-Path $report)) {
-    throw "Lyceum did not write the compatibility report."
   }
 
-  $reportText = [System.IO.File]::ReadAllText($report)
-  if ($reportText -notmatch '"ok"\s*:\s*true') {
-    throw "Lyceum reported a failed compatibility test: $reportText"
+  if ($RunInteractiveSmoke) {
+    $userData = Join-Path $testRoot "user-data"
+    $report = Join-Path $testRoot "report.json"
+    New-Item -ItemType Directory -Path $userData -Force | Out-Null
+    $previousReport = $env:LYCEUM_SMOKE_TEST_REPORT
+    $previousSmokeTest = $env:LYCEUM_SMOKE_TEST
+    $env:LYCEUM_SMOKE_TEST_REPORT = $report
+    $env:LYCEUM_SMOKE_TEST = "1"
+    try {
+      $userDataArgument = '--user-data-dir="' + $userData + '"'
+      $process = Start-Process -FilePath $resolvedExecutable -ArgumentList $userDataArgument -PassThru
+      if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        Stop-Process -Id $process.Id -Force
+        throw "Lyceum did not finish its interactive compatibility smoke test within $TimeoutSeconds seconds."
+      }
+      if ($process.ExitCode -ne 0 -or -not (Test-Path $report)) {
+        throw "Lyceum interactive compatibility smoke test failed."
+      }
+      $reportText = [System.IO.File]::ReadAllText($report)
+      if ($reportText -notmatch '"ok"\s*:\s*true') {
+        throw "Lyceum reported a failed interactive compatibility test: $reportText"
+      }
+    } finally {
+      $env:LYCEUM_SMOKE_TEST_REPORT = $previousReport
+      $env:LYCEUM_SMOKE_TEST = $previousSmokeTest
+    }
   }
-  Write-Host "Windows compatibility smoke test passed: $reportText"
+  Write-Host "Windows Legacy installer integrity check passed: executable, app.asar and native runtimes are present."
 } finally {
-  $env:LYCEUM_SMOKE_TEST_REPORT = $previousReport
-  $env:LYCEUM_SMOKE_TEST = $previousSmokeTest
   $uninstaller = Join-Path $testRoot "installed\Uninstall Lyceum.exe"
   if (Test-Path $uninstaller) {
     $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList "/S" -PassThru

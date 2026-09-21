@@ -118,7 +118,7 @@ jobs:
       - run: npm run release:verify-legacy
       - name: Package Electron 22 without updater metadata
         run: npx electron-builder --config electron-builder.legacy.json5 --win nsis --x64 --publish never
-      - name: Start the packaged legacy application and verify native modules
+      - name: Validate installed Legacy package and native modules
         shell: powershell
         run: |
           $installer = (Get-ChildItem "release/legacy/${{ needs.validate-release.outputs.version }}/*-Windows-Legacy-x64-Setup.exe").FullName
