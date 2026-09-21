@@ -12,9 +12,11 @@ describe("global release contract", () => {
     const artifacts = expectedArtifacts("1.9.0");
     expect(artifacts).toContain("Lyceum-1.9.0-Windows-Legacy-x64-Setup.exe");
     expect(artifacts).toContain("Lyceum-1.9.0-Linux-x86_64.rpm");
+    expect(artifacts).toContain("Lyceum-1.9.0-macOS-universal.dmg");
     expect(artifacts).toContain("Lyceum-1.9.0-Android-universal.apk");
     expect(artifacts).toContain("latest.yml");
     expect(artifacts).toContain("latest-arm64.yml");
     expect(artifacts).toContain("latest-linux.yml");
+    expect(artifacts).toContain("latest-mac.yml");
   });
 });

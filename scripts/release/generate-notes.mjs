@@ -42,6 +42,12 @@ ${changelog}
 | \`Lyceum-${version}-Linux-x86_64.deb\` | Debian, Ubuntu and derivatives |
 | \`Lyceum-${version}-Linux-x86_64.rpm\` | Fedora, RHEL and derivatives |
 
+### macOS
+
+| File | Architecture |
+|---|---|
+| \`Lyceum-${version}-macOS-universal.dmg\` | Intel and Apple silicon |
+
 ### Android
 
 | File | Architecture |
@@ -56,6 +62,7 @@ Verify downloaded files against \`SHA256SUMS.txt\`.
 - Windows 10/11 for the recommended desktop build.
 - Windows 7/8/8.1 for the compatibility-limited Legacy build.
 - A 64-bit x86 Linux distribution for the Linux packages.
+- macOS on Intel or Apple silicon for the universal desktop package.
 - Android 7.0 (API 24) or newer for Android.
 `;
 

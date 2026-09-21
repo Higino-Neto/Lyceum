@@ -26,7 +26,7 @@ for (const name of expectedArtifacts(version)) {
   if (!byName.has(name)) throw new Error(`Required release artifact is missing: ${name}`);
 }
 
-const distributable = /\.(?:exe|AppImage|deb|rpm|apk|zip)$/;
+const distributable = /\.(?:exe|dmg|AppImage|deb|rpm|apk|zip)$/;
 for (const name of byName.keys()) {
   if (distributable.test(name) && !name.includes(version)) {
     throw new Error(`Distributable does not contain release version ${version}: ${name}`);
@@ -48,6 +48,7 @@ for (const [metadataName, packageName] of [
   ["latest.yml", `Lyceum-${version}-Windows-x64-Setup.exe`],
   ["latest-arm64.yml", `Lyceum-${version}-Windows-arm64-Setup.exe`],
   ["latest-linux.yml", `Lyceum-${version}-Linux-x86_64.AppImage`],
+  ["latest-mac.yml", `Lyceum-${version}-macOS-universal.zip`],
 ]) {
   const metadata = readFileSync(byName.get(metadataName), "utf8");
   if (!metadata.includes(packageName)) {

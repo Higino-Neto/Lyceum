@@ -166,6 +166,43 @@ jobs:
             release/${{ needs.validate-release.outputs.version }}/*.blockmap
             release/${{ needs.validate-release.outputs.version }}/latest-linux.yml
 
+  build-macos:
+    name: macOS (universal: Intel + Apple silicon)
+    needs: validate-release
+    runs-on: macos-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-release.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Verify public runtime configuration
+        run: |
+          test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" || {
+            echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" >&2
+            exit 1
+          }
+      - run: npx vitest run src/test/desktopReleaseResolver.test.ts
+      - run: npm run build
+      - name: Package universal application without publishing
+        run: npx electron-builder --config electron-builder.json5 --mac dmg --universal --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          if-no-files-found: error
+          retention-days: 3
+          path: |
+            release/${{ needs.validate-release.outputs.version }}/*.dmg
+            release/${{ needs.validate-release.outputs.version }}/*.zip
+            release/${{ needs.validate-release.outputs.version }}/*.blockmap
+            release/${{ needs.validate-release.outputs.version }}/latest-mac.yml
+
   build-android:
     name: Android (ARM64 + universal)
     needs: validate-release
@@ -238,7 +275,7 @@ jobs:
 
   publish-release:
     name: Publish one atomic GitHub Release
-    needs: [validate-release, build-windows, build-windows-legacy, build-linux, build-android]
+    needs: [validate-release, build-windows, build-windows-legacy, build-linux, build-macos, build-android]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
