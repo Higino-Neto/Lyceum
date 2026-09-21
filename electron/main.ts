@@ -3361,6 +3361,7 @@ function registerStreamProtocol(
 
 async function runPackagedSmokeTest() {
   const reportPath = process.env.LYCEUM_SMOKE_TEST_REPORT;
+  const smokeStageTimeoutMs = 20_000;
   const report: Record<string, unknown> = {
     platform: process.platform,
     arch: process.arch,
@@ -3371,34 +3372,56 @@ async function runPackagedSmokeTest() {
     appVersion: app.getVersion(),
   };
 
+  const writeReport = () => {
+    if (reportPath) fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+  };
+
+  const runSmokeStage = async <T>(name: string, task: () => Promise<T> | T): Promise<T> => {
+    report.stage = name;
+    writeReport();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        Promise.resolve().then(task),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error(`Smoke test stage timed out after ${smokeStageTimeoutMs} ms: ${name}`)), smokeStageTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  };
+
   try {
-    runStartupStage("SQLite smoke test", () => initDatabase());
-    runStartupStage("library directory smoke test", () => ensureLibraryFolder());
+    await runSmokeStage("SQLite", () => runStartupStage("SQLite smoke test", () => initDatabase()));
+    await runSmokeStage("library directory", () => runStartupStage("library directory smoke test", () => ensureLibraryFolder()));
 
     type SmokeSharp = ((input: {
       create: { width: number; height: number; channels: 4; background: string };
     }) => { png(): { toBuffer(): Promise<Buffer> } }) & { versions?: Record<string, string> };
     const sharp = require("sharp") as SmokeSharp;
-    await sharp({
+    await runSmokeStage("sharp", () => sharp({
       create: { width: 1, height: 1, channels: 4, background: "#000000" },
-    }).png().toBuffer();
+    }).png().toBuffer());
     report.sharp = sharp.versions?.sharp ?? "loaded";
 
-    const canvas = await import("@napi-rs/canvas");
-    canvas.createCanvas(1, 1).getContext("2d").fillRect(0, 0, 1, 1);
+    await runSmokeStage("canvas", async () => {
+      const canvas = await import("@napi-rs/canvas");
+      canvas.createCanvas(1, 1).getContext("2d").fillRect(0, 0, 1, 1);
+    });
     report.canvas = "loaded";
 
-    await checkProcessingWorkers();
+    await runSmokeStage("processing worker health check", () => checkProcessingWorkers());
     const smokePdfPath = path.join(app.getPath("userData"), "compatibility-smoke.pdf");
     const smokePdf = await PDFDocument.create();
     smokePdf.addPage([72, 72]);
     fs.writeFileSync(smokePdfPath, await smokePdf.save());
     try {
-      const inspection = await inspectBookFile({
+      const inspection = await runSmokeStage("processing worker PDF inspection", () => inspectBookFile({
         filePath: smokePdfPath,
         fileType: "pdf",
         includeMetadata: true,
-      });
+      }));
       if (inspection.numPages !== 1) {
         throw new Error(`PDF worker returned ${inspection.numPages} pages for the one-page smoke document`);
       }
@@ -3407,15 +3430,16 @@ async function runPackagedSmokeTest() {
     }
     report.processingWorker = "ready (PDF parsed)";
     report.ok = true;
+    delete report.stage;
     console.info("[SmokeTest] PASS", report);
-    if (reportPath) fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    writeReport();
     disposeProcessingWorkers();
     app.exit(0);
   } catch (error) {
     report.ok = false;
     report.error = error instanceof Error ? error.stack ?? error.message : String(error);
     console.error("[SmokeTest] FAIL", report);
-    if (reportPath) fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    writeReport();
     disposeProcessingWorkers();
     app.exit(1);
   }

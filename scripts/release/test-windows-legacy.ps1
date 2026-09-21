@@ -46,9 +46,17 @@ try {
 
   if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     Stop-Process -Id $process.Id -Force
+    if (Test-Path $report) {
+      $reportText = [System.IO.File]::ReadAllText($report)
+      throw "Lyceum did not finish its compatibility smoke test within $TimeoutSeconds seconds. Last report: $reportText"
+    }
     throw "Lyceum did not finish its compatibility smoke test within $TimeoutSeconds seconds."
   }
   if ($process.ExitCode -ne 0) {
+    if (Test-Path $report) {
+      $reportText = [System.IO.File]::ReadAllText($report)
+      throw "Lyceum compatibility smoke test exited with code $($process.ExitCode). Report: $reportText"
+    }
     throw "Lyceum compatibility smoke test exited with code $($process.ExitCode)."
   }
   if (-not (Test-Path $report)) {
