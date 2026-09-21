@@ -43,7 +43,7 @@ function listFilesRecursive(targetDir) {
   return files;
 }
 
-function verifyPackagedRuntime(appOutDir) {
+function verifyPackagedRuntime(appOutDir, { legacySharp = false } = {}) {
   const resourcesDir = path.join(appOutDir, "resources");
   const asarPath = path.join(resourcesDir, "app.asar");
   if (!fs.existsSync(asarPath)) throw new Error(`[afterPack] app.asar is missing: ${asarPath}`);
@@ -67,14 +67,22 @@ function verifyPackagedRuntime(appOutDir) {
 
   const unpackedModules = path.join(resourcesDir, "app.asar.unpacked", "node_modules");
   const nativeFiles = listFilesRecursive(unpackedModules).filter((file) => file.endsWith(".node"));
-  const requiredNativeFamilies = ["better-sqlite3", `${path.sep}@img${path.sep}`, `${path.sep}@napi-rs${path.sep}`];
+  // sharp 0.32 (the Electron 22/Windows Legacy line) keeps its native binding
+  // below node_modules/sharp. Modern sharp packages it below @img instead.
+  const requiredNativeFamilies = [
+    "better-sqlite3",
+    legacySharp ? `${path.sep}sharp${path.sep}` : `${path.sep}@img${path.sep}`,
+    `${path.sep}@napi-rs${path.sep}`,
+  ];
   for (const family of requiredNativeFamilies) {
     if (!nativeFiles.some((file) => file.includes(family))) {
       throw new Error(`[afterPack] unpacked native runtime is missing for ${family}`);
     }
   }
 
-  console.log(`[afterPack] verified worker bundle and ${nativeFiles.length} unpacked native module(s)`);
+  console.log(
+    `[afterPack] verified worker bundle and ${nativeFiles.length} unpacked native module(s) (${legacySharp ? "legacy" : "modern"} sharp layout)`,
+  );
 }
 
 exports.default = async function afterPack(context) {
@@ -122,5 +130,7 @@ exports.default = async function afterPack(context) {
     console.log(`[afterPack] pruned ${removed.length} packaging artifact(s)`);
   }
 
-  verifyPackagedRuntime(appOutDir);
+  verifyPackagedRuntime(appOutDir, {
+    legacySharp: context.packager.config.electronVersion === "22.3.27",
+  });
 };

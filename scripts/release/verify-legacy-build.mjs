@@ -23,6 +23,11 @@ if (legacyConfig.electronVersion !== "22.3.27") {
   throw new Error(`Legacy Electron must remain pinned to 22.3.27, received ${legacyConfig.electronVersion}`);
 }
 
+const afterPackSource = readFileSync("scripts/electron-after-pack.cjs", "utf8");
+if (!afterPackSource.includes('legacySharp: context.packager.config.electronVersion === "22.3.27"')) {
+  throw new Error("Legacy package must validate sharp's Electron 22 native layout separately from modern @img packages");
+}
+
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = path.join(directory, entry.name);
