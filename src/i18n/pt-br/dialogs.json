@@ -1,0 +1,54 @@
+{
+  "confirm": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar"
+  },
+  "editReading": {
+    "title": "Editar leitura",
+    "fields": {
+      "source": "Livro/Fonte",
+      "pages": "Páginas",
+      "time": "Tempo (min)",
+      "category": "Categoria",
+      "date": "Data"
+    },
+    "selectPlaceholder": "Selecione...",
+    "errors": {
+      "updateFailed": "Erro ao atualizar"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "saving": "Salvando..."
+    }
+  },
+  "importBook": {
+    "title": "Adicionar livro",
+    "description": "Selecione uma opção para importar os arquivos para a biblioteca:",
+    "targetFolderLabel": "Pasta de destino:",
+    "targetFolderRoot": "Raiz da biblioteca",
+    "actions": {
+      "copy": "Copiar",
+      "move": "Mover"
+    }
+  },
+  "setThumbnail": {
+    "title": "Definir capa do livro",
+    "selectedImage": "Imagem selecionada:",
+    "loading": "Carregando...",
+    "previewAlt": "Pré-visualização da capa",
+    "dropzone": "Arraste uma imagem aqui ou clique para escolher",
+    "actions": {
+      "clear": "Remover capa",
+      "cancel": "Cancelar",
+      "apply": "Aplicar"
+    },
+    "modePrompt": "Escolha como aplicar a imagem:",
+    "modes": {
+      "replace": "Substituir",
+      "replaceHint": "Primeira página vira a imagem",
+      "prepend": "Adicionar",
+      "prependHint": "Nova página antes da primeira"
+    }
+  }
+}

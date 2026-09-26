@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   BookWithThumbnail,
   ReadingStatus,
@@ -108,6 +109,7 @@ interface ManualBookDialogProps {
 }
 
 export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose, onSubmit }: ManualBookDialogProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [status, setStatus] = useState<ReadingStatus>(initialStatus);
@@ -157,7 +159,7 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
           >
             {READING_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>

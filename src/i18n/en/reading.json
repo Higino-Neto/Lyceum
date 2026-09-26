@@ -1,0 +1,55 @@
+{
+  "status": {
+    "wantToRead": "To read",
+    "reading": "Reading",
+    "paused": "Paused",
+    "read": "Finished"
+  },
+  "bookSearch": {
+    "placeholder": "Search or type a book...",
+    "searching": "Searching...",
+    "empty": "No books found. You can type the title manually.",
+    "apiUnavailable": "The API is temporarily unavailable. You can type the title manually.",
+    "local": "Local",
+    "external": "External"
+  },
+  "errors": {
+    "searchFailed": "Failed to search books",
+    "createBookFailed": "Failed to create/update book \"{{title}}\": {{reason}}",
+    "createEntryFailed": "Failed to record reading \"{{title}}\": {{reason}}",
+    "unknown": "Unknown error"
+  },
+  "add": {
+    "columns": {
+      "work": "Work",
+      "pagesShort": "Pp.",
+      "time": "Time",
+      "category": "Category",
+      "date": "Date"
+    },
+    "pagesPlaceholder": "0",
+    "timePlaceholder": "min",
+    "selectCategory": "Select",
+    "actions": {
+      "duplicateRow": "Duplicate row",
+      "removeRow": "Remove row",
+      "addAnother": "Add another reading"
+    },
+    "myBooks": {
+      "title": "My books",
+      "description": "Manage links, duplicates and statistics for your records.",
+      "searchPlaceholder": "Search recorded books..."
+    },
+    "toasts": {
+      "loadBooksFailed": "Failed to load My books",
+      "bookDeleted": "Book deleted!",
+      "bookDeleteFailed": "Failed to delete book",
+      "formIncomplete": "Fill in at least one complete reading",
+      "registered_one": "{{count}} reading recorded successfully!",
+      "registered_other": "{{count}} readings recorded successfully!",
+      "registerFailed": "Failed to record readings: {{reason}}"
+    },
+    "submit_one": "Record {{count}} reading",
+    "submit_other": "Record {{count}} readings"
+  }
+}

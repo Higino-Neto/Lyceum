@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from "react";
 import { Search, BookOpen, X, AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useBookSearch, Book } from "../hooks/useBookSearch";
 
 interface BookSearchInputProps {
@@ -15,6 +16,7 @@ export function BookSearchInput({
   onBookSelect,
   selectedBook,
 }: BookSearchInputProps) {
+  const { t } = useTranslation();
   const { results, loading, showResults, searchBooks, findOrCreateBook, setShowResults, error } =
     useBookSearch();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +106,11 @@ export function BookSearchInput({
           type="text"
           value={value}
           onChange={handleInputChange}
-          placeholder={selectedBook ? "" : "Buscar livro ou digitar manualmente..."}
+          placeholder={
+            selectedBook
+              ? ""
+              : t("reading:bookSearch.placeholder")
+          }
           className={`w-full rounded bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm ${
             selectedBook ? "pl-12" : "pl-8"
           }`}
@@ -123,7 +129,9 @@ export function BookSearchInput({
       {showResults && (results.length > 0 || loading) && !selectedBook && (
         <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl max-h-72 overflow-y-auto">
           {loading ? (
-            <div className="p-3 text-zinc-400 text-sm">Buscando...</div>
+            <div className="p-3 text-zinc-400 text-sm">
+                {t("reading:bookSearch.searching")}
+              </div>
           ) : (
             results.map((book) => (
               <button
@@ -168,11 +176,11 @@ export function BookSearchInput({
             {error ? (
               <div className="flex items-center gap-2 text-zinc-400 text-sm">
                 <AlertCircle size={14} />
-                <span>API temporariamente indisponível. Você pode digitar o nome manualmente.</span>
+                <span>{t("reading:bookSearch.apiUnavailable")}</span>
               </div>
             ) : (
               <div className="text-sm text-zinc-400">
-                Nenhum livro encontrado. Você pode digitar o nome manualmente.
+                {t("reading:bookSearch.empty")}
               </div>
             )}
           </div>

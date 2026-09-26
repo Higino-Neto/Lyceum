@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { updateReadingEntry, getCategories, Category } from "../api/database";
 
 interface EditReadingDialogProps {
@@ -22,6 +23,7 @@ export default function EditReadingDialog({
   onClose,
   onSuccess,
 }: EditReadingDialogProps) {
+  const { t } = useTranslation();
   const [sourceName, setSourceName] = useState("");
   const [pages, setPages] = useState("");
   const [readingDate, setReadingDate] = useState("");
@@ -66,7 +68,7 @@ export default function EditReadingDialog({
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar");
+      setError(err instanceof Error ? err.message : t("dialogs:editReading.errors.updateFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +81,7 @@ export default function EditReadingDialog({
       <div className="bg-zinc-900 border border-zinc-800 rounded-sm w-full max-w-md mx-4 shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <h2 className="text-lg font-semibold text-zinc-100">
-            Editar Leitura
+            {t("dialogs:editReading.title")}
           </h2>
           <button
             onClick={onClose}
@@ -106,7 +108,7 @@ export default function EditReadingDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-zinc-400 mb-1">
-                Páginas
+                {t("dialogs:editReading.fields.pages")}
               </label>
               <input
                 type="number"
@@ -119,7 +121,7 @@ export default function EditReadingDialog({
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-1">
-                Tempo (min)
+                {t("dialogs:editReading.fields.time")}
               </label>
               <input
                 type="number"
@@ -142,7 +144,7 @@ export default function EditReadingDialog({
               className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
               required
             >
-              <option value="">Selecione...</option>
+              <option value="">{t("dialogs:editReading.selectPlaceholder")}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -152,7 +154,9 @@ export default function EditReadingDialog({
           </div>
 
           <div>
-            <label className="block text-sm text-zinc-400 mb-1">Data</label>
+            <label className="block text-sm text-zinc-400 mb-1">
+              {t("dialogs:editReading.fields.date")}
+            </label>
             <input
               type="date"
               value={readingDate}
@@ -170,14 +174,16 @@ export default function EditReadingDialog({
               onClick={onClose}
               className="cursor-pointer px-4 py-2 text-zinc-300 hover:text-zinc-100 transition-colors"
             >
-              Cancelar
+              {t("dialogs:editReading.actions.cancel")}
             </button>
             <button
               type="submit"
               disabled={isLoading}
               className="px-4 py-2 cursor-pointer bg-green-500 hover:bg-green-600 text-zinc-900 rounded-sm font-medium transition-colors disabled:opacity-50"
             >
-              {isLoading ? "Salvando..." : "Salvar"}
+              {isLoading
+                ? t("dialogs:editReading.actions.saving")
+                : t("dialogs:editReading.actions.save")}
             </button>
           </div>
         </form>

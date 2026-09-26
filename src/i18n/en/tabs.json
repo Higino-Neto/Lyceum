@@ -1,0 +1,9 @@
+{
+  "openFile": "Open file",
+  "detach": "Open in new window",
+  "close": "Close",
+  "ariaLabels": {
+    "detach": "Open in new window",
+    "close": "Close"
+  }
+}

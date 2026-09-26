@@ -1,4 +1,6 @@
 import type { ReadingStatus } from "../types/LibraryTypes";
+import type { TranslationKey } from "../i18n/keys";
+import { translate } from "../i18n";
 
 interface ReadingStatusSource {
   readingStatus?: ReadingStatus | null;
@@ -6,22 +8,25 @@ interface ReadingStatusSource {
   numPages?: number | null;
 }
 
+export const READING_STATUS_LABEL_KEYS: Record<ReadingStatus, TranslationKey> = {
+  want_to_read: "reading:status.wantToRead",
+  reading: "reading:status.reading",
+  paused: "reading:status.paused",
+  read: "reading:status.read",
+};
+
 export const READING_STATUS_OPTIONS: Array<{
   value: ReadingStatus;
-  label: string;
-}> = [
-  { value: "want_to_read", label: "Fila" },
-  { value: "reading", label: "Lendo" },
-  { value: "paused", label: "Pausado" },
-  { value: "read", label: "Concluido" },
-];
+  labelKey: TranslationKey;
+}> = (Object.keys(READING_STATUS_LABEL_KEYS) as ReadingStatus[]).map((value) => ({
+  value,
+  labelKey: READING_STATUS_LABEL_KEYS[value],
+}));
 
-export const READING_STATUS_LABELS: Record<ReadingStatus, string> = {
-  want_to_read: "Fila",
-  reading: "Lendo",
-  paused: "Pausado",
-  read: "Concluido",
-};
+/** Translated label for a reading status. Safe to call outside React. */
+export function getReadingStatusLabel(status: ReadingStatus): string {
+  return translate(READING_STATUS_LABEL_KEYS[status]);
+}
 
 export function isReadingStatus(value: unknown): value is ReadingStatus {
   return (

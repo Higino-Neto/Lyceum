@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Image, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface SetThumbnailDialogProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export default function SetThumbnailDialog({
   onSetThumbnail,
   onClose,
 }: SetThumbnailDialogProps) {
+  const { t } = useTranslation();
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
@@ -37,7 +39,9 @@ export default function SetThumbnailDialog({
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <div className="flex items-center gap-2">
             <Image size={20} className="text-green-400" />
-            <h2 className="text-lg font-semibold text-zinc-100">Definir Capa do Livro</h2>
+            <h2 className="text-lg font-semibold text-zinc-100">
+              {t("dialogs:setThumbnail.title")}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -49,15 +53,19 @@ export default function SetThumbnailDialog({
 
         <div className="p-4 space-y-4">
           <div>
-            <p className="text-sm text-zinc-400 mb-2">Imagem selecionada:</p>
+            <p className="text-sm text-zinc-400 mb-2">
+              {t("dialogs:setThumbnail.selectedImage")}
+            </p>
             <div className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-md border border-zinc-700">
               <div className="w-16 h-16 bg-zinc-800 rounded overflow-hidden flex items-center justify-center flex-shrink-0">
                 {loadingPreview ? (
-                  <span className="text-xs text-zinc-500">Carregando...</span>
+                  <span className="text-xs text-zinc-500">
+                    {t("dialogs:setThumbnail.loading")}
+                  </span>
                 ) : previewDataUrl ? (
                   <img 
                     src={previewDataUrl}
-                    alt="Preview" 
+                    alt={t("dialogs:setThumbnail.previewAlt")}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -69,7 +77,9 @@ export default function SetThumbnailDialog({
           </div>
 
           <div>
-            <p className="text-sm text-zinc-400 mb-3">Escolha como aplicar a imagem:</p>
+            <p className="text-sm text-zinc-400 mb-3">
+              {t("dialogs:setThumbnail.modePrompt")}
+            </p>
             
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -85,8 +95,12 @@ export default function SetThumbnailDialog({
                     <Image size={18} className="text-white" />
                   </div>
                 </div>
-                <span className="text-sm font-medium text-zinc-200 group-hover:text-white">Substituir</span>
-                <span className="text-xs text-zinc-500 mt-1 text-center">Primeira página vira a imagem</span>
+                <span className="text-sm font-medium text-zinc-200 group-hover:text-white">
+                  {t("dialogs:setThumbnail.modes.replace")}
+                </span>
+                <span className="text-xs text-zinc-500 mt-1 text-center">
+                  {t("dialogs:setThumbnail.modes.replaceHint")}
+                </span>
               </button>
 
               <button
@@ -101,8 +115,12 @@ export default function SetThumbnailDialog({
                     <Image size={14} className="text-zinc-500" />
                   </div>
                 </div>
-                <span className="text-sm font-medium text-zinc-200 group-hover:text-white">Adicionar</span>
-                <span className="text-xs text-zinc-500 mt-1 text-center">Nova página antes da primeira</span>
+                <span className="text-sm font-medium text-zinc-200 group-hover:text-white">
+                  {t("dialogs:setThumbnail.modes.prepend")}
+                </span>
+                <span className="text-xs text-zinc-500 mt-1 text-center">
+                  {t("dialogs:setThumbnail.modes.prependHint")}
+                </span>
               </button>
             </div>
           </div>
@@ -113,7 +131,7 @@ export default function SetThumbnailDialog({
             onClick={onClose}
             className="px-4 py-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md cursor-pointer"
           >
-            Cancelar
+            {t("dialogs:setThumbnail.actions.cancel")}
           </button>
         </div>
       </div>

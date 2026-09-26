@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { getOrCreateBook } from "../api/database";
 import { DocumentRecord } from "../types/ReadingTypes";
+import { translate } from "../i18n";
 
 export interface Book {
   id: string;
@@ -79,11 +80,11 @@ export function useBookSearch() {
         setResults(combinedResults);
       } else {
         setResults([]);
-        setError("Nenhum livro encontrado. Digite o nome manualmente.");
+        setError(translate("reading:bookSearch.empty"));
       }
     } catch (err) {
       console.error("Error searching books:", err);
-      setError("Erro ao buscar livros");
+      setError(translate("reading:errors.searchFailed"));
       setResults([]);
     } finally {
       setLoading(false);

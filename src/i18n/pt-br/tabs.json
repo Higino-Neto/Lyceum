@@ -1,0 +1,9 @@
+{
+  "openFile": "Abrir arquivo",
+  "detach": "Abrir em nova janela",
+  "close": "Fechar",
+  "ariaLabels": {
+    "detach": "Abrir em nova janela",
+    "close": "Fechar"
+  }
+}

@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { BookOpen, ExternalLink, FileText, X } from "lucide-react";
 import { motion } from "motion/react";
 import { DocumentTab } from "../../types/DocumentTab";
+import { useTranslation } from "react-i18next";
 import { springFast } from "../../utils/motionPresets";
 
 interface BaseTabProps {
@@ -37,6 +38,8 @@ function TabVisual({
   dragListeners?: Record<string, any>;
   isDragging?: boolean;
 }) {
+  const { t } = useTranslation();
+
   const Icon = tab.fileType === "pdf" ? FileText : BookOpen;
   const iconColor = tab.fileType === "pdf" ? "text-red-400" : "text-blue-400";
 
@@ -88,7 +91,7 @@ function TabVisual({
             tabIndex={-1}
             onClick={handleDetach}
             className="cursor-default rounded p-0.5 hover:bg-zinc-700"
-            title="Abrir em nova janela"
+            title={t("tabs:ariaLabels.detach")}
           >
             <ExternalLink size={12} />
           </span>
@@ -101,7 +104,7 @@ function TabVisual({
           tabIndex={-1}
           onClick={handleClose}
           className="cursor-default rounded p-0.5 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100"
-          title="Fechar"
+          title={t("tabs:ariaLabels.close")}
         >
           <X size={14} />
         </span>

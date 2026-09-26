@@ -25,6 +25,7 @@ import type {
   ReadingStatus,
   ReadingStatusItem,
 } from "../../../types/LibraryTypes";
+import { useTranslation } from "react-i18next";
 import type TableReading from "../../../types/TableReading";
 import { READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
 import {
@@ -297,6 +298,7 @@ function StatusBookRow({
   onDrop: (event: ReactDragEvent<HTMLElement>) => void;
   onToggleMenu: (itemId: string) => void;
 }) {
+  const { t } = useTranslation();
   const title = getTitleWithoutExtension(item.title, item.book?.fileType);
   const totalPages = getStatusItemTotalPages(item);
   const readPages = getStatusItemReadPages(item, externalPages);
@@ -422,6 +424,7 @@ function DetailPanel({
   onProgressEvent: (itemId: string, pages: number) => void;
   onRatingChange: (itemId: string, rating: number) => void;
 }) {
+  const { t } = useTranslation();
   const title = getTitleWithoutExtension(item.title, item.book?.fileType);
   const totalPages = getStatusItemTotalPages(item);
   const readPages = getStatusItemReadPages(item, externalPages);
@@ -523,7 +526,7 @@ function DetailPanel({
                   className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm border px-2 text-[11px] transition-colors ${STATUS_VISUAL[option.value].border} ${STATUS_VISUAL[option.value].bg} ${STATUS_VISUAL[option.value].text} hover:opacity-80`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${STATUS_VISUAL[option.value].dot}`} />
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>

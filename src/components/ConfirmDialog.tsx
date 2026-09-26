@@ -1,4 +1,5 @@
 import { X, AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import AnimatedModal from "./ui/AnimatedModal";
 
 interface ConfirmDialogProps {
@@ -16,12 +17,14 @@ export default function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmLabel = "Confirmar",
-  cancelLabel = "Cancelar",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   isDanger = false,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <AnimatedModal
       open={isOpen}
@@ -52,7 +55,7 @@ export default function ConfirmDialog({
             onClick={onCancel}
             className="px-4 py-2 text-zinc-300 hover:text-zinc-100 cursor-pointer"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("dialogs:confirm.cancel")}
           </button>
           <button
             onClick={onConfirm}
@@ -62,7 +65,7 @@ export default function ConfirmDialog({
                 : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900"
             }`}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("dialogs:confirm.confirm")}
           </button>
         </div>
     </AnimatedModal>

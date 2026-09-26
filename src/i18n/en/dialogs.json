@@ -1,0 +1,54 @@
+{
+  "confirm": {
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "editReading": {
+    "title": "Edit reading",
+    "fields": {
+      "source": "Book / source",
+      "pages": "Pages",
+      "time": "Time (min)",
+      "category": "Category",
+      "date": "Date"
+    },
+    "selectPlaceholder": "Select...",
+    "errors": {
+      "updateFailed": "Failed to update"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving..."
+    }
+  },
+  "importBook": {
+    "title": "Add book",
+    "description": "Choose an option to import the files into the library:",
+    "targetFolderLabel": "Destination folder:",
+    "targetFolderRoot": "Library root",
+    "actions": {
+      "copy": "Copy",
+      "move": "Move"
+    }
+  },
+  "setThumbnail": {
+    "title": "Set book cover",
+    "selectedImage": "Selected image:",
+    "loading": "Loading...",
+    "previewAlt": "Cover preview",
+    "dropzone": "Drop an image here or click to choose",
+    "actions": {
+      "clear": "Remove cover",
+      "cancel": "Cancel",
+      "apply": "Apply"
+    },
+    "modePrompt": "Choose how to apply the image:",
+    "modes": {
+      "replace": "Replace",
+      "replaceHint": "The first page becomes the image",
+      "prepend": "Prepend",
+      "prependHint": "New page before the first one"
+    }
+  }
+}

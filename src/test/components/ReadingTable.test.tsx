@@ -186,7 +186,7 @@ describe("ReadingTable", () => {
     renderWithProviders(<ReadingTable />);
     const editButtons = document.querySelectorAll("button[title='Editar leitura']");
     fireEvent.click(editButtons[0]);
-    expect(screen.getByText("Editar Leitura")).toBeInTheDocument();
+    expect(screen.getByText("Editar leitura")).toBeInTheDocument();
   });
 
   it("shows confirm button in delete dialog", () => {

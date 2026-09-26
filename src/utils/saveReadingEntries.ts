@@ -1,4 +1,5 @@
 import { createReadingEntry, getOrCreateBook } from "../api/database";
+import { translate } from "../i18n";
 
 interface ReadingEntry {
   id: string;
@@ -63,7 +64,12 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
         bookIdMap.set(title, bookId);
       } catch (err) {
         console.error(`Error creating book "${title}":`, err);
-        throw new Error(`Erro ao criar/atualizar livro "${title}": ${err instanceof Error ? err.message : "Unknown error"}`);
+        throw new Error(
+          translate("reading:errors.createBookFailed", {
+            title,
+            reason: err instanceof Error ? err.message : translate("reading:errors.unknown"),
+          }),
+        );
       }
     }
 
@@ -80,7 +86,12 @@ export default async function saveReadingEntries(entries: ReadingEntry[]) {
         );
       } catch (err) {
         console.error(`Error creating reading entry for "${entry.bookTitle}":`, err);
-        throw new Error(`Erro ao registrar leitura "${entry.bookTitle}": ${err instanceof Error ? err.message : "Unknown error"}`);
+        throw new Error(
+          translate("reading:errors.createEntryFailed", {
+            title: entry.bookTitle,
+            reason: err instanceof Error ? err.message : translate("reading:errors.unknown"),
+          }),
+        );
       }
     }
   } catch (err) {

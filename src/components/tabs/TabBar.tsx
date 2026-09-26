@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { useTabContext } from "../../contexts/TabContext";
 import TabItem, { TabDragPreview } from "./TabItem";
 import { springFast } from "../../utils/motionPresets";
@@ -26,6 +27,7 @@ interface TabBarProps {
 }
 
 export default function TabBar({ onOpenFile }: TabBarProps) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const { tabs, activeTabId, setActiveTab, removeTab, reorderTabs, detachTab } =
     useTabContext();
@@ -159,7 +161,7 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
               type="button"
               onClick={handleOpenFileClick}
               className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-zinc-700"
-              title="Abrir arquivo"
+              title={t("tabs:openFile")}
             >
               <Plus size={18} className="text-zinc-400" />
             </motion.button>

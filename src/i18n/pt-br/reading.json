@@ -1,0 +1,55 @@
+{
+  "status": {
+    "wantToRead": "Fila",
+    "reading": "Lendo",
+    "paused": "Pausado",
+    "read": "Concluído"
+  },
+  "bookSearch": {
+    "placeholder": "Buscar ou digitar livro...",
+    "searching": "Buscando...",
+    "empty": "Nenhum livro encontrado. Você pode digitar o nome manualmente.",
+    "apiUnavailable": "API temporariamente indisponível. Você pode digitar o nome manualmente.",
+    "local": "Local",
+    "external": "Externo"
+  },
+  "errors": {
+    "searchFailed": "Erro ao buscar livros",
+    "createBookFailed": "Erro ao criar/atualizar livro \"{{title}}\": {{reason}}",
+    "createEntryFailed": "Erro ao registrar leitura \"{{title}}\": {{reason}}",
+    "unknown": "Erro desconhecido"
+  },
+  "add": {
+    "columns": {
+      "work": "Obra",
+      "pagesShort": "Págs",
+      "time": "Tempo",
+      "category": "Categoria",
+      "date": "Data"
+    },
+    "pagesPlaceholder": "0",
+    "timePlaceholder": "min",
+    "selectCategory": "Selecione",
+    "actions": {
+      "duplicateRow": "Duplicar linha",
+      "removeRow": "Remover linha",
+      "addAnother": "Adicionar outra leitura"
+    },
+    "myBooks": {
+      "title": "Meus Livros",
+      "description": "Gerencie vínculos, duplicados e estatísticas dos registros.",
+      "searchPlaceholder": "Buscar livro registrado..."
+    },
+    "toasts": {
+      "loadBooksFailed": "Erro ao carregar Meus Livros",
+      "bookDeleted": "Livro excluído!",
+      "bookDeleteFailed": "Erro ao excluir livro",
+      "formIncomplete": "Preencha pelo menos uma leitura completa",
+      "registered_one": "{{count}} leitura registrada com sucesso!",
+      "registered_other": "{{count}} leituras registradas com sucesso!",
+      "registerFailed": "Erro ao registrar leituras: {{reason}}"
+    },
+    "submit_one": "Registrar {{count}} leitura",
+    "submit_other": "Registrar {{count}} leituras"
+  }
+}

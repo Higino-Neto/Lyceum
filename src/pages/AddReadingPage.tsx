@@ -11,6 +11,7 @@ import {
 } from "../api/database";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import ReadingTable from "./DashboardPage/components/ReadingTable/ReadingTable";
 import { useRouteState } from "../hooks/useRouteState";
 import BooksSection from "./Library/components/BooksSection";
@@ -53,6 +54,7 @@ interface BookSearchProps {
 }
 
 function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
+  const { t } = useTranslation();
   const [results, setResults] = useState<(Book | LocalBook)[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [inputValue, setInputValue] = useState(value);
@@ -154,7 +156,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
         onChange={handleChange}
         onBlur={handleBlur}
         onFocus={() => results.length > 0 && setShowResults(true)}
-        placeholder="Buscar ou digitar livro..."
+        placeholder={t("reading:bookSearch.placeholder")}
         className="w-full rounded-sm bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm"
       />
 
@@ -189,9 +191,13 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
                   </div>
                 )}
                 {isLocalBook(book) ? (
-                  <div className="text-xs text-green-500 truncate">Local</div>
+                  <div className="text-xs text-green-500 truncate">
+                    {t("reading:bookSearch.local")}
+                  </div>
                 ) : (
-                  <div className="text-xs text-green-500 truncate">Externo</div>
+                  <div className="text-xs text-green-500 truncate">
+                    {t("reading:bookSearch.external")}
+                  </div>
                 )}
               </div>
             </button>
@@ -203,6 +209,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
 }
 
 export default function AddReadingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { saveState, loadState, clearState } = useRouteState();
@@ -338,7 +345,7 @@ export default function AddReadingPage() {
       setEditingSupabaseBook(null);
     } catch (error) {
       console.error("Error loading books panel:", error);
-      toast.error("Erro ao carregar Meus Livros");
+      toast.error(t("reading:add.toasts.loadBooksFailed"));
     } finally {
       setBooksLoading(false);
     }
@@ -353,10 +360,10 @@ export default function AddReadingPage() {
       await deleteBook(book.id);
       setSelectedSupabaseBook(null);
       await loadBooksPanel();
-      toast.success("Livro excluído!");
+      toast.success(t("reading:add.toasts.bookDeleted"));
     } catch (error) {
       console.error("Error deleting book:", error);
-      toast.error("Erro ao excluir livro");
+      toast.error(t("reading:add.toasts.bookDeleteFailed"));
     }
   };
 
@@ -373,7 +380,7 @@ export default function AddReadingPage() {
     );
 
     if (validEntries.length === 0) {
-      toast.error("Preencha pelo menos uma leitura completa");
+      toast.error(t("reading:add.toasts.formIncomplete"));
       return;
     }
 
@@ -384,13 +391,20 @@ export default function AddReadingPage() {
       queryClient.invalidateQueries({ queryKey: ["readings"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
       toast.success(
-        `${validEntries.length} leitura${validEntries.length > 1 ? "s" : ""} registrada${validEntries.length > 1 ? "s" : ""} com sucesso!`,
+        t("reading:add.toasts.registered", { count: validEntries.length }),
       );
       clearState();
       navigate("/");
     } catch (error) {
       console.error("Error saving readings:", error);
-      toast.error(`Erro ao registrar leituras: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
+      toast.error(
+        t("reading:add.toasts.registerFailed", {
+          reason:
+            error instanceof Error
+              ? error.message
+              : t("reading:errors.unknown"),
+        }),
+      );
     }
   };
 
@@ -426,11 +440,19 @@ export default function AddReadingPage() {
           <section className="lyceum-add-form-card bg-zinc-900 border border-zinc-800 p-4 rounded-sm">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-12 gap-3 my-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                <div className="col-span-4">Obra</div>
-                <div className="col-span-1">Págs</div>
-                <div className="col-span-1">Tempo</div>
-                <div className="col-span-2">Categoria</div>
-                <div className="col-span-2">Data</div>
+                <div className="col-span-4">{t("reading:add.columns.work")}</div>
+                <div className="col-span-1">
+                  {t("reading:add.columns.pagesShort")}
+                </div>
+                <div className="col-span-1">
+                  {t("reading:add.columns.time")}
+                </div>
+                <div className="col-span-2">
+                  {t("reading:add.columns.category")}
+                </div>
+                <div className="col-span-2">
+                  {t("reading:add.columns.date")}
+                </div>
               </div>
 
               <div className="space-y-2 mb-6">
@@ -458,7 +480,7 @@ export default function AddReadingPage() {
                         onChange={(e) =>
                           updateEntry(entry.id, "numPages", e.target.value)
                         }
-                        placeholder="0"
+                        placeholder={t("reading:add.pagesPlaceholder")}
                         min="1"
                         className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                       />
@@ -471,7 +493,7 @@ export default function AddReadingPage() {
                         onChange={(e) =>
                           updateEntry(entry.id, "readingTime", e.target.value)
                         }
-                        placeholder="min"
+                        placeholder={t("reading:add.timePlaceholder")}
                         min="1"
                         className="w-16 bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                       />
@@ -485,7 +507,7 @@ export default function AddReadingPage() {
                         }
                         className={`border-zinc-700 text-zinc-100 w-full bg-zinc-800/50 border rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer`}
                       >
-                        <option value="">Selecione</option>
+                        <option value="">{t("reading:add.selectCategory")}</option>
                         {categories?.map((cat: any) => (
                           <option
                             key={cat.id}
@@ -523,7 +545,7 @@ export default function AddReadingPage() {
                           type="button"
                           onClick={() => duplicateEntry(entry.id)}
                           className="text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
-                          title="Duplicar linha"
+                          title={t("reading:add.actions.duplicateRow")}
                         >
                           <Copy size={18} />
                         </button>
@@ -537,7 +559,7 @@ export default function AddReadingPage() {
                               ? `text-zinc-700 cursor-no-drop`
                               : `text-zinc-500 hover:text-red-400 transition cursor-pointer`
                           }
-                          title="Remover linha"
+                          title={t("reading:add.actions.removeRow")}
                         >
                           <Trash2 size={18} />
                         </button>
@@ -554,7 +576,7 @@ export default function AddReadingPage() {
                   className="cursor-pointer flex items-center gap-2 text-green-500 hover:text-green-400 transition text-sm font-medium"
                 >
                   <Plus size={18} />
-                  Adicionar outra leitura
+                  {t("reading:add.actions.addAnother")}
                 </button>
 
                 <div className="flex gap-3">
@@ -563,8 +585,7 @@ export default function AddReadingPage() {
                     className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-sm transition text-sm"
                   >
                     <NotebookPen size={15} />
-                    Registrar {entries.length} leitura
-                    {entries.length > 1 ? "s" : ""}
+                    {t("reading:add.submit", { count: entries.length })}
                   </button>
                 </div>
               </div>
@@ -579,17 +600,17 @@ export default function AddReadingPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-zinc-100">
-                  Meus Livros
+                  {t("reading:add.myBooks.title")}
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  Gerencie vínculos, duplicados e estatísticas dos registros.
+                  {t("reading:add.myBooks.description")}
                 </p>
               </div>
               <input
                 type="text"
                 value={booksSearch}
                 onChange={(event) => setBooksSearch(event.target.value)}
-                placeholder="Buscar livro registrado..."
+                placeholder={t("reading:add.myBooks.searchPlaceholder")}
                 className="w-full max-w-xs rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-green-500"
               />
             </div>
