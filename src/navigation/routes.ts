@@ -9,7 +9,8 @@ export type NavigationRouteId =
 
 export interface NavigationRoute {
   id: NavigationRouteId;
-  label: string;
+  /** Translation key of the route label, resolved with `getRouteLabel`. */
+  labelKey: `navigation:routes.${NavigationRouteId}`;
   path: string | null;
 }
 
@@ -20,14 +21,23 @@ export interface NavigationFeatureSettings {
 }
 
 export const NAVIGATION_ROUTES: NavigationRoute[] = [
-  { id: "dashboard", label: "Dashboard", path: "/" },
-  { id: "register", label: "Registrar", path: "/add_reading" },
-  { id: "library", label: "Biblioteca", path: "/library" },
-  { id: "reader", label: "Ler", path: "/reading" },
-  { id: "atlas", label: "Atlas", path: "/atlas" },
-  { id: "conversion", label: "Conversao", path: null },
-  { id: "habits", label: "Habitos", path: "/habit_tracker" },
+  { id: "dashboard", labelKey: "navigation:routes.dashboard", path: "/" },
+  { id: "register", labelKey: "navigation:routes.register", path: "/add_reading" },
+  { id: "library", labelKey: "navigation:routes.library", path: "/library" },
+  { id: "reader", labelKey: "navigation:routes.reader", path: "/reading" },
+  { id: "atlas", labelKey: "navigation:routes.atlas", path: "/atlas" },
+  { id: "conversion", labelKey: "navigation:routes.conversion", path: null },
+  { id: "habits", labelKey: "navigation:routes.habits", path: "/habit_tracker" },
 ];
+
+/** Translates a route (or route id) into its localized label. */
+export function getRouteLabel(
+  route: NavigationRoute | NavigationRouteId,
+  t: (key: string) => string,
+): string {
+  const labelKey = typeof route === "string" ? `navigation:routes.${route}` : route.labelKey;
+  return t(labelKey);
+}
 
 export function getEnabledNavigationRoutes(
   settings: NavigationFeatureSettings,

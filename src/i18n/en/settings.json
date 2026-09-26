@@ -1,0 +1,300 @@
+{
+  "title": "Settings",
+  "selectTab": "Select tab",
+  "close": "Close",
+  "closeLabel": "Close settings",
+
+  "tabs": {
+    "general": {
+      "label": "General",
+      "description": "General application settings."
+    },
+    "hotkeys": {
+      "label": "Shortcuts",
+      "description": "Customize quick keyboard navigation."
+    },
+    "backup": {
+      "label": "Backups",
+      "description": "Selected periodic backups and manual runs."
+    },
+    "beta": {
+      "label": "Beta",
+      "description": "Features in development available in the sidebar."
+    },
+    "library": {
+      "label": "Library",
+      "description": "How folders and books behave in the library."
+    },
+    "updates": {
+      "label": "Updates",
+      "description": "Search, download and install new versions of Lyceum."
+    },
+    "account": {
+      "label": "Account",
+      "description": "Personal data, security and session."
+    },
+    "friends": {
+      "label": "Friends",
+      "description": "Nicknames, requests and friendly competition."
+    },
+    "appearance": {
+      "label": "Appearance",
+      "description": "Theme and accent color of the interface."
+    },
+    "performance": {
+      "label": "Performance",
+      "description": "Reduce visual effects on slower computers."
+    },
+    "zoom": {
+      "label": "Zoom",
+      "description": "Interface zoom level."
+    },
+    "dictionaries": {
+      "label": "Dictionaries",
+      "description": "Offline packages for reading."
+    }
+  },
+
+  "language": {
+    "title": "Language",
+    "description": "Choose the language of the application",
+    "label": "Application language"
+  },
+
+  "general": {
+    "interface": {
+      "title": "Interface",
+      "description": "Title bar and sidebar settings."
+    },
+    "autoHide": {
+      "title": "Auto-hide",
+      "description": "Automatically hide the title bar and the sidebar."
+    },
+    "overlayMode": {
+      "title": "Overlay mode",
+      "description": "The title bar floats above the content instead of pushing it down."
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Main panel settings."
+    },
+    "copyYesterdayReadings": {
+      "title": "Copy yesterday's readings",
+      "description": "The \"Daily readings\" button will copy the readings from the previous day instead of today."
+    }
+  },
+
+  "hotkeys": {
+    "title": "Keyboard navigation",
+    "description": "Esc focuses the current route in the sidebar; the arrow keys browse and open routes. Numbers open a route directly.",
+    "enable": {
+      "title": "Enable global shortcuts",
+      "description": "Shortcuts are ignored while you type in a field.",
+      "toggleLabel": "Toggle global shortcuts"
+    },
+    "routeShortcutLabel": "Shortcut for {{route}}",
+    "noShortcut": "No shortcut",
+    "resetAutomaticOrder": "Reset to automatic order",
+    "automaticOrderNote": "In automatic order, enabling or disabling Beta routes renumbers the shortcuts. After a manual change, your configuration is preserved."
+  },
+
+  "backups": {
+    "title": "Weekly backup",
+    "description": "Lyceum checks once a week and only sends the selected groups. Opening the app does not trigger a new backup while the period has not expired.",
+    "enable": "Enable periodic backup",
+    "items": {
+      "libraryAndProgress": "Library and progress",
+      "habitsAndHighlights": "Habits and highlights",
+      "categories": "Categories"
+    },
+    "lastBackup": "Last backup: {{date}}",
+    "noBackupYet": "No backup completed on this device",
+    "runNow": "Back up now",
+    "running": "Running…",
+    "selectAtLeastOne": "Select at least one kind of data",
+    "completedWithFailures_one": "Backup finished with {{count}} failure",
+    "completedWithFailures_other": "Backup finished with {{count}} failures",
+    "completed": "Backup finished",
+    "failed": "Could not run the backup"
+  },
+
+  "library": {
+    "folders": {
+      "title": "Folders",
+      "description": "Control how books appear when you browse the library tree."
+    },
+    "showSubfolderBooks": {
+      "title": "Show books from subfolders",
+      "description": "When enabled, a folder also lists the books stored in its subfolders.",
+      "toggleLabel": "Toggle books from subfolders"
+    },
+    "unifiedView": {
+      "title": "Unified view",
+      "description": "Regular folders appear in the library grid. Collections and merged books appear as book cards and follow the same filters.",
+      "toggleLabel": "Toggle unified view"
+    }
+  },
+
+  "updates": {
+    "title": "Updates",
+    "description": "Look for new versions, follow the download and install without closing and reopening Lyceum by hand.",
+    "status": {
+      "disabled": "Updates are only available in the installed app.",
+      "checking": "Looking for updates…",
+      "available": "Update found. The download should start automatically.",
+      "downloading": "Downloading update…",
+      "downloaded": "Update ready to install.",
+      "notAvailable": "You are using the latest version.",
+      "error": "Could not check for updates.",
+      "idle": "No check has been made in this session."
+    },
+    "availableVersion": "Available version: {{version}} - released on {{date}}",
+    "availableVersionNoDate": "Available version: {{version}}",
+    "lastCheck": "Last check: {{date}}",
+    "downloadFinished": "Download finished: {{date}}",
+    "check": "Check",
+    "download": "Download",
+    "installNow": "Install now",
+    "installLaterNote": "If you do not install now, the update will be applied automatically when the application is closed.",
+    "releaseNotes": "Release notes",
+    "unavailable": "Updates are unavailable in this environment",
+    "alreadyLatest": "You are already on the latest version",
+    "installedAppOnly": "Automatic updates only work in the installed app",
+    "checkFailed": "Could not look for updates",
+    "downloadFailed": "Could not download the update",
+    "nothingToInstall": "No update ready to install"
+  },
+
+  "account": {
+    "personal": {
+      "title": "Personal information",
+      "description": "Data used to identify your account inside Lyceum."
+    },
+    "changeAvatar": "Change avatar",
+    "avatarAlt": "Avatar",
+    "name": "Name",
+    "email": "E-mail",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "your_nickname",
+    "nicknameHint": "Used to find friends in Lyceum.",
+    "saveAccount": "Save account",
+    "saving": "Saving…",
+    "updated": "Account updated successfully!",
+    "invalidImageType": "Use a JPG, PNG or WEBP image",
+    "imageTooLarge": "The image must be at most 5MB",
+    "uploadFailed": "Error while uploading the image",
+    "security": {
+      "title": "Security",
+      "description": "Update your access password."
+    },
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "changePassword": "Change password",
+    "changing": "Changing…",
+    "passwordUpdated": "Password updated successfully!",
+    "passwordsDoNotMatch": "The passwords do not match",
+    "session": {
+      "title": "Session",
+      "description": "End this user's access to the application."
+    },
+    "signOut": "Sign out",
+    "signOutConfirmTitle": "Sign out",
+    "signOutConfirmMessage": "Do you really want to end your session in Lyceum?",
+    "signOutConfirmLabel": "Sign out"
+  },
+
+  "appearance": {
+    "theme": {
+      "title": "Theme",
+      "description": "Choose between light and dark, or let Lyceum follow the system."
+    },
+    "themeOptions": {
+      "light": {
+        "label": "Light",
+        "description": "Light interface in every environment."
+      },
+      "dark": {
+        "label": "Dark",
+        "description": "Always dark interface."
+      },
+      "system": {
+        "label": "System",
+        "description": "Follows the operating system theme."
+      }
+    },
+    "activeTheme": "Active theme now: {{theme}}.",
+    "lightThemeName": "light",
+    "darkThemeName": "dark",
+    "accent": {
+      "title": "Accent color",
+      "description": "The chosen color shows on focus, primary buttons, active states and small highlights.",
+      "preview": "Preview",
+      "primaryButton": "Primary button",
+      "activeState": "Active state",
+      "highlightedLink": "Highlighted link",
+      "colors": {
+        "green": "Green",
+        "blue": "Blue",
+        "violet": "Violet",
+        "amber": "Amber",
+        "rose": "Rose",
+        "cyan": "Cyan"
+      }
+    }
+  },
+
+  "performance": {
+    "title": "Visual effects",
+    "description": "On slower computers, blur, heavy shadows and animations can make the interface sluggish or freeze it.",
+    "reduceEffects": {
+      "title": "Reduce effects",
+      "description": "Removes background blur (backdrop-blur), large shadows and transition animations. Screens keep working normally.",
+      "toggleLabel": "Toggle reduced effects"
+    }
+  },
+
+  "zoom": {
+    "title": "Zoom",
+    "description": "Adjust the interface zoom level.",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "reset": "Reset",
+    "shortcutsHint": "Shortcuts: Ctrl + / Ctrl - to adjust the zoom. Ctrl 0 to reset."
+  },
+
+  "dictionaries": {
+    "title": "Offline dictionaries",
+    "description": "Download local dictionaries for lookups and translation without depending on the network.",
+    "available_one": "{{count}} dictionary available",
+    "available_other": "{{count}} dictionaries available",
+    "refreshList": "Refresh list",
+    "refresh": "Refresh",
+    "empty": "No dictionary available.",
+    "languagePair": "{{source}} to {{target}}",
+    "active": "Active",
+    "activate": "Activate",
+    "remove": "Remove",
+    "removeLabel": "Remove dictionary",
+    "download": "Download"
+  },
+
+  "beta": {
+    "title": "Sidebar tabs in development",
+    "description": "Enable or disable each experimental feature in the sidebar.",
+    "toggleLabel": "Toggle {{feature}} tab",
+    "features": {
+      "atlas": {
+        "label": "Atlas",
+        "hint": "Reading and progress maps."
+      },
+      "conversion": {
+        "label": "Conversion",
+        "hint": "Conversion between document formats."
+      },
+      "habits": {
+        "label": "Habits",
+        "hint": "Daily habit tracker."
+      }
+    }
+  }
+}

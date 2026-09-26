@@ -8,6 +8,7 @@ import "./mobile.css";
 import MobileApp from "./MobileApp";
 import MobileErrorBoundary from "./MobileErrorBoundary";
 import { initializeMobileUpdater } from "./mobileUpdater";
+import "../i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {

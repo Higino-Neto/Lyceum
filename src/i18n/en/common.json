@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "Lyceum",
+    "offline": "Offline",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "version": "Version {{version}}"
+  },
+
+  "actions": {
+    "add": "Add",
+    "apply": "Apply",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "continue": "Continue",
+    "create": "Create",
+    "delete": "Delete",
+    "dismiss": "Dismiss",
+    "edit": "Edit",
+    "export": "Export",
+    "import": "Import",
+    "next": "Next",
+    "open": "Open",
+    "previous": "Previous",
+    "refresh": "Refresh",
+    "remove": "Remove",
+    "rename": "Rename",
+    "reset": "Reset",
+    "retry": "Try again",
+    "save": "Save",
+    "search": "Search",
+    "select": "Select",
+    "selectAll": "Select all",
+    "send": "Send",
+    "skip": "Skip",
+    "start": "Start",
+    "stop": "Stop",
+    "submit": "Submit",
+    "undo": "Undo",
+    "view": "View"
+  },
+
+  "states": {
+    "active": "Active",
+    "available": "Available",
+    "disabled": "Disabled",
+    "enabled": "Enabled",
+    "error": "Something went wrong",
+    "empty": "Nothing here yet",
+    "loading": "Loading…",
+    "off": "Off",
+    "on": "On",
+    "success": "Done",
+    "warning": "Warning"
+  },
+
+  "fields": {
+    "all": "All",
+    "author": "Author",
+    "category": "Category",
+    "date": "Date",
+    "email": "E-mail",
+    "name": "Name",
+    "none": "None",
+    "notes": "Notes",
+    "password": "Password",
+    "pages": "Pages",
+    "status": "Status",
+    "title": "Title",
+    "total": "Total",
+    "unknown": "Unknown"
+  },
+
+  "periods": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "thisYear": "This year",
+    "lastYear": "Last year",
+    "allTime": "All time"
+  },
+
+  "units": {
+    "page_one": "{{count}} page",
+    "page_other": "{{count}} pages",
+    "minute_one": "{{count}} minute",
+    "minute_other": "{{count}} minutes",
+    "hour_one": "{{count}} hour",
+    "hour_other": "{{count}} hours",
+    "day_one": "{{count}} day",
+    "day_other": "{{count}} days",
+    "book_one": "{{count}} book",
+    "book_other": "{{count}} books"
+  },
+
+  "messages": {
+    "noResults": "No results found",
+    "notFound": "Page not found",
+    "notFoundDescription": "The page you are looking for does not exist.",
+    "goHome": "Go to the dashboard",
+    "offlineNotice": "You are offline. Your data is stored locally on this device."
+  },
+
+  "confirm": {
+    "title": "Please confirm",
+    "irreversible": "This action cannot be undone."
+  },
+
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Enter a valid e-mail address",
+    "passwordTooShort": "Use at least {{count}} characters"
+  }
+}

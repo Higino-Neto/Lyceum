@@ -6,6 +6,7 @@ import "./index.css";
 import { HashRouter, BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppSettingsProvider, useAppSettings } from "./contexts/AppSettingsContext.tsx";
+import "./i18n/index.ts";
 
 const isDev = import.meta.env.DEV;
 

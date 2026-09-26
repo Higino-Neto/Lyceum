@@ -1,6 +1,8 @@
 import { Minus, Square, X, Copy, Menu, Check } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 
+import { useTranslation } from "../i18n";
+
 interface TitleBarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -26,6 +28,7 @@ export default function TitleBar({
   onShowPanels,
   onHidePanels,
 }: TitleBarProps) {
+  const { t } = useTranslation();
   const [isMaximized, setIsMaximized] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -105,6 +108,8 @@ export default function TitleBar({
           <button
             onClick={onToggleCollapse}
             onContextMenu={handleContextMenuClick}
+            title={t("navigation:titleBar.menu")}
+            aria-label={t("navigation:titleBar.menu")}
             className="h-full px-4 flex items-center justify-center text-zinc-400 hover:text-zinc-100 cursor-pointer"
           >
             {collapsed ? <Menu size={20} /> : <Menu size={20} />}
@@ -115,7 +120,7 @@ export default function TitleBar({
           </span>
           {!isLoggedIn && (
             <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">
-              (Offline)
+              ({t("common:app.offline")})
             </span>
           )
           }
@@ -127,12 +132,24 @@ export default function TitleBar({
         >
           <button
             onClick={handleMinimize}
+            title={t("navigation:titleBar.minimize")}
+            aria-label={t("navigation:titleBar.minimize")}
             className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 cursor-pointer"
           >
             <Minus size={16} />
           </button>
           <button
             onClick={handleMaximize}
+            title={
+              isMaximized
+                ? t("navigation:titleBar.restore")
+                : t("navigation:titleBar.maximize")
+            }
+            aria-label={
+              isMaximized
+                ? t("navigation:titleBar.restore")
+                : t("navigation:titleBar.maximize")
+            }
             className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 cursor-pointer"
           >
             {isMaximized ? (
@@ -143,6 +160,8 @@ export default function TitleBar({
           </button>
           <button
             onClick={handleClose}
+            title={t("navigation:titleBar.close")}
+            aria-label={t("navigation:titleBar.close")}
             className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-red-600 hover:text-white cursor-pointer"
           >
             <X size={16} />
@@ -160,7 +179,8 @@ export default function TitleBar({
             className="w-full px-4 py-2 text-left text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
           >
             {autoHideEnabled && <Check size={14} />}
-            Auto-ocultar {autoHideEnabled ? "(Ativado)" : ""}
+            {t("navigation:titleBar.autoHide")}{" "}
+            {autoHideEnabled ? t("navigation:titleBar.autoHideEnabled") : ""}
           </button>
           {autoHideEnabled && (
             <button
@@ -168,7 +188,8 @@ export default function TitleBar({
               className="w-full px-4 py-2 text-left text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
             >
               {autoHideOverlay && <Check size={14} />}
-              Sobrepor {autoHideOverlay ? "(Ativado)" : ""}
+              {t("navigation:titleBar.overlay")}{" "}
+              {autoHideOverlay ? t("navigation:titleBar.overlayEnabled") : ""}
             </button>
           )}
         </div>

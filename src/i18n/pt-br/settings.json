@@ -1,0 +1,300 @@
+{
+  "title": "Configurações",
+  "selectTab": "Selecionar aba",
+  "close": "Fechar",
+  "closeLabel": "Fechar configurações",
+
+  "tabs": {
+    "general": {
+      "label": "Geral",
+      "description": "Configurações gerais do aplicativo."
+    },
+    "hotkeys": {
+      "label": "Atalhos",
+      "description": "Personalize a navegação rápida pelo teclado."
+    },
+    "backup": {
+      "label": "Backups",
+      "description": "Backups periódicos selecionados e execução manual."
+    },
+    "beta": {
+      "label": "Beta",
+      "description": "Recursos em desenvolvimento disponíveis na barra lateral."
+    },
+    "library": {
+      "label": "Biblioteca",
+      "description": "Comportamento de pastas e livros na biblioteca."
+    },
+    "updates": {
+      "label": "Atualizações",
+      "description": "Busque, baixe e instale novas versões do Lyceum."
+    },
+    "account": {
+      "label": "Conta",
+      "description": "Dados pessoais, segurança e sessão."
+    },
+    "friends": {
+      "label": "Amigos",
+      "description": "Nicknames, solicitações e competição com amigos."
+    },
+    "appearance": {
+      "label": "Aparência",
+      "description": "Tema e cor de destaque da interface."
+    },
+    "performance": {
+      "label": "Desempenho",
+      "description": "Reduza efeitos visuais para computadores mais fracos."
+    },
+    "zoom": {
+      "label": "Zoom",
+      "description": "Ajuste de zoom da interface."
+    },
+    "dictionaries": {
+      "label": "Dicionários",
+      "description": "Pacotes offline para leitura."
+    }
+  },
+
+  "language": {
+    "title": "Linguagem",
+    "description": "Escolha o idioma do aplicativo",
+    "label": "Idioma do aplicativo"
+  },
+
+  "general": {
+    "interface": {
+      "title": "Interface",
+      "description": "Configurações da barra de título e sidebar."
+    },
+    "autoHide": {
+      "title": "Auto-ocultar",
+      "description": "Oculta automaticamente a barra de título e a sidebar."
+    },
+    "overlayMode": {
+      "title": "Modo sobrepor",
+      "description": "A barra de título aparece sobre o conteúdo ao invés de empurrá-lo."
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Configurações do painel principal."
+    },
+    "copyYesterdayReadings": {
+      "title": "Copiar leituras de ontem",
+      "description": "O botão \"Leituras diárias\" copiará as leituras do dia anterior ao invés de hoje."
+    }
+  },
+
+  "hotkeys": {
+    "title": "Navegação por teclado",
+    "description": "Esc foca a rota atual na sidebar; as setas percorrem e abrem as rotas. Os números abrem uma rota diretamente.",
+    "enable": {
+      "title": "Ativar atalhos globais",
+      "description": "Atalhos são ignorados enquanto você digita em um campo.",
+      "toggleLabel": "Alternar atalhos globais"
+    },
+    "routeShortcutLabel": "Atalho para {{route}}",
+    "noShortcut": "Sem atalho",
+    "resetAutomaticOrder": "Restaurar ordem automática",
+    "automaticOrderNote": "Na ordem automática, ativar ou desativar rotas Beta reorganiza os números. Depois de uma alteração manual, sua configuração é preservada."
+  },
+
+  "backups": {
+    "title": "Backup semanal",
+    "description": "O Lyceum verifica uma vez por semana e envia somente os grupos selecionados. Abrir o app não dispara um novo backup se o período ainda não venceu.",
+    "enable": "Ativar backup periódico",
+    "items": {
+      "libraryAndProgress": "Biblioteca e progresso",
+      "habitsAndHighlights": "Hábitos e marcações",
+      "categories": "Categorias"
+    },
+    "lastBackup": "Último backup: {{date}}",
+    "noBackupYet": "Nenhum backup concluído neste dispositivo",
+    "runNow": "Fazer backup agora",
+    "running": "Executando…",
+    "selectAtLeastOne": "Selecione ao menos um tipo de dado",
+    "completedWithFailures_one": "Backup concluído com {{count}} falha",
+    "completedWithFailures_other": "Backup concluído com {{count}} falhas",
+    "completed": "Backup concluído",
+    "failed": "Falha ao executar backup"
+  },
+
+  "library": {
+    "folders": {
+      "title": "Pastas",
+      "description": "Controle como os livros aparecem quando você navega pela árvore da biblioteca."
+    },
+    "showSubfolderBooks": {
+      "title": "Mostrar livros de subpastas",
+      "description": "Quando ativado, uma pasta também lista os livros que estão dentro das subpastas dela.",
+      "toggleLabel": "Alternar livros de subpastas"
+    },
+    "unifiedView": {
+      "title": "Exibição unificada",
+      "description": "Pastas comuns aparecem no grid da biblioteca. Coleções e livros mesclados aparecem como cards de livro e seguem os mesmos filtros.",
+      "toggleLabel": "Alternar exibição unificada"
+    }
+  },
+
+  "updates": {
+    "title": "Atualizações",
+    "description": "Busque novas versões, acompanhe o download e instale sem fechar e abrir o Lyceum manualmente.",
+    "status": {
+      "disabled": "Atualizações disponíveis apenas no app instalado.",
+      "checking": "Buscando atualizações…",
+      "available": "Atualização encontrada. O download deve iniciar automaticamente.",
+      "downloading": "Baixando atualização…",
+      "downloaded": "Atualização pronta para instalar.",
+      "notAvailable": "Você está usando a versão mais recente.",
+      "error": "Não foi possível verificar atualizações.",
+      "idle": "Nenhuma verificação feita nesta sessão."
+    },
+    "availableVersion": "Versão disponível: {{version}} - publicada em {{date}}",
+    "availableVersionNoDate": "Versão disponível: {{version}}",
+    "lastCheck": "Última verificação: {{date}}",
+    "downloadFinished": "Download concluído: {{date}}",
+    "check": "Buscar",
+    "download": "Baixar",
+    "installNow": "Instalar agora",
+    "installLaterNote": "Se você não instalar agora, a atualização será aplicada automaticamente quando o aplicativo for fechado.",
+    "releaseNotes": "Notas da versão",
+    "unavailable": "Atualizações indisponíveis neste ambiente",
+    "alreadyLatest": "Você já está na versão mais recente",
+    "installedAppOnly": "Atualizações automáticas funcionam apenas no app instalado",
+    "checkFailed": "Falha ao buscar atualizações",
+    "downloadFailed": "Falha ao baixar atualização",
+    "nothingToInstall": "Nenhuma atualização pronta para instalar"
+  },
+
+  "account": {
+    "personal": {
+      "title": "Informações pessoais",
+      "description": "Dados usados para identificar sua conta dentro do Lyceum."
+    },
+    "changeAvatar": "Alterar avatar",
+    "avatarAlt": "Avatar",
+    "name": "Nome",
+    "email": "Email",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "seu_nickname",
+    "nicknameHint": "Usado para encontrar amigos no Lyceum.",
+    "saveAccount": "Salvar conta",
+    "saving": "Salvando…",
+    "updated": "Conta atualizada com sucesso!",
+    "invalidImageType": "Use uma imagem JPG, PNG ou WEBP",
+    "imageTooLarge": "A imagem deve ter no máximo 5MB",
+    "uploadFailed": "Erro ao fazer upload da imagem",
+    "security": {
+      "title": "Segurança",
+      "description": "Atualize sua senha de acesso."
+    },
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar senha",
+    "changePassword": "Alterar senha",
+    "changing": "Alterando…",
+    "passwordUpdated": "Senha atualizada com sucesso!",
+    "passwordsDoNotMatch": "As senhas não coincidem",
+    "session": {
+      "title": "Sessão",
+      "description": "Encerre o acesso deste usuário ao aplicativo."
+    },
+    "signOut": "Sair da conta",
+    "signOutConfirmTitle": "Sair da conta",
+    "signOutConfirmMessage": "Deseja realmente encerrar sua sessão no Lyceum?",
+    "signOutConfirmLabel": "Sair"
+  },
+
+  "appearance": {
+    "theme": {
+      "title": "Tema",
+      "description": "Escolha entre claro, escuro ou deixe o Lyceum seguir o sistema."
+    },
+    "themeOptions": {
+      "light": {
+        "label": "Claro",
+        "description": "Interface clara em todos os ambientes."
+      },
+      "dark": {
+        "label": "Escuro",
+        "description": "Interface escura fixa."
+      },
+      "system": {
+        "label": "Sistema",
+        "description": "Segue o tema do sistema operacional."
+      }
+    },
+    "activeTheme": "Tema ativo agora: {{theme}}.",
+    "lightThemeName": "claro",
+    "darkThemeName": "escuro",
+    "accent": {
+      "title": "Cor de destaque",
+      "description": "A cor escolhida aparece em foco, botões primários, estados ativos e pequenos realces.",
+      "preview": "Prévia",
+      "primaryButton": "Botão principal",
+      "activeState": "Estado ativo",
+      "highlightedLink": "Link destacado",
+      "colors": {
+        "green": "Verde",
+        "blue": "Azul",
+        "violet": "Violeta",
+        "amber": "Âmbar",
+        "rose": "Rosa",
+        "cyan": "Ciano"
+      }
+    }
+  },
+
+  "performance": {
+    "title": "Efeitos visuais",
+    "description": "Em computadores mais fracos, desfoque, sombras pesadas e animações podem deixar a interface lenta ou travar.",
+    "reduceEffects": {
+      "title": "Reduzir efeitos",
+      "description": "Remove desfoque de fundo (backdrop-blur), sombras grandes e animações de transição. As telas continuam funcionando normalmente.",
+      "toggleLabel": "Alternar redução de efeitos"
+    }
+  },
+
+  "zoom": {
+    "title": "Zoom",
+    "description": "Ajuste o nível de zoom da interface.",
+    "zoomOut": "Diminuir zoom",
+    "zoomIn": "Aumentar zoom",
+    "reset": "Resetar",
+    "shortcutsHint": "Atalhos: Ctrl + / Ctrl - para ajustar o zoom. Ctrl 0 para resetar."
+  },
+
+  "dictionaries": {
+    "title": "Dicionários offline",
+    "description": "Baixe dicionários locais para consultas e tradução sem depender da rede.",
+    "available_one": "{{count}} dicionário disponível",
+    "available_other": "{{count}} dicionários disponíveis",
+    "refreshList": "Atualizar lista",
+    "refresh": "Atualizar",
+    "empty": "Nenhum dicionário disponível.",
+    "languagePair": "{{source}} para {{target}}",
+    "active": "Ativo",
+    "activate": "Ativar",
+    "remove": "Remover",
+    "removeLabel": "Remover dicionário",
+    "download": "Baixar"
+  },
+
+  "beta": {
+    "title": "Abas laterais em desenvolvimento",
+    "description": "Ative ou desative individualmente as funcionalidades experimentais na barra lateral.",
+    "toggleLabel": "Alternar aba {{feature}}",
+    "features": {
+      "atlas": {
+        "label": "Atlas",
+        "hint": "Mapas de leitura e progresso."
+      },
+      "conversion": {
+        "label": "Conversão",
+        "hint": "Conversão entre formatos de documento."
+      },
+      "habits": {
+        "label": "Hábitos",
+        "hint": "Rastreador de hábitos diários."
+      }
+    }
+  }
+}

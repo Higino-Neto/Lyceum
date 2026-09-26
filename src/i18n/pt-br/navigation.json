@@ -1,0 +1,30 @@
+{
+  "routes": {
+    "dashboard": "Dashboard",
+    "register": "Registrar",
+    "library": "Biblioteca",
+    "reader": "Ler",
+    "atlas": "Atlas",
+    "conversion": "Conversão",
+    "habits": "Hábitos"
+  },
+  "titleBar": {
+    "menu": "Menu",
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "close": "Fechar",
+    "autoHide": "Auto-ocultar",
+    "autoHideEnabled": "(Ativado)",
+    "overlay": "Sobrepor",
+    "overlayEnabled": "(Ativado)"
+  },
+  "sidebar": {
+    "settings": "Configurações",
+    "account": "Conta",
+    "signOut": "Sair",
+    "signIn": "Login",
+    "friendRequests_one": "{{count}} pedido de amizade",
+    "friendRequests_other": "{{count}} pedidos de amizade"
+  }
+}

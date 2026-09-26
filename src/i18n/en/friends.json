@@ -1,0 +1,61 @@
+{
+  "nickname": {
+    "sectionTitle": "Your nickname",
+    "description": "Share this nickname with the people you want to add as friends.",
+    "label": "Nickname",
+    "placeholder": "your_nickname",
+    "copy": "Copy",
+    "save": "Save nickname",
+    "updated": "Nickname updated",
+    "copied": "Nickname copied",
+    "copyFailed": "Could not copy the nickname",
+    "required": "Enter a nickname"
+  },
+
+  "add": {
+    "sectionTitle": "Add a friend",
+    "description": "Search for the exact nickname the other person shared with you.",
+    "placeholder": "friend_nickname",
+    "search": "Search",
+    "tooShort": "Type at least 3 characters",
+    "notFound": "No user found with that nickname",
+    "self": "This is you",
+    "viewProfile": "View profile",
+    "requestSent": "Request sent",
+    "send": "Send"
+  },
+
+  "requests": {
+    "incomingTitle": "Received requests ({{count}})",
+    "incomingEmpty": "No requests received.",
+    "outgoingTitle": "Sent requests",
+    "accept": "Accept",
+    "decline": "Decline",
+    "cancel": "Cancel",
+    "accepted": "Request accepted",
+    "declined": "Request declined",
+    "cancelled": "Request cancelled"
+  },
+
+  "list": {
+    "title": "Friends ({{count}})",
+    "description": "Only accepted friends show up in the leaderboard and comparisons.",
+    "emptyTitle": "No friends added yet",
+    "emptyDescription": "Share your nickname or search for someone else's nickname.",
+    "totalLabel": "total",
+    "remove": "Remove friend",
+    "removed": "Friend removed",
+    "alreadyFriends": "You are already friends"
+  },
+
+  "profile": {
+    "close": "Close profile",
+    "friendsSince": "Friends since {{date}}",
+    "stats": {
+      "total": "Total",
+      "today": "Today",
+      "week": "Week",
+      "month": "Month"
+    }
+  }
+}

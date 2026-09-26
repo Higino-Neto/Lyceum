@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "Lyceum",
+    "offline": "Offline",
+    "loading": "Carregando…",
+    "saving": "Salvando…",
+    "version": "Versão {{version}}"
+  },
+
+  "actions": {
+    "add": "Adicionar",
+    "apply": "Aplicar",
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "confirm": "Confirmar",
+    "continue": "Continuar",
+    "create": "Criar",
+    "delete": "Excluir",
+    "dismiss": "Dispensar",
+    "edit": "Editar",
+    "export": "Exportar",
+    "import": "Importar",
+    "next": "Próximo",
+    "open": "Abrir",
+    "previous": "Anterior",
+    "refresh": "Atualizar",
+    "remove": "Remover",
+    "rename": "Renomear",
+    "reset": "Restaurar",
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "search": "Buscar",
+    "select": "Selecionar",
+    "selectAll": "Selecionar tudo",
+    "send": "Enviar",
+    "skip": "Pular",
+    "start": "Iniciar",
+    "stop": "Parar",
+    "submit": "Enviar",
+    "undo": "Desfazer",
+    "view": "Visualizar"
+  },
+
+  "states": {
+    "active": "Ativo",
+    "available": "Disponível",
+    "disabled": "Desativado",
+    "enabled": "Ativado",
+    "error": "Algo deu errado",
+    "empty": "Nada por aqui ainda",
+    "loading": "Carregando…",
+    "off": "Desligado",
+    "on": "Ligado",
+    "success": "Pronto",
+    "warning": "Atenção"
+  },
+
+  "fields": {
+    "all": "Todos",
+    "author": "Autor",
+    "category": "Categoria",
+    "date": "Data",
+    "email": "E-mail",
+    "name": "Nome",
+    "none": "Nenhum",
+    "notes": "Notas",
+    "password": "Senha",
+    "pages": "Páginas",
+    "status": "Status",
+    "title": "Título",
+    "total": "Total",
+    "unknown": "Desconhecido"
+  },
+
+  "periods": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "thisWeek": "Esta semana",
+    "lastWeek": "Semana passada",
+    "thisMonth": "Este mês",
+    "lastMonth": "Mês passado",
+    "thisYear": "Este ano",
+    "lastYear": "Ano passado",
+    "allTime": "Desde o início"
+  },
+
+  "units": {
+    "page_one": "{{count}} página",
+    "page_other": "{{count}} páginas",
+    "minute_one": "{{count}} minuto",
+    "minute_other": "{{count}} minutos",
+    "hour_one": "{{count}} hora",
+    "hour_other": "{{count}} horas",
+    "day_one": "{{count}} dia",
+    "day_other": "{{count}} dias",
+    "book_one": "{{count}} livro",
+    "book_other": "{{count}} livros"
+  },
+
+  "messages": {
+    "noResults": "Nenhum resultado encontrado",
+    "notFound": "Página não encontrada",
+    "notFoundDescription": "A página que você procura não existe.",
+    "goHome": "Ir para o dashboard",
+    "offlineNotice": "Você está offline. Seus dados ficam salvos neste dispositivo."
+  },
+
+  "confirm": {
+    "title": "Confirmação",
+    "irreversible": "Esta ação não pode ser desfeita."
+  },
+
+  "validation": {
+    "required": "Este campo é obrigatório",
+    "invalidEmail": "Informe um e-mail válido",
+    "passwordTooShort": "Use pelo menos {{count}} caracteres"
+  }
+}

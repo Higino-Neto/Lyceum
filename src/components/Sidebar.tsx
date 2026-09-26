@@ -15,6 +15,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
 import { useRouteState } from "../hooks/useRouteState";
 import { useAppSettings } from "../contexts/AppSettingsContext";
+import { useTranslation } from "../i18n";
+import { getRouteLabel } from "../navigation/routes";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -54,6 +56,8 @@ export default function Sidebar({
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { settings } = useAppSettings();
+  const { t } = useTranslation();
+  const routeLabel = (id: Parameters<typeof getRouteLabel>[0]) => getRouteLabel(id, t);
 
   useRouteState();
 
@@ -84,7 +88,7 @@ export default function Sidebar({
         {isLoggedIn && (
         <SidebarItem
           Icon={Home}
-          label="Dashboard"
+          label={routeLabel("dashboard")}
           active={pathname === "/"}
           onClick={() => navigate("/")}
           collapsed={collapsed}
@@ -94,7 +98,7 @@ export default function Sidebar({
         {isLoggedIn && (
         <SidebarItem
           Icon={BookPlus}
-          label="Registrar"
+          label={routeLabel("register")}
           active={pathname === "/add_reading"}
           onClick={() => navigate("/add_reading")}
           collapsed={collapsed}
@@ -103,7 +107,7 @@ export default function Sidebar({
         )}
         <SidebarItem
           Icon={LibraryBig}
-          label="Biblioteca"
+          label={routeLabel("library")}
           active={pathname === "/library"}
           onClick={() => navigate("/library")}
           collapsed={collapsed}
@@ -111,7 +115,7 @@ export default function Sidebar({
         />
         <SidebarItem
           Icon={BookOpenText}
-          label="Ler"
+          label={routeLabel("reader")}
           active={pathname === "/reading"}
           onClick={() => navigate("/reading")}
           collapsed={collapsed}
@@ -120,7 +124,7 @@ export default function Sidebar({
         {settings.betaAtlasEnabled && (
           <SidebarItem
             Icon={Map}
-            label="Atlas"
+            label={routeLabel("atlas")}
             active={pathname === "/atlas"}
             onClick={() => navigate("/atlas")}
             collapsed={collapsed}
@@ -130,7 +134,7 @@ export default function Sidebar({
         {settings.betaConversionEnabled && (
           <SidebarItem
             Icon={RefreshCw}
-            label="Conversao"
+            label={routeLabel("conversion")}
             active={conversionOpen}
             onClick={() => onOpenConversion?.()}
             collapsed={collapsed}
@@ -140,7 +144,7 @@ export default function Sidebar({
         {settings.betaHabitsEnabled && (
           <SidebarItem
             Icon={CheckSquare}
-            label="Hábitos"
+            label={routeLabel("habits")}
             active={pathname === "/habit_tracker"}
             onClick={() => navigate("/habit_tracker")}
             collapsed={collapsed}
@@ -152,7 +156,7 @@ export default function Sidebar({
       <div className="flex flex-col mt-auto mb-3 text-zinc-500 text-center">
         <SidebarItem
           Icon={Settings}
-          label="Configurações"
+          label={t("navigation:sidebar.settings")}
           active={settingsOpen}
           onClick={() => onOpenSettings?.()}
           collapsed={collapsed}
@@ -162,14 +166,14 @@ export default function Sidebar({
           <>
             <SidebarItem
               Icon={UserCircle}
-              label="Conta"
+              label={t("navigation:sidebar.account")}
               active={false}
               onClick={() => onOpenAccountSettings?.()}
               collapsed={collapsed}
             />
             <SidebarItem
               Icon={LogOut}
-              label="Sair"
+              label={t("navigation:sidebar.signOut")}
               active={false}
               onClick={() => onSignOut?.()}
               collapsed={collapsed}
@@ -183,7 +187,7 @@ export default function Sidebar({
         ) : (
           <SidebarItem
             Icon={LogIn}
-            label="Login"
+            label={t("navigation:sidebar.signIn")}
             active={pathname === "/signin"}
             onClick={() => navigate("/signin")}
             collapsed={collapsed}

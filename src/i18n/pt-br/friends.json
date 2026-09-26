@@ -1,0 +1,61 @@
+{
+  "nickname": {
+    "sectionTitle": "Seu nickname",
+    "description": "Compartilhe este nickname com quem você quer adicionar como amigo.",
+    "label": "Nickname",
+    "placeholder": "seu_nickname",
+    "copy": "Copiar",
+    "save": "Salvar nickname",
+    "updated": "Nickname atualizado",
+    "copied": "Nickname copiado",
+    "copyFailed": "Não foi possível copiar o nickname",
+    "required": "Informe um nickname"
+  },
+
+  "add": {
+    "sectionTitle": "Adicionar amigo",
+    "description": "Pesquise pelo nickname exato que a outra pessoa compartilhou com você.",
+    "placeholder": "nickname_do_amigo",
+    "search": "Buscar",
+    "tooShort": "Digite pelo menos 3 caracteres",
+    "notFound": "Nenhum usuário encontrado com esse nickname",
+    "self": "Este é você",
+    "viewProfile": "Ver perfil",
+    "requestSent": "Solicitação enviada",
+    "send": "Enviar"
+  },
+
+  "requests": {
+    "incomingTitle": "Solicitações recebidas ({{count}})",
+    "incomingEmpty": "Nenhuma solicitação recebida.",
+    "outgoingTitle": "Solicitações enviadas",
+    "accept": "Aceitar",
+    "decline": "Recusar",
+    "cancel": "Cancelar",
+    "accepted": "Solicitação aceita",
+    "declined": "Solicitação recusada",
+    "cancelled": "Solicitação cancelada"
+  },
+
+  "list": {
+    "title": "Amigos ({{count}})",
+    "description": "Somente amigos aceitos aparecem no leaderboard e nas comparações.",
+    "emptyTitle": "Nenhum amigo adicionado ainda",
+    "emptyDescription": "Compartilhe seu nickname ou pesquise o nickname de outra pessoa.",
+    "totalLabel": "total",
+    "remove": "Remover amigo",
+    "removed": "Amigo removido",
+    "alreadyFriends": "Vocês já são amigos"
+  },
+
+  "profile": {
+    "close": "Fechar perfil",
+    "friendsSince": "Amigo desde {{date}}",
+    "stats": {
+      "total": "Total",
+      "today": "Hoje",
+      "week": "Semana",
+      "month": "Mês"
+    }
+  }
+}
