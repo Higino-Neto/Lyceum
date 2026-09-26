@@ -5,6 +5,7 @@ import { AlertTriangle, Check, FileText, BookOpen, GitMerge } from "lucide-react
 import toast from "react-hot-toast";
 import { updateBook, mergeBooks } from "../../../api/database";
 import { LOCAL_BOOK_PREFIX, calculateSimilarity, normalizeText } from "../utils";
+import { useTranslation } from "../../../i18n";
 
 interface BooksSectionProps {
   books: SupabaseBook[];
@@ -32,6 +33,7 @@ export default function BooksSection({
   onRefresh,
   editingBook: externalEditingBook
 }: BooksSectionProps) {
+  const { t } = useTranslation();
   const [selectedGroup, setSelectedGroup] = useState<DuplicatedGroup | null>(null);
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -107,7 +109,7 @@ export default function BooksSection({
 
   const handleMergeSelected = async () => {
     if (selectedForMerge.size < 2) {
-      toast.error("Selecione pelo menos 2 livros para mesclar");
+      toast.error(t("library:books.toasts.needTwoBooks"));
       return;
     }
 
@@ -115,7 +117,7 @@ export default function BooksSection({
     const hasLocal = Array.from(selectedForMerge).some(id => id.startsWith(LOCAL_BOOK_PREFIX));
 
     if (hasLocal && !hasSupabase) {
-      toast.error("Selecione pelo menos um livro do Supabase para mesclar");
+      toast.error(t("library:books.toasts.needOneSupabase"));
       return;
     }
 
@@ -188,10 +190,10 @@ export default function BooksSection({
       setMergeMode(false);
       setShowMergeNameDialog(false);
       setMergeFinalName("");
-      toast.success("Livros mesclados com sucesso!");
+      toast.success(t("library:books.toasts.merged"));
     } catch (error) {
       console.error("Error merging books:", error);
-      toast.error("Erro ao mesclar livros");
+      toast.error(t("library:books.toasts.mergeFailed"));
     } finally {
       setMerging(false);
     }
@@ -270,10 +272,10 @@ export default function BooksSection({
       setSelectedGroup(null);
       onSelectBook?.(null);
       setShowMergeConfirm(false);
-      toast.success("Livros mesclados com sucesso!");
+      toast.success(t("library:books.toasts.merged"));
     } catch (error) {
       console.error("Error merging books:", error);
-      toast.error("Erro ao mesclar livros");
+      toast.error(t("library:books.toasts.mergeFailed"));
     } finally {
       setMerging(false);
     }
@@ -289,10 +291,10 @@ export default function BooksSection({
       });
       setEditingBook(null);
       await onRefresh();
-      toast.success("Livro atualizado!");
+      toast.success(t("library:books.toasts.updated"));
     } catch (error) {
       console.error("Error updating book:", error);
-      toast.error("Erro ao atualizar livro");
+      toast.error(t("library:books.toasts.updateFailed"));
     }
   };
 
@@ -300,10 +302,12 @@ export default function BooksSection({
     try {
       await window.api.updateBookId(doc.fileHash, book.id);
       await onRefresh();
-      toast.success(`"${doc.title}" vinculado a "${book.title}"`);
+      toast.success(
+          t("library:books.toasts.linked", { doc: doc.title, book: book.title }),
+        );
     } catch (error) {
       console.error("Error linking document:", error);
-      toast.error("Erro ao vincular documento");
+      toast.error(t("library:books.toasts.linkFailed"));
     }
   };
 
@@ -313,10 +317,12 @@ export default function BooksSection({
       if (!book) return;
       await window.api.updateBookId(doc.fileHash, bookId);
       await onRefresh();
-      toast.success(`"${doc.title}" vinculado a "${book.title}"`);
+      toast.success(
+          t("library:books.toasts.linked", { doc: doc.title, book: book.title }),
+        );
     } catch (error) {
       console.error("Error linking document:", error);
-      toast.error("Erro ao vincular documento");
+      toast.error(t("library:books.toasts.linkFailed"));
     }
   };
 
@@ -330,7 +336,7 @@ export default function BooksSection({
       <div className="w-full">
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <div className="w-6 h-6 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-500 text-sm">Carregando livros...</p>
+          <p className="text-zinc-500 text-sm">{t("library:books.loading")}</p>
         </div>
       </div>
     );
@@ -344,8 +350,8 @@ export default function BooksSection({
       <div className="w-full">
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <BookOpen size={22} className="text-zinc-600" />
-          <p className="text-zinc-500 text-sm">Nenhum livro encontrado.</p>
-          <p className="text-zinc-600 text-xs">Registre uma leitura para criar um livro.</p>
+          <p className="text-zinc-500 text-sm">{t("library:books.empty")}</p>
+          <p className="text-zinc-600 text-xs">{t("library:books.emptyHint")}</p>
         </div>
       </div>
     );
@@ -356,14 +362,16 @@ export default function BooksSection({
       <div className="flex items-center gap-3 mt-3">
           {mergeMode ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-400">{selectedForMerge.size} selecionado{selectedForMerge.size !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-zinc-400">
+                {t("library:books.selected", { count: selectedForMerge.size })}
+              </span>
               <button
                 onClick={handleMergeSelected}
                 disabled={selectedForMerge.size < 2}
                 className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-sm text-sm flex items-center gap-2 transition-colors"
               >
                 <GitMerge size={14} />
-                Mesclar
+                {t("library:books.mergeSelected")}
               </button>
               <button
                 onClick={() => { setMergeMode(false); setSelectedForMerge(new Set()); }}
@@ -378,7 +386,7 @@ export default function BooksSection({
               className="cursor-pointer px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm flex items-center gap-2 transition-colors"
             >
               <GitMerge size={14} />
-              Mesclar Livros
+              {t("library:books.mergeBooks")}
             </button>
           )}
         </div>
@@ -388,11 +396,13 @@ export default function BooksSection({
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={16} className="text-yellow-500" />
             <h3 className="text-sm font-medium text-yellow-500">
-              {duplicatedGroups.length} grupo{duplicatedGroups.length > 1 ? "s" : ""} de livros duplicados
+              {t("library:books.duplicatedGroups", {
+                count: duplicatedGroups.length,
+              })}
             </h3>
           </div>
           <p className="text-xs text-zinc-400 mb-3">
-            Agrupe e mescle livros com títulos semelhantes para unificar suas leituras.
+            {t("library:books.duplicatedHint")}
           </p>
           <div className="flex flex-wrap gap-2">
             {duplicatedGroups.slice(0, 5).map((group, idx) => (
@@ -410,7 +420,9 @@ export default function BooksSection({
             ))}
             {duplicatedGroups.length > 5 && (
               <span className="text-xs text-zinc-500 py-1">
-                +{duplicatedGroups.length - 5} mais
+                {t("library:books.moreGroups", {
+                  count: duplicatedGroups.length - 5,
+                })}
               </span>
             )}
           </div>
@@ -420,7 +432,11 @@ export default function BooksSection({
       {selectedGroup && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-sm p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Mesclar: "{selectedGroup.books[0].title}"</h3>
+            <h3 className="text-sm font-medium">
+              {t("library:books.mergeHeading", {
+                title: selectedGroup.books[0].title,
+              })}
+            </h3>
             <button
               onClick={() => { setSelectedGroup(null); onSelectBook?.(null); }}
               className="cursor-pointer text-zinc-400 hover:text-white p-1"
@@ -448,7 +464,9 @@ export default function BooksSection({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-zinc-200 truncate">{book.title}</p>
-                  <p className="text-xs text-zinc-500 truncate">{book.author || "Autor desconhecido"}</p>
+                  <p className="text-xs text-zinc-500 truncate">
+                    {book.author || t("library:stats.unknownAuthor")}
+                  </p>
                 </div>
                 {book.thumbnail_url && (
                   <span className="flex h-12 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900">
@@ -463,7 +481,7 @@ export default function BooksSection({
               onClick={() => setShowMergeConfirm(true)}
               className="cursor-pointer w-full py-2 bg-zinc-700 hover:bg-zinc-600 rounded-sm text-sm flex items-center justify-center gap-2 transition-colors"
             >
-              Mesclar em "{selectedBook.title}"
+              {t("library:books.mergeInto", { title: selectedBook.title })}
             </button>
           )}
         </div>
@@ -514,11 +532,14 @@ export default function BooksSection({
               </div>
               
               <p className="text-xs text-zinc-300 line-clamp-2">{book.title}</p>
-              <p className="text-xs text-zinc-500 truncate">{book.author || "Autor desconhecido"}</p>
+              <p className="text-xs text-zinc-500 truncate">
+                {book.author || t("library:stats.unknownAuthor")}
+              </p>
               
               {linkedDocs.length > 0 && (
                 <p className="text-xs text-green-500 flex items-center gap-1">
-                  <Check size={10} /> {linkedDocs.length} vinculado{linkedDocs.length > 1 ? "s" : ""}
+                  <Check size={10} />{" "}
+                  {t("library:books.linked", { count: linkedDocs.length })}
                 </p>
               )}
             </div>
@@ -563,9 +584,11 @@ export default function BooksSection({
                 )}
               </div>
               <p className="text-xs text-zinc-300 line-clamp-2">{doc.title}</p>
-              <p className="text-xs text-zinc-500 truncate">{doc.numPages} páginas</p>
+              <p className="text-xs text-zinc-500 truncate">
+                {t("common:units.page", { count: doc.numPages })}
+              </p>
               <span className="text-xs px-1.5 py-0.5 rounded bg-green-900 text-green-300 w-fit">
-                Local
+                {t("library:books.local")}
               </span>
             </div>
           );
@@ -575,24 +598,27 @@ export default function BooksSection({
       {showMergeConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
-            <h3 className="text-base font-medium mb-2">Confirmar mesclagem</h3>
+            <h3 className="text-base font-medium mb-2">
+              {t("library:books.confirmMerge")}
+            </h3>
             <p className="text-sm text-zinc-400 mb-4">
-              As leituras dos livros duplicados serão transferidas para "{selectedBook?.title}".
-              Os livros duplicados serão excluídos.
+              {t("library:books.confirmMergeBody", {
+                title: selectedBook?.title ?? "",
+              })}
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowMergeConfirm(false)}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleMerge}
                 disabled={merging}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
               >
-                {merging ? "Mesclando..." : "Confirmar"}
+                {merging ? t("library:books.merging") : t("common:actions.confirm")}
               </button>
             </div>
           </div>
@@ -602,10 +628,14 @@ export default function BooksSection({
       {editingBook && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
-            <h3 className="text-base font-medium mb-4">Editar Livro</h3>
+            <h3 className="text-base font-medium mb-4">
+              {t("library:books.editBook")}
+            </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">Título</label>
+                <label className="block text-xs text-zinc-500 mb-1">
+                  {t("common:fields.title")}
+                </label>
                 <input
                   type="text"
                   value={editForm.title}
@@ -614,7 +644,9 @@ export default function BooksSection({
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">Autor</label>
+                <label className="block text-xs text-zinc-500 mb-1">
+                  {t("common:fields.author")}
+                </label>
                 <input
                   type="text"
                   value={editForm.author}
@@ -628,13 +660,13 @@ export default function BooksSection({
                 onClick={() => setEditingBook(null)}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleSaveEdit}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors"
               >
-                Salvar
+                {t("common:actions.save")}
               </button>
             </div>
           </div>
@@ -644,15 +676,19 @@ export default function BooksSection({
       {showMergeNameDialog && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
-            <h3 className="text-base font-medium mb-4">Definir nome do livro mesclado</h3>
+            <h3 className="text-base font-medium mb-4">
+              {t("library:books.mergedBookNameTitle")}
+            </h3>
             <p className="text-sm text-zinc-400 mb-4">
-              Digite o nome final para o livro que será criado após a mesclagem de {selectedForMerge.size} livros.
+              {t("library:books.mergedBookNameBody", {
+                count: selectedForMerge.size,
+              })}
             </p>
             <input
               type="text"
               value={mergeFinalName}
               onChange={(e) => setMergeFinalName(e.target.value)}
-              placeholder="Nome do livro mesclado"
+              placeholder={t("library:books.mergedBookName")}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm mb-4"
               autoFocus
             />
@@ -661,14 +697,14 @@ export default function BooksSection({
                 onClick={() => { setShowMergeNameDialog(false); setMergeFinalName(""); }}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={executeMerge}
                 disabled={merging || !mergeFinalName.trim()}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
               >
-                {merging ? "Mesclando..." : "Mesclar"}
+                {merging ? t("library:books.merging") : t("library:books.merge")}
               </button>
             </div>
           </div>

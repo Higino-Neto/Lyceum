@@ -23,6 +23,11 @@ import {
   Unlink,
   Shuffle,
 } from "lucide-react";
+import {
+  formatDate as formatLocalizedDate,
+  i18next as i18n,
+  useTranslation,
+} from "../../../i18n";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -101,6 +106,7 @@ export default function BookDetailPanel({
   readOnly = false,
   previewOpen = false,
 }: BookDetailPanelProps) {
+  const { t } = useTranslation();
   const formatVariants = book.mergedBooks?.length ? book.mergedBooks : [book];
   const canRemoveFromGroup = Boolean(
     onRemoveVariant && (removeFromGroup || formatVariants.length > 1),
@@ -208,14 +214,18 @@ export default function BookDetailPanel({
 
   const handleExtractVocabulary = async () => {
     if (selectedVariant.fileType !== "epub") {
-      toast.error("Vocabulário só disponível para EPUBs");
+      toast.error(t("library:detail.toasts.vocabularyEpubOnly"));
       return;
     }
     setIsExtractingVocabulary(true);
     try {
       const result = await (window.api as any).extractVocabulary(selectedVariant.fileHash);
       if (result.success) {
-        toast.success(`Vocabulário extraído: ${result.uniqueWords?.toLocaleString()} palavras únicas`);
+        toast.success(
+          t("library:detail.toasts.vocabularyExtracted", {
+            count: result.uniqueWords ?? 0,
+          }),
+        );
         setVocabularyStats({
           hasIndex: true,
           totalWords: result.totalWords || 0,
@@ -223,10 +233,10 @@ export default function BookDetailPanel({
         });
         await onRefresh?.(selectedVariant.fileHash);
       } else {
-        toast.error(result.error || "Erro ao extrair vocabulário");
+        toast.error(result.error || t("library:detail.toasts.vocabularyFailed"));
       }
     } catch (error) {
-      toast.error("Erro ao extrair vocabulário");
+      toast.error(t("library:detail.toasts.vocabularyFailed"));
     } finally {
       setIsExtractingVocabulary(false);
     }
@@ -246,7 +256,7 @@ export default function BookDetailPanel({
 
   const handleSaveEdit = async () => {
     if (editMode === "title" && !editValue.trim()) {
-      toast.error("O título não pode estar vazio");
+      toast.error(t("library:detail.toasts.emptyTitle"));
       return;
     }
 
@@ -264,21 +274,23 @@ export default function BookDetailPanel({
         if (editMode === "title") {
           const renameResult = await window.api.renameBook(metadataHash, newTitle, newAuthor);
           if (!renameResult.success) {
-            toast.error(renameResult.error || "Metadados atualizados, mas o arquivo nao pode ser renomeado");
+            toast.error(
+              renameResult.error || t("library:detail.toasts.renameFailed"),
+            );
             return;
           }
         }
-        toast.success("Metadados gravados no arquivo.");
+        toast.success(t("library:detail.toasts.metadataWritten"));
         setEditMode(null);
         setEditValue("");
         const nextHash = metadataHash;
         setSelectedVariantHash(nextHash);
         await onRefresh(nextHash);
       } else {
-        toast.error("Erro ao atualizar: " + result.error);
+        toast.error(t("library:detail.toasts.updateError", { message: result.error }));
       }
     } catch (error) {
-      toast.error("Erro ao atualizar livro");
+      toast.error(t("library:detail.toasts.updateFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -299,7 +311,7 @@ export default function BookDetailPanel({
     if (canRemoveFromGroup && onRemoveVariant && !deleteFileAlso) {
       const removed = await onRemoveVariant(selectedVariant);
       if (removed) {
-        toast.success("Livro removido do agrupamento e mantido na biblioteca");
+        toast.success(t("library:detail.toasts.removedFromGroup"));
         setShowDeleteDialog(false);
         await onDelete?.(deletedHash);
       }
@@ -307,12 +319,16 @@ export default function BookDetailPanel({
     }
     const result = await window.api.deleteBook(deletedHash, deleteFileAlso);
     if (result.success) {
-      toast.success(deleteFileAlso ? "Livro excluído do disco" : "Livro removido da biblioteca");
+      toast.success(
+        deleteFileAlso
+          ? t("library:detail.toasts.deletedFromDisk")
+          : t("library:detail.toasts.removedFromLibrary"),
+      );
       setShowDeleteDialog(false);
       setDeleteFileAlso(false);
       await onDelete?.(deletedHash);
     } else {
-      toast.error("Erro ao remover: " + result.error);
+      toast.error(t("library:detail.toasts.removeError", { message: result.error }));
     }
   };
 
@@ -334,7 +350,7 @@ export default function BookDetailPanel({
   const handleRegenerateThumbnail = async () => {
     const result = await window.api.regenerateThumbnail(selectedVariant.fileHash);
     if (result.success) {
-      toast.success("Thumbnail regenerada!");
+      toast.success(t("library:detail.toasts.thumbnailRegenerated"));
       if (result.thumbnailPath) {
         const refreshedThumbnail = await window.api.getThumbnail(result.thumbnailPath);
         setThumbnail(refreshedThumbnail || undefined);
@@ -342,7 +358,7 @@ export default function BookDetailPanel({
       setThumbnailKey(prev => prev + 1);
       await onRefresh(selectedVariant.fileHash);
     } else {
-      toast.error("Erro ao regenerar thumbnail");
+      toast.error(t("library:detail.toasts.thumbnailRegenerateFailed"));
     }
   };
 
@@ -370,7 +386,7 @@ export default function BookDetailPanel({
     const ext = file.name.toLowerCase().split(".").pop();
     
     if (ext !== "jpg" && ext !== "jpeg" && ext !== "png") {
-      toast.error("Formato não suportado. Use JPG ou PNG.");
+      toast.error(t("library:detail.toasts.unsupportedImageFormat"));
       return;
     }
 
@@ -393,7 +409,11 @@ export default function BookDetailPanel({
     );
 
     if (result.success) {
-      toast.success(mode === "replace" ? "Thumbnail substituída!" : "Página adicionada!");
+      toast.success(
+        mode === "replace"
+          ? t("library:detail.toasts.thumbnailReplaced")
+          : t("library:detail.toasts.pageAdded"),
+      );
       setThumbnailDialog({ open: false, imagePath: "" });
       if (result.thumbnailPath) {
         const refreshedThumbnail = await window.api.getThumbnail(result.thumbnailPath);
@@ -404,7 +424,7 @@ export default function BookDetailPanel({
       setSelectedVariantHash(nextHash);
       await onRefresh(nextHash);
     } else {
-      toast.error(result.error || "Erro ao definir thumbnail");
+      toast.error(result.error || t("library:detail.toasts.setThumbnailFailed"));
     }
   };
 
@@ -413,7 +433,7 @@ export default function BookDetailPanel({
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "Desconhecido";
+    if (bytes === 0) return t("common:fields.unknown");
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -421,13 +441,10 @@ export default function BookDetailPanel({
   };
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "Desconhecida";
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("pt-BR");
-    } catch {
-      return dateStr;
-    }
+    if (!dateStr) return t("common:fields.unknown");
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return dateStr;
+    return formatLocalizedDate(date, i18n.resolvedLanguage);
   };
 
   const getPathParts = (): string[] => {
@@ -441,7 +458,9 @@ export default function BookDetailPanel({
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
-        <h2 className="text-base font-semibold text-zinc-100">Detalhes do Livro</h2>
+        <h2 className="text-base font-semibold text-zinc-100">
+          {t("library:detail.title")}
+        </h2>
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer"
@@ -454,7 +473,7 @@ export default function BookDetailPanel({
       {hasFormatVariants && (
         <div
           role="tablist"
-          aria-label="Formatos do livro"
+          aria-label={t("library:detail.formats")}
           className={`flex flex-shrink-0 gap-2 overflow-x-auto border-b border-zinc-800 bg-zinc-950/70 px-3 py-2 ${formatVariants.length <= 3 ? "justify-center" : "justify-start"}`}
         >
           {formatVariants.map((variant, index) => {
@@ -507,7 +526,11 @@ export default function BookDetailPanel({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            title={readOnly ? selectedVariant.title : "Clique para selecionar ou arraste uma imagem"}
+            title={
+              readOnly
+                ? selectedVariant.title
+                : t("library:detail.selectOrDropImage")
+            }
           >
             {thumbnail ? (
               <img
@@ -527,7 +550,7 @@ export default function BookDetailPanel({
               </div>
             )}
             {selectedVariant.processingStatus === "failed" && (
-              <div className="absolute top-1.5 left-1.5 z-20" title="Arquivo corrompido ou não suportado">
+              <div className="absolute top-1.5 left-1.5 z-20" title={t("library:detail.corruptedOrUnsupported")}>
                 <AlertTriangle size={18} className="text-amber-400 drop-shadow-sm" />
               </div>
             )}
@@ -535,7 +558,9 @@ export default function BookDetailPanel({
               <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-green-400">
                   <Image size={32} />
-                  <span className="text-sm font-medium">Solte para definir capa</span>
+                  <span className="text-sm font-medium">
+                    {t("library:detail.dropToSetCover")}
+                  </span>
                 </div>
               </div>
             )}
@@ -543,7 +568,9 @@ export default function BookDetailPanel({
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-white">
                   <Upload size={24} />
-                  <span className="text-xs font-medium">Definir capa</span>
+                  <span className="text-xs font-medium">
+                    {t("library:detail.setCover")}
+                  </span>
                 </div>
               </div>
             )}
@@ -553,9 +580,9 @@ export default function BookDetailPanel({
             <div className="flex items-start gap-2">
               <FileText size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-500">Arquivo</p>
+                <p className="text-xs text-zinc-500">{t("library:detail.file")}</p>
                 <p className="text-sm text-zinc-300">
-                  {selectedVariant.numPages} páginas
+                  {t("library:units.pagesAbbrev", { count: selectedVariant.numPages })}
                 </p>
                 <p className="text-xs text-zinc-500">{formatFileSize(selectedVariant.fileSize)}</p>
               </div>
@@ -565,8 +592,12 @@ export default function BookDetailPanel({
               <div className="flex items-start gap-2 rounded-sm bg-amber-500/10 border border-amber-500/20 px-3 py-2">
                 <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-400">Arquivo corrompido</p>
-                  <p className="text-[11px] text-amber-300/70">O arquivo não é um PDF válido ou está danificado</p>
+                  <p className="text-xs font-medium text-amber-400">
+                    {t("library:detail.corrupted")}
+                  </p>
+                  <p className="text-[11px] text-amber-300/70">
+                    {t("library:detail.corruptedHint")}
+                  </p>
                 </div>
               </div>
             )}
@@ -639,7 +670,7 @@ export default function BookDetailPanel({
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
-                  aria-label="Salvar edicao"
+                  aria-label={t("common:actions.save")}
                   className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Save size={14} className="text-white" />
@@ -660,7 +691,7 @@ export default function BookDetailPanel({
                 <button
                   onClick={handleStartEditTitle}
                   className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
-                  title="Editar título"
+                  title={t("library:detail.editTitle")}
                 >
                   <Pencil size={14} className="text-zinc-500" />
                 </button>
@@ -670,7 +701,7 @@ export default function BookDetailPanel({
           </div>
 
           <div>
-            <p className="text-xs text-zinc-500 mb-1">Autor</p>
+            <p className="text-xs text-zinc-500 mb-1">{t("common:fields.author")}</p>
             {editMode === "author" ? (
               <div className="flex items-center gap-2">
                 <input
@@ -678,13 +709,13 @@ export default function BookDetailPanel({
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   className="flex-1 bg-zinc-800 border border-zinc-700 rounded-sm px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-green-500"
-                  placeholder="Nome do autor"
+                  placeholder={t("library:detail.authorPlaceholder")}
                   autoFocus
                 />
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
-                  aria-label="Salvar edicao"
+                  aria-label={t("common:actions.save")}
                   className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Save size={14} className="text-white" />
@@ -699,13 +730,13 @@ export default function BookDetailPanel({
             ) : (
               <div className="flex items-center gap-2">
                 <p className="text-sm text-zinc-300 flex-1 truncate">
-                  {selectedVariant.author || "Desconhecido"}
+                  {selectedVariant.author || t("common:fields.unknown")}
                 </p>
                 {!readOnly && (
                 <button
                   onClick={handleStartEditAuthor}
                   className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
-                  title="Editar autor"
+                  title={t("library:detail.editAuthor")}
                 >
                   <Pencil size={14} className="text-zinc-500" />
                 </button>
@@ -722,7 +753,7 @@ export default function BookDetailPanel({
             className="flex w-full items-center justify-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-600 cursor-pointer"
           >
             <Search size={15} />
-            Pesquisar e editar metadados
+            {t("library:detail.searchMetadata")}
           </button>
         )}
 
@@ -746,9 +777,9 @@ export default function BookDetailPanel({
             <BookOpen size={16} strokeWidth={3} />
             {canOpenInReader
               ? selectedVariant.currentPage > 1
-                ? "Continuar Leitura"
-                : "Começar a Ler"
-              : "Formato não suportado"}
+                ? t("library:detail.continueReading")
+                : t("library:detail.startReading")
+              : t("library:detail.unsupportedFormat")}
           </button>
         {onOpenPreview && (
           <button
@@ -756,8 +787,16 @@ export default function BookDetailPanel({
             onClick={() => onOpenPreview(selectedVariant)}
             disabled={!canOpenInReader}
             className={`bg-zinc-800 text-zinc-300 hover:bg-zinc-600 hover:text-green-200 flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500`}
-            title={previewOpen ? "Fechar previa lateral" : "Abrir previa lateral"}
-            aria-label={previewOpen ? "Fechar previa lateral" : "Abrir previa lateral"}
+            title={
+              previewOpen
+                ? t("library:detail.closePreview")
+                : t("library:detail.openPreview")
+            }
+            aria-label={
+              previewOpen
+                ? t("library:detail.closePreview")
+                : t("library:detail.openPreview")
+            }
           >
             <PanelRightOpen size={16} />
           </button>
@@ -769,30 +808,34 @@ export default function BookDetailPanel({
             <button
               onClick={() => onConvert?.(selectedVariant)}
               className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 cursor-pointer"
-              title="Converter"
+              title={t("library:detail.convert")}
             >
               <Shuffle size={14} />
-              <span className="truncate">Converter</span>
+              <span className="truncate">{t("library:detail.convert")}</span>
             </button>
             {selectedVariant.fileType === "epub" && (
             <button
               onClick={handleExtractVocabulary}
               disabled={isExtractingVocabulary}
               className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-              title={vocabularyStats?.hasIndex ? "Atualizar Vocabulário" : "Extrair Vocabulário"}
+              title={
+                vocabularyStats?.hasIndex
+                  ? t("library:detail.updateVocabulary")
+                  : t("library:detail.extractVocabulary")
+              }
             >
               {isExtractingVocabulary ? (
                 <RefreshCw size={13} className="animate-spin" />
               ) : (
                 <Sparkles size={13} />
               )}
-              <span className="truncate">Vocabulário</span>
+              <span className="truncate">{t("library:detail.vocabulary")}</span>
             </button>
             )}
           <button
             onClick={handleRegenerateThumbnail}
             className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
-            title="Regenerar thumbnail"
+            title={t("library:detail.regenerateThumbnail")}
           >
             <RefreshCw size={13} />
             <span className="truncate">Thumbnail</span>
@@ -800,16 +843,16 @@ export default function BookDetailPanel({
           <button
             onClick={handleShowInFolder}
             className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
-            title="Abrir pasta"
+            title={t("library:detail.openFolder")}
           >
             <FolderOpen size={13} />
-            <span className="truncate">Pasta</span>
+            <span className="truncate">{t("library:detail.folder")}</span>
           </button>
           </div>
 
           {vocabularyStats?.hasIndex && (
             <div className="flex items-center justify-between gap-2 rounded-sm border border-zinc-800/70 px-2 py-1.5 text-xs text-zinc-500">
-              <span>Palavras únicas</span>
+              <span>{t("library:detail.uniqueWords")}</span>
               <span className="text-zinc-300">
                 {vocabularyStats.uniqueWords.toLocaleString()}
                 <span className="text-zinc-600"> / </span>
@@ -830,7 +873,7 @@ export default function BookDetailPanel({
           className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-red-500/10 py-2 text-xs text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
           >
             <Unlink size={12} />
-            Desmesclar e manter arquivos
+            {t("library:detail.dissolveKeepFiles")}
           </button>
         )}
         <button
@@ -844,16 +887,22 @@ export default function BookDetailPanel({
 
         <AnimatedModal
           open={showDeleteDialog}
-          ariaLabel="Confirmar exclusao"
+          ariaLabel={t("library:detail.confirmRemoval")}
           onBackdropClick={cancelDelete}
           backdropClassName="px-4"
           className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
         >
-              <h3 className="text-base font-medium mb-2">Confirmar exclusão</h3>
+              <h3 className="text-base font-medium mb-2">
+                {t("library:detail.removeTitle")}
+              </h3>
               <p className="text-sm text-zinc-400 mb-4">
                 {canRemoveFromGroup
-                  ? `Deseja remover "${selectedVariant.title}" deste agrupamento? O arquivo sera mantido na biblioteca.`
-                  : `Tem certeza que deseja remover a variante "${selectedVariant.title}" da biblioteca?`}
+                  ? t("library:detail.removeFromGroupConfirm", {
+                      title: selectedVariant.title,
+                    })
+                  : t("library:detail.removeVariantConfirm", {
+                      title: selectedVariant.title,
+                    })}
               </p>
               {!canRemoveFromGroup && <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
                 <input
@@ -862,46 +911,50 @@ export default function BookDetailPanel({
                   onChange={(e) => setDeleteFileAlso(e.target.checked)}
                   className="w-4 h-4 accent-green-500 cursor-pointer"
                 />
-                Também excluir arquivo do disco
+                {t("library:detail.deleteFileAlso")}
               </label>}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDelete}
                   className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
                 >
-                  Cancelar
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   onClick={handleDelete}
                   className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors"
                 >
-                  {canRemoveFromGroup ? "Remover" : "Excluir"}
+                  {canRemoveFromGroup
+                    ? t("common:actions.remove")
+                    : t("common:actions.delete")}
                 </button>
               </div>
         </AnimatedModal>
         <AnimatedModal
           open={showDissolveDialog}
-          ariaLabel="Desmesclar livro"
+          ariaLabel={t("library:detail.dissolveAria")}
           onBackdropClick={() => setShowDissolveDialog(false)}
           backdropClassName="px-4"
           className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
         >
-              <h3 className="mb-2 text-base font-medium">Desmesclar livro</h3>
+              <h3 className="mb-2 text-base font-medium">
+                {t("library:detail.dissolveTitle")}
+              </h3>
               <p className="mb-4 text-sm text-zinc-400">
-                Os {formatVariants.length} arquivos serão movidos para a pasta pai e continuarão na biblioteca como livros independentes.
+                {t("library:detail.dissolveBody", { count: formatVariants.length })}
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowDissolveDialog(false)}
                   className="rounded-sm bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700"
                 >
-                  Cancelar
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   onClick={handleDissolve}
                   className="rounded-sm bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-400"
                 >
-                  Desmesclar
+                  {t("library:detail.dissolve")}
                 </button>
               </div>
         </AnimatedModal>

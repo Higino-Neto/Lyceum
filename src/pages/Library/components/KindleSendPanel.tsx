@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { translate, useTranslation } from "../../../i18n";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
   formatFileSize,
@@ -103,6 +104,8 @@ function Toggle({
   disabled?: boolean;
   onChange: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <button
       type="button"
@@ -111,7 +114,7 @@ function Toggle({
       className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         checked ? "bg-green-500" : "bg-zinc-700"
       }`}
-      title={checked ? "Ativado" : "Desativado"}
+      title={checked ? t("library:kindle.toggleOn") : t("library:kindle.toggleOff")}
     >
       <span
         className={`h-4 w-4 rounded-full bg-white transition-transform ${
@@ -145,10 +148,24 @@ function getBookFormat(book: BookWithThumbnail) {
 }
 
 function itemStatusLabel(result?: KindleSendResultItem, shouldConvert?: boolean) {
-  if (!result) return shouldConvert ? "Converter para AZW3" : "Pronto";
-  if (result.success && result.status === "converted") return result.verified ? "Convertido, enviado e verificado" : "Convertido e enviado (verificacao limitada)";
-  if (result.success) return result.verified ? "Enviado e verificado" : "Enviado (verificacao limitada)";
-  return result.error || "Erro no envio";
+  if (!result) {
+    return translate(
+      shouldConvert ? "library:kindle.status.convert" : "library:kindle.status.ready",
+    );
+  }
+  if (result.success && result.status === "converted") {
+    return translate(
+      result.verified
+        ? "library:kindle.status.convertedVerified"
+        : "library:kindle.status.convertedSent",
+    );
+  }
+  if (result.success) {
+    return translate(
+      result.verified ? "library:kindle.status.sentVerified" : "library:kindle.status.sent",
+    );
+  }
+  return result.error || translate("library:kindle.status.error");
 }
 
 export default function KindleSendPanel({
@@ -156,6 +173,7 @@ export default function KindleSendPanel({
   onClose,
   onSent,
 }: KindleSendPanelProps) {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState<KindleSendDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [loadingDevices, setLoadingDevices] = useState(true);
@@ -209,7 +227,7 @@ export default function KindleSendPanel({
       );
     } catch (error) {
       console.error("Error loading Kindle devices:", error);
-      toast.error("Nao foi possivel verificar o Kindle conectado");
+      toast.error(t("library:kindle.toasts.checkFailed"));
     } finally {
       setLoadingDevices(false);
     }
@@ -256,15 +274,17 @@ export default function KindleSendPanel({
       setResults(new Map(response.results.map((result) => [result.fileHash, result])));
 
       if (response.sent > 0) {
-        toast.success(`${response.sent} livro${response.sent !== 1 ? "s" : ""} enviado${response.sent !== 1 ? "s" : ""} para o Kindle`);
+        toast.success(t("library:kindle.toasts.sent", { count: response.sent }));
         onSent?.();
       }
       if (response.failed > 0) {
-        toast.error(response.error || `${response.failed} livro${response.failed !== 1 ? "s" : ""} nao foi enviado${response.failed !== 1 ? "s" : ""}`);
+        toast.error(
+          response.error || t("library:kindle.toasts.failed", { count: response.failed }),
+        );
       }
     } catch (error) {
       console.error("Error sending to Kindle:", error);
-      toast.error("Erro ao enviar para o Kindle");
+      toast.error(t("library:kindle.toasts.sendFailed"));
     } finally {
       setSending(false);
     }
@@ -273,20 +293,20 @@ export default function KindleSendPanel({
   return (
     <aside
       className="lyceum-kindle-send-panel flex h-full w-[390px] flex-shrink-0 flex-col border-l border-zinc-800 bg-zinc-900 text-zinc-100"
-      aria-label="Enviar para Kindle"
+      aria-label={t("library:kindle.aria")}
     >
       <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold">Enviar para Kindle</h2>
+          <h2 className="truncate text-sm font-semibold">{t("library:kindle.title")}</h2>
           <p className="mt-0.5 truncate text-xs text-zinc-500">
-            {books.length} livro{books.length !== 1 ? "s" : ""} selecionado{books.length !== 1 ? "s" : ""}
+            {t("library:kindle.selectedBooks", { count: books.length })}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-          title="Fechar"
+          title={t("common:actions.close")}
         >
           <X size={17} />
         </button>
@@ -299,10 +319,16 @@ export default function KindleSendPanel({
               <Smartphone size={17} className="flex-shrink-0 text-green-400" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
-                  {loadingDevices ? "Procurando Kindle..." : selectedDevice?.name || "Nenhum Kindle encontrado"}
+                  {loadingDevices
+                    ? t("library:kindle.searching")
+                    : selectedDevice?.name || t("library:kindle.noDevice")}
                 </p>
                 <p className="truncate text-xs text-zinc-500">
-                  {selectedDevice?.isMtp ? "MTP do Windows" : selectedDevice ? "Armazenamento USB" : "Conecte o Paperwhite por USB"}
+                  {selectedDevice?.isMtp
+                    ? t("library:kindle.mtp")
+                    : selectedDevice
+                      ? t("library:kindle.usb")
+                      : t("library:kindle.connectPaperwhite")}
                 </p>
               </div>
             </div>
@@ -311,7 +337,7 @@ export default function KindleSendPanel({
               onClick={() => void refreshDevices()}
               disabled={loadingDevices || sending}
               className="rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
-              title="Atualizar dispositivos"
+              title={t("library:kindle.refreshDevices")}
             >
               <RefreshCw size={15} className={loadingDevices ? "animate-spin" : ""} />
             </button>
@@ -339,13 +365,15 @@ export default function KindleSendPanel({
 
         <section className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950/60 p-3">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Opcoes de transferencia
+            {t("library:kindle.transferOptions")}
           </h3>
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">Converter para AZW3</p>
-                <p className="text-xs text-zinc-500">Ideal para EPUB, PDF, TXT e HTML via USB</p>
+                <p className="text-zinc-200">{t("library:kindle.convertAzw3")}</p>
+                <p className="text-xs text-zinc-500">
+                  {t("library:kindle.convertAzw3Hint")}
+                </p>
               </div>
               <Toggle
                 checked={convertToAzw3}
@@ -355,8 +383,10 @@ export default function KindleSendPanel({
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">Preservar metadados</p>
-                <p className="text-xs text-zinc-500">Titulo, autor e identificador Lyceum</p>
+                <p className="text-zinc-200">{t("library:kindle.preserveMetadata")}</p>
+                <p className="text-xs text-zinc-500">
+                  {t("library:kindle.preserveMetadataHint")}
+                </p>
               </div>
               <Toggle
                 checked={preserveMetadata}
@@ -366,8 +396,10 @@ export default function KindleSendPanel({
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">Organizar por autor</p>
-                <p className="text-xs text-zinc-500">Cria subpastas dentro de Downloads</p>
+                <p className="text-zinc-200">{t("library:kindle.organizeByAuthor")}</p>
+                <p className="text-xs text-zinc-500">
+                  {t("library:kindle.organizeByAuthorHint")}
+                </p>
               </div>
               <Toggle
                 checked={organizeByAuthor}
@@ -381,7 +413,7 @@ export default function KindleSendPanel({
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-              Livros selecionados
+              {t("library:kindle.selectedHeading")}
             </h3>
             <span className="text-xs text-zinc-600">{formatFileSize(totalSize)}</span>
           </div>
@@ -393,7 +425,9 @@ export default function KindleSendPanel({
               const needsConversion = !convertToAzw3 && !DIRECT_KINDLE_FORMATS.has(format);
               const hasError = needsConversion || (result && !result.success);
               const isDone = result?.success;
-              const fallbackStatus = needsConversion ? "Ative AZW3 para enviar por USB" : itemStatusLabel(result, shouldConvert);
+              const fallbackStatus = needsConversion
+                ? t("library:kindle.needsConversion")
+                : itemStatusLabel(result, shouldConvert);
 
               return (
                 <article
@@ -406,7 +440,7 @@ export default function KindleSendPanel({
                       {getTitleWithoutExtension(book.title, book.fileType)}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-zinc-500">
-                      {book.author || "Autor desconhecido"} - {getFileTypeLabel(book.fileType, book.filePath)} - {formatFileSize(book.fileSize)}
+                      {book.author || t("library:kindle.unknownAuthor")} - {getFileTypeLabel(book.fileType, book.filePath)} - {formatFileSize(book.fileSize)}
                     </p>
                     <p
                       className={`mt-2 flex items-center gap-1.5 text-xs ${
@@ -440,11 +474,16 @@ export default function KindleSendPanel({
 
       <footer className="flex-shrink-0 border-t border-zinc-800 bg-zinc-900/95 p-4">
         <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
-          <span>{convertibleCount} convers{convertibleCount === 1 ? "ao" : "oes"} AZW3</span>
+          <span>{t("library:kindle.conversions", { count: convertibleCount })}</span>
           <span>
             {results.size > 0
-              ? `${verifiedCount} verificado(s)${inferredCount > 0 ? `, ${inferredCount} inferido(s)` : ""}`
-              : `${books.length} arquivo${books.length !== 1 ? "s" : ""}`}
+              ? inferredCount > 0
+                ? t("library:kindle.summaryInferred", {
+                    verified: verifiedCount,
+                    inferred: inferredCount,
+                  })
+                : t("library:kindle.summary", { verified: verifiedCount })
+              : t("library:kindle.summaryPending", { count: books.length })}
           </span>
         </div>
         <div className="flex gap-2">
@@ -454,7 +493,7 @@ export default function KindleSendPanel({
             disabled={sending}
             className="h-10 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
           >
-            Cancelar
+            {t("common:actions.cancel")}
           </button>
           <button
             type="button"
@@ -463,7 +502,9 @@ export default function KindleSendPanel({
             className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-semibold text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-            {sending ? "Enviando..." : `Enviar ${books.length}`}
+            {sending
+              ? t("library:kindle.sending")
+              : t("library:kindle.send", { count: books.length })}
           </button>
         </div>
       </footer>

@@ -21,6 +21,7 @@ import {
   searchBookMetadataSources,
 } from "../../../api/bookMetadataSearch";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 type EditableMetadataForm = {
   title: string;
@@ -55,36 +56,45 @@ interface BookMetadataSearchDialogProps {
   onSaveMetadata?: (metadata: BookMetadataSavePayload) => Promise<void> | void;
 }
 
-const sourceOptions: Array<{ value: MetadataSearchScope; label: string }> = [
-  { value: "all", label: "Todas" },
+const sourceOptions: Array<{
+  value: MetadataSearchScope;
+  labelKey?: TranslationKey;
+  label?: string;
+}> = [
+  { value: "all", labelKey: "library:metadata.sources.all" },
   { value: "openlibrary", label: "Open Library" },
   { value: "google", label: "Google Books" },
   { value: "loc", label: "Library of Congress" },
 ];
 
-const fieldOptions: Array<{ value: MetadataSearchField; label: string }> = [
-  { value: "title", label: "Titulo" },
-  { value: "author", label: "Autor" },
-  { value: "isbn", label: "ISBN" },
+const fieldOptions: Array<{
+  value: MetadataSearchField;
+  labelKey: TranslationKey;
+}> = [
+  { value: "title", labelKey: "library:metadata.searchFields.title" },
+  { value: "author", labelKey: "library:metadata.searchFields.author" },
+  { value: "isbn", labelKey: "library:metadata.fields.identifier" },
 ];
 
-const formFields: Array<[keyof EditableMetadataForm, string, "input" | "textarea"]> = [
-  ["title", "Titulo", "input"],
-  ["subtitle", "Subtitulo", "input"],
-  ["author", "Autor(es)", "input"],
-  ["publisher", "Editora", "input"],
-  ["publishDate", "Data", "input"],
-  ["language", "Idioma", "input"],
-  ["isbn", "ISBN", "input"],
-  ["pageCount", "Paginas", "input"],
-  ["subject", "Categorias", "input"],
-  ["identifier", "Identificador", "input"],
-  ["asin", "ASIN", "input"],
-  ["series", "Serie", "input"],
-  ["seriesIndex", "Indice", "input"],
-  ["authorSort", "Autor sort", "input"],
-  ["titleSort", "Titulo sort", "input"],
-  ["description", "Descricao", "textarea"],
+const formFields: Array<
+  [keyof EditableMetadataForm, TranslationKey | null, "input" | "textarea"]
+> = [
+  ["title", "library:metadata.fields.title", "input"],
+  ["subtitle", "library:metadata.fields.subtitle", "input"],
+  ["author", "library:metadata.fields.author", "input"],
+  ["publisher", "library:metadata.fields.publisher", "input"],
+  ["publishDate", "library:metadata.fields.publishDate", "input"],
+  ["language", "library:metadata.fields.language", "input"],
+  ["isbn", null, "input"],
+  ["pageCount", "library:metadata.fields.pageCount", "input"],
+  ["subject", "library:metadata.fields.subject", "input"],
+  ["identifier", "library:metadata.fields.identifier", "input"],
+  ["asin", null, "input"],
+  ["series", "library:metadata.fields.series", "input"],
+  ["seriesIndex", "library:metadata.fields.seriesIndex", "input"],
+  ["authorSort", "library:metadata.fields.authorSort", "input"],
+  ["titleSort", "library:metadata.fields.titleSort", "input"],
+  ["description", "library:metadata.fields.description", "textarea"],
 ];
 
 function titleWithoutExtension(book: BookWithThumbnail) {
@@ -118,11 +128,17 @@ function compact(values: Array<string | undefined | null>) {
   return values.filter(Boolean).join(" - ");
 }
 
-function fieldState(original: EditableMetadataForm, form: EditableMetadataForm, key: keyof EditableMetadataForm) {
-  if (!form[key]) return "Vazio";
-  if (form[key] === original[key]) return "Atual";
-  if (!original[key]) return "Importado";
-  return "Editado";
+type FieldState = "empty" | "current" | "imported" | "edited";
+
+function fieldState(
+  original: EditableMetadataForm,
+  form: EditableMetadataForm,
+  key: keyof EditableMetadataForm,
+): FieldState {
+  if (!form[key]) return "empty";
+  if (form[key] === original[key]) return "current";
+  if (!original[key]) return "imported";
+  return "edited";
 }
 
 function normalizeForSave(form: EditableMetadataForm) {
@@ -182,15 +198,20 @@ function SourcePill({ source }: { source: BookMetadataCandidate["source"] }) {
   return <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${className}`}>{label}</span>;
 }
 
-function FieldBadge({ state }: { state: string }) {
-  const className = state === "Atual"
+function FieldBadge({ state }: { state: FieldState }) {
+  const { t } = useTranslation();
+  const className = state === "current"
     ? "bg-zinc-800 text-zinc-500"
-    : state === "Importado"
+    : state === "imported"
       ? "bg-emerald-500/12 text-emerald-300"
-      : state === "Editado"
+      : state === "edited"
         ? "bg-sky-500/12 text-sky-300"
         : "bg-zinc-900 text-zinc-600";
-  return <span className={`rounded-sm px-1.5 py-0.5 text-[10px] ${className}`}>{state}</span>;
+  return (
+    <span className={`rounded-sm px-1.5 py-0.5 text-[10px] ${className}`}>
+      {t(`library:metadata.fieldStates.${state}`)}
+    </span>
+  );
 }
 
 export default function BookMetadataSearchDialog({
@@ -201,6 +222,7 @@ export default function BookMetadataSearchDialog({
   onSaved,
   onSaveMetadata,
 }: BookMetadataSearchDialogProps) {
+  const { t } = useTranslation();
   const originalForm = useMemo(() => toInitialForm(book, thumbnail), [book, thumbnail]);
   const [form, setForm] = useState(originalForm);
   const [query, setQuery] = useState("");
@@ -240,7 +262,7 @@ export default function BookMetadataSearchDialog({
   const runSearch = async () => {
     const cleanQuery = query.trim();
     if (cleanQuery.length < 2) {
-      toast.error("Digite pelo menos 2 caracteres para pesquisar.");
+      toast.error(t("library:metadata.errors.shortQuery"));
       return;
     }
 
@@ -255,7 +277,9 @@ export default function BookMetadataSearchDialog({
       if (!response.success) {
         setResults([]);
         setSelectedId(null);
-        setSearchError(response.error || "Nao foi possivel pesquisar metadados.");
+        setSearchError(
+          response.error || t("library:metadata.errors.searchFailed"),
+        );
         return;
       }
 
@@ -263,12 +287,18 @@ export default function BookMetadataSearchDialog({
       setSelectedId(response.results[0]?.id || null);
       setWarnings(response.warnings || []);
       if (response.results.length === 0) {
-        setSearchError(response.warnings?.length ? null : "Nenhum resultado encontrado.");
+        setSearchError(
+          response.warnings?.length ? null : t("library:metadata.errors.noResults"),
+        );
       }
     } catch (error) {
       setResults([]);
       setSelectedId(null);
-      setSearchError(error instanceof Error ? error.message : "Erro ao pesquisar metadados.");
+      setSearchError(
+        error instanceof Error
+          ? error.message
+          : t("library:metadata.errors.searchError"),
+      );
     } finally {
       setIsSearching(false);
     }
@@ -281,19 +311,19 @@ export default function BookMetadataSearchDialog({
 
   const saveMetadata = async () => {
     if (!form.title.trim()) {
-      toast.error("O titulo nao pode ficar vazio.");
+      toast.error(t("library:metadata.errors.emptyTitle"));
       return;
     }
 
     setIsSaving(true);
-    const loadingToast = toast.loading("Salvando metadados...");
+    const loadingToast = toast.loading(t("library:metadata.toasts.saving"));
     try {
       if (onSaveMetadata) {
         await onSaveMetadata({
           ...normalizeForSave(form),
           coverUrl: saveCover ? form.coverUrl.trim() || undefined : undefined,
         });
-        toast.success("Metadados salvos.", { id: loadingToast });
+        toast.success(t("library:metadata.toasts.saved"), { id: loadingToast });
         onSaved(book.fileHash);
         onClose();
         return;
@@ -302,7 +332,10 @@ export default function BookMetadataSearchDialog({
       let currentHash = book.fileHash;
       const metadataResult = await window.api.updateMetadata(book.fileHash, normalizeForSave(form));
       if (!metadataResult.success) {
-        toast.error(metadataResult.error || "Erro ao salvar metadados", { id: loadingToast });
+        toast.error(
+          metadataResult.error || t("library:metadata.toasts.saveFailed"),
+          { id: loadingToast },
+        );
         return;
       }
 
@@ -314,20 +347,29 @@ export default function BookMetadataSearchDialog({
           currentHash = coverResult.fileHash || currentHash;
           saveWarnings.push(...(coverResult.warnings || []));
         } else {
-          saveWarnings.push(coverResult.error || "Nao foi possivel atualizar a capa.");
+          saveWarnings.push(
+            coverResult.error || t("library:metadata.toasts.coverFailed"),
+          );
         }
       }
 
       toast.success(
         saveWarnings.length
-          ? `Metadados salvos com ${saveWarnings.length} aviso(s).`
-          : "Metadados salvos.",
+          ? t("library:metadata.toasts.savedWithWarnings", {
+              count: saveWarnings.length,
+            })
+          : t("library:metadata.toasts.saved"),
         { id: loadingToast },
       );
       onSaved(currentHash);
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar metadados", { id: loadingToast });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("library:metadata.toasts.saveFailed"),
+        { id: loadingToast },
+      );
     } finally {
       setIsSaving(false);
     }
@@ -342,7 +384,9 @@ export default function BookMetadataSearchDialog({
       <div className="flex h-[min(860px,94vh)] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 shadow-2xl">
         <div className="flex flex-shrink-0 items-start justify-between border-b border-zinc-800 px-5 py-4">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-zinc-100">Editar metadados</h2>
+            <h2 className="text-lg font-semibold text-zinc-100">
+              {t("library:metadata.title")}
+            </h2>
             <p className="mt-1 truncate text-xs text-zinc-500">{titleWithoutExtension(book)}</p>
           </div>
           <button
@@ -350,7 +394,7 @@ export default function BookMetadataSearchDialog({
             onClick={onClose}
             disabled={isSaving}
             className="rounded-sm p-2 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200 disabled:opacity-50"
-            title="Fechar"
+            title={t("library:metadata.close")}
           >
             <X size={18} />
           </button>
@@ -368,7 +412,7 @@ export default function BookMetadataSearchDialog({
                     if (event.key === "Enter") void runSearch();
                   }}
                   className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
-                  placeholder="Titulo, autor ou ISBN"
+                  placeholder={t("library:metadata.searchPlaceholder")}
                 />
               </div>
 
@@ -383,9 +427,11 @@ export default function BookMetadataSearchDialog({
                         ? "bg-emerald-500 text-zinc-950"
                         : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                     }`}
-                    title={option.label}
+                    title={option.labelKey ? t(option.labelKey) : option.label}
                   >
-                    <span className="block truncate">{option.label}</span>
+                    <span className="block truncate">
+                      {option.labelKey ? t(option.labelKey) : option.label}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -403,7 +449,7 @@ export default function BookMetadataSearchDialog({
                           : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
                       }`}
                     >
-                      {option.label}
+                      {t(option.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -475,7 +521,7 @@ export default function BookMetadataSearchDialog({
                           <p className="line-clamp-2 text-sm font-medium text-zinc-100">{result.title}</p>
                           {selectedId === result.id && <Check size={15} className="mt-0.5 flex-shrink-0 text-emerald-300" />}
                         </div>
-                        <p className="mt-1 truncate text-xs text-zinc-400">{result.authors.join(", ") || "Autor desconhecido"}</p>
+                        <p className="mt-1 truncate text-xs text-zinc-400">{result.authors.join(", ") || t("library:metadata.unknownAuthor")}</p>
                         <p className="mt-1 truncate text-xs text-zinc-600">
                           {compact([result.publishedDate, result.publisher, result.language]) || result.sourceLabel}
                         </p>
@@ -503,14 +549,16 @@ export default function BookMetadataSearchDialog({
                 className="flex h-9 items-center justify-center gap-1.5 rounded-sm bg-emerald-500 px-3 text-xs font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={13} />
-                Aplicar
+                {t("library:metadata.apply")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowChangedOnly((value) => !value)}
                 className="flex h-9 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs text-zinc-300 transition-colors hover:bg-zinc-800"
               >
-                {showChangedOnly ? "Mostrar todos" : "Comparar"}
+                {showChangedOnly
+                  ? t("library:metadata.showAll")
+                  : t("library:metadata.compare")}
               </button>
             </div>
           </aside>
@@ -549,7 +597,9 @@ export default function BookMetadataSearchDialog({
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-700">
                       <Image size={24} />
-                      <span className="text-xs">Sem capa</span>
+                      <span className="text-xs">
+                        {t("library:metadata.noCover")}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -562,7 +612,7 @@ export default function BookMetadataSearchDialog({
                     className="flex h-9 items-center justify-center gap-1.5 rounded-sm border border-zinc-800 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
                   >
                     <ExternalLink size={13} />
-                    Fonte
+                    {t("library:metadata.source")}
                   </a>
                 )}
 
@@ -573,7 +623,7 @@ export default function BookMetadataSearchDialog({
                     onChange={(event) => setOverwrite(event.target.checked)}
                     className="mt-0.5 h-4 w-4 accent-emerald-500"
                   />
-                  Sobrescrever campos existentes ao aplicar
+                  {t("library:metadata.overwriteFields")}
                 </label>
                 <label className="flex items-start gap-2 text-xs text-zinc-400">
                   <input
@@ -582,15 +632,15 @@ export default function BookMetadataSearchDialog({
                     onChange={(event) => setSaveCover(event.target.checked)}
                     className="mt-0.5 h-4 w-4 accent-emerald-500"
                   />
-                  Salvar capa/thumbnail remoto
+                  {t("library:metadata.saveRemoteCover")}
                 </label>
 
                 <div className="rounded-sm border border-zinc-800 bg-zinc-900/60 p-2 text-xs text-zinc-500">
                   <div className="mb-1 flex items-center gap-1.5 text-zinc-400">
                     <Info size={12} />
-                    {changedCount} campo(s) alterados
+                    {t("library:metadata.changedFields", { count: changedCount })}
                   </div>
-                  Biblioteca atualizada em todos os formatos; arquivo fisico atualizado quando houver suporte.
+                  {t("library:metadata.changedFieldsHint")}
                 </div>
               </div>
             </div>
@@ -605,7 +655,7 @@ export default function BookMetadataSearchDialog({
             className="flex h-9 items-center gap-1.5 rounded-sm px-3 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 disabled:opacity-50"
           >
             <RotateCcw size={13} />
-            Restaurar original
+            {t("library:metadata.restoreOriginal")}
           </button>
           <div className="flex gap-2">
             <button
@@ -614,7 +664,7 @@ export default function BookMetadataSearchDialog({
               disabled={isSaving}
               className="h-9 rounded-sm border border-zinc-800 bg-zinc-900 px-4 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 disabled:opacity-50"
             >
-              Cancelar
+              {t("common:actions.cancel")}
             </button>
             <button
               type="button"
@@ -623,7 +673,7 @@ export default function BookMetadataSearchDialog({
               className="flex h-9 items-center gap-1.5 rounded-sm bg-emerald-500 px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-              Salvar metadados
+              {t("library:metadata.save")}
             </button>
           </div>
         </div>
