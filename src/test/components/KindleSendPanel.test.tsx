@@ -73,7 +73,7 @@ describe("KindleSendPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Enviado e verificado")).toBeInTheDocument();
       expect(screen.getByText("Copia verificada por tamanho")).toBeInTheDocument();
-      expect(screen.getByText("1 verificado(s)")).toBeInTheDocument();
+      expect(screen.getByText("1 verificado")).toBeInTheDocument();
     });
   });
 });

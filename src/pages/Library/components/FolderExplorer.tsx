@@ -241,7 +241,7 @@ export function FolderGrid({
               className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
               aria-expanded={!collapsed}
             >
-              {collapsed ? "Mostrar" : "Ocultar"}
+              {collapsed ? t("library:folders.show") : t("library:folders.hide")}
             </button>
           )}
         </div>

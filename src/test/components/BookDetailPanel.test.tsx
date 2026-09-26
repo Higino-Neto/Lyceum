@@ -69,7 +69,7 @@ describe("BookDetailPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: /Preview Book\.pdf/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir previa lateral" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir prévia lateral" }));
 
     expect(onOpenPreview).toHaveBeenCalledWith(pdfVariant);
   });
@@ -178,7 +178,7 @@ describe("BookDetailPanel", () => {
 
     fireEvent.click(screen.getByTitle("Editar título"));
     fireEvent.change(screen.getByDisplayValue("Preview Book"), { target: { value: "Novo Nome" } });
-    fireEvent.click(screen.getByRole("button", { name: "Salvar edicao" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
       expect(window.api.updateMetadata).toHaveBeenCalledWith("hash-epub", expect.objectContaining({ title: "Novo Nome" }));
@@ -203,7 +203,9 @@ describe("BookDetailPanel", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Remover" }));
-    expect(screen.getByText(/arquivo sera mantido na biblioteca/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/arquivo será mantido na biblioteca/i),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Remover" }).at(-1)!);
     await waitFor(() => expect(onRemoveVariant).toHaveBeenCalledWith(first));
     expect(window.api.deleteBook).toBeUndefined();

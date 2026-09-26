@@ -246,7 +246,7 @@ export default function CategoryManager({
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Nome da categoria..."
+                placeholder={t("library:categories.namePlaceholder")}
                 className="flex-1 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                 autoFocus
                 onKeyDown={(e) => {

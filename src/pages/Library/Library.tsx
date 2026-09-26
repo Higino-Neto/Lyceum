@@ -58,6 +58,7 @@ import {
   getTitleWithoutExtension,
 } from "./utils";
 import { useConversionQueue } from "../../contexts/ConversionQueueContext";
+import { useTranslation } from "../../i18n";
 import { useAppSettings } from "../../contexts/AppSettingsContext";
 import { LibraryProvider, useLibraryContext } from "../../contexts/LibraryContext";
 import { useFolderDragDrop } from "../../hooks/useFolderDragDrop";
@@ -141,6 +142,7 @@ function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: (
 
 function LibraryContent() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { prepareBooks } = useConversionQueue();
   const { settings } = useAppSettings();
   const osReducedMotion = useReducedMotion();
@@ -458,24 +460,24 @@ function LibraryContent() {
     if (isUsbBook && result && "success" in result && !result.success) {
       toast.error(
         result.error === "Invalid file type"
-          ? "Este formato ainda nÃ£o pode ser aberto no leitor"
-          : result.error || "Erro ao abrir o arquivo",
+          ? t("library:toasts.formatNotOpenable")
+          : result.error || t("library:toasts.openFileFailed"),
       );
       return null;
     }
 
     if (!result) {
-      toast.error("Erro ao abrir o arquivo");
+      toast.error(t("library:toasts.openFileFailed"));
       return null;
     }
 
     if ("error" in result) {
-      toast.error(result.message || "Erro ao abrir o arquivo");
+      toast.error(result.message || t("library:toasts.openFileFailed"));
       return null;
     }
 
     if (result.foundAt && result.foundAt !== filePath) {
-      toast.success("Livro encontrado em nova localização");
+      toast.success(t("library:toasts.bookFoundElsewhere"));
       refreshBooks();
     }
 
@@ -494,7 +496,7 @@ function LibraryContent() {
       source: isUsbBook ? "local" : "library",
       navigationId: crypto.randomUUID(),
     };
-  }, [activeSection, refreshBooks]);
+  }, [activeSection, refreshBooks, t]);
 
   const handleOpen = useCallback(async (
     filePath: string,
@@ -516,7 +518,7 @@ function LibraryContent() {
       return;
     }
     if (!book.filePath) {
-      toast.error("Caminho do arquivo nÃ£o encontrado");
+      toast.error(t("library:toasts.filePathNotFound"));
       return;
     }
 
@@ -530,7 +532,7 @@ function LibraryContent() {
     if (rightPanelsAreDrawer) {
       setSelectedBook(null);
     }
-  }, [openBookForReading, readingPreviewOpen, rightPanelsAreDrawer]);
+  }, [openBookForReading, readingPreviewOpen, rightPanelsAreDrawer, t]);
 
   const handleBookClick = useCallback((book: BookWithThumbnail) => {
     if (book.syntheticFolderType === "collection" && book.syntheticFolderPath) {
@@ -587,7 +589,9 @@ function LibraryContent() {
       if (selectedBook.syntheticFolderType === "merged" && variants.length === 1) {
         const result = await dissolveFolder(selectedBook.syntheticFolderPath);
         if (!result.success) {
-          toast.error(result.error || "O arquivo foi removido, mas a mesclagem restante nao pode ser desfeita");
+          toast.error(
+            result.error || t("library:toasts.fileRemovedMergeUndoFailed"),
+          );
         }
         setSelectedBook(null);
         await refreshLibraryState();
@@ -614,7 +618,7 @@ function LibraryContent() {
 
     setSelectedBook(null);
     await refreshLibraryState();
-  }, [dissolveFolder, refreshLibraryState, selectedBook]);
+  }, [dissolveFolder, refreshLibraryState, selectedBook, t]);
 
   const handleDeleteBook = useCallback(async (fileHash: string): Promise<boolean> => {
     const result = await window.api.deleteBook(fileHash, false);
@@ -622,9 +626,9 @@ function LibraryContent() {
       await refreshLibraryState();
       return true;
     }
-    toast.error(result.error || "Erro ao remover livro");
+    toast.error(result.error || t("library:toasts.deleteBookFailed"));
     return false;
-  }, [refreshLibraryState]);
+  }, [refreshLibraryState, t]);
 
   const handleRemoveVariant = useCallback(async (variant: BookWithThumbnail): Promise<boolean> => {
     if (!selectedBook) return false;
@@ -638,7 +642,7 @@ function LibraryContent() {
       result = await window.api.removeBookFromGroup(variant.fileHash);
     }
     if (!result.success) {
-      toast.error(result.error || "Nao foi possivel remover o livro do agrupamento");
+      toast.error(result.error || t("library:toasts.removeFromGroupFailed"));
       return false;
     }
     if (
@@ -649,13 +653,15 @@ function LibraryContent() {
       if (remaining.length <= 1) {
         const dissolveResult = await dissolveFolder(physicalGroupPath);
         if (!dissolveResult.success) {
-          toast.error(dissolveResult.error || "Livro removido, mas a mesclagem restante nao pode ser desfeita");
+          toast.error(
+            dissolveResult.error || t("library:toasts.bookRemovedMergeUndoFailed"),
+          );
         }
       }
     }
     await refreshLibraryState();
     return true;
-  }, [currentFolderType, dissolveFolder, folderStructure, moveBookInLibrary, refreshLibraryState, selectedBook, selectedFolder]);
+  }, [currentFolderType, dissolveFolder, folderStructure, moveBookInLibrary, refreshLibraryState, selectedBook, selectedFolder, t]);
 
   const handleMoveBook = async (
     fileHash: string,
@@ -677,7 +683,7 @@ function LibraryContent() {
         return true;
       }
 
-      toast.error(result.error || "Erro ao mover pasta especial");
+      toast.error(result.error || t("library:toasts.moveSpecialFolderFailed"));
       return false;
     }
 
@@ -692,7 +698,7 @@ function LibraryContent() {
         return true;
       }
 
-      toast.error(result.error || "Erro ao mover livro mesclado");
+      toast.error(result.error || t("library:toasts.moveMergedBookFailed"));
       return false;
     }
 
@@ -707,7 +713,7 @@ function LibraryContent() {
         return true;
       }
 
-      toast.error(result.error || "Erro ao mover livro para a library");
+      toast.error(result.error || t("library:toasts.moveToLibraryFailed"));
       return false;
     }
 
@@ -716,7 +722,7 @@ function LibraryContent() {
       return true;
     }
 
-    toast.error(result.error || "Erro ao mover livro");
+    toast.error(result.error || t("library:toasts.moveBookFailed"));
     return false;
   };
 
@@ -762,7 +768,7 @@ function LibraryContent() {
           moved += Math.max(1, mergedFolderVariantCount);
         } else {
           failed += Math.max(1, mergedFolderVariantCount);
-          toast.error(result.error || "Erro ao mover pasta especial");
+          toast.error(result.error || t("library:toasts.moveSpecialFolderFailed"));
         }
         continue;
       }
@@ -778,7 +784,7 @@ function LibraryContent() {
           moved += mergedVariantCount;
         } else {
           failed += mergedVariantCount;
-          toast.error(result.error || "Erro ao mover livro mesclado");
+          toast.error(result.error || t("library:toasts.moveMergedBookFailed"));
         }
         continue;
       }
@@ -794,14 +800,10 @@ function LibraryContent() {
     await refreshLibraryState();
 
     if (moved > 0) {
-      toast.success(
-        `${moved} livro${moved !== 1 ? "s" : ""} movido${moved !== 1 ? "s" : ""}`,
-      );
+      toast.success(t("library:toasts.booksMoved", { count: moved }));
     }
     if (failed > 0) {
-      toast.error(
-        `${failed} item${failed !== 1 ? "s" : ""} não movido${failed !== 1 ? "s" : ""}`,
-      );
+      toast.error(t("library:toasts.itemsNotMoved", { count: failed }));
     }
 
     return failed === 0;
@@ -860,13 +862,26 @@ function LibraryContent() {
           [targetBook, ...sourceBooks],
           "folderPath" in result ? result.folderPath || null : null,
         );
-        toast.success(action === "merge" ? "Livros mesclados" : "Colecao criada");
+        toast.success(
+          action === "merge"
+            ? t("library:toasts.booksMerged")
+            : t("library:toasts.collectionCreated"),
+        );
         await refreshLibraryState();
       } else {
-        toast.error(result.error || (action === "merge" ? "Erro ao mesclar livros" : "Erro ao criar colecao"));
+        toast.error(
+          result.error ||
+            (action === "merge"
+              ? t("library:toasts.mergeBooksFailed")
+              : t("library:toasts.createCollectionFailed")),
+        );
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao processar livros");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("library:toasts.processBooksFailed"),
+      );
     } finally {
       folderDragDrop.clearDrag();
       setBulkBusy(false);
@@ -900,17 +915,17 @@ function LibraryContent() {
   const confirmCreateFolder = async () => {
     const folderName = createFolderDialog.folderName.trim();
     if (!folderName) {
-      toast.error("Informe o nome da pasta");
+      toast.error(t("library:toasts.folderNameRequired"));
       return;
     }
 
     const result = await createFolder(createFolderDialog.parentPath, folderName);
 
     if (result.success) {
-      toast.success("Pasta criada");
+      toast.success(t("library:toasts.folderCreated"));
       closeCreateFolderDialog();
     } else {
-      toast.error(result.error || "Erro ao criar pasta");
+      toast.error(result.error || t("library:toasts.createFolderFailed"));
     }
   };
 
@@ -943,9 +958,9 @@ function LibraryContent() {
       ? await dissolveFolder(book.syntheticFolderPath)
       : book.bookId
         ? await window.api.unmergeBooks(book.bookId)
-        : { success: false, error: "Mesclagem sem identificador" };
+        : { success: false, error: t("library:toasts.mergeWithoutId") };
     if (!result.success) {
-      toast.error(result.error || "Nao foi possivel desfazer a mesclagem");
+      toast.error(result.error || t("library:toasts.undoMergeFailed"));
       return;
     }
 
@@ -954,7 +969,11 @@ function LibraryContent() {
       : "documents" in result
         ? result.documents?.length
         : 0;
-    toast.success(`${moved || book.mergedBooks?.length || 0} arquivo(s) mantido(s) como livros independentes`);
+    toast.success(
+      t("library:toasts.filesKept", {
+        count: moved || book.mergedBooks?.length || 0,
+      }),
+    );
     setSelectedBook(null);
     clearSelection();
     await refreshLibraryState();
@@ -970,7 +989,7 @@ function LibraryContent() {
     if (folderActionDialog.mode === "rename") {
       let newName = folderActionDialog.value.trim();
       if (!newName) {
-        toast.error("Informe o nome da pasta");
+        toast.error(t("library:toasts.folderNameRequired"));
         return;
       }
       const folderType = classifyFolder(folderActionDialog.folder.name);
@@ -986,10 +1005,10 @@ function LibraryContent() {
       );
 
       if (result.success) {
-        toast.success("Pasta renomeada");
+        toast.success(t("library:toasts.folderRenamed"));
         closeFolderActionDialog();
       } else {
-        toast.error(result.error || "Erro ao renomear pasta");
+        toast.error(result.error || t("library:toasts.renameFolderFailed"));
       }
       return;
     }
@@ -998,7 +1017,11 @@ function LibraryContent() {
       const result = await dissolveFolder(folderActionDialog.folder.fullPath);
       if (result.success) {
         const folderType = classifyFolder(folderActionDialog.folder.name);
-        toast.success(folderType === "collection" ? "Colecao removida; livros mantidos" : "Mesclagem desfeita; livros mantidos");
+        toast.success(
+          folderType === "collection"
+            ? t("library:toasts.collectionRemovedBooksKept")
+            : t("library:toasts.mergeUndoneBooksKept"),
+        );
         const selected = normalizeFolderPath(selectedFolder);
         const dissolved = normalizeFolderPath(folderActionDialog.folder.path);
         if (selected === dissolved || selected.startsWith(`${dissolved}/`)) {
@@ -1007,7 +1030,7 @@ function LibraryContent() {
         closeFolderActionDialog();
         await refreshLibraryState();
       } else {
-        toast.error(result.error || "Nao foi possivel remover a estrutura");
+        toast.error(result.error || t("library:toasts.removeStructureFailed"));
       }
       return;
     }
@@ -1018,7 +1041,7 @@ function LibraryContent() {
     );
 
     if (result.success) {
-      toast.success("Pasta excluida");
+      toast.success(t("library:toasts.folderDeleted"));
       const selected = normalizeFolderPath(selectedFolder);
       const deleted = normalizeFolderPath(folderActionDialog.folder.path);
       if (selected === deleted || selected.startsWith(`${deleted}/`)) {
@@ -1026,7 +1049,7 @@ function LibraryContent() {
       }
       closeFolderActionDialog();
     } else {
-      toast.error(result.error || "Erro ao excluir pasta");
+      toast.error(result.error || t("library:toasts.deleteFolderFailed"));
     }
   };
 
@@ -1046,7 +1069,7 @@ function LibraryContent() {
       }
       refreshLibraryState();
     } else {
-      toast.error(result.errors.join(", ") || "Erro ao importar livro");
+      toast.error(result.errors.join(", ") || t("library:toasts.importBookFailed"));
     }
   };
 
@@ -1130,7 +1153,7 @@ function LibraryContent() {
     const internalHashes = displayItems.map((book) => book.fileHash);
     const concreteHashes = getConcreteFileHashesFromBooks(displayItems);
     if (concreteHashes.length === 0) {
-      toast.error("Nenhum arquivo encontrado para arrastar");
+      toast.error(t("library:toasts.noFileToDrag"));
       return;
     }
     folderDragDrop.startBookDrag(internalHashes);
@@ -1141,7 +1164,7 @@ function LibraryContent() {
       lastX: window.innerWidth / 2,
       lastY: window.innerHeight / 2,
     };
-  }, [findDisplayBookByHash, folderDragDrop, getConcreteFileHashesFromBooks, selectedBookMap, selectedHashes]);
+  }, [findDisplayBookByHash, folderDragDrop, getConcreteFileHashesFromBooks, selectedBookMap, selectedHashes, t]);
 
   const handleBookDragMove = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
     const session = externalBookDragRef.current;
@@ -1213,14 +1236,20 @@ function LibraryContent() {
         setCopiedBookHashes(concreteHashes);
         setCutBookHashes([]);
         void window.api.copyBookFiles?.(concreteHashes).then((result) => {
-          if (result?.success) toast.success(`${result.count} arquivo${result.count !== 1 ? "s" : ""} copiado${result.count !== 1 ? "s" : ""}`);
+          if (result?.success) {
+            toast.success(
+              t("library:toasts.filesCopied", { count: result.count }),
+            );
+          }
           else if (result?.error) toast.error(result.error);
         });
       } else if (event.key.toLowerCase() === "x" && displayHashes.length > 0) {
         event.preventDefault();
         setCutBookHashes(displayHashes);
         setCopiedBookHashes([]);
-        toast.success(`${displayHashes.length} item${displayHashes.length !== 1 ? "s" : ""} pronto${displayHashes.length !== 1 ? "s" : ""} para mover`);
+        toast.success(
+          t("library:toasts.itemsReadyToMove", { count: displayHashes.length }),
+        );
       } else if (event.key.toLowerCase() === "v" && cutBookHashes.length > 0) {
         event.preventDefault();
         void handleMoveBooks(cutBookHashes, selectedFolder).then((success) => {
@@ -1233,10 +1262,14 @@ function LibraryContent() {
         event.preventDefault();
         void window.api.copyBooks(copiedBookHashes, selectedFolder).then(async (result) => {
           if (result.copied > 0) {
-            toast.success(`${result.copied} livro${result.copied !== 1 ? "s" : ""} copiado${result.copied !== 1 ? "s" : ""}`);
+            toast.success(
+              t("library:toasts.booksCopied", { count: result.copied }),
+            );
             await refreshLibraryState();
           }
-          if (result.failed > 0) toast.error(result.error || "Alguns livros nao puderam ser copiados");
+          if (result.failed > 0) {
+            toast.error(result.error || t("library:toasts.someBooksNotCopied"));
+          }
         });
       }
     };
@@ -1251,6 +1284,7 @@ function LibraryContent() {
     refreshLibraryState,
     selectedBooks,
     selectedFolder,
+    t,
   ]);
   const visibleFolders = useMemo(
     () =>
@@ -1350,7 +1384,7 @@ function LibraryContent() {
     <section className="mb-4">
       <div className="mb-1.5 flex items-center justify-between">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Continuar lendo
+          {t("library:page.continueReading")}
         </h2>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1444,8 +1478,10 @@ function LibraryContent() {
 
     setBulkBusy(false);
     await refreshLibraryState();
-    toast.success(`${generated} thumbnail${generated !== 1 ? "s" : ""} regenerada${generated !== 1 ? "s" : ""}`);
-    if (failed > 0) toast.error(`${failed} thumbnail${failed !== 1 ? "s" : ""} com erro`);
+    toast.success(t("library:toasts.thumbnailsRegenerated", { count: generated }));
+    if (failed > 0) {
+      toast.error(t("library:toasts.thumbnailsFailed", { count: failed }));
+    }
   };
 
   const runRegenerateAllThumbnails = async () => {
@@ -1453,9 +1489,15 @@ function LibraryContent() {
     setRegeneratingAllThumbnails(true);
     try {
       const result = await window.api.regenerateAllThumbnails();
-      toast.success(`${result.queued} thumbnail${result.queued !== 1 ? "s" : ""} na fila`);
+      toast.success(
+        t("library:toasts.thumbnailsQueued", { count: result.queued }),
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao enfileirar thumbnails");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("library:toasts.queueThumbnailsFailed"),
+      );
     } finally {
       setRegeneratingAllThumbnails(false);
     }
@@ -1480,18 +1522,20 @@ function LibraryContent() {
           selectedBooks,
           "folderPath" in result ? result.folderPath || null : null,
         );
-        toast.success(
-          `${mergedCount} arquivo${mergedCount !== 1 ? "s" : ""} mesclado${mergedCount !== 1 ? "s" : ""} em pasta _`,
-        );
+        toast.success(t("library:toasts.filesMerged", { count: mergedCount }));
         clearSelection();
         setSelectedBook(null);
         setConfirmMergeBooks(false);
         await refreshLibraryState();
       } else {
-        toast.error(result.error || "Erro ao mesclar livros");
+        toast.error(result.error || t("library:toasts.mergeBooksFailed"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao mesclar livros");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("library:toasts.mergeBooksFailed"),
+      );
     } finally {
       setBulkBusy(false);
     }
@@ -1500,7 +1544,7 @@ function LibraryContent() {
   const runCreateCollection = async () => {
     const name = collectionDialog.name.trim();
     if (!name) {
-      toast.error("Informe o nome da colecao");
+      toast.error(t("library:toasts.collectionNameRequired"));
       return;
     }
     if (selectedConcreteBooks.length === 0) return;
@@ -1511,16 +1555,20 @@ function LibraryContent() {
       const result = await window.api.createCollection(name, fileHashes, selectedFolder);
       if (result.success) {
         await cleanupConsumedSpecialFolders(selectedBooks, result.folderPath || null);
-        toast.success("Colecao criada");
+        toast.success(t("library:toasts.collectionCreated"));
         setCollectionDialog({ open: false, name: "" });
         clearSelection();
         setSelectedBook(null);
         await refreshLibraryState();
       } else {
-        toast.error(result.error || "Erro ao criar colecao");
+        toast.error(result.error || t("library:toasts.createCollectionFailed"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao criar colecao");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("library:toasts.createCollectionFailed"),
+      );
     } finally {
       setBulkBusy(false);
     }
@@ -1555,22 +1603,32 @@ function LibraryContent() {
     setSelectedBook(null);
     await refreshLibraryState();
     if (removeFromGroup) {
-      toast.success(`${removed} livro${removed !== 1 ? "s" : ""} removido${removed !== 1 ? "s" : ""} do agrupamento`);
+      toast.success(
+        t("library:toasts.booksRemovedFromGroup", { count: removed }),
+      );
     } else if (bulkDeleteFileAlso) {
-      toast.success(`${removed} livro${removed !== 1 ? "s" : ""} excluído${removed !== 1 ? "s" : ""} do disco`);
+      toast.success(
+        t("library:toasts.booksDeletedFromDisk", { count: removed }),
+      );
     } else {
-      toast.success(`${removed} livro${removed !== 1 ? "s" : ""} removido${removed !== 1 ? "s" : ""} da biblioteca`);
+      toast.success(
+        t("library:toasts.booksRemovedFromLibrary", { count: removed }),
+      );
     }
-    if (failed > 0) toast.error(`${failed} item${failed !== 1 ? "s" : ""} não removido${failed !== 1 ? "s" : ""}`);
+    if (failed > 0) {
+      toast.error(t("library:toasts.itemsNotRemoved", { count: failed }));
+    }
   };
 
   if (!electronApiAvailable) {
     return (
       <div className="lyceum-page-library flex h-full min-h-0 items-center justify-center bg-zinc-950 p-6 text-zinc-100">
         <div className="max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-5 text-sm text-zinc-300">
-          <h1 className="mb-2 text-base font-semibold text-zinc-100">Backend do Electron indisponivel</h1>
+          <h1 className="mb-2 text-base font-semibold text-zinc-100">
+            {t("library:page.electronUnavailable")}
+          </h1>
           <p className="text-zinc-400">
-            A biblioteca e as conversoes dependem do preload do Electron. Abra o app pelo processo Electron em vez do navegador em localhost.
+            {t("library:page.electronUnavailableHint")}
           </p>
         </div>
       </div>
@@ -1608,7 +1666,7 @@ function LibraryContent() {
             className={`absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
               sidebarIsDrawer ? "hidden" : ""
             }`}
-            title="Redimensionar painel de pastas"
+            title={t("library:page.resizeFoldersPanel")}
           />
         </aside>
       )}
@@ -1618,7 +1676,7 @@ function LibraryContent() {
           type="button"
           className="fixed inset-0 z-40 bg-black/55"
           onClick={() => setShowSidebar(false)}
-          aria-label="Fechar painel de pastas"
+          aria-label={t("library:page.closeFoldersPanel")}
         />
       )}
 
@@ -1632,10 +1690,14 @@ function LibraryContent() {
           <header className="flex flex-shrink-0 flex-col gap-3 border-b border-zinc-800 px-2 py-3 sm:px-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <BookOpen size={20} className="text-zinc-400" />
-              <h1 className="text-base font-semibold tracking-tight">Biblioteca</h1>
+              <h1 className="text-base font-semibold tracking-tight">
+                {t("library:page.title")}
+              </h1>
               <span className="hidden text-zinc-700 sm:inline">|</span>
               <span className="text-xs text-zinc-500 sm:whitespace-nowrap">
-                {counts.synced + counts.unsynced + counts.usb} volumes
+                {t("library:page.volumes", {
+                  count: counts.synced + counts.unsynced + counts.usb,
+                })}
               </span>
               <SectionTabs
                 activeSection={activeSection}
@@ -1659,8 +1721,8 @@ function LibraryContent() {
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
                 title={
                   showSidebar
-                    ? "Ocultar painel de pastas"
-                    : "Mostrar painel de pastas"
+                    ? t("library:page.hideFoldersPanel")
+                    : t("library:page.showFoldersPanel")
                 }
               >
                 {showSidebar ? (
@@ -1679,8 +1741,8 @@ function LibraryContent() {
                 className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
                 title={
                   activeSection === "usb"
-                    ? "Verificar dispositivos USB"
-                    : "Abrir pasta da biblioteca"
+                    ? t("library:page.scanUsb")
+                    : t("library:page.openLibraryFolder")
                 }
               >
                 {activeSection === "usb" ? (
@@ -1695,10 +1757,16 @@ function LibraryContent() {
                   type="button"
                   onClick={() => openDissolveFolderDialog(currentFolder)}
                   className="flex h-8 items-center gap-1.5 rounded-sm border border-red-500/30 bg-red-500/10 px-2.5 text-xs text-red-300 hover:bg-red-500/20"
-                  title={currentFolderType === "collection" ? "Remover colecao mantendo os livros" : "Desmesclar mantendo os arquivos"}
+                  title={
+                    currentFolderType === "collection"
+                      ? t("library:page.removeCollectionKeepingBooks")
+                      : t("library:page.dissolveKeepingFiles")
+                  }
                 >
                   <Unlink size={14} />
-                  {currentFolderType === "collection" ? "Remover colecao" : "Desmesclar"}
+                  {currentFolderType === "collection"
+                    ? t("library:page.removeCollection")
+                    : t("library:detail.dissolve")}
                 </button>
               )}
 
@@ -1710,7 +1778,7 @@ function LibraryContent() {
                       ? "bg-zinc-700 text-white"
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
-                  title="Grade"
+                  title={t("library:page.viewGrid")}
                 >
                   <LayoutGrid size={14} />
                 </button>
@@ -1721,7 +1789,7 @@ function LibraryContent() {
                       ? "bg-zinc-700 text-white"
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
-                  title="Lista"
+                  title={t("library:page.viewList")}
                 >
                   <List size={14} />
                 </button>
@@ -1744,7 +1812,7 @@ function LibraryContent() {
                         ? "bg-zinc-700 text-white"
                         : "text-zinc-500 hover:text-zinc-300"
                     }`}
-                    title={`Tamanho ${label}`}
+                    title={t("library:page.densitySize", { label })}
                   >
                     {label}
                   </button>
@@ -1757,8 +1825,8 @@ function LibraryContent() {
                 onClick={runRegenerateAllThumbnails}
                 disabled={regeneratingAllThumbnails}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-                title="Regenerar todas as thumbnails"
-                aria-label="Regenerar todas as thumbnails"
+                title={t("library:page.regenerateAllThumbnails")}
+                aria-label={t("library:page.regenerateAllThumbnails")}
               >
                 <RefreshCw size={14} className={regeneratingAllThumbnails ? "animate-spin" : ""} />
               </button>
@@ -1781,8 +1849,7 @@ function LibraryContent() {
               <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
                 <div className="flex items-center gap-2 text-sm text-zinc-200">
                   <CheckSquare size={16} className="text-green-400" />
-                  {selectedHashes.size} selecionado
-                  {selectedHashes.size !== 1 ? "s" : ""}
+                  {t("library:page.selectedItems", { count: selectedHashes.size })}
                 </div>
 
                 <button
@@ -1790,7 +1857,7 @@ function LibraryContent() {
                   className="flex items-center gap-2 cursor-pointer rounded-sm border border-zinc-800 bg-zinc-800 px-3 py-2 text-xs text-zinc-200"
                 >
                   <LayoutGrid size={14} />
-                  Todos
+                  {t("library:page.selectAll")}
                 </button>
                 <button
                   onClick={openConversionWithSelection}
@@ -1798,7 +1865,7 @@ function LibraryContent() {
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Shuffle size={14} />
-                  Converter
+                  {t("library:page.convert")}
                 </button>
                 {activeSection !== "usb" && (
                   <button
@@ -1817,7 +1884,7 @@ function LibraryContent() {
                     className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <GitMerge size={14} />
-                    Mesclar
+                    {t("library:page.merge")}
                   </button>
                 )}
                 {activeSection !== "usb" && (
@@ -1827,7 +1894,7 @@ function LibraryContent() {
                     className="flex cursor-pointer items-center gap-2 rounded-sm  bg-zinc-800 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Layers size={14} />
-                    Colecao
+                    {t("library:page.collection")}
                   </button>
                 )}
                   <button
@@ -1836,7 +1903,7 @@ function LibraryContent() {
                   className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={bulkBusy ? "animate-spin" : ""} />
-                  Thumbnails
+                  {t("library:page.thumbnails")}
                 </button>
                 <button
                   onClick={() => setConfirmBulkDelete(true)}
@@ -1849,15 +1916,15 @@ function LibraryContent() {
                 >
                   {currentFolderType !== "normal" ? <Unlink size={14} className="text-green-400" /> : <Trash2 size={14} />}
                   {currentFolderType === "collection"
-                    ? "Remover da coleção"
+                    ? t("library:page.removeFromCollection")
                     : currentFolderType === "merged"
-                      ? "Remover da mesclagem"
-                      : "Remover"}
+                      ? t("library:page.removeFromMerge")
+                      : t("common:actions.remove")}
                 </button>
                 <button
                   onClick={clearSelection}
                   className="ml-auto cursor-pointer rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                  title="Sair da seleção"
+                  title={t("library:page.exitSelection")}
                 >
                   <X size={16} />
                 </button>
@@ -1867,7 +1934,7 @@ function LibraryContent() {
             {loading ? (
               <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
                 <RefreshCw size={16} className="animate-spin" />
-                Carregando biblioteca...
+                {t("library:page.loading")}
               </div>
             ) : (
               <BookGrid
@@ -1915,7 +1982,7 @@ function LibraryContent() {
             type="button"
             className="fixed inset-0 z-40 bg-black/55"
             onClick={() => setSelectedBook(null)}
-            aria-label="Fechar detalhes"
+            aria-label={t("library:page.closeDetails")}
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1951,7 +2018,7 @@ function LibraryContent() {
               className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
                 rightPanelsAreDrawer ? "hidden" : ""
               }`}
-              title="Redimensionar detalhes"
+              title={t("library:page.resizeDetails")}
             />
             <div className="h-full overflow-y-auto">
             <BookDetailPanel
@@ -1959,7 +2026,7 @@ function LibraryContent() {
               onClose={() => setSelectedBook(null)}
               onOpenReader={async (bookToOpen = selectedBook) => {
                 if (!bookToOpen.filePath) {
-                  toast.error("Caminho do arquivo não encontrado");
+                  toast.error(t("library:toasts.filePathNotFound"));
                   return;
                 }
                 await handleOpen(
@@ -1997,7 +2064,7 @@ function LibraryContent() {
               setReadingPreviewOpen(false);
               setReadingPreviewTab(null);
             }}
-            aria-label="Fechar previa"
+            aria-label={t("library:page.closePreview")}
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -2043,13 +2110,13 @@ function LibraryContent() {
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
               <FolderOpen size={18} className="text-green-400" />
               <h2 className="text-sm font-semibold text-zinc-100">
-                Nova pasta
+                {t("library:page.newFolder")}
               </h2>
             </div>
 
             <div className="space-y-3 p-4">
               <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Nome da pasta
+                {t("library:page.folderName")}
               </label>
               <input
                 type="text"
@@ -2064,7 +2131,9 @@ function LibraryContent() {
                 autoFocus
               />
               <p className="text-xs text-zinc-600">
-                Destino: {createFolderDialog.parentPath || "Biblioteca"}
+                {t("library:page.destination", {
+                  path: createFolderDialog.parentPath || t("library:page.title"),
+                })}
               </p>
             </div>
 
@@ -2074,13 +2143,13 @@ function LibraryContent() {
                 onClick={closeCreateFolderDialog}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="submit"
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
               >
-                Criar
+                {t("library:page.create")}
               </button>
             </div>
           </form>
@@ -2099,13 +2168,13 @@ function LibraryContent() {
             <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
               <Layers size={18} className="text-green-300" />
               <h2 className="text-sm font-semibold text-zinc-100">
-                Nova colecao
+                {t("library:page.newCollection")}
               </h2>
             </div>
 
             <div className="space-y-3 p-4">
               <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Nome da colecao
+                {t("library:page.collectionName")}
               </label>
               <input
                 type="text"
@@ -2120,7 +2189,7 @@ function LibraryContent() {
                 autoFocus
               />
               <p className="text-xs text-zinc-600">
-                {selectedBooks.length} item{selectedBooks.length !== 1 ? "s" : ""} selecionado{selectedBooks.length !== 1 ? "s" : ""}
+                {t("library:page.selectedItems", { count: selectedBooks.length })}
               </p>
             </div>
 
@@ -2131,14 +2200,14 @@ function LibraryContent() {
                 disabled={bulkBusy}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-50"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={bulkBusy || collectionDialog.name.trim().length === 0}
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {bulkBusy ? "Criando..." : "Criar"}
+                {bulkBusy ? t("library:page.creating") : t("library:page.create")}
               </button>
             </div>
           </form>
@@ -2164,12 +2233,12 @@ function LibraryContent() {
               )}
               <h2 className="text-sm font-semibold text-zinc-100">
                 {folderActionDialog.mode === "delete"
-                  ? "Excluir pasta"
+                  ? t("library:page.deleteFolder")
                   : folderActionDialog.mode === "dissolve"
                     ? classifyFolder(folderActionDialog.folder.name) === "collection"
-                      ? "Remover colecao"
-                      : "Desmesclar livros"
-                  : "Renomear pasta"}
+                      ? t("library:page.removeCollection")
+                      : t("library:page.dissolveBooks")
+                  : t("library:page.renameFolder")}
               </h2>
             </div>
 
@@ -2177,31 +2246,29 @@ function LibraryContent() {
               {folderActionDialog.mode === "delete" ? (
                 <>
                   <p className="text-sm text-zinc-400">
-                    Tem certeza que deseja excluir a pasta{" "}
-                    <span className="font-medium text-zinc-100">
-                      "{folderActionDialog.folder.name}"
-                    </span>
-                    ?
+                    {t("library:page.deleteFolderConfirm", {
+                      name: folderActionDialog.folder.name,
+                    })}
                   </p>
                   <p className="text-xs text-zinc-600">
-                    Esta pasta e todo o seu conteudo serao excluidos permanentemente.
+                    {t("library:page.deleteFolderWarning")}
                   </p>
                 </>
               ) : folderActionDialog.mode === "dissolve" ? (
                 <>
                   <p className="text-sm text-zinc-300">
                     {classifyFolder(folderActionDialog.folder.name) === "collection"
-                      ? "A colecao sera removida, mas todos os livros serao mantidos."
-                      : "A mesclagem sera desfeita e cada formato voltara a aparecer como um livro independente."}
+                      ? t("library:page.dissolveCollectionHint")
+                      : t("library:page.dissolveMergeHint")}
                   </p>
                   <p className="text-xs text-zinc-500">
-                    Arquivos e subpastas serao movidos com seguranca para a pasta pai. Nomes repetidos receberao um sufixo.
+                    {t("library:page.dissolveSafeHint")}
                   </p>
                 </>
               ) : (
                 <>
                   <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    Nome da pasta
+                    {t("library:page.folderName")}
                   </label>
                   <input
                     type="text"
@@ -2226,7 +2293,7 @@ function LibraryContent() {
                 onClick={closeFolderActionDialog}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="submit"
@@ -2238,7 +2305,11 @@ function LibraryContent() {
                     : "bg-green-500 text-zinc-950 hover:bg-green-400"
                 }`}
               >
-                {folderActionDialog.mode === "delete" ? "Excluir" : folderActionDialog.mode === "dissolve" ? "Manter livros e remover" : "Salvar"}
+                {folderActionDialog.mode === "delete"
+                  ? t("common:actions.delete")
+                  : folderActionDialog.mode === "dissolve"
+                    ? t("library:page.keepBooksAndRemove")
+                    : t("common:actions.save")}
               </button>
             </div>
           </form>
@@ -2263,17 +2334,23 @@ function LibraryContent() {
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
             <h3 className="text-base font-medium mb-2">
               {currentFolderType === "collection"
-                ? "Remover da coleção"
+                ? t("library:page.removeFromCollection")
                 : currentFolderType === "merged"
-                  ? "Remover da mesclagem"
-                  : "Confirmar exclusão"}
+                  ? t("library:page.removeFromMerge")
+                  : t("library:page.confirmDelete")}
             </h3>
             <p className="text-sm text-zinc-400 mb-4">
               {currentFolderType === "collection"
-                ? `Os ${selectedBooks.length} livro${selectedBooks.length !== 1 ? "s" : ""} selecionado${selectedBooks.length !== 1 ? "s" : ""} sairão da coleção, mas continuarão na biblioteca e no disco.`
+                ? t("library:page.leaveCollectionBody", {
+                    count: selectedBooks.length,
+                  })
                 : currentFolderType === "merged"
-                  ? `Os ${selectedBooks.length} livro${selectedBooks.length !== 1 ? "s" : ""} selecionado${selectedBooks.length !== 1 ? "s" : ""} sairão da mesclagem, mas continuarão na biblioteca e no disco.`
-                : `Tem certeza que deseja remover ${selectedBooks.length} livro${selectedBooks.length !== 1 ? "s" : ""} da biblioteca?`}
+                  ? t("library:page.leaveMergeBody", {
+                      count: selectedBooks.length,
+                    })
+                : t("library:page.removeFromLibraryBody", {
+                    count: selectedBooks.length,
+                  })}
             </p>
             {currentFolderType === "normal" && <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
               <input
@@ -2282,14 +2359,14 @@ function LibraryContent() {
                 onChange={(e) => setBulkDeleteFileAlso(e.target.checked)}
                 className="w-4 h-4 accent-green-500 cursor-pointer"
               />
-              Também excluir arquivo{selectedBooks.length !== 1 ? "s" : ""} do disco
+              {t("library:page.deleteFilesAlso", { count: selectedBooks.length })}
             </label>}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => { setConfirmBulkDelete(false); setBulkDeleteFileAlso(false); }}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={runBulkDelete}
@@ -2297,12 +2374,12 @@ function LibraryContent() {
                 className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy
-                  ? "Removendo..."
+                  ? t("library:page.removing")
                   : currentFolderType === "collection"
-                    ? "Remover da coleção"
+                    ? t("library:page.removeFromCollection")
                     : currentFolderType === "merged"
-                      ? "Remover da mesclagem"
-                      : "Remover"}
+                      ? t("library:page.removeFromMerge")
+                      : t("common:actions.remove")}
               </button>
             </div>
           </div>
@@ -2314,14 +2391,15 @@ function LibraryContent() {
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
             <div className="mb-3 flex items-center gap-2">
               <GitMerge size={18} className="text-green-400" />
-              <h3 className="text-base font-medium">Mesclar livros</h3>
+              <h3 className="text-base font-medium">
+                {t("library:books.mergeBooks")}
+              </h3>
             </div>
             <p className="text-sm text-zinc-400 mb-4">
-              Os arquivos serao movidos para uma pasta iniciada por "_".
-              A biblioteca mostrara essa pasta como um unico livro com variantes.
+              {t("library:page.mergeBooksBody")}
             </p>
             <div className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-500">
-              {selectedBooks.length} itens selecionados
+              {t("library:page.selectedItems", { count: selectedBooks.length })}
             </div>
             <div className="flex gap-3 justify-end">
               <button
@@ -2329,14 +2407,14 @@ function LibraryContent() {
                 disabled={bulkBusy}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors disabled:opacity-50"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 onClick={runMergeBooks}
                 disabled={bulkBusy || selectedConcreteBooks.length < 2}
                 className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 hover:bg-green-400 text-zinc-950 text-sm font-medium transition-colors disabled:opacity-50"
               >
-                {bulkBusy ? "Mesclando..." : "Mesclar"}
+                {bulkBusy ? t("library:page.merging") : t("library:page.merge")}
               </button>
             </div>
           </div>
@@ -2353,20 +2431,22 @@ function LibraryContent() {
                 <Copy size={18} className="text-green-400" />
               )}
               <h2 className="text-sm font-semibold text-zinc-100">
-                {syncDialog.action === "move" ? "Mover" : "Copiar"} para a library
+                {syncDialog.action === "move"
+                  ? t("library:page.moveToLibrary")
+                  : t("library:page.copyToLibrary")}
               </h2>
             </div>
 
             <div className="space-y-3 p-4">
               <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Pasta destino
+                {t("library:page.destinationFolder")}
               </label>
               <select
                 value={syncTargetFolder}
                 onChange={(event) => setSyncTargetFolder(event.target.value)}
                 className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
               >
-                <option value="">Raiz</option>
+                <option value="">{t("library:page.root")}</option>
                 {libraryFolders.map((folder) => (
                   <option key={folder} value={folder}>
                     {folder}
@@ -2381,14 +2461,16 @@ function LibraryContent() {
                 onClick={() => setSyncDialog(null)}
                 className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
               >
-                Cancelar
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
                 onClick={confirmSyncToLibrary}
                 className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
               >
-                {syncDialog.action === "move" ? "Mover" : "Copiar"}
+                {syncDialog.action === "move"
+                  ? t("library:page.move")
+                  : t("library:page.copy")}
               </button>
             </div>
           </div>
