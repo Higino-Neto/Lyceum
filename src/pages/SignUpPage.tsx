@@ -16,8 +16,10 @@ import {
   signUp,
   validatePasswordStrength,
 } from "../utils/auth";
+import { useTranslation } from "../i18n";
 
 export default function SignUp() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -31,13 +33,13 @@ export default function SignUp() {
     event.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+      toast.error(t("auth:password.errors.mismatch"));
       return;
     }
 
     const passwordError = validatePasswordStrength(password);
     if (passwordError) {
-      toast.error(passwordError);
+      toast.error(t(passwordError.key, passwordError.values));
       return;
     }
 
@@ -45,16 +47,16 @@ export default function SignUp() {
     try {
       const result = await signUp(email, password, name);
       if (result.error) {
-        toast.error(result.error.message || "Falha ao criar conta");
+        toast.error(result.error.message || t("auth:signUp.error"));
       } else if (result.needsEmailConfirmation) {
         setConfirmationEmail(email.trim());
-        toast.success("Enviamos um email de confirmação.");
+        toast.success(t("auth:signUp.confirmation.sent"));
       } else {
-        toast.success("Conta criada com sucesso.");
+        toast.success(t("auth:signUp.created"));
         navigate("/");
       }
     } catch (error: any) {
-      toast.error(error.message || "Falha ao criar conta");
+      toast.error(error.message || t("auth:signUp.error"));
     } finally {
       setLoading(false);
     }
@@ -64,9 +66,9 @@ export default function SignUp() {
     setResending(true);
     try {
       await resendSignupConfirmation(confirmationEmail);
-      toast.success("Email de confirmação reenviado.");
+      toast.success(t("auth:signUp.confirmation.resent"));
     } catch (error: any) {
-      toast.error(error.message || "Não foi possível reenviar o email");
+      toast.error(error.message || t("auth:signUp.confirmation.resendError"));
     } finally {
       setResending(false);
     }
@@ -75,17 +77,21 @@ export default function SignUp() {
   return (
     <AuthShell
       icon={confirmationEmail ? MailCheck : UserPlus}
-      title={confirmationEmail ? "Confirme seu email" : "Criar conta"}
-      subtitle={
+      titleKey={
         confirmationEmail
-          ? "Finalize o cadastro pelo link enviado para sua caixa de entrada."
-          : "Crie uma conta para sincronizar leitura, biblioteca e preferências."
+          ? "auth:signUp.confirmation.title"
+          : "auth:signUp.title"
+      }
+      subtitleKey={
+        confirmationEmail
+          ? "auth:signUp.confirmation.subtitle"
+          : "auth:signUp.subtitle"
       }
       footer={
         <>
-          Já tem conta?{" "}
+          {t("auth:signUp.hasAccount")}{" "}
           <Link to="/signin" className="text-green-500 transition hover:text-green-400">
-            Entrar
+            {t("auth:signUp.signIn")}
           </Link>
         </>
       }
@@ -93,9 +99,7 @@ export default function SignUp() {
       {confirmationEmail ? (
         <div className="space-y-4">
           <div className="rounded border border-green-500/30 bg-green-500/10 p-4 text-sm leading-6 text-green-100">
-            Enviamos a confirmação para{" "}
-            <span className="font-medium">{confirmationEmail}</span>. Depois de
-            confirmar, volte ao login para entrar.
+            {t("auth:signUp.confirmation.message", { email: confirmationEmail })}
           </div>
           <button
             type="button"
@@ -104,15 +108,17 @@ export default function SignUp() {
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-zinc-700 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RotateCcw size={16} />
-            {resending ? "Reenviando..." : "Reenviar confirmação"}
+            {resending
+              ? t("auth:signUp.confirmation.resending")
+              : t("auth:signUp.confirmation.resend")}
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <AuthField label="Nome">
+          <AuthField label={t("auth:fields.name")}>
             <input
               type="text"
-              placeholder="Seu nome"
+              placeholder={t("auth:fields.namePlaceholder")}
               autoComplete="name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -120,10 +126,10 @@ export default function SignUp() {
             />
           </AuthField>
 
-          <AuthField label="Email">
+          <AuthField label={t("auth:fields.email")}>
             <input
               type="email"
-              placeholder="voce@exemplo.com"
+              placeholder={t("auth:fields.emailPlaceholder")}
               required
               autoComplete="email"
               value={email}
@@ -133,7 +139,7 @@ export default function SignUp() {
           </AuthField>
 
           <PasswordField
-            label="Senha"
+            label={t("auth:fields.password")}
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             value={password}
@@ -141,8 +147,8 @@ export default function SignUp() {
           />
 
           <PasswordField
-            label="Confirmar senha"
-            placeholder="Confirmar senha"
+            label={t("auth:fields.confirmPassword")}
+            placeholder={t("auth:fields.confirmPassword")}
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             value={confirmPassword}
@@ -152,7 +158,7 @@ export default function SignUp() {
           <PasswordRequirements password={password} />
 
           <button type="submit" disabled={loading} className={authButtonClasses}>
-            {loading ? "Criando conta..." : "Criar conta"}
+            {loading ? t("auth:signUp.submitting") : t("auth:signUp.submit")}
             <ArrowRight size={17} />
           </button>
         </form>

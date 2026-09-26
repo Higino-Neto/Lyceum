@@ -5,14 +5,22 @@ import SignUp from "../../pages/SignUpPage";
 
 const mockSignUp = vi.fn();
 const mockResendSignupConfirmation = vi.fn();
-const mockValidatePasswordStrength = vi.fn<[string], string | null>(() => null);
+const mockValidatePasswordStrength = vi.fn<
+  [string],
+  { key: "auth:password.errors.tooShort"; values: Record<string, string | number> } | null
+>(() => null);
 
 vi.mock("../../utils/auth", () => ({
   signUp: (email: string, password: string, name?: string) => mockSignUp(email, password, name),
   resendSignupConfirmation: (email: string) => mockResendSignupConfirmation(email),
   validatePasswordStrength: (password: string) => mockValidatePasswordStrength(password),
   getPasswordRequirements: (password: string) => [
-    { id: "length", label: "Pelo menos 8 caracteres", met: password.length >= 8 },
+    {
+      id: "length",
+      labelKey: "auth:password.requirements.minLength",
+      values: { count: 8 },
+      met: password.length >= 8,
+    },
   ],
   MIN_PASSWORD_LENGTH: 8,
 }));

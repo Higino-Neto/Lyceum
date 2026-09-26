@@ -47,6 +47,8 @@ vi.mock("../../api/database", () => ({
 import {
   consumeAuthRedirectSession,
   parseAuthRedirectParams,
+  getPasswordRequirements,
+  MIN_PASSWORD_LENGTH,
   requestPasswordReset,
   resendSignupConfirmation,
   signIn,
@@ -65,9 +67,26 @@ describe("auth utilities", () => {
 
   describe("validatePasswordStrength", () => {
     it("requires at least 8 characters", () => {
-      expect(validatePasswordStrength("short")).toMatch(/pelo menos 8/i);
+      expect(validatePasswordStrength("short")).toEqual({
+        key: "auth:password.errors.tooShort",
+        values: { count: MIN_PASSWORD_LENGTH },
+      });
       expect(validatePasswordStrength("passwordonly")).toBeNull();
       expect(validatePasswordStrength("12345678")).toBeNull();
+    });
+  });
+
+  describe("getPasswordRequirements", () => {
+    it("describes the minimum length with a translation key", () => {
+      expect(getPasswordRequirements("abc")).toEqual([
+        {
+          id: "length",
+          labelKey: "auth:password.requirements.minLength",
+          values: { count: MIN_PASSWORD_LENGTH },
+          met: false,
+        },
+      ]);
+      expect(getPasswordRequirements("a".repeat(MIN_PASSWORD_LENGTH))[0]?.met).toBe(true);
     });
   });
 
@@ -236,7 +255,7 @@ describe("auth utilities", () => {
     );
 
     await expect(consumeAuthRedirectSession()).rejects.toThrow(
-      /Supabase recusou o token de recuperacao: invalid token/i,
+      /Supabase recusou o token de recuperação: invalid token/i,
     );
   });
 
@@ -244,7 +263,7 @@ describe("auth utilities", () => {
     window.history.replaceState(null, "", "/#/reset-password");
 
     await expect(consumeAuthRedirectSession()).rejects.toThrow(
-      /link nao trouxe token_hash, code ou tokens/i,
+      /link não trouxe token_hash, code ou tokens/i,
     );
   });
 

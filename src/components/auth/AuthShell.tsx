@@ -1,21 +1,24 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation, type TranslationKey } from "../../i18n";
 
 interface AuthShellProps {
-  title: string;
-  subtitle: string;
+  titleKey: TranslationKey;
+  subtitleKey: TranslationKey;
   icon: LucideIcon;
   children: ReactNode;
   footer?: ReactNode;
 }
 
 export function AuthShell({
-  title,
-  subtitle,
+  titleKey,
+  subtitleKey,
   icon: Icon,
   children,
   footer,
 }: AuthShellProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-full bg-zinc-950 text-zinc-100">
       <section className="flex min-h-[calc(100vh-54px)] items-center justify-center px-5 py-8 sm:px-8">
@@ -26,9 +29,11 @@ export function AuthShell({
             </div>
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
-                {title}
+                {t(titleKey)}
               </h1>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">{subtitle}</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">
+                {t(subtitleKey)}
+              </p>
             </div>
           </div>
 

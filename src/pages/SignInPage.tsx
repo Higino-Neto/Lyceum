@@ -10,12 +10,14 @@ import {
 } from "../components/auth/AuthShell";
 import { PasswordField } from "../components/auth/PasswordField";
 import { signIn } from "../utils/auth";
+import { useTranslation } from "../i18n";
 
 interface LocationState {
   from?: string;
 }
 
 export default function SignIn() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -28,11 +30,11 @@ export default function SignIn() {
     setLoading(true);
     try {
       await signIn(email, password);
-      toast.success("Login realizado com sucesso.");
+      toast.success(t("auth:signIn.success"));
       const redirectTo = (location.state as LocationState | null)?.from || "/";
       navigate(redirectTo, { replace: true });
     } catch (error: any) {
-      toast.error(error.message || "Falha ao fazer login");
+      toast.error(error.message || t("auth:signIn.error"));
     } finally {
       setLoading(false);
     }
@@ -41,19 +43,19 @@ export default function SignIn() {
   return (
     <AuthShell
       icon={LogIn}
-      title="Entrar"
-      subtitle="Acesse sua biblioteca, backups e estatísticas de leitura."
+      titleKey="auth:signIn.title"
+      subtitleKey="auth:signIn.subtitle"
       footer={
         <>
-          Não tem conta?{" "}
+          {t("auth:signIn.noAccount")}{" "}
           <Link to="/signup" className="text-green-500 transition hover:text-green-400">
-            Criar conta
+            {t("auth:signIn.createAccount")}
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <AuthField label="Email">
+        <AuthField label={t("auth:fields.email")}>
           <div className="relative">
             <Mail
               size={17}
@@ -61,7 +63,7 @@ export default function SignIn() {
             />
             <input
               type="email"
-              placeholder="voce@exemplo.com"
+              placeholder={t("auth:fields.emailPlaceholder")}
               required
               autoComplete="email"
               value={email}
@@ -73,7 +75,7 @@ export default function SignIn() {
 
         <div className="space-y-2">
           <PasswordField
-            label="Senha"
+            label={t("auth:fields.password")}
             autoComplete="current-password"
             value={password}
             onChange={setPassword}
@@ -83,13 +85,13 @@ export default function SignIn() {
               to="/forgot-password"
               className="text-xs font-medium text-green-500 transition hover:text-green-400"
             >
-              Esqueci minha senha
+              {t("auth:signIn.forgotPassword")}
             </Link>
           </div>
         </div>
 
         <button type="submit" disabled={loading} className={authButtonClasses}>
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? t("auth:signIn.submitting") : t("auth:signIn.submit")}
           <ArrowRight size={17} />
         </button>
       </form>

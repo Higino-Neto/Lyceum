@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { consumeAuthRedirectSession } from "../utils/auth";
+import { translate } from "../i18n";
 
 interface AuthContextValue {
   user: User | null;
@@ -65,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error restoring auth session:", error);
 
         if (!isMounted) return;
-        setAuthErrorMessage(error instanceof Error ? error.message : "Nao foi possivel restaurar a sessao.");
+        setAuthErrorMessage(
+          error instanceof Error ? error.message : translate("auth:errors.sessionRestoreFailed"),
+        );
         applySession(null);
       } finally {
         bootstrapped = true;

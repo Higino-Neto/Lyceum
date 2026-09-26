@@ -1,13 +1,15 @@
 import { supabase } from "../lib/supabase";
 import { createUserProfile } from "../api/database";
 import type { Session } from "@supabase/supabase-js";
+import { translate, type TranslationKey } from "../i18n";
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const DESKTOP_PASSWORD_RESET_REDIRECT_URL = "lyceum://auth/reset-password";
 
 export interface PasswordRequirement {
   id: "length";
-  label: string;
+  labelKey: TranslationKey;
+  values: Record<string, string | number>;
   met: boolean;
 }
 
@@ -19,17 +21,26 @@ export function getPasswordRequirements(password: string): PasswordRequirement[]
   return [
     {
       id: "length",
-      label: `Pelo menos ${MIN_PASSWORD_LENGTH} caracteres`,
+      labelKey: "auth:password.requirements.minLength",
+      values: { count: MIN_PASSWORD_LENGTH },
       met: password.length >= MIN_PASSWORD_LENGTH,
     },
   ];
 }
 
-export function validatePasswordStrength(password: string): string | null {
+/**
+ * Returns the translation key describing why the password is too weak, or
+ * `null` when it is acceptable. Callers translate the key so the message
+ * follows the active language.
+ */
+export function validatePasswordStrength(
+  password: string,
+): { key: TranslationKey; values: Record<string, string | number> } | null {
   const requirements = getPasswordRequirements(password);
+  const length = requirements.find((requirement) => requirement.id === "length");
 
-  if (!requirements.find((requirement) => requirement.id === "length")?.met) {
-    return `A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres`;
+  if (!length?.met) {
+    return { key: "auth:password.errors.tooShort", values: length?.values ?? {} };
   }
 
   return null;
@@ -161,7 +172,7 @@ function getAuthErrorMessage(error: unknown) {
     }
   }
 
-  return "Erro desconhecido";
+  return translate("auth:errors.unknown");
 }
 
 export async function consumeAuthRedirectSession(): Promise<Session | null> {
@@ -178,9 +189,7 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
   const hasAnyRecoveryParam = Boolean(code || tokenHash || accessToken || refreshToken);
 
   if (isResetPasswordRoute() && !hasAnyRecoveryParam) {
-    throw new Error(
-      "O Lyceum abriu a tela de recuperacao, mas o link nao trouxe token_hash, code ou tokens de sessao.",
-    );
+    throw new Error(translate("auth:errors.recoveryLinkMissingParams"));
   }
 
   if (tokenHash) {
@@ -189,10 +198,14 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
       type: "recovery",
     });
     if (error) {
-      throw new Error(`Supabase recusou o token de recuperacao: ${getAuthErrorMessage(error)}`);
+      throw new Error(
+        translate("auth:errors.recoveryTokenRejected", {
+          reason: getAuthErrorMessage(error),
+        }),
+      );
     }
     if (!data.session) {
-      throw new Error("Supabase validou o token de recuperacao, mas nao retornou sessao.");
+      throw new Error(translate("auth:errors.recoveryTokenWithoutSession"));
     }
     clearAuthRedirectParamsFromUrl();
     return data.session;
@@ -201,10 +214,14 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      throw new Error(`Supabase recusou o codigo de recuperacao: ${getAuthErrorMessage(error)}`);
+      throw new Error(
+        translate("auth:errors.recoveryCodeRejected", {
+          reason: getAuthErrorMessage(error),
+        }),
+      );
     }
     if (!data.session) {
-      throw new Error("Supabase validou o codigo de recuperacao, mas nao retornou sessao.");
+      throw new Error(translate("auth:errors.recoveryCodeWithoutSession"));
     }
     clearAuthRedirectParamsFromUrl();
     return data.session;
@@ -212,7 +229,7 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
 
   if (accessToken || refreshToken) {
     if (!accessToken || !refreshToken) {
-      throw new Error("O link de recuperacao trouxe tokens incompletos.");
+      throw new Error(translate("auth:errors.recoveryIncompleteTokens"));
     }
 
     const { data, error } = await supabase.auth.setSession({
@@ -220,10 +237,14 @@ export async function consumeAuthRedirectSession(): Promise<Session | null> {
       refresh_token: refreshToken,
     });
     if (error) {
-      throw new Error(`Supabase recusou os tokens de recuperacao: ${getAuthErrorMessage(error)}`);
+      throw new Error(
+        translate("auth:errors.recoveryTokensRejected", {
+          reason: getAuthErrorMessage(error),
+        }),
+      );
     }
     if (!data.session) {
-      throw new Error("Supabase aceitou os tokens de recuperacao, mas nao retornou sessao.");
+      throw new Error(translate("auth:errors.recoveryTokensWithoutSession"));
     }
     clearAuthRedirectParamsFromUrl();
     return data.session;

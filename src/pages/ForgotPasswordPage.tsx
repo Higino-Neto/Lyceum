@@ -9,8 +9,10 @@ import {
   authInputClasses,
 } from "../components/auth/AuthShell";
 import { requestPasswordReset } from "../utils/auth";
+import { useTranslation } from "../i18n";
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState("");
@@ -22,9 +24,9 @@ export default function ForgotPasswordPage() {
     try {
       await requestPasswordReset(email);
       setSentTo(email.trim());
-      toast.success("Email de recuperação enviado.");
+      toast.success(t("auth:forgotPassword.sent"));
     } catch (error: any) {
-      toast.error(error.message || "Não foi possível enviar a recuperação");
+      toast.error(error.message || t("auth:forgotPassword.error"));
     } finally {
       setLoading(false);
     }
@@ -33,38 +35,37 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       icon={Mail}
-      title="Recuperar senha"
-      subtitle="Informe o email da sua conta para receber um link de redefinição."
+      titleKey="auth:forgotPassword.title"
+      subtitleKey="auth:forgotPassword.subtitle"
       footer={
         <Link
           to="/signin"
           className="inline-flex items-center gap-2 text-green-500 transition hover:text-green-400"
         >
           <ArrowLeft size={15} />
-          Voltar para o login
+          {t("auth:forgotPassword.backToSignIn")}
         </Link>
       }
     >
       {sentTo ? (
         <div className="space-y-4">
           <div className="rounded border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-100">
-            Se uma conta existir para <span className="font-medium">{sentTo}</span>,
-            enviaremos as instruções de recuperação.
+            {t("auth:forgotPassword.message", { email: sentTo })}
           </div>
           <button
             type="button"
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-zinc-700 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
             onClick={() => setSentTo("")}
           >
-            Usar outro email
+            {t("auth:forgotPassword.useAnotherEmail")}
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <AuthField label="Email">
+          <AuthField label={t("auth:fields.email")}>
             <input
               type="email"
-              placeholder="voce@exemplo.com"
+              placeholder={t("auth:fields.emailPlaceholder")}
               required
               autoComplete="email"
               value={email}
@@ -75,7 +76,9 @@ export default function ForgotPasswordPage() {
 
           <button type="submit" disabled={loading} className={authButtonClasses}>
             <Send size={17} />
-            {loading ? "Enviando..." : "Enviar link de recuperação"}
+            {loading
+              ? t("auth:forgotPassword.submitting")
+              : t("auth:forgotPassword.submit")}
           </button>
         </form>
       )}

@@ -1,7 +1,9 @@
 import { Check, X } from "lucide-react";
 import { getPasswordRequirements } from "../../utils/auth";
+import { useTranslation } from "../../i18n";
 
 export function PasswordRequirements({ password }: { password: string }) {
+  const { t } = useTranslation();
   const requirements = getPasswordRequirements(password);
 
   return (
@@ -14,7 +16,7 @@ export function PasswordRequirements({ password }: { password: string }) {
             className={requirement.met ? "flex items-center gap-2 text-green-400" : "flex items-center gap-2"}
           >
             <Icon size={14} />
-            <span>{requirement.label}</span>
+            <span>{t(requirement.labelKey, requirement.values)}</span>
           </li>
         );
       })}

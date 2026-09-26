@@ -4,7 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import ResetPasswordPage from "../../pages/ResetPasswordPage";
 
 const mockUpdateAccountPassword = vi.fn();
-const mockValidatePasswordStrength = vi.fn<[string], string | null>(() => null);
+const mockValidatePasswordStrength = vi.fn<
+  [string],
+  { key: "auth:password.errors.tooShort"; values: Record<string, string | number> } | null
+>(() => null);
 const authState = vi.hoisted(() => ({
   authErrorMessage: null as string | null,
   session: { user: { id: "user-123" } } as unknown,
@@ -22,7 +25,12 @@ vi.mock("../../utils/auth", () => ({
   updateAccountPassword: (password: string) => mockUpdateAccountPassword(password),
   validatePasswordStrength: (password: string) => mockValidatePasswordStrength(password),
   getPasswordRequirements: (password: string) => [
-    { id: "length", label: "Pelo menos 8 caracteres", met: password.length >= 8 },
+    {
+      id: "length",
+      labelKey: "auth:password.requirements.minLength",
+      values: { count: 8 },
+      met: password.length >= 8,
+    },
   ],
   MIN_PASSWORD_LENGTH: 8,
 }));
