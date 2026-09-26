@@ -1,5 +1,6 @@
 import { Folder, FolderSync, Usb } from "lucide-react";
 import { LibrarySection } from "../../../types/LibraryTypes";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 interface SectionTabsProps {
   activeSection: LibrarySection;
@@ -16,22 +17,28 @@ export default function SectionTabs({
   unsyncedCount,
   usbCount,
 }: SectionTabsProps) {
-  const sections = [
+  const { t } = useTranslation();
+  const sections: {
+    id: LibrarySection;
+    labelKey: TranslationKey;
+    count: number;
+    icon: typeof Folder;
+  }[] = [
     {
       id: "synced" as LibrarySection,
-      label: "Sincronizados",
+      labelKey: "library:sections.synced",
       count: syncedCount,
       icon: FolderSync,
     },
     {
       id: "unsynced" as LibrarySection,
-      label: "Não sincronizados",
+      labelKey: "library:sections.unsynced",
       count: unsyncedCount,
       icon: Folder,
     },
     {
       id: "usb" as LibrarySection,
-      label: "Dispositivos USB",
+      labelKey: "library:sections.usb",
       count: usbCount,
       icon: Usb,
     },
@@ -47,7 +54,10 @@ export default function SectionTabs({
           <button
             key={section.id}
             onClick={() => onSectionChange(section.id)}
-            title={`${section.label}: ${section.count}`}
+            title={t("library:sections.titleWithCount", {
+              label: t(section.labelKey),
+              count: section.count,
+            })}
             className={`relative flex h-8 min-w-0 cursor-pointer items-center gap-1.5 rounded-sm px-2 text-xs transition-colors sm:gap-2 sm:px-3 ${
               isActive
                 ? "bg-green-500 text-zinc-950"
@@ -56,7 +66,7 @@ export default function SectionTabs({
           >
             <Icon size={14} className="relative z-10 flex-shrink-0" />
             <span className="relative z-10 hidden min-w-0 max-w-28 truncate sm:inline lg:max-w-36">
-              {section.label}
+              {t(section.labelKey)}
             </span>
             <span className="relative z-10 rounded-sm bg-black/10 px-1.5 text-[11px]">
               {section.count}

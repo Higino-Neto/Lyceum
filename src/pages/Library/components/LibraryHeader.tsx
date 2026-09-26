@@ -1,4 +1,5 @@
 import { BookOpen, LayoutGrid, List, FolderOpen, PanelLeftClose, PanelLeft } from "lucide-react";
+import { useTranslation } from "../../../i18n";
 
 interface LibraryHeaderProps {
   syncedCount: number;
@@ -17,6 +18,7 @@ export default function LibraryHeader({
   showSidebar = true,
   onToggleSidebar,
 }: LibraryHeaderProps) {
+  const { t } = useTranslation();
 
   const handleOpenLibraryFolder = async () => {
     await window.api.openLibraryFolder();
@@ -26,7 +28,9 @@ export default function LibraryHeader({
     <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         <BookOpen size={20} className="text-zinc-400" />
-        <h1 className="text-base font-semibold tracking-tight">Biblioteca</h1>
+        <h1 className="text-base font-semibold tracking-tight">
+          {t("library:header.title")}
+        </h1>
         {/* <span className="text-zinc-700">|</span> */}
         {/* <span className="text-xs text-zinc-500">
           {syncedCount + unsyncedCount} volumes
@@ -38,7 +42,11 @@ export default function LibraryHeader({
           <button
             onClick={onToggleSidebar}
             className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
-            title={showSidebar ? "Ocultar painel de pastas" : "Mostrar painel de pastas"}
+            title={
+              showSidebar
+                ? t("library:header.hideFolderPanel")
+                : t("library:header.showFolderPanel")
+            }
           >
             {showSidebar ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
           </button>
@@ -47,7 +55,7 @@ export default function LibraryHeader({
         <button
           onClick={handleOpenLibraryFolder}
           className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
-          title="Abrir pasta da biblioteca"
+          title={t("library:header.openLibraryFolder")}
         >
           <FolderOpen size={18} />
         </button>
@@ -65,6 +73,8 @@ function ViewModeToggle({
   value: "grid" | "list";
   onChange: (mode: "grid" | "list") => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-sm p-0.5">
       <button
@@ -74,6 +84,8 @@ function ViewModeToggle({
             ? "bg-zinc-700 text-white"
             : "text-zinc-500 hover:text-zinc-300"
         }`}
+        title={t("library:header.gridView")}
+        aria-label={t("library:header.gridView")}
       >
         <LayoutGrid size={14} />
       </button>
@@ -84,6 +96,8 @@ function ViewModeToggle({
             ? "bg-zinc-700 text-white"
             : "text-zinc-500 hover:text-zinc-300"
         }`}
+        title={t("library:header.listView")}
+        aria-label={t("library:header.listView")}
       >
         <List size={14} />
       </button>

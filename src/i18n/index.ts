@@ -59,6 +59,7 @@ export { useLanguage } from "./useLanguage";
 export { default as LanguageSwitcher } from "./LanguageSwitcher";
 export {
   formatDate,
+  formatDuration,
   formatNumber,
   formatShortDate,
   getShortMonthNames,

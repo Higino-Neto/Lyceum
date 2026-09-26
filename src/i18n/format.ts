@@ -39,6 +39,16 @@ export function formatNumber(
   }
 }
 
+/** Compact duration, e.g. `45 min`, `1h`, `1h 30min`. */
+export function formatDuration(minutes: number, locale: string): string {
+  const total = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  if (hours === 0) return `${formatNumber(rest, locale)} min`;
+  if (rest === 0) return `${formatNumber(hours, locale)}h`;
+  return `${formatNumber(hours, locale)}h ${formatNumber(rest, locale)}min`;
+}
+
 /** Weekday initials from Sunday to Sunday, e.g. `["D","S","T","Q","Q","S","S"]`. */
 export function getWeekdayInitials(locale: string): string[] {
   try {

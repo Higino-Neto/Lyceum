@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { BookOpen, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { TabProvider } from "../../../contexts/TabContext";
+import { useTranslation } from "../../../i18n";
 import {
   ReadingWorkspace,
   type ReadingLaunchState,
@@ -24,6 +25,7 @@ export default function LibraryReadingPreviewPane({
   onResizeStart,
   drawer = false,
 }: LibraryReadingPreviewPaneProps) {
+  const { t } = useTranslation();
   const osReducedMotion = useReducedMotion();
   const reduceMotion = osReducedMotion ||
     (typeof document !== "undefined" && document.documentElement.dataset.reducedEffects === "true");
@@ -52,7 +54,7 @@ export default function LibraryReadingPreviewPane({
         className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
           drawer ? "hidden" : ""
         }`}
-        title="Redimensionar previa de leitura"
+        title={t("library:preview.resize")}
       />
 
       <div className="flex h-full min-w-0 flex-col">
@@ -60,15 +62,15 @@ export default function LibraryReadingPreviewPane({
           <div className="flex min-w-0 items-center gap-2">
             <BookOpen size={16} className="flex-shrink-0 text-green-400" />
             <span className="truncate text-sm font-medium text-zinc-200">
-              Previa de leitura
+              {t("library:preview.title")}
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-            title="Fechar previa"
-            aria-label="Fechar previa"
+            title={t("library:preview.close")}
+            aria-label={t("library:preview.close")}
           >
             <X size={16} />
           </button>

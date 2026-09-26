@@ -4,6 +4,7 @@ import type {
   LibraryFileTypeFilter,
   LibrarySortOption,
 } from "../../../types/LibraryTypes";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 const ICON_SIZE = 15;
 const STROKE_WIDTH = 1.6;
@@ -20,19 +21,18 @@ interface FilterBarProps {
   onFileTypeChange: (value: FileTypeFilter[]) => void;
 }
 
-const sortLabels: Record<SortOption, string> = {
-  title_asc: "Nome A-Z",
-  title_desc: "Nome Z-A",
-  recent_desc: "Recentes primeiro",
-  recent_asc: "Antigos primeiro",
-  pages_desc: "Mais paginas",
-  pages_asc: "Menos paginas",
-  size_desc: "Maior arquivo",
-  size_asc: "Menor arquivo",
+const sortLabelKeys: Record<SortOption, TranslationKey> = {
+  title_asc: "library:filters.sort.title_asc",
+  title_desc: "library:filters.sort.title_desc",
+  recent_desc: "library:filters.sort.recent_desc",
+  recent_asc: "library:filters.sort.recent_asc",
+  pages_desc: "library:filters.sort.pages_desc",
+  pages_asc: "library:filters.sort.pages_asc",
+  size_desc: "library:filters.sort.size_desc",
+  size_asc: "library:filters.sort.size_asc",
 };
 
-const fileTypeLabels: Record<FileTypeFilter, string> = {
-  all: "Todos",
+const fileTypeLabels: Record<Exclude<FileTypeFilter, "all">, string> = {
   pdf: "PDF",
   epub: "EPUB",
   docx: "DOCX",
@@ -48,7 +48,7 @@ const fileTypeLabels: Record<FileTypeFilter, string> = {
   lyceum: "LYCEUM",
 };
 
-const allFileTypes = Object.keys(fileTypeLabels).filter((t) => t !== "all") as FileTypeFilter[];
+const allFileTypes = Object.keys(fileTypeLabels) as FileTypeFilter[];
 
 export default function FilterBar({
   search,
@@ -76,6 +76,8 @@ function SearchInput({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="relative min-w-0 flex-[1_1_220px]">
       <Search
@@ -85,7 +87,7 @@ function SearchInput({
       />
       <input
         type="text"
-        placeholder="Buscar por titulo, pasta, tipo ou paginas..."
+        placeholder={t("library:filters.searchPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 pl-9 pr-9 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus-visible:border-green-500 focus-visible:ring-1 focus-visible:ring-green-500"
@@ -95,7 +97,7 @@ function SearchInput({
           type="button"
           onClick={() => onChange("")}
           className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-          title="Limpar busca"
+          title={t("library:filters.clearSearch")}
         >
           <X size={14} />
         </button>
@@ -111,6 +113,7 @@ function SortSelect({
   value: SortOption;
   onChange: (value: SortOption) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -125,7 +128,7 @@ function SortSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const options = Object.keys(sortLabels) as SortOption[];
+  const options = Object.keys(sortLabelKeys) as SortOption[];
 
   return (
     <div ref={ref} className="relative min-w-0 flex-[1_1_140px] sm:ml-auto sm:flex-none">
@@ -135,7 +138,9 @@ function SortSelect({
         className="flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 hover:border-zinc-700 sm:w-auto"
       >
         <SlidersHorizontal size={ICON_SIZE} className="shrink-0 text-zinc-500" strokeWidth={STROKE_WIDTH} />
-        <span className="min-w-0 flex-1 truncate text-left sm:min-w-[90px]">{sortLabels[value]}</span>
+        <span className="min-w-0 flex-1 truncate text-left sm:min-w-[90px]">
+          {t(sortLabelKeys[value])}
+        </span>
         <ChevronDown size={12} className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -158,7 +163,7 @@ function SortSelect({
               ) : (
                 <span className="mr-2 w-3" />
               )}
-              {sortLabels[opt]}
+              {t(sortLabelKeys[opt])}
             </button>
           ))}
         </div>
@@ -174,6 +179,7 @@ function FileTypeSelect({
   value: FileTypeFilter[];
   onChange: (value: FileTypeFilter[]) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -196,13 +202,14 @@ function FileTypeSelect({
   const selectAll = () => onChange([...allFileTypes]);
   const deselectAll = () => onChange([]);
 
-  const summary = value.length === 0
-    ? "Todos"
-    : value.length === 1
-      ? fileTypeLabels[value[0]]
-      : value.length <= 2
-        ? value.map((t) => fileTypeLabels[t]).join(", ")
-        : `${value.length} tipos`;
+  const summary =
+    value.length === 0
+      ? t("library:filters.fileTypes.all")
+      : value.length === 1
+        ? fileTypeLabels[value[0]]
+        : value.length <= 2
+          ? value.map((type) => fileTypeLabels[type]).join(", ")
+          : t("library:filters.fileTypes.multiple", { count: value.length });
 
   return (
     <div ref={ref} className="relative min-w-0 flex-[1_1_120px] sm:flex-none">
@@ -227,7 +234,9 @@ function FileTypeSelect({
             onClick={value.length === allFileTypes.length ? deselectAll : selectAll}
             className="flex w-full cursor-pointer items-center gap-2 border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
           >
-            {value.length === allFileTypes.length ? "Desmarcar todos" : "Selecionar todos"}
+            {value.length === allFileTypes.length
+              ? t("library:filters.fileTypes.deselectAll")
+              : t("library:filters.fileTypes.selectAll")}
           </button>
           {allFileTypes.map((type) => {
             const selected = value.includes(type);
@@ -247,7 +256,7 @@ function FileTypeSelect({
                 >
                   {selected && <span className="text-[10px] font-bold">✓</span>}
                 </span>
-                {fileTypeLabels[type]}
+                {type === "all" ? t("library:filters.fileTypes.all") : fileTypeLabels[type]}
               </button>
             );
           })}

@@ -52,7 +52,11 @@
   "sections": {
     "sourceFolders": "Source folders",
     "watchFolders": "Watched folders",
-    "addTo": "Add {{label}}"
+    "addTo": "Add {{label}}",
+    "synced": "Synced",
+    "unsynced": "Not synced",
+    "usb": "USB devices",
+    "titleWithCount": "{{label}}: {{count}}"
   },
   "folders": {
     "newFolder": "New folder",
@@ -73,5 +77,75 @@
     "chapters_other": "{{count}} chapters",
     "pagesAbbrev_one": "{{count}} page",
     "pagesAbbrev_other": "{{count}} pages"
+  },
+  "header": {
+    "title": "Library",
+    "hideFolderPanel": "Hide folder panel",
+    "showFolderPanel": "Show folder panel",
+    "openLibraryFolder": "Open the library folder",
+    "gridView": "Grid view",
+    "listView": "List view"
+  },
+  "preview": {
+    "resize": "Resize reading preview",
+    "title": "Reading preview",
+    "close": "Close preview"
+  },
+  "dropMenu": {
+    "createCollection": "Create collection",
+    "mergeBooks": "Merge books"
+  },
+  "stats": {
+    "title": "Statistics",
+    "unknownAuthor": "Unknown author",
+    "pages": "pages",
+    "entries": "entries",
+    "time": "time",
+    "history": "Reading history",
+    "noReadings": "No reading entries",
+    "entryPages_one": "{{count}} page",
+    "entryPages_other": "{{count}} pages",
+    "editBook": "Edit book",
+    "deleteBook": "Delete book",
+    "deleteConfirm": "Are you sure you want to delete \"{{title}}\"?"
+  },
+  "filters": {
+    "searchPlaceholder": "Search by title, folder, type or pages...",
+    "clearSearch": "Clear search",
+    "sort": {
+      "title_asc": "Name A-Z",
+      "title_desc": "Name Z-A",
+      "recent_desc": "Newest first",
+      "recent_asc": "Oldest first",
+      "pages_desc": "Most pages",
+      "pages_asc": "Fewest pages",
+      "size_desc": "Largest file",
+      "size_asc": "Smallest file"
+    },
+    "fileTypes": {
+      "all": "All",
+      "deselectAll": "Deselect all",
+      "selectAll": "Select all",
+      "multiple_one": "{{count}} type",
+      "multiple_other": "{{count}} types"
+    }
+  },
+  "categories": {
+    "manage": "Manage categories",
+    "new": "New category",
+    "pickColor": "Click a color to change it:",
+    "toasts": {
+      "created": "Category \"{{name}}\" created!",
+      "updated": "Category updated!",
+      "deleted": "Category \"{{name}}\" deleted!",
+      "createFailed": "Could not create the category",
+      "updateFailed": "Could not update the category",
+      "deleteFailed": "Could not delete the category"
+    },
+    "deleteConfirm": "Delete category \"{{name}}\"?"
+  },
+  "sync": {
+    "success": "Book synced successfully!",
+    "failed": "Sync error: {{error}}"
   }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { SupabaseBook, BookReading, getBookReadings } from "../../../api/database";
 import { X, Edit3, Trash2, FileText, BookOpen, Clock, Calendar } from "lucide-react";
+import { formatDate as formatDateValue, formatDuration, useLanguage, useTranslation } from "../../../i18n";
 
 interface StatisticsPanelProps {
   book: SupabaseBook | null;
@@ -10,6 +11,8 @@ interface StatisticsPanelProps {
 }
 
 export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: StatisticsPanelProps) {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
   const [bookReadings, setBookReadings] = useState<BookReading[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -33,20 +36,12 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
     return bookReadings.reduce((sum, r) => sum + (r.reading_time || 0), 0);
   }, [bookReadings]);
 
-  const formatTime = (minutes: number) => {
-    if (minutes === 0) return "0 min";
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours === 0) return `${mins} min`;
-    if (mins === 0) return `${hours}h`;
-    return `${hours}h ${mins}min`;
-  };
+  const formatTime = (minutes: number) => formatDuration(minutes, language);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "-";
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("pt-BR");
+      return formatDateValue(new Date(dateStr), language);
     } catch {
       return dateStr;
     }
@@ -57,7 +52,9 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
   return (
     <div className="overflow-hidden w-100 bg-zinc-900 shadow-2xl z-50 flex flex-col h-full max-h-[calc(100vh-8.5rem)]">
       <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-        <h2 className="text-lg font-semibold text-zinc-100">Estatísticas</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">
+          {t("library:stats.title")}
+        </h2>
         <button
           onClick={onClose}
           className="p-2 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer"
@@ -69,34 +66,42 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="p-3 bg-zinc-800 rounded-sm">
           <p className="text-sm text-zinc-200 font-medium line-clamp-2">{book.title}</p>
-          <p className="text-xs text-zinc-500 mt-1">{book.author || "Autor desconhecido"}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {book.author || t("library:stats.unknownAuthor")}
+          </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="p-3 bg-zinc-800 rounded-sm text-center">
             <p className="text-lg font-semibold text-green-500">{totalPages}</p>
-            <p className="text-xs text-zinc-500">páginas</p>
+            <p className="text-xs text-zinc-500">{t("library:stats.pages")}</p>
           </div>
           <div className="p-3 bg-zinc-800 rounded-sm text-center">
             <p className="text-lg font-semibold text-zinc-200">{bookReadings.length}</p>
-            <p className="text-xs text-zinc-500">registros</p>
+            <p className="text-xs text-zinc-500">{t("library:stats.entries")}</p>
           </div>
           <div className="p-3 bg-zinc-800 rounded-sm text-center">
             <p className="text-lg font-semibold text-zinc-200">{formatTime(totalTime)}</p>
-            <p className="text-xs text-zinc-500">tempo</p>
+            <p className="text-xs text-zinc-500">{t("library:stats.time")}</p>
           </div>
         </div>
 
         <div className="border-t border-zinc-800 pt-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">Histórico de Leituras</h3>
+          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+            {t("library:stats.history")}
+          </h3>
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-xs text-zinc-500">Carregando...</p>
+              <p className="text-xs text-zinc-500">
+                {t("common:app.loading")}
+              </p>
             </div>
           ) : bookReadings.length === 0 ? (
             <div className="text-center py-4">
               <BookOpen size={32} className="mx-auto text-zinc-600 mb-2" />
-              <p className="text-xs text-zinc-500">Nenhum registro de leitura</p>
+              <p className="text-xs text-zinc-500">
+                {t("library:stats.noReadings")}
+              </p>
             </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -105,7 +110,9 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
                   <div className="flex items-center gap-3">
                     <FileText size={16} className="text-zinc-500" />
                     <div>
-                      <p className="text-sm text-zinc-300">{reading.pages} páginas</p>
+                      <p className="text-sm text-zinc-300">
+                        {t("library:stats.entryPages", { count: reading.pages })}
+                      </p>
                       {reading.reading_time && (
                         <p className="text-xs text-zinc-500 flex items-center gap-1">
                           <Clock size={10} />
@@ -131,18 +138,18 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
           className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-3 rounded-sm font-medium transition-colors cursor-pointer"
         >
           <Edit3 size={16} />
-          Editar Livro
+          {t("library:stats.editBook")}
         </button>
         <button
           onClick={() => {
-            if (confirm(`Tem certeza que deseja excluir "${book.title}"?`)) {
+            if (confirm(t("library:stats.deleteConfirm", { title: book.title }))) {
               onDelete(book);
             }
           }}
           className="w-full flex items-center justify-center gap-2 py-2 rounded-sm text-sm transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400"
         >
           <Trash2 size={16} />
-          Excluir Livro
+          {t("library:stats.deleteBook")}
         </button>
       </div>
     </div>

@@ -52,7 +52,11 @@
   "sections": {
     "sourceFolders": "Pastas fonte",
     "watchFolders": "Pastas externas",
-    "addTo": "Adicionar {{label}}"
+    "addTo": "Adicionar {{label}}",
+    "synced": "Sincronizados",
+    "unsynced": "Não sincronizados",
+    "usb": "Dispositivos USB",
+    "titleWithCount": "{{label}}: {{count}}"
   },
   "folders": {
     "newFolder": "Nova pasta",
@@ -73,5 +77,75 @@
     "chapters_other": "{{count}} caps.",
     "pagesAbbrev_one": "{{count}} pags.",
     "pagesAbbrev_other": "{{count}} pags."
+  },
+  "header": {
+    "title": "Biblioteca",
+    "hideFolderPanel": "Ocultar painel de pastas",
+    "showFolderPanel": "Mostrar painel de pastas",
+    "openLibraryFolder": "Abrir pasta da biblioteca",
+    "gridView": "Visualização em grade",
+    "listView": "Visualização em lista"
+  },
+  "preview": {
+    "resize": "Redimensionar prévia de leitura",
+    "title": "Prévia de leitura",
+    "close": "Fechar prévia"
+  },
+  "dropMenu": {
+    "createCollection": "Criar coleção",
+    "mergeBooks": "Mesclar livros"
+  },
+  "stats": {
+    "title": "Estatísticas",
+    "unknownAuthor": "Autor desconhecido",
+    "pages": "páginas",
+    "entries": "registros",
+    "time": "tempo",
+    "history": "Histórico de leituras",
+    "noReadings": "Nenhum registro de leitura",
+    "entryPages_one": "{{count}} página",
+    "entryPages_other": "{{count}} páginas",
+    "editBook": "Editar livro",
+    "deleteBook": "Excluir livro",
+    "deleteConfirm": "Tem certeza que deseja excluir \"{{title}}\"?"
+  },
+  "filters": {
+    "searchPlaceholder": "Buscar por título, pasta, tipo ou páginas...",
+    "clearSearch": "Limpar busca",
+    "sort": {
+      "title_asc": "Nome A-Z",
+      "title_desc": "Nome Z-A",
+      "recent_desc": "Recentes primeiro",
+      "recent_asc": "Antigos primeiro",
+      "pages_desc": "Mais páginas",
+      "pages_asc": "Menos páginas",
+      "size_desc": "Maior arquivo",
+      "size_asc": "Menor arquivo"
+    },
+    "fileTypes": {
+      "all": "Todos",
+      "deselectAll": "Desmarcar todos",
+      "selectAll": "Selecionar todos",
+      "multiple_one": "{{count}} tipo",
+      "multiple_other": "{{count}} tipos"
+    }
+  },
+  "categories": {
+    "manage": "Gerenciar categorias",
+    "new": "Nova categoria",
+    "pickColor": "Clique na cor para mudar:",
+    "toasts": {
+      "created": "Categoria \"{{name}}\" criada!",
+      "updated": "Categoria atualizada!",
+      "deleted": "Categoria \"{{name}}\" excluída!",
+      "createFailed": "Erro ao criar categoria",
+      "updateFailed": "Erro ao atualizar categoria",
+      "deleteFailed": "Erro ao excluir categoria"
+    },
+    "deleteConfirm": "Excluir categoria \"{{name}}\"?"
+  },
+  "sync": {
+    "success": "Livro sincronizado com sucesso!",
+    "failed": "Erro ao sincronizar: {{error}}"
   }
 }

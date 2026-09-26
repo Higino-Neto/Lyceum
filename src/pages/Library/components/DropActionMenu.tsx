@@ -1,4 +1,5 @@
 import { GitMerge, Layers } from "lucide-react";
+import { useTranslation } from "../../../i18n";
 
 interface DropActionMenuProps {
   x: number;
@@ -15,6 +16,8 @@ export default function DropActionMenu({
   onCreateCollection,
   onClose,
 }: DropActionMenuProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="fixed z-50 min-w-[180px] rounded-sm border border-zinc-700 bg-zinc-800 py-1 shadow-lg"
@@ -28,7 +31,7 @@ export default function DropActionMenu({
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-700"
       >
         <Layers size={14} />
-        Criar colecao
+        {t("library:dropMenu.createCollection")}
       </button>
       <button
         type="button"
@@ -36,7 +39,7 @@ export default function DropActionMenu({
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-700"
       >
         <GitMerge size={14} />
-        Mesclar livros
+        {t("library:dropMenu.mergeBooks")}
       </button>
     </div>
   );

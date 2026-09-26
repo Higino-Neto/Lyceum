@@ -10,6 +10,7 @@ import {
   LibrarySection,
   LibrarySortOption,
 } from "../../types/LibraryTypes";
+import { translate } from "../../i18n";
 
 const PAGE_SIZE = 48;
 
@@ -171,10 +172,10 @@ export default function useBooks(options: UseBooksOptions) {
   ) => {
     const result = await window.api.syncDocument(fileHash, action, category);
     if (result.success) {
-      toast.success("Livro sincronizado com sucesso!");
+      toast.success(translate("library:sync.success"));
       await refreshBooks();
     } else {
-      toast.error("Erro ao sincronizar: " + result.error);
+      toast.error(translate("library:sync.failed", { error: result.error }));
     }
   };
 
