@@ -143,7 +143,7 @@ describe("ReadingStatsCard quick readings", () => {
 
     render(<ReadingStatsCard />, { wrapper: createWrapper() });
 
-    const pagesInput = await screen.findByLabelText("Paginas de Book A");
+    const pagesInput = await screen.findByLabelText("Páginas de Book A");
     const minutesInput = screen.getByLabelText("Minutos de Book A");
 
     fireEvent.change(pagesInput, { target: { value: "12" } });
@@ -177,7 +177,7 @@ describe("ReadingStatsCard quick readings", () => {
 
     render(<ReadingStatsCard />, { wrapper: createWrapper() });
 
-    const pagesInput = await screen.findByLabelText("Paginas de Book A");
+    const pagesInput = await screen.findByLabelText("Páginas de Book A");
     const minutesInput = screen.getByLabelText("Minutos de Book A");
 
     pagesInput.focus();
@@ -211,7 +211,7 @@ describe("ReadingStatsCard quick readings", () => {
     fireEvent.change(screen.getByLabelText("Buscar livro cadastrado"), {
       target: { value: "Book" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar Book A a leitura rapida" }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar Book A à leitura rápida" }));
 
     expect(await screen.findByText("Book A")).toBeInTheDocument();
   });
@@ -232,8 +232,8 @@ describe("ReadingStatsCard quick readings", () => {
     render(<ReadingStatsCard />, { wrapper: createWrapper() });
 
     expect(await screen.findByText("Book A")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Acoes de Book A"));
-    fireEvent.click(screen.getByLabelText("Remover Book A da leitura rapida"));
+    fireEvent.click(screen.getByLabelText("Ações de Book A"));
+    fireEvent.click(screen.getByLabelText("Remover Book A da leitura rápida"));
 
     await waitFor(() => {
       expect(screen.queryByText("Book A")).not.toBeInTheDocument();

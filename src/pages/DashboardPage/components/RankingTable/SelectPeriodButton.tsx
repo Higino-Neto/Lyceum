@@ -1,12 +1,15 @@
 import { Trophy } from "lucide-react";
 import { useState } from "react";
 import { useLocalStorage } from "../../../../hooks/useLocalStorage";
+import { useTranslation } from "../../../../i18n";
+import type { TranslationKey } from "../../../../i18n";
 
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
 interface PeriodOption {
   key: Period;
-  icon: React.ReactNode;
+  labelKey: TranslationKey;
+  labelKeyAria: TranslationKey;
   field: "today_pages" | "this_week_pages" | "month_pages" | "total_pages";
 }
 
@@ -16,22 +19,26 @@ const STROKE_WIDTH = 1.5;
 const PERIODS: PeriodOption[] = [
   {
     key: "today",
-    icon: <span className="text-sm font-medium">Hoje</span>,
+    labelKey: "dashboard:ranking.periods.today",
+    labelKeyAria: "dashboard:ranking.periodLabels.today",
     field: "today_pages",
   },
   {
     key: "this_week",
-    icon: <span className="text-sm font-medium">Semanal</span>,
+    labelKey: "dashboard:ranking.periods.thisWeek",
+    labelKeyAria: "dashboard:ranking.periodLabels.thisWeek",
     field: "this_week_pages",
   },
   {
     key: "this_month",
-    icon: <span className="text-sm font-medium">Mensal</span>,
+    labelKey: "dashboard:ranking.periods.thisMonth",
+    labelKeyAria: "dashboard:ranking.periodLabels.thisMonth",
     field: "month_pages",
   },
   {
     key: "all_time",
-    icon: <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />,
+    labelKey: "dashboard:ranking.periods.allTime",
+    labelKeyAria: "dashboard:ranking.periodLabels.allTime",
     field: "total_pages",
   },
 ];
@@ -43,6 +50,7 @@ interface SelectPeriodButtonProps {
 export default function SelectPeriodButton({
   onChange,
 }: SelectPeriodButtonProps) {
+  const { t } = useTranslation();
   const [period, setPeriod] = useLocalStorage<Period>(
     "ranking_type",
     "all_time",
@@ -62,17 +70,13 @@ export default function SelectPeriodButton({
               ? "bg-zinc-800 text-white"
               : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
           }`}
-          aria-label={
-            p.key === "today"
-              ? "Hoje"
-              : p.key === "this_week"
-                ? "Esta semana"
-                : p.key === "this_month"
-                  ? "Este mês"
-                  : "Geral"
-          }
+          aria-label={t(p.labelKeyAria)}
         >
-          {p.icon}
+          {p.key === "all_time" ? (
+            <Trophy size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+          ) : (
+            <span className="text-sm font-medium">{t(p.labelKey)}</span>
+          )}
         </button>
       ))}
     </>

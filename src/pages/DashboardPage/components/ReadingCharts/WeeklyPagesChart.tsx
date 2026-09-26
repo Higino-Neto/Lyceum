@@ -3,12 +3,14 @@ import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ChartTooltip from "./ChartTooltip";
 import { buildWeeklyPagesData, hasPositiveChartData } from "./utils/chartData";
+import { useTranslation } from "../../../../i18n";
 
 export default function WeeklyPagesChart({
   usersData,
 }: {
   usersData: UserReadingData[];
 }) {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     return buildWeeklyPagesData(usersData);
   }, [usersData]);
@@ -16,7 +18,7 @@ export default function WeeklyPagesChart({
   if (!hasPositiveChartData(chartData, usersData)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
-        Nenhum dado disponível
+        {t("dashboard:charts.noData")}
       </div>
     );
   }

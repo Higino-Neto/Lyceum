@@ -6,6 +6,12 @@ import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import getReadings from "../../../utils/getReadings";
 import getUserReadings from "../../../utils/getUserReadings";
+import {
+  getWeekdayInitials,
+  i18next,
+  useTranslation,
+  type Translate,
+} from "../../../i18n";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
@@ -32,8 +38,6 @@ interface StreakPerson {
   readings: StreakReading[];
 }
 
-const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
-
 function toLocalIsoDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -58,7 +62,11 @@ function sumPagesByDate(readings: StreakReading[]): Map<string, number> {
   return pagesByDate;
 }
 
-function getWeekDays(readings: StreakReading[], dailyGoal: number): DayStreak[] {
+function getWeekDays(
+  readings: StreakReading[],
+  dailyGoal: number,
+  weekdayLabels: readonly string[],
+): DayStreak[] {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -78,7 +86,7 @@ function getWeekDays(readings: StreakReading[], dailyGoal: number): DayStreak[] 
 
     return {
       date,
-      dayName: WEEKDAY_LABELS[currentDate.getDay()],
+      dayName: weekdayLabels[currentDate.getDay()] ?? "",
       dayNumber: currentDate.getDate(),
       hasRead: pagesRead > 0,
       pagesRead,
@@ -112,14 +120,20 @@ function computeCurrentStreak(
   return streak;
 }
 
-function getWeeklyPages(readings: StreakReading[]): number {
-  return getWeekDays(readings, 0).reduce((sum, day) => sum + day.pagesRead, 0);
+function getWeeklyPages(
+  readings: StreakReading[],
+  weekdayLabels: readonly string[],
+): number {
+  return getWeekDays(readings, 0, weekdayLabels).reduce(
+    (sum, day) => sum + day.pagesRead,
+    0,
+  );
 }
 
-function getDeltaLabel(delta: number): string {
-  if (delta > 0) return `+${delta}p`;
-  if (delta < 0) return `-${Math.abs(delta)}p`;
-  return "empate";
+function getDeltaLabel(delta: number, t: Translate): string {
+  if (delta === 0) return t("dashboard:streak.tie");
+  const value = t("common:units.pageShort", { count: Math.abs(delta) });
+  return delta > 0 ? `+${value}` : `-${value}`;
 }
 
 function DayIcon({
@@ -207,6 +221,7 @@ function GoalControls({
   dailyGoal: number;
   setDailyGoal: (goal: number) => void;
 }) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const [goalDraft, setGoalDraft] = useState(dailyGoal > 0 ? String(dailyGoal) : "");
@@ -234,8 +249,12 @@ function GoalControls({
             ? "border-green-600 bg-green-500/10 text-green-400"
             : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-100"
         }`}
-        aria-label="Meta diaria"
-        title={dailyGoal > 0 ? `${dailyGoal}p/dia` : "Meta diaria"}
+        aria-label={t("dashboard:streak.goalLabel")}
+        title={
+          dailyGoal > 0
+            ? t("dashboard:streak.goalValue", { count: dailyGoal })
+            : t("dashboard:streak.goalLabel")
+        }
       >
         <Target size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
       </button>
@@ -256,14 +275,14 @@ function GoalControls({
               inputMode="numeric"
               value={goalDraft}
               onChange={(event) => setGoalDraft(event.target.value)}
-              placeholder="p/dia"
-              aria-label="Paginas por dia"
+              placeholder={t("common:units.pageShort", { count: 0 }).replace("0", "")}
+              aria-label={t("dashboard:streak.pagesPerDay")}
               className="h-8 w-20 rounded-sm border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500"
             />
             <button
               type="submit"
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm bg-green-600 text-black transition hover:bg-green-500"
-              aria-label="Salvar meta"
+              aria-label={t("dashboard:streak.saveGoal")}
             >
               <Save size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
             </button>
@@ -293,6 +312,8 @@ function WeeklyStreakPanel({
   winningDates: Set<string>;
   goalControls?: ReactNode;
 }) {
+  const { t } = useTranslation();
+  const weekdayLabels = getWeekdayInitials(i18next.language);
   const reduceMotion = useReducedMotion();
   const [pulse, setPulse] = useState(false);
   const [floatText, setFloatText] = useState<{
@@ -317,14 +338,14 @@ function WeeklyStreakPanel({
   }, [person.isCurrentUser]);
 
   const weekDays = useMemo(
-    () => getWeekDays(person.readings, dailyGoal),
-    [dailyGoal, person.readings],
+    () => getWeekDays(person.readings, dailyGoal, weekdayLabels),
+    [dailyGoal, person.readings, weekdayLabels],
   );
   const currentDayIndex = weekDays.findIndex((day) => day.date === todayStr);
   const currentStreak = computeCurrentStreak(person.readings, dailyGoal);
   const todayPages = weekDays[currentDayIndex]?.pagesRead ?? 0;
   const todayComplete = weekDays[currentDayIndex]?.goalComplete ?? false;
-  const deltaText = getDeltaLabel(comparisonDelta);
+  const deltaText = getDeltaLabel(comparisonDelta, t);
   const deltaClass =
     comparisonDelta > 0
       ? "text-green-400"
@@ -381,7 +402,7 @@ function WeeklyStreakPanel({
                   </motion.div>
                   {day.hasRead && (
                     <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100">
-                      {day.pagesRead} pags
+                      {t("dashboard:streak.pages", { count: day.pagesRead })}
                     </div>
                   )}
                 </div>
@@ -420,7 +441,9 @@ function WeeklyStreakPanel({
             }}
           >
             {floatText.metaBatida ? (
-              <span className="text-amber-400">{'\u{1F525} Meta batida!'}</span>
+              <span className="text-amber-400">
+                {t("dashboard:streak.goalHit")}
+              </span>
             ) : (
               <span className="text-green-400">+{floatText.pages}p</span>
             )}
@@ -436,7 +459,9 @@ function WeeklyStreakPanel({
           >
             <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
           </motion.div>
-          <span className="text-sm font-bold text-zinc-400">{currentStreak} dias</span>
+          <span className="text-sm font-bold text-zinc-400">
+            {t("dashboard:streak.days", { count: currentStreak })}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -454,7 +479,7 @@ function WeeklyStreakPanel({
             {dailyGoal > 0
               ? `${todayPages}/${dailyGoal}p`
               : todayPages > 0
-                ? `${todayPages} pags`
+                ? t("dashboard:streak.pages", { count: todayPages })
                 : "-"}
           </span>
         </div>
@@ -463,11 +488,17 @@ function WeeklyStreakPanel({
   );
 }
 
-function getWinningDatesByUser(people: StreakPerson[]): Map<string, Set<string>> {
+function getWinningDatesByUser(
+  people: StreakPerson[],
+  weekdayLabels: readonly string[],
+): Map<string, Set<string>> {
   const weeklyPagesByUser = people.map((person) => ({
     userId: person.userId,
     pagesByDate: new Map(
-      getWeekDays(person.readings, 0).map((day) => [day.date, day.pagesRead]),
+      getWeekDays(person.readings, 0, weekdayLabels).map((day) => [
+        day.date,
+        day.pagesRead,
+      ]),
     ),
   }));
   const winners = new Map<string, Set<string>>();
@@ -503,6 +534,8 @@ function getWinningDatesByUser(people: StreakPerson[]): Map<string, Set<string>>
 }
 
 export function WeeklyStreak() {
+  const { t } = useTranslation();
+  const weekdayLabels = getWeekdayInitials(i18next.language);
   const reduceMotion = useReducedMotion();
   const { selectedUsers } = useSelectedUsers();
   const [dailyGoal, setDailyGoal] = useLocalStorage<number>(
@@ -538,22 +571,24 @@ export function WeeklyStreak() {
     return [
       {
         userId: "current-user",
-        username: "Voce",
+        username: t("dashboard:streak.you"),
         isCurrentUser: true,
         readings: readings ?? [],
       },
       ...(selectedPeople ?? []),
     ];
-  }, [readings, selectedPeople]);
+  }, [readings, selectedPeople, t]);
 
   const todayStr = getTodayIso();
-  const weeklyTotals = people.map((person) => getWeeklyPages(person.readings));
+  const weeklyTotals = people.map((person) =>
+    getWeeklyPages(person.readings, weekdayLabels),
+  );
   const currentWeeklyPages = weeklyTotals[0] ?? 0;
   const bestFriendWeeklyPages = Math.max(0, ...weeklyTotals.slice(1));
   const comparisonActive = people.length > 1;
   const winningDatesByUser = useMemo(
-    () => getWinningDatesByUser(people),
-    [people],
+    () => getWinningDatesByUser(people, weekdayLabels),
+    [people, weekdayLabels],
   );
 
   if (isLoading || isLoadingSelected) {

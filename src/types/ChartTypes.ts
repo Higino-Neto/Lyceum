@@ -1,3 +1,5 @@
+import type { TranslationKey } from "../i18n";
+
 export const CHART_COLORS = [
   "var(--accent-500)",
   "#3b82f6",
@@ -15,16 +17,16 @@ export type ChartType =
   | "area";
 
 export const CHART_OPTIONS: ChartOption[] = [
-  { key: "daily", label: "Diário (Line)" },
-  { key: "weekday", label: "Dia da Semana" },
-  { key: "weekly", label: "Semanal" },
-  { key: "category", label: "Categorias" },
-  { key: "area", label: "Acumulado" },
+  { key: "daily", labelKey: "dashboard:charts.daily" },
+  { key: "weekday", labelKey: "dashboard:charts.weekday" },
+  { key: "weekly", labelKey: "dashboard:charts.weekly" },
+  { key: "category", labelKey: "dashboard:charts.category" },
+  { key: "area", labelKey: "dashboard:charts.area" },
 ];
 
 export interface ChartOption {
   key: ChartType;
-  label: string;
+  labelKey: TranslationKey;
 }
 
 export interface CategoryData {

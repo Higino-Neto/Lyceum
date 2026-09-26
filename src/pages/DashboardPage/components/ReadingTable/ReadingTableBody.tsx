@@ -3,6 +3,7 @@ import useGetReadings from "../../../../hooks/useGetReadings";
 import TableReading from "../../../../types/TableReading";
 import { TableSkeleton } from "../../../../components/skeletons";
 import { Trash2, Pencil } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 const formatDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-");
@@ -19,6 +20,7 @@ interface ReadingTableBodyProps {
 }
 
 export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, currentPage = 1, itemsPerPage = 10, onTotalPagesChange }: ReadingTableBodyProps) {
+  const { t } = useTranslation();
   const { data: readings, isLoading } = useGetReadings();
 
   const sortedReadings = useMemo(() => {
@@ -58,7 +60,9 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
           >
             <td className="px-4 py-3">{reading.source_name}</td>
             <td className="px-4 py-3">{reading.pages}</td>
-            <td className="px-4 py-3">{reading.reading_time} min</td>
+            <td className="px-4 py-3">
+              {t("common:units.minuteShort", { count: reading.reading_time })}
+            </td>
             <td className="px-4 py-3">
               {formatDate(reading.reading_date.toString())}
             </td>
@@ -68,7 +72,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
                   type="button"
                   onClick={() => onEdit?.(reading)}
                   className="text-zinc-500 hover:text-zinc-300 transition cursor-pointer p-1"
-                  title="Editar leitura"
+                  title={t("dashboard:actions.editReading")}
                 >
                   <Pencil size={18} />
                 </button>
@@ -76,7 +80,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
                   type="button"
                   onClick={() => onDelete?.(reading)}
                   className="text-zinc-500 hover:text-red-400 transition cursor-pointer p-1"
-                  title="Remover leitura"
+                  title={t("dashboard:actions.removeReading")}
                 >
                   <Trash2 size={18} />
                 </button>

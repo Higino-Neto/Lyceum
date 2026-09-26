@@ -2,12 +2,14 @@ import type { SupportedLanguageCode } from "./config";
 
 import enAuth from "./en/auth.json";
 import enCommon from "./en/common.json";
+import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
 import enNavigation from "./en/navigation.json";
 import enSettings from "./en/settings.json";
 
 import ptBrAuth from "./pt-br/auth.json";
 import ptBrCommon from "./pt-br/common.json";
+import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
 import ptBrNavigation from "./pt-br/navigation.json";
 import ptBrSettings from "./pt-br/settings.json";
@@ -20,6 +22,7 @@ import ptBrSettings from "./pt-br/settings.json";
 const en = {
   common: enCommon,
   auth: enAuth,
+  dashboard: enDashboard,
   navigation: enNavigation,
   settings: enSettings,
   friends: enFriends,
@@ -28,6 +31,7 @@ const en = {
 const ptBR = {
   common: ptBrCommon,
   auth: ptBrAuth,
+  dashboard: ptBrDashboard,
   navigation: ptBrNavigation,
   settings: ptBrSettings,
   friends: ptBrFriends,

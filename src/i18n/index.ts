@@ -57,6 +57,14 @@ export { i18next };
 export { useTranslation } from "./useTranslation";
 export { useLanguage } from "./useLanguage";
 export { default as LanguageSwitcher } from "./LanguageSwitcher";
+export {
+  formatDate,
+  formatNumber,
+  formatShortDate,
+  getShortMonthNames,
+  getWeekdayInitials,
+  getWeekdayShortNames,
+} from "./format";
 export * from "./config";
 export type { TranslationKey, Translate, TranslateOptions } from "./keys";
 export type { TranslationResources } from "./resources";

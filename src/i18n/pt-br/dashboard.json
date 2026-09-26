@@ -1,0 +1,114 @@
+{
+  "actions": {
+    "dailyReadings": "Leituras diárias",
+    "copyToday": "Copiar leituras de hoje",
+    "copyYesterday": "Copiar leituras de ontem",
+    "register": "Registrar",
+    "editReading": "Editar leitura",
+    "removeReading": "Remover leitura",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página"
+  },
+  "toasts": {
+    "noReadingsToday": "Nenhuma leitura registrada hoje",
+    "noReadingsYesterday": "Nenhuma leitura registrada ontem",
+    "copied": "Leituras copiadas!",
+    "copyFailed": "Falha ao copiar",
+    "readingRemoved": "Leitura removida!",
+    "readingUpdated": "Leitura atualizada!",
+    "readingRegistered": "Leitura registrada!",
+    "registerFailed": "Erro ao registrar leitura",
+    "missingCategory": "Defina uma categoria para este livro em /readings",
+    "missingPages": "Informe as páginas lidas",
+    "missingReadingTime": "Informe o tempo de leitura",
+    "bookRemoved": "Livro removido da leitura rápida"
+  },
+  "table": {
+    "work": "Obra",
+    "pages": "Págs",
+    "time": "Tempo",
+    "date": "Data",
+    "deleteTitle": "Excluir Leitura",
+    "deleteMessage": "Tem certeza que deseja excluir \"{{book}}\"?",
+    "deleteConfirm": "Excluir"
+  },
+  "heatmap": {
+    "noData": "Sem dados",
+    "error": "Erro: {{message}}"
+  },
+  "charts": {
+    "daily": "Diário (Line)",
+    "weekday": "Dia da Semana",
+    "weekly": "Semanal",
+    "category": "Categorias",
+    "categoryBar": "Barras",
+    "categoryTreemap": "Proporção",
+    "area": "Acumulado",
+    "noData": "Nenhum dado disponível",
+    "tooltipEntry": "{{name}}: {{value}} páginas",
+    "currentUser": "Você"
+  },
+  "ranking": {
+    "filterByCategory": "Filtrar por categoria",
+    "allCategories": "Todas",
+    "addFriendsTitle": "Adicione amigos para competir",
+    "addFriendsDescription": "O leaderboard agora mostra apenas você e seus amigos.",
+    "addFriend": "Adicionar amigo",
+    "you": "Você",
+    "viewProfile": "Ver perfil",
+    "avatar": "Avatar",
+    "removeFromCharts": "Remover dos gráficos",
+    "addToCharts": "Adicionar aos gráficos",
+    "selectionLimit": "Limite atingido (máx. 2)",
+    "periods": {
+      "today": "Hoje",
+      "thisWeek": "Semanal",
+      "thisMonth": "Mensal",
+      "allTime": "Geral"
+    },
+    "periodLabels": {
+      "today": "Hoje",
+      "thisWeek": "Esta semana",
+      "thisMonth": "Este mês",
+      "allTime": "Geral"
+    }
+  },
+  "streak": {
+    "goalLabel": "Meta diária",
+    "goalValue": "{{count}}p/dia",
+    "pagesPerDay": "Páginas por dia",
+    "saveGoal": "Salvar meta",
+    "goalHit": "🔥 Meta batida!",
+    "tie": "empate",
+    "you": "Você",
+    "days_one": "{{count}} dia",
+    "days_other": "{{count}} dias",
+    "pages_one": "{{count}} pág",
+    "pages_other": "{{count}} págs"
+  },
+  "quickReading": {
+    "addRegisteredBook": "Adicionar livro cadastrado",
+    "closeBookPicker": "Fechar seleção de livro",
+    "searchRegisteredBook": "Buscar livro cadastrado",
+    "searchPlaceholder": "Buscar livro cadastrado...",
+    "loadingBooks": "Carregando livros...",
+    "noRegisteredBooks": "Nenhum livro cadastrado encontrado",
+    "empty": "Nenhum livro na leitura rápida",
+    "actions": "Ações",
+    "actionsFor": "Ações de {{book}}",
+    "removeFromList": "Remover da lista",
+    "removeBook": "Remover {{book}} da leitura rápida",
+    "addBook": "Adicionar {{book}} à leitura rápida",
+    "totalPages": "{{count}}p total",
+    "todayPages": "(+{{count}}p)",
+    "pagesLabel": "Páginas de {{book}}",
+    "minutesLabel": "Minutos de {{book}}",
+    "dateLabel": "Data de {{book}}",
+    "pagesPlaceholder": "pág",
+    "minutesPlaceholder": "min",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "register": "Registrar leitura",
+    "noCategory": "Sem categoria"
+  }
+}

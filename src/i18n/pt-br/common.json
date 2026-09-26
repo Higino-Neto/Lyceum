@@ -6,7 +6,6 @@
     "saving": "Salvando…",
     "version": "Versão {{version}}"
   },
-
   "actions": {
     "add": "Adicionar",
     "apply": "Aplicar",
@@ -41,7 +40,6 @@
     "undo": "Desfazer",
     "view": "Visualizar"
   },
-
   "states": {
     "active": "Ativo",
     "available": "Disponível",
@@ -55,7 +53,6 @@
     "success": "Pronto",
     "warning": "Atenção"
   },
-
   "fields": {
     "all": "Todos",
     "author": "Autor",
@@ -72,7 +69,6 @@
     "total": "Total",
     "unknown": "Desconhecido"
   },
-
   "periods": {
     "today": "Hoje",
     "yesterday": "Ontem",
@@ -84,7 +80,6 @@
     "lastYear": "Ano passado",
     "allTime": "Desde o início"
   },
-
   "units": {
     "page_one": "{{count}} página",
     "page_other": "{{count}} páginas",
@@ -95,9 +90,10 @@
     "day_one": "{{count}} dia",
     "day_other": "{{count}} dias",
     "book_one": "{{count}} livro",
-    "book_other": "{{count}} livros"
+    "book_other": "{{count}} livros",
+    "minuteShort": "{{count}} min",
+    "pageShort": "{{count}}p"
   },
-
   "messages": {
     "noResults": "Nenhum resultado encontrado",
     "notFound": "Página não encontrada",
@@ -105,15 +101,16 @@
     "goHome": "Ir para o dashboard",
     "offlineNotice": "Você está offline. Seus dados ficam salvos neste dispositivo."
   },
-
   "confirm": {
     "title": "Confirmação",
     "irreversible": "Esta ação não pode ser desfeita."
   },
-
   "validation": {
     "required": "Este campo é obrigatório",
     "invalidEmail": "Informe um e-mail válido",
     "passwordTooShort": "Use pelo menos {{count}} caracteres"
+  },
+  "labels": {
+    "total": "Total: {{count}}"
   }
 }

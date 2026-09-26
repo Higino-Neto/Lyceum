@@ -7,6 +7,7 @@ import { Crown, Filter, Minus, Plus, User, UserPlus } from "lucide-react";
 import { useSelectedUsers } from "../../../../contexts/SelectedUsersContext";
 import SelectPeriodButton from "./SelectPeriodButton";
 import { useLocalStorage } from "../../../../hooks/useLocalStorage";
+import { useTranslation } from "../../../../i18n";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
@@ -14,6 +15,7 @@ const STROKE_WIDTH = 1.5;
 type Period = "today" | "this_week" | "this_month" | "all_time";
 
 export default function RankingTable() {
+  const { t } = useTranslation();
   const { data: ranking, isLoading } = useRanking();
   const { selectedUsers, currentUserId, toggleUser, isUserSelected } =
     useSelectedUsers();
@@ -100,7 +102,7 @@ export default function RankingTable() {
               ? "bg-green-600/15 text-green-400"
               : "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300"
           }`}
-          title="Filtrar por categoria"
+          title={t("dashboard:ranking.filterByCategory")}
         >
           <Filter size={13} strokeWidth={1.5} />
         </button>
@@ -116,7 +118,7 @@ export default function RankingTable() {
                 : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
             }`}
           >
-            Todas
+            {t("dashboard:ranking.allCategories")}
           </button>
           {(categories || []).map((category) => (
             <button
@@ -153,10 +155,10 @@ export default function RankingTable() {
                   </div>
                   <div>
                     <p className="font-medium text-zinc-300">
-                      Adicione amigos para competir
+                      {t("dashboard:ranking.addFriendsTitle")}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      O leaderboard agora mostra apenas voce e seus amigos.
+                      {t("dashboard:ranking.addFriendsDescription")}
                     </p>
                   </div>
                   <button
@@ -165,7 +167,7 @@ export default function RankingTable() {
                     className="inline-flex h-8 items-center gap-2 rounded bg-green-600 px-3 text-xs font-medium text-black transition hover:bg-green-500"
                   >
                     <UserPlus size={14} />
-                    Adicionar amigo
+                    {t("dashboard:ranking.addFriend")}
                   </button>
                 </div>
               </td>
@@ -202,12 +204,16 @@ export default function RankingTable() {
                       }
                       disabled={isCurrentUser}
                       className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-900 bg-zinc-800 disabled:cursor-default"
-                      title={isCurrentUser ? "Voce" : "Ver perfil"}
+                      title={
+                        isCurrentUser
+                          ? t("dashboard:ranking.you")
+                          : t("dashboard:ranking.viewProfile")
+                      }
                     >
                       {user.avatar_url ? (
                         <img
                           src={user.avatar_url}
-                          alt="Avatar"
+                          alt={t("dashboard:ranking.avatar")}
                           loading="lazy"
                           className="h-full w-full object-cover"
                         />
@@ -224,7 +230,11 @@ export default function RankingTable() {
                       }
                       disabled={isCurrentUser}
                       className="flex min-w-0 items-center gap-2 text-left disabled:cursor-default"
-                      title={isCurrentUser ? "Voce" : "Ver perfil"}
+                      title={
+                        isCurrentUser
+                          ? t("dashboard:ranking.you")
+                          : t("dashboard:ranking.viewProfile")
+                      }
                     >
                       <span className="truncate">{user.username}</span>
                     </button>
@@ -246,10 +256,10 @@ export default function RankingTable() {
                         disabled={!canSelectMore && !isUserSelected(user.user_id)}
                         title={
                           selectionState === "selected"
-                            ? "Remover dos graficos"
+                            ? t("dashboard:ranking.removeFromCharts")
                             : canSelectMore
-                              ? "Adicionar aos graficos"
-                              : "Limite atingido (max. 2)"
+                              ? t("dashboard:ranking.addToCharts")
+                              : t("dashboard:ranking.selectionLimit")
                         }
                       >
                         {selectionState === "selected" ? (

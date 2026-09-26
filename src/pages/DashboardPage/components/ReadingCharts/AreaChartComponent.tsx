@@ -4,12 +4,14 @@ import ChartTooltip from "./ChartTooltip";
 import formatDate from "./utils/formatDate";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
 import { buildAreaPagesData, hasPositiveChartData } from "./utils/chartData";
+import { useTranslation } from "../../../../i18n";
 
 interface AreaChartProps {
   usersData: UserReadingData[];
 }
 
 export default function AreaChartComponent({ usersData }: AreaChartProps) {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     return buildAreaPagesData(usersData);
   }, [usersData]);
@@ -17,7 +19,7 @@ export default function AreaChartComponent({ usersData }: AreaChartProps) {
   if (!hasPositiveChartData(chartData, usersData)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
-        Nenhum dado disponível
+        {t("dashboard:charts.noData")}
       </div>
     );
   }

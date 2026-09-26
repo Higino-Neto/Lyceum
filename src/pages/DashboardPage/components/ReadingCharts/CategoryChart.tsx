@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ChartTooltip from "./ChartTooltip";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
+import { useTranslation, type TranslationKey } from "../../../../i18n";
 
 type CategoryChartType = "bar" | "treemap";
 
@@ -17,12 +18,13 @@ interface CategoryDataItem {
   [key: string]: string | number;
 }
 
-const CHART_TYPE_OPTIONS = [
-  { key: "bar", label: "Barras" },
-  { key: "treemap", label: "Proporção" },
+const CHART_TYPE_OPTIONS: { key: CategoryChartType; labelKey: TranslationKey }[] = [
+  { key: "bar", labelKey: "dashboard:charts.categoryBar" },
+  { key: "treemap", labelKey: "dashboard:charts.categoryTreemap" },
 ];
 
 export default function CategoryChart({ usersData, categories }: CategoryChartProps) {
+  const { t } = useTranslation();
   const [chartType, setChartType] = useState<CategoryChartType>("bar");
 
   const categoryData = useMemo((): CategoryDataItem[] => {
@@ -84,7 +86,7 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
   if (categoryData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
-        Nenhum dado disponível
+        {t("dashboard:charts.noData")}
       </div>
     );
   }
@@ -101,7 +103,7 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
               : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       ))}
     </div>

@@ -4,6 +4,12 @@ import HeatMap from "@uiw/react-heat-map";
 import getReadings from "../../../utils/getReadings";
 import { HeatmapSkeleton } from "../../../components/skeletons";
 import { CalendarDays } from "lucide-react";
+import {
+  getShortMonthNames,
+  getWeekdayInitials,
+  useLanguage,
+  useTranslation,
+} from "../../../i18n";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
@@ -41,6 +47,8 @@ async function fetchHeatmapData(): Promise<HeatmapData[]> {
 }
 
 export function ReadingHeatMap() {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
   const { data: value, isLoading, isError, error } = useQuery<HeatmapData[]>({
     queryKey: ["heatmap"],
     queryFn: fetchHeatmapData,
@@ -123,7 +131,7 @@ export function ReadingHeatMap() {
     return (
       <div className="flex flex-col items-center justify-center bg-zinc-900 text-white rounded-sm h-full p-4">
         <div className="flex-1 flex items-center justify-center text-red-400 text-sm">
-          Erro: {error?.message}
+          {t("dashboard:heatmap.error", { message: error?.message ?? "" })}
         </div>
       </div>
     );
@@ -134,8 +142,8 @@ export function ReadingHeatMap() {
     data: HeatmapData & { date: string; column: number; row: number; index: number }
   ) => {
     const tooltipContent = data.count
-      ? `${data.count} p`
-      : "Sem dados";
+      ? t("common:units.pageShort", { count: data.count })
+      : t("dashboard:heatmap.noData");
     
     const colorIndex = getColorIndex(data.count || 0);
     const fillColor = darkPanelColors[colorIndex];
@@ -160,21 +168,8 @@ export function ReadingHeatMap() {
           endDate={endDate}
           rectSize={12}
           space={6}
-          weekLabels={["d", "s", "t", "q", "q", "s", "s"]}
-          monthLabels={[
-            "Jan",
-            "Fev",
-            "Mar",
-            "Abr",
-            "Mai",
-            "Jun",
-            "Jul",
-            "Ago",
-            "Set",
-            "Out",
-            "Nov",
-            "Dez",
-          ]}
+          weekLabels={getWeekdayInitials(language)}
+          monthLabels={getShortMonthNames(language)}
           monthPlacement="top"
           panelColors={darkPanelColors}
           rectProps={{ rx: 2 }}

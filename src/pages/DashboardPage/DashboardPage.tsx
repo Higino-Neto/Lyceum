@@ -14,11 +14,13 @@ import toast from "react-hot-toast";
 import useGetReadings from "../../hooks/useGetReadings";
 import { useMemo } from "react";
 import { panelStagger, softFadeUp, springFast } from "../../utils/motionPresets";
+import { useTranslation } from "../../i18n";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const { settings } = useAppSettings();
@@ -45,23 +47,24 @@ export default function Dashboard() {
     const lines = targetReadings.map((r) => `${r.source_name}: ${r.pages}`);
     const total = targetReadings.reduce((acc, r) => acc + r.pages, 0);
 
-    return `${lines.join("\n")}\n\nTotal: ${total}`;
-  }, [readings, targetDate]);
+    return `${lines.join("\n")}\n\n${t("common:labels.total", { count: total })}`;
+  }, [readings, targetDate, t]);
 
   const handleCopyDailyReadings = async () => {
     if (!readingsString) {
-      const message = settings.copyYesterdayReadings
-        ? "Nenhuma leitura registrada ontem"
-        : "Nenhuma leitura registrada hoje";
-      toast.error(message);
+      toast.error(
+        settings.copyYesterdayReadings
+          ? t("dashboard:toasts.noReadingsYesterday")
+          : t("dashboard:toasts.noReadingsToday"),
+      );
       return;
     }
 
     try {
       await navigator.clipboard.writeText(readingsString);
-      toast.success("Leituras copiadas!");
+      toast.success(t("dashboard:toasts.copied"));
     } catch {
-      toast.error("Falha ao copiar");
+      toast.error(t("dashboard:toasts.copyFailed"));
     }
   };
 
@@ -171,17 +174,21 @@ export default function Dashboard() {
                      <motion.button
                        onClick={handleCopyDailyReadings}
                        className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-md text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
-                       title={settings.copyYesterdayReadings ? "Copiar leituras de ontem" : "Copiar leituras de hoje"}
+                       title={
+                         settings.copyYesterdayReadings
+                           ? t("dashboard:actions.copyYesterday")
+                           : t("dashboard:actions.copyToday")
+                       }
                      >
                        <Copy size={16} />
-                       Leituras diárias
+                       {t("dashboard:actions.dailyReadings")}
                      </motion.button>
                     <motion.button
                       onClick={() => navigate("/add_reading")}
                       className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-green-600 px-3 py-1.5 text-md font-medium text-black transition hover:bg-green-500"
                     >
                       <Plus size={16} />
-                      Registrar
+                      {t("dashboard:actions.register")}
                     </motion.button>
                   </div>
                 </div>

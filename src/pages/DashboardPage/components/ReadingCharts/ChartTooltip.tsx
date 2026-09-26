@@ -1,3 +1,5 @@
+import { formatNumber, useLanguage, useTranslation } from "../../../../i18n";
+
 interface TooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -10,6 +12,9 @@ interface TooltipProps {
 }
 
 export default function ChartTooltip({ active, payload, label }: TooltipProps) {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
+
   if (!active || !payload?.length) return null;
 
   return (
@@ -21,7 +26,10 @@ export default function ChartTooltip({ active, payload, label }: TooltipProps) {
           className="text-zinc-100 text-sm font-medium"
           style={{ color: entry.color }}
         >
-          {entry.name}: {entry.value?.toLocaleString("pt-BR")} páginas
+          {t("dashboard:charts.tooltipEntry", {
+            name: entry.name,
+            value: formatNumber(Number(entry.value ?? 0), language),
+          })}
         </p>
       ))}
     </div>

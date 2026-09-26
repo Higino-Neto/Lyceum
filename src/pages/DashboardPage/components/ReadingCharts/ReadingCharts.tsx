@@ -13,8 +13,10 @@ import CategoryChart from "./CategoryChart";
 import AreaChartComponent from "./AreaChartComponent";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { softFadeUp, springFast } from "../../../../utils/motionPresets";
+import { useTranslation } from "../../../../i18n";
 
 export default function ReadingCharts() {
+  const { t } = useTranslation();
   const [activeChart, setActiveChart] = useLocalStorage<ChartType>("chart_type", "daily");
   const { selectedUsers, currentUserId } = useSelectedUsers();
   const reduceMotion = useReducedMotion();
@@ -90,7 +92,7 @@ export default function ReadingCharts() {
       users.push({
         user: {
           userId: currentUserId,
-          username: "Você",
+          username: t("dashboard:charts.currentUser"),
           isCurrentUser: true,
         },
         readings: currentUserData || [],
@@ -102,7 +104,7 @@ export default function ReadingCharts() {
     }
 
     return users;
-  }, [currentUserId, currentUserData, selectedUsersReadings]);
+  }, [currentUserId, currentUserData, selectedUsersReadings, t]);
 
   const isLoading = isLoadingCurrentUser || isLoadingSelectedUsers;
 
@@ -156,7 +158,7 @@ export default function ReadingCharts() {
                 transition={springFast}
               />
             )}
-            <span className="relative z-10">{option.label}</span>
+            <span className="relative z-10">{t(option.labelKey)}</span>
           </motion.button>
         ))}
       </div>

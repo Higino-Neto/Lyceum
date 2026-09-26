@@ -19,6 +19,7 @@ import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { useSelectedUsers } from "../../../contexts/SelectedUsersContext";
 import type TableReading from "../../../types/TableReading";
 import getReadings from "../../../utils/getReadings";
+import { useTranslation } from "../../../i18n";
 
 type DraftDateMode = "today" | "yesterday";
 
@@ -211,6 +212,7 @@ function handleFastKeyDown(event: KeyboardEvent<HTMLElement>) {
 }
 
 export default function ReadingStatsCard() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { selectedUsers } = useSelectedUsers();
   const reduceMotion = useReducedMotion();
@@ -348,17 +350,17 @@ export default function ReadingStatsCard() {
     const readingTime = Number(draft.readingTime);
 
     if (!book.categoryId) {
-      toast.error("Defina uma categoria para este livro em /readings");
+      toast.error(t("dashboard:toasts.missingCategory"));
       return;
     }
 
     if (!Number.isFinite(pages) || pages <= 0) {
-      toast.error("Informe as paginas lidas");
+      toast.error(t("dashboard:toasts.missingPages"));
       return;
     }
 
     if (!Number.isFinite(readingTime) || readingTime <= 0) {
-      toast.error("Informe o tempo de leitura");
+      toast.error(t("dashboard:toasts.missingReadingTime"));
       return;
     }
 
@@ -401,14 +403,14 @@ export default function ReadingStatsCard() {
         }),
       );
 
-      toast.success("Leitura registrada!");
+      toast.success(t("dashboard:toasts.readingRegistered"));
     } catch (error) {
       console.error("Error saving quick reading:", error);
       setFeedbackPhase((prev) => ({ ...prev, [book.key]: "error" }));
       setTimeout(() => {
         setFeedbackPhase((prev) => ({ ...prev, [book.key]: "idle" }));
       }, 600);
-      toast.error("Erro ao registrar leitura");
+      toast.error(t("dashboard:toasts.registerFailed"));
     }
   };
 
@@ -419,7 +421,7 @@ export default function ReadingStatsCard() {
     if (book.bookId) {
       setAddedBookIds((current) => current.filter((id) => id !== book.bookId));
     }
-    toast.success("Livro removido da leitura rapida");
+    toast.success(t("dashboard:toasts.bookRemoved"));
   };
 
   const handleAddRegisteredBook = (bookId: string) => {
@@ -445,13 +447,13 @@ export default function ReadingStatsCard() {
         className="inline-flex h-6 w-6 items-center justify-center rounded-sm border border-zinc-700 cursor-pointer text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
         title={
           addPanelOpen
-            ? "Fechar selecao de livro"
-            : "Adicionar livro cadastrado"
+            ? t("dashboard:quickReading.closeBookPicker")
+            : t("dashboard:quickReading.addRegisteredBook")
         }
         aria-label={
           addPanelOpen
-            ? "Fechar selecao de livro"
-            : "Adicionar livro cadastrado"
+            ? t("dashboard:quickReading.closeBookPicker")
+            : t("dashboard:quickReading.addRegisteredBook")
         }
       >
         {addPanelOpen ? (
@@ -478,9 +480,11 @@ export default function ReadingStatsCard() {
           onFocus={() => setSuggestionsOpen(true)}
           onBlur={() => window.setTimeout(() => setSuggestionsOpen(false), 120)}
           className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-          aria-label="Buscar livro cadastrado"
+          aria-label={t("dashboard:quickReading.searchRegisteredBook")}
           placeholder={
-            booksLoading ? "Carregando livros..." : "Buscar livro cadastrado..."
+            booksLoading
+              ? t("dashboard:quickReading.loadingBooks")
+              : t("dashboard:quickReading.searchPlaceholder")
           }
           disabled={booksLoading || availableBooksToAdd.length === 0}
         />
@@ -489,7 +493,7 @@ export default function ReadingStatsCard() {
           <div className="absolute left-2 right-2 top-[calc(100%+0.25rem)] z-20 max-h-56 overflow-y-auto rounded-sm border border-zinc-700 bg-zinc-900 shadow-xl shadow-black/40">
             {booksLoading ? (
               <div className="px-3 py-2 text-sm text-zinc-500">
-                Carregando livros...
+                {t("dashboard:quickReading.loadingBooks")}
               </div>
             ) : suggestedBooksToAdd.length > 0 ? (
               suggestedBooksToAdd.map((book) => (
@@ -499,7 +503,9 @@ export default function ReadingStatsCard() {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleAddRegisteredBook(book.id)}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
-                  aria-label={`Adicionar ${book.title} a leitura rapida`}
+                  aria-label={t("dashboard:quickReading.addBook", {
+                    book: book.title,
+                  })}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
@@ -520,7 +526,7 @@ export default function ReadingStatsCard() {
               ))
             ) : (
               <div className="px-3 py-2 text-sm text-zinc-500">
-                Nenhum livro cadastrado encontrado
+                {t("dashboard:quickReading.noRegisteredBooks")}
               </div>
             )}
           </div>
@@ -551,7 +557,7 @@ export default function ReadingStatsCard() {
         {renderHeader()}
         {renderAddPanel()}
         <div className="flex flex-1 items-center justify-center py-8 text-center text-sm text-zinc-500">
-          Nenhum livro na leitura rapida
+          {t("dashboard:quickReading.empty")}
         </div>
       </div>
     );
@@ -596,8 +602,10 @@ export default function ReadingStatsCard() {
                       )
                     }
                     className="flex h-9 w-5 cursor-pointer items-center justify-center rounded-sm hover:bg-zinc-800 text-zinc-500 transition hover:border-zinc-600 hover:text-zinc-200"
-                    title="Acoes"
-                    aria-label={`Acoes de ${book.title}`}
+                    title={t("dashboard:quickReading.actions")}
+                    aria-label={t("dashboard:quickReading.actionsFor", {
+                      book: book.title,
+                    })}
                   >
                     <MoreVertical size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
                   </button>
@@ -611,10 +619,12 @@ export default function ReadingStatsCard() {
                           setActionMenuBookKey(null);
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/10"
-                        aria-label={`Remover ${book.title} da leitura rapida`}
+                        aria-label={t("dashboard:quickReading.removeBook", {
+                          book: book.title,
+                        })}
                       >
                         <Trash2 size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
-                        Remover da lista
+                        {t("dashboard:quickReading.removeFromList")}
                       </button>
                     </div>
                   ) : null}
@@ -624,10 +634,14 @@ export default function ReadingStatsCard() {
                     {book.title}
                   </div>
                   <div className="mt-0.5 text-xs text-zinc-500">
-                    {book.totalPages}p total{" "}
+                    {t("dashboard:quickReading.totalPages", {
+                      count: book.totalPages,
+                    })}{" "}
                     {book.todayPages > 0 && (
                       <span className="font-semibold text-green-500">
-                        (+{book.todayPages}p)
+                        {t("dashboard:quickReading.todayPages", {
+                          count: book.todayPages,
+                        })}
                       </span>
                     )}
                   </div>
@@ -645,8 +659,10 @@ export default function ReadingStatsCard() {
                   updateDraft(book.key, { pages: event.target.value })
                 }
                 onKeyDown={handleFastKeyDown}
-                placeholder="pag"
-                aria-label={`Paginas de ${book.title}`}
+                placeholder={t("dashboard:quickReading.pagesPlaceholder")}
+                aria-label={t("dashboard:quickReading.pagesLabel", {
+                  book: book.title,
+                })}
                 className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-800/70 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
               />
 
@@ -662,7 +678,9 @@ export default function ReadingStatsCard() {
                 }
                 onKeyDown={handleFastKeyDown}
                 placeholder="min"
-                aria-label={`Minutos de ${book.title}`}
+                aria-label={t("dashboard:quickReading.minutesLabel", {
+                  book: book.title,
+                })}
                 className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-800/70 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
               />
 
@@ -692,11 +710,19 @@ export default function ReadingStatsCard() {
                   }
                 }}
                 className="flex h-9 cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-2 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
-                aria-label={`Data de ${book.title}`}
-                title={draft.dateMode === "today" ? "Hoje" : "Ontem"}
+                aria-label={t("dashboard:quickReading.dateLabel", {
+                  book: book.title,
+                })}
+                title={
+                  draft.dateMode === "today"
+                    ? t("dashboard:quickReading.today")
+                    : t("dashboard:quickReading.yesterday")
+                }
               >
                 <CalendarDays size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
-                {draft.dateMode === "today" ? "Hoje" : "Ontem"}
+                {draft.dateMode === "today"
+                  ? t("dashboard:quickReading.today")
+                  : t("dashboard:quickReading.yesterday")}
               </button>
 
               <div className="relative flex items-center justify-center">
@@ -713,7 +739,11 @@ export default function ReadingStatsCard() {
                         ? "bg-green-600 text-black hover:bg-green-500"
                         : "cursor-not-allowed bg-zinc-800 text-zinc-600"
                   }`}
-                  title={book.categoryId ? "Registrar leitura" : "Sem categoria"}
+                  title={
+                    book.categoryId
+                      ? t("dashboard:quickReading.register")
+                      : t("dashboard:quickReading.noCategory")
+                  }
                 >
                   {phase === "sending" ? (
                     <Loader2 size={ICON_SIZE} className="animate-spin" />

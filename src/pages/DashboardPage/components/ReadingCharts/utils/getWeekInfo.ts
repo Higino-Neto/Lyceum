@@ -1,4 +1,5 @@
 import formatDate from "./formatDate";
+import { getWeekdayShortNames, i18next } from "../../../../../i18n";
 
 export function getWeekNumber(date: Date): number {
   const d = new Date(date);
@@ -16,5 +17,7 @@ export function getWeekRange(date: Date): string {
   return `${formatDate(start)} - ${formatDate(end)}`;
 }
 
-export const WEEKDAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+export function getWeekdayNames() {
+  return getWeekdayShortNames(i18next.language);
+}
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];

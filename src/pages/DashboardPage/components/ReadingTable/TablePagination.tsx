@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 interface TablePaginationProps {
   currentPage: number;
@@ -13,6 +14,7 @@ export default function TablePagination({
   itemsPerPage,
   onPageChange,
 }: TablePaginationProps) {
+  const { t } = useTranslation();
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   if (totalPages <= 1) return null;
@@ -23,7 +25,7 @@ export default function TablePagination({
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
         className="p-1 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
-        title="Página anterior"
+        title={t("dashboard:actions.previousPage")}
       >
         <ChevronLeft size={18} />
       </button>
@@ -34,7 +36,7 @@ export default function TablePagination({
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
         className="p-1 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
-        title="Próxima página"
+        title={t("dashboard:actions.nextPage")}
       >
         <ChevronRight size={18} />
       </button>

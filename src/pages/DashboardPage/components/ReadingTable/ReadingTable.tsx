@@ -8,10 +8,12 @@ import { deleteReadingEntry } from "../../../../api/database";
 import toast from "react-hot-toast";
 import ConfirmDialog from "../../../../components/ConfirmDialog";
 import EditReadingDialog from "../../../../components/EditReadingDialog";
+import { useTranslation } from "../../../../i18n";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ReadingTable() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -38,7 +40,7 @@ export default function ReadingTable() {
     mutationFn: (id: string) => deleteReadingEntry(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["readings"] });
-      toast.success("Leitura removida!");
+      toast.success(t("dashboard:toasts.readingRemoved"));
       setDeleteReading(null);
     },
     onError: (err: Error) => {
@@ -71,9 +73,11 @@ export default function ReadingTable() {
 
       <ConfirmDialog
         isOpen={!!deleteReading}
-        title="Excluir Leitura"
-        message={`Tem certeza que deseja excluir "${deleteReading?.source_name}"?`}
-        confirmLabel="Excluir"
+        title={t("dashboard:table.deleteTitle")}
+        message={t("dashboard:table.deleteMessage", {
+          book: deleteReading?.source_name ?? "",
+        })}
+        confirmLabel={t("dashboard:table.deleteConfirm")}
         onConfirm={() => deleteReading && deleteMutation.mutate(deleteReading.id)}
         onCancel={() => setDeleteReading(null)}
         isDanger
@@ -85,7 +89,7 @@ export default function ReadingTable() {
         onClose={() => setEditReading(null)}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["readings"] });
-          toast.success("Leitura atualizada!");
+          toast.success(t("dashboard:toasts.readingUpdated"));
         }}
       />
     </>

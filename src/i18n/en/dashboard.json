@@ -1,0 +1,114 @@
+{
+  "actions": {
+    "dailyReadings": "Daily readings",
+    "copyToday": "Copy today's readings",
+    "copyYesterday": "Copy yesterday's readings",
+    "register": "Record",
+    "editReading": "Edit reading",
+    "removeReading": "Remove reading",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "toasts": {
+    "noReadingsToday": "No readings recorded today",
+    "noReadingsYesterday": "No readings recorded yesterday",
+    "copied": "Readings copied!",
+    "copyFailed": "Could not copy",
+    "readingRemoved": "Reading removed!",
+    "readingUpdated": "Reading updated!",
+    "readingRegistered": "Reading recorded!",
+    "registerFailed": "Error while recording the reading",
+    "missingCategory": "Set a category for this book in /readings",
+    "missingPages": "Enter the pages read",
+    "missingReadingTime": "Enter the reading time",
+    "bookRemoved": "Book removed from quick reading"
+  },
+  "table": {
+    "work": "Title",
+    "pages": "Pages",
+    "time": "Time",
+    "date": "Date",
+    "deleteTitle": "Delete reading",
+    "deleteMessage": "Are you sure you want to delete \"{{book}}\"?",
+    "deleteConfirm": "Delete"
+  },
+  "heatmap": {
+    "noData": "No data",
+    "error": "Error: {{message}}"
+  },
+  "charts": {
+    "daily": "Daily (line)",
+    "weekday": "Day of the week",
+    "weekly": "Weekly",
+    "category": "Categories",
+    "categoryBar": "Bars",
+    "categoryTreemap": "Proportion",
+    "area": "Accumulated",
+    "noData": "No data available",
+    "tooltipEntry": "{{name}}: {{value}} pages",
+    "currentUser": "You"
+  },
+  "ranking": {
+    "filterByCategory": "Filter by category",
+    "allCategories": "All",
+    "addFriendsTitle": "Add friends to compete",
+    "addFriendsDescription": "The leaderboard now only shows you and your friends.",
+    "addFriend": "Add friend",
+    "you": "You",
+    "viewProfile": "View profile",
+    "avatar": "Avatar",
+    "removeFromCharts": "Remove from charts",
+    "addToCharts": "Add to charts",
+    "selectionLimit": "Limit reached (max. 2)",
+    "periods": {
+      "today": "Today",
+      "thisWeek": "Weekly",
+      "thisMonth": "Monthly",
+      "allTime": "All time"
+    },
+    "periodLabels": {
+      "today": "Today",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "allTime": "All time"
+    }
+  },
+  "streak": {
+    "goalLabel": "Daily goal",
+    "goalValue": "{{count}}p/day",
+    "pagesPerDay": "Pages per day",
+    "saveGoal": "Save goal",
+    "goalHit": "🔥 Goal reached!",
+    "tie": "tie",
+    "you": "You",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "pages_one": "{{count}} page",
+    "pages_other": "{{count}} pages"
+  },
+  "quickReading": {
+    "addRegisteredBook": "Add a book from the library",
+    "closeBookPicker": "Close the book picker",
+    "searchRegisteredBook": "Search a book from the library",
+    "searchPlaceholder": "Search a book from the library...",
+    "loadingBooks": "Loading books...",
+    "noRegisteredBooks": "No books found in the library",
+    "empty": "No books in quick reading",
+    "actions": "Actions",
+    "actionsFor": "Actions for {{book}}",
+    "removeFromList": "Remove from the list",
+    "removeBook": "Remove {{book}} from quick reading",
+    "addBook": "Add {{book}} to quick reading",
+    "totalPages": "{{count}}p total",
+    "todayPages": "(+{{count}}p)",
+    "pagesLabel": "Pages of {{book}}",
+    "minutesLabel": "Minutes of {{book}}",
+    "dateLabel": "Date of {{book}}",
+    "pagesPlaceholder": "pgs",
+    "minutesPlaceholder": "min",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "register": "Record reading",
+    "noCategory": "No category"
+  }
+}

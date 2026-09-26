@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { CHART_COLORS, UserReadingData } from "../../../../types/ChartTypes";
-import { WEEKDAY_NAMES, WEEKDAY_ORDER } from "./utils/getWeekInfo";
+import { getWeekdayNames, WEEKDAY_ORDER } from "./utils/getWeekInfo";
 import parseLocalDate from "./utils/parseLocalDate";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import ChartTooltip from "./ChartTooltip";
 import { hasPositiveChartData } from "./utils/chartData";
+import { useTranslation } from "../../../../i18n";
 
 export default function WeekdayChart({ usersData }: { usersData: UserReadingData[] }) {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -20,9 +22,11 @@ export default function WeekdayChart({ usersData }: { usersData: UserReadingData
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
+    const weekdayNames = getWeekdayNames();
+
     return WEEKDAY_ORDER.map((dayIndex) => {
       const dataPoint: Record<string, string | number> = {
-        day: WEEKDAY_NAMES[dayIndex],
+        day: weekdayNames[dayIndex],
       };
       usersData.forEach((userData) => {
         const userPages = userData.readings
@@ -46,7 +50,7 @@ export default function WeekdayChart({ usersData }: { usersData: UserReadingData
   if (!hasData) {
     return (
       <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
-        Nenhum dado disponível
+        {t("dashboard:charts.noData")}
       </div>
     );
   }

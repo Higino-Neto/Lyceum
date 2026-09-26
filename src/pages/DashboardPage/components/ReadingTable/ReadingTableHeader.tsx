@@ -1,34 +1,37 @@
 import { BookMarked, FileText, Clock, Calendar, MoreHorizontal } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 const ICON_SIZE = 16;
 const STROKE_WIDTH = 1.5;
 
 export default function ReadingTableHeader() {
+  const { t } = useTranslation();
+
   return (
     <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider">
       <tr>
         <th className="text-left px-4 py-3">
           <div className="flex items-center gap-2">
             <BookMarked size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
-            <span>Obra</span>
+            <span>{t("dashboard:table.work")}</span>
           </div>
         </th>
         <th className="text-left px-4 py-3">
           <div className="flex items-center gap-2">
             <FileText size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
-            <span>Págs</span>
+            <span>{t("dashboard:table.pages")}</span>
           </div>
         </th>
         <th className="text-left px-4 py-3">
           <div className="flex items-center gap-2">
             <Clock size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
-            <span>Tempo</span>
+            <span>{t("dashboard:table.time")}</span>
           </div>
         </th>
         <th className="text-left px-4 py-3">
           <div className="flex items-center gap-2">
             <Calendar size={ICON_SIZE - 2} strokeWidth={STROKE_WIDTH} />
-            <span>Data</span>
+            <span>{t("dashboard:table.date")}</span>
           </div>
         </th>
         <th className="text-right px-4 py-3">
