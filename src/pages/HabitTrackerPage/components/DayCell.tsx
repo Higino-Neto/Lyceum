@@ -1,4 +1,6 @@
 import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { formatNumber, getActiveLocale } from "../../../i18n";
 
 interface DayCellProps {
   active: boolean;
@@ -14,9 +16,7 @@ interface DayCellProps {
 function formatMeasurementValue(value: number) {
   return Number.isInteger(value)
     ? value.toString()
-    : value.toLocaleString("pt-BR", {
-        maximumFractionDigits: 2,
-      });
+    : formatNumber(value, getActiveLocale(), { maximumFractionDigits: 2 });
 }
 
 function DayCellComponent({
@@ -29,6 +29,7 @@ function DayCellComponent({
   onMeasureSave,
   measurementValue = null,
 }: DayCellProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState(
     measurementValue !== null ? measurementValue.toString() : ""
@@ -103,7 +104,7 @@ function DayCellComponent({
               handleCancelEditing();
             }
           }}
-          aria-label={`${label} - valor`}
+          aria-label={t("habits:day.valueAriaLabel", { label })}
           className="relative z-10 h-full w-full bg-zinc-950/95 px-1 text-center text-xs font-semibold text-green-400 outline-none"
           autoFocus
         />

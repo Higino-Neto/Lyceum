@@ -1,0 +1,35 @@
+{
+  "matrix": {
+    "columnHeading": "Hábitos",
+    "empty": "Adicione seu primeiro hábito para começar o acompanhamento."
+  },
+  "form": {
+    "namePlaceholder": "Ex: Dormir Cedo",
+    "nameLabel": "Nome do hábito",
+    "addLabel": "Adicionar hábito",
+    "measureToggle": "Mensurar",
+    "unitPlaceholder": "Unidade ex: horas",
+    "unitLabel": "Unidade de medida"
+  },
+  "month": {
+    "previous": "Mês anterior",
+    "next": "Próximo mês",
+    "caption": "acompanhamento mensal"
+  },
+  "day": {
+    "ariaLabel": "{{habit}} - dia {{day}}",
+    "valueAriaLabel": "{{label}} - valor"
+  },
+  "row": {
+    "save": "Salvar hábito {{name}}",
+    "cancelEdit": "Cancelar edição de {{name}}",
+    "reorder": "Reordenar hábito {{name}}",
+    "rename": "Renomear hábito {{name}}",
+    "delete": "Excluir hábito {{name}}"
+  },
+  "delete": {
+    "title": "Excluir hábito",
+    "message": "Tem certeza que deseja excluir \"{{name}}\"?",
+    "confirm": "Excluir"
+  }
+}

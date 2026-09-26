@@ -1,5 +1,6 @@
 import { Check, Edit3, GripVertical, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Habit, HabitCompletionValue } from "../types";
 import { DayCell } from "./DayCell";
 
@@ -41,6 +42,7 @@ export function HabitRow({
   onDragEnd,
   onDrop,
 }: HabitRowProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(habit.name);
 
@@ -96,7 +98,7 @@ export function HabitRow({
               type="button"
               onClick={handleSave}
               className="p-1.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
-              aria-label={`Salvar hábito ${habit.name}`}
+              aria-label={t("habits:row.save", { name: habit.name })}
             >
               <Check size={16} />
             </button>
@@ -107,7 +109,7 @@ export function HabitRow({
                 setIsEditing(false);
               }}
               className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 cursor-pointer"
-              aria-label={`Cancelar edição de ${habit.name}`}
+              aria-label={t("habits:row.cancelEdit", { name: habit.name })}
             >
               <X size={16} />
             </button>
@@ -120,7 +122,7 @@ export function HabitRow({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 transition hover:bg-zinc-800 hover:text-zinc-300 cursor-grab active:cursor-grabbing"
-              aria-label={`Reordenar hábito ${habit.name}`}
+              aria-label={t("habits:row.reorder", { name: habit.name })}
             >
               <GripVertical size={15} />
             </button>
@@ -132,7 +134,7 @@ export function HabitRow({
                 type="button"
                 onClick={() => setIsEditing(true)}
                 className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                aria-label={`Renomear hábito ${habit.name}`}
+                aria-label={t("habits:row.rename", { name: habit.name })}
               >
                 <Edit3 size={14} />
               </button>
@@ -140,7 +142,7 @@ export function HabitRow({
                 type="button"
                 onClick={onDelete}
                 className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-red-400 cursor-pointer"
-                aria-label={`Excluir hábito ${habit.name}`}
+                aria-label={t("habits:row.delete", { name: habit.name })}
               >
                 <Trash2 size={14} />
               </button>
@@ -155,7 +157,10 @@ export function HabitRow({
         return (
           <DayCell
             key={item.dateKey}
-            label={`${habitDisplayName} - dia ${item.day}`}
+            label={t("habits:day.ariaLabel", {
+              habit: habitDisplayName,
+              day: item.day,
+            })}
             active={Boolean(completionValue)}
             isCurrentDay={item.isCurrentDay}
             isLastColumn={index === days.length - 1}

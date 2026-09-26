@@ -8,6 +8,7 @@ import enReading from "./en/reading.json";
 import enCommon from "./en/common.json";
 import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
+import enHabits from "./en/habits.json";
 import enNavigation from "./en/navigation.json";
 import enSettings from "./en/settings.json";
 import enTabs from "./en/tabs.json";
@@ -20,6 +21,7 @@ import ptBrReading from "./pt-br/reading.json";
 import ptBrCommon from "./pt-br/common.json";
 import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
+import ptBrHabits from "./pt-br/habits.json";
 import ptBrNavigation from "./pt-br/navigation.json";
 import ptBrSettings from "./pt-br/settings.json";
 import ptBrTabs from "./pt-br/tabs.json";
@@ -41,6 +43,7 @@ const en = {
   tabs: enTabs,
   settings: enSettings,
   friends: enFriends,
+  habits: enHabits,
 };
 
 const ptBR = {
@@ -55,6 +58,7 @@ const ptBR = {
   tabs: ptBrTabs,
   settings: ptBrSettings,
   friends: ptBrFriends,
+  habits: ptBrHabits,
 };
 
 /** Flat `namespace -> keys` map used for type checking `t()` calls. */

@@ -1,5 +1,6 @@
 import { DragEvent, FormEvent, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import type { Habit } from "./types";
 import { HabitRow } from "./components/HabitRow";
@@ -14,6 +15,7 @@ import {
 } from "./utils";
 
 export default function HabitTrackerPage() {
+  const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
@@ -111,7 +113,7 @@ export default function HabitTrackerPage() {
               >
                 <div className="px-1 flex justify-center">
                   <p className="text-[11px] uppercase tracking-[0.28em] text-zinc-500">
-                    Hábitos
+                    {t("habits:matrix.columnHeading")}
                   </p>
                 </div>
                 {days.map((item, index) => (
@@ -143,7 +145,7 @@ export default function HabitTrackerPage() {
 
               {habits.length === 0 ? (
                 <div className="py-12 text-center text-sm text-zinc-500">
-                  Adicione seu primeiro hábito para começar o acompanhamento.
+                  {t("habits:matrix.empty")}
                 </div>
               ) : (
                 <div>
@@ -198,14 +200,14 @@ export default function HabitTrackerPage() {
                         type="text"
                         value={newHabitName}
                         onChange={(event) => setNewHabitName(event.target.value)}
-                        placeholder="Ex: Dormir Cedo"
-                        aria-label="Nome do hábito"
+                        placeholder={t("habits:form.namePlaceholder")}
+                        aria-label={t("habits:form.nameLabel")}
                         className="h-8 min-w-0 w-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500"
                         maxLength={48}
                       />
                       <button
                         type="submit"
-                        aria-label="Adicionar hábito"
+                        aria-label={t("habits:form.addLabel")}
                         disabled={!canCreateHabit}
                         className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-medium text-zinc-950 transition hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
                       >
@@ -227,15 +229,15 @@ export default function HabitTrackerPage() {
                           }}
                           className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-950 text-green-500 focus:ring-0"
                         />
-                        Mensurar
+                        {t("habits:form.measureToggle")}
                       </label>
                       {newHabitIsMeasured && (
                         <input
                           type="text"
                           value={newHabitUnit}
                           onChange={(event) => setNewHabitUnit(event.target.value)}
-                          placeholder="Unidade ex: horas"
-                          aria-label="Unidade de medida"
+                          placeholder={t("habits:form.unitPlaceholder")}
+                          aria-label={t("habits:form.unitLabel")}
                           className="h-8 min-w-0 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
                           maxLength={16}
                         />
@@ -277,9 +279,9 @@ export default function HabitTrackerPage() {
 
       <ConfirmDialog
         isOpen={!!habitToDelete}
-        title="Excluir hábito"
-        message={`Tem certeza que deseja excluir "${habitToDelete?.name}"?`}
-        confirmLabel="Excluir"
+        title={t("habits:delete.title")}
+        message={t("habits:delete.message", { name: habitToDelete?.name ?? "" })}
+        confirmLabel={t("habits:delete.confirm")}
         onCancel={() => setHabitToDelete(null)}
         onConfirm={() => {
           if (!habitToDelete) {

@@ -1,0 +1,35 @@
+{
+  "matrix": {
+    "columnHeading": "Habits",
+    "empty": "Add your first habit to start tracking."
+  },
+  "form": {
+    "namePlaceholder": "E.g. Bedtime",
+    "nameLabel": "Habit name",
+    "addLabel": "Add habit",
+    "measureToggle": "Measure",
+    "unitPlaceholder": "Unit e.g. hours",
+    "unitLabel": "Unit of measurement"
+  },
+  "month": {
+    "previous": "Previous month",
+    "next": "Next month",
+    "caption": "monthly tracking"
+  },
+  "day": {
+    "ariaLabel": "{{habit}} - day {{day}}",
+    "valueAriaLabel": "{{label}} - value"
+  },
+  "row": {
+    "save": "Save habit {{name}}",
+    "cancelEdit": "Cancel editing {{name}}",
+    "reorder": "Reorder habit {{name}}",
+    "rename": "Rename habit {{name}}",
+    "delete": "Delete habit {{name}}"
+  },
+  "delete": {
+    "title": "Delete habit",
+    "message": "Are you sure you want to delete \"{{name}}\"?",
+    "confirm": "Delete"
+  }
+}

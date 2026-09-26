@@ -1,16 +1,18 @@
+import { getActiveLocale } from "../../i18n";
+
 export function getMonthDays(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
 export function getMonthLabel(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat(getActiveLocale(), {
     month: "long",
     year: "numeric",
   }).format(date);
 }
 
 export function getWeekdayLabel(year: number, month: number, day: number) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat(getActiveLocale(), {
     weekday: "narrow",
   }).format(new Date(year, month, day));
 }
