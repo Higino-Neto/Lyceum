@@ -2,7 +2,27 @@
  * Locale-aware formatters shared by the app. Everything here derives from the
  * active language, so no screen needs to hard-code a date or number shape.
  */
+import i18next from "i18next";
+
 import { getIntlLocale } from "./config";
+
+/**
+ * Locale of the active language, for `localeCompare` / `toLocaleLowerCase`
+ * calls that run outside React (sorting, search normalisation).
+ */
+export function getActiveLocale(): string {
+  return getIntlLocale(i18next.language);
+}
+
+/** Locale-aware string comparison, used for title and author sorting. */
+export function compareText(left: string, right: string): number {
+  return left.localeCompare(right, getActiveLocale());
+}
+
+/** Locale-aware lowercase, used for search normalisation. */
+export function normalizeCase(value: string): string {
+  return value.toLocaleLowerCase(getActiveLocale());
+}
 
 /** `dd/mm` for pt-BR, `mm/dd` for en, always two digits. */
 export function formatShortDate(date: Date, locale: string): string {

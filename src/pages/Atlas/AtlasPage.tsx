@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import useGetReadings from "../../hooks/useGetReadings";
 import type {
   BookWithThumbnail,
@@ -43,6 +44,7 @@ import {
 } from "./atlasUtils";
 
 export default function AtlasPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeStatusView, setActiveStatusView] = useState<ReadingStatus>("reading");
@@ -94,7 +96,7 @@ export default function AtlasPage() {
 
   const applyStatusResult = useCallback((result: { success: boolean; payload?: ReadingStatusPayload; error?: string }) => {
     if (!result.success || !result.payload) {
-      toast.error(result.error || "Erro ao atualizar estados");
+      toast.error(result.error || t("atlas:errors.updateStatusFailed"));
       return;
     }
 
@@ -105,7 +107,7 @@ export default function AtlasPage() {
 
   const handleOpenBook = useCallback(async (book: BookWithThumbnail) => {
     if (!book.filePath) {
-      toast.error("Caminho do arquivo nao encontrado");
+      toast.error(t("atlas:errors.filePathMissing"));
       return;
     }
 
@@ -114,11 +116,11 @@ export default function AtlasPage() {
         book.fileHash, book.filePath, book.filePath.toLowerCase().endsWith(".pdf"),
       );
       if (!result) {
-        toast.error("Erro ao abrir o arquivo");
+        toast.error(t("atlas:errors.openFailed"));
         return;
       }
       if ("error" in result) {
-        toast.error(result.message || "Erro ao abrir o arquivo");
+        toast.error(result.message || t("atlas:errors.openFailed"));
         return;
       }
 
@@ -140,7 +142,7 @@ export default function AtlasPage() {
         },
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao abrir o arquivo");
+      toast.error(error instanceof Error ? error.message : t("atlas:errors.openFailed"));
     }
   }, [navigate]);
 
@@ -153,7 +155,7 @@ export default function AtlasPage() {
       applyStatusResult(result);
       if (result.success && successMessage) toast.success(successMessage);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao atualizar estados");
+      toast.error(error instanceof Error ? error.message : t("atlas:errors.updateStatusFailed"));
     }
   }, [applyStatusResult]);
 
@@ -165,14 +167,14 @@ export default function AtlasPage() {
       if (!item.book) {
         const result = await window.api.updateReadingStatusItemCover(item.id, imagePath);
         applyStatusResult(result);
-        if (result.success) toast.success("Capa atualizada");
+        if (result.success) toast.success(t("atlas:toasts.coverUpdated"));
         return;
       }
 
       setCoverTarget(item);
       setThumbnailDialog({ open: true, imagePath });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao selecionar capa");
+      toast.error(error instanceof Error ? error.message : t("atlas:errors.selectCoverFailed"));
     }
   }, [applyStatusResult]);
 
@@ -183,20 +185,20 @@ export default function AtlasPage() {
     try {
       if (target.bookId && target.book) {
         const result = await window.api.setThumbnail(target.book.fileHash, thumbnailDialog.imagePath, mode);
-        if (!result.success) throw new Error(result.error || "Erro ao definir capa");
-        toast.success("Capa atualizada");
+        if (!result.success) throw new Error(result.error || t("atlas:errors.setCoverFailed"));
+        toast.success(t("atlas:toasts.coverUpdated"));
         queryClient.invalidateQueries({ queryKey: ATLAS_BOOKS_QUERY_KEY });
       } else {
         const result = await window.api.updateReadingStatusItemCover(target.id, thumbnailDialog.imagePath);
         applyStatusResult(result);
         if (!result.success) return;
-        toast.success("Capa atualizada");
+        toast.success(t("atlas:toasts.coverUpdated"));
       }
       setThumbnailDialog({ open: false, imagePath: "" });
       setCoverTarget(null);
       queryClient.invalidateQueries({ queryKey: ATLAS_STATUS_QUERY_KEY });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao definir capa");
+      toast.error(error instanceof Error ? error.message : t("atlas:errors.setCoverFailed"));
     }
   }, [applyStatusResult, coverTarget, queryClient, thumbnailDialog.imagePath]);
 
@@ -216,7 +218,7 @@ export default function AtlasPage() {
         manualTotalPages: metadata.pageCount ?? null,
         coverPath: metadata.coverUrl ?? undefined,
       }),
-      "Metadados salvos",
+      t("atlas:toasts.metadataSaved"),
     );
   }, [handleStatusMutation]);
 
@@ -280,7 +282,7 @@ export default function AtlasPage() {
 
     void handleStatusMutation(
       () => window.api.positionReadingStatusItem(itemId, target.status, target.index),
-      "Ordem atualizada",
+      t("atlas:toasts.orderUpdated"),
     );
   }, [draggedStatusItemId, handleStatusMutation, statusDropTarget]);
 
@@ -299,14 +301,14 @@ export default function AtlasPage() {
       queryClient.invalidateQueries({ queryKey: ATLAS_STATUS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ATLAS_BOOKS_QUERY_KEY });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar nota");
+      toast.error(error instanceof Error ? error.message : t("atlas:errors.saveRatingFailed"));
     }
   }, [handleStatusMutation, queryClient, statusItems]);
 
   if (!apiAvailable) {
     return (
       <div className="flex h-full items-center justify-center bg-zinc-950 p-6 text-sm text-zinc-500">
-        Atlas esta disponivel no app desktop.
+        {t("atlas:desktopOnly")}
       </div>
     );
   }
@@ -345,19 +347,19 @@ export default function AtlasPage() {
         onStatusChange={(itemId, status) =>
           handleStatusMutation(
             () => window.api.updateReadingStatusItemStatus(itemId, status),
-            `Movido para ${statusLabel(status)}`,
+            t("atlas:toasts.movedTo", { status: statusLabel(status) }),
           )
         }
         onDelete={(itemId) =>
           handleStatusMutation(
             () => window.api.deleteReadingStatusItem(itemId),
-            "Livro removido",
+            t("atlas:toasts.bookRemoved"),
           )
         }
         onSetPrimary={(itemId) =>
           handleStatusMutation(
             () => window.api.setPrimaryReadingStatusItem(itemId),
-            "Leitura principal definida",
+            t("atlas:toasts.primarySet"),
           )
         }
         onCoverChange={handleCoverChange}
@@ -365,13 +367,13 @@ export default function AtlasPage() {
         onProgressSave={(itemId, updates) =>
           handleStatusMutation(
             () => window.api.updateReadingStatusItemProgress(itemId, updates),
-            "Progresso atualizado",
+            t("atlas:toasts.progressUpdated"),
           )
         }
         onProgressEvent={(itemId, pages) =>
           handleStatusMutation(
             () => window.api.addReadingStatusProgressEvent(itemId, pages),
-            "Registro adicionado",
+            t("atlas:toasts.entryAdded"),
           )
         }
         onRatingChange={handleRatingChange}
@@ -393,7 +395,7 @@ export default function AtlasPage() {
 
           handleStatusMutation(
             () => window.api.addLibraryBookToReadingStatus(target.status, book.fileHash),
-            "Livro adicionado",
+            t("atlas:toasts.bookAdded"),
           );
         }}
       />
@@ -408,7 +410,7 @@ export default function AtlasPage() {
 
           handleStatusMutation(
             () => window.api.addManualBookToReadingStatus({ ...data, status: data.status || target.status }),
-            "Livro manual adicionado",
+            t("atlas:toasts.manualBookAdded"),
           );
         }}
       />

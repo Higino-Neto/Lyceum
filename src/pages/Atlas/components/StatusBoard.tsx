@@ -27,6 +27,7 @@ import type {
 } from "../../../types/LibraryTypes";
 import { useTranslation } from "react-i18next";
 import type TableReading from "../../../types/TableReading";
+import { formatDate, formatNumber, normalizeCase } from "../../../i18n";
 import { READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
 import {
   getBookFolderLabel,
@@ -84,6 +85,7 @@ function RatingInput({
   onChange?: (rating: number) => void;
   starSize?: number;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value));
 
@@ -126,7 +128,7 @@ function RatingInput({
       className={`inline-flex items-center gap-0.5 ${
         onChange ? "cursor-pointer" : "cursor-default"
       } ${value > 0 ? "text-yellow-400" : "text-zinc-600"} hover:text-yellow-400`}
-      title="Clique para avaliar (0-10)"
+      title={t("atlas:actions.rateTitle")}
     >
       <Star size={starSize} fill={value > 0 ? "currentColor" : "none"} />
       <span className="text-xs tabular-nums">{value}</span>
@@ -141,6 +143,7 @@ function StatusCoverButton({
   item: ReadingStatusItem;
   onCoverChange: (item: ReadingStatusItem) => void;
 }) {
+  const { t } = useTranslation();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -168,10 +171,10 @@ function StatusCoverButton({
           onCoverChange(item);
         }}
         className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 bg-black/60 text-xs font-medium text-white opacity-0 transition-opacity group-hover/cover:opacity-100"
-        title="Definir capa"
+        title={t("atlas:actions.setCover")}
       >
         <Upload size={14} />
-        Capa
+        {t("atlas:actions.cover")}
       </button>
     </div>
   );
@@ -196,6 +199,8 @@ function StatusActionMenu({
   onMetadataSearch: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="relative">
       <button
@@ -205,7 +210,7 @@ function StatusActionMenu({
           onToggle();
         }}
         className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
-        title="Acoes"
+        title={t("atlas:actions.label")}
       >
         <MoreVertical size={16} />
       </button>
@@ -213,18 +218,20 @@ function StatusActionMenu({
         <div className="absolute right-0 top-10 z-30 w-56 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl">
           <button type="button" onClick={onSetPrimary} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-green-200">
             <Star size={13} />
-            Definir como leitura principal
+            {t("atlas:actions.setPrimary")}
           </button>
           <button type="button" onClick={onEditPages} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
             <Edit3 size={13} />
-            Ajustar paginas e progresso
+            {t("atlas:actions.editPages")}
           </button>
           <button type="button" onClick={onMetadataSearch} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
             <Search size={13} />
-            Pesquisar metadados
+            {t("atlas:actions.searchMetadata")}
           </button>
           <div className="border-t border-zinc-800 py-1">
-            <p className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-600">Mover para</p>
+            <p className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+              {t("atlas:actions.moveTo")}
+            </p>
             {READING_STATUS_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -235,13 +242,13 @@ function StatusActionMenu({
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_VISUAL[option.value].dot}`} />
-                {STATUS_VISUAL[option.value].label}
+                {t(STATUS_VISUAL[option.value].labelKey)}
               </button>
             ))}
           </div>
           <button type="button" onClick={onDelete} className="flex w-full cursor-pointer items-center gap-2 border-t border-zinc-800 px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10">
             <Trash2 size={13} />
-            Remover da lista
+            {t("atlas:actions.removeFromList")}
           </button>
         </div>
       )}
@@ -298,7 +305,7 @@ function StatusBookRow({
   onDrop: (event: ReactDragEvent<HTMLElement>) => void;
   onToggleMenu: (itemId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const title = getTitleWithoutExtension(item.title, item.book?.fileType);
   const totalPages = getStatusItemTotalPages(item);
   const readPages = getStatusItemReadPages(item, externalPages);
@@ -336,12 +343,14 @@ function StatusBookRow({
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           {item.isPrimary && (
-            <Star size={14} className="shrink-0 fill-green-400 text-green-400" aria-label="Leitura principal" />
+            <Star size={14} className="shrink-0 fill-green-400 text-green-400" aria-label={t("atlas:board.primary")} />
           )}
           <span className="truncate text-base font-semibold leading-tight text-zinc-100">{title}</span>
         </div>
         <p className="mt-0.5 truncate text-sm text-zinc-500">
-          {item.author || item.book?.author || (item.book ? getBookFolderLabel(item.book.filePath) : "Livro manual")}
+          {item.author || item.book?.author || (item.book
+              ? getBookFolderLabel(item.book.filePath)
+              : t("atlas:board.manualBook"))}
         </p>
       </div>
 
@@ -356,10 +365,10 @@ function StatusBookRow({
         {item.status === "read" && item.updatedAt && (
           <span className="inline-flex items-center gap-1 text-zinc-400">
             <CalendarDays size={12} />
-            {new Date(item.updatedAt).toLocaleDateString("pt-BR")}
+            {formatDate(new Date(item.updatedAt), i18n.language)}
           </span>
         )}
-        {lastReading !== "Sem registros" && (item.status !== "reading" && item.status !== "paused") && (
+        {lastReading && item.status !== "reading" && item.status !== "paused" && (
           <span className="inline-flex items-center gap-1 text-zinc-600">
             <Clock size={12} />
             {lastReading}
@@ -376,8 +385,8 @@ function StatusBookRow({
               onOpen(item.book!);
             }}
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100"
-            title="Abrir livro"
-            aria-label="Abrir livro"
+            title={t("atlas:board.openBook")}
+            aria-label={t("atlas:board.openBook")}
           >
             <BookOpen size={15} />
           </button>
@@ -424,7 +433,7 @@ function DetailPanel({
   onProgressEvent: (itemId: string, pages: number) => void;
   onRatingChange: (itemId: string, rating: number) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const title = getTitleWithoutExtension(item.title, item.book?.fileType);
   const totalPages = getStatusItemTotalPages(item);
   const readPages = getStatusItemReadPages(item, externalPages);
@@ -469,13 +478,13 @@ function DetailPanel({
             className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 bg-black/60 text-xs font-medium text-white opacity-0 transition-opacity group-hover/cover:opacity-100"
           >
             <Upload size={16} />
-            Capa
+            {t("atlas:actions.cover")}
           </button>
         </div>
         <div className="min-w-0 text-center">
           <h2 className="text-base font-semibold text-zinc-100">{title}</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            {item.author || item.book?.author || "Livro manual"}
+            {item.author || item.book?.author || t("atlas:board.manualBook")}
           </p>
         </div>
         <RatingInput value={displayRating} onChange={(rating) => onRatingChange(item.id, rating)} starSize={18} />
@@ -489,7 +498,7 @@ function DetailPanel({
             className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-800 px-3 text-xs text-zinc-300 hover:bg-zinc-800"
           >
             <Star size={12} />
-            Principal
+            {t("atlas:board.primary")}
           </button>
           {item.book && (
             <button
@@ -515,7 +524,7 @@ function DetailPanel({
           <div className="flex items-center justify-between gap-4">
             <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs ${STATUS_VISUAL[item.status].border} ${STATUS_VISUAL[item.status].bg} ${STATUS_VISUAL[item.status].text}`}>
               <span className={`h-2 w-2 rounded-full ${STATUS_VISUAL[item.status].dot}`} />
-              {STATUS_VISUAL[item.status].label}
+              {t(STATUS_VISUAL[item.status].labelKey)}
             </span>
             <div className="flex gap-1">
               {READING_STATUS_OPTIONS.filter((o) => o.value !== item.status).map((option) => (
@@ -536,25 +545,38 @@ function DetailPanel({
         {item.isPrimary && (
           <div className="rounded-sm border border-green-500/20 bg-green-500/5 px-3 py-2 text-xs text-green-300">
             <Star size={12} className="mr-1 inline fill-green-400" />
-            Leitura principal
+            {t("atlas:board.primary")}
           </div>
         )}
 
         {item.updatedAt && (
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <CalendarDays size={12} />
-            {item.status === "read" ? "Concluido em:" : "Ultima atualizacao:"}{" "}
-            <span className="text-zinc-300">{new Date(item.updatedAt).toLocaleDateString("pt-BR")}</span>
+            {item.status === "read"
+              ? t("atlas:detail.completedOn")
+              : t("atlas:detail.lastUpdated")}{" "}
+            <span className="text-zinc-300">
+              {formatDate(new Date(item.updatedAt), i18n.language)}
+            </span>
           </div>
         )}
 
         <div>
-          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Progresso</h4>
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              {t("atlas:detail.progress")}
+            </h4>
           {totalPages > 0 && (
             <div className="mb-2">
               <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="text-zinc-400">{progress}%</span>
-                <span className="text-zinc-400">{Math.min(readPages, totalPages)} / {totalPages} paginas</span>
+                <span className="text-zinc-400">
+                {formatNumber(progress, i18n.language)}%
+              </span>
+                <span className="text-zinc-400">
+                  {t("atlas:board.progressSummary", {
+                    read: formatNumber(Math.min(readPages, totalPages), i18n.language),
+                    total: formatNumber(totalPages, i18n.language),
+                  })}
+                </span>
               </div>
               <div className="h-2 overflow-hidden rounded-sm bg-zinc-800">
                 <div
@@ -568,17 +590,17 @@ function DetailPanel({
           )}
           <div className="grid grid-cols-3 gap-2">
             <label className="text-xs text-zinc-500">
-              Pagina base
+              {t("atlas:detail.basePage")}
               <input type="number" min={0} value={basePage} onChange={(e) => setBasePage(e.target.value)}
                 className="mt-1 h-8 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 outline-none focus:border-green-500" />
             </label>
             <label className="text-xs text-zinc-500">
-              Pagina atual
+              {t("atlas:detail.currentPage")}
               <input type="number" min={0} value={currentPage} onChange={(e) => setCurrentPage(e.target.value)}
                 className="mt-1 h-8 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 outline-none focus:border-green-500" />
             </label>
             <label className="text-xs text-zinc-500">
-              Total
+              {t("atlas:detail.totalPages")}
               <input type="number" min={1} value={editTotalPages} onChange={(e) => setEditTotalPages(e.target.value)}
                 className="mt-1 h-8 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 outline-none focus:border-green-500" />
             </label>
@@ -586,7 +608,7 @@ function DetailPanel({
           <div className="mt-2 flex gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <input type="number" min={1} value={addPages} onChange={(e) => setAddPages(e.target.value)}
-                placeholder="Somar paginas"
+                placeholder={t("atlas:detail.addPagesPlaceholder")}
                 className="h-8 min-w-0 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-green-500" />
               <button type="button" onClick={() => {
                 const pages = Number(addPages) || 0;
@@ -595,7 +617,7 @@ function DetailPanel({
                 setAddPages("");
               }}
                 className="h-8 shrink-0 cursor-pointer rounded-sm border border-zinc-800 px-2 text-xs text-zinc-300 hover:bg-zinc-800">
-                Somar
+                {t("atlas:detail.add")}
               </button>
             </div>
             <button type="button" onClick={() => {
@@ -606,21 +628,25 @@ function DetailPanel({
               });
             }}
               className="h-8 cursor-pointer rounded-sm bg-green-500 px-3 text-xs font-medium text-zinc-950 hover:bg-green-400">
-              Salvar
+              {t("atlas:detail.save")}
             </button>
           </div>
         </div>
 
         {item.description && (
           <div>
-            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500">Descricao</h4>
+            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              {t("atlas:detail.description")}
+            </h4>
             <p className="text-xs leading-5 text-zinc-400">{item.description}</p>
           </div>
         )}
 
         {(item.isbn || item.publisher || item.publishDate || item.subject) && (
           <div>
-            <h4 className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">Detalhes</h4>
+            <h4 className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              {t("atlas:detail.details")}
+            </h4>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
               {item.isbn && (
                 <div>
@@ -630,19 +656,19 @@ function DetailPanel({
               )}
               {item.publisher && (
                 <div>
-                  <span className="text-zinc-600">Editora</span>
+                  <span className="text-zinc-600">{t("atlas:detail.fields.publisher")}</span>
                   <p className="text-zinc-300">{item.publisher}</p>
                 </div>
               )}
               {item.publishDate && (
                 <div>
-                  <span className="text-zinc-600">Publicacao</span>
+                  <span className="text-zinc-600">{t("atlas:detail.fields.publishDate")}</span>
                   <p className="text-zinc-300">{item.publishDate}</p>
                 </div>
               )}
               {item.subject && (
                 <div>
-                  <span className="text-zinc-600">Assunto</span>
+                  <span className="text-zinc-600">{t("atlas:detail.fields.subject")}</span>
                   <p className="text-zinc-300">{item.subject}</p>
                 </div>
               )}
@@ -658,7 +684,7 @@ function DetailPanel({
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border border-red-800/40 px-3 py-2 text-xs text-red-300 transition-colors hover:bg-red-500/10"
         >
           <Trash2 size={13} />
-          Remover da lista
+          {t("atlas:actions.removeFromList")}
         </button>
       </div>
     </aside>
@@ -676,6 +702,7 @@ function PageSettingsDialog({
   onSave: (itemId: string, updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null }) => void;
   onProgressEvent: (itemId: string, pages: number) => void;
 }) {
+  const { t } = useTranslation();
   const [basePage, setBasePage] = useState("");
   const [currentPage, setCurrentPage] = useState("");
   const [totalPages, setTotalPages] = useState("");
@@ -696,7 +723,9 @@ function PageSettingsDialog({
       <div className="w-full max-w-lg rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">Ajustar paginas</h2>
+            <h2 className="text-sm font-semibold text-zinc-100">
+              {t("atlas:pageDialog.title")}
+            </h2>
             <p className="mt-1 text-xs text-zinc-500">{item.title}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-sm p-2 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100">
@@ -705,21 +734,21 @@ function PageSettingsDialog({
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-3">
           <label className="text-xs text-zinc-500">
-            Pagina base
+            {t("atlas:detail.basePage")}
             <input type="number" min={0} value={basePage} onChange={(event) => setBasePage(event.target.value)} className="mt-1 h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none focus:border-green-500" />
           </label>
           <label className="text-xs text-zinc-500">
-            Pagina atual
+            {t("atlas:detail.currentPage")}
             <input type="number" min={0} value={currentPage} onChange={(event) => setCurrentPage(event.target.value)} className="mt-1 h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none focus:border-green-500" />
           </label>
           <label className="text-xs text-zinc-500">
-            Total
+            {t("atlas:detail.totalPages")}
             <input type="number" min={1} value={totalPages} onChange={(event) => setTotalPages(event.target.value)} className="mt-1 h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none focus:border-green-500" />
           </label>
         </div>
         <div className="border-t border-zinc-800 p-4">
           <label className="text-xs text-zinc-500">
-            Somar paginas lidas agora
+            {t("atlas:pageDialog.addPagesNow")}
             <div className="mt-1 flex gap-2">
               <input type="number" min={1} value={addPages} onChange={(event) => setAddPages(event.target.value)} className="h-9 min-w-0 flex-1 rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none focus:border-green-500" />
               <button type="button" onClick={() => {
@@ -728,13 +757,15 @@ function PageSettingsDialog({
                 onProgressEvent(item.id, pages);
                 setAddPages("");
               }} className="h-9 cursor-pointer rounded-sm border border-zinc-800 px-3 text-sm text-zinc-300 hover:bg-zinc-900">
-                Somar
+                {t("atlas:detail.add")}
               </button>
             </div>
           </label>
         </div>
         <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
-          <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-zinc-400 hover:bg-zinc-900">Cancelar</button>
+          <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-zinc-400 hover:bg-zinc-900">
+            {t("atlas:detail.cancel")}
+          </button>
           <button type="button" onClick={() => {
             onSave(item.id, {
               manualBasePage: Number(basePage) || 0,
@@ -743,7 +774,7 @@ function PageSettingsDialog({
             });
             onClose();
           }} className="h-9 cursor-pointer rounded-sm bg-green-500 px-3 text-sm font-medium text-zinc-950 hover:bg-green-400">
-            Salvar
+            {t("atlas:detail.save")}
           </button>
         </div>
       </div>
@@ -780,9 +811,10 @@ export default function StatusBoard({
   onDragOverBoard,
   onDrop,
 }: StatusBoardProps) {
+  const { t } = useTranslation();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [pageDialogItem, setPageDialogItem] = useState<ReadingStatusItem | null>(null);
-  const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+  const normalizedSearch = normalizeCase(search.trim());
   const activeItems = items
     .filter((item) => item.status === activeStatus)
     .filter((item) => {
@@ -790,7 +822,9 @@ export default function StatusBoard({
       return [item.title, item.author, item.book?.author, item.publisher, item.subject]
         .filter(Boolean)
         .join(" ")
-        .toLocaleLowerCase("pt-BR")
+        .split(" ")
+        .map(normalizeCase)
+        .join(" ")
         .includes(normalizedSearch);
     })
     .sort((left, right) => Number(right.isPrimary) - Number(left.isPrimary) || left.order - right.order);
@@ -809,9 +843,9 @@ export default function StatusBoard({
               const meta = STATUS_VISUAL[option.value];
               const active = activeStatus === option.value;
               return (
-                <button key={option.value} type="button" aria-label={`Ver ${meta.label}`} onClick={() => onActiveStatusChange(option.value)} className={`flex h-9 cursor-pointer items-center gap-2 rounded-sm px-3 text-sm ${active ? "bg-green-500 text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"}`}>
+                <button key={option.value} type="button" aria-label={t("atlas:status.viewAriaLabel", { label: t(meta.labelKey) })} onClick={() => onActiveStatusChange(option.value)} className={`flex h-9 cursor-pointer items-center gap-2 rounded-sm px-3 text-sm ${active ? "bg-green-500 text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                  {meta.label}
+                  {t(meta.labelKey)}
                   <span className={`rounded-sm px-1.5 py-0.5 text-[11px] ${active ? "bg-zinc-950/15" : "bg-zinc-800 text-zinc-300"}`}>{counts[option.value]}</span>
                 </button>
               );
@@ -819,36 +853,40 @@ export default function StatusBoard({
           </div>
           <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3">
             <Search size={15} className="text-zinc-500" />
-            <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Buscar livro..." className="h-9 min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600" />
+            <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder={t("atlas:board.searchPlaceholder")} className="h-9 min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600" />
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onAddLibrary} className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 text-sm font-medium text-zinc-950 hover:bg-green-400">
               <Plus size={15} />
-              Adicionar
+              {t("atlas:board.add")}
             </button>
             <button type="button" onClick={onAddManual} className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-300 hover:bg-zinc-900">
               <FileText size={15} />
-              Manual
+              {t("atlas:board.addManual")}
             </button>
           </div>
         </div>
         <div onDragOver={(event) => onDragOverBoard(event, activeItems.length)} onDrop={onDrop} className="min-h-0 flex-1 overflow-y-auto p-3">
           {loading ? (
-            <div className="flex h-56 items-center justify-center text-sm text-zinc-500">Carregando...</div>
+            <div className="flex h-56 items-center justify-center text-sm text-zinc-500">
+                {t("atlas:board.loading")}
+              </div>
           ) : activeItems.length === 0 ? (
             <div onDragOver={(event) => onDragOverBoard(event, 0)} onDrop={onDrop} className={`flex h-72 flex-col items-center justify-center gap-3 rounded-sm border border-dashed px-4 text-center ${dropTarget?.status === activeStatus ? "border-green-500/60 bg-green-500/10 text-green-200" : "border-zinc-800 text-zinc-500"}`}>
               <BookMarked size={22} className="text-zinc-600" />
               <p className="text-sm">{emptyMessage(activeStatus)}</p>
-              <p className="max-w-md text-xs text-zinc-600">Adicione livros da biblioteca ou manuais para acompanhar sua leitura.</p>
+              <p className="max-w-md text-xs text-zinc-600">
+                {t("atlas:board.emptyHint")}
+              </p>
             </div>
           ) : (
             <div className="pb-2">
               <div className="grid grid-cols-[20px_64px_minmax(0,1fr)_70px_150px_60px] gap-3 border-b border-zinc-700 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <div />
                 <div />
-                <div>Titulo</div>
-                <div className="text-center">Nota</div>
-                <div>Progresso</div>
+                <div>{t("atlas:board.columns.title")}</div>
+                <div className="text-center">{t("atlas:board.columns.rating")}</div>
+                <div>{t("atlas:board.columns.progress")}</div>
                 <div />
               </div>
               {activeItems.map((item, index) => (

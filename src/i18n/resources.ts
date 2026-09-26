@@ -1,5 +1,6 @@
 import type { SupportedLanguageCode } from "./config";
 
+import enAtlas from "./en/atlas.json";
 import enAuth from "./en/auth.json";
 import enDialogs from "./en/dialogs.json";
 import enLibrary from "./en/library.json";
@@ -11,6 +12,7 @@ import enNavigation from "./en/navigation.json";
 import enSettings from "./en/settings.json";
 import enTabs from "./en/tabs.json";
 
+import ptBrAtlas from "./pt-br/atlas.json";
 import ptBrAuth from "./pt-br/auth.json";
 import ptBrDialogs from "./pt-br/dialogs.json";
 import ptBrLibrary from "./pt-br/library.json";
@@ -28,6 +30,7 @@ import ptBrTabs from "./pt-br/tabs.json";
  * same namespaces and keys, or the assignment below fails to type-check.
  */
 const en = {
+  atlas: enAtlas,
   common: enCommon,
   auth: enAuth,
   dashboard: enDashboard,
@@ -41,6 +44,7 @@ const en = {
 };
 
 const ptBR = {
+  atlas: ptBrAtlas,
   common: ptBrCommon,
   auth: ptBrAuth,
   dashboard: ptBrDashboard,

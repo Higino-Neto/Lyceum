@@ -1,0 +1,118 @@
+{
+  "title": "Atlas",
+  "desktopOnly": "Atlas is only available in the desktop app.",
+  "status": {
+    "wantToRead": {
+      "label": "To read",
+      "detail": "Backlog"
+    },
+    "reading": {
+      "label": "Reading",
+      "detail": "Active reading"
+    },
+    "paused": {
+      "label": "Paused",
+      "detail": "On hold"
+    },
+    "read": {
+      "label": "Finished",
+      "detail": "Closed"
+    },
+    "empty": {
+      "want_to_read": "No books in the backlog.",
+      "reading": "No reading in progress.",
+      "paused": "No paused books.",
+      "read": "No finished books."
+    },
+    "viewAriaLabel": "View {{label}}"
+  },
+  "board": {
+    "searchPlaceholder": "Search books...",
+    "loading": "Loading...",
+    "emptyHint": "Add books from the library or manually to follow your reading.",
+    "add": "Add",
+    "addManual": "Manual",
+    "columns": {
+      "title": "Title",
+      "rating": "Rating",
+      "progress": "Progress"
+    },
+    "lastReading": {
+      "none": "No entries",
+      "recent": "Recent entry"
+    },
+    "manualBook": "Manual book",
+    "primary": "Primary reading",
+    "openBook": "Open book",
+    "progressSummary": "{{read}} of {{total}} pages"
+  },
+  "actions": {
+    "label": "Actions",
+    "setPrimary": "Set as primary reading",
+    "editPages": "Adjust pages and progress",
+    "searchMetadata": "Search metadata",
+    "moveTo": "Move to",
+    "removeFromList": "Remove from list",
+    "setCover": "Set cover",
+    "cover": "Cover",
+    "rateTitle": "Click to rate (0-10)"
+  },
+  "detail": {
+    "completedOn": "Finished on:",
+    "lastUpdated": "Last updated:",
+    "progress": "Progress",
+    "basePage": "Base page",
+    "currentPage": "Current page",
+    "totalPages": "Total",
+    "addPagesPlaceholder": "Add pages",
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "description": "Description",
+    "details": "Details",
+    "fields": {
+      "publisher": "Publisher",
+      "publishDate": "Publication date",
+      "subject": "Subject"
+    }
+  },
+  "pageDialog": {
+    "title": "Adjust pages",
+    "addPagesNow": "Add pages read now"
+  },
+  "libraryPicker": {
+    "title": "Add from library",
+    "count_one": "{{count}} of {{total}} books available",
+    "count_other": "{{count}} of {{total}} books available",
+    "empty": "No books found.",
+    "close": "Close"
+  },
+  "manualDialog": {
+    "title": "Add manual book",
+    "titlePlaceholder": "Title",
+    "authorPlaceholder": "Author (optional)",
+    "submit": "Add"
+  },
+  "errors": {
+    "loadStatusFailed": "Failed to load reading statuses",
+    "updateStatusFailed": "Failed to update statuses",
+    "filePathMissing": "File path not found",
+    "openFailed": "Failed to open the file",
+    "selectCoverFailed": "Failed to select a cover",
+    "setCoverFailed": "Failed to set the cover",
+    "saveRatingFailed": "Failed to save the rating",
+    "unknown": "Unknown error"
+  },
+  "toasts": {
+    "coverUpdated": "Cover updated",
+    "metadataSaved": "Metadata saved",
+    "orderUpdated": "Order updated",
+    "movedTo": "Moved to {{status}}",
+    "bookRemoved": "Book removed",
+    "primarySet": "Primary reading set",
+    "progressUpdated": "Progress updated",
+    "entryAdded": "Entry added",
+    "bookAdded": "Book added",
+    "manualBookAdded": "Manual book added"
+  }
+}

@@ -240,7 +240,7 @@ describe("AtlasPage", () => {
 
     await screen.findByText("Reading Next");
     expect(screen.getAllByText("Lendo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Concluido").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Concluído").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Fila").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pausado").length).toBeGreaterThan(0);
   });
@@ -268,7 +268,7 @@ describe("AtlasPage", () => {
     renderWithBasicProviders(<AtlasPage />);
 
     await screen.findByText("Reading Next");
-    fireEvent.click(screen.getByRole("button", { name: "Ver Concluido" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver Concluído" }));
     expect((await screen.findAllByText("Done")).length).toBeGreaterThan(0);
   });
 
@@ -291,9 +291,9 @@ describe("AtlasPage", () => {
     const activeCards = screen.getAllByText("Active");
     const activeCard = activeCards[0].closest("article");
     expect(activeCard).toBeTruthy();
-    fireEvent.click(within(activeCard!).getByTitle("Acoes"));
-    fireEvent.click(await screen.findByText("Ajustar paginas e progresso"));
-    const currentPageInputs = screen.getAllByLabelText("Pagina atual");
+    fireEvent.click(within(activeCard!).getByTitle("Ações"));
+    fireEvent.click(await screen.findByText("Ajustar páginas e progresso"));
+    const currentPageInputs = screen.getAllByLabelText("Página atual");
     fireEvent.change(currentPageInputs[currentPageInputs.length - 1], {
       target: { value: "30" },
     });

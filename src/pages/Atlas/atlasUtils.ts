@@ -14,6 +14,12 @@ import type {
   FileTypeFilter,
   SortOption,
 } from "../Library/components/FilterBar";
+import {
+  compareText,
+  getActiveLocale,
+  normalizeCase,
+  translate,
+} from "../../i18n";
 
 export async function fetchAtlasBooks(): Promise<BookWithThumbnail[]> {
   const books: BookWithThumbnail[] = [];
@@ -42,7 +48,7 @@ export async function fetchAtlasBooks(): Promise<BookWithThumbnail[]> {
 export async function fetchReadingStatusItems(): Promise<ReadingStatusPayload> {
   const result = await window.api.getReadingStatusItems();
   if (!result.success || !result.payload) {
-    throw new Error(result.error || "Erro ao carregar estados de leitura");
+    throw new Error(result.error || translate("atlas:errors.loadStatusFailed"));
   }
   return result.payload;
 }
@@ -65,8 +71,10 @@ export function matchesLibraryBookSearch(book: BookWithThumbnail, query: string)
   ]
     .filter(Boolean)
     .join(" ")
-    .toLocaleLowerCase("pt-BR");
-  const normalizedQuery = trimmed.toLocaleLowerCase("pt-BR");
+    .split(" ")
+    .map(normalizeCase)
+    .join(" ");
+  const normalizedQuery = normalizeCase(trimmed);
 
   return (
     haystack.includes(normalizedQuery) ||
@@ -92,7 +100,7 @@ export function sortLibraryBooks(
   return [...books].sort((left, right) => {
     switch (sort) {
       case "title_desc":
-        return right.title.localeCompare(left.title, "pt-BR") || right.id - left.id;
+        return compareText(right.title, left.title) || right.id - left.id;
       case "recent_desc":
         return new Date(right.lastOpenedAt || right.createdAt).getTime() -
           new Date(left.lastOpenedAt || left.createdAt).getTime();
@@ -109,19 +117,21 @@ export function sortLibraryBooks(
         return (left.fileSize || 0) - (right.fileSize || 0);
       case "title_asc":
       default:
-        return left.title.localeCompare(right.title, "pt-BR") || left.id - right.id;
+        return compareText(left.title, right.title) || left.id - right.id;
     }
   });
 }
 
 function normalizeReadingTitle(value?: string | null): string {
   return getTitleWithoutExtension(value || "", undefined)
-    .toLocaleLowerCase("pt-BR")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\.(pdf|epub|azw3|mobi|cbz|txt|docx|html)$/i, "")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .split(" ")
+    .map(normalizeCase)
+    .join(" ");
 }
 
 export function getExternalReadingPages(
@@ -170,9 +180,9 @@ function getMatchingReadings(item: ReadingStatusItem, readings: TableReading[]):
   return readings.filter((reading) => titles.has(normalizeReadingTitle(reading.source_name)));
 }
 
-export function formatLastReading(item: ReadingStatusItem, readings: TableReading[]): string {
+export function formatLastReading(item: ReadingStatusItem, readings: TableReading[]): string | null {
   const matches = getMatchingReadings(item, readings);
-  if (matches.length === 0) return "Sem registros";
+  if (matches.length === 0) return null;
 
   const latest = [...matches].sort((left, right) => {
     const leftDate = `${left.reading_date || ""} ${left.created_at || ""}`;
@@ -180,12 +190,12 @@ export function formatLastReading(item: ReadingStatusItem, readings: TableReadin
     return rightDate.localeCompare(leftDate);
   })[0];
 
-  if (!latest?.reading_date) return "Registro recente";
+  if (!latest?.reading_date) return translate("atlas:board.lastReading.recent");
   try {
-    return new Date(`${latest.reading_date}T00:00:00`).toLocaleDateString("pt-BR", {
+    return new Intl.DateTimeFormat(getActiveLocale(), {
       day: "2-digit",
       month: "short",
-    });
+    }).format(new Date(`${latest.reading_date}T00:00:00`));
   } catch {
     return latest.reading_date;
   }

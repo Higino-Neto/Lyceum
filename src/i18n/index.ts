@@ -58,13 +58,16 @@ export { useTranslation } from "./useTranslation";
 export { useLanguage } from "./useLanguage";
 export { default as LanguageSwitcher } from "./LanguageSwitcher";
 export {
+  compareText,
   formatDate,
   formatDuration,
   formatNumber,
   formatShortDate,
+  getActiveLocale,
   getShortMonthNames,
   getWeekdayInitials,
   getWeekdayShortNames,
+  normalizeCase,
 } from "./format";
 export * from "./config";
 export type { TranslationKey, Translate, TranslateOptions } from "./keys";

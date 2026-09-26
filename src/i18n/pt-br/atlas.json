@@ -1,0 +1,118 @@
+{
+  "title": "Atlas",
+  "desktopOnly": "O Atlas está disponível apenas no app desktop.",
+  "status": {
+    "wantToRead": {
+      "label": "Fila",
+      "detail": "Reservado"
+    },
+    "reading": {
+      "label": "Lendo",
+      "detail": "Leitura ativa"
+    },
+    "paused": {
+      "label": "Pausado",
+      "detail": "Em espera"
+    },
+    "read": {
+      "label": "Concluído",
+      "detail": "Fechado"
+    },
+    "empty": {
+      "want_to_read": "Nenhum livro na fila.",
+      "reading": "Nenhuma leitura em andamento.",
+      "paused": "Nenhum livro pausado.",
+      "read": "Nenhum livro concluído."
+    },
+    "viewAriaLabel": "Ver {{label}}"
+  },
+  "board": {
+    "searchPlaceholder": "Buscar livro...",
+    "loading": "Carregando...",
+    "emptyHint": "Adicione livros da biblioteca ou manuais para acompanhar sua leitura.",
+    "add": "Adicionar",
+    "addManual": "Manual",
+    "columns": {
+      "title": "Título",
+      "rating": "Nota",
+      "progress": "Progresso"
+    },
+    "lastReading": {
+      "none": "Sem registros",
+      "recent": "Registro recente"
+    },
+    "manualBook": "Livro manual",
+    "primary": "Leitura principal",
+    "openBook": "Abrir livro",
+    "progressSummary": "{{read}} de {{total}} páginas"
+  },
+  "actions": {
+    "label": "Ações",
+    "setPrimary": "Definir como leitura principal",
+    "editPages": "Ajustar páginas e progresso",
+    "searchMetadata": "Pesquisar metadados",
+    "moveTo": "Mover para",
+    "removeFromList": "Remover da lista",
+    "setCover": "Definir capa",
+    "cover": "Capa",
+    "rateTitle": "Clique para avaliar (0-10)"
+  },
+  "detail": {
+    "completedOn": "Concluído em:",
+    "lastUpdated": "Última atualização:",
+    "progress": "Progresso",
+    "basePage": "Página base",
+    "currentPage": "Página atual",
+    "totalPages": "Total",
+    "addPagesPlaceholder": "Somar páginas",
+    "add": "Somar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "description": "Descrição",
+    "details": "Detalhes",
+    "fields": {
+      "publisher": "Editora",
+      "publishDate": "Publicação",
+      "subject": "Assunto"
+    }
+  },
+  "pageDialog": {
+    "title": "Ajustar páginas",
+    "addPagesNow": "Somar páginas lidas agora"
+  },
+  "libraryPicker": {
+    "title": "Adicionar da biblioteca",
+    "count_one": "{{count}} de {{total}} livros disponíveis",
+    "count_other": "{{count}} de {{total}} livros disponíveis",
+    "empty": "Nenhum livro encontrado.",
+    "close": "Fechar"
+  },
+  "manualDialog": {
+    "title": "Adicionar livro manual",
+    "titlePlaceholder": "Título",
+    "authorPlaceholder": "Autor opcional",
+    "submit": "Adicionar"
+  },
+  "errors": {
+    "loadStatusFailed": "Erro ao carregar estados de leitura",
+    "updateStatusFailed": "Erro ao atualizar estados",
+    "filePathMissing": "Caminho do arquivo não encontrado",
+    "openFailed": "Erro ao abrir o arquivo",
+    "selectCoverFailed": "Erro ao selecionar capa",
+    "setCoverFailed": "Erro ao definir capa",
+    "saveRatingFailed": "Erro ao salvar nota",
+    "unknown": "Erro desconhecido"
+  },
+  "toasts": {
+    "coverUpdated": "Capa atualizada",
+    "metadataSaved": "Metadados salvos",
+    "orderUpdated": "Ordem atualizada",
+    "movedTo": "Movido para {{status}}",
+    "bookRemoved": "Livro removido",
+    "primarySet": "Leitura principal definida",
+    "progressUpdated": "Progresso atualizado",
+    "entryAdded": "Registro adicionado",
+    "bookAdded": "Livro adicionado",
+    "manualBookAdded": "Livro manual adicionado"
+  }
+}
