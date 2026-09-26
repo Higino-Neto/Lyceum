@@ -31,6 +31,7 @@ import type {
   FriendSummary,
 } from "../../api/database";
 import Skeleton from "../Skeleton";
+import { useLanguage, useTranslation } from "../../i18n";
 
 const ICON_SIZE = 16;
 
@@ -121,7 +122,7 @@ function Avatar({
       className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 ${sizeClass}`}
     >
       {src ? (
-        <img src={src} alt={name || "Avatar"} className="h-full w-full object-cover" />
+        <img src={src} alt={name || ""} className="h-full w-full object-cover" />
       ) : (
         <User size={ICON_SIZE} className="text-zinc-500" />
       )}
@@ -129,8 +130,12 @@ function Avatar({
   );
 }
 
-function displayName(name?: string | null, nickname?: string | null) {
-  return name || nickname || "Usuario";
+function displayName(
+  name: string | null | undefined,
+  nickname: string | null | undefined,
+  fallback: string,
+) {
+  return name || nickname || fallback;
 }
 
 function invalidateFriendQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -155,6 +160,7 @@ function RequestRow({
   onCancel: (requestId: string) => void;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
   const isIncoming = request.direction === "incoming";
 
   return (
@@ -163,7 +169,11 @@ function RequestRow({
         <Avatar src={request.other_avatar_url} name={request.other_name} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-zinc-100">
-            {displayName(request.other_name, request.other_nickname)}
+            {displayName(
+              request.other_name,
+              request.other_nickname,
+              t("common:fields.unknown"),
+            )}
           </p>
           <p className="truncate text-xs text-zinc-500">
             @{request.other_nickname}
@@ -180,7 +190,7 @@ function RequestRow({
               variant="primary"
             >
               <Check size={14} />
-              Aceitar
+              {t("friends:requests.accept")}
             </SmallButton>
             <SmallButton
               onClick={() => onDecline(request.id)}
@@ -188,7 +198,7 @@ function RequestRow({
               variant="danger"
             >
               <X size={14} />
-              Recusar
+              {t("friends:requests.decline")}
             </SmallButton>
           </>
         ) : (
@@ -197,7 +207,7 @@ function RequestRow({
             disabled={busy}
             variant="danger"
           >
-            Cancelar
+            {t("friends:requests.cancel")}
           </SmallButton>
         )}
       </div>
@@ -212,6 +222,8 @@ function FriendProfileCard({
   friendId: string | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const { locale } = useLanguage();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["friendProfile", friendId],
     queryFn: () => getFriendProfile(friendId!),
@@ -232,10 +244,10 @@ function FriendProfileCard({
   if (!profile) return null;
 
   const stats = [
-    ["Total", profile.total_pages],
-    ["Hoje", profile.today_pages],
-    ["Semana", profile.this_week_pages],
-    ["Mes", profile.month_pages],
+    [t("friends:profile.stats.total"), profile.total_pages],
+    [t("friends:profile.stats.today"), profile.today_pages],
+    [t("friends:profile.stats.week"), profile.this_week_pages],
+    [t("friends:profile.stats.month"), profile.month_pages],
   ];
 
   return (
@@ -249,13 +261,18 @@ function FriendProfileCard({
           />
           <div className="min-w-0">
             <p className="truncate text-base font-semibold text-zinc-100">
-              {displayName(profile.name, profile.nickname)}
+              {displayName(
+                profile.name,
+                profile.nickname,
+                t("common:fields.unknown"),
+              )}
             </p>
             <p className="truncate text-sm text-zinc-500">@{profile.nickname}</p>
             {profile.friends_since && (
               <p className="mt-1 text-xs text-zinc-600">
-                Amigo desde{" "}
-                {new Date(profile.friends_since).toLocaleDateString("pt-BR")}
+                {t("friends:profile.friendsSince", {
+                  date: new Date(profile.friends_since).toLocaleDateString(locale),
+                })}
               </p>
             )}
           </div>
@@ -264,8 +281,8 @@ function FriendProfileCard({
           type="button"
           onClick={onClose}
           className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
-          title="Fechar perfil"
-          aria-label="Fechar perfil"
+          title={t("friends:profile.close")}
+          aria-label={t("friends:profile.close")}
         >
           <X size={16} />
         </button>
@@ -296,6 +313,8 @@ function FriendRow({
   onRemove: (friendId: string) => void;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3 last:border-b-0">
       <button
@@ -306,7 +325,7 @@ function FriendRow({
         <Avatar src={friend.avatar_url} name={friend.name} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-zinc-100">
-            {displayName(friend.name, friend.nickname)}
+            {displayName(friend.name, friend.nickname, t("common:fields.unknown"))}
           </p>
           <p className="truncate text-xs text-zinc-500">@{friend.nickname}</p>
         </div>
@@ -317,15 +336,17 @@ function FriendRow({
           <p className="text-sm font-semibold text-zinc-200">
             {Number(friend.total_pages)}p
           </p>
-          <p className="text-xs text-zinc-500">total</p>
+          <p className="text-xs text-zinc-500">
+            {t("friends:list.totalLabel")}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => onRemove(friend.user_id)}
           disabled={busy}
           className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-          title="Remover amigo"
-          aria-label="Remover amigo"
+          title={t("friends:list.remove")}
+          aria-label={t("friends:list.remove")}
         >
           <UserMinus size={16} />
         </button>
@@ -347,18 +368,26 @@ function SearchResultCard({
   onOpenProfile: (friendId: string) => void;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
+
   const action = (() => {
     switch (result.friend_status) {
       case "self":
-        return <span className="text-sm text-zinc-500">Este e voce</span>;
+        return (
+          <span className="text-sm text-zinc-500">{t("friends:add.self")}</span>
+        );
       case "friends":
         return (
           <SmallButton onClick={() => onOpenProfile(result.user_id)}>
-            Ver perfil
+            {t("friends:add.viewProfile")}
           </SmallButton>
         );
       case "request_sent":
-        return <span className="text-sm text-zinc-500">Solicitacao enviada</span>;
+        return (
+          <span className="text-sm text-zinc-500">
+            {t("friends:add.requestSent")}
+          </span>
+        );
       case "request_received":
         return result.request_id ? (
           <SmallButton
@@ -367,7 +396,7 @@ function SearchResultCard({
             variant="primary"
           >
             <Check size={14} />
-            Aceitar
+            {t("friends:requests.accept")}
           </SmallButton>
         ) : null;
       default:
@@ -378,7 +407,7 @@ function SearchResultCard({
             variant="primary"
           >
             <UserPlus size={14} />
-            Enviar
+            {t("friends:add.send")}
           </SmallButton>
         );
     }
@@ -390,7 +419,7 @@ function SearchResultCard({
         <Avatar src={result.avatar_url} name={result.name} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-zinc-100">
-            {displayName(result.name, result.nickname)}
+            {displayName(result.name, result.nickname, t("common:fields.unknown"))}
           </p>
           <p className="truncate text-xs text-zinc-500">@{result.nickname}</p>
         </div>
@@ -406,6 +435,7 @@ export default function FriendsSettingsPanel({
   focusedFriendId?: string | null;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResult, setSearchResult] = useState<FriendSearchResult | null>(
@@ -466,7 +496,7 @@ export default function FriendsSettingsPanel({
       queryClient.invalidateQueries({ queryKey: ["userProfile"] });
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      toast.success("Nickname atualizado");
+      toast.success(t("friends:nickname.updated"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -476,7 +506,7 @@ export default function FriendsSettingsPanel({
     onSuccess: (result) => {
       setSearchResult(result);
       if (!result) {
-        toast.error("Nenhum usuario encontrado com esse nickname");
+        toast.error(t("friends:add.notFound"));
       }
     },
     onError: (err: Error) => toast.error(err.message),
@@ -488,8 +518,8 @@ export default function FriendsSettingsPanel({
       invalidateFriendQueries(queryClient);
       toast.success(
         status === "friends"
-          ? "Voces ja sao amigos"
-          : "Solicitacao enviada",
+          ? t("friends:list.alreadyFriends")
+          : t("friends:add.requestSent"),
       );
       if (searchTerm.trim()) {
         searchMutation.mutate(searchTerm.trim().replace(/^@/, ""));
@@ -502,7 +532,7 @@ export default function FriendsSettingsPanel({
     mutationFn: acceptFriendRequest,
     onSuccess: () => {
       invalidateFriendQueries(queryClient);
-      toast.success("Solicitacao aceita");
+      toast.success(t("friends:requests.accepted"));
       if (searchTerm.trim()) {
         searchMutation.mutate(searchTerm.trim().replace(/^@/, ""));
       }
@@ -514,7 +544,7 @@ export default function FriendsSettingsPanel({
     mutationFn: declineFriendRequest,
     onSuccess: () => {
       invalidateFriendQueries(queryClient);
-      toast.success("Solicitacao recusada");
+      toast.success(t("friends:requests.declined"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -523,7 +553,7 @@ export default function FriendsSettingsPanel({
     mutationFn: cancelFriendRequest,
     onSuccess: () => {
       invalidateFriendQueries(queryClient);
-      toast.success("Solicitacao cancelada");
+      toast.success(t("friends:requests.cancelled"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -533,7 +563,7 @@ export default function FriendsSettingsPanel({
     onSuccess: () => {
       setSelectedFriendId(null);
       invalidateFriendQueries(queryClient);
-      toast.success("Amigo removido");
+      toast.success(t("friends:list.removed"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -550,9 +580,9 @@ export default function FriendsSettingsPanel({
 
     try {
       await navigator.clipboard.writeText(profile.nickname);
-      toast.success("Nickname copiado");
+      toast.success(t("friends:nickname.copied"));
     } catch {
-      toast.error("Nao foi possivel copiar o nickname");
+      toast.error(t("friends:nickname.copyFailed"));
     }
   };
 
@@ -561,7 +591,7 @@ export default function FriendsSettingsPanel({
     const nextNickname = nicknameDraft.trim().replace(/^@/, "").toLowerCase();
 
     if (!nextNickname) {
-      toast.error("Informe um nickname");
+      toast.error(t("friends:nickname.required"));
       return;
     }
 
@@ -573,7 +603,7 @@ export default function FriendsSettingsPanel({
     const nickname = searchTerm.trim().replace(/^@/, "").toLowerCase();
 
     if (nickname.length < 3) {
-      toast.error("Digite pelo menos 3 caracteres");
+      toast.error(t("friends:add.tooShort"));
       return;
     }
 
@@ -596,12 +626,12 @@ export default function FriendsSettingsPanel({
   return (
     <div>
       <SettingsSection
-        title="Seu nickname"
-        description="Compartilhe este nickname com quem voce quer adicionar como amigo."
+        title={t("friends:nickname.sectionTitle")}
+        description={t("friends:nickname.description")}
       >
         <form onSubmit={handleNicknameSubmit} className="space-y-3">
           <div>
-            <FieldLabel>Nickname</FieldLabel>
+            <FieldLabel>{t("friends:nickname.label")}</FieldLabel>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <span className="pointer-events-none absolute left-3 top-2 text-sm text-zinc-600">
@@ -612,12 +642,12 @@ export default function FriendsSettingsPanel({
                   value={nicknameDraft}
                   onChange={(event) => setNicknameDraft(event.target.value)}
                   className={`${inputClasses()} pl-7`}
-                  placeholder="seu_nickname"
+                  placeholder={t("friends:nickname.placeholder")}
                 />
               </div>
               <SmallButton onClick={handleCopyNickname} disabled={!profile?.nickname}>
                 <Copy size={14} />
-                Copiar
+                {t("friends:nickname.copy")}
               </SmallButton>
             </div>
           </div>
@@ -630,14 +660,14 @@ export default function FriendsSettingsPanel({
                 profile?.nickname
             }
           >
-            Salvar nickname
+            {t("friends:nickname.save")}
           </SmallButton>
         </form>
       </SettingsSection>
 
       <SettingsSection
-        title="Adicionar amigo"
-        description="Pesquise pelo nickname exato que a outra pessoa compartilhou com voce."
+        title={t("friends:add.sectionTitle")}
+        description={t("friends:add.description")}
       >
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
           <div className="relative flex-1">
@@ -650,7 +680,7 @@ export default function FriendsSettingsPanel({
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className={`${inputClasses()} pl-9`}
-              placeholder="nickname_do_amigo"
+              placeholder={t("friends:add.placeholder")}
             />
           </div>
           <SmallButton
@@ -659,7 +689,7 @@ export default function FriendsSettingsPanel({
             disabled={searchMutation.isPending}
           >
             <Send size={14} />
-            Buscar
+            {t("friends:add.search")}
           </SmallButton>
         </form>
 
@@ -675,11 +705,13 @@ export default function FriendsSettingsPanel({
       </SettingsSection>
 
       <SettingsSection
-        title={`Solicitacoes recebidas (${incomingRequests.length})`}
+        title={t("friends:requests.incomingTitle", {
+          count: incomingRequests.length,
+        })}
       >
         {incomingRequests.length === 0 ? (
           <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center text-sm text-zinc-500">
-            Nenhuma solicitacao recebida.
+            {t("friends:requests.incomingEmpty")}
           </div>
         ) : (
           <div className="overflow-hidden rounded border border-zinc-800">
@@ -698,7 +730,7 @@ export default function FriendsSettingsPanel({
       </SettingsSection>
 
       {outgoingRequests.length > 0 && (
-        <SettingsSection title="Solicitacoes enviadas">
+        <SettingsSection title={t("friends:requests.outgoingTitle")}>
           <div className="overflow-hidden rounded border border-zinc-800">
             {outgoingRequests.map((request) => (
               <RequestRow
@@ -715,8 +747,8 @@ export default function FriendsSettingsPanel({
       )}
 
       <SettingsSection
-        title={`Amigos (${friends.length})`}
-        description="Somente amigos aceitos aparecem no leaderboard e nas comparacoes."
+        title={t("friends:list.title", { count: friends.length })}
+        description={t("friends:list.description")}
       >
         <div className="space-y-4">
           <FriendProfileCard
@@ -728,10 +760,10 @@ export default function FriendsSettingsPanel({
             <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center">
               <Users className="mx-auto mb-3 text-zinc-600" size={24} />
               <p className="text-sm font-medium text-zinc-300">
-                Nenhum amigo adicionado ainda
+                {t("friends:list.emptyTitle")}
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                Compartilhe seu nickname ou pesquise o nickname de outra pessoa.
+                {t("friends:list.emptyDescription")}
               </p>
             </div>
           ) : (

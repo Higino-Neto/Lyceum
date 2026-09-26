@@ -43,7 +43,13 @@ import {
 } from "../../contexts/AppSettingsContext";
 import type { AppTheme } from "../../contexts/AppSettingsContext";
 import ConfirmDialog from "../ConfirmDialog";
-import { getDefaultHotkeyBindings, getEnabledNavigationRoutes } from "../../navigation/routes";
+import {
+  getDefaultHotkeyBindings,
+  getEnabledNavigationRoutes,
+  getRouteLabel,
+} from "../../navigation/routes";
+import { LanguageSwitcher, useLanguage, useTranslation } from "../../i18n";
+import type { TranslationKey } from "../../i18n";
 
 type DesktopUpdateStatus =
   | "idle"
@@ -224,83 +230,65 @@ function formatBytes(bytes?: number) {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function formatUpdateDate(value?: string) {
+function formatUpdateDate(value: string | undefined, locale: string) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString("pt-BR", {
+  return date.toLocaleString(locale, {
     dateStyle: "short",
     timeStyle: "short",
   });
 }
 
-function getUpdateStatusLabel(state: DesktopUpdateState) {
-  switch (state.status) {
-    case "disabled":
-      return "Atualizacoes disponiveis apenas no app instalado.";
-    case "checking":
-      return "Buscando atualizacoes...";
-    case "available":
-      return "Atualizacao encontrada. O download deve iniciar automaticamente.";
-    case "downloading":
-      return "Baixando atualizacao...";
-    case "downloaded":
-      return "Atualizacao pronta para instalar.";
-    case "not-available":
-      return "Voce esta usando a versao mais recente.";
-    case "error":
-      return "Nao foi possivel verificar atualizacoes.";
-    default:
-      return "Nenhuma verificacao feita nesta sessao.";
-  }
-}
+const UPDATE_STATUS_LABEL_KEYS: Record<
+  DesktopUpdateStatus,
+  TranslationKey
+> = {
+  idle: "settings:updates.status.idle",
+  disabled: "settings:updates.status.disabled",
+  checking: "settings:updates.status.checking",
+  available: "settings:updates.status.available",
+  "not-available": "settings:updates.status.notAvailable",
+  downloading: "settings:updates.status.downloading",
+  downloaded: "settings:updates.status.downloaded",
+  error: "settings:updates.status.error",
+};
 
-const themeOptions: Array<{
-  id: AppTheme;
-  label: string;
-  description: string;
-  icon: typeof Sun;
-}> = [
-  {
-    id: "light",
-    label: "Claro",
-    description: "Interface clara em todos os ambientes.",
-    icon: Sun,
-  },
-  {
-    id: "dark",
-    label: "Escuro",
-    description: "Interface escura fixa.",
-    icon: Moon,
-  },
-  {
-    id: "system",
-    label: "Sistema",
-    description: "Segue o tema do sistema operacional.",
-    icon: Monitor,
-  },
-];
+const THEME_ICONS = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+} as const;
+
+const THEME_IDS: AppTheme[] = ["light", "dark", "system"];
 
 export function AppearanceSettingsPanel() {
   const { settings, effectiveTheme, setTheme, setAccentColor } =
     useAppSettings();
+  const { t } = useTranslation();
 
   return (
     <div>
       <SettingsSection
-        title="Tema"
-        description="Escolha entre claro, escuro ou deixe o Lyceum seguir o sistema."
+        title={t("settings:appearance.theme.title")}
+        description={t("settings:appearance.theme.description")}
       >
         <div className="grid gap-3 sm:grid-cols-3">
-          {themeOptions.map((option) => {
-            const Icon = option.icon;
-            const isSelected = settings.theme === option.id;
+          {THEME_IDS.map((themeId) => {
+            const Icon = THEME_ICONS[themeId];
+            const option = {
+              label: t(`settings:appearance.themeOptions.${themeId}.label`),
+              description: t(
+                `settings:appearance.themeOptions.${themeId}.description`,
+              ),
+            };
+            const isSelected = settings.theme === themeId;
 
             return (
               <button
-                key={option.id}
+                key={themeId}
                 type="button"
-                onClick={() => setTheme(option.id)}
+                onClick={() => setTheme(themeId)}
                 className={`rounded border p-4 text-left transition ${
                   isSelected
                     ? "border-green-500 bg-green-500/10"
@@ -327,14 +315,20 @@ export function AppearanceSettingsPanel() {
 
         {settings.theme === "system" && (
           <p className="mt-3 text-xs text-zinc-500">
-            Tema ativo agora: {effectiveTheme === "light" ? "claro" : "escuro"}.
+            {t("settings:appearance.activeTheme", {
+              theme: t(
+                effectiveTheme === "light"
+                  ? "settings:appearance.lightThemeName"
+                  : "settings:appearance.darkThemeName",
+              ),
+            })}
           </p>
         )}
       </SettingsSection>
 
       <SettingsSection
-        title="Cor de destaque"
-        description="A cor escolhida aparece em foco, botões primários, estados ativos e pequenos realces."
+        title={t("settings:appearance.accent.title")}
+        description={t("settings:appearance.accent.description")}
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ACCENT_COLORS.map((color) => {
@@ -357,7 +351,7 @@ export function AppearanceSettingsPanel() {
                     style={{ backgroundColor: color.swatch }}
                   />
                   <span className="truncate text-sm font-medium text-zinc-100">
-                    {color.label}
+                    {t(`settings:appearance.accent.colors.${color.id}`)}
                   </span>
                 </span>
                 {isSelected && <Check size={16} className="text-green-500" />}
@@ -369,16 +363,18 @@ export function AppearanceSettingsPanel() {
         <div className="mt-5 rounded border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-100">
             <Palette size={16} className="text-green-500" />
-            Prévia
+            {t("settings:appearance.accent.preview")}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button className="inline-flex h-9 items-center rounded bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-500">
-              Botão principal
+              {t("settings:appearance.accent.primaryButton")}
             </button>
             <span className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-sm text-green-400">
-              Estado ativo
+              {t("settings:appearance.accent.activeState")}
             </span>
-            <span className="text-sm text-green-500">Link destacado</span>
+            <span className="text-sm text-green-500">
+              {t("settings:appearance.accent.highlightedLink")}
+            </span>
           </div>
         </div>
       </SettingsSection>
@@ -393,6 +389,7 @@ export function AccountSettingsPanel({
 }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -423,12 +420,12 @@ export function AccountSettingsPanel({
 
     const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
     if (!allowedTypes.has(file.type)) {
-      toast.error("Use uma imagem JPG, PNG ou WEBP");
+      toast.error(t("settings:account.invalidImageType"));
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 5MB");
+      toast.error(t("settings:account.imageTooLarge"));
       return;
     }
 
@@ -455,7 +452,7 @@ export function AccountSettingsPanel({
       setAvatarUrl(data.publicUrl);
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast.error("Erro ao fazer upload da imagem");
+      toast.error(t("settings:account.uploadFailed"));
     } finally {
       setIsUploading(false);
     }
@@ -474,7 +471,7 @@ export function AccountSettingsPanel({
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       queryClient.invalidateQueries({ queryKey: ["userProfile"] });
       queryClient.invalidateQueries({ queryKey: ["ranking"] });
-      toast.success("Conta atualizada com sucesso!");
+      toast.success(t("settings:account.updated"));
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -484,7 +481,7 @@ export function AccountSettingsPanel({
   const passwordMutation = useMutation({
     mutationFn: () => updateAccountPassword(newPassword),
     onSuccess: () => {
-      toast.success("Senha atualizada com sucesso!");
+      toast.success(t("settings:account.passwordUpdated"));
       setNewPassword("");
       setConfirmPassword("");
     },
@@ -501,13 +498,13 @@ export function AccountSettingsPanel({
   const handlePasswordSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+      toast.error(t("settings:account.passwordsDoNotMatch"));
       return;
     }
 
     const passwordError = validatePasswordStrength(newPassword);
     if (passwordError) {
-      toast.error(passwordError);
+      toast.error(t(passwordError.key, passwordError.values));
       return;
     }
     passwordMutation.mutate();
@@ -532,8 +529,8 @@ export function AccountSettingsPanel({
   return (
     <div>
       <SettingsSection
-        title="Informações pessoais"
-        description="Dados usados para identificar sua conta dentro do Lyceum."
+        title={t("settings:account.personal.title")}
+        description={t("settings:account.personal.description")}
       >
         <form onSubmit={handleNameSubmit} className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-[104px_1fr]">
@@ -542,7 +539,7 @@ export function AccountSettingsPanel({
                 {avatarPreview || avatarUrl ? (
                   <img
                     src={avatarPreview || avatarUrl}
-                    alt="Avatar"
+                    alt={t("settings:account.avatarAlt")}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -551,8 +548,8 @@ export function AccountSettingsPanel({
               </div>
               <button
                 type="button"
-                title="Alterar avatar"
-                aria-label="Alterar avatar"
+                title={t("settings:account.changeAvatar")}
+                aria-label={t("settings:account.changeAvatar")}
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100 disabled:opacity-50"
                 disabled={isUploading}
@@ -570,7 +567,7 @@ export function AccountSettingsPanel({
 
             <div className="space-y-4">
               <div>
-                <FieldLabel>Nome</FieldLabel>
+                <FieldLabel>{t("settings:account.name")}</FieldLabel>
                 <input
                   type="text"
                   value={name}
@@ -579,7 +576,7 @@ export function AccountSettingsPanel({
                 />
               </div>
               <div>
-                <FieldLabel>Email</FieldLabel>
+                <FieldLabel>{t("settings:account.email")}</FieldLabel>
                 <input
                   type="email"
                   value={user?.email || ""}
@@ -588,7 +585,7 @@ export function AccountSettingsPanel({
                 />
               </div>
               <div>
-                <FieldLabel>Nickname</FieldLabel>
+                <FieldLabel>{t("settings:account.nickname")}</FieldLabel>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-2 text-sm text-zinc-600">
                     @
@@ -598,11 +595,11 @@ export function AccountSettingsPanel({
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     className={`${inputClasses()} pl-7`}
-                    placeholder="seu_nickname"
+                    placeholder={t("settings:account.nicknamePlaceholder")}
                   />
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Usado para encontrar amigos no Lyceum.
+                  {t("settings:account.nicknameHint")}
                 </p>
               </div>
             </div>
@@ -610,18 +607,20 @@ export function AccountSettingsPanel({
 
           <PrimaryButton type="submit" disabled={accountMutation.isPending}>
             <Save size={16} />
-            {accountMutation.isPending ? "Salvando..." : "Salvar conta"}
+            {accountMutation.isPending
+              ? t("settings:account.saving")
+              : t("settings:account.saveAccount")}
           </PrimaryButton>
         </form>
       </SettingsSection>
 
       <SettingsSection
-        title="Segurança"
-        description="Atualize sua senha de acesso."
+        title={t("settings:account.security.title")}
+        description={t("settings:account.security.description")}
       >
         <form onSubmit={handlePasswordSubmit} className="max-w-xl space-y-4">
           <div>
-            <FieldLabel>Nova senha</FieldLabel>
+            <FieldLabel>{t("settings:account.newPassword")}</FieldLabel>
             <input
               type="password"
               minLength={MIN_PASSWORD_LENGTH}
@@ -631,7 +630,7 @@ export function AccountSettingsPanel({
             />
           </div>
           <div>
-            <FieldLabel>Confirmar senha</FieldLabel>
+            <FieldLabel>{t("settings:account.confirmPassword")}</FieldLabel>
             <input
               type="password"
               minLength={MIN_PASSWORD_LENGTH}
@@ -642,23 +641,25 @@ export function AccountSettingsPanel({
           </div>
           <PrimaryButton type="submit" disabled={passwordMutation.isPending}>
             <Lock size={16} />
-            {passwordMutation.isPending ? "Alterando..." : "Alterar senha"}
+            {passwordMutation.isPending
+              ? t("settings:account.changing")
+              : t("settings:account.changePassword")}
           </PrimaryButton>
         </form>
       </SettingsSection>
 
       <SettingsSection
-        title="Sessão"
-        description="Encerre o acesso deste usuario ao aplicativo."
+        title={t("settings:account.session.title")}
+        description={t("settings:account.session.description")}
       >
         <DangerButton onClick={() => setConfirmSignOut(true)}>
-          Sair da conta
+          {t("settings:account.signOut")}
         </DangerButton>
         <ConfirmDialog
           isOpen={confirmSignOut}
-          title="Sair da conta"
-          message="Deseja realmente encerrar sua sessão no Lyceum?"
-          confirmLabel="Sair"
+          title={t("settings:account.signOutConfirmTitle")}
+          message={t("settings:account.signOutConfirmMessage")}
+          confirmLabel={t("settings:account.signOutConfirmLabel")}
           onConfirm={() => void handleSignOut()}
           onCancel={() => setConfirmSignOut(false)}
           isDanger
@@ -675,21 +676,28 @@ export function GeneralSettingsPanel() {
     setAutoHideEnabled,
     setAutoHideOverlay,
   } = useAppSettings();
+  const { t } = useTranslation();
 
   return (
     <div>
       <SettingsSection
-        title="Interface"
-        description="Configurações da barra de título e sidebar."
+        title={t("settings:language.title")}
+        description={t("settings:language.description")}
+      >
+        <LanguageSwitcher />
+      </SettingsSection>
+      <SettingsSection
+        title={t("settings:general.interface.title")}
+        description={t("settings:general.interface.description")}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-zinc-100">
-                Auto-ocultar
+                {t("settings:general.autoHide.title")}
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                Oculta automaticamente a barra de título e sidebar.
+                {t("settings:general.autoHide.description")}
               </p>
             </div>
             <button
@@ -711,10 +719,10 @@ export function GeneralSettingsPanel() {
             <div className="flex items-center justify-between pl-4 border-l-2 border-zinc-800">
               <div>
                 <p className="text-sm font-medium text-zinc-100">
-                  Modo sobrepor
+                  {t("settings:general.overlayMode.title")}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  A barra de título aparece sobre o conteúdo ao invés de empurrá-lo.
+                  {t("settings:general.overlayMode.description")}
                 </p>
               </div>
               <button
@@ -736,16 +744,16 @@ export function GeneralSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection
-        title="Dashboard"
-        description="Configurações do painel principal."
+        title={t("settings:general.dashboard.title")}
+        description={t("settings:general.dashboard.description")}
       >
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-zinc-100">
-              Copiar leituras de ontem
+              {t("settings:general.copyYesterdayReadings.title")}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
-              O botão "Leituras diárias" copiará as leituras do dia anterior ao invés de hoje.
+              {t("settings:general.copyYesterdayReadings.description")}
             </p>
           </div>
           <button
@@ -774,6 +782,7 @@ export function HotkeysSettingsPanel() {
     setHotkeyBinding,
     resetHotkeyBindings,
   } = useAppSettings();
+  const { t } = useTranslation();
   const routes = getEnabledNavigationRoutes(settings);
   const bindings = settings.hotkeysCustomized
     ? settings.hotkeyBindings
@@ -782,18 +791,22 @@ export function HotkeysSettingsPanel() {
   return (
     <div>
       <SettingsSection
-        title="Navegacao por teclado"
-        description="Esc foca a rota atual na sidebar; as setas percorrem e abrem as rotas. Os numeros abrem uma rota diretamente."
+        title={t("settings:hotkeys.title")}
+        description={t("settings:hotkeys.description")}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-zinc-100">Ativar atalhos globais</p>
-              <p className="mt-1 text-xs text-zinc-500">Atalhos sao ignorados enquanto voce digita em um campo.</p>
+              <p className="text-sm font-medium text-zinc-100">
+                {t("settings:hotkeys.enable.title")}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {t("settings:hotkeys.enable.description")}
+              </p>
             </div>
             <button
               type="button"
-              aria-label="Alternar atalhos globais"
+              aria-label={t("settings:hotkeys.enable.toggleLabel")}
               aria-pressed={settings.hotkeysEnabled}
               onClick={() => setHotkeysEnabled(!settings.hotkeysEnabled)}
               className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${settings.hotkeysEnabled ? "bg-green-500" : "bg-zinc-700"}`}
@@ -807,14 +820,18 @@ export function HotkeysSettingsPanel() {
           <div className="divide-y divide-zinc-800 rounded border border-zinc-800">
             {routes.map((route) => (
               <div key={route.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
-                <span className="text-sm text-zinc-200">{route.label}</span>
+                <span className="text-sm text-zinc-200">
+                  {getRouteLabel(route, t)}
+                </span>
                 <select
-                  aria-label={`Atalho para ${route.label}`}
+                  aria-label={t("settings:hotkeys.routeShortcutLabel", {
+                    route: getRouteLabel(route, t),
+                  })}
                   value={bindings[route.id] || ""}
                   onChange={(event) => setHotkeyBinding(route.id, event.target.value)}
                   className="h-8 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200"
                 >
-                  <option value="">Sem atalho</option>
+                  <option value="">{t("settings:hotkeys.noShortcut")}</option>
                   {Array.from({ length: 9 }, (_, index) => String(index + 1)).map((key) => (
                     <option key={key} value={key}>{key}</option>
                   ))}
@@ -829,10 +846,10 @@ export function HotkeysSettingsPanel() {
             className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
             <Keyboard size={15} />
-            Restaurar ordem automatica
+            {t("settings:hotkeys.resetAutomaticOrder")}
           </button>
           <p className="text-xs leading-5 text-zinc-500">
-            Na ordem automatica, ativar ou desativar rotas Beta reorganiza os numeros. Depois de uma alteracao manual, sua configuracao e preservada.
+            {t("settings:hotkeys.automaticOrderNote")}
           </p>
         </div>
       </SettingsSection>
@@ -844,6 +861,8 @@ const LAST_BACKUP_KEY = "lyceum:last-periodic-backup";
 
 export function BackupSettingsPanel() {
   const { settings, setWeeklyBackupEnabled, setBackupSelection } = useAppSettings();
+  const { t } = useTranslation();
+  const { locale } = useLanguage();
   const [running, setRunning] = useState(false);
   const [lastBackup, setLastBackup] = useState(() => Number(localStorage.getItem(LAST_BACKUP_KEY) || 0));
 
@@ -853,7 +872,7 @@ export function BackupSettingsPanel() {
     if (settings.backupHabits && window.api?.backupAllHabits) jobs.push(window.api.backupAllHabits());
     if (settings.backupCategories && window.api?.backupAllCategories) jobs.push(window.api.backupAllCategories());
     if (jobs.length === 0) {
-      toast.error("Selecione ao menos um tipo de dado");
+      toast.error(t("settings:backups.selectAtLeastOne"));
       return;
     }
     setRunning(true);
@@ -861,52 +880,64 @@ export function BackupSettingsPanel() {
       const results = await Promise.all(jobs);
       const failed = results.reduce((sum, result) => sum + result.failed, 0);
       if (failed > 0) {
-        toast.error(`Backup concluido com ${failed} falha${failed !== 1 ? "s" : ""}`);
+        toast.error(
+          t("settings:backups.completedWithFailures", { count: failed }),
+        );
       } else {
         const completedAt = Date.now();
         localStorage.setItem(LAST_BACKUP_KEY, String(completedAt));
         setLastBackup(completedAt);
-        toast.success("Backup concluido");
+        toast.success(t("settings:backups.completed"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao executar backup");
+      toast.error(
+        error instanceof Error ? error.message : t("settings:backups.failed"),
+      );
     } finally {
       setRunning(false);
     }
   };
 
   const backupOptions = [
-    ["backupDocuments", "Biblioteca e progresso"],
-    ["backupHabits", "Habitos e marcacoes"],
-    ["backupCategories", "Categorias"],
+    ["backupDocuments", "settings:backups.items.libraryAndProgress"],
+    ["backupHabits", "settings:backups.items.habitsAndHighlights"],
+    ["backupCategories", "settings:backups.items.categories"],
   ] as const;
 
   return (
     <div>
       <SettingsSection
-        title="Backup semanal"
-        description="O Lyceum verifica uma vez por semana e envia somente os grupos selecionados. Abrir o app nao dispara um novo backup se o periodo ainda nao venceu."
+        title={t("settings:backups.title")}
+        description={t("settings:backups.description")}
       >
         <div className="space-y-4">
           <label className="flex items-center justify-between gap-4">
-            <span className="text-sm font-medium text-zinc-100">Ativar backup periodico</span>
+            <span className="text-sm font-medium text-zinc-100">
+              {t("settings:backups.enable")}
+            </span>
             <input type="checkbox" checked={settings.weeklyBackupEnabled} onChange={(event) => setWeeklyBackupEnabled(event.target.checked)} className="h-4 w-4 accent-green-500" />
           </label>
           <div className="space-y-2 rounded border border-zinc-800 p-3">
-            {backupOptions.map(([key, label]) => (
+            {backupOptions.map(([key, labelKey]) => (
               <label key={key} className="flex items-center gap-3 text-sm text-zinc-300">
                 <input type="checkbox" checked={settings[key]} onChange={(event) => setBackupSelection(key, event.target.checked)} className="h-4 w-4 accent-green-500" />
-                {label}
+                {t(labelKey)}
               </label>
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-zinc-500">
-              {lastBackup ? `Ultimo backup: ${new Date(lastBackup).toLocaleString("pt-BR")}` : "Nenhum backup concluido neste dispositivo"}
+              {lastBackup
+                ? t("settings:backups.lastBackup", {
+                    date: new Date(lastBackup).toLocaleString(locale),
+                  })
+                : t("settings:backups.noBackupYet")}
             </span>
             <button type="button" disabled={running} onClick={() => void runBackup()} className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50">
               <DatabaseBackup size={15} />
-              {running ? "Executando..." : "Fazer backup agora"}
+              {running
+                ? t("settings:backups.running")
+                : t("settings:backups.runNow")}
             </button>
           </div>
         </div>
@@ -921,26 +952,27 @@ export function LibrarySettingsPanel() {
     setShowSubfolderBooks,
     setUnifiedLibraryView,
   } = useAppSettings();
+  const { t } = useTranslation();
 
   return (
     <div>
       <SettingsSection
-        title="Pastas"
-        description="Controle como os livros aparecem quando você navega pela árvore da biblioteca."
+        title={t("settings:library.folders.title")}
+        description={t("settings:library.folders.description")}
       >
         <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-zinc-100">
-              Mostrar livros de subpastas
+              {t("settings:library.showSubfolderBooks.title")}
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Quando ativado, uma pasta também lista os livros que estão dentro das subpastas dela.
+              {t("settings:library.showSubfolderBooks.description")}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Alternar livros de subpastas"
+            aria-label={t("settings:library.showSubfolderBooks.toggleLabel")}
             onClick={() => setShowSubfolderBooks(!settings.showSubfolderBooks)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
               settings.showSubfolderBooks ? "bg-green-500" : "bg-zinc-700"
@@ -958,15 +990,15 @@ export function LibrarySettingsPanel() {
         <div className="flex items-center justify-between gap-4 border-t border-zinc-800/70 pt-5">
           <div>
             <p className="text-sm font-medium text-zinc-100">
-              Exibição unificada
+              {t("settings:library.unifiedView.title")}
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Pastas comuns aparecem no grid da biblioteca. Colecoes e livros mesclados aparecem como cards de livro e seguem os mesmos filtros.
+              {t("settings:library.unifiedView.description")}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Alternar exibição unificada"
+            aria-label={t("settings:library.unifiedView.toggleLabel")}
             onClick={() => setUnifiedLibraryView(!settings.unifiedLibraryView)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
               settings.unifiedLibraryView ? "bg-green-500" : "bg-zinc-700"
@@ -987,6 +1019,8 @@ export function LibrarySettingsPanel() {
 }
 
 export function UpdatesSettingsPanel() {
+  const { t } = useTranslation();
+  const { locale } = useLanguage();
   const [updateState, setUpdateState] = useState<DesktopUpdateState>(DEFAULT_UPDATE_STATE);
   const [isRequesting, setIsRequesting] = useState(false);
 
@@ -1009,7 +1043,7 @@ export function UpdatesSettingsPanel() {
 
   const checkForUpdates = async () => {
     if (!window.api?.updatesCheck) {
-      toast.error("Atualizacoes indisponiveis neste ambiente");
+      toast.error(t("settings:updates.unavailable"));
       return;
     }
 
@@ -1018,12 +1052,14 @@ export function UpdatesSettingsPanel() {
       const nextState = await window.api.updatesCheck();
       setUpdateState(nextState);
       if (nextState.status === "not-available") {
-        toast.success("Voce ja esta na versao mais recente");
+        toast.success(t("settings:updates.alreadyLatest"));
       } else if (nextState.status === "disabled") {
-        toast("Atualizacoes automaticas funcionam apenas no app instalado");
+        toast(t("settings:updates.installedAppOnly"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao buscar atualizacoes");
+      toast.error(
+        error instanceof Error ? error.message : t("settings:updates.checkFailed"),
+      );
     } finally {
       setIsRequesting(false);
     }
@@ -1036,7 +1072,11 @@ export function UpdatesSettingsPanel() {
       setIsRequesting(true);
       setUpdateState(await window.api.updatesDownload());
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao baixar atualizacao");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("settings:updates.downloadFailed"),
+      );
     } finally {
       setIsRequesting(false);
     }
@@ -1047,14 +1087,14 @@ export function UpdatesSettingsPanel() {
 
     const result = await window.api.updatesInstallNow();
     if (!result.success) {
-      toast.error(result.error || "Nenhuma atualizacao pronta para instalar");
+      toast.error(result.error || t("settings:updates.nothingToInstall"));
     }
   };
 
   const progress = updateState.progress?.percent ?? 0;
-  const checkedAt = formatUpdateDate(updateState.checkedAt);
-  const downloadedAt = formatUpdateDate(updateState.downloadedAt);
-  const releaseDate = formatUpdateDate(updateState.updateInfo?.releaseDate);
+  const checkedAt = formatUpdateDate(updateState.checkedAt, locale);
+  const downloadedAt = formatUpdateDate(updateState.downloadedAt, locale);
+  const releaseDate = formatUpdateDate(updateState.updateInfo?.releaseDate, locale);
   const isChecking = updateState.status === "checking" || isRequesting;
   const isDownloading = updateState.status === "downloading";
   const canDownload = updateState.status === "available" && !isRequesting;
@@ -1062,8 +1102,8 @@ export function UpdatesSettingsPanel() {
   return (
     <div>
       <SettingsSection
-        title="Atualizacoes"
-        description="Busque novas versoes, acompanhe o download e instale sem fechar e abrir o Lyceum manualmente."
+        title={t("settings:updates.title")}
+        description={t("settings:updates.description")}
       >
         <div className="space-y-5">
           <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
@@ -1073,19 +1113,29 @@ export function UpdatesSettingsPanel() {
                   Lyceum {updateState.currentVersion}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">
-                  {getUpdateStatusLabel(updateState)}
+                  {t(UPDATE_STATUS_LABEL_KEYS[updateState.status])}
                 </p>
                 {updateState.updateInfo?.version && updateState.updateInfo.version !== updateState.currentVersion ? (
                   <p className="mt-2 text-sm text-green-400">
-                    Versao disponivel: {updateState.updateInfo.version}
-                    {releaseDate ? ` - publicada em ${releaseDate}` : ""}
+                    {releaseDate
+                      ? t("settings:updates.availableVersion", {
+                          version: updateState.updateInfo.version,
+                          date: releaseDate,
+                        })
+                      : t("settings:updates.availableVersionNoDate", {
+                          version: updateState.updateInfo.version,
+                        })}
                   </p>
                 ) : null}
                 {checkedAt ? (
-                  <p className="mt-2 text-xs text-zinc-600">Ultima verificacao: {checkedAt}</p>
+                  <p className="mt-2 text-xs text-zinc-600">
+                    {t("settings:updates.lastCheck", { date: checkedAt })}
+                  </p>
                 ) : null}
                 {downloadedAt ? (
-                  <p className="mt-1 text-xs text-zinc-600">Download concluido: {downloadedAt}</p>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    {t("settings:updates.downloadFinished", { date: downloadedAt })}
+                  </p>
                 ) : null}
               </div>
 
@@ -1097,7 +1147,7 @@ export function UpdatesSettingsPanel() {
                   className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={isChecking ? "animate-spin" : ""} />
-                  Buscar
+                  {t("settings:updates.check")}
                 </button>
                 {canDownload ? (
                   <button
@@ -1106,7 +1156,7 @@ export function UpdatesSettingsPanel() {
                     className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
                   >
                     <Download size={14} />
-                    Baixar
+                    {t("settings:updates.download")}
                   </button>
                 ) : null}
                 {updateState.canInstall ? (
@@ -1116,7 +1166,7 @@ export function UpdatesSettingsPanel() {
                     className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
                   >
                     <Download size={14} />
-                    Instalar agora
+                    {t("settings:updates.installNow")}
                   </button>
                 ) : null}
               </div>
@@ -1141,7 +1191,7 @@ export function UpdatesSettingsPanel() {
 
             {updateState.status === "downloaded" ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Se voce nao instalar agora, a atualizacao sera aplicada automaticamente quando o aplicativo for fechado.
+                {t("settings:updates.installLaterNote")}
               </p>
             ) : null}
 
@@ -1154,7 +1204,9 @@ export function UpdatesSettingsPanel() {
 
           {updateState.updateInfo?.releaseNotes ? (
             <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
-              <p className="text-sm font-semibold text-zinc-100">Notas da versao</p>
+              <p className="text-sm font-semibold text-zinc-100">
+                {t("settings:updates.releaseNotes")}
+              </p>
               <div className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-zinc-400">
                 {updateState.updateInfo.releaseNotes}
               </div>
@@ -1178,25 +1230,30 @@ export function DictionarySettingsPanel() {
     deleteDictionary,
     refreshIndex,
   } = useDictionary();
+  const { t } = useTranslation();
 
   return (
     <div>
       <SettingsSection
-        title="Dicionários offline"
-        description="Baixe dicionários locais para consultas e tradução sem depender da rede."
+        title={t("settings:dictionaries.title")}
+        description={t("settings:dictionaries.description")}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-zinc-400">
             <BookOpen size={16} className="text-zinc-500" />
-            <span>{dictionaries.length} dicionário(s) disponível(is)</span>
+            <span>
+              {t("settings:dictionaries.available", {
+                count: dictionaries.length,
+              })}
+            </span>
           </div>
           <button
             onClick={() => refreshIndex()}
             className="inline-flex h-8 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
-            title="Atualizar lista"
+            title={t("settings:dictionaries.refreshList")}
           >
             <RefreshCw size={14} />
-            Atualizar
+            {t("settings:dictionaries.refresh")}
           </button>
         </div>
 
@@ -1207,7 +1264,7 @@ export function DictionarySettingsPanel() {
           </div>
         ) : dictionaries.length === 0 ? (
           <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center text-sm text-zinc-500">
-            Nenhum dicionário disponível.
+            {t("settings:dictionaries.empty")}
           </div>
         ) : (
           <div className="overflow-hidden rounded border border-zinc-800">
@@ -1230,8 +1287,10 @@ export function DictionarySettingsPanel() {
                       {dict.name}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      {dict.sourceLang.toUpperCase()} para{" "}
-                      {dict.targetLang.toUpperCase()}
+                      {t("settings:dictionaries.languagePair", {
+                        source: dict.sourceLang.toUpperCase(),
+                        target: dict.targetLang.toUpperCase(),
+                      })}
                       {dict.size &&
                         ` - ${(dict.size / (1024 * 1024)).toFixed(1)}MB`}
                     </p>
@@ -1253,13 +1312,15 @@ export function DictionarySettingsPanel() {
                               : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
                           }`}
                         >
-                          {selectedDict === dict.id ? "Ativo" : "Ativar"}
+                          {selectedDict === dict.id
+                            ? t("settings:dictionaries.active")
+                            : t("settings:dictionaries.activate")}
                         </button>
                         <button
                           onClick={() => deleteDictionary(dict.id)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300"
-                          title="Remover"
-                          aria-label="Remover dicionário"
+                          title={t("settings:dictionaries.remove")}
+                          aria-label={t("settings:dictionaries.removeLabel")}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1271,7 +1332,7 @@ export function DictionarySettingsPanel() {
                         className="inline-flex h-8 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Download size={14} />
-                        Baixar
+                        {t("settings:dictionaries.download")}
                       </button>
                     )}
                   </div>
@@ -1294,28 +1355,29 @@ export function BetaSettingsPanel() {
   } = useAppSettings();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
 
   const features = [
     {
       key: "atlas" as const,
-      label: "Atlas",
-      hint: "Mapas de leitura e progresso.",
+      label: t("settings:beta.features.atlas.label"),
+      hint: t("settings:beta.features.atlas.hint"),
       enabled: settings.betaAtlasEnabled,
       setEnabled: setBetaAtlasEnabled,
       route: "/atlas",
     },
     {
       key: "conversion" as const,
-      label: "Conversão",
-      hint: "Conversão entre formatos de documento.",
+      label: t("settings:beta.features.conversion.label"),
+      hint: t("settings:beta.features.conversion.hint"),
       enabled: settings.betaConversionEnabled,
       setEnabled: setBetaConversionEnabled,
       route: null,
     },
     {
       key: "habits" as const,
-      label: "Hábitos",
-      hint: "Rastreador de hábitos diários.",
+      label: t("settings:beta.features.habits.label"),
+      hint: t("settings:beta.features.habits.hint"),
       enabled: settings.betaHabitsEnabled,
       setEnabled: setBetaHabitsEnabled,
       route: "/habit_tracker",
@@ -1337,8 +1399,8 @@ export function BetaSettingsPanel() {
   return (
     <div>
       <SettingsSection
-        title="Abas laterais em desenvolvimento"
-        description="Ative ou desative individualmente as funcionalidades experimentais na barra lateral."
+        title={t("settings:beta.title")}
+        description={t("settings:beta.description")}
       >
         <ul className="space-y-2">
           {features.map((feature) => (
@@ -1353,7 +1415,9 @@ export function BetaSettingsPanel() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  aria-label={`Alternar aba ${feature.label}`}
+                  aria-label={t("settings:beta.toggleLabel", {
+                    feature: feature.label,
+                  })}
                   aria-pressed={feature.enabled}
                   onClick={() =>
                     handleToggle(feature.route, feature.setEnabled, feature.enabled)
@@ -1378,6 +1442,7 @@ export function BetaSettingsPanel() {
 }
 
 export function ZoomSettingsPanel() {
+  const { t } = useTranslation();
   const [zoomFactor, setZoomFactorLocal] = useState(1);
 
   useEffect(() => {
@@ -1417,16 +1482,16 @@ export function ZoomSettingsPanel() {
   return (
     <div>
       <SettingsSection
-        title="Zoom"
-        description="Ajuste o nível de zoom da interface."
+        title={t("settings:zoom.title")}
+        description={t("settings:zoom.description")}
       >
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <button
               onClick={handleZoomOut}
               className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
-              title="Diminuir zoom"
-              aria-label="Diminuir zoom"
+              title={t("settings:zoom.zoomOut")}
+              aria-label={t("settings:zoom.zoomOut")}
             >
               <Minus size={16} />
             </button>
@@ -1445,8 +1510,8 @@ export function ZoomSettingsPanel() {
             <button
               onClick={handleZoomIn}
               className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
-              title="Aumentar zoom"
-              aria-label="Aumentar zoom"
+              title={t("settings:zoom.zoomIn")}
+              aria-label={t("settings:zoom.zoomIn")}
             >
               <Plus size={16} />
             </button>
@@ -1459,12 +1524,12 @@ export function ZoomSettingsPanel() {
               className="inline-flex h-8 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
             >
               <RotateCcw size={14} />
-              Resetar
+              {t("settings:zoom.reset")}
             </button>
           </div>
 
           <p className="text-xs text-zinc-500">
-            Atalhos: Ctrl + / Ctrl - para ajustar o zoom. Ctrl 0 para resetar.
+            {t("settings:zoom.shortcutsHint")}
           </p>
         </div>
       </SettingsSection>
@@ -1474,25 +1539,26 @@ export function ZoomSettingsPanel() {
 
 export function PerformanceSettingsPanel() {
   const { settings, setReducedEffects } = useAppSettings();
+  const { t } = useTranslation();
 
   return (
     <div>
       <SettingsSection
-        title="Efeitos visuais"
-        description="Em computadores mais fracos, desfoque, sombras pesadas e animações podem deixar a interface lenta ou travar."
+        title={t("settings:performance.title")}
+        description={t("settings:performance.description")}
       >
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-zinc-100">
-              Reduzir efeitos
+              {t("settings:performance.reduceEffects.title")}
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Remove desfoque de fundo (backdrop-blur), sombras grandes e animações de transição. As telas continuam funcionando normalmente.
+              {t("settings:performance.reduceEffects.description")}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Alternar redução de efeitos"
+            aria-label={t("settings:performance.reduceEffects.toggleLabel")}
             onClick={() => setReducedEffects(!settings.reducedEffects)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
               settings.reducedEffects ? "bg-green-500" : "bg-zinc-700"

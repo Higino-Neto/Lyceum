@@ -20,6 +20,7 @@ import {
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 import AnimatedModal from "../ui/AnimatedModal";
+import { useTranslation } from "../../i18n";
 
 export type SettingsTabId = "general" | "hotkeys" | "backup" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
 
@@ -44,8 +45,6 @@ function isSettingsTabId(value: unknown): value is SettingsTabId {
 
 interface SettingsTab {
   id: SettingsTabId;
-  label: string;
-  description: string;
   icon: LucideIcon;
   panel: ReactNode;
   badgeCount?: number;
@@ -64,6 +63,7 @@ export default function SettingsDialog({
   initialTab,
   initialFriendId = null,
 }: SettingsDialogProps) {
+  const { t } = useTranslation();
   const osReducedMotion = useReducedMotion();
   const reduceMotion = osReducedMotion ||
     (typeof document !== "undefined" && document.documentElement.dataset.reducedEffects === "true");
@@ -103,92 +103,72 @@ export default function SettingsDialog({
     () => [
       {
         id: "general",
-        label: "Geral",
-        description: "Configurações gerais do aplicativo.",
         icon: SlidersHorizontal,
         panel: <GeneralSettingsPanel />,
       },
       {
         id: "hotkeys",
-        label: "Atalhos",
-        description: "Personalize a navegacao rapida pelo teclado.",
         icon: Keyboard,
         panel: <HotkeysSettingsPanel />,
       },
       {
         id: "backup",
-        label: "Backups",
-        description: "Backups periodicos selecionados e execucao manual.",
         icon: DatabaseBackup,
         panel: <BackupSettingsPanel />,
       },
       {
         id: "beta",
-        label: "Beta",
-        description: "Recursos em desenvolvimento disponíveis na barra lateral.",
         icon: FlaskConical,
         panel: <BetaSettingsPanel />,
       },
       {
         id: "library",
-        label: "Biblioteca",
-        description: "Comportamento de pastas e livros na biblioteca.",
         icon: Library,
         panel: <LibrarySettingsPanel />,
       },
       {
         id: "updates",
-        label: "Atualizacoes",
-        description: "Busque, baixe e instale novas versoes do Lyceum.",
         icon: Download,
         panel: <UpdatesSettingsPanel />,
       },
       {
         id: "account",
-        label: "Conta",
-        description: "Dados pessoais, segurança e sessão.",
         icon: UserCircle,
         panel: <AccountSettingsPanel onRequestClose={onClose} />,
       },
       {
         id: "friends",
-        label: "Amigos",
-        description: "Nicknames, solicitacoes e competicao com amigos.",
         icon: Users,
         badgeCount: pendingFriendRequests,
         panel: <FriendsSettingsPanel focusedFriendId={initialFriendId} />,
       },
       {
         id: "appearance",
-        label: "Aparência",
-        description: "Tema e cor de destaque da interface.",
         icon: Palette,
         panel: <AppearanceSettingsPanel />,
       },
       {
         id: "performance",
-        label: "Desempenho",
-        description: "Reduza efeitos visuais para computadores mais fracos.",
         icon: Gauge,
         panel: <PerformanceSettingsPanel />,
       },
       {
         id: "zoom",
-        label: "Zoom",
-        description: "Ajuste de zoom da interface.",
         icon: ZoomIn,
         panel: <ZoomSettingsPanel />,
       },
       {
         id: "dictionaries",
-        label: "Dicionários",
-        description: "Pacotes offline para leitura.",
         icon: BookOpen,
         panel: <DictionarySettingsPanel />,
       },
     ],
     [initialFriendId, onClose, pendingFriendRequests],
   );
+
+  const tabLabel = (tab: SettingsTab) => t(`settings:tabs.${tab.id}.label`);
+  const tabDescription = (tab: SettingsTab) =>
+    t(`settings:tabs.${tab.id}.description`);
 
   const activeSettingsTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
@@ -204,7 +184,7 @@ export default function SettingsDialog({
           <div className="mb-4 flex h-10 items-center gap-2 px-2">
             <SlidersHorizontal size={18} className="text-zinc-400" />
             <h2 className="text-base font-semibold">
-              Configurações
+              {t("settings:title")}
             </h2>
           </div>
 
@@ -224,7 +204,7 @@ export default function SettingsDialog({
                   }`}
                 >
                   <Icon size={16} />
-                  <span>{tab.label}</span>
+                  <span>{tabLabel(tab)}</span>
                   {tab.badgeCount ? (
                     <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-green-500 px-1.5 text-[11px] font-semibold text-black">
                       {tab.badgeCount}
@@ -240,10 +220,10 @@ export default function SettingsDialog({
           <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 px-4 sm:px-6">
             <div className="min-w-0">
               <h2 id="settings-title" className="truncate text-base font-semibold text-zinc-100">
-                Configurações
+                {t("settings:title")}
               </h2>
               <p className="hidden text-xs text-zinc-500 sm:block">
-                {activeSettingsTab.description}
+                {tabDescription(activeSettingsTab)}
               </p>
             </div>
 
@@ -254,13 +234,13 @@ export default function SettingsDialog({
                   setActiveTab(event.target.value as SettingsTabId)
                 }
                 className="h-9 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 sm:hidden"
-                aria-label="Selecionar aba"
+                aria-label={t("settings:selectTab")}
               >
                 {tabs.map((tab) => (
                   <option key={tab.id} value={tab.id}>
                     {tab.badgeCount
-                      ? `${tab.label} (${tab.badgeCount})`
-                      : tab.label}
+                      ? `${tabLabel(tab)} (${tab.badgeCount})`
+                      : tabLabel(tab)}
                   </option>
                 ))}
               </select>
@@ -269,8 +249,8 @@ export default function SettingsDialog({
                 type="button"
                 onClick={onClose}
                 className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-                title="Fechar"
-                aria-label="Fechar configurações"
+                title={t("settings:close")}
+                aria-label={t("settings:closeLabel")}
               >
                 <X size={17} />
               </button>
@@ -281,10 +261,10 @@ export default function SettingsDialog({
             <div className="mx-auto max-w-3xl">
               <div className="mb-6">
                 <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
-                  {activeSettingsTab.label}
+                  {tabLabel(activeSettingsTab)}
                 </h1>
                 <p className="mt-1 text-sm text-zinc-500 sm:hidden">
-                  {activeSettingsTab.description}
+                  {tabDescription(activeSettingsTab)}
                 </p>
               </div>
 
