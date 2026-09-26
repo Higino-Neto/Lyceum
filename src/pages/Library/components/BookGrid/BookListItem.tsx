@@ -12,6 +12,7 @@ import {
 } from "../../utils";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
+import { useTranslation } from "../../../../i18n";
 
 export interface ExplorerColumns {
   name: number;
@@ -68,6 +69,7 @@ function BookListItem({
   gridTemplateColumns,
   listLayout,
 }: BookListItemProps) {
+  const { t } = useTranslation();
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const isCollection = book.syntheticFolderType === "collection";
   const formatCount = book.mergedBooks?.length || 1;
@@ -165,7 +167,7 @@ function BookListItem({
           {(listLayout === "compact" || listLayout === "narrow") && (
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
             <span className={`rounded-sm px-1.5 py-0.5 ${isCollection ? "bg-emerald-950/50 text-emerald-300" : "bg-zinc-800 uppercase text-zinc-300"}`}>
-                {isCollection ? "Coleção" : formatLabel}
+                {isCollection ? t("library:list.collection") : formatLabel}
               </span>
               {listLayout !== "narrow" && (
                 <span className="min-w-0 truncate">
@@ -214,7 +216,7 @@ function BookListItem({
                 onSync(book, "move");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
-              title="Mover para library"
+              title={t("library:list.moveToLibrary")}
             >
               <Move size={15} className="text-zinc-400" />
             </button>
@@ -224,7 +226,7 @@ function BookListItem({
                 onSync(book, "copy");
               }}
               className="cursor-pointer rounded p-2 hover:bg-zinc-800"
-              title="Copiar para library"
+              title={t("library:list.copyToLibrary")}
             >
               <Copy size={15} className="text-zinc-400" />
             </button>
@@ -237,7 +239,7 @@ function BookListItem({
               onDelete(book);
             }}
             className="cursor-pointer rounded p-2 hover:bg-red-500/20"
-            title="Remover"
+            title={t("library:list.remove")}
           >
             <Trash2 size={15} className="text-red-400" />
           </button>

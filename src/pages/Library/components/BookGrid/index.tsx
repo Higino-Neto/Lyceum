@@ -32,6 +32,7 @@ import BookCard from "./BookCard";
 import BookListItem, { ExplorerColumns, type ListLayoutMode } from "./BookListItem";
 import FolderListItem from "./FolderListItem";
 import { thumbnailCache } from "./thumbnailCache";
+import { useTranslation, type TranslationKey } from "../../../../i18n";
 
 export type GridDensity = "compact" | "comfortable" | "large";
 
@@ -98,13 +99,17 @@ const DEFAULT_COLUMNS: ExplorerColumns = {
   size: 96,
 };
 
-const LIST_HEADERS: { key: keyof ExplorerColumns; label: string; min: number }[] = [
-  { key: "name", label: "Nome", min: 220 },
-  { key: "folder", label: "Pasta", min: 140 },
-  { key: "type", label: "Tipo", min: 70 },
-  { key: "pages", label: "Paginas", min: 86 },
-  { key: "modified", label: "Aberto em", min: 98 },
-  { key: "size", label: "Tamanho", min: 82 },
+const LIST_HEADERS: {
+  key: keyof ExplorerColumns;
+  labelKey: TranslationKey;
+  min: number;
+}[] = [
+  { key: "name", labelKey: "library:list.columns.name", min: 220 },
+  { key: "folder", labelKey: "library:list.columns.folder", min: 140 },
+  { key: "type", labelKey: "library:list.columns.type", min: 70 },
+  { key: "pages", labelKey: "library:list.columns.pages", min: 86 },
+  { key: "modified", labelKey: "library:list.columns.modified", min: 98 },
+  { key: "size", labelKey: "library:list.columns.size", min: 82 },
 ];
 
 const LIST_HEADERS_BY_LAYOUT: Record<ListLayoutMode, (keyof ExplorerColumns)[]> = {
@@ -217,6 +222,7 @@ export default function BookGrid({
   onMoveBooks,
   onDropBooksOnBook,
 }: BookGridProps) {
+  const { t } = useTranslation();
   const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<FolderContextMenuState>({
@@ -441,14 +447,14 @@ export default function BookGrid({
             : false;
 
       if (success && draggingBookHashes.length === 1) {
-        toast.success("Livro movido");
+        toast.success(t("library:folders.bookMovedToast"));
       }
     } catch {
-      toast.error("Erro ao mover livro");
+      toast.error(t("library:folders.moveBookFailedToast"));
     } finally {
       setDragOverPath(null);
     }
-  }, [draggingBookHashes, draggingBooks, onMoveBook, onMoveBooks]);
+  }, [draggingBookHashes, draggingBooks, onMoveBook, onMoveBooks, t]);
 
   const getFolderDisplayInfo = useCallback((folder: FolderInfo) => {
     const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
@@ -684,7 +690,7 @@ export default function BookGrid({
   const loadingIndicator = loadingMore ? (
     <div className="flex items-center justify-center gap-2 py-4 text-xs text-zinc-500">
       <RefreshCw size={14} className="animate-spin" />
-      Carregando mais livros...
+      {t("library:list.loadingMore")}
     </div>
   ) : null;
 
@@ -700,7 +706,7 @@ export default function BookGrid({
           <div ref={staticContentRef}>{topContent}</div>
           <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-20">
             <BookOpen size={22} className="text-zinc-600" />
-            <p className="text-sm text-zinc-500">Nenhum livro nesta secao.</p>
+            <p className="text-sm text-zinc-500">{t("library:list.empty")}</p>
           </div>
           {folderContextMenu}
           {dropActionMenu}
@@ -781,13 +787,15 @@ export default function BookGrid({
             >
               {visibleListHeaders.map((header) => (
                 <div key={header.key} className="relative flex items-center px-3 py-2">
-                  <span>{header.label}</span>
+                  <span>{t(header.labelKey)}</span>
                   {listLayout === "full" && (
                   <button
                     type="button"
                     className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
                     onPointerDown={(event) => startResize(header.key, header.min, event)}
-                    aria-label={`Redimensionar coluna ${header.label}`}
+                    aria-label={t("library:list.resizeColumn", {
+                      column: t(header.labelKey),
+                    })}
                   />
                   )}
                 </div>

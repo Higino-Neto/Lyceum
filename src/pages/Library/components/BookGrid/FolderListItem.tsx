@@ -12,6 +12,11 @@ import type {
 } from "react";
 import type { FolderInfo } from "../../../../types/LibraryTypes";
 import type { ListLayoutMode } from "./BookListItem";
+import {
+  translate,
+  useTranslation,
+  type TranslationKey,
+} from "../../../../i18n";
 
 interface FolderListItemProps {
   folder: FolderInfo;
@@ -29,8 +34,12 @@ interface FolderListItemProps {
   onDrop?: DragEventHandler<HTMLDivElement>;
 }
 
-function formatCount(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
+function formatCount(
+  count: number,
+  singularKey: TranslationKey,
+  pluralKey: TranslationKey,
+) {
+  return translate(count === 1 ? singularKey : pluralKey, { count });
 }
 
 export default function FolderListItem({
@@ -48,8 +57,9 @@ export default function FolderListItem({
   onDragLeave,
   onDrop,
 }: FolderListItemProps) {
+  const { t } = useTranslation();
   const open = () => onOpen?.(folder.path);
-  const metadata = `${formatCount(folderCount, "subpasta", "subpastas")} - ${formatCount(bookCount, "livro", "livros")}`;
+  const metadata = `${formatCount(folderCount, "library:counts.subfolder_one", "library:counts.subfolder_other")} - ${formatCount(bookCount, "library:counts.book_one", "library:counts.book_other")}`;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -61,7 +71,7 @@ export default function FolderListItem({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Abrir pasta ${folder.name}`}
+      aria-label={t("library:folders.openFolder", { name: folder.name })}
       aria-pressed={isSelected || undefined}
       title={detail ? `${folder.name}\n${detail}` : folder.name}
       onClick={open}
@@ -104,7 +114,7 @@ export default function FolderListItem({
 
       {(listLayout === "full" || listLayout === "medium") && (
         <div className="truncate px-3 py-2 text-xs text-zinc-500">
-          {detail || "Pasta"}
+          {detail || t("library:list.folderFallback")}
         </div>
       )}
       {(listLayout === "full" || listLayout === "medium") && (
@@ -114,7 +124,11 @@ export default function FolderListItem({
         <div className="px-3 py-2 text-xs text-zinc-400">
           <span className="inline-flex items-center gap-1">
             <BookOpen size={12} className={bookCount > 0 ? "text-amber-200/80" : "text-zinc-600"} />
-            {formatCount(bookCount, "livro", "livros")}
+            {formatCount(
+              bookCount,
+              "library:counts.book_one",
+              "library:counts.book_other",
+            )}
           </span>
         </div>
       )}
@@ -122,7 +136,11 @@ export default function FolderListItem({
         <div className="px-3 py-2 text-xs text-zinc-400">
           <span className="inline-flex items-center gap-1">
             <Boxes size={12} className={folderCount > 0 ? "text-emerald-300/80" : "text-zinc-600"} />
-            {formatCount(folderCount, "subpasta", "subpastas")}
+            {formatCount(
+              folderCount,
+              "library:counts.subfolder_one",
+              "library:counts.subfolder_other",
+            )}
           </span>
         </div>
       )}
@@ -140,8 +158,10 @@ export default function FolderListItem({
               onContextMenu(event);
             }}
             className="cursor-pointer rounded p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-            aria-label={`Mais ações de ${folder.name}`}
-            title={`Mais ações de ${folder.name}`}
+            aria-label={t("library:folders.moreActions", {
+              name: folder.name,
+            })}
+            title={t("library:folders.moreActions", { name: folder.name })}
           >
             <MoreVertical size={15} />
           </button>

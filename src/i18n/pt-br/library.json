@@ -147,5 +147,23 @@
   "sync": {
     "success": "Livro sincronizado com sucesso!",
     "failed": "Erro ao sincronizar: {{error}}"
+  },
+  "list": {
+    "columns": {
+      "name": "Nome",
+      "folder": "Pasta",
+      "type": "Tipo",
+      "pages": "Páginas",
+      "modified": "Aberto em",
+      "size": "Tamanho"
+    },
+    "resizeColumn": "Redimensionar coluna {{column}}",
+    "collection": "Coleção",
+    "moveToLibrary": "Mover para biblioteca",
+    "copyToLibrary": "Copiar para biblioteca",
+    "remove": "Remover",
+    "loadingMore": "Carregando mais livros...",
+    "empty": "Nenhum livro nesta seção.",
+    "folderFallback": "Pasta"
   }
 }

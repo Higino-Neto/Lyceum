@@ -147,5 +147,23 @@
   "sync": {
     "success": "Book synced successfully!",
     "failed": "Sync error: {{error}}"
+  },
+  "list": {
+    "columns": {
+      "name": "Name",
+      "folder": "Folder",
+      "type": "Type",
+      "pages": "Pages",
+      "modified": "Opened on",
+      "size": "Size"
+    },
+    "resizeColumn": "Resize column {{column}}",
+    "collection": "Collection",
+    "moveToLibrary": "Move to library",
+    "copyToLibrary": "Copy to library",
+    "remove": "Remove",
+    "loadingMore": "Loading more books...",
+    "empty": "No books in this section.",
+    "folderFallback": "Folder"
   }
 }
