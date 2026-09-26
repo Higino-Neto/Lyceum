@@ -1,3 +1,5 @@
+import { useTranslation } from "../../../../i18n";
+
 export default function FolderTreeFooter({
   folderCount,
   totalBooks,
@@ -5,11 +7,13 @@ export default function FolderTreeFooter({
   folderCount: number;
   totalBooks: number;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex-shrink-0 border-t border-zinc-800 px-3 py-2 text-xs text-zinc-500">
       <span>
-        {folderCount} pasta{folderCount !== 1 ? "s" : ""} - {totalBooks} livro
-        {totalBooks !== 1 ? "s" : ""}
+        {t("library:counts.folder", { count: folderCount })} -{" "}
+        {t("library:counts.book", { count: totalBooks })}
       </span>
     </div>
   );

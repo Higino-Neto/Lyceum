@@ -11,6 +11,7 @@ export {
   normalizeText,
   tokenize,
 } from "../../features/library/model/search";
+import { translate } from "../../i18n";
 
 export const LOCAL_BOOK_PREFIX = "local-";
 
@@ -21,12 +22,13 @@ export function getFileTypeLabel(fileType?: string, filePath?: string): string {
 }
 
 export function formatPageCount(numPages: number, fileType?: string): string {
-  const unit = fileType === "epub" ? "cap." : "pags.";
-  return `${numPages || 0} ${unit}`;
+  const key =
+    fileType === "epub" ? "library:units.chapters" : "library:units.pagesAbbrev";
+  return translate(key, { count: numPages || 0 });
 }
 
 export function getBookFolderLabel(filePath?: string | null): string {
-  if (!filePath) return "Sem pasta";
+  if (!filePath) return translate("library:folders.noFolder");
 
   const normalizedPath = filePath.replace(/\\/g, "/");
   const parts = normalizedPath.split("/").filter(Boolean);
@@ -38,7 +40,7 @@ export function getBookFolderLabel(filePath?: string | null): string {
   const relativeFolders =
     libraryIndex >= 0 ? folderParts.slice(libraryIndex + 1) : folderParts.slice(-1);
 
-  if (relativeFolders.length === 0) return "Raiz";
+  if (relativeFolders.length === 0) return translate("library:folders.root");
   return relativeFolders.join(" / ");
 }
 
@@ -120,7 +122,9 @@ export function getFolderBreadcrumbs(
   folders: FolderInfo[],
   folderPath?: string | null,
 ): FolderBreadcrumb[] {
-  const breadcrumbs: FolderBreadcrumb[] = [{ label: "Raiz", path: null }];
+  const breadcrumbs: FolderBreadcrumb[] = [
+    { label: translate("library:folders.root"), path: null },
+  ];
   const trail = findFolderTrail(folders, folderPath);
 
   if (trail.length > 0) {

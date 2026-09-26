@@ -1,4 +1,5 @@
 import { Folder } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 export default function FolderInlineCreate({
   depth,
@@ -13,6 +14,8 @@ export default function FolderInlineCreate({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="flex items-center gap-1.5 px-2 py-1"
@@ -34,7 +37,7 @@ export default function FolderInlineCreate({
         className="flex-1 rounded-sm border border-zinc-600 bg-zinc-700 px-1.5 py-0.5 text-sm text-zinc-100 focus:outline-none"
         autoFocus
         onClick={(event) => event.stopPropagation()}
-        placeholder="Nome da pasta"
+        placeholder={t("library:folderTree.newFolderName")}
       />
     </div>
   );

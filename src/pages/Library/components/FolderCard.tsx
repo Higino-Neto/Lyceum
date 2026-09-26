@@ -14,6 +14,7 @@ import {
   type MouseEvent,
 } from "react";
 import { thumbnailCache } from "./BookGrid/thumbnailCache";
+import { translate, type TranslationKey } from "../../../i18n";
 
 export type FolderCardProps = {
   id: string;
@@ -34,8 +35,13 @@ export type FolderCardProps = {
   fluid?: boolean;
 };
 
-function formatCount(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
+function formatCount(
+  count: number,
+  singularKey: TranslationKey,
+  pluralKey: TranslationKey,
+) {
+  const key = count === 1 ? singularKey : pluralKey;
+  return translate(key, { count });
 }
 
 export function useFolderPreviewImages(
@@ -158,7 +164,7 @@ export default function FolderCard({
 }: FolderCardProps) {
   const images = useFolderPreviewImages(coverPreviews, coverPreviewPaths);
   const empty = isEmpty ?? (bookCount === 0 && folderCount === 0);
-  const metadata = `${formatCount(folderCount, "subpasta", "subpastas")} • ${formatCount(bookCount, "livro", "livros")}`;
+  const metadata = `${formatCount(folderCount, "library:counts.subfolder_one", "library:counts.subfolder_other")} • ${formatCount(bookCount, "library:counts.book_one", "library:counts.book_other")}`;
 
   const open = () => onOpen?.(id);
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -174,7 +180,7 @@ export default function FolderCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Abrir pasta ${name}`}
+      aria-label={translate("library:folders.openFolder", { name })}
       aria-pressed={isSelected || undefined}
       title={detail ? `${name}\n${detail}` : name}
       onClick={open}
@@ -202,8 +208,8 @@ export default function FolderCard({
           }}
           onKeyDown={(event) => event.stopPropagation()}
           className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/75 text-zinc-500 opacity-0 shadow-sm transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/35 group-hover:opacity-100"
-          aria-label={`Mais ações de ${name}`}
-          title={`Mais ações de ${name}`}
+          aria-label={translate("library:folders.moreActions", { name })}
+          title={translate("library:folders.moreActions", { name })}
         >
           <MoreVertical size={15} />
         </button>
@@ -228,11 +234,19 @@ export default function FolderCard({
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
             <span className="inline-flex items-center gap-1">
               <Boxes size={12} className={folderCount > 0 ? "text-green-300/80" : "text-zinc-600"} />
-              {formatCount(folderCount, "subpasta", "subpastas")}
+              {formatCount(
+                folderCount,
+                "library:counts.subfolder_one",
+                "library:counts.subfolder_other",
+              )}
             </span>
             <span className="inline-flex items-center gap-1">
               <BookOpen size={12} className={bookCount > 0 ? "text-amber-200/80" : "text-zinc-600"} />
-              {formatCount(bookCount, "livro", "livros")}
+              {formatCount(
+                bookCount,
+                "library:counts.book_one",
+                "library:counts.book_other",
+              )}
             </span>
           </div>
           <span className="sr-only">{metadata}</span>

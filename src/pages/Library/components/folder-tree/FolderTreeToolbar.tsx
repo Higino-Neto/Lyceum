@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "../../../../i18n";
 
 export default function FolderTreeToolbar({
   allExpanded,
@@ -30,35 +31,50 @@ export default function FolderTreeToolbar({
   onToggleExpandAll: () => void;
   onResync: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <FolderOpen size={16} className="text-zinc-500" />
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-          Pastas
+          {t("library:folderTree.title")}
         </span>
       </div>
       <div className="flex items-center gap-1">
-        <IconButton title="Criar nova pasta" onClick={onCreateRoot}>
+        <IconButton title={t("library:folderTree.create")} onClick={onCreateRoot}>
           <FolderPlus size={14} />
         </IconButton>
         {canImport && (
-          <IconButton title="Adicionar livro" onClick={onImportRoot}>
+          <IconButton title={t("library:folderTree.addBook")} onClick={onImportRoot}>
             <FilePlus size={14} />
           </IconButton>
         )}
         {canAddSource && (
-          <IconButton title="Adicionar pasta fonte" onClick={onAddSource}>
+          <IconButton
+            title={t("library:folderTree.addSourceFolder")}
+            onClick={onAddSource}
+          >
             <HardDrive size={14} />
           </IconButton>
         )}
         <IconButton
-          title={allExpanded ? "Recolher todas" : "Expandir todas"}
+          title={
+            allExpanded
+              ? t("library:folderTree.collapseAll")
+              : t("library:folderTree.expandAll")
+          }
           onClick={onToggleExpandAll}
         >
           {allExpanded ? <ChevronsDown size={14} /> : <ChevronsRight size={14} />}
         </IconButton>
-        <IconButton title={syncing ? "Sincronizando..." : "Sincronizar"} onClick={onResync} disabled={syncing}>
+        <IconButton
+          title={
+            syncing ? t("library:folderTree.syncing") : t("library:folderTree.sync")
+          }
+          onClick={onResync}
+          disabled={syncing}
+        >
           <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
         </IconButton>
       </div>

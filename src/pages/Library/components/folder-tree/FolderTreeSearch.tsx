@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 export default function FolderTreeSearch({
   value,
@@ -8,6 +9,7 @@ export default function FolderTreeSearch({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function FolderTreeSearch({
         type="text"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder="Buscar pastas..."
+        placeholder={t("library:folderTree.searchPlaceholder")}
         className="w-full rounded-sm border border-zinc-700 bg-zinc-800 py-1.5 pl-8 pr-3 text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-green-500 focus:outline-none"
       />
     </div>

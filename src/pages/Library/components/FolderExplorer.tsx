@@ -20,6 +20,7 @@ import {
 } from "../utils";
 import FolderCard from "./FolderCard";
 import FolderContextMenu from "./FolderContextMenu";
+import { useTranslation } from "../../../i18n";
 
 interface FolderPathBarProps {
   folders: FolderInfo[];
@@ -77,6 +78,7 @@ export function FolderPathBar({
     () => getFolderBreadcrumbs(folders, selectedFolder),
     [folders, selectedFolder],
   );
+  const { t } = useTranslation();
   const parentPath = useMemo(
     () => getParentFolderPath(folders, selectedFolder),
     [folders, selectedFolder],
@@ -89,7 +91,7 @@ export function FolderPathBar({
         onClick={() => onFolderSelect(parentPath)}
         disabled={!selectedFolder}
         className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
-        title="Subir pasta"
+        title={t("library:folderTree.upOneLevel")}
       >
         <ArrowUp size={16} />
       </button>
@@ -134,7 +136,7 @@ export function FolderPathBar({
           className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-200"
         >
           <FolderPlus size={15} />
-          Nova pasta
+          {t("library:folders.newFolder")}
         </button>
       )}
 
@@ -145,7 +147,7 @@ export function FolderPathBar({
           className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100"
         >
           <FilePlus size={15} />
-          Adicionar livro
+          {t("library:folders.addBook")}
         </button>
       )}
     </div>
@@ -169,6 +171,7 @@ export function FolderGrid({
   collapsed = false,
   onCollapsedChange,
 }: FolderGridProps) {
+  const { t } = useTranslation();
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<FolderGridContextMenuState>({
     visible: false,
@@ -191,10 +194,10 @@ export function FolderGrid({
             : false;
 
       if (success && draggingBookHashes.length === 1) {
-        toast.success("Livro movido");
+        toast.success(t("library:folders.bookMovedToast"));
       }
     } catch (error) {
-      toast.error("Erro ao mover livro");
+      toast.error(t("library:folders.moveBookFailedToast"));
     } finally {
       setDragOverPath(null);
     }

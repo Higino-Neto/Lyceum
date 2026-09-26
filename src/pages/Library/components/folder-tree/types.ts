@@ -5,6 +5,7 @@ import type {
   WatchFolderInfo,
 } from "../../../../types/LibraryTypes";
 import type { DocumentRecord } from "../../../../types/ReadingTypes";
+import type { TranslationKey } from "../../../../i18n";
 
 export interface FolderTreeProps {
   selectedFolder: string | null;
@@ -42,7 +43,12 @@ export type FolderTreeListItem =
   | { kind: "root"; totalBooks: number; dropTarget: boolean }
   | { kind: "folder"; node: FlatFolderNode }
   | { kind: "create"; parentPath: string | null; depth: number }
-  | { kind: "section"; id: string; label: string; onAdd?: () => void }
+  | {
+      kind: "section";
+      id: string;
+      labelKey: TranslationKey;
+      onAdd?: () => void;
+    }
   | { kind: "watch"; folder: WatchFolderInfo; count: number | string };
 
 export interface FolderTreeData {

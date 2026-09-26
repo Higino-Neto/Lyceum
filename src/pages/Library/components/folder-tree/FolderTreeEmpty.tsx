@@ -1,4 +1,5 @@
 import { FolderPlus, HardDrive } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 
 export default function FolderTreeEmpty({
   canAddSource,
@@ -9,17 +10,19 @@ export default function FolderTreeEmpty({
   onAddWatch: () => void;
   onAddSource: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-6">
       <p className="cursor-default text-xs text-zinc-500">
-        Nenhuma pasta na biblioteca
+        {t("library:folderTree.empty")}
       </p>
       <button
         onClick={onAddWatch}
         className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
       >
         <FolderPlus size={13} />
-        Adicionar pasta externa
+        {t("library:folderTree.addExternalFolder")}
       </button>
       {canAddSource && (
         <button
@@ -27,7 +30,7 @@ export default function FolderTreeEmpty({
           className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
         >
           <HardDrive size={13} />
-          Adicionar pasta fonte
+          {t("library:folderTree.addSourceFolder")}
         </button>
       )}
     </div>

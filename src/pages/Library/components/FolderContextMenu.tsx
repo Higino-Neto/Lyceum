@@ -1,6 +1,7 @@
 import { FilePlus, FolderPlus, Pencil, Trash2, Unlink } from "lucide-react";
 import { FolderInfo } from "../../../types/LibraryTypes";
 import { classifyFolder } from "../utils";
+import { useTranslation } from "../../../i18n";
 
 interface FolderContextMenuProps {
   folder: FolderInfo;
@@ -23,6 +24,7 @@ export default function FolderContextMenu({
   onDeleteFolder,
   onDissolveFolder,
 }: FolderContextMenuProps) {
+  const { t } = useTranslation();
   const folderType = classifyFolder(folder.name);
   return (
     <div
@@ -35,7 +37,7 @@ export default function FolderContextMenu({
         className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
       >
         <FolderPlus size={14} />
-        Nova pasta
+        {t("library:folders.newFolder")}
       </button>
       {onImportBook && (
         <button
@@ -43,7 +45,7 @@ export default function FolderContextMenu({
           className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
         >
           <FilePlus size={14} />
-          Adicionar livro
+          {t("library:folders.addBook")}
         </button>
       )}
       <button
@@ -51,7 +53,7 @@ export default function FolderContextMenu({
         className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
       >
         <Pencil size={14} />
-        Renomear
+        {t("library:folders.rename")}
       </button>
       <div className="my-1 border-t border-zinc-700" />
       {folderType !== "normal" && onDissolveFolder && (
@@ -60,7 +62,9 @@ export default function FolderContextMenu({
           className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-400 hover:bg-red-500/10"
         >
           <Unlink size={14} />
-          {folderType === "collection" ? "Remover colecao" : "Desmesclar"}
+          {folderType === "collection"
+            ? t("library:folders.removeCollection")
+            : t("library:folders.ungroup")}
         </button>
       )}
       <button
@@ -68,7 +72,7 @@ export default function FolderContextMenu({
         className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700"
       >
         <Trash2 size={14} />
-        Excluir
+        {t("library:folders.delete")}
       </button>
     </div>
   );

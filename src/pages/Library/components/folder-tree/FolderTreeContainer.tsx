@@ -37,6 +37,7 @@ import type {
   FolderTreeProps,
   LoadFolderChildren,
 } from "./types";
+import { useTranslation } from "../../../../i18n";
 
 export default function FolderTree(props: FolderTreeProps) {
   const libraryContext = useOptionalLibraryContext();
@@ -122,6 +123,7 @@ function FolderTreeContainer({
   data,
   loadChildren,
 }: FolderTreeProps & { data: FolderTreeData; loadChildren?: LoadFolderChildren }) {
+  const { t } = useTranslation();
   const libraryContext = useOptionalLibraryContext();
   const [folders, setFolders] = useState<FolderInfo[]>(data.folders);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => collectExpandablePaths(data.folders));
@@ -220,15 +222,15 @@ function FolderTreeContainer({
         ? await libraryContext.createFolder(apiParentPath, newFolderName.trim())
         : await window.api.createFolder(newFolderName.trim(), apiParentPath);
       if (result.success) {
-        toast.success("Pasta criada");
+        toast.success(t("library:folderTree.toasts.created"));
         setNewFolderName("");
         setCreatingFolderAt(null);
         await refreshFolders();
       } else {
-        toast.error(result.error || "Erro ao criar pasta");
+        toast.error(result.error || t("library:folderTree.toasts.createFailed"));
       }
     } catch {
-      toast.error("Erro ao criar pasta");
+      toast.error(t("library:folderTree.toasts.createFailed"));
     }
     closeContextMenu();
   };
@@ -243,13 +245,13 @@ function FolderTreeContainer({
         ? await libraryContext.renameFolder(renamingFolder, renameValue.trim())
         : await window.api.renameFolder(renamingFolder, renameValue.trim());
       if (result.success) {
-        toast.success("Pasta renomeada");
+        toast.success(t("library:folderTree.toasts.renamed"));
         await refreshFolders();
       } else {
-        toast.error(result.error || "Erro ao renomear pasta");
+        toast.error(result.error || t("library:folderTree.toasts.renameFailed"));
       }
     } catch {
-      toast.error("Erro ao renomear pasta");
+      toast.error(t("library:folderTree.toasts.renameFailed"));
     }
     setRenamingFolder(null);
     setRenameValue("");
@@ -260,8 +262,8 @@ function FolderTreeContainer({
       const result = libraryContext
         ? await libraryContext.moveFolder(draggingFolder, targetPath)
         : await window.api.moveFolder(draggingFolder, targetPath);
-      if (result.success) toast.success("Pasta movida");
-      else toast.error(result.error || "Erro ao mover pasta");
+      if (result.success) toast.success(t("library:folderTree.toasts.moved"));
+      else toast.error(result.error || t("library:folderTree.toasts.moveFailed"));
       await refreshFolders();
     } else if (draggingBooks.length > 0) {
       const success = draggingBooks.length > 1 && onMoveBooks
@@ -269,7 +271,8 @@ function FolderTreeContainer({
         : onMoveBook
           ? await onMoveBook(draggingBooks[0], targetPath)
           : false;
-      if (success && draggingBooks.length === 1) toast.success("Livro movido");
+      if (success && draggingBooks.length === 1)
+        toast.success(t("library:folderTree.toasts.bookMoved"));
     }
     setDraggingFolder(null);
     setDragOver(null);
@@ -281,9 +284,21 @@ function FolderTreeContainer({
     const items: FolderTreeListItem[] = [{ kind: "root", totalBooks, dropTarget: dragOver === "root" }];
     items.push(...libraryNodes);
     if (creatingFolderAt === "") items.push({ kind: "create", parentPath: "", depth: 1 });
-    if (sourceNodes.length > 0) items.push({ kind: "section", id: "source", label: "Pastas fonte", onAdd: handleAddSourceFolder });
+    if (sourceNodes.length > 0)
+      items.push({
+        kind: "section",
+        id: "source",
+        labelKey: "library:sections.sourceFolders",
+        onAdd: handleAddSourceFolder,
+      });
     items.push(...sourceNodes);
-    if (data.watchFolders.length > 0) items.push({ kind: "section", id: "watch", label: "Pastas externas", onAdd: handleAddWatchFolder });
+    if (data.watchFolders.length > 0)
+      items.push({
+        kind: "section",
+        id: "watch",
+        labelKey: "library:sections.watchFolders",
+        onAdd: handleAddWatchFolder,
+      });
     items.push(...data.watchFolders.map((folder) => ({ kind: "watch" as const, folder, count: data.watchFolderCounts[folder.id] ?? "?" })));
     return items;
   }, [libraryFolders, expandedPaths, sourceRootPaths, creatingFolderAt, sourceFolders, totalBooks, dragOver, data.watchFolders, data.watchFolderCounts]);
@@ -292,10 +307,16 @@ function FolderTreeContainer({
     setSyncing(true);
     try {
       const result = await window.api.resyncLibrary();
-      toast.success(`Sincronizado: +${result.added} | -${result.removed} | ${result.updated} atualizados`);
+      toast.success(
+        t("library:folderTree.syncDone", {
+          added: result.added,
+          removed: result.removed,
+          updated: result.updated,
+        }),
+      );
       await refreshFolders();
     } catch {
-      toast.error("Erro ao sincronizar");
+      toast.error(t("library:folderTree.syncFailed"));
     } finally {
       setSyncing(false);
     }
@@ -307,7 +328,7 @@ function FolderTreeContainer({
     if (result.canceled || result.filePaths.length === 0) return;
     await window.api.addWatchFolder(result.filePaths[0]);
     await refreshFolders();
-    toast.success("Pasta externa adicionada");
+    toast.success(t("library:folderTree.watchFolderAdded"));
   }
 
   async function handleAddSourceFolder() {
@@ -317,9 +338,11 @@ function FolderTreeContainer({
     const addResult = await window.api.addSourceFolder(result.filePaths[0]);
     if (addResult.success) {
       await refreshFolders();
-      toast.success("Pasta fonte adicionada");
+      toast.success(t("library:folderTree.toasts.sourceAdded"));
     } else {
-      toast.error(addResult.error || "Erro ao adicionar pasta fonte");
+      toast.error(
+        addResult.error || t("library:folderTree.toasts.sourceFailed"),
+      );
     }
   }
 
@@ -329,11 +352,11 @@ function FolderTreeContainer({
       ? await libraryContext.deleteFolder(deleteDialog.folder.fullPath, true)
       : await window.api.deleteFolder(deleteDialog.folder.fullPath, true);
     if (result.success) {
-      toast.success("Pasta excluida");
+      toast.success(t("library:folderTree.toasts.deleted"));
       await refreshFolders();
       if (selectedFolder === deleteDialog.folder.path) onFolderSelect(null);
     } else {
-      toast.error(result.error || "Erro ao excluir pasta");
+      toast.error(result.error || t("library:folderTree.toasts.deleteFailed"));
     }
     setDeleteDialog({ open: false, folder: null });
   }
@@ -351,7 +374,8 @@ function FolderTreeContainer({
         />
       );
     }
-    if (item.kind === "section") return <FolderTreeSection label={item.label} onAdd={item.onAdd} />;
+    if (item.kind === "section")
+      return <FolderTreeSection labelKey={item.labelKey} onAdd={item.onAdd} />;
     if (item.kind === "watch") return renderWatchItem(item);
     const folderBookCount = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, false);
     const itemTotalBooks = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, includeSubfolders);
@@ -533,10 +557,10 @@ function FolderTreeContainer({
             event.stopPropagation();
             await window.api.removeWatchFolder(item.folder.id);
             await refreshFolders();
-            toast.success("Pasta externa removida");
+            toast.success(t("library:folderTree.watchFolderRemoved"));
           }}
           className="cursor-pointer rounded-sm p-0.5 text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-700 hover:text-red-400 group-hover:opacity-100"
-          title="Remover pasta externa"
+          title={t("library:folderTree.removeWatchFolder")}
         >
           <X size={12} />
         </button>

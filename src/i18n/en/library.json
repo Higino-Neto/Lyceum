@@ -1,0 +1,77 @@
+{
+  "folderTree": {
+    "title": "Folders",
+    "create": "Create folder",
+    "addBook": "Add book",
+    "addSourceFolder": "Add source folder",
+    "addExternalFolder": "Add external folder",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "sync": "Sync",
+    "syncing": "Syncing...",
+    "searchPlaceholder": "Search folders...",
+    "newFolderName": "Folder name",
+    "empty": "No folders in the library",
+    "upOneLevel": "Up one level",
+    "moveUp": "Move up",
+    "deleteDialog": {
+      "title": "Delete folder",
+      "message": "Are you sure you want to delete the folder \"{{name}}\"?",
+      "warning": "This folder and all of its contents will be permanently deleted."
+    },
+    "toasts": {
+      "created": "Folder created",
+      "renamed": "Folder renamed",
+      "moved": "Folder moved",
+      "bookMoved": "Book moved",
+      "deleted": "Folder deleted",
+      "dissolved": "Folder dissolved",
+      "createFailed": "Could not create the folder",
+      "renameFailed": "Could not rename the folder",
+      "moveFailed": "Could not move the folder",
+      "deleteFailed": "Could not delete the folder",
+      "moveBookFailed": "Could not move the book",
+      "bookMovedWarning": "Book moved outside the library",
+      "sourceAdded": "Source folder added",
+      "sourceFailed": "Could not add the source folder"
+    },
+    "removeWatchFolder": "Remove watched folder",
+    "watchFolderAdded": "Watched folder added",
+    "watchFolderRemoved": "Watched folder removed",
+    "syncFailed": "Could not sync",
+    "syncDone": "Synced: +{{added}} | -{{removed}} | {{updated}} updated"
+  },
+  "counts": {
+    "folder_one": "{{count}} folder",
+    "folder_other": "{{count}} folders",
+    "book_one": "{{count}} book",
+    "book_other": "{{count}} books",
+    "subfolder_one": "{{count}} subfolder",
+    "subfolder_other": "{{count}} subfolders"
+  },
+  "sections": {
+    "sourceFolders": "Source folders",
+    "watchFolders": "Watched folders",
+    "addTo": "Add {{label}}"
+  },
+  "folders": {
+    "newFolder": "New folder",
+    "addBook": "Add book",
+    "rename": "Rename",
+    "removeCollection": "Remove collection",
+    "ungroup": "Ungroup",
+    "delete": "Delete",
+    "moreActions": "More actions for {{name}}",
+    "openFolder": "Open folder {{name}}",
+    "noFolder": "No folder",
+    "root": "Root",
+    "bookMovedToast": "Book moved",
+    "moveBookFailedToast": "Could not move the book"
+  },
+  "units": {
+    "chapters_one": "{{count}} chapter",
+    "chapters_other": "{{count}} chapters",
+    "pagesAbbrev_one": "{{count}} page",
+    "pagesAbbrev_other": "{{count}} pages"
+  }
+}
