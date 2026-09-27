@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { translate } from "../../../i18n";
 
 export default function useEpubViewerLoader() {
   const [fileName, setFileName] = useState("");
@@ -10,14 +11,14 @@ export default function useEpubViewerLoader() {
     try {
       const document = await window.api.openEpub();
       if (!document) {
-        toast.error("Falha ao abrir arquivo EPUB");
+        toast.error(translate("reading:viewer.epub.openFailed"));
         return;
       }
       setEpubData(document.fileBuffer);
       setFileName(document.title);
       setFileHash(document.fileHash);
     } catch (error) {
-      toast.error("Erro ao carregar o arquivo EPUB");
+      toast.error(translate("reading:viewer.epub.loadFailed"));
     }
   };
 

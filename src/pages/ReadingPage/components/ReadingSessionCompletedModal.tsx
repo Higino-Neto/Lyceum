@@ -10,6 +10,12 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { springFast, subtleScale } from "../../../utils/motionPresets";
+import {
+  formatNumber,
+  getActiveLocale,
+  useTranslation,
+  type TranslationKey,
+} from "../../../i18n";
 
 interface SessionData {
   id: string;
@@ -30,49 +36,49 @@ interface Props {
   onSubmit: () => void;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  math: "Matemática",
-  science: "Ciências",
-  history: "História",
-  fiction: "Ficção",
-  philosophy: "Filosofia",
-  technology: "Tecnologia",
-  biography: "Biografia",
-  self_help: "Autoajuda",
+const CATEGORY_LABEL_KEYS: Record<string, TranslationKey> = {
+  math: "reading:session.completed.categories.math",
+  science: "reading:session.completed.categories.science",
+  history: "reading:session.completed.categories.history",
+  fiction: "reading:session.completed.categories.fiction",
+  philosophy: "reading:session.completed.categories.philosophy",
+  technology: "reading:session.completed.categories.technology",
+  biography: "reading:session.completed.categories.biography",
+  self_help: "reading:session.completed.categories.self_help",
 };
 
 function getRhythm(wpm: number): {
-  label: string;
+  labelKey: TranslationKey;
   color: string;
-  description: string;
+  descriptionKey: TranslationKey;
 } {
   if (wpm < 100)
     return {
-      label: "Leve",
+      labelKey: "reading:session.completed.rhythm.levels.light.label",
       color: "text-blue-400",
-      description: "Leitura reflexiva",
+      descriptionKey: "reading:session.completed.rhythm.levels.light.description",
     };
   if (wpm < 150)
     return {
-      label: "Moderado",
+      labelKey: "reading:session.completed.rhythm.levels.moderate.label",
       color: "text-green-400",
-      description: "Ritmo saudável",
+      descriptionKey: "reading:session.completed.rhythm.levels.moderate.description",
     };
   if (wpm < 200)
     return {
-      label: "Intenso",
+      labelKey: "reading:session.completed.rhythm.levels.intense.label",
       color: "text-amber-400",
-      description: "Alta concentração",
+      descriptionKey: "reading:session.completed.rhythm.levels.intense.description",
     };
   return {
-    label: "Acelerado",
+    labelKey: "reading:session.completed.rhythm.levels.fast.label",
     color: "text-red-400",
-    description: "Leitura veloz",
+    descriptionKey: "reading:session.completed.rhythm.levels.fast.description",
   };
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
+function formatSessionDate(date: Date) {
+  return new Intl.DateTimeFormat(getActiveLocale(), {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -135,6 +141,7 @@ export default function ReadingSessionCompletedModal({
   onClose,
   onSubmit,
 }: Props) {
+  const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
   const pagesRead = session.finalPage - session.initialPage;
   const totalWords = session.totalWords;
@@ -171,7 +178,8 @@ export default function ReadingSessionCompletedModal({
     : "—";
 
   const rhythm = getRhythm(wpm);
-  const categoryLabel = CATEGORY_LABELS[session.category] ?? session.category;
+  const categoryKey = CATEGORY_LABEL_KEYS[session.category];
+  const categoryLabel = categoryKey ? t(categoryKey) : session.category;
 
   return (
     <motion.div
@@ -214,10 +222,10 @@ export default function ReadingSessionCompletedModal({
                 className="text-lg font-bold text-zinc-100"
                 style={{ fontFamily: "'Georgia', serif" }}
               >
-                Sessão Concluída
+                {t("reading:session.completed.title")}
               </h2>
               <p className="text-[11px] text-zinc-500">
-                {formatDate(session.date)}
+                {formatSessionDate(session.date)}
               </p>
             </div>
           </div>
@@ -226,6 +234,8 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onReset();
             }}
+            title={t("reading:session.completed.closeTitle")}
+            aria-label={t("reading:session.completed.closeAriaLabel")}
             className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-sm hover:bg-zinc-800"
           >
             <X size={16} />
@@ -253,7 +263,9 @@ export default function ReadingSessionCompletedModal({
                 {categoryLabel}
               </span>
               <span className="text-[10px] text-zinc-600">
-                {session.spentTimeMinutes}min de foco
+                {t("reading:session.completed.focusMinutes", {
+                  count: session.spentTimeMinutes,
+                })}
               </span>
             </div>
           </div>
@@ -261,7 +273,9 @@ export default function ReadingSessionCompletedModal({
             <p className="text-2xl font-bold text-green-400 tabular-nums">
               {accumulatedProgress}%
             </p>
-            <p className="text-[10px] text-zinc-600">do livro</p>
+            <p className="text-[10px] text-zinc-600">
+              {t("reading:session.completed.ofTheBook")}
+            </p>
           </div>
         </div>
 
@@ -276,12 +290,17 @@ export default function ReadingSessionCompletedModal({
           {/* Progress bar */}
           <div>
             <div className="flex justify-between text-[10px] text-zinc-500 mb-1.5">
-              <span>Pág. {session.initialPage}</span>
+              <span>
+                {t("reading:session.completed.page", { page: session.initialPage })}
+              </span>
               <span className="text-green-400 font-medium">
-                +{pagesRead} págs. esta sessão
+                {t("reading:session.completed.pagesThisSession", { count: pagesRead })}
               </span>
               <span>
-                Pág. {session.finalPage} / {totalBookPages}
+                {t("reading:session.completed.pageOfTotal", {
+                  page: session.finalPage,
+                  total: totalBookPages,
+                })}
               </span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -308,49 +327,69 @@ export default function ReadingSessionCompletedModal({
             </div>
             <div className="flex justify-between text-[10px] mt-1">
               <span className="text-zinc-600">
-                {remainingPercent}% restante ({remainingPages} págs.)
+                {t("reading:session.completed.remainingWithPages", {
+                  percent: remainingPercent,
+                  pages: remainingPages,
+                })}
               </span>
               <span className="text-zinc-600">
-                Término est.: {estimatedFinishHours}
+                {t("reading:session.completed.estimatedFinish", {
+                  time: estimatedFinishHours,
+                })}
               </span>
             </div>
           </div>
 
           {/* ── DADOS BÁSICOS ── */}
           <div>
-            <SectionTitle icon={Clock} label="Dados da Sessão" />
+            <SectionTitle icon={Clock} label={t("reading:session.completed.sections.sessionData")} />
             <div className="grid grid-cols-4 gap-2">
               <StatPill
-                label="Páginas lidas"
+                label={t("reading:session.completed.stats.pagesRead")}
                 value={String(pagesRead)}
                 accent
               />
               <StatPill
-                label="Tempo"
+                label={t("reading:session.completed.stats.time")}
                 value={`${session.spentTimeMinutes}min`}
                 accent
               />
-              <StatPill label="Sessão no livro" value={`${sessionProgress}%`} />
-              <StatPill label="Acumulado" value={`${accumulatedProgress}%`} />
+              <StatPill
+                label={t("reading:session.completed.stats.sessionInBook")}
+                value={`${sessionProgress}%`}
+              />
+              <StatPill
+                label={t("reading:session.completed.stats.accumulated")}
+                value={`${accumulatedProgress}%`}
+              />
             </div>
           </div>
 
           {/* ── VELOCIDADE ── */}
           <div>
-            <SectionTitle icon={Zap} label="Velocidade e Desempenho" />
+            <SectionTitle icon={Zap} label={t("reading:session.completed.sections.speed")} />
             <div className="grid grid-cols-3 gap-2 mb-2">
               <StatPill label="WPM" value={String(wpm)} accent />
-              <StatPill label="Págs / min" value={pagesPerMinute} />
               <StatPill
-                label="Palavras totais"
-                value={Number(totalWords).toLocaleString("pt-BR")}
+                label={t("reading:session.completed.stats.pagesPerMinute")}
+                value={pagesPerMinute}
+              />
+              <StatPill
+                label={t("reading:session.completed.stats.totalWords")}
+                value={formatNumber(Number(totalWords), i18n.language)}
               />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <StatPill label="Palavras / pág." value={String(wordsPerPage)} />
-              <StatPill label="Tempo / pág. (s)" value={`${avgSecsPerPage}s`} />
               <StatPill
-                label="Tempo / pág. (min)"
+                label={t("reading:session.completed.stats.wordsPerPage")}
+                value={String(wordsPerPage)}
+              />
+              <StatPill
+                label={t("reading:session.completed.stats.timePerPageSec")}
+                value={`${avgSecsPerPage}s`}
+              />
+              <StatPill
+                label={t("reading:session.completed.stats.timePerPageMin")}
                 value={`${avgMinsPerPage}min`}
               />
             </div>
@@ -361,29 +400,38 @@ export default function ReadingSessionCompletedModal({
             <div className="flex items-center gap-3">
               <Flame size={18} className={rhythm.color} />
               <div>
-                <p className="text-xs text-zinc-400">Ritmo de leitura</p>
+                <p className="text-xs text-zinc-400">
+                  {t("reading:session.completed.rhythm.title")}
+                </p>
                 <p className={`text-sm font-bold ${rhythm.color}`}>
-                  {rhythm.label}
+                  {t(rhythm.labelKey)}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-zinc-500">{rhythm.description}</p>
-              <p className="text-[11px] text-zinc-600">{wpm} palavras/min</p>
+              <p className="text-[11px] text-zinc-500">
+                {t(rhythm.descriptionKey)}
+              </p>
+              <p className="text-[11px] text-zinc-600">
+                {t("reading:session.completed.rhythm.wpm", { count: wpm })}
+              </p>
             </div>
           </div>
 
           {/* ── PROJEÇÃO ── */}
           <div>
-            <SectionTitle icon={Target} label="Projeção" />
+            <SectionTitle icon={Target} label={t("reading:session.completed.sections.projection")} />
             <div className="grid grid-cols-3 gap-2">
-              <StatPill label="% restante" value={`${remainingPercent}%`} />
               <StatPill
-                label="Págs. restantes"
+                label={t("reading:session.completed.stats.remainingPercent")}
+                value={`${remainingPercent}%`}
+              />
+              <StatPill
+                label={t("reading:session.completed.stats.remainingPages")}
                 value={String(remainingPages)}
               />
               <StatPill
-                label="Tempo estimado"
+                label={t("reading:session.completed.stats.estimatedTime")}
                 value={estimatedFinishHours}
                 accent
               />
@@ -394,11 +442,11 @@ export default function ReadingSessionCompletedModal({
         {/* ── FOOTER ── */}
         <div className="px-6 py-4 border-t border-zinc-800/60 flex gap-3 shrink-0">
           <button
-            title="Continue de onde parou (Seu progresso será salvo)"
+            title={t("reading:session.completed.continueTitle")}
             onClick={onClose}
             className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-sm border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
           >
-            Continuar Sessão
+            {t("reading:session.completed.continue")}
             <ChevronDown size={16} />
           </button>
           <button
@@ -408,7 +456,7 @@ export default function ReadingSessionCompletedModal({
             }}
             className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
           >
-            Terminar Sessão
+            {t("reading:session.completed.finish")}
             <ChevronRight size={16} />
           </button>
         </div>

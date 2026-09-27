@@ -51,5 +51,119 @@
     },
     "submit_one": "Registrar {{count}} leitura",
     "submit_other": "Registrar {{count}} leituras"
+  },
+  "empty": {
+    "openFile": "Abra um PDF ou EPUB para começar a leitura."
+  },
+  "unnamedBook": "Livro sem nome",
+  "viewer": {
+    "openFailed": "Falha ao abrir arquivo",
+    "loadFailed": "Erro ao carregar o arquivo",
+    "epub": {
+      "openFailed": "Falha ao abrir arquivo EPUB",
+      "loadFailed": "Erro ao carregar o arquivo EPUB"
+    }
+  },
+  "session": {
+    "title": "Sessão de Leitura",
+    "timer": "Timer",
+    "bookName": "Nome da obra",
+    "bookNamePlaceholder": "ex: O Senhor dos Anéis",
+    "category": "Categoria",
+    "selectCategory": "Selecione",
+    "showAll": "Mostrar tudo",
+    "hideAll": "Ocultar tudo",
+    "showSeconds": "Mostrar segundos",
+    "hideSeconds": "Ocultar segundos",
+    "duration": "Duração",
+    "customDuration": "Personalizado (min)",
+    "start": "Iniciar",
+    "resume": "Retomar",
+    "pause": "Pausar",
+    "newSession": "Nova Sessão",
+    "closeTitle": "Fechar",
+    "closeAriaLabel": "Fechar o painel de sessão de leitura",
+    "states": {
+      "ready": "pronto",
+      "running": "em andamento",
+      "paused": "pausado",
+      "finished": "concluído"
+    },
+    "categories": {
+      "fiction": "Ficção",
+      "math": "Matemática",
+      "science": "Ciências naturais",
+      "philosophy": "Filosofia/História",
+      "computer_science": "Computação/Docs",
+      "languages": "Idioma em Aprendizado",
+      "other": "Outro"
+    },
+    "completed": {
+      "title": "Sessão Concluída",
+      "closeTitle": "Fechar",
+      "closeAriaLabel": "Fechar o resumo da sessão concluída",
+      "focusMinutes": "{{count}}min de foco",
+      "ofTheBook": "do livro",
+      "page": "Pág. {{page}}",
+      "pageOfTotal": "Pág. {{page}} / {{total}}",
+      "pagesThisSession_one": "+{{count}} pág. nesta sessão",
+      "pagesThisSession_other": "+{{count}} págs. nesta sessão",
+      "remainingWithPages": "{{percent}}% restante ({{pages}} págs.)",
+      "estimatedFinish": "Término est.: {{time}}",
+      "sections": {
+        "sessionData": "Dados da Sessão",
+        "speed": "Velocidade e Desempenho",
+        "projection": "Projeção"
+      },
+      "stats": {
+        "pagesRead": "Páginas lidas",
+        "time": "Tempo",
+        "sessionInBook": "Sessão no livro",
+        "accumulated": "Acumulado",
+        "pagesPerMinute": "Págs / min",
+        "totalWords": "Palavras totais",
+        "wordsPerPage": "Palavras / pág.",
+        "timePerPageSec": "Tempo / pág. (s)",
+        "timePerPageMin": "Tempo / pág. (min)",
+        "remainingPercent": "% restante",
+        "remainingPages": "Págs. restantes",
+        "estimatedTime": "Tempo estimado"
+      },
+      "rhythm": {
+        "title": "Ritmo de leitura",
+        "wpm": "{{count}} palavras/min",
+        "levels": {
+          "light": {
+            "label": "Leve",
+            "description": "Leitura reflexiva"
+          },
+          "moderate": {
+            "label": "Moderado",
+            "description": "Ritmo saudável"
+          },
+          "intense": {
+            "label": "Intenso",
+            "description": "Alta concentração"
+          },
+          "fast": {
+            "label": "Acelerado",
+            "description": "Leitura veloz"
+          }
+        }
+      },
+      "continueTitle": "Continue de onde parou (Seu progresso será salvo)",
+      "continue": "Continuar Sessão",
+      "finish": "Terminar Sessão",
+      "categories": {
+        "math": "Matemática",
+        "science": "Ciências",
+        "history": "História",
+        "fiction": "Ficção",
+        "philosophy": "Filosofia",
+        "technology": "Tecnologia",
+        "biography": "Biografia",
+        "self_help": "Autoajuda"
+      }
+    }
   }
 }

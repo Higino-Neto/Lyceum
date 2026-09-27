@@ -51,5 +51,119 @@
     },
     "submit_one": "Record {{count}} reading",
     "submit_other": "Record {{count}} readings"
+  },
+  "empty": {
+    "openFile": "Open a PDF or EPUB to start reading."
+  },
+  "unnamedBook": "Untitled book",
+  "viewer": {
+    "openFailed": "Failed to open the file",
+    "loadFailed": "Failed to load the file",
+    "epub": {
+      "openFailed": "Failed to open the EPUB file",
+      "loadFailed": "Failed to load the EPUB file"
+    }
+  },
+  "session": {
+    "title": "Reading session",
+    "timer": "Timer",
+    "bookName": "Book name",
+    "bookNamePlaceholder": "e.g. The Lord of the Rings",
+    "category": "Category",
+    "selectCategory": "Select",
+    "showAll": "Show all",
+    "hideAll": "Hide all",
+    "showSeconds": "Show seconds",
+    "hideSeconds": "Hide seconds",
+    "duration": "Duration",
+    "customDuration": "Custom (min)",
+    "start": "Start",
+    "resume": "Resume",
+    "pause": "Pause",
+    "newSession": "New session",
+    "closeTitle": "Close",
+    "closeAriaLabel": "Close the reading session panel",
+    "states": {
+      "ready": "ready",
+      "running": "in progress",
+      "paused": "paused",
+      "finished": "finished"
+    },
+    "categories": {
+      "fiction": "Fiction",
+      "math": "Math",
+      "science": "Natural sciences",
+      "philosophy": "Philosophy/History",
+      "computer_science": "Computing/Docs",
+      "languages": "Language learning",
+      "other": "Other"
+    },
+    "completed": {
+      "title": "Session complete",
+      "closeTitle": "Close",
+      "closeAriaLabel": "Close the completed session summary",
+      "focusMinutes": "{{count}}min of focus",
+      "ofTheBook": "of the book",
+      "page": "Page {{page}}",
+      "pageOfTotal": "Page {{page}} / {{total}}",
+      "pagesThisSession_one": "+{{count}} page this session",
+      "pagesThisSession_other": "+{{count}} pages this session",
+      "remainingWithPages": "{{percent}}% left ({{pages}} pages)",
+      "estimatedFinish": "Est. finish: {{time}}",
+      "sections": {
+        "sessionData": "Session data",
+        "speed": "Speed and performance",
+        "projection": "Projection"
+      },
+      "stats": {
+        "pagesRead": "Pages read",
+        "time": "Time",
+        "sessionInBook": "Session in book",
+        "accumulated": "Accumulated",
+        "pagesPerMinute": "Pages / min",
+        "totalWords": "Total words",
+        "wordsPerPage": "Words / page",
+        "timePerPageSec": "Time / page (s)",
+        "timePerPageMin": "Time / page (min)",
+        "remainingPercent": "% left",
+        "remainingPages": "Pages left",
+        "estimatedTime": "Estimated time"
+      },
+      "rhythm": {
+        "title": "Reading rhythm",
+        "wpm": "{{count}} words/min",
+        "levels": {
+          "light": {
+            "label": "Light",
+            "description": "Reflective reading"
+          },
+          "moderate": {
+            "label": "Moderate",
+            "description": "Healthy pace"
+          },
+          "intense": {
+            "label": "Intense",
+            "description": "High concentration"
+          },
+          "fast": {
+            "label": "Accelerated",
+            "description": "Fast reading"
+          }
+        }
+      },
+      "continueTitle": "Keep reading (your progress will be saved)",
+      "continue": "Continue session",
+      "finish": "End session",
+      "categories": {
+        "math": "Math",
+        "science": "Science",
+        "history": "History",
+        "fiction": "Fiction",
+        "philosophy": "Philosophy",
+        "technology": "Technology",
+        "biography": "Biography",
+        "self_help": "Self-help"
+      }
+    }
   }
 }

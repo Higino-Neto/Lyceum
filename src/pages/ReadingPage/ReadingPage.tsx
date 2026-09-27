@@ -13,6 +13,7 @@ import TabBar from "../../components/tabs/TabBar";
 import { FileType } from "../../types/DocumentTab";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { softFadeUp, springFast, subtleScale } from "../../utils/motionPresets";
+import { useTranslation } from "react-i18next";
 
 export interface ReadingLaunchState {
   fileBuffer?: ArrayBuffer;
@@ -46,6 +47,8 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
 }
 
 function ReadingContent() {
+  const { t } = useTranslation();
+
   const reduceMotion = useReducedMotion();
   const session = useReadingSession();
   const { activeTab } = useTabContext();
@@ -194,7 +197,7 @@ function ReadingContent() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: reduceMotion ? 0 : 0.08 }}
               >
-                Abra um PDF ou EPUB para comecar a leitura.
+                {t("reading:empty.openFile")}
               </motion.div>
             </motion.section>
           )}
@@ -217,6 +220,7 @@ export function ReadingWorkspace({
   enableShortcuts = true,
   className = "",
 }: ReadingWorkspaceProps) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const {
     tabs,
@@ -256,7 +260,7 @@ export function ReadingWorkspace({
 
     addTab(
       incomingTab.fileHash,
-      incomingTab.fileName || "Livro sem nome",
+      incomingTab.fileName || t("reading:unnamedBook"),
       inferFileType(incomingTab.fileName, incomingTab.fileType),
       {
         buffer: incomingTab.fileBuffer,
@@ -267,7 +271,7 @@ export function ReadingWorkspace({
       }
     );
     onIncomingTabConsumed?.();
-  }, [addTab, incomingTab, onIncomingTabConsumed]);
+  }, [addTab, incomingTab, onIncomingTabConsumed, t]);
 
   const activateTabByOffset = useCallback((offset: number) => {
     if (tabs.length === 0) {
@@ -398,6 +402,7 @@ export function ReadingWorkspace({
 }
 
 export default function ReadingPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(
@@ -424,14 +429,14 @@ export default function ReadingPage() {
 
     return {
       fileHash,
-      fileName: fileName || "Livro sem nome",
+      fileName: fileName || t("reading:unnamedBook"),
       fileType: detachedFileType,
       filePath: searchParams.get("filePath") || undefined,
       libraryDocumentId: searchParams.get("libraryDocumentId") || undefined,
       pdfRenderer,
       source: detachedSource,
     };
-  }, [detached, fileHash, fileName, fileType, pdfRenderer, searchParams]);
+  }, [detached, fileHash, fileName, fileType, pdfRenderer, searchParams, t]);
 
   const handleRouteStateConsumed = useCallback(() => {
     navigate(`${location.pathname}${location.search}`, {

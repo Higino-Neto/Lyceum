@@ -13,6 +13,7 @@ import {
 import type { TimerState, SessionTimerData } from "../../../types/ReadingTypes";
 import { supabase } from "../../../lib/supabase";
 import { getCategories } from "../../../api/database";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -23,15 +24,22 @@ const PRESETS = [
   { label: "1h30", minutes: 90 },
 ];
 
-const CATEGORIES = [
-  { value: "fiction", label: "Ficção", multiplier: "1x" },
-  { value: "math", label: "Matemática", multiplier: "2.5x" },
-  { value: "science", label: "Ciências naturais", multiplier: "2.5x" },
-  { value: "philosophy", label: "Filosofia/História", multiplier: "1.5x" },
-  { value: "computer_science", label: "Computação/Docs", multiplier: "2x" },
-  { value: "languages", label: "Idioma em Aprendizado", multiplier: "3x" },
-  { value: "other", label: "Outro", multiplier: "1x" },
+const CATEGORIES: { value: string; labelKey: TranslationKey; multiplier: string }[] = [
+  { value: "fiction", labelKey: "reading:session.categories.fiction", multiplier: "1x" },
+  { value: "math", labelKey: "reading:session.categories.math", multiplier: "2.5x" },
+  { value: "science", labelKey: "reading:session.categories.science", multiplier: "2.5x" },
+  { value: "philosophy", labelKey: "reading:session.categories.philosophy", multiplier: "1.5x" },
+  { value: "computer_science", labelKey: "reading:session.categories.computer_science", multiplier: "2x" },
+  { value: "languages", labelKey: "reading:session.categories.languages", multiplier: "3x" },
+  { value: "other", labelKey: "reading:session.categories.other", multiplier: "1x" },
 ];
+
+const STATE_LABEL_KEYS = {
+  idle: "reading:session.states.ready",
+  running: "reading:session.states.running",
+  paused: "reading:session.states.paused",
+  finished: "reading:session.states.finished",
+} as const satisfies Record<TimerState, TranslationKey>;
 
 const STATE_COLORS: Record<TimerState, string> = {
   idle: "text-zinc-100",
@@ -143,6 +151,7 @@ export default function ReadingSessionTimer({
   onSessionData,
   onTimerDone,
 }: ReadingSessionTimerProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [timerState, setTimerState] = useState<TimerState>("idle");
   const [totalSeconds, setTotalSeconds] = useState(25 * 60);
@@ -294,7 +303,7 @@ export default function ReadingSessionTimer({
         />
         {timerState === "idle" ? (
           <span className="text-md text-zinc-400 group-hover:text-zinc-300 p-[1.5px]">
-            Timer
+            {t("reading:session.timer")}
           </span>
         ) : (
           <span
@@ -329,11 +338,13 @@ export default function ReadingSessionTimer({
             <div className="flex items-center gap-2">
               <BookOpen size={15} className="text-green-500" />
               <span className="text-sm font-semibold text-zinc-200">
-                Sessão de Leitura
+                {t("reading:session.title")}
               </span>
             </div>
             <button
               onClick={() => setIsOpen(false)}
+              title={t("reading:session.closeTitle")}
+              aria-label={t("reading:session.closeAriaLabel")}
               className="text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors"
             >
               <X size={15} />
@@ -344,13 +355,13 @@ export default function ReadingSessionTimer({
             {/* Nome da obra */}
             <div>
               <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">
-                Nome da obra
+                {t("reading:session.bookName")}
               </p>
               <input
                 type="text"
                 value={sourceName}
                 onChange={(e) => setSourceName(e.target.value)}
-                placeholder="ex: O Senhor dos Anéis"
+                placeholder={t("reading:session.bookNamePlaceholder")}
                 className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
               />
             </div>
@@ -358,7 +369,7 @@ export default function ReadingSessionTimer({
             {/* Categoria */}
             <div>
               <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">
-                Categoria
+                {t("reading:session.category")}
               </p>
               <select
                 value={category}
@@ -366,7 +377,7 @@ export default function ReadingSessionTimer({
                 className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
               >
                 <option value="" className="bg-zinc-900">
-                  Selecione
+                  {t("reading:session.selectCategory")}
                 </option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id} className="bg-zinc-900">
@@ -394,7 +405,9 @@ export default function ReadingSessionTimer({
                         className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
                       >
                         {hideAll ? <Eye size={12} /> : <EyeOff size={12} />}
-                        {hideAll ? "Mostrar tudo" : "Ocultar tudo"}
+                        {hideAll
+                          ? t("reading:session.showAll")
+                          : t("reading:session.hideAll")}
                       </button>
                       <button
                         onClick={() => setHideSeconds((v) => !v)}
@@ -402,7 +415,9 @@ export default function ReadingSessionTimer({
                         className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Clock size={12} />
-                        {hideSeconds ? "Mostrar segundos" : "Ocultar segundos"}
+                        {hideSeconds
+                          ? t("reading:session.showSeconds")
+                          : t("reading:session.hideSeconds")}
                       </button>
                     </div>
                   ) : (
@@ -421,13 +436,7 @@ export default function ReadingSessionTimer({
                         )}
                       </span>
                       <span className="text-[10px] text-zinc-600 uppercase tracking-widest">
-                        {timerState === "idle"
-                          ? "pronto"
-                          : timerState === "running"
-                            ? "em andamento"
-                            : timerState === "paused"
-                              ? "pausado"
-                              : "concluído"}
+                        {t(STATE_LABEL_KEYS[timerState])}
                       </span>
                     </>
                   )}
@@ -443,7 +452,9 @@ export default function ReadingSessionTimer({
                   className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
                 >
                   <Play size={14} fill="currentColor" />
-                  {timerState === "paused" ? "Retomar" : "Iniciar"}
+                  {timerState === "paused"
+                    ? t("reading:session.resume")
+                    : t("reading:session.start")}
                 </button>
               )}
               {timerState === "running" && (
@@ -452,7 +463,7 @@ export default function ReadingSessionTimer({
                   className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-zin-600/20 hover:bg-zinc-600/30 border border-zinc-600/30 text-zinc-400 text-sm font-medium transition-all active:scale-95"
                 >
                   <Pause size={14} fill="currentColor" />
-                  Pausar
+                  {t("reading:session.pause")}
                 </button>
               )}
               {timerState === "finished" && (
@@ -461,7 +472,7 @@ export default function ReadingSessionTimer({
                   className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
-                  Nova Sessão
+                  {t("reading:session.newSession")}
                 </button>
               )}
               {(timerState === "running" || timerState === "paused") && (
@@ -478,7 +489,7 @@ export default function ReadingSessionTimer({
             {(timerState === "idle" || timerState === "finished") && (
               <div className="space-y-2.5">
                 <p className="text-[10px] text-zinc-600 uppercase tracking-widest text-center">
-                  Duração
+                  {t("reading:session.duration")}
                 </p>
                 <div className="grid grid-cols-4 gap-1.5">
                   {PRESETS.map((p) => (
@@ -500,7 +511,7 @@ export default function ReadingSessionTimer({
                     type="number"
                     min={1}
                     max={480}
-                    placeholder="Personalizado (min)"
+                    placeholder={t("reading:session.customDuration")}
                     value={customMinutes}
                     onChange={(e) => setCustomMinutes(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomDuration()}

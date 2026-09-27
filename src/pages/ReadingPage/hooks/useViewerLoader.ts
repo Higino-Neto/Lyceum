@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { translate } from "../../../i18n";
 
 export default function useViewerLoader() {
   const [fileName, setFileName] = useState("");
@@ -29,14 +30,14 @@ export default function useViewerLoader() {
     try {
       const document = await window.api.openPdf();
       if (!document) {
-        toast.error("Falha ao abrir arquivo");
+        toast.error(translate("reading:viewer.openFailed"));
         return;
       }
       setPdfData(document.fileBuffer ?? null);
       setFileName(document.title);
       setFileHash(document.fileHash);
     } catch (error) {
-      toast.error("Erro ao carregar o arquivo");
+      toast.error(translate("reading:viewer.loadFailed"));
     }
   };
 
