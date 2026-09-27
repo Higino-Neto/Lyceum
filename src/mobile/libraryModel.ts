@@ -6,6 +6,8 @@ import type {
   MobileLibrarySort,
   MobileSourceFolder,
 } from "./types";
+import { getActiveLocale, normalizeCase, translate } from "../i18n";
+
 import { createFolder } from "./storage";
 
 export interface MobileLibraryQuery {
@@ -33,7 +35,7 @@ export function getBookProgress(book: MobileBook) {
 }
 
 export function folderPath(folderId: string | undefined, folders: MobileLibraryFolder[]) {
-  if (!folderId) return "Biblioteca";
+  if (!folderId) return translate("mobile:library.defaultFolderName");
   const names: string[] = [];
   const visited = new Set<string>();
   let current = folders.find((folder) => folder.id === folderId);
@@ -42,7 +44,7 @@ export function folderPath(folderId: string | undefined, folders: MobileLibraryF
     names.unshift(current.name);
     current = current.parentId ? folders.find((folder) => folder.id === current?.parentId) : undefined;
   }
-  return names.join(" / ") || "Biblioteca";
+  return names.join(" / ") || translate("mobile:library.defaultFolderName");
 }
 
 export function descendantFolderIds(folderId: string, folders: MobileLibraryFolder[]) {
@@ -66,7 +68,7 @@ export function queryMobileBooks(
   sourceFolders: MobileSourceFolder[],
   query: MobileLibraryQuery,
 ) {
-  const normalized = query.search.trim().toLocaleLowerCase("pt-BR");
+  const normalized = normalizeCase(query.search.trim());
   const folderIds = query.folderId ? descendantFolderIds(query.folderId, folders) : null;
   const filtered = books.filter((book) => {
     if (query.scope === "managed" && book.sourceFolderId) return false;
@@ -95,15 +97,15 @@ export function queryMobileBooks(
       folderPath(book.folderId, folders),
       sourceName,
     ];
-    return fields.filter(Boolean).some((value) => String(value).toLocaleLowerCase("pt-BR").includes(normalized));
+    return fields.filter(Boolean).some((value) => normalizeCase(String(value)).includes(normalized));
   });
 
   return filtered.sort((left, right) => {
     switch (query.sort) {
       case "status": return ["want", "reading", "finished", "abandoned"].indexOf(left.readingStatus || "want") - ["want", "reading", "finished", "abandoned"].indexOf(right.readingStatus || "want");
-      case "series": return (left.seriesName || "").localeCompare(right.seriesName || "", "pt-BR") || (left.seriesIndex || 0) - (right.seriesIndex || 0) || left.title.localeCompare(right.title);
+      case "series": return (left.seriesName || "").localeCompare(right.seriesName || "", getActiveLocale()) || (left.seriesIndex || 0) - (right.seriesIndex || 0) || left.title.localeCompare(right.title);
       case "title_desc":
-        return right.title.localeCompare(left.title, "pt-BR");
+        return right.title.localeCompare(left.title, getActiveLocale());
       case "recent_desc":
         return String(right.lastOpenedAt || "").localeCompare(String(left.lastOpenedAt || ""));
       case "imported_desc":
@@ -113,17 +115,17 @@ export function queryMobileBooks(
       case "size_desc":
         return (right.fileSize || 0) - (left.fileSize || 0);
       default:
-        return left.title.localeCompare(right.title, "pt-BR");
+        return left.title.localeCompare(right.title, getActiveLocale());
     }
   });
 }
 
 export function findDuplicateBook(books: MobileBook[], file: File, sourceRelativePath?: string) {
-  const normalizedName = file.name.toLocaleLowerCase("pt-BR");
-  const normalizedRelative = sourceRelativePath?.replace(/\\/g, "/").toLocaleLowerCase("pt-BR");
+  const normalizedName = normalizeCase(file.name);
+  const normalizedRelative = sourceRelativePath ? normalizeCase(sourceRelativePath.replace(/\\/g, "/")) : "";
   return books.find((book) => {
-    if (normalizedRelative && book.sourceRelativePath?.toLocaleLowerCase("pt-BR") === normalizedRelative) return true;
-    return book.fileName.toLocaleLowerCase("pt-BR") === normalizedName
+    if (normalizedRelative && normalizeCase(book.sourceRelativePath || "") === normalizedRelative) return true;
+    return normalizeCase(book.fileName) === normalizedName
       && Boolean(file.size)
       && book.fileSize === file.size;
   });
@@ -139,7 +141,7 @@ export function ensureFolderPath(
   for (const rawPart of pathParts) {
     const name = rawPart.trim();
     if (!name) continue;
-    let folder = nextFolders.find((candidate) => candidate.parentId === parentId && candidate.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"));
+    let folder = nextFolders.find((candidate) => candidate.parentId === parentId && normalizeCase(candidate.name) === normalizeCase(name));
     if (!folder) {
       folder = createFolder(name, parentId);
       nextFolders.push(folder);

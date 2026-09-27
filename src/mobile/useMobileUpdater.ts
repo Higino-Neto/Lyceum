@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { translate } from "../i18n";
 import toast from "react-hot-toast";
 import { checkNativeApkUpdate, installNativeApkUpdate, openInstallPermissionSettings, type NativeApkUpdateState } from "./nativeApkUpdater";
 const INITIAL_NATIVE_APK_UPDATE_STATE: NativeApkUpdateState = { status: "idle" };
@@ -13,13 +14,13 @@ export function useMobileUpdater() {
 
     if (!silent) {
       if (result.status === "available") {
-        toast.success("Atualizacao disponivel");
+        toast.success(translate("mobile:updater.available"));
       } else if (result.status === "not-available") {
-        toast.success("Voce ja esta na versao mais recente");
+        toast.success(translate("mobile:updater.notAvailable"));
       } else if (result.status === "not-published") {
-        toast(result.error || "Nenhuma versao mobile foi publicada ainda");
+        toast(result.error || translate("mobile:updater.notPublished"));
       } else if (result.status === "error") {
-        toast.error(result.error || "Falha ao verificar atualizacao");
+        toast.error(result.error || translate("mobile:updater.checkFailed"));
       }
     }
 
@@ -29,7 +30,7 @@ export function useMobileUpdater() {
   const installNativeUpdate = useCallback(async () => {
     const manifest = nativeApkUpdate.manifest;
     if (!manifest) {
-      toast.error("Nenhuma atualizacao disponivel");
+      toast.error(translate("mobile:updater.idle"));
       return;
     }
 
@@ -53,20 +54,20 @@ export function useMobileUpdater() {
     setNativeApkUpdateBusy(false);
 
     if (result.status === "permission-required") {
-      toast("Permissao de instalacao necessaria");
+      toast(translate("mobile:updater.permissionRequired"));
     } else if (result.status === "installing") {
-      toast.success("Confirme a instalacao no Android");
+      toast.success(translate("mobile:updater.confirmInstall"));
     } else if (result.status === "error") {
-      toast.error(result.error || "Falha ao instalar atualizacao");
+      toast.error(result.error || translate("mobile:updater.installFailed"));
     }
   }, [nativeApkUpdate.manifest]);
 
   const openNativeInstallSettings = useCallback(async () => {
     try {
       await openInstallPermissionSettings();
-      toast("Ative a permissao e volte ao Lyceum para atualizar");
+      toast(translate("mobile:updater.permissionHint"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao abrir permissoes");
+      toast.error(error instanceof Error ? error.message : translate("mobile:updater.openSettingsFailed"));
     }
   }, []);
 

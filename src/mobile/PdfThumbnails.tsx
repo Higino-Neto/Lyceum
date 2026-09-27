@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
+import { useTranslation } from "../i18n";
 function PdfThumbnail({ pdf, pageNumber }: { pdf: PDFDocumentProxy | null | undefined; pageNumber: number }) {
   const hostRef = useRef<HTMLSpanElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -46,10 +47,11 @@ function PdfThumbnail({ pdf, pageNumber }: { pdf: PDFDocumentProxy | null | unde
 
 
 export default function PdfThumbnails({ pdf, pageCount, currentPage, labels, onPage }: { pdf?: PDFDocumentProxy | null; pageCount: number; currentPage: number; labels: string[] | null; onPage: (page: number) => void }) {
+  const { t } = useTranslation();
   const scroll = useRef<HTMLDivElement>(null);
   const rows = useVirtualizer({ count: Math.ceil(pageCount / 2), getScrollElement: () => scroll.current, estimateSize: () => 230, overscan: 2 });
   useEffect(() => { rows.scrollToIndex(Math.floor((currentPage - 1) / 2), { align: "center" }); }, [currentPage, rows]);
-  return <div ref={scroll} className="h-[65dvh] overflow-auto" aria-label="Miniaturas de páginas"><div className="relative w-full" style={{ height: rows.getTotalSize() }}>
+  return <div ref={scroll} className="h-[65dvh] overflow-auto" aria-label={t("mobile:pdf.thumbnailsAriaLabel")}><div className="relative w-full" style={{ height: rows.getTotalSize() }}>
     {rows.getVirtualItems().map(row => <div key={row.key} className="absolute left-0 top-0 grid w-full grid-cols-2 gap-3" style={{ height: row.size, transform: `translateY(${row.start}px)` }}>{[row.index * 2 + 1, row.index * 2 + 2].filter(page => page <= pageCount).map(page => <button className={`overflow-hidden rounded-lg border p-2 text-xs ${page === currentPage ? "border-emerald-400 text-emerald-300" : "border-transparent text-slate-400"}`} key={page} onClick={() => onPage(page)}><span className="block h-[190px] overflow-hidden"><PdfThumbnail pdf={pdf} pageNumber={page} /></span>{labels?.[page - 1] || page}</button>)}</div>)}
   </div></div>;
 }

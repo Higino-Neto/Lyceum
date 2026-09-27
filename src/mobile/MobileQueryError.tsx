@@ -1,5 +1,6 @@
 import { RefreshCw, WifiOff } from "lucide-react";
 import { getMobileAuthErrorMessage } from "./supabaseMobile";
+import { useTranslation } from "../i18n";
 
 export default function MobileQueryError({
   error,
@@ -8,6 +9,7 @@ export default function MobileQueryError({
   error: unknown;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   if (!error) return null;
   const offline = navigator.onLine === false;
   return (
@@ -16,10 +18,14 @@ export default function MobileQueryError({
         {offline ? <WifiOff className="mt-0.5 shrink-0 text-amber-300" size={18} /> : <RefreshCw className="mt-0.5 shrink-0 text-amber-300" size={18} />}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-amber-100">
-            {offline ? "Sem conexao" : "Nao foi possivel carregar estes dados"}
+            {offline
+              ? t("mobile:queryError.offlineTitle")
+              : t("mobile:queryError.loadTitle")}
           </p>
           <p className="mt-1 break-words text-xs leading-5 text-amber-200/80">
-            {offline ? "Reconecte-se para sincronizar sua conta." : getMobileAuthErrorMessage(error)}
+            {offline
+              ? t("mobile:queryError.offlineBody")
+              : getMobileAuthErrorMessage(error)}
           </p>
         </div>
       </div>
@@ -28,7 +34,7 @@ export default function MobileQueryError({
         onClick={onRetry}
         type="button"
       >
-        Tentar novamente
+        {t("mobile:queryError.retry")}
       </button>
     </div>
   );

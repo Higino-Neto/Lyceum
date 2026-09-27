@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { translate } from "../i18n";
 
 export interface NativeImportFile {
   uri: string;
@@ -51,7 +52,7 @@ export async function loadNativeBook(
   const abort = () => { void IncomingBooks.cancelRead({ requestId }); };
   signal?.addEventListener("abort", abort, { once: true });
   try {
-    if (signal?.aborted) throw new DOMException("Importacao cancelada", "AbortError");
+    if (signal?.aborted) throw new DOMException(translate("mobile:errors.importCancelled"), "AbortError");
     const { base64 } = await IncomingBooks.readFile({ uri: nativeFile.uri, requestId });
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);

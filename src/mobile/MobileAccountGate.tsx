@@ -1,5 +1,6 @@
 import { Lock, UserCircle } from "lucide-react";
 import { hasSupabaseConfig } from "./supabaseMobile";
+import { useTranslation } from "../i18n";
 
 export default function MobileAccountGate({
   title,
@@ -11,6 +12,7 @@ export default function MobileAccountGate({
   onOpenProfile: () => void;
 }) {
   const configured = hasSupabaseConfig();
+  const { t } = useTranslation();
 
   return (
     <section className="grid min-h-[calc(100dvh-140px)] place-items-center p-5 text-center">
@@ -25,7 +27,7 @@ export default function MobileAccountGate({
           onClick={onOpenProfile}
           type="button"
         >
-          {configured ? "Entrar na conta" : "Ver configuracao"}
+          {configured ? t("mobile:account.signIn") : t("mobile:account.seeSetup")}
         </button>
       </div>
     </section>

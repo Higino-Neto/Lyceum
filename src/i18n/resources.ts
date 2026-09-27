@@ -9,6 +9,7 @@ import enCommon from "./en/common.json";
 import enConversion from "./en/conversion.json";
 import enEpub from "./en/epub.json";
 import enPdf from "./en/pdf.json";
+import enMobile from "./en/mobile.json";
 import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
 import enHabits from "./en/habits.json";
@@ -25,6 +26,7 @@ import ptBrCommon from "./pt-br/common.json";
 import ptBrConversion from "./pt-br/conversion.json";
 import ptBrEpub from "./pt-br/epub.json";
 import ptBrPdf from "./pt-br/pdf.json";
+import ptBrMobile from "./pt-br/mobile.json";
 import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
 import ptBrHabits from "./pt-br/habits.json";
@@ -43,6 +45,7 @@ const en = {
   conversion: enConversion,
   epub: enEpub,
   pdf: enPdf,
+  mobile: enMobile,
   auth: enAuth,
   dashboard: enDashboard,
   dialogs: enDialogs,
@@ -61,6 +64,7 @@ const ptBR = {
   conversion: ptBrConversion,
   epub: ptBrEpub,
   pdf: ptBrPdf,
+  mobile: ptBrMobile,
   auth: ptBrAuth,
   dashboard: ptBrDashboard,
   dialogs: ptBrDialogs,

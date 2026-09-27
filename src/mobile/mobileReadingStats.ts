@@ -1,4 +1,5 @@
 import type { MobileCategory, MobileReadingEntry } from "./readingApi";
+import { normalizeCase, translate } from "../i18n";
 
 export interface MobileDailyPoint {
   date: string;
@@ -198,7 +199,7 @@ export function buildCategoryTotals(
     const categoryId = reading.category_id || "uncategorized";
     const existing = totals.get(categoryId) || {
       categoryId,
-      name: categoryNames.get(categoryId) || "Sem categoria",
+      name: categoryNames.get(categoryId) || translate("mobile:dashboard.uncategorizedCategory"),
       pages: 0,
     };
     existing.pages += Number(reading.pages || 0);
@@ -221,7 +222,7 @@ export function getFrequentMobileBooks(
   readings.forEach((reading) => {
     const title = reading.source_name?.trim();
     if (!title) return;
-    const key = reading.book_id || `title:${title.toLocaleLowerCase("pt-BR")}`;
+    const key = reading.book_id || `title:${normalizeCase(title)}`;
     const date = parseLocalIsoDate(reading.reading_date);
     const time = date.getTime();
     const existing = grouped.get(key) || {

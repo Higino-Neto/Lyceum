@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { translate } from "../i18n";
 import { getMobileSupabase, hasSupabaseConfig } from "./supabaseMobile";
 import type { MobileBook } from "./types";
 
@@ -104,7 +105,7 @@ function numberValue(value: number | string | null | undefined) {
 function mapRankingRow(row: Partial<MobileRankingUser> & { name?: string | null }): MobileRankingUser {
   return {
     user_id: String(row.user_id),
-    username: row.username || row.name || row.nickname || "Usuario",
+    username: row.username || row.name || row.nickname || translate("mobile:leaderboard.unknownUser"),
     nickname: row.nickname || null,
     avatar_url: row.avatar_url || "",
     total_pages: numberValue(row.total_pages),
@@ -122,13 +123,13 @@ export function canUseMobileSupabase() {
 export async function requireMobileSession(): Promise<AuthenticatedClient> {
   const supabase = getMobileSupabase();
   if (!supabase) {
-    throw new Error("Supabase nao configurado no mobile.");
+    throw new Error(translate("mobile:errors.supabaseNotConfigured"));
   }
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session?.user) {
-    throw new Error("Entre na sua conta para sincronizar leituras.");
+    throw new Error(translate("mobile:errors.signInToSync"));
   }
 
   return { supabase, user: data.session.user };
@@ -202,7 +203,7 @@ export async function getOrCreateMobileBook(
   });
 
   if (error) throw error;
-  if (!data) throw new Error("Livro nao pode ser criado.");
+  if (!data) throw new Error(translate("mobile:errors.bookCreateFailed"));
   return String(data);
 }
 

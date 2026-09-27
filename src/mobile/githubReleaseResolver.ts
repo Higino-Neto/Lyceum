@@ -1,4 +1,5 @@
 const GITHUB_RELEASES_API = "https://api.github.com/repos/Higino-Neto/Lyceum/releases?per_page=50";
+import { translate } from "../i18n";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -37,7 +38,7 @@ function releaseTimestamp(release: GitHubRelease) {
 
 export function findLatestMobileReleaseAsset(value: unknown, assetName: string) {
   if (!Array.isArray(value)) {
-    throw new MobileReleaseError("O GitHub devolveu uma resposta de releases invalida.", "INVALID_RESPONSE");
+    throw new MobileReleaseError(translate("mobile:updater.githubInvalidResponse"), "INVALID_RESPONSE");
   }
 
   const releases = (value as GitHubRelease[])
@@ -54,7 +55,7 @@ export function findLatestMobileReleaseAsset(value: unknown, assetName: string) 
   }
 
   throw new MobileReleaseError(
-    "Ainda nao existe uma versao mobile publicada com os arquivos de atualizacao.",
+    translate("mobile:updater.githubNotPublished"),
     "NOT_PUBLISHED",
   );
 }
@@ -65,7 +66,7 @@ export async function fetchWithTimeout(
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   if (!isOnline()) {
-    throw new MobileReleaseError("Sem conexao com a internet.", "OFFLINE");
+    throw new MobileReleaseError(translate("mobile:updater.offline"), "OFFLINE");
   }
 
   const controller = new AbortController();
@@ -74,7 +75,7 @@ export async function fetchWithTimeout(
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new MobileReleaseError("A verificacao de atualizacoes excedeu o tempo limite.", "TIMEOUT");
+      throw new MobileReleaseError(translate("mobile:updater.timeout"), "TIMEOUT");
     }
     throw error;
   } finally {
@@ -101,7 +102,7 @@ async function fetchJson(url: string, attempts = 2): Promise<unknown> {
       }
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("Falha ao consultar atualizacoes.");
+  throw lastError instanceof Error ? lastError : new Error(translate("mobile:updater.checkFailed"));
 }
 
 export async function resolveLatestMobileReleaseAsset(assetName: string) {

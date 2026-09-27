@@ -33,6 +33,6 @@ describe("mobile release resolution", () => {
       tag_name: "v2.0.0",
       published_at: "2026-08-20T00:00:00Z",
       assets: [{ name: "lyceum-mobile-latest.json", browser_download_url: "http://example.com/mobile" }],
-    }], "lyceum-mobile-latest.json")).toThrow("Ainda nao existe");
+    }], "lyceum-mobile-latest.json")).toThrow("Ainda não existe");
   });
 });

@@ -1,4 +1,5 @@
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { translate } from "../i18n";
 import type { MobileBook } from "./types";
 
 const BOOKS_DIR = "lyceum-books";
@@ -41,14 +42,14 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo salvo"));
+    reader.onerror = () => reject(reader.error || new Error(translate("mobile:errors.savedFileReadFailed")));
     reader.readAsDataURL(blob);
   });
 }
 
 export async function writeMobileBookFile(book: MobileBook, dataUrl: string, folderId = book.folderId) {
   const { data } = splitDataUrl(dataUrl);
-  if (!data) throw new Error("O arquivo importado esta vazio");
+  if (!data) throw new Error(translate("mobile:errors.importedFileEmpty"));
   const path = storagePathFor(book, folderId);
 
   await Filesystem.mkdir({

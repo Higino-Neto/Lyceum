@@ -1,4 +1,5 @@
 import type { MobileLibraryState } from "./types";
+import { translate } from "../i18n";
 import { migrateMobileState, MOBILE_SCHEMA_VERSION } from "./storage";
 import { migrateReaderData, type ReaderData } from "./readerModel";
 export interface MobileBackup { format: "lyceum-mobile-backup"; version: 1; exportedAt: string; library: MobileLibraryState; reader: ReaderData }
@@ -20,12 +21,12 @@ export function createMobileBackup(library: MobileLibraryState, reader: ReaderDa
 }
 export function parseMobileBackup(raw: string): MobileBackup {
   const value = JSON.parse(raw) as MobileBackup;
-  if (value?.format !== "lyceum-mobile-backup" || value.version !== 1 || !Array.isArray(value.library?.books) || !Array.isArray(value.reader?.annotations)) throw new Error("Backup Lyceum inválido ou incompatível.");
-  if (value.library.schemaVersion > MOBILE_SCHEMA_VERSION) throw new Error("Atualize o Lyceum antes de restaurar este backup.");
+  if (value?.format !== "lyceum-mobile-backup" || value.version !== 1 || !Array.isArray(value.library?.books) || !Array.isArray(value.reader?.annotations)) throw new Error(translate("mobile:backup.invalidBackup"));
+  if (value.library.schemaVersion > MOBILE_SCHEMA_VERSION) throw new Error(translate("mobile:backup.updateFirst"));
   const library = migrateMobileState(value.library);
-  if (library.books.length !== value.library.books.length) throw new Error("O backup contém livros inválidos.");
+  if (library.books.length !== value.library.books.length) throw new Error(translate("mobile:backup.invalidBooks"));
   const reader = migrateReaderData(value.reader);
-  if (reader.annotations.length !== value.reader.annotations.length) throw new Error("O backup contém anotações inválidas.");
+  if (reader.annotations.length !== value.reader.annotations.length) throw new Error(translate("mobile:backup.invalidAnnotations"));
   // Backup metadata must never grant access to arbitrary app-private file paths.
   return createMobileBackup(library, reader);
 }

@@ -5,6 +5,7 @@ import { Preferences } from "@capacitor/preferences";
 import toast from "react-hot-toast";
 import { emptyReaderData, migrateReaderData, type ReaderAnnotation, type ReaderData, type ReaderLocator } from "./readerModel";
 import { makeMobileId } from "./storage";
+import { translate } from "../i18n";
 
 const KEY = "lyceum_mobile_reader_data";
 const Context = createContext<{
@@ -46,7 +47,7 @@ export function ReaderDataProvider({ children }: { children: ReactNode }) {
       const previous = localStorage.getItem(KEY);
       if (previous && previous !== serialized) localStorage.setItem(KEY + "_backup", previous);
       localStorage.setItem(KEY, serialized);
-    }).catch(() => { toast.error("Não foi possível salvar anotações. Exporte uma cópia antes de fechar.", { id: "reader-save" }); });
+    }).catch(() => { toast.error(translate("mobile:readerData.annotationsSaveFailed"), { id: "reader-save" }); });
   }, [data, ready]);
   const add = useCallback((bookId: string, type: ReaderAnnotation["type"], locator: ReaderLocator, text = "", note = "") => {
     if (!ready) return;

@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import MobileAccountGate from "./MobileAccountGate";
 import MobileQueryError from "./MobileQueryError";
 import { MobileCard, MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
+import { formatNumber, translate, useTranslation, type TranslationKey } from "../i18n";
 import {
   acceptMobileFriendRequest,
   cancelMobileFriendRequest,
@@ -45,11 +46,11 @@ interface MobileLeaderboardScreenProps {
 
 type RankingPeriod = "today" | "this_week" | "this_month" | "all_time";
 
-const PERIODS: Array<{ key: RankingPeriod; label: string }> = [
-  { key: "today", label: "Hoje" },
-  { key: "this_week", label: "Semana" },
-  { key: "this_month", label: "Mes" },
-  { key: "all_time", label: "Total" },
+const PERIODS: Array<{ key: RankingPeriod; labelKey: TranslationKey }> = [
+  { key: "today", labelKey: "mobile:leaderboard.periods.today" },
+  { key: "this_week", labelKey: "mobile:leaderboard.periods.thisWeek" },
+  { key: "this_month", labelKey: "mobile:leaderboard.periods.thisMonth" },
+  { key: "all_time", labelKey: "mobile:leaderboard.periods.allTime" },
 ];
 
 function invalidateSocialQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -68,6 +69,8 @@ function Avatar({
   name?: string | null;
   current?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border ${
@@ -75,7 +78,7 @@ function Avatar({
       }`}
     >
       {src ? (
-        <img className="h-full w-full object-cover" src={src} alt={name || "Avatar"} />
+        <img className="h-full w-full object-cover" src={src} alt={name || t("mobile:leaderboard.avatarAlt")} />
       ) : (
         <User size={17} className={current ? "text-emerald-400" : "text-zinc-500"} />
       )}
@@ -84,7 +87,7 @@ function Avatar({
 }
 
 function displayName(name?: string | null, nickname?: string | null) {
-  return name || nickname || "Usuario";
+  return name || nickname || translate("mobile:leaderboard.unknownUser");
 }
 
 function pageFieldForPeriod(period: RankingPeriod, categoryId?: string | null) {
@@ -108,6 +111,7 @@ function RequestRow({
   onDecline: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const incoming = request.direction === "incoming";
   return (
     <article className="flex items-center gap-3 border-b border-zinc-800 p-3 last:border-b-0">
@@ -125,7 +129,7 @@ function RequestRow({
             disabled={busy}
             onClick={() => onAccept(request.id)}
             type="button"
-            aria-label="Aceitar convite"
+            aria-label={t("mobile:leaderboard.acceptInvite")}
           >
             <Check size={16} />
           </button>
@@ -134,7 +138,7 @@ function RequestRow({
             disabled={busy}
             onClick={() => onDecline(request.id)}
             type="button"
-            aria-label="Recusar convite"
+            aria-label={t("mobile:leaderboard.declineInvite")}
           >
             <X size={16} />
           </button>
@@ -146,7 +150,7 @@ function RequestRow({
           onClick={() => onCancel(request.id)}
           type="button"
         >
-          Cancelar
+          {t("mobile:leaderboard.cancel")}
         </button>
       )}
     </article>
@@ -162,19 +166,23 @@ function FriendRow({
   busy: boolean;
   onRemove: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
+
   return (
     <article className="flex items-center gap-3 border-b border-zinc-800 p-3 last:border-b-0">
       <Avatar src={friend.avatar_url} name={friend.name} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-zinc-100">{displayName(friend.name, friend.nickname)}</p>
-        <p className="truncate text-xs text-zinc-500">@{friend.nickname} · {friend.total_pages}p</p>
+        <p className="truncate text-xs text-zinc-500">
+        @{friend.nickname} · {formatNumber(friend.total_pages, i18n.language)}p
+      </p>
       </div>
       <button
         className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-950 text-red-300 disabled:opacity-60"
         disabled={busy}
         onClick={() => onRemove(friend.user_id)}
         type="button"
-        aria-label="Remover amigo"
+        aria-label={t("mobile:leaderboard.removeFriend")}
       >
         <Trash2 size={15} />
       </button>
@@ -183,6 +191,7 @@ function FriendRow({
 }
 
 function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation();
   const confirm = useMobileConfirm();
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState("");
@@ -215,7 +224,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     mutationFn: () => updateMobileProfileNickname(nickname.trim()),
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
-      toast.success("Nickname salvo");
+      toast.success(t("mobile:leaderboard.nicknameSaved"));
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -224,7 +233,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     mutationFn: () => findMobileUserByNickname(friendNickname.trim()),
     onSuccess: (result) => {
       if (!result) {
-        setSearchResult("Usuario nao encontrado.");
+        setSearchResult(t("mobile:leaderboard.userNotFound"));
         return;
       }
       setSearchResult(`@${result.nickname} · ${result.friend_status}`);
@@ -236,8 +245,8 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     mutationFn: () => sendMobileFriendRequest(friendNickname.trim()),
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
-      setSearchResult("Convite enviado.");
-      toast.success("Convite enviado");
+      setSearchResult(t("mobile:leaderboard.inviteSentBody"));
+      toast.success(t("mobile:leaderboard.inviteSent"));
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -250,7 +259,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     },
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
-      toast.success("Convite atualizado");
+      toast.success(t("mobile:leaderboard.inviteUpdated"));
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -259,7 +268,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     mutationFn: removeMobileFriend,
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
-      toast.success("Amigo removido");
+      toast.success(t("mobile:leaderboard.friendRemoved"));
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -272,7 +281,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
       <MobileCard className="p-5">
         <div className="flex items-center gap-2">
           <Users size={17} className="text-zinc-500" />
-          <h2 className="text-sm font-semibold text-zinc-100">Amigos</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.friendsTitle")}</h2>
           {incomingCount > 0 && (
             <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
               {incomingCount}
@@ -287,21 +296,25 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             nicknameMutation.mutate();
           }}
         >
-          <MobileFieldFrame label="Seu nickname" htmlFor="mobile-nickname" hint="É assim que seus amigos encontram você.">
+          <MobileFieldFrame
+          label={t("mobile:leaderboard.yourNickname")}
+          htmlFor="mobile-nickname"
+          hint={t("mobile:leaderboard.yourNicknameHint")}
+        >
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <MobileInput
               id="mobile-nickname"
               icon={User}
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="ex: leitor_2026"
+              placeholder={t("mobile:leaderboard.nicknamePlaceholder")}
             />
             <button
               className="h-11 rounded bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
               disabled={busy || !nickname.trim()}
               type="submit"
             >
-              Salvar
+              {t("mobile:leaderboard.save")}
             </button>
           </div>
           </MobileFieldFrame>
@@ -314,7 +327,10 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             sendMutation.mutate();
           }}
         >
-          <MobileFieldFrame label="Adicionar por nickname" htmlFor="mobile-friend-nickname">
+          <MobileFieldFrame
+            label={t("mobile:leaderboard.addByNickname")}
+            htmlFor="mobile-friend-nickname"
+          >
           <div className="grid grid-cols-[1fr_auto_auto] gap-2">
             <MobileInput
               id="mobile-friend-nickname"
@@ -324,14 +340,14 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
                 setFriendNickname(event.target.value);
                 setSearchResult(null);
               }}
-              placeholder="@amigo"
+              placeholder={t("mobile:leaderboard.friendNicknamePlaceholder")}
             />
             <button
               className="grid h-11 w-11 place-items-center rounded border border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-60"
               disabled={busy || !friendNickname.trim()}
               onClick={() => searchMutation.mutate()}
               type="button"
-              aria-label="Buscar usuario"
+              aria-label={t("mobile:leaderboard.searchUser")}
             >
               {searchMutation.isPending ? <Loader2 className="animate-spin" size={17} /> : <Search size={17} />}
             </button>
@@ -339,7 +355,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               className="grid h-11 w-11 place-items-center rounded bg-emerald-600 text-white disabled:opacity-60"
               disabled={busy || !friendNickname.trim()}
               type="submit"
-              aria-label="Enviar convite"
+              aria-label={t("mobile:leaderboard.sendInvite")}
             >
               {sendMutation.isPending ? <Loader2 className="animate-spin" size={17} /> : <Send size={17} />}
             </button>
@@ -351,7 +367,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
 
       <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Convites</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.invites")}</h2>
           {requestsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
         </div>
         {requests.length > 0 ? (
@@ -366,13 +382,13 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             />
           ))
         ) : (
-          <p className="p-4 text-sm text-zinc-500">Nenhum convite pendente.</p>
+          <p className="p-4 text-sm text-zinc-500">{t("mobile:leaderboard.noPendingInvites")}</p>
         )}
       </MobileCard>
 
       <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Sua rede</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.yourNetwork")}</h2>
           {friendsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
         </div>
         {friends.length > 0 ? (
@@ -382,14 +398,18 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               friend={friend}
               busy={busy}
               onRemove={async (id) => {
-                if (await confirm(`Remover @${friend.nickname}?`)) {
+                if (
+                  await confirm(
+                    t("mobile:leaderboard.removeFriendConfirm", { nickname: friend.nickname }),
+                  )
+                ) {
                   removeMutation.mutate(id);
                 }
               }}
             />
           ))
         ) : (
-          <p className="p-4 text-sm text-zinc-500">Adicione amigos para comparar leituras no ranking.</p>
+          <p className="p-4 text-sm text-zinc-500">{t("mobile:leaderboard.noFriends")}</p>
         )}
       </MobileCard>
     </div>
@@ -405,6 +425,7 @@ function RankingRow({
   index: number;
   pages: number;
 }) {
+  const { t, i18n } = useTranslation();
   const current = Boolean(user.is_current_user);
   return (
     <article
@@ -422,15 +443,23 @@ function RankingRow({
       <Avatar src={user.avatar_url} name={user.username} current={current} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-zinc-100">
-          {current ? "Voce" : user.username}
+          {current ? t("mobile:leaderboard.you") : user.username}
         </p>
         <p className="mt-1 truncate text-xs text-zinc-500">
-          {user.nickname ? `@${user.nickname}` : current ? "Sua conta" : "Amigo"}
+          {user.nickname
+            ? `@${user.nickname}`
+            : current
+              ? t("mobile:leaderboard.yourAccount")
+              : t("mobile:leaderboard.friend")}
         </p>
       </div>
       <div className="text-right">
-        <p className="text-base font-semibold text-zinc-100">{pages}p</p>
-        <p className="text-[11px] uppercase tracking-wide text-zinc-600">paginas</p>
+        <p className="text-base font-semibold text-zinc-100">
+          {formatNumber(pages, i18n.language)}p
+        </p>
+        <p className="text-[11px] uppercase tracking-wide text-zinc-600">
+          {t("mobile:leaderboard.pages")}
+        </p>
       </div>
     </article>
   );
@@ -440,6 +469,7 @@ export default function MobileLeaderboardScreen({
   sessionEmail,
   onOpenProfile,
 }: MobileLeaderboardScreenProps) {
+  const { t } = useTranslation();
   const enabled = getMobileReadingQueryEnabled(sessionEmail);
   const [period, setPeriod] = useState<RankingPeriod>("this_week");
   const [categoryId, setCategoryId] = useState<string>("");
@@ -466,8 +496,8 @@ export default function MobileLeaderboardScreen({
   if (!enabled) {
     return (
       <MobileAccountGate
-        title="Ranking com seus amigos"
-        body="Entre com sua conta para carregar amigos do desktop ou adicionar novos amigos pelo mobile."
+        title={t("mobile:leaderboard.gateTitle")}
+        body={t("mobile:leaderboard.gateBody")}
         onOpenProfile={onOpenProfile}
       />
     );
@@ -479,10 +509,14 @@ export default function MobileLeaderboardScreen({
       <MobileCard className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Leaderboard</p>
-            <h1 className="mt-1 text-xl font-semibold text-zinc-50">Você e seus amigos</h1>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+              {t("mobile:leaderboard.kicker")}
+            </p>
+            <h1 className="mt-1 text-xl font-semibold text-zinc-50">
+              {t("mobile:leaderboard.headline")}
+            </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              O mobile usa a mesma rede da conta desktop.
+              {t("mobile:leaderboard.body")}
             </p>
           </div>
           <div className="grid h-11 w-11 place-items-center rounded bg-emerald-500/10 text-emerald-400">
@@ -500,20 +534,20 @@ export default function MobileLeaderboardScreen({
               onClick={() => setPeriod(item.key)}
               type="button"
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="mt-4">
-          <MobileFieldFrame label="Categoria" htmlFor="ranking-category">
+          <MobileFieldFrame label={t("mobile:leaderboard.category")} htmlFor="ranking-category">
           <MobileSelect
             id="ranking-category"
             icon={Filter}
             value={categoryId}
             onChange={(event) => setCategoryId(event.target.value)}
           >
-            <option value="">Todas as categorias</option>
+            <option value="">{t("mobile:leaderboard.allCategories")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
@@ -527,17 +561,19 @@ export default function MobileLeaderboardScreen({
           type="button"
         >
           <UserPlus size={17} />
-          {showFriends ? "Ocultar amigos" : "Gerenciar amigos"}
+          {showFriends
+            ? t("mobile:leaderboard.hideFriends")
+            : t("mobile:leaderboard.manageFriends")}
         </button>
       </MobileCard>
 
-      {showFriends && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label="Gerenciar amigos" onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-zinc-100">Gerenciar amigos</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={() => setShowFriends(false)} aria-label="Fechar amigos" type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
+      {showFriends && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label={t("mobile:leaderboard.manageFriends")} onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-zinc-100">{t("mobile:leaderboard.manageFriends")}</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={() => setShowFriends(false)} aria-label={t("mobile:leaderboard.closeFriends")} type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
 
       <MobileCard className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-zinc-800 p-4">
           <div className="flex items-center gap-2">
             <Trophy size={16} className="text-zinc-500" />
-            <h2 className="text-sm font-semibold text-zinc-100">Ranking</h2>
+            <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.ranking")}</h2>
           </div>
           {isLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
         </div>
@@ -554,9 +590,11 @@ export default function MobileLeaderboardScreen({
         ) : (
           <div className="p-8 text-center">
             <Users size={24} className="mx-auto text-zinc-600" />
-            <p className="mt-3 text-sm font-medium text-zinc-300">Ranking vazio</p>
+            <p className="mt-3 text-sm font-medium text-zinc-300">
+              {t("mobile:leaderboard.rankingEmpty")}
+            </p>
             <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Registre leituras e adicione amigos para competir.
+              {t("mobile:leaderboard.rankingEmptyBody")}
             </p>
           </div>
         )}

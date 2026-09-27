@@ -7,6 +7,7 @@ import {
   type AppUpdaterDownloadProgress,
   type InstalledAppVersion,
 } from "./appUpdaterBridge";
+import { translate } from "../i18n";
 import { fetchLatestMobileReleaseJson, fetchWithTimeout, MobileReleaseError } from "./githubReleaseResolver";
 
 export interface NativeApkUpdateManifest {
@@ -53,32 +54,32 @@ export function isNewerVersionCode(remoteVersionCode: number, installedVersionCo
 
 export function parseNativeApkManifest(value: unknown): NativeApkUpdateManifest {
   if (!value || typeof value !== "object") {
-    throw new Error("Manifesto de atualizacao invalido");
+    throw new Error(translate("mobile:updater.manifestInvalid"));
   }
 
   const record = value as Partial<NativeApkUpdateManifest>;
   if (!record.version || typeof record.version !== "string") {
-    throw new Error("Manifesto sem versao");
+    throw new Error(translate("mobile:updater.manifestNoVersion"));
   }
   const versionCode = Number(record.versionCode);
   if (!Number.isSafeInteger(versionCode) || versionCode <= 0) {
-    throw new Error("Manifesto sem versionCode");
+    throw new Error(translate("mobile:updater.manifestNoVersionCode"));
   }
   if (!record.apkUrl || typeof record.apkUrl !== "string") {
-    throw new Error("Manifesto sem apkUrl");
+    throw new Error(translate("mobile:updater.manifestNoApkUrl"));
   }
   if (!record.apkUrl.startsWith("https://")) {
-    throw new Error("apkUrl precisa usar HTTPS");
+    throw new Error(translate("mobile:updater.manifestHttpsRequired"));
   }
 
   const sizeBytes = Number(record.sizeBytes);
   const minSdk = Number(record.minSdk);
   const sha256 = typeof record.sha256 === "string" ? record.sha256.trim().toLowerCase() : undefined;
   if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
-    throw new Error("Manifesto com SHA-256 invalido");
+    throw new Error(translate("mobile:updater.manifestBadSha"));
   }
   if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > 512 * 1024 * 1024) {
-    throw new Error("Manifesto com tamanho de APK invalido");
+    throw new Error(translate("mobile:updater.manifestBadSize"));
   }
 
   return {
@@ -99,7 +100,7 @@ export async function fetchNativeApkUpdateManifest() {
     return parseNativeApkManifest(await fetchLatestMobileReleaseJson("lyceum-mobile-latest.json"));
   }
   if (!NATIVE_APK_MANIFEST_URL.startsWith("https://")) {
-    throw new Error("A URL do manifesto de APK precisa usar HTTPS");
+    throw new Error(translate("mobile:updater.manifestHttpsRequired"));
   }
   const response = await fetchWithTimeout(`${NATIVE_APK_MANIFEST_URL}?t=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Manifesto de APK retornou HTTP ${response.status}`);
@@ -110,7 +111,7 @@ export async function checkNativeApkUpdate(): Promise<NativeApkUpdateState> {
   if (!supportsNativeApkUpdater()) {
     return {
       status: "unsupported",
-      error: "Atualizacao por APK esta disponivel apenas no Android.",
+      error: translate("mobile:updater.androidOnly"),
     };
   }
 
@@ -158,7 +159,7 @@ export async function installNativeApkUpdate(
     return {
       status: "unsupported",
       manifest,
-      error: "Atualizacao por APK esta disponivel apenas no Android.",
+      error: translate("mobile:updater.androidOnly"),
     };
   }
 

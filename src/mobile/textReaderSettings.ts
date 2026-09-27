@@ -1,3 +1,5 @@
+import type { TranslationKey } from "../i18n";
+
 export type ReaderTheme = "paper" | "dark" | "sepia";
 
 export type FontFamily = "georgia" | "serif" | "sans" | "opendyslexic";
@@ -9,10 +11,10 @@ export const MARGIN_CONTENT_WIDTH: Record<MarginLevel, number> = {
   wide: 72,
 };
 
-export const MARGIN_LABELS: Record<MarginLevel, string> = {
-  compact: "Compacto",
-  medium: "Medio",
-  wide: "Largo",
+export const MARGIN_LABELS: Record<MarginLevel, TranslationKey> = {
+  compact: "mobile:reader.margins.compact",
+  medium: "mobile:reader.margins.medium",
+  wide: "mobile:reader.margins.wide",
 };
 
 export interface ReaderSettings {
@@ -36,11 +38,17 @@ export const FONT_MAP: Record<FontFamily, string> = {
   opendyslexic: "'OpenDyslexic', 'Comic Sans MS', 'Trebuchet MS', sans-serif",
 };
 
-export const FONT_LABELS: Record<FontFamily, string> = {
-  georgia: "Georgia",
-  serif: "Serif",
-  sans: "Sans",
-  opendyslexic: "Dyslexic",
+export const FONT_LABELS: Record<FontFamily, TranslationKey> = {
+  georgia: "mobile:reader.fonts.georgia",
+  serif: "mobile:reader.fonts.serif",
+  sans: "mobile:reader.fonts.sans",
+  opendyslexic: "mobile:reader.fonts.opendyslexic",
+};
+
+export const THEME_LABELS: Record<ReaderTheme, TranslationKey> = {
+  paper: "mobile:reader.themes.paper",
+  dark: "mobile:reader.themes.dark",
+  sepia: "mobile:reader.themes.sepia",
 };
 
 export const THEME_COLORS: Record<ReaderTheme, { background: string; foreground: string; accent: string; border: string }> = {

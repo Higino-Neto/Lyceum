@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { translate } from "../i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { getMobileAuthErrorMessage, getMobileSupabase, subscribeMobileAuth, validateMobileSession } from "./supabaseMobile";
@@ -50,17 +51,17 @@ export function useMobileAuth() {
   const signIn = async (mode: "signin" | "signup") => {
     const supabase = getMobileSupabase();
     if (!supabase) {
-      toast.error("Supabase nao configurado no build mobile");
+      toast.error(translate("mobile:auth.notConfiguredBuild"));
       return;
     }
 
     const email = authEmail.trim();
     if (!/^\S+@\S+\.\S+$/.test(email) || !authPassword) {
-      toast.error("Informe email e senha");
+      toast.error(translate("mobile:auth.enterEmailAndPassword"));
       return;
     }
     if (mode === "signup" && authPassword.length < 8) {
-      toast.error("Use uma senha com pelo menos 8 caracteres");
+      toast.error(translate("mobile:auth.passwordTooShort"));
       return;
     }
 
@@ -86,21 +87,21 @@ export function useMobileAuth() {
       if (result.data.session?.user?.id) {
         await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
           console.warn("[mobile-auth] profile bootstrap failed", error);
-          toast("A sessao foi iniciada, mas o perfil social sera reparado na proxima sincronizacao.");
+          toast(translate("mobile:auth.socialProfilePending"));
         });
       }
 
       if (!result.data.session) {
         setSessionEmail(null);
         setAuthPassword("");
-        toast.success("Conta criada. Confirme o email antes de entrar.");
+        toast.success(translate("mobile:auth.accountCreatedConfirmEmail"));
         return;
       }
 
       setSessionEmail(result.data.session.user.email ?? email);
       setAuthPassword("");
       invalidateAccountQueries();
-      toast.success(mode === "signin" ? "Sessao iniciada" : "Conta criada");
+      toast.success(mode === "signin" ? translate("mobile:auth.sessionStarted") : translate("mobile:auth.accountCreated"));
     } catch (error) {
       const message = getMobileAuthErrorMessage(error);
       setAuthError(message);
@@ -131,7 +132,7 @@ export function useMobileAuth() {
     const supabase = getMobileSupabase();
     const email = authEmail.trim();
     if (!supabase || !/^\S+@\S+\.\S+$/.test(email)) {
-      toast.error("Informe o email da sua conta");
+      toast.error(translate("mobile:auth.accountEmailRequired"));
       return;
     }
     setAuthBusy(true);
@@ -143,7 +144,7 @@ export function useMobileAuth() {
         : undefined;
       const { error } = await supabase.auth.resetPasswordForEmail(email, options);
       if (error) throw error;
-      toast.success("Enviamos as instrucoes de recuperacao para o seu email.");
+      toast.success(translate("mobile:auth.recoverySent"));
     } catch (error) {
       const message = getMobileAuthErrorMessage(error);
       setAuthError(message);

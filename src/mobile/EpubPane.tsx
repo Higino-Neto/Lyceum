@@ -1,5 +1,6 @@
 import type { EpubBook, EpubRendition, EpubSection, TocItem, SearchHit } from "./epubAdapter";
-import { loadSettings, persistSettings, FONT_MAP, FONT_LABELS, THEME_COLORS, MARGIN_CONTENT_WIDTH, MARGIN_LABELS, type ReaderSettings, type ReaderTheme, type FontFamily, type MarginLevel } from "./textReaderSettings";
+import { loadSettings, persistSettings, FONT_MAP, FONT_LABELS, THEME_COLORS, THEME_LABELS, MARGIN_CONTENT_WIDTH, MARGIN_LABELS, type ReaderSettings, type ReaderTheme, type FontFamily, type MarginLevel } from "./textReaderSettings";
+import { useTranslation } from "../i18n";
 import { ReaderTools, useReaderHistory } from "./ReaderTools";
 import { useReaderData } from "./ReaderData";
 import type { ReaderLocator } from "./readerModel";
@@ -150,7 +151,8 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
 
   const [progress, setProgress] = useState(0);
-  const [positionLabel, setPositionLabel] = useState("Inicio");
+  const { t } = useTranslation();
+  const [positionLabel, setPositionLabel] = useState(t("mobile:epub.start"));
 
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
 
@@ -292,7 +294,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       if (!containerRef.current) return;
       if (!dataUrl) {
         setReady(false);
-        setError("Arquivo EPUB nao encontrado. Religue o arquivo pela biblioteca para continuar lendo.");
+        setError(t("mobile:epub.fileNotFound"));
         return;
       }
 
@@ -308,7 +310,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         setHits([]);
         setActiveHitIndex(0);
         setProgress(0);
-        setPositionLabel("Inicio");
+        setPositionLabel(t("mobile:epub.start"));
         containerRef.current.innerHTML = "";
 
         const mod = await import("epubjs");
@@ -403,7 +405,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         if (cfi && book.locations?.percentageFromCfi) {
           const percent = Math.round((book.locations.percentageFromCfi(cfi) || 0) * 100);
           setProgress(percent);
-          setPositionLabel(percent > 0 ? `${percent}%` : "Inicio");
+          setPositionLabel(percent > 0 ? `${percent}%` : t("mobile:epub.start"));
         }
         if (mounted && loadIdRef.current === loadId) {
           setReady(true);
@@ -416,7 +418,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         }
       } catch (err) {
         if (mounted && loadIdRef.current === loadId) {
-          setError(err instanceof Error ? err.message : "Nao foi possivel abrir este EPUB");
+          setError(err instanceof Error ? err.message : t("mobile:epub.openFailed"));
         }
       }
     }
@@ -489,7 +491,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             const text = getSectionText(section);
             if (!normalizeText(text).includes(cacheKey)) continue;
 
-            const label = section?.label || section?.href || "Resultado";
+            const label = section?.label || section?.href || t("mobile:epub.searchHitLabel");
             let found: Array<{ cfi: string; excerpt?: string }> = [];
             try {
               found = section.search?.(searchQuery) || section.find?.(searchQuery) || [];
@@ -531,7 +533,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       setActiveHitIndex(0);
       if (nextHits[0]) await displayTarget(nextHits[0].cfi || nextHits[0].href);
     } catch {
-      if (generation === searchGeneration.current) setError("A busca não pôde examinar todos os capítulos.");
+      if (generation === searchGeneration.current) setError(t("mobile:epub.searchIncomplete"));
     } finally {
       if (generation === searchGeneration.current) setIsSearching(false);
     }
@@ -551,8 +553,8 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: colors.background, color: colors.foreground }}>
       <ReaderTools onTurn={direction => { if (direction > 0) void renditionRef.current?.next(); else void renditionRef.current?.prev(); }} bookId={bookId} locator={currentCfiRef.current?.startsWith("epubcfi(") ? { format: "epub", cfi: currentCfiRef.current } : undefined} selection={selection} clearSelection={() => { setSelection(undefined); for (const iframe of containerRef.current?.querySelectorAll("iframe") || []) iframe.contentWindow?.getSelection()?.removeAllRanges(); }} history={history} navigate={l => { if (l.format === "epub") void renditionRef.current?.display(l.cfi); }} getText={async () => Array.from(containerRef.current?.querySelectorAll("iframe") || []).map(iframe => iframe.contentDocument?.body.textContent || "").join("\n")} />
-      {footnote && <div role="dialog" aria-label="Nota de rodapé" className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-zinc-900 p-4 text-zinc-100 shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>Fechar</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
-      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.prev()}>Anterior</button><span>{positionLabel}</span><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.next()}>Próxima</button></div>}
+      {footnote && <div role="dialog" aria-label={t("mobile:epub.footnoteAriaLabel")} className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-zinc-900 p-4 text-zinc-100 shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>{t("common:actions.close")}</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
+      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.prev()}>{t("common:actions.previous")}</button><span>{positionLabel}</span><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.next()}>{t("common:actions.next")}</button></div>}
       {showOverlay && (
         <div className="absolute inset-0 z-30 flex flex-col bg-zinc-950/95 backdrop-blur shadow-2xl">
           {/* Header bar */}
@@ -561,7 +563,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={onBack}
               type="button"
-              aria-label="Voltar"
+              aria-label={t("common:actions.back")}
             >
               <X size={16} />
             </button>
@@ -571,12 +573,12 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 <div className="h-full rounded bg-green-500" style={{ width: `${progress}%` }} />
               </div>
             </div>
-            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-zinc-900 text-emerald-300" onClick={onRegister} type="button" aria-label="Registrar leitura deste livro"><NotebookPen size={19} /></button>}
+            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-zinc-900 text-emerald-300" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
             <button
               className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={() => setTocOpen((value) => !value)}
               type="button"
-              aria-label="Sumario"
+              aria-label={t("mobile:epub.tocAriaLabel")}
             >
               <List size={16} />
             </button>
@@ -584,7 +586,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={() => setSearchOpen((value) => !value)}
               type="button"
-              aria-label="Buscar"
+              aria-label={t("mobile:epub.searchAriaLabel")}
             >
               {searchOpen ? <X size={16} /> : <Search size={16} />}
             </button>
@@ -592,7 +594,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
               onClick={() => setShowOverlay(false)}
               type="button"
-              aria-label="Fechar"
+              aria-label={t("common:actions.close")}
             >
               <ChevronDown size={16} />
             </button>
@@ -604,7 +606,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               <div className="flex gap-2">
                 <input
                   className="h-10 min-w-0 flex-1 rounded bg-zinc-900 px-3 text-sm text-zinc-100"
-                  placeholder="Buscar no EPUB"
+                  placeholder={t("mobile:epub.searchPlaceholder")}
                   value={query}
                   onChange={(event) => { searchGeneration.current++; setIsSearching(false); setQuery(event.target.value); }}
                   onKeyDown={(event) => {
@@ -616,11 +618,13 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                   onClick={() => { if (isSearching) { searchGeneration.current++; setIsSearching(false); } else void runSearch(); }}
                   type="button"
                 >
-                  {isSearching ? "Cancelar" : "Ir"}
+                  {isSearching ? t("common:actions.cancel") : t("mobile:epub.searchGo")}
                 </button>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-500">
-                <span>{hits.length > 0 ? `${activeHitIndex + 1}/${hits.length} resultado(s)` : "Digite ao menos 2 caracteres"}</span>
+                <span>{hits.length > 0
+                  ? t("mobile:epub.searchProgress", { hit: activeHitIndex + 1, total: hits.length })
+                  : t("mobile:epub.searchHint")}</span>
                 <div className="flex gap-1">
                   <button
                     className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-200 disabled:opacity-40"
@@ -650,10 +654,10 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
           {/* Settings */}
           <div className="flex-1 overflow-y-auto border-t border-zinc-800 px-3 py-4">
-            <label className="mb-4 flex gap-3 text-zinc-200"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> Paginação horizontal</label>
+            <label className="mb-4 flex gap-3 text-zinc-200"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> {t("mobile:reader.paginatedLabel")}</label>
             {/* Font family */}
             <div className="mb-4">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Fonte</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontFamilyLabel")}</label>
               <div className="grid grid-cols-4 gap-2">
                 {fontOptions.map((font) => (
                   <button
@@ -664,7 +668,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     onClick={() => updateSetting("fontFamily", font)}
                     type="button"
                   >
-                    {FONT_LABELS[font]}
+                    {t(FONT_LABELS[font])}
                   </button>
                 ))}
               </div>
@@ -673,7 +677,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             {/* Font size + Line height */}
             <div className="mb-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tamanho</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontSizeLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   <button
                     className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
@@ -697,7 +701,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Linha</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.lineHeightLabel")}</label>
                 <button
                   className="h-9 w-full rounded bg-zinc-900 text-xs font-medium text-zinc-100"
                   onClick={() => {
@@ -714,12 +718,12 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             {/* Font weight + Word spacing */}
             <div className="mb-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Peso</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontWeightLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {[
-                    { value: 0, label: "Leve" },
-                    { value: 1, label: "Normal" },
-                    { value: 2, label: "Negrito" },
+                    { value: 0, label: t("mobile:reader.fontWeights.light") },
+                    { value: 1, label: t("mobile:reader.fontWeights.regular") },
+                    { value: 2, label: t("mobile:reader.fontWeights.bold") },
                   ].map(({ value, label }) => (
                     <button
                       key={value}
@@ -735,12 +739,12 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Palavras</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.wordSpacingLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {[
-                    { value: 0, label: "Nenhum" },
-                    { value: 1, label: "Pouco" },
-                    { value: 2, label: "Muito" },
+                    { value: 0, label: t("mobile:reader.wordSpacings.none") },
+                    { value: 1, label: t("mobile:reader.wordSpacings.little") },
+                    { value: 2, label: t("mobile:reader.wordSpacings.lot") },
                   ].map(({ value, label }) => (
                     <button
                       key={value}
@@ -759,7 +763,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
             {/* Theme */}
             <div className="mb-4">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Tema</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.themeLabel")}</label>
               <div className="grid grid-cols-3 gap-2">
                 {(["paper", "dark", "sepia"] as ReaderTheme[]).map((item) => (
                   <button
@@ -771,7 +775,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     type="button"
                   >
                     {item === "dark" ? <Moon size={15} /> : <Sun size={15} />}
-                    {item === "paper" ? "Papel" : item === "dark" ? "Noite" : "Sépia"}
+                    {t(THEME_LABELS[item])}
                   </button>
                 ))}
               </div>
@@ -779,7 +783,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
             {/* Margins */}
             <div>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Margens</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.marginsLabel")}</label>
               <div className="grid grid-cols-3 gap-2">
                 {(["compact", "medium", "wide"] as MarginLevel[]).map((level) => (
                   <button
@@ -790,7 +794,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     onClick={() => updateSetting("marginLevel", level)}
                     type="button"
                   >
-                    {MARGIN_LABELS[level]}
+                    {t(MARGIN_LABELS[level])}
                   </button>
                 ))}
               </div>
@@ -806,7 +810,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         />
         {!ready && !error && (
           <div className="absolute inset-0 grid place-items-center text-sm text-zinc-500">
-            Preparando EPUB...
+            {t("mobile:epub.preparing")}
           </div>
         )}
         {error && (
@@ -838,13 +842,13 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-100"
                 onClick={() => setTocOpen(false)}
                 type="button"
-                aria-label="Fechar sumario"
+                aria-label={t("mobile:epub.closeTocAriaLabel")}
               >
                 <X size={16} />
               </button>
             </div>
             {tocItems.length === 0 ? (
-              <p className="rounded bg-zinc-900 p-3 text-sm text-zinc-400">Este EPUB nao trouxe sumario navegavel.</p>
+              <p className="rounded bg-zinc-900 p-3 text-sm text-zinc-400">{t("mobile:epub.noToc")}</p>
             ) : (
               <div className="space-y-1">
                 {tocItems.map((item, index) => (

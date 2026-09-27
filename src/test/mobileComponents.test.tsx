@@ -35,7 +35,7 @@ describe("mobile library screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Filtros e coleções" }));
     fireEvent.change(screen.getByLabelText("Filtrar status"), { target: { value: "reading" } });
     expect(p.onQueryChange).toHaveBeenCalledWith(expect.objectContaining({ status: "reading" }));
-    fireEvent.click(screen.getByLabelText("Selecao em lote"));
+    fireEvent.click(screen.getByLabelText("Seleção em lote"));
     expect(screen.getByPlaceholderText("Tags para os selecionados")).toBeInTheDocument();
   });
 });

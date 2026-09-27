@@ -1,4 +1,5 @@
 import JSZip, { type JSZipObject } from "jszip";
+import { translate } from "../i18n";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { MobileFileType } from "./types";
 
@@ -77,7 +78,7 @@ function loadImage(dataUrl: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Nao foi possivel ler a imagem da capa"));
+    image.onerror = () => reject(new Error(translate("mobile:errors.coverReadFailed")));
     image.src = dataUrl;
   });
 }

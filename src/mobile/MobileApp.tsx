@@ -63,6 +63,7 @@ import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbna
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
 import { MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
+import { getActiveLocale, normalizeCase, translate, useTranslation, type TranslationKey } from "../i18n";
 
 const EpubPane = lazy(() => import("./EpubPane"));
 const MobileDashboardScreen = lazy(() => import("./MobileDashboardScreen"));
@@ -71,12 +72,12 @@ const MobileLibraryScreenV2 = lazy(() => import("./MobileLibraryScreen"));
 const MobileReadingEntryScreen = lazy(() => import("./MobileReadingEntryScreen"));
 const PdfPane = lazy(() => import("./PdfPane"));
 
-const tabs: Array<{ id: MobileTab; label: string; icon: typeof Library }> = [
-  { id: "dashboard", label: "Hoje", icon: BarChart3 },
-  { id: "readings", label: "Registrar", icon: NotebookPen },
-  { id: "library", label: "Biblioteca", icon: Library },
-  { id: "leaderboard", label: "Ranking", icon: Trophy },
-  { id: "profile", label: "Perfil", icon: UserCircle },
+const tabs: Array<{ id: MobileTab; labelKey: TranslationKey; icon: typeof Library }> = [
+  { id: "dashboard", labelKey: "mobile:tabs.dashboard", icon: BarChart3 },
+  { id: "readings", labelKey: "mobile:tabs.readings", icon: NotebookPen },
+  { id: "library", labelKey: "mobile:tabs.library", icon: Library },
+  { id: "leaderboard", labelKey: "mobile:tabs.leaderboard", icon: Trophy },
+  { id: "profile", labelKey: "mobile:tabs.profile", icon: UserCircle },
 ];
 
 function updateBook(state: MobileLibraryState, bookId: string, patch: Partial<MobileBook>) {
@@ -102,16 +103,18 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
 }
 
 function MobileStartupSkeleton() {
+  const { t } = useTranslation();
+
   return (
-    <div className="mobile-app-skeleton mx-auto flex w-full max-w-[480px] flex-col px-4 pb-28 pt-[max(22px,env(safe-area-inset-top))]" role="status" aria-label="Carregando o Lyceum">
+    <div className="mobile-app-skeleton mx-auto flex w-full max-w-[480px] flex-col px-4 pb-28 pt-[max(22px,env(safe-area-inset-top))]" role="status" aria-label={t("mobile:startup.ariaLabel")}>
       <div className="flex items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-300"><BookOpen size={22} /></div>
-        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-400">Lyceum</p><p className="mt-1 text-sm text-zinc-500">Preparando sua biblioteca</p></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-400">Lyceum</p><p className="mt-1 text-sm text-zinc-500">{t("mobile:startup.preparingLibrary")}</p></div>
       </div>
       <div className="mobile-skeleton-block mt-8 h-40 rounded-3xl" />
       <div className="mt-4 grid grid-cols-2 gap-3"><div className="mobile-skeleton-block h-28 rounded-2xl" /><div className="mobile-skeleton-block h-28 rounded-2xl" /></div>
       <div className="mobile-skeleton-block mt-4 h-52 rounded-3xl" />
-      <span className="sr-only">Carregando sessão e dados locais…</span>
+      <span className="sr-only">{t("mobile:startup.srOnly")}</span>
     </div>
   );
 }
@@ -127,31 +130,31 @@ function formatMobileDate(value?: string) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("pt-BR");
+  return date.toLocaleDateString(getActiveLocale());
 }
 
 function getNativeApkUpdateText(state: NativeApkUpdateState) {
   switch (state.status) {
     case "checking":
-      return "Buscando atualizacao...";
+      return translate("mobile:updater.checking");
     case "available":
-      return "Atualizacao disponivel para instalar.";
+      return translate("mobile:updater.available");
     case "not-available":
-      return "Voce esta na versao mais recente.";
+      return translate("mobile:updater.notAvailable");
     case "not-published":
-      return state.error || "Ainda nao existe uma versao mobile publicada.";
+      return state.error || translate("mobile:updater.notPublished");
     case "permission-required":
-      return "Permita que o Lyceum solicite instalacao de APKs.";
+      return translate("mobile:updater.permissionRequired");
     case "downloading":
-      return "Baixando APK...";
+      return translate("mobile:updater.downloading");
     case "installing":
-      return "Instalador do Android aberto. Confirme para concluir.";
+      return translate("mobile:updater.installing");
     case "error":
-      return state.error || "Falha ao verificar atualizacao.";
+      return state.error || translate("mobile:updater.checkFailed");
     case "unsupported":
-      return "Atualizacao por APK esta disponivel apenas no Android.";
+      return translate("mobile:updater.androidOnly");
     default:
-      return "Nenhuma verificacao feita.";
+      return translate("mobile:updater.idle");
   }
 }
 
@@ -182,7 +185,7 @@ function shouldExtractThumbnail(book: MobileBook) {
 }
 
 async function extractThumbnailPatch(book: MobileBook, file: File): Promise<Partial<MobileBook>> {
-  const metadata = await extractMobileMetadata(file, book.fileType).catch(() => { toast(`Metadados indisponíveis: ${file.name}. Você pode editá-los na biblioteca.`); return {}; });
+  const metadata = await extractMobileMetadata(file, book.fileType).catch(() => { toast(translate("mobile:metadata.unavailable", { name: file.name })); return {}; });
   if (!canExtractThumbnail(book)) return metadata;
 
   try {
@@ -205,6 +208,8 @@ function MissingBookFile({
   onAttach: () => void;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <section className="grid min-h-[calc(100dvh-128px)] place-items-center p-6 text-center">
       <div className="max-w-sm">
@@ -212,12 +217,12 @@ function MissingBookFile({
           <BookOpen size={26} />
         </div>
         <h2 className="mt-5 text-lg font-semibold text-zinc-100">
-          {loading ? "Carregando arquivo..." : "Arquivo do livro nao encontrado"}
+          {loading ? t("mobile:reader.loadingFile") : t("mobile:reader.fileNotFound")}
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
           {loading
-            ? "Estou recuperando o arquivo salvo no armazenamento local."
-            : `${book.title} ainda existe na biblioteca, mas o EPUB/PDF original nao esta ligado a esta entrada.`}
+            ? t("mobile:reader.restoringFile")
+            : t("mobile:reader.fileDetached", { title: book.title })}
         </p>
         {!loading && (
           <div className="mt-6 grid gap-2">
@@ -226,7 +231,7 @@ function MissingBookFile({
               onClick={onAttach}
               type="button"
             >
-              Religar arquivo
+              {t("mobile:reader.relinkFile")}
             </button>
             <button
               className="h-11 rounded border border-zinc-800 bg-zinc-900 px-4 text-sm font-medium text-zinc-200"
@@ -243,6 +248,7 @@ function MissingBookFile({
 }
 
 function MobileApp() {
+  const { t } = useTranslation();
   const confirm = useMobileConfirm();
   const sourceFolderInputRef = useRef<HTMLInputElement | null>(null);
   const replaceFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -338,12 +344,12 @@ function MobileApp() {
   const importSourceEntries = async (
     entries: SourceImportEntry[],
     requestedSourceId?: string,
-    detectedName = "Pasta importada",
+    detectedName = translate("mobile:imports.folderImported"),
     nativeUri?: string,
   ) => {
     const supportedEntries = entries.filter((entry) => inferFileType({ name: entry.name, type: entry.mimeType } as File));
     if (!supportedEntries.length) {
-      toast.error("A pasta nao contem PDF, EPUB ou TXT");
+      toast.error(t("mobile:imports.folderHasNoBooks"));
       return;
     }
 
@@ -377,7 +383,7 @@ function MobileApp() {
           name: entry.name,
           progress: 0,
           status: "reading",
-          message: "Lendo pasta-fonte",
+          message: t("mobile:imports.readingFolder"),
         }]);
         const file = await entry.loadFile(sourceController.signal, (loaded, total) => {
           updateImportJob(sourceJobId!, { progress: total > 0 ? Math.min(58, Math.round((loaded / total) * 58)) : 12 });
@@ -387,10 +393,14 @@ function MobileApp() {
           signal: sourceController.signal,
           onProgress: (loaded, total) => updateImportJob(sourceJobId!, {
             progress: total > 0 ? 58 + Math.round((loaded / total) * 22) : 68,
-            message: "Preparando livro",
+            message: t("mobile:imports.preparingBook"),
           }),
         });
-        updateImportJob(sourceJobId, { progress: 84, status: "processing", message: "Salvando na biblioteca" });
+        updateImportJob(sourceJobId, {
+          progress: 84,
+          status: "processing",
+          message: t("mobile:imports.savingToLibrary"),
+        });
         if (duplicate) {
           const nextBook = { ...duplicate, folderId: ensured.folderId, sourceFolderId: source.id, sourceRelativePath: relativePath };
           const storagePath = await writeMobileBookFile(nextBook, dataUrl, ensured.folderId);
@@ -402,7 +412,11 @@ function MobileApp() {
             ...thumbnailPatch,
             contentHash,
           });
-          updateImportJob(sourceJobId, { progress: 100, status: "done", message: "Atualizado" });
+          updateImportJob(sourceJobId, {
+            progress: 100,
+            status: "done",
+            message: t("mobile:imports.updated"),
+          });
           continue;
         }
 
@@ -417,11 +431,30 @@ function MobileApp() {
           sourceFolderId: source.id,
           sourceRelativePath: relativePath,
         });
-        updateImportJob(sourceJobId, { progress: 100, status: "done", message: "Importado" });
+        updateImportJob(sourceJobId, {
+          progress: 100,
+          status: "done",
+          message: t("mobile:imports.imported"),
+        });
       } catch (error) {
         const cancelled = sourceController?.signal.aborted || (error instanceof Error && error.message.toLowerCase().includes("cancel"));
-        if (sourceJobId) updateImportJob(sourceJobId, { status: cancelled ? "cancelled" : "error", message: cancelled ? "Cancelado" : error instanceof Error ? error.message : `Falha ao importar ${entry.name}` });
-        if (!cancelled) toast.error(error instanceof Error ? error.message : `Falha ao importar ${entry.name}`);
+        if (sourceJobId) {
+          updateImportJob(sourceJobId, {
+            status: cancelled ? "cancelled" : "error",
+            message: cancelled
+              ? t("mobile:imports.cancelled")
+              : error instanceof Error
+                ? error.message
+                : t("mobile:imports.importFailed", { name: entry.name }),
+          });
+        }
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : t("mobile:imports.importFailed", { name: entry.name }),
+          );
+        }
       } finally {
         if (sourceJobId) importControllersRef.current.delete(sourceJobId);
       }
@@ -487,7 +520,9 @@ function MobileApp() {
       }));
       await importSourceEntries(entries, sourceFolderId, scan.name || selection.name, selection.uri);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao conectar pasta-fonte");
+      toast.error(
+        error instanceof Error ? error.message : t("mobile:imports.folderConnectFailed"),
+      );
     }
   };
 
@@ -498,7 +533,7 @@ function MobileApp() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       const fileType = inferFileType(file);
-      if (!fileType) throw new Error("Use um arquivo PDF, EPUB ou TXT");
+      if (!fileType) throw new Error(t("mobile:imports.usePdfEpubOrTxt"));
       const linkedBook = { ...selectedBook, fileName: file.name, fileType };
       const contentHash = await hashMobileFile(file);
       const thumbnailPatch = await extractThumbnailPatch(linkedBook, file);
@@ -512,9 +547,9 @@ function MobileApp() {
         lastOpenedAt: new Date().toISOString(),
         ...thumbnailPatch,
       }));
-      toast.success("Arquivo religado ao livro");
+      toast.success(t("mobile:imports.fileRelinked"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao religar arquivo");
+      toast.error(error instanceof Error ? error.message : t("mobile:imports.relinkFailed"));
     } finally {
       if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
     }
@@ -524,8 +559,13 @@ function MobileApp() {
     const safeName = sanitizeFolderName(name);
     if (!safeName) return;
     setState((current) => {
-      if (current.folders.some((folder) => folder.parentId === parentId && folder.name.toLocaleLowerCase("pt-BR") === safeName.toLocaleLowerCase("pt-BR"))) {
-        toast.error("Ja existe uma pasta com este nome");
+      if (
+        current.folders.some(
+          (folder) =>
+            folder.parentId === parentId && normalizeCase(folder.name) === normalizeCase(safeName),
+        )
+      ) {
+        toast.error(t("mobile:folders.nameTaken"));
         return current;
       }
       return { ...current, folders: [...current.folders, createFolder(safeName, parentId)] };
@@ -546,11 +586,18 @@ function MobileApp() {
       const folder = current.folders.find((item) => item.id === folderId);
       if (!folder || folder.parentId === parentId) return current;
       if (parentId && descendantFolderIds(folderId, current.folders).has(parentId)) {
-        toast.error("Uma pasta nao pode ser movida para dentro dela mesma");
+        toast.error(t("mobile:folders.cannotMoveIntoItself"));
         return current;
       }
-      if (current.folders.some((item) => item.id !== folderId && item.parentId === parentId && item.name.toLocaleLowerCase("pt-BR") === folder.name.toLocaleLowerCase("pt-BR"))) {
-        toast.error("Ja existe uma pasta com este nome no destino");
+      if (
+        current.folders.some(
+          (item) =>
+            item.id !== folderId &&
+            item.parentId === parentId &&
+            normalizeCase(item.name) === normalizeCase(folder.name),
+        )
+      ) {
+        toast.error(t("mobile:folders.nameTakenInTarget"));
         return current;
       }
       return {
@@ -668,7 +715,7 @@ function MobileApp() {
       />
       {!isOnline ? (
         <div className="fixed inset-x-0 top-0 z-50 mx-auto max-w-[480px] bg-amber-500 px-4 py-2 text-center text-xs font-semibold text-zinc-950" role="status">
-          Sem internet. A biblioteca e o leitor continuam disponiveis; a conta e a sincronizacao aguardarao a conexao.
+          {t("mobile:offline.banner")}
         </div>
       ) : null}
       <input
@@ -697,18 +744,20 @@ function MobileApp() {
       />
 
       {importJobs.length > 0 && (
-        <aside className="fixed inset-x-3 bottom-[calc(82px+env(safe-area-inset-bottom))] z-[80] mx-auto max-w-[454px] rounded-2xl border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl" aria-label="Progresso das importacoes">
+        <aside className="fixed inset-x-3 bottom-[calc(82px+env(safe-area-inset-bottom))] z-[80] mx-auto max-w-[454px] rounded-2xl border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl" aria-label={t("mobile:imports.title")}>
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Importacoes</p>
-            <button className="grid h-8 w-8 place-items-center rounded-full bg-zinc-900 text-zinc-400" onClick={() => setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing"))} aria-label="Limpar importacoes concluidas" type="button"><X size={15} /></button>
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              {t("mobile:imports.heading")}
+            </p>
+            <button className="grid h-8 w-8 place-items-center rounded-full bg-zinc-900 text-zinc-400" onClick={() => setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing"))} aria-label={t("mobile:imports.clearFinished")} type="button"><X size={15} /></button>
           </div>
           <div className="max-h-52 space-y-2 overflow-y-auto">
             {importJobs.map((job) => {
               const running = job.status === "reading" || job.status === "processing";
               return <div key={job.id} className="rounded-xl bg-zinc-900 p-3">
                 <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-100">{job.name}</p><p className={`mt-0.5 text-[11px] ${job.status === "error" ? "text-red-400" : job.status === "done" ? "text-emerald-400" : "text-zinc-500"}`}>{job.message || "Preparando"}</p></div>
-                  {running ? <button className="h-8 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300" onClick={() => importControllersRef.current.get(job.id)?.abort()} type="button">Cancelar</button> : <span className="text-xs tabular-nums text-zinc-500">{job.status === "done" ? "100%" : job.status === "cancelled" ? "Cancelado" : "Falhou"}</span>}
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-100">{job.name}</p><p className={`mt-0.5 text-[11px] ${job.status === "error" ? "text-red-400" : job.status === "done" ? "text-emerald-400" : "text-zinc-500"}`}>{job.message || t("mobile:imports.preparing")}</p></div>
+                  {running ? <button className="h-8 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300" onClick={() => importControllersRef.current.get(job.id)?.abort()} type="button">{t("mobile:imports.cancelJob")}</button> : <span className="text-xs tabular-nums text-zinc-500">{job.status === "done" ? "100%" : job.status === "cancelled" ? t("mobile:imports.cancelled") : t("mobile:imports.failed")}</span>}
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800"><div className={`h-full rounded-full transition-all duration-200 ${job.status === "error" ? "bg-red-500" : job.status === "cancelled" ? "bg-zinc-600" : "bg-emerald-500"}`} style={{ width: job.progress + "%" }} /></div>
               </div>;
@@ -732,14 +781,16 @@ function MobileApp() {
                   <p className="text-xs font-medium uppercase tracking-wide text-green-400">Lyceum Mobile</p>
                 )}
                 <h1 className={activeTab === "reader" && isEbookReader ? "text-base font-semibold text-zinc-50" : "mt-1 text-xl font-semibold text-zinc-50"}>
-                  {activeTab === "reader" ? "Leitor" : tabs.find((tab) => tab.id === activeTab)?.label}
+                  {activeTab === "reader"
+                    ? t("mobile:reader.title")
+                    : t(tabs.find((tab) => tab.id === activeTab)?.labelKey ?? "mobile:tabs.dashboard")}
                 </h1>
               </div>
               <button
                 className="grid h-10 w-10 place-items-center rounded border border-zinc-800 bg-zinc-900 text-zinc-200"
                 onClick={() => setActiveTab("profile")}
                 type="button"
-                aria-label="Abrir perfil"
+                aria-label={t("mobile:profile.openAriaLabel")}
               >
                 <Settings size={18} />
               </button>
@@ -748,7 +799,7 @@ function MobileApp() {
         )}
 
         <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) || keyboardOpen ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
-          <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-zinc-500">Carregando...</div>}>
+          <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-zinc-500">{t("mobile:startup.loading")}</div>}>
           {activeTab === "dashboard" && (
             <MobileDashboardScreen
               sessionEmail={sessionEmail}
@@ -826,15 +877,15 @@ function MobileApp() {
                 <section className={selectedBook?.fileType === "pdf" ? "h-[100dvh]" : isEbookReader ? "space-y-3 px-3 py-3" : "space-y-4 p-4"}>
                   {!selectedBook ? (
                     <EmptyState
-                      title="Nenhum livro selecionado"
-                      body="Escolha um item da biblioteca para abrir o leitor mobile."
+                      title={t("mobile:reader.noBookSelected")}
+                      body={t("mobile:reader.noBookSelectedBody")}
                       action={
                         <button
                           className="rounded bg-green-600 px-4 py-3 text-sm font-semibold text-white"
                           onClick={() => setActiveTab("library")}
                           type="button"
                         >
-                          Abrir biblioteca
+                          {t("mobile:reader.openLibrary")}
                         </button>
                       }
                     />
@@ -850,7 +901,7 @@ function MobileApp() {
                             className="grid h-9 w-9 place-items-center rounded bg-zinc-950 text-zinc-300"
                             onClick={() => toggleFavorite(selectedBook.id)}
                             type="button"
-                            aria-label="Favoritar"
+                            aria-label={t("mobile:book.favorite")}
                           >
                             <Heart
                               className={selectedBook.isFavorite ? "fill-green-400 text-green-400" : ""}
@@ -919,8 +970,7 @@ function MobileApp() {
                         ) : (
                           <div className="min-h-[360px] p-5 text-sm leading-7 text-zinc-300">
                             <p>
-                              Este item esta pronto para acompanhamento mobile. Importe um PDF, EPUB ou TXT para ver o conteudo
-                              dentro do leitor.
+                              {t("mobile:book.mobileReady")} {t("mobile:book.mobileReadyBody")}
                             </p>
                           </div>
                         )}
@@ -937,9 +987,9 @@ function MobileApp() {
                           type="button"
                         >
                           <NotebookPen size={17} />
-                          Registrar leitura deste livro
+                          {t("mobile:book.logReading")}
                         </button>
-                        <MobileFieldFrame label="Categoria" htmlFor="reader-book-category">
+                        <MobileFieldFrame label={t("mobile:book.category")} htmlFor="reader-book-category">
                         <MobileSelect
                           id="reader-book-category"
                           icon={Library}
@@ -951,12 +1001,14 @@ function MobileApp() {
                           ))}
                         </MobileSelect>
                         </MobileFieldFrame>
-                        <label className="mt-4 block text-sm font-medium text-zinc-100">Notas</label>
+                        <label className="mt-4 block text-sm font-medium text-zinc-100">
+                          {t("mobile:book.notes")}
+                        </label>
                         <textarea
                           className="mt-2 min-h-24 w-full resize-none rounded border border-zinc-800 bg-zinc-950 p-3 text-sm"
                           value={selectedBook.notes || ""}
                           onChange={(event) => saveBookNotes(selectedBook.id, event.target.value)}
-                          placeholder="Ideias, paginas importantes, proximas leituras..."
+                          placeholder={t("mobile:book.notesPlaceholder")}
                         />
                       </div>
                       )}
@@ -977,12 +1029,27 @@ function MobileApp() {
           {activeTab === "profile" && (
             <section className="space-y-5 p-4">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">Sua conta e dispositivo</p>
+                <p className="text-base font-semibold text-zinc-100">
+                    {t("mobile:profile.accountAndDevice")}
+                  </p>
                 <div className="mt-4 space-y-3 text-sm text-zinc-400">
-                  <p>Versao: {import.meta.env.VITE_APP_VERSION || "desenvolvimento"}</p>
-                  <p>Biblioteca: armazenamento local persistente no aparelho.</p>
-                  <p>Supabase: {hasSupabaseConfig() ? "configurado" : "nao configurado"}</p>
-                  <p>Conta: {!authReady ? "verificando sessao..." : sessionEmail || "modo local"}</p>
+                  <p>
+                    {t("mobile:profile.version")}:{" "}
+                    {import.meta.env.VITE_APP_VERSION || t("mobile:profile.versionFallback")}
+                  </p>
+                  <p>{t("mobile:profile.library")}</p>
+                  <p>
+                    {t("mobile:profile.supabase")}:{" "}
+                    {hasSupabaseConfig()
+                      ? t("mobile:profile.configured")
+                      : t("mobile:auth.notConfigured")}
+                  </p>
+                  <p>
+                    {t("mobile:profile.account")}:{" "}
+                    {!authReady
+                      ? t("mobile:auth.checkingSession")
+                      : sessionEmail || t("mobile:auth.localMode")}
+                  </p>
                 </div>
                 {sessionEmail && (
                   <button
@@ -991,7 +1058,7 @@ function MobileApp() {
                     type="button"
                   >
                     <Trophy size={17} />
-                    Ranking e amigos
+                    {t("mobile:profile.rankingAndFriends")}
                   </button>
                 )}
               </div>
@@ -999,7 +1066,9 @@ function MobileApp() {
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-base font-semibold text-zinc-100">Atualizacoes</p>
+                    <p className="text-base font-semibold text-zinc-100">
+                      {t("mobile:profile.updates")}
+                    </p>
                     <p className="mt-1 text-sm leading-6 text-zinc-400">
                       {getNativeApkUpdateText(nativeApkUpdate)}
                     </p>
@@ -1012,17 +1081,17 @@ function MobileApp() {
                 <div className="mt-4 space-y-2 text-xs text-zinc-500">
                   {nativeApkUpdate.installed ? (
                     <p>
-                      Instalado: {nativeApkUpdate.installed.versionName} ({nativeApkUpdate.installed.versionCode})
+                      {t("mobile:profile.installed")}: {nativeApkUpdate.installed.versionName} ({nativeApkUpdate.installed.versionCode})
                     </p>
                   ) : null}
                   {nativeApkUpdate.manifest ? (
                     <p>
-                      Disponivel: {nativeApkUpdate.manifest.version} ({nativeApkUpdate.manifest.versionCode})
+                      {t("mobile:profile.available")}: {nativeApkUpdate.manifest.version} ({nativeApkUpdate.manifest.versionCode})
                       {nativeUpdatePublishedAt ? ` - ${nativeUpdatePublishedAt}` : ""}
                     </p>
                   ) : null}
                   {nativeApkUpdate.manifest?.sizeBytes ? (
-                    <p>Tamanho: {nativeUpdateSize}</p>
+                    <p>{t("mobile:profile.size")}: {nativeUpdateSize}</p>
                   ) : null}
                 </div>
 
@@ -1056,7 +1125,7 @@ function MobileApp() {
                       onClick={openNativeInstallSettings}
                       type="button"
                     >
-                      Abrir permissao de instalacao
+                      {t("mobile:updater.openInstallPermission")}
                     </button>
                   ) : null}
                   {nativeApkUpdate.status === "available" || nativeApkUpdate.status === "permission-required" ? (
@@ -1067,7 +1136,7 @@ function MobileApp() {
                       type="button"
                     >
                       <Download size={17} />
-                      {nativeApkUpdateBusy ? "Preparando..." : "Atualizar"}
+                      {nativeApkUpdateBusy ? t("mobile:updater.preparing") : t("mobile:updater.update")}
                     </button>
                   ) : null}
                   <button
@@ -1077,13 +1146,15 @@ function MobileApp() {
                     type="button"
                   >
                     <RefreshCw size={17} />
-                    Buscar atualizacoes
+                    {t("mobile:updater.check")}
                   </button>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">{sessionEmail ? "Conta conectada" : "Entrar na conta"}</p>
+                <p className="text-base font-semibold text-zinc-100">
+                  {sessionEmail ? t("mobile:account.connected") : t("mobile:account.signIn")}
+                </p>
                 {getMobileSupabaseConfigError() ? (
                   <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
                     {getMobileSupabaseConfigError()}
@@ -1095,11 +1166,11 @@ function MobileApp() {
                   </p>
                 ) : null}
                 <div className="mt-4 space-y-3">
-                  <MobileFieldFrame label="Email" htmlFor="mobile-auth-email">
-                    <MobileInput id="mobile-auth-email" icon={Mail} placeholder="voce@exemplo.com" autoComplete="email" inputMode="email" disabled={authBusy || Boolean(sessionEmail)} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+                  <MobileFieldFrame label={t("mobile:account.email")} htmlFor="mobile-auth-email">
+                    <MobileInput id="mobile-auth-email" icon={Mail} placeholder={t("mobile:account.emailPlaceholder")} autoComplete="email" inputMode="email" disabled={authBusy || Boolean(sessionEmail)} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
                   </MobileFieldFrame>
-                  <MobileFieldFrame label="Senha" htmlFor="mobile-auth-password">
-                    <MobileInput id="mobile-auth-password" icon={LockKeyhole} placeholder="Sua senha" type="password" autoComplete={sessionEmail ? "off" : "current-password"} disabled={authBusy || Boolean(sessionEmail)} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+                  <MobileFieldFrame label={t("mobile:account.password")} htmlFor="mobile-auth-password">
+                    <MobileInput id="mobile-auth-password" icon={LockKeyhole} placeholder={t("mobile:account.passwordPlaceholder")} type="password" autoComplete={sessionEmail ? "off" : "current-password"} disabled={authBusy || Boolean(sessionEmail)} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
                   </MobileFieldFrame>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -1108,7 +1179,7 @@ function MobileApp() {
                       disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
                     >
-                      {authBusy ? "Conectando..." : "Entrar"}
+                      {authBusy ? t("mobile:account.signingIn") : t("mobile:account.signIn")}
                     </button>
                     <button
                       className="rounded border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm font-semibold text-zinc-100"
@@ -1116,7 +1187,7 @@ function MobileApp() {
                       disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
                     >
-                      Criar
+                      {t("mobile:profile.signUp")}
                     </button>
                   </div>
                   {!sessionEmail ? (
@@ -1126,29 +1197,33 @@ function MobileApp() {
                       disabled={authBusy || !hasSupabaseConfig() || !isOnline}
                       type="button"
                     >
-                      Esqueci minha senha
+                      {t("mobile:account.forgotPassword")}
                     </button>
                   ) : null}
                   {sessionEmail && (
                     <button
                       className="h-11 w-full rounded border border-zinc-800 text-sm font-medium text-zinc-300"
-                      onClick={async () => { if (await confirm("Deseja realmente sair da sua conta?")) await signOut(); }}
+                      onClick={async () => {
+                        if (await confirm(t("mobile:account.signOutConfirm"))) await signOut();
+                      }}
                       disabled={authBusy}
                       type="button"
                     >
-                      Sair
+                      {t("mobile:profile.signOut")}
                     </button>
                   )}
                 </div>
               </div>
-              <div><h2 className="mb-3 text-base font-semibold text-zinc-100">Dados e backup</h2><MobileBackupPanel state={state} setState={setState} /></div>
+              <div><h2 className="mb-3 text-base font-semibold text-zinc-100">
+                {t("mobile:profile.dataAndBackup")}
+              </h2><MobileBackupPanel state={state} setState={setState} /></div>
             </section>
           )}
           </Suspense>
         </main>
 
         {activeTab === "reader" && isEbookReader || keyboardOpen ? null : (
-          <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <nav aria-label={t("mobile:account.primaryNavAriaLabel")} className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
             <div className="grid grid-cols-5 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -1169,7 +1244,7 @@ function MobileApp() {
                     type="button"
                   >
                     <Icon size={21} />
-                    <span>{tab.label}</span>
+                    <span>{t(tab.labelKey)}</span>
                   </button>
                 );
               })}

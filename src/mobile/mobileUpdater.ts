@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { translate } from "../i18n";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { fetchLatestMobileReleaseJson, fetchWithTimeout } from "./githubReleaseResolver";
 
@@ -10,14 +11,14 @@ type MobileOtaManifest = {
 };
 
 export function parseMobileOtaManifest(value: unknown): MobileOtaManifest {
-  if (!value || typeof value !== "object") throw new Error("Manifesto OTA invalido");
+  if (!value || typeof value !== "object") throw new Error(translate("mobile:updater.manifestOtaInvalid"));
   const record = value as Partial<MobileOtaManifest>;
   const version = typeof record.version === "string" ? record.version.trim() : "";
   const url = typeof record.url === "string" ? record.url.trim() : "";
   const checksum = typeof record.checksum === "string" ? record.checksum.trim().toLowerCase() : "";
-  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error("Manifesto OTA sem versao valida");
-  if (!url.startsWith("https://")) throw new Error("Manifesto OTA sem URL HTTPS valida");
-  if (!/^[a-f0-9]{64}$/.test(checksum)) throw new Error("Manifesto OTA sem checksum SHA-256 valido");
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error(translate("mobile:updater.manifestOtaNoVersion"));
+  if (!url.startsWith("https://")) throw new Error(translate("mobile:updater.manifestOtaNoUrl"));
+  if (!/^[a-f0-9]{64}$/.test(checksum)) throw new Error(translate("mobile:updater.manifestOtaNoChecksum"));
   return {
     version,
     url,
@@ -59,7 +60,7 @@ async function fetchManifest() {
   if (!UPDATE_MANIFEST_URL) {
     return parseMobileOtaManifest(await fetchLatestMobileReleaseJson("lyceum-mobile-ota.json"));
   }
-  if (!UPDATE_MANIFEST_URL.startsWith("https://")) throw new Error("A URL do OTA precisa usar HTTPS");
+  if (!UPDATE_MANIFEST_URL.startsWith("https://")) throw new Error(translate("mobile:updater.otaHttpsRequired"));
   const response = await fetchWithTimeout(`${UPDATE_MANIFEST_URL}?t=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Mobile update manifest returned ${response.status}`);
   return parseMobileOtaManifest(await response.json());

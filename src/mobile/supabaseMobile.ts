@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { translate } from "../i18n";
 import { Preferences } from "@capacitor/preferences";
 import {
   createClient,
@@ -21,15 +22,15 @@ function readConfig() {
 
 export function getMobileSupabaseConfigError() {
   const { url, anonKey } = readConfig();
-  if (!url || !anonKey) return "A conexao da conta nao foi incluida nesta versao do aplicativo.";
+  if (!url || !anonKey) return translate("mobile:auth.connectionMissing");
   try {
     const parsed = new URL(url);
     const localDevelopment = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-    if (parsed.protocol !== "https:" && !localDevelopment) return "A URL do Supabase precisa usar HTTPS.";
+    if (parsed.protocol !== "https:" && !localDevelopment) return translate("mobile:auth.supabaseUrlHttps");
   } catch {
-    return "A URL do Supabase e invalida.";
+    return translate("mobile:auth.supabaseUrlInvalid");
   }
-  if (anonKey.length < 20) return "A chave publica do Supabase e invalida.";
+  if (anonKey.length < 20) return translate("mobile:auth.supabaseKeyInvalid");
   return null;
 }
 
@@ -139,13 +140,13 @@ export function getMobileAuthErrorMessage(error: unknown) {
       ? String((error as { message?: unknown }).message || "")
       : String(error || "");
   const message = raw.toLowerCase();
-  if (message.includes("invalid login credentials")) return "Email ou senha incorretos.";
-  if (message.includes("email not confirmed")) return "Confirme seu email antes de entrar.";
-  if (message.includes("user already registered")) return "Ja existe uma conta com este email.";
-  if (message.includes("password should be")) return "A senha nao atende aos requisitos de seguranca.";
-  if (message.includes("failed to fetch") || message.includes("network")) return "Nao foi possivel conectar ao servidor. Verifique sua internet.";
-  if (message.includes("rate limit")) return "Muitas tentativas. Aguarde um pouco e tente novamente.";
-  return raw || "Nao foi possivel concluir a autenticacao.";
+  if (message.includes("invalid login credentials")) return translate("mobile:auth.wrongCredentials");
+  if (message.includes("email not confirmed")) return translate("mobile:auth.emailNotConfirmed");
+  if (message.includes("user already registered")) return translate("mobile:auth.emailAlreadyRegistered");
+  if (message.includes("password should be")) return translate("mobile:auth.passwordWeak");
+  if (message.includes("failed to fetch") || message.includes("network")) return translate("mobile:auth.networkFailed");
+  if (message.includes("rate limit")) return translate("mobile:auth.rateLimited");
+  return raw || translate("mobile:auth.signInFailed");
 }
 
 export function resetMobileSupabaseForTests() {

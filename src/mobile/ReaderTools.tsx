@@ -5,6 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import toast from "react-hot-toast";
 import { appendHistory, type ReaderLocator } from "./readerModel";
+import { translate, useTranslation } from "../i18n";
 
 export async function downloadMobileText(name: string, text: string, mime = "text/plain") {
   if (Capacitor.isNativePlatform()) {
@@ -37,6 +38,7 @@ export function ReaderTools({ bookId, onTurn }: {
   onTurn?: (direction: number) => void;
   history?: ReturnType<typeof useReaderHistory>;
 }) {
+  const { t } = useTranslation();
   const [controls, setControls] = useState<ReaderControlSettings>(() => { try { return { ...defaultReaderControls, ...JSON.parse(localStorage.getItem("lyceum-reader-controls") || "{}") }; } catch { return defaultReaderControls; } });
   const turnRef = useRef(onTurn); turnRef.current = onTurn;
   const brightnessTouch = useRef(0);
@@ -45,7 +47,7 @@ export function ReaderTools({ bookId, onTurn }: {
     if (!bookId) return;
     try { localStorage.setItem("lyceum-reader-controls", JSON.stringify(controls)); } catch { /* Settings remain usable. */ }
     if (!native) return;
-    const apply = () => { if (!document.hidden) void ReaderControls.configure(controls).catch(() => toast.error("Os controles Android não estão disponíveis.")); };
+    const apply = () => { if (!document.hidden) void ReaderControls.configure(controls).catch(() => toast.error(translate("mobile:readerTools.controlsUnavailable"))); };
     apply(); document.addEventListener("visibilitychange", apply);
     return () => { document.removeEventListener("visibilitychange", apply); void ReaderControls.configure(defaultReaderControls).catch(() => undefined); };
   }, [controls, native, bookId]);
@@ -58,7 +60,7 @@ export function ReaderTools({ bookId, onTurn }: {
   // longer interrupts it with a note/highlight prompt; bookmarks live in the
   // reader's top bar instead.
   return <div onClick={e => e.stopPropagation()}>
-    {bookId && controls.tapZones && onTurn && <><button className="absolute bottom-[25%] left-0 z-20 h-[40%] w-[6%]" aria-label="Página anterior" onClick={() => onTurn(-1)} /><button className="absolute bottom-[25%] right-0 z-20 h-[40%] w-[6%]" aria-label="Próxima página" onClick={() => onTurn(1)} /></>}
+    {bookId && controls.tapZones && onTurn && <><button className="absolute bottom-[25%] left-0 z-20 h-[40%] w-[6%]" aria-label={t("mobile:readerTools.previousPageAriaLabel")} onClick={() => onTurn(-1)} /><button className="absolute bottom-[25%] right-0 z-20 h-[40%] w-[6%]" aria-label={t("mobile:readerTools.nextPageAriaLabel")} onClick={() => onTurn(1)} /></>}
     {bookId && native && <div className="absolute bottom-[25%] left-0 z-30 h-[40%] w-3 touch-none" onTouchStart={e => { brightnessTouch.current = e.touches[0].clientY; }} onTouchMove={e => { const y = e.touches[0].clientY; const delta = (brightnessTouch.current - y) / 400; brightnessTouch.current = y; setControls(c => ({ ...c, brightness: Math.max(0.1, Math.min(1, (c.brightness < 0 ? 1 : c.brightness) + delta)) })); }} />}
   </div>;
 }

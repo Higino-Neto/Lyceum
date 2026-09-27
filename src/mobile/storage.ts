@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { translate } from "../i18n";
 import { Preferences } from "@capacitor/preferences";
 import type {
   MobileBook,
@@ -230,7 +231,7 @@ export function guessTitle(fileName: string) {
     .replace(/\.[^.]+$/, "")
     .replace(/[-_]+/g, " ")
     .replace(/\s+/g, " ")
-    .trim() || "Livro importado";
+    .trim() || translate("mobile:imports.defaultBookTitle");
 }
 
 export function readFileAsDataUrl(
@@ -241,12 +242,12 @@ export function readFileAsDataUrl(
     const reader = new FileReader();
     const abort = () => reader.abort();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
-    reader.onabort = () => reject(new DOMException("Importacao cancelada", "AbortError"));
+    reader.onerror = () => reject(reader.error || new Error(translate("mobile:errors.fileReadFailed")));
+    reader.onabort = () => reject(new DOMException(translate("mobile:errors.importCancelled"), "AbortError"));
     reader.onprogress = (event) => options.onProgress?.(event.loaded, event.lengthComputable ? event.total : file.size);
     reader.onloadend = () => options.signal?.removeEventListener("abort", abort);
     if (options.signal?.aborted) {
-      reject(new DOMException("Importacao cancelada", "AbortError"));
+      reject(new DOMException(translate("mobile:errors.importCancelled"), "AbortError"));
       return;
     }
     options.signal?.addEventListener("abort", abort, { once: true });
