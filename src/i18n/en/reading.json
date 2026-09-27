@@ -21,8 +21,8 @@
   },
   "add": {
     "columns": {
-      "work": "Work",
-      "pagesShort": "Pp.",
+      "work": "Book",
+      "pagesShort": "Pages",
       "time": "Time",
       "category": "Category",
       "date": "Date"

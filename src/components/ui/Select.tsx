@@ -1,16 +1,17 @@
 import * as RadixSelect from "@radix-ui/react-select";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
-interface SelectItem {
+export interface SelectItem {
   value: string;
   label: string;
 }
 
 interface SelectProps {
-  value: string;
+  value?: string;
   onChange: (value: string) => void;
   items: SelectItem[];
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export default function Select({
@@ -18,26 +19,87 @@ export default function Select({
   onChange,
   items,
   placeholder,
+  disabled,
 }: SelectProps) {
   return (
-    <RadixSelect.Root value={value} onValueChange={onChange}>
-      <RadixSelect.Trigger className="flex h-7 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-0 text-xs text-zinc-300 outline-none">
+    <RadixSelect.Root
+      value={value}
+      onValueChange={onChange}
+      disabled={disabled}
+    >
+      <RadixSelect.Trigger
+        className="
+          flex h-8 min-w-[160px] items-center justify-between
+          gap-2 rounded-md border border-zinc-700
+          bg-zinc-900 px-3
+          text-xs text-zinc-300
+          outline-none transition-colors
+
+          hover:border-zinc-600
+
+          outline-none
+          focus:outline-none
+          focus-visible:outline-none
+          focus:ring-0
+          focus-visible:ring-0
+
+          data-[placeholder]:text-zinc-500
+          data-[state=open]:border-zinc-600
+
+          disabled:cursor-not-allowed
+          disabled:opacity-50
+        "
+      >
         <RadixSelect.Value placeholder={placeholder} />
+
         <RadixSelect.Icon>
-          <ChevronDown size={12} className="text-zinc-500" />
+          <ChevronDown size={14} className="text-zinc-500" />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
 
       <RadixSelect.Portal>
-        <RadixSelect.Content className="z-50 min-w-[180px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-900 shadow-xl">
+        <RadixSelect.Content
+          position="popper"
+          sideOffset={4}
+          className="
+            z-[9999] min-w-[var(--radix-select-trigger-width)]
+            overflow-hidden rounded-md
+            border border-zinc-700
+            bg-zinc-900
+            p-1 shadow-xl
+
+          outline-none
+          focus:outline-none
+          focus-visible:outline-none
+          focus:ring-0
+          focus-visible:ring-0
+          "
+        >
           <RadixSelect.Viewport>
             {items.map((item) => (
               <RadixSelect.Item
                 key={item.value}
                 value={item.value}
-                className="flex cursor-pointer items-center px-3 py-2 text-xs text-zinc-300 outline-none transition-colors hover:bg-zinc-800 hover:text-zinc-100 data-[highlighted]:bg-zinc-800 data-[highlighted]:text-zinc-100 data-[state=checked]:text-green-400"
+                className="
+                  relative flex cursor-pointer
+                  items-center rounded-sm
+                  px-3 py-2 pl-8
+                  text-xs text-zinc-300
+                  outline-none transition-colors
+
+                  data-[highlighted]:bg-zinc-800
+                  data-[highlighted]:text-zinc-100
+                "
               >
-                <RadixSelect.ItemText>{item.label}</RadixSelect.ItemText>
+                <RadixSelect.ItemIndicator
+                  className="absolute left-2"
+                >
+                  <Check size={12} />
+                </RadixSelect.ItemIndicator>
+
+                <RadixSelect.ItemText>
+                  {item.label}
+                </RadixSelect.ItemText>
               </RadixSelect.Item>
             ))}
           </RadixSelect.Viewport>

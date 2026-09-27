@@ -3,6 +3,7 @@ import { Languages } from "lucide-react";
 
 import { useTranslation } from "./useTranslation";
 import { useLanguage } from "./useLanguage";
+import Select, { SelectItem } from "../components/ui/Select";
 
 interface LanguageSwitcherProps {
   className?: string;
@@ -23,10 +24,15 @@ export default function LanguageSwitcher({
   const { language, options, changeLanguage } = useLanguage();
   const selectId = useId();
 
+  const itemOptions: SelectItem[] = options.map(book => ({
+    value: book.code,
+    label: book.label
+  }));
+
   return (
     <div className="flex items-center gap-2">
       {withIcon && <Languages size={16} className="shrink-0 text-zinc-500" />}
-      <select
+      {/* <select
         id={selectId}
         value={language}
         onChange={(event) => void changeLanguage(event.target.value)}
@@ -38,7 +44,12 @@ export default function LanguageSwitcher({
             {option.label}
           </option>
         ))}
-      </select>
+      </select> */}
+      <Select 
+        value={language}
+        onChange={(event) => void changeLanguage(event)}
+        items={itemOptions}
+        />
     </div>
   );
 }

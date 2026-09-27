@@ -838,7 +838,9 @@ export default function BookDetailPanel({
             title={t("library:detail.regenerateThumbnail")}
           >
             <RefreshCw size={13} />
-            <span className="truncate">Thumbnail</span>
+            <span className="truncate">
+              Thumbnail
+            </span>
           </button>
           <button
             onClick={handleShowInFolder}
@@ -882,7 +884,7 @@ export default function BookDetailPanel({
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 disabled:opacity-50"
         >
           <Trash2 size={12} />
-          Remover
+          {t('common:actions.remove')}
         </button>
 
         <AnimatedModal

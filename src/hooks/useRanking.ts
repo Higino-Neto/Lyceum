@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 
+
 export interface RankingUser {
   user_id: string;
   username: string;

@@ -569,7 +569,7 @@ export default function BookMetadataSearchDialog({
                 {visibleFields.map(([key, label, type]) => (
                   <label key={key} className={type === "textarea" ? "sm:col-span-2" : ""}>
                     <span className="mb-1 flex items-center justify-between gap-2 text-xs text-zinc-500">
-                      {label}
+                      {t(label)}
                       <FieldBadge state={fieldState(originalForm, form, key)} />
                     </span>
                     {type === "textarea" ? (
