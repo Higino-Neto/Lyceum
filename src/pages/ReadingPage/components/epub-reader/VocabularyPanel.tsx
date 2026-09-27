@@ -4,8 +4,9 @@ import {
   VocabularyStats,
   VocabularyStatus,
   getVocabularyStatusClasses,
-  getVocabularyStatusLabel,
+  getVocabularyStatusLabelKey,
 } from "./languageLearning";
+import { useTranslation, type TranslationKey } from "../../../../i18n";
 
 type VocabularyFilter = "all" | "learning" | "known";
 
@@ -22,11 +23,11 @@ interface VocabularyPanelProps {
   onClose: () => void;
 }
 
-const FILTER_LABELS: Record<VocabularyFilter, string> = {
-  all: "Todas",
-  learning: "Aprendendo",
-  known: "Conhecidas",
-};
+const FILTER_LABEL_KEYS = {
+  all: "epub:vocabulary.filters.all",
+  learning: "epub:vocabulary.filters.learning",
+  known: "epub:vocabulary.filters.known",
+} as const satisfies Record<VocabularyFilter, TranslationKey>;
 
 const STATUS_OPTIONS: VocabularyStatus[] = ["new", "learning", "known"];
 
@@ -42,6 +43,8 @@ export default function VocabularyPanel({
   onExportCsv,
   onClose,
 }: VocabularyPanelProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   const filteredEntries = entries.filter((entry) => {
@@ -62,16 +65,20 @@ export default function VocabularyPanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Vocabulário
+                {t("epub:vocabulary.title")}
               </p>
               <h2 className="mt-1 text-base font-semibold text-zinc-100">
-                {fileName || "Livro atual"}
+                {fileName || t("epub:vocabulary.currentBook")}
               </h2>
               <p className="mt-2 text-sm text-zinc-400">
-                {stats.trackedCount} palavras rastreadas
+                {t("epub:vocabulary.tracked", { count: stats.trackedCount })}
               </p>
               <p className="text-sm text-zinc-500">
-                {stats.knownCount} conhecidas • {stats.learningCount} aprendendo • {stats.progressPercent}% concluído
+                {t("epub:vocabulary.summary", {
+                  known: stats.knownCount,
+                  learning: stats.learningCount,
+                  progress: stats.progressPercent,
+                })}
               </p>
             </div>
 
@@ -79,13 +86,15 @@ export default function VocabularyPanel({
               type="button"
               className="rounded-sm p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
               onClick={onClose}
+              title={t("epub:vocabulary.closeTitle")}
+              aria-label={t("epub:vocabulary.closeAriaLabel")}
             >
               <X size={18} />
             </button>
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            {(Object.keys(FILTER_LABELS) as VocabularyFilter[]).map((filterOption) => (
+            {(Object.keys(FILTER_LABEL_KEYS) as VocabularyFilter[]).map((filterOption) => (
               <button
                 key={filterOption}
                 type="button"
@@ -96,7 +105,7 @@ export default function VocabularyPanel({
                 }`}
                 onClick={() => onFilterChange(filterOption)}
               >
-                {FILTER_LABELS[filterOption]}
+                {t(FILTER_LABEL_KEYS[filterOption])}
               </button>
             ))}
 
@@ -114,7 +123,7 @@ export default function VocabularyPanel({
         <div className="flex-1 overflow-y-auto">
           {filteredEntries.length === 0 ? (
             <div className="px-4 py-6 text-sm text-zinc-400">
-              Nenhuma palavra nesta visao ainda.
+              {t("epub:vocabulary.empty")}
             </div>
           ) : (
             filteredEntries.map((entry) => (
@@ -140,7 +149,11 @@ export default function VocabularyPanel({
                         : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
                     }`}
                     onClick={() => onToggleSaved(entry.normalizedWord)}
-                    title={entry.saved ? "Remover dos salvos" : "Salvar para revisao"}
+                    title={
+                      entry.saved
+                        ? t("epub:vocabulary.removeSaved")
+                        : t("epub:vocabulary.saveForReview")
+                    }
                   >
                     <Bookmark size={16} fill={entry.saved ? "currentColor" : "none"} />
                   </button>
@@ -158,7 +171,7 @@ export default function VocabularyPanel({
                       }`}
                       onClick={() => onStatusChange(entry.normalizedWord, status)}
                     >
-                      {getVocabularyStatusLabel(status)}
+                      {t(getVocabularyStatusLabelKey(status))}
                     </button>
                   ))}
                 </div>

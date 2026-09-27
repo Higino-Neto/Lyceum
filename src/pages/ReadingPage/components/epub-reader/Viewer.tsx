@@ -35,9 +35,9 @@ import {
   VocabularyStatus,
   WordInteractionPayload,
   getVocabularyStatusClasses,
-  getVocabularyStatusLabel,
 } from "./languageLearning";
 import useBookVocabulary from "./useBookVocabulary";
+import { formatNumber, useTranslation } from "../../../../i18n";
 
 interface ViewerProps {
   epubData: ArrayBuffer;
@@ -189,13 +189,15 @@ function ResultBlock({
 }
 
 function TranslationEntryList({ entries }: { entries: TranslationEntry[] }) {
+  const { t } = useTranslation();
+
   if (!entries.length) return null;
 
   return (
     <section className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3">
       <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
         <Languages size={14} />
-        <span>Sentidos</span>
+        <span>{t("epub:viewer.meanings")}</span>
       </div>
 
       <ul className="space-y-2">
@@ -249,6 +251,7 @@ function TranslationDock({
 }) {
   const normalizedTranslation = normalizeResultText(translation);
   const normalizedSimplifiedText = normalizeResultText(simplifiedText);
+  const { t } = useTranslation();
   const translatedEntries = collectTranslationEntries({
     dictionary,
     translatedDictionary,
@@ -264,20 +267,22 @@ function TranslationDock({
       {isLoading ? (
         <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
           <LoaderCircle size={16} className="animate-spin" />
-          Processando...
+          {t("epub:viewer.processing")}
         </div>
       ) : (
         <div className="space-y-3">
           {normalizedTranslation && (
             <ResultBlock
-              label={`Traducao (${targetLanguage.toUpperCase()})`}
+              label={t("epub:viewer.translationLabel", {
+                language: targetLanguage.toUpperCase(),
+              })}
               text={normalizedTranslation}
               icon={<Languages size={14} />}
             />
           )}
           {normalizedSimplifiedText && (
             <ResultBlock
-              label="Versao simplificada"
+              label={t("epub:viewer.simplifiedVersion")}
               text={normalizedSimplifiedText}
               icon={<Sparkles size={14} />}
             />
@@ -285,7 +290,7 @@ function TranslationDock({
           <TranslationEntryList entries={translatedEntries} />
           {!hasVisibleResult && !error && (
             <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
-              Nenhum resultado encontrado para este trecho.
+              {t("epub:viewer.noResult")}
             </div>
           )}
           {error && (
@@ -310,6 +315,8 @@ function LearningDock({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/95 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[390px]">
       <div className="flex items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950/40 px-4 py-3">
@@ -326,7 +333,7 @@ function LearningDock({
           type="button"
           className="rounded-sm p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
           onClick={onClose}
-          title="Fechar"
+          title={t("epub:viewer.close")}
         >
           <X size={16} />
         </button>
@@ -340,6 +347,7 @@ function LearningDock({
 }
 
 export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
+  const { t, i18n } = useTranslation();
   const overlayHostRef = useRef<HTMLDivElement>(null);
   const [isVocabularyPanelOpen, setIsVocabularyPanelOpen] = useState(false);
   const [isTocOpen, setIsTocOpen] = useState(false);
@@ -526,7 +534,10 @@ if (controller.signal.aborted) return;
         return {
           ...current,
           isLoading: false,
-          error: err instanceof Error ? err.message : "Erro ao carregar definicoes",
+          error:
+            err instanceof Error
+              ? err.message
+              : t("epub:viewer.errors.loadDefinitions"),
           translation: fallbackTranslation || current.translation || null,
         };
       });
@@ -585,7 +596,8 @@ if (controller.signal.aborted) return;
             ? {
                 ...current,
                 isLoading: false,
-                error: err instanceof Error ? err.message : "Erro ao traduzir",
+                error:
+                  err instanceof Error ? err.message : t("epub:viewer.errors.translate"),
               }
             : current,
         );
@@ -653,7 +665,8 @@ if (controller.signal.aborted) return;
               ? {
                   ...current,
                   isLoading: false,
-                  error: err instanceof Error ? err.message : "Erro ao traduzir",
+                  error:
+                    err instanceof Error ? err.message : t("epub:viewer.errors.translate"),
                 }
               : current,
           );
@@ -692,7 +705,7 @@ if (controller.signal.aborted) return;
               error:
                 error instanceof Error
                   ? error.message
-                  : "Nao foi possivel processar este trecho agora.",
+                  : t("epub:viewer.errors.processSelection"),
             }
           : current,
       );
@@ -706,13 +719,13 @@ if (controller.signal.aborted) return;
       const audio = new Audio(audioUrl);
       await audio.play();
     } catch {
-      toast.error("Nao foi possivel reproduzir o audio.");
+      toast.error(t("epub:viewer.toasts.audioFailed"));
     }
   };
 
   const handleExportCsv = () => {
     if (!trackedEntries.length) {
-      toast.error("Nenhuma palavra rastreada para exportar.");
+      toast.error(t("epub:viewer.toasts.noTrackedWords"));
       return;
     }
 
@@ -726,7 +739,7 @@ if (controller.signal.aborted) return;
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    toast.success("CSV exportado.");
+    toast.success(t("epub:viewer.toasts.csvExported"));
   };
 
   const activeWordEntry = activeWordLookup
@@ -774,10 +787,10 @@ if (controller.signal.aborted) return;
             type="button"
             onClick={() => setFocusMode(false)}
             className="flex items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition"
-            title="Sair do Modo Foco (Esc)"
+            title={t("epub:viewer.exitFocusMode")}
           >
             <Focus size={16} />
-            Sair
+            {t("epub:viewer.exitFocusModeShort")}
           </button>
         </div>
       )}
@@ -815,7 +828,8 @@ if (controller.signal.aborted) return;
                 )}
                 {activeWordLookup.wordCount !== null && activeWordLookup.wordCount !== undefined && (
                   <span className="ml-2 text-zinc-500">
-                    {activeWordLookup.wordCount.toLocaleString()} {activeWordLookup.wordCount === 1 ? "vez" : "vezes"}
+                    {formatNumber(activeWordLookup.wordCount, i18n.language)}{" "}
+                    {t("epub:viewer.occurrences", { count: activeWordLookup.wordCount })}
                   </span>
                 )}
               </>
@@ -832,7 +846,7 @@ if (controller.signal.aborted) return;
 
         {activeSelectionLookup && (
           <TranslationDock
-            title="Trecho selecionado"
+            title={t("epub:viewer.selectedExcerpt")}
             subtitle={<span className="line-clamp-2">{activeSelectionLookup.selectedText}</span>}
             isLoading={activeSelectionLookup.isLoading}
             translation={activeSelectionLookup.translation}

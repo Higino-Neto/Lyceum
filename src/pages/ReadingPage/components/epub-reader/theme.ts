@@ -1,3 +1,5 @@
+import type { TranslationKey } from "../../../../i18n";
+
 export type ThemeName = "light" | "dark" | "sepia";
 export type FontFamily = "serif" | "sans-serif" | "Georgia" | "OpenDyslexic";
 export type TextAlignment = "left" | "justify";
@@ -92,11 +94,11 @@ export const HIGHLIGHT_COLORS: Record<ThemeName, HighlightColors> = {
   },
 };
 
-export const FONT_OPTIONS: { value: FontFamily; label: string }[] = [
-  { value: "Georgia", label: "Georgia" },
-  { value: "serif", label: "Serif" },
-  { value: "sans-serif", label: "Sans Serif" },
-  { value: "OpenDyslexic", label: "OpenDyslexic" },
+export const FONT_OPTIONS: { value: FontFamily; labelKey?: TranslationKey }[] = [
+  { value: "Georgia" },
+  { value: "serif", labelKey: "epub:toolbar.fonts.serif" },
+  { value: "sans-serif", labelKey: "epub:toolbar.fonts.sansSerif" },
+  { value: "OpenDyslexic" },
 ];
 
 export function getFontStack(fontFamily: FontFamily) {

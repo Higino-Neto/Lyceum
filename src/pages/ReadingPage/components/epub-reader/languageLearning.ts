@@ -1,3 +1,5 @@
+import type { TranslationKey } from "../../../../i18n";
+
 export type VocabularyStatus = "new" | "learning" | "known";
 
 export interface VocabularyEntry {
@@ -126,10 +128,14 @@ export function sanitizeLookupWord(word: string) {
   return normalizeVocabularyWord(word).replace(/'/g, "");
 }
 
-export function getVocabularyStatusLabel(status: VocabularyStatus) {
-  if (status === "learning") return "Aprendendo";
-  if (status === "known") return "Conhecida";
-  return "Nova";
+const VOCABULARY_STATUS_LABEL_KEYS = {
+  learning: "epub:vocabulary.statuses.learning",
+  known: "epub:vocabulary.statuses.known",
+  new: "epub:vocabulary.statuses.new",
+} as const satisfies Record<VocabularyStatus, TranslationKey>;
+
+export function getVocabularyStatusLabelKey(status: VocabularyStatus): TranslationKey {
+  return VOCABULARY_STATUS_LABEL_KEYS[status];
 }
 
 export function getVocabularyStatusClasses(status: VocabularyStatus) {

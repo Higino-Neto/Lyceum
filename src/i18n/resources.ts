@@ -7,6 +7,7 @@ import enLibrary from "./en/library.json";
 import enReading from "./en/reading.json";
 import enCommon from "./en/common.json";
 import enConversion from "./en/conversion.json";
+import enEpub from "./en/epub.json";
 import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
 import enHabits from "./en/habits.json";
@@ -21,6 +22,7 @@ import ptBrLibrary from "./pt-br/library.json";
 import ptBrReading from "./pt-br/reading.json";
 import ptBrCommon from "./pt-br/common.json";
 import ptBrConversion from "./pt-br/conversion.json";
+import ptBrEpub from "./pt-br/epub.json";
 import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
 import ptBrHabits from "./pt-br/habits.json";
@@ -37,6 +39,7 @@ const en = {
   atlas: enAtlas,
   common: enCommon,
   conversion: enConversion,
+  epub: enEpub,
   auth: enAuth,
   dashboard: enDashboard,
   dialogs: enDialogs,
@@ -53,6 +56,7 @@ const ptBR = {
   atlas: ptBrAtlas,
   common: ptBrCommon,
   conversion: ptBrConversion,
+  epub: ptBrEpub,
   auth: ptBrAuth,
   dashboard: ptBrDashboard,
   dialogs: ptBrDialogs,

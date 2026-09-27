@@ -1,0 +1,93 @@
+{
+  "toolbar": {
+    "spacing": "Spacing",
+    "lineHeight": "Line height: {{value}}",
+    "contentWidth": "Content width",
+    "contentWidthValue": "Content width: {{value}}%",
+    "hideHighlights": "Hide details",
+    "showHighlights": "Show details",
+    "readingMode": "Reading mode",
+    "modes": {
+      "continuous": "Continuous scroll",
+      "paginated": "Paginated book"
+    },
+    "vocabulary": "Vocabulary",
+    "toc": "Table of contents",
+    "focusMode": "Focus mode",
+    "sourceLanguage": "Source language",
+    "targetLanguage": "Target language",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "sepia": "Sepia"
+    },
+    "fonts": {
+      "serif": "Serif",
+      "sansSerif": "Sans serif"
+    }
+  },
+  "toc": {
+    "title": "Table of contents",
+    "closeTitle": "Close table of contents",
+    "empty": "No chapters available"
+  },
+  "viewer": {
+    "meanings": "Meanings",
+    "processing": "Processing...",
+    "translationLabel": "Translation ({{language}})",
+    "simplifiedVersion": "Simplified version",
+    "noResult": "No results found for this excerpt.",
+    "close": "Close",
+    "selectedExcerpt": "Selected excerpt",
+    "occurrences_one": "{{count}} time",
+    "occurrences_other": "{{count}} times",
+    "exitFocusMode": "Leave focus mode (Esc)",
+    "exitFocusModeShort": "Leave",
+    "toasts": {
+      "audioFailed": "Could not play the audio.",
+      "noTrackedWords": "No tracked word to export.",
+      "csvExported": "CSV exported."
+    },
+    "errors": {
+      "loadDefinitions": "Failed to load definitions",
+      "translate": "Failed to translate",
+      "processSelection": "Could not process this excerpt now."
+    }
+  },
+  "navigation": {
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "vocabulary": {
+    "title": "Vocabulary",
+    "currentBook": "Current book",
+    "tracked_one": "{{count}} tracked word",
+    "tracked_other": "{{count}} tracked words",
+    "summary": "{{known}} known • {{learning}} learning • {{progress}}% completed",
+    "empty": "No words in this view yet.",
+    "removeSaved": "Remove from saved",
+    "saveForReview": "Save for review",
+    "closeTitle": "Close",
+    "closeAriaLabel": "Close the vocabulary panel",
+    "filters": {
+      "all": "All",
+      "learning": "Learning",
+      "known": "Known"
+    },
+    "statuses": {
+      "new": "New",
+      "learning": "Learning",
+      "known": "Known"
+    }
+  },
+  "errors": {
+    "invalidWord": "Invalid word for lookup.",
+    "definitionLookupFailed": "Could not look up the definition of this word.",
+    "noDefinitionFound": "No definition was found.",
+    "selectionTooLong": "Select a shorter excerpt to translate.",
+    "translationFailed": "Could not translate this excerpt right now.",
+    "emptyTranslation": "The translation came back empty.",
+    "noTextToTranslate": "There is no text to translate.",
+    "noTextToSimplify": "There is no text to simplify."
+  }
+}

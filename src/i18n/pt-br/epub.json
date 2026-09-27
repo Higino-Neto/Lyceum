@@ -1,0 +1,93 @@
+{
+  "toolbar": {
+    "spacing": "Espaçamento",
+    "lineHeight": "Altura da linha: {{value}}",
+    "contentWidth": "Largura do conteúdo",
+    "contentWidthValue": "Largura do conteúdo: {{value}}%",
+    "hideHighlights": "Ocultar Detalhes",
+    "showHighlights": "Mostrar Detalhes",
+    "readingMode": "Modo de leitura",
+    "modes": {
+      "continuous": "Fluxo contínuo",
+      "paginated": "Livro paginado"
+    },
+    "vocabulary": "Vocabulário",
+    "toc": "Índice",
+    "focusMode": "Modo Foco",
+    "sourceLanguage": "Idioma de origem",
+    "targetLanguage": "Idioma de destino",
+    "themes": {
+      "light": "Claro",
+      "dark": "Escuro",
+      "sepia": "Sepia"
+    },
+    "fonts": {
+      "serif": "Serif",
+      "sansSerif": "Sans Serif"
+    }
+  },
+  "toc": {
+    "title": "Índice",
+    "closeTitle": "Fechar índice",
+    "empty": "Sem capítulos disponíveis"
+  },
+  "viewer": {
+    "meanings": "Sentidos",
+    "processing": "Processando...",
+    "translationLabel": "Tradução ({{language}})",
+    "simplifiedVersion": "Versão simplificada",
+    "noResult": "Nenhum resultado encontrado para este trecho.",
+    "close": "Fechar",
+    "selectedExcerpt": "Trecho selecionado",
+    "occurrences_one": "{{count}} vez",
+    "occurrences_other": "{{count}} vezes",
+    "exitFocusMode": "Sair do Modo Foco (Esc)",
+    "exitFocusModeShort": "Sair",
+    "toasts": {
+      "audioFailed": "Não foi possível reproduzir o áudio.",
+      "noTrackedWords": "Nenhuma palavra rastreada para exportar.",
+      "csvExported": "CSV exportado."
+    },
+    "errors": {
+      "loadDefinitions": "Erro ao carregar definições",
+      "translate": "Erro ao traduzir",
+      "processSelection": "Não foi possível processar este trecho agora."
+    }
+  },
+  "navigation": {
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página"
+  },
+  "vocabulary": {
+    "title": "Vocabulário",
+    "currentBook": "Livro atual",
+    "tracked_one": "{{count}} palavra rastreada",
+    "tracked_other": "{{count}} palavras rastreadas",
+    "summary": "{{known}} conhecidas • {{learning}} aprendendo • {{progress}}% concluído",
+    "empty": "Nenhuma palavra nesta visão ainda.",
+    "removeSaved": "Remover dos salvos",
+    "saveForReview": "Salvar para revisão",
+    "closeTitle": "Fechar",
+    "closeAriaLabel": "Fechar o painel de vocabulário",
+    "filters": {
+      "all": "Todas",
+      "learning": "Aprendendo",
+      "known": "Conhecidas"
+    },
+    "statuses": {
+      "new": "Nova",
+      "learning": "Aprendendo",
+      "known": "Conhecida"
+    }
+  },
+  "errors": {
+    "invalidWord": "Palavra inválida para consulta.",
+    "definitionLookupFailed": "Não foi possível buscar a definição desta palavra.",
+    "noDefinitionFound": "Nenhuma definição foi encontrada.",
+    "selectionTooLong": "Selecione um trecho menor para traduzir.",
+    "translationFailed": "Não foi possível traduzir este trecho agora.",
+    "emptyTranslation": "A tradução retornou vazia.",
+    "noTextToTranslate": "Não há texto para traduzir.",
+    "noTextToSimplify": "Não há texto para simplificar."
+  }
+}

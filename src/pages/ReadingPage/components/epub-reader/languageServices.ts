@@ -1,4 +1,5 @@
 import { sanitizeLookupWord, simplifyEnglishText } from "./languageLearning";
+import { getIntlLocale, translate } from "../../../../i18n";
 import {
   getCachedWord,
   setCachedWord,
@@ -25,6 +26,17 @@ export const SUPPORTED_LANGUAGES = [
 ] as const;
 
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]["code"];
+
+/** Language name rendered in the active interface language, with the endonym as fallback. */
+export function getLanguageDisplayName(code: LanguageCode, locale: string): string {
+  const endonym = SUPPORTED_LANGUAGES.find((language) => language.code === code)?.name;
+  try {
+    const displayNames = new Intl.DisplayNames([getIntlLocale(locale)], { type: "language" });
+    return displayNames.of(code) ?? endonym ?? code;
+  } catch {
+    return endonym ?? code;
+  }
+}
 
 export type LookupSource = "cache" | "api" | "fallback";
 
@@ -174,7 +186,7 @@ export async function fetchDictionaryEntry(
   const lookupWord = sanitizeLookupWord(word);
 
   if (!lookupWord) {
-    throw new Error("Palavra invalida para consulta.");
+    throw new Error(translate("epub:errors.invalidWord"));
   }
 
   const response = await fetch(
@@ -182,7 +194,7 @@ export async function fetchDictionaryEntry(
     { signal },
   );
 
-  ensureOkResponse(response, "Nao foi possivel buscar a definicao desta palavra.");
+  ensureOkResponse(response, translate("epub:errors.definitionLookupFailed"));
 
   const payload = (await response.json()) as Array<{
     word?: string;
@@ -200,7 +212,7 @@ export async function fetchDictionaryEntry(
 
   const entry = payload?.[0];
   if (!entry) {
-    throw new Error("Nenhuma definicao foi encontrada.");
+    throw new Error(translate("epub:errors.noDefinitionFound"));
   }
 
   const phonetic =
@@ -224,7 +236,7 @@ export async function fetchDictionaryEntry(
     .filter((meaning) => meaning.definitions.length > 0);
 
   if (!meanings || meanings.length === 0) {
-    throw new Error("Nenhuma definicao foi encontrada.");
+    throw new Error(translate("epub:errors.noDefinitionFound"));
   }
 
   return {
@@ -243,7 +255,7 @@ export async function fetchDictionaryEntry(
 
 function ensureTextLength(text: string) {
   if (text.length > MAX_TRANSLATION_CHARACTERS) {
-    throw new Error("Selecione um trecho menor para traduzir.");
+    throw new Error(translate("epub:errors.selectionTooLong"));
   }
 }
 
@@ -270,7 +282,7 @@ async function requestMyMemoryTranslation(
       const intermediate = await requestMyMemoryTranslation(text, sourceLanguage, "pt", signal, false);
       return requestMyMemoryTranslation(intermediate, "pt", targetLanguage, signal, false);
     }
-    throw new Error("Não foi possível traduzir este trecho agora.");
+    throw new Error(translate("epub:errors.translationFailed"));
   }
 
   const payload = (await response.json()) as {
@@ -286,7 +298,7 @@ async function requestMyMemoryTranslation(
       const intermediate = await requestMyMemoryTranslation(text, sourceLanguage, "pt", signal, false);
       return requestMyMemoryTranslation(intermediate, "pt", targetLanguage, signal, false);
     }
-    throw new Error("A tradução retornou vazia.");
+    throw new Error(translate("epub:errors.emptyTranslation"));
   }
 
   return translatedText;
@@ -300,7 +312,7 @@ export async function translateText(
 ): Promise<TranslationResult> {
   const cleaned = cleanText(text);
   if (!cleaned) {
-    throw new Error("Nao ha texto para traduzir.");
+    throw new Error(translate("epub:errors.noTextToTranslate"));
   }
 
   ensureTextLength(cleaned);
@@ -346,7 +358,7 @@ export async function simplifySelectedText(
 ) {
   const cleaned = cleanText(text);
   if (!cleaned) {
-    throw new Error("Nao ha texto para simplificar.");
+    throw new Error(translate("epub:errors.noTextToSimplify"));
   }
 
   if (sourceLanguage === "en") {
@@ -382,7 +394,7 @@ export async function lookupWord(
   const normalizedWord = sanitizeLookupWord(word);
 
   if (!normalizedWord) {
-    throw new Error("Palavra inválida para consulta.");
+    throw new Error(translate("epub:errors.invalidWord"));
   }
 
   if (useCache) {
@@ -428,7 +440,7 @@ export async function lookupWithTranslation(
   const normalizedWord = sanitizeLookupWord(word);
 
   if (!normalizedWord) {
-    throw new Error("Palavra inválida para consulta.");
+    throw new Error(translate("epub:errors.invalidWord"));
   }
 
   const source = await lookupWord(normalizedWord, sourceLang, signal, { useCache: true, saveToCache: true });

@@ -1,4 +1,5 @@
 import { List, X } from "lucide-react";
+import { useTranslation } from "../../../../i18n";
 import type { NavItem } from "./types";
 
 interface TableOfContentsProps {
@@ -32,6 +33,7 @@ export default function TableOfContents({
   onSelectChapter,
   onClose,
 }: TableOfContentsProps) {
+  const { t } = useTranslation();
   const flattened = flattenToc(toc);
 
   if (!isOpen) return null;
@@ -41,13 +43,13 @@ export default function TableOfContents({
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
         <div className="flex items-center gap-2 text-zinc-100">
           <List size={18} />
-          <span className="font-medium">Índice</span>
+          <span className="font-medium">{t("epub:toc.title")}</span>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="rounded-sm p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-          title="Fechar índice"
+          title={t("epub:toc.closeTitle")}
         >
           <X size={18} />
         </button>
@@ -56,7 +58,7 @@ export default function TableOfContents({
       <div className="flex-1 overflow-y-auto overscroll-contain py-2">
         {flattened.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-zinc-500">
-            Sem capítulos disponíveis
+            {t("epub:toc.empty")}
           </div>
         ) : (
           <ul className="space-y-0.5">

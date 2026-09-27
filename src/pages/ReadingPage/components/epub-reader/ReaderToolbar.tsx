@@ -28,7 +28,14 @@ import {
   FONT_OPTIONS,
   getFontStack,
 } from "./theme";
-import { SUPPORTED_LANGUAGES } from "./languageServices";
+import { SUPPORTED_LANGUAGES, getLanguageDisplayName } from "./languageServices";
+import { useTranslation, type TranslationKey } from "../../../../i18n";
+
+const THEME_LABEL_KEYS = {
+  light: "epub:toolbar.themes.light",
+  dark: "epub:toolbar.themes.dark",
+  sepia: "epub:toolbar.themes.sepia",
+} as const satisfies Record<ThemeName, TranslationKey>;
 
 export interface ReaderToolbarProps {
   settings: ReaderSettings;
@@ -71,16 +78,14 @@ export default function ReaderToolbar({
   onFocusModeChange,
   onEpubReadingModeChange,
 }) {
+  const { t, i18n } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const toggleMenu = (menu: string) => {
     setOpenMenu((current) => (current === menu ? null : menu));
   };
 
-  const getLanguageName = (code: LanguageCode) => {
-    const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
-    return lang ? lang.name : code;
-  };
+  const getLanguageName = (code: LanguageCode) => getLanguageDisplayName(code, i18n.language);
 
   const triggerClasses =
     "inline-flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800";
@@ -157,7 +162,12 @@ export default function ReaderToolbar({
             className={triggerClasses}
             style={{ fontFamily: getFontStack(settings.fontFamily) }}
           >
-            <span>{FONT_OPTIONS.find((font) => font.value === settings.fontFamily)?.label}</span>
+            <span>
+              {(() => {
+                const font = FONT_OPTIONS.find((option) => option.value === settings.fontFamily);
+                return font?.labelKey ? t(font.labelKey) : font?.value;
+              })()}
+            </span>
             <ChevronDown size={14} className="text-zinc-500" />
           </button>
 
@@ -181,7 +191,7 @@ export default function ReaderToolbar({
                     }`}
                     style={{ fontFamily: getFontStack(font.value) }}
                   >
-                    <span>{font.label}</span>
+                    <span>{font.labelKey ? t(font.labelKey) : font.value}</span>
                     <span className="text-xs text-zinc-500">Aa</span>
                   </button>
                 );
@@ -201,7 +211,7 @@ export default function ReaderToolbar({
                 className="h-4 w-4 rounded-full border border-zinc-600"
                 style={{ backgroundColor: THEME_COLORS[settings.theme].background }}
               />
-              <span className="capitalize">{settings.theme}</span>
+              <span className="capitalize">{t(THEME_LABEL_KEYS[settings.theme])}</span>
             </div>
             <ChevronDown size={14} className="text-zinc-500" />
           </button>
@@ -229,7 +239,7 @@ export default function ReaderToolbar({
                       className="h-4 w-4 rounded-full border border-zinc-600"
                       style={{ backgroundColor: THEME_COLORS[theme].background }}
                     />
-                    <span className="capitalize">{theme}</span>
+                    <span className="capitalize">{t(THEME_LABEL_KEYS[theme])}</span>
                   </button>
                 );
               })}
@@ -242,7 +252,7 @@ export default function ReaderToolbar({
             type="button"
             onClick={() => toggleMenu("spacing")}
             className={triggerClasses}
-            title="Espaçamento"
+            title={t("epub:toolbar.spacing")}
           >
             <ArrowUpDown size={16} />
             <ChevronDown size={14} className="text-zinc-500" />
@@ -251,7 +261,7 @@ export default function ReaderToolbar({
           {openMenu === "spacing" && (
             <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
               <label className="mb-3 block text-sm text-zinc-400">
-                Altura da linha: {settings.lineHeight}
+                {t("epub:toolbar.lineHeight", { value: settings.lineHeight })}
               </label>
               <input
                 type="range"
@@ -271,7 +281,7 @@ export default function ReaderToolbar({
             type="button"
             onClick={() => toggleMenu("width")}
             className={triggerClasses}
-            title="Largura do conteúdo"
+            title={t("epub:toolbar.contentWidth")}
           >
             <ArrowLeftRight size={16} />
             <ChevronDown size={14} className="text-zinc-500" />
@@ -280,7 +290,7 @@ export default function ReaderToolbar({
           {openMenu === "width" && (
             <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
               <label className="mb-3 block text-sm text-zinc-400">
-                Largura do conteúdo: {settings.contentWidth}%
+                {t("epub:toolbar.contentWidthValue", { value: settings.contentWidth })}
               </label>
               <input
                 type="range"
@@ -311,7 +321,9 @@ export default function ReaderToolbar({
           {openMenu === "language" && (
             <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
               <div className="mb-3">
-                <label className="mb-2 block text-xs text-zinc-500">Idioma de origem</label>
+                <label className="mb-2 block text-xs text-zinc-500">
+                  {t("epub:toolbar.sourceLanguage")}
+                </label>
                 <div className="grid grid-cols-2 gap-1">
                   {SUPPORTED_LANGUAGES.map((lang) => (
                     <button
@@ -327,14 +339,16 @@ export default function ReaderToolbar({
                       }`}
                     >
                       <span>{lang.flag}</span>
-                      <span>{lang.name}</span>
+                      <span>{getLanguageName(lang.code)}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-xs text-zinc-500">Idioma de destino</label>
+                <label className="mb-2 block text-xs text-zinc-500">
+                  {t("epub:toolbar.targetLanguage")}
+                </label>
                 <div className="grid grid-cols-2 gap-1">
                   {SUPPORTED_LANGUAGES.map((lang) => (
                     <button
@@ -350,7 +364,7 @@ export default function ReaderToolbar({
                       }`}
                     >
                       <span>{lang.flag}</span>
-                      <span>{lang.name}</span>
+                      <span>{getLanguageName(lang.code)}</span>
                     </button>
                   ))}
                 </div>
@@ -393,18 +407,20 @@ export default function ReaderToolbar({
                   }`}
                 >
                   {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
-                  {settings.showHighlights ? "Ocultar Detalhes" : "Mostrar Detalhes"}
+                  {settings.showHighlights
+                    ? t("epub:toolbar.hideHighlights")
+                    : t("epub:toolbar.showHighlights")}
                 </button>
 
                 <div className="my-1 h-px bg-zinc-800" />
                 <p className="px-3 py-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
-                  Modo de leitura
+                  {t("epub:toolbar.readingMode")}
                 </p>
 
                 {([
-                  ["continuous", "Fluxo continuo", ScrollText],
-                  ["paginated", "Livro paginado", BookOpen],
-                ] as Array<[EpubReadingMode, string, typeof BookOpen]>).map(([mode, label, Icon]) => (
+                  ["continuous", "epub:toolbar.modes.continuous", ScrollText],
+                  ["paginated", "epub:toolbar.modes.paginated", BookOpen],
+                ] as Array<[EpubReadingMode, TranslationKey, typeof BookOpen]>).map(([mode, labelKey, Icon]) => (
                   <button
                     key={mode}
                     type="button"
@@ -418,7 +434,7 @@ export default function ReaderToolbar({
                     }`}
                   >
                     <Icon size={16} />
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
 
@@ -435,7 +451,7 @@ export default function ReaderToolbar({
                   }`}
                 >
                   <BookMarked size={16} />
-                  Vocabulário
+                  {t("epub:toolbar.vocabulary")}
                 </button>
               </div>
             )}
@@ -449,7 +465,7 @@ export default function ReaderToolbar({
                 ? "border-zinc-600 bg-zinc-800 text-zinc-100"
                 : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             }`}
-            title="Índice"
+            title={t("epub:toolbar.toc")}
           >
             <PanelRightClose size={16} />
           </button>
@@ -462,7 +478,7 @@ export default function ReaderToolbar({
                 ? "border-green-600 bg-green-900/50 text-green-400"
                 : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             }`}
-            title="Modo Foco"
+            title={t("epub:toolbar.focusMode")}
           >
             <Focus size={16} />
           </button>

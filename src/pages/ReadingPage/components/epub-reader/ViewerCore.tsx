@@ -11,6 +11,7 @@ import {
 import { ReaderSettings, THEME_COLORS, HIGHLIGHT_COLORS, getFontStack } from "./theme";
 import useReadingStatePersistence from "../../hooks/useReadingStatePersistence";
 import type { NavItem } from "./types";
+import { useTranslation } from "../../../../i18n";
 
 interface ViewerCoreProps {
   epubData: ArrayBuffer;
@@ -110,6 +111,7 @@ export default function ViewerCore({
   onNavigateToChapter,
   currentSectionHref,
 }: ViewerCoreProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -1464,7 +1466,7 @@ const persistReadingLocation = useCallback(
             type="button"
             className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
             onClick={goToPreviousPage}
-            title="Pagina anterior"
+            title={t("epub:navigation.previousPage")}
           >
             <ChevronLeft size={22} />
           </button>
@@ -1473,7 +1475,7 @@ const persistReadingLocation = useCallback(
             type="button"
             className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
             onClick={goToNextPage}
-            title="Proxima pagina"
+            title={t("epub:navigation.nextPage")}
           >
             <ChevronRight size={22} />
           </button>
