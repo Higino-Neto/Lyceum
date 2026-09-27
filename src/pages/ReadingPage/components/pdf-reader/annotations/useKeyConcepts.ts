@@ -7,6 +7,7 @@ import type {
   KeyConcept,
   UpdateKeyConceptInput,
 } from "../../../../../types/AnnotationTypes";
+import { translate } from "../../../../../i18n";
 
 const EMPTY_GRAPH: ConceptGraphPayload = { concepts: [], relations: [] };
 
@@ -26,7 +27,9 @@ export function useKeyConcepts(bookId: string, currentPage: number) {
     try {
       const result = await window.api.getConceptGraph(bookId);
       if (!result.success || !result.payload) {
-        throw new Error(result.error || "Nao foi possivel carregar concepts");
+        throw new Error(
+        result.error || translate("pdf:annotations.errors.loadFailed"),
+      );
       }
       setGraph(result.payload);
       return result.payload;
@@ -46,7 +49,9 @@ export function useKeyConcepts(bookId: string, currentPage: number) {
 
   const applyGraphResult = useCallback((result: { success: boolean; payload?: ConceptGraphPayload; error?: string }) => {
     if (!result.success || !result.payload) {
-      throw new Error(result.error || "Nao foi possivel atualizar concepts");
+      throw new Error(
+        result.error || translate("pdf:annotations.errors.updateFailed"),
+      );
     }
     setGraph(result.payload);
     setError(null);

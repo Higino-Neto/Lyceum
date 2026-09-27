@@ -2,6 +2,7 @@ import { Maximize2, Network } from "lucide-react";
 import type { ConceptRelation, KeyConcept } from "../../../../../types/AnnotationTypes";
 import { buildConceptGraphModel } from "./graphModel";
 import { conceptAccent } from "./annotationPanelUtils";
+import { useTranslation } from "../../../../../i18n";
 
 interface KnowledgeMapPreviewProps {
   concepts: KeyConcept[];
@@ -14,6 +15,7 @@ export default function KnowledgeMapPreview({
   relations,
   onOpenGraph,
 }: KnowledgeMapPreviewProps) {
+  const { t } = useTranslation();
   const model = buildConceptGraphModel(concepts.slice(0, 6), relations);
   const positions = model.nodes.map((node, index) => {
     const angle = (Math.PI * 2 * index) / Math.max(1, model.nodes.length) - Math.PI / 2;
@@ -32,14 +34,14 @@ export default function KnowledgeMapPreview({
       <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
         <span className="inline-flex items-center gap-2">
           <Network size={14} />
-          Mapa do conhecimento
+          {t("pdf:annotations.preview.title")}
         </span>
         <button
           type="button"
           onClick={onOpenGraph}
           className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-          title="Abrir graph"
-          aria-label="Abrir graph"
+          title={t("pdf:annotations.preview.openTitle")}
+          aria-label={t("pdf:annotations.preview.openAriaLabel")}
         >
           <Maximize2 size={13} />
         </button>
@@ -51,10 +53,10 @@ export default function KnowledgeMapPreview({
       >
         {positions.length === 0 ? (
           <span className="flex h-full items-center justify-center px-5 text-center text-xs text-zinc-500">
-            Crie conceitos e links para formar o mapa.
+            {t("pdf:annotations.preview.empty")}
           </span>
         ) : (
-          <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label="Preview do mapa de conceitos">
+          <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label={t("pdf:annotations.preview.svgAriaLabel")}>
             {model.edges.map((edge) => {
               const source = byId.get(edge.source);
               const target = byId.get(edge.target);

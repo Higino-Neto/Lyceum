@@ -7,6 +7,7 @@ import {
   type OutlineNode,
   type PdfViewerEvent,
 } from "../pdfBridgeProtocol";
+import { translate } from "../../../../../i18n";
 
 export interface ChapterNode {
   id: string;
@@ -25,7 +26,7 @@ function buildTree(nodes: OutlineNode[], parentId: string, depth: number): Chapt
       : [];
     return {
       id,
-      title: node.title || "(sem título)",
+      title: node.title || translate("pdf:chapters.untitled"),
       page: typeof node.page === "number" ? node.page : null,
       depth,
       hasChildren: children.length > 0,
@@ -145,7 +146,9 @@ export function useChapterTracker(
       if (data.error) {
         setOutline([]);
         setLoading(false);
-        setError(data.message || "Não foi possível ler a estrutura de capítulos deste PDF.");
+        setError(
+            data.message || translate("pdf:chapters.structureFailed"),
+          );
         return;
       }
 

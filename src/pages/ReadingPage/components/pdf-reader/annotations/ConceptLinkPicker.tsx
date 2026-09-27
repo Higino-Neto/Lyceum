@@ -8,13 +8,14 @@ import {
   paginate,
   sortConcepts,
 } from "./annotationPanelUtils";
+import { useTranslation, type TranslationKey } from "../../../../../i18n";
 
 interface ConceptLinkPickerProps {
   concepts: KeyConcept[];
   selectedIds: Set<string>;
   excludeId?: string | null;
   title: string;
-  emptyLabel?: string;
+  emptyLabel?: TranslationKey;
   onToggle: (id: string) => void;
 }
 
@@ -23,9 +24,10 @@ export default function ConceptLinkPicker({
   selectedIds,
   excludeId,
   title,
-  emptyLabel = "Nenhum concept encontrado.",
+  emptyLabel = "pdf:annotations.linkPicker.empty",
   onToggle,
 }: ConceptLinkPickerProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -44,20 +46,22 @@ export default function ConceptLinkPicker({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="font-semibold text-zinc-300">{title}</span>
-        <span className="text-zinc-500">{selectedIds.size} selecionados</span>
+        <span className="text-zinc-500">
+          {t("pdf:annotations.linkPicker.selectedCount", { count: selectedIds.size })}
+        </span>
       </div>
       <label className="relative block">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar para linkar"
+          placeholder={t("pdf:annotations.linkPicker.searchPlaceholder")}
           className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 pl-8 pr-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-          aria-label="Buscar concepts para linkar"
+          aria-label={t("pdf:annotations.linkPicker.searchAriaLabel")}
         />
       </label>
       {paginated.items.length === 0 ? (
-        <AnnotationEmptyState>{emptyLabel}</AnnotationEmptyState>
+        <AnnotationEmptyState>{t(emptyLabel)}</AnnotationEmptyState>
       ) : (
         <div className="space-y-1.5">
           {paginated.items.map((concept) => {
@@ -91,7 +95,7 @@ export default function ConceptLinkPicker({
             onClick={() => setPage((value) => Math.max(1, value - 1))}
             disabled={paginated.page <= 1}
             className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 disabled:opacity-40"
-            aria-label="Pagina anterior"
+            aria-label={t("pdf:annotations.linkPicker.previousPage")}
           >
             <ChevronLeft size={13} />
           </button>
@@ -101,7 +105,7 @@ export default function ConceptLinkPicker({
             onClick={() => setPage((value) => Math.min(paginated.pageCount, value + 1))}
             disabled={paginated.page >= paginated.pageCount}
             className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 disabled:opacity-40"
-            aria-label="Proxima pagina"
+            aria-label={t("pdf:annotations.linkPicker.nextPage")}
           >
             <ChevronRight size={13} />
           </button>

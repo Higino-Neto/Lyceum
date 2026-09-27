@@ -5,6 +5,7 @@ import type {
 } from "../../../../../types/AnnotationTypes";
 import type { ChapterRange } from "./chapterRanges";
 import { filterConceptsByChapter } from "./chapterRanges";
+import { translate } from "../../../../../i18n";
 
 export type FilterScope = "all" | "page" | "chapter" | "highlighted" | "unlinked";
 export type SortMode = "recent" | "page" | "title" | "links";
@@ -144,10 +145,18 @@ export function formatRelativeUpdatedAt(value: string, now = Date.now()) {
   const hour = 60 * minute;
   const day = 24 * hour;
 
-  if (diffMs < minute) return "agora";
-  if (diffMs < hour) return `ha ${Math.floor(diffMs / minute)} min`;
-  if (diffMs < day) return `ha ${Math.floor(diffMs / hour)} h`;
-  return `ha ${Math.floor(diffMs / day)} dia${Math.floor(diffMs / day) === 1 ? "" : "s"}`;
+  if (diffMs < minute) return translate("pdf:annotations.relativeTime.now");
+  if (diffMs < hour) {
+    return translate("pdf:annotations.relativeTime.minutes", {
+      count: Math.floor(diffMs / minute),
+    });
+  }
+  if (diffMs < day) {
+    return translate("pdf:annotations.relativeTime.hours", {
+      count: Math.floor(diffMs / hour),
+    });
+  }
+  return translate("pdf:annotations.relativeTime.days", { count: Math.floor(diffMs / day) });
 }
 
 const ACCENTS = ["#38bdf8", "#22c55e", "#facc15", "#a855f7", "#f472b6", "#fb923c"];

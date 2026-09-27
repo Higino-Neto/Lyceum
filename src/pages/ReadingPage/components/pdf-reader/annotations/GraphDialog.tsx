@@ -4,6 +4,7 @@ import type { ConceptRelation, KeyConcept } from "../../../../../types/Annotatio
 import type { ChapterRange } from "./chapterRanges";
 import { filterConceptsByChapter } from "./chapterRanges";
 import SigmaConceptGraph from "./SigmaConceptGraph";
+import { formatNumber, useTranslation } from "../../../../../i18n";
 
 interface GraphDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export default function GraphDialog({
   onClose,
   onGoToPage,
 }: GraphDialogProps) {
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,18 +101,18 @@ export default function GraphDialog({
           <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 sm:px-6">
             <div className="min-w-0">
               <h2 id="key-concepts-graph-title" className="truncate text-base font-semibold text-zinc-100">
-                Mapa de notas
+                {t("pdf:annotations.graph.title")}
               </h2>
               <p className="hidden text-xs text-zinc-500 sm:block">
-                Explore as relações entre suas notas.
+                {t("pdf:annotations.graph.description")}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-              title="Fechar"
-              aria-label="Fechar graph"
+              title={t("pdf:annotations.graph.closeTitle")}
+              aria-label={t("pdf:annotations.graph.closeAriaLabel")}
             >
               <X size={17} />
             </button>
@@ -124,18 +126,18 @@ export default function GraphDialog({
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Buscar notas"
+                    placeholder={t("pdf:annotations.graph.searchPlaceholder")}
                     className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 pl-8 pr-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-                    aria-label="Buscar notas no mapa"
+                    aria-label={t("pdf:annotations.graph.searchAriaLabel")}
                   />
                 </label>
                 <select
                   value={selectedChapterId}
                   onChange={(event) => onSelectedChapterChange(event.target.value)}
                   className="h-9 min-w-[220px] rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none focus:border-emerald-500"
-                  aria-label="Filtrar mapa por capítulo"
+                                   aria-label={t("pdf:annotations.graph.chapterFilterAriaLabel")}
                 >
-                  <option value="all">Todos os capitulos</option>
+                  <option value="all">{t("pdf:annotations.graph.allChapters")}</option>
                   {chapterRanges.map((chapter) => (
                     <option key={chapter.id} value={chapter.id}>
                       {chapter.title} - {chapter.conceptCount}
@@ -147,13 +149,16 @@ export default function GraphDialog({
                   onClick={() => currentChapter && onSelectedChapterChange(currentChapter.id)}
                   disabled={!currentChapter}
                   className="flex h-9 w-9 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-300 transition hover:border-zinc-700 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  title="Usar capitulo atual"
-                  aria-label="Usar capitulo atual"
+                  title={t("pdf:annotations.graph.useCurrentChapterTitle")}
+                  aria-label={t("pdf:annotations.graph.useCurrentChapterAriaLabel")}
                 >
                   <LocateFixed size={15} />
                 </button>
                 <div className="ml-auto text-xs text-zinc-500">
-                  {stats.concepts} notas · {stats.relations} vínculos
+                  {t("pdf:annotations.graph.stats", {
+                    count: stats.concepts,
+                    relations: formatNumber(stats.relations, i18n.language),
+                  })}
                 </div>
               </div>
               <div className="min-h-0 flex-1">
@@ -172,8 +177,10 @@ export default function GraphDialog({
                   <div>
                     <div className="text-sm font-semibold text-zinc-100">{selectedConcept.title}</div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => onOpenConcept(selectedConcept.id)} className="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-950 hover:bg-white"><Pencil size={13} /> Abrir nota</button>
-                      <button type="button" onClick={() => { onClose(); onGoToPage(selectedConcept.page); }} className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"><ExternalLink size={13} /> p. {selectedConcept.page}</button>
+                      <button type="button" onClick={() => onOpenConcept(selectedConcept.id)} className="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-950 hover:bg-white"><Pencil size={13} /> {t("pdf:annotations.graph.openNote")}</button>
+                      <button type="button" onClick={() => { onClose(); onGoToPage(selectedConcept.page); }} className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"><ExternalLink size={13} />
+                        {t("pdf:annotations.graph.pageLabel", { page: selectedConcept.page })}
+                      </button>
                     </div>
                   </div>
                   {selectedConcept.excerpt && (
@@ -187,7 +194,7 @@ export default function GraphDialog({
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-center text-xs text-zinc-500">
-                  Selecione uma nota para ver seus detalhes.
+                  {t("pdf:annotations.graph.emptyDetails")}
                 </div>
               )}
             </aside>

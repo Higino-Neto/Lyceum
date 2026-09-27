@@ -9,6 +9,7 @@ import {
 } from "./annotationPanelUtils";
 import ConceptLinkPicker from "./ConceptLinkPicker";
 import { relationKey } from "./graphModel";
+import { useTranslation } from "../../../../../i18n";
 
 interface ConceptEditorProps {
   selected: KeyConcept | null;
@@ -35,6 +36,7 @@ export default function ConceptEditor({
   onToggleRelation,
   onGoToPage,
 }: ConceptEditorProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [page, setPage] = useState("1");
   const [note, setNote] = useState("");
@@ -53,7 +55,7 @@ export default function ConceptEditor({
   );
 
   if (!selected) {
-    return <AnnotationEmptyState>Selecione uma nota para editar.</AnnotationEmptyState>;
+    return <AnnotationEmptyState>{t("pdf:annotations.editor.empty")}</AnnotationEmptyState>;
   }
 
   const pageNumber = clampConceptPage(page, totalPages);
@@ -78,8 +80,10 @@ export default function ConceptEditor({
             type="button"
             onClick={() => onGoToPage(selected.page)}
             className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-            title="Ir para pagina"
-            aria-label="Ir para pagina"
+            title={t("pdf:annotations.editor.goToPageTitle")}
+            aria-label={t("pdf:annotations.editor.goToPageAriaLabel", {
+              page: selected.page,
+            })}
           >
             <ExternalLink size={14} />
           </button>
@@ -95,27 +99,27 @@ export default function ConceptEditor({
                 ? "border-red-700 bg-red-900/50 text-red-100"
                 : "border-red-950 bg-red-950/30 text-red-300 hover:border-red-800 hover:bg-red-950",
             ].join(" ")}
-            title="Excluir nota"
-            aria-label="Excluir nota"
+            title={t("pdf:annotations.editor.deleteTitle")}
+            aria-label={t("pdf:annotations.editor.deleteAriaLabel")}
           >
-            {deleteArmed ? "Confirmar" : <Trash2 size={14} />}
+            {deleteArmed ? t("pdf:annotations.editor.confirmDelete") : <Trash2 size={14} />}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-[1fr_76px] gap-3">
-        <label className="block space-y-2 text-sm text-zinc-300"><span>Título</span><input
+        <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.titleLabel")}</span><input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           className="h-10 w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-zinc-100 outline-none focus:border-zinc-400"
-          aria-label="Título da nota"
+          aria-label={t("pdf:annotations.editor.titleAriaLabel")}
         /></label>
-        <label className="block space-y-2 text-sm text-zinc-300"><span>Página</span><input
+        <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.pageLabel")}</span><input
           value={page}
           onChange={(event) => setPage(event.target.value)}
           inputMode="numeric"
           className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100 outline-none focus:border-zinc-400"
-          aria-label="Página da nota"
+          aria-label={t("pdf:annotations.editor.pageAriaLabel")}
         /></label>
       </div>
 
@@ -125,16 +129,20 @@ export default function ConceptEditor({
         </blockquote>
       )}
 
-      <label className="block space-y-2 text-sm text-zinc-300"><span>Conteúdo</span><textarea
+      <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.contentLabel")}</span><textarea
         value={note}
         onChange={(event) => setNote(event.target.value)}
         rows={7}
-        placeholder="Nota opcional"
+        placeholder={t("pdf:annotations.editor.notePlaceholder")}
         className="w-full resize-y rounded-md border border-zinc-700 bg-zinc-900 px-3 py-3 text-sm leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-400"
       /></label>
 
-      {duplicate && <div className="text-xs text-amber-300">Já existe uma nota com esse título.</div>}
-      {pageNumber === null && <div className="text-xs text-amber-300">Informe uma página válida.</div>}
+      {duplicate && (
+        <div className="text-xs text-amber-300">{t("pdf:annotations.editor.duplicateTitle")}</div>
+      )}
+      {pageNumber === null && (
+        <div className="text-xs text-amber-300">{t("pdf:annotations.editor.invalidPage")}</div>
+      )}
 
       {dirty && title.trim() && (
         <button
@@ -148,12 +156,14 @@ export default function ConceptEditor({
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-zinc-200 px-3 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save size={14} />
-          Salvar alterações
+          {t("pdf:annotations.editor.save")}
         </button>
       )}
 
       <details className="space-y-2 border-t border-zinc-800 pt-3">
-        <summary className="cursor-pointer select-none text-sm font-medium text-zinc-300">Vínculos · {related.length}</summary>
+        <summary className="cursor-pointer select-none text-sm font-medium text-zinc-300">
+          {t("pdf:annotations.editor.linksSummary", { count: related.length })}
+        </summary>
         {related.length > 0 && (
           <div className="space-y-1.5">
             {related.map((concept) => {
@@ -172,8 +182,8 @@ export default function ConceptEditor({
                       type="button"
                       onClick={() => onDeleteRelation(relation)}
                       className="flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-900 hover:text-red-300"
-                      title="Remover link"
-                      aria-label="Remover link"
+                      title={t("pdf:annotations.editor.removeLinkTitle")}
+                      aria-label={t("pdf:annotations.editor.removeLinkAriaLabel")}
                     >
                       <Link2Off size={13} />
                     </button>
@@ -187,7 +197,7 @@ export default function ConceptEditor({
           concepts={concepts}
           selectedIds={selectedLinkIds}
           excludeId={selected.id}
-          title="Adicionar link"
+          title={t("pdf:annotations.editor.addLink")}
           onToggle={onToggleRelation}
         />
       </details>

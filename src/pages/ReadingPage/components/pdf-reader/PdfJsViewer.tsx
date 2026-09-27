@@ -27,6 +27,7 @@ import {
 } from "./pdfBridgeProtocol";
 
 import { CMD_SET_BOOK_LANDMARKS, type BookLandmark } from "../../../../core/pdf-reader-core/contract";
+import { translate, useTranslation } from "../../../../i18n";
 
 interface PdfJsViewerProps {
   fileHash: string;
@@ -61,6 +62,7 @@ export default function PdfJsViewer({
   onToggleChapters,
   onCloseChapters,
 }: PdfJsViewerProps) {
+  const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<PdfViewState | null>(null);
   const devRestoreStateRef = useRef<PdfViewState | null>(null);
@@ -342,7 +344,7 @@ export default function PdfJsViewer({
   if (!viewerUrls) {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400">
-        Nao foi possivel criar uma URL segura para o PDF.js.
+        translate("pdf:viewer.secureUrlFailed")
       </div>
     );
   }
@@ -378,7 +380,11 @@ export default function PdfJsViewer({
           ref={iframeRef}
           key={viewerUrl.toString()}
           src={viewerUrl.toString()}
-          title={fileName ? `${fileName} - PDF.js` : "Mozilla PDF.js Viewer"}
+          title={
+            fileName
+              ? t("pdf:viewer.frameTitle", { name: fileName })
+              : t("pdf:viewer.frameTitleNoName")
+          }
           className="h-full w-full border-0 bg-zinc-950"
           sandbox="allow-scripts allow-same-origin allow-downloads"
           onLoad={() => {
@@ -386,7 +392,7 @@ export default function PdfJsViewer({
             syncAnnotationButtonState();
           }}
           onError={() => {
-            setLoadError("O Mozilla PDF.js Viewer nao conseguiu carregar.");
+            setLoadError(translate("pdf:viewer.loadFailed"));
           }}
         />
       </div>

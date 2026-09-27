@@ -1,0 +1,180 @@
+{
+  "viewer": {
+    "secureUrlFailed": "Não foi possível criar uma URL segura para o PDF.js.",
+    "loadFailed": "O Mozilla PDF.js Viewer não conseguiu carregar.",
+    "frameTitleNoName": "Mozilla PDF.js Viewer",
+    "frameTitle": "{{name}} - PDF.js"
+  },
+  "annotations": {
+    "panel": {
+      "title": "Notas",
+      "wholeBook": "Livro inteiro",
+      "summary_one": "{{count}} nota · página {{page}}",
+      "summary_other": "{{count}} notas · página {{page}}",
+      "closeTitle": "Fechar",
+      "closeAriaLabel": "Fechar notas",
+      "navAriaLabel": "Navegação das notas",
+      "all": "Todas",
+      "map": "Mapa",
+      "draft": "Rascunho",
+      "newNote": "Nova nota",
+      "closeErrorAriaLabel": "Fechar erro",
+      "allNotes": "← Todas as notas"
+    },
+    "composer": {
+      "title": "Nova nota",
+      "page": "Página {{page}}",
+      "linkedToSelection": " · vinculada ao trecho selecionado",
+      "closeAriaLabel": "Fechar editor",
+      "selectedExcerpt": "Trecho selecionado",
+      "removeLink": "Remover vínculo",
+      "titleLabel": "Título",
+      "titlePlaceholder": "Dê um nome à nota",
+      "duplicateTitle": "Já existe uma nota com esse título.",
+      "contentLabel": "Conteúdo",
+      "optional": "(opcional)",
+      "notePlaceholder": "Escreva suas ideias sobre o trecho...",
+      "linkSection": "Vincular a outras notas",
+      "save": "Salvar nota"
+    },
+    "editor": {
+      "empty": "Selecione uma nota para editar.",
+      "goToPageTitle": "Ir para página",
+      "goToPageAriaLabel": "Ir para a página {{page}}",
+      "deleteTitle": "Excluir nota",
+      "deleteAriaLabel": "Excluir nota",
+      "confirmDelete": "Confirmar",
+      "titleLabel": "Título",
+      "titleAriaLabel": "Título da nota",
+      "pageLabel": "Página",
+      "pageAriaLabel": "Página da nota",
+      "contentLabel": "Conteúdo",
+      "notePlaceholder": "Nota opcional",
+      "duplicateTitle": "Já existe uma nota com esse título.",
+      "invalidPage": "Informe uma página válida.",
+      "save": "Salvar alterações",
+      "linksSummary_one": "Vínculos · {{count}}",
+      "linksSummary_other": "Vínculos · {{count}}",
+      "removeLinkTitle": "Remover link",
+      "removeLinkAriaLabel": "Remover link",
+      "addLink": "Adicionar link",
+      "linksLabel": "Vínculos"
+    },
+    "linkPicker": {
+      "empty": "Nenhum conceito encontrado.",
+      "selectedCount_one": "{{count}} selecionado",
+      "selectedCount_other": "{{count}} selecionados",
+      "searchPlaceholder": "Buscar para linkar",
+      "searchAriaLabel": "Buscar conceitos para linkar",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página"
+    },
+    "list": {
+      "allConcepts": "Todos os conceitos",
+      "searchPlaceholder": "Buscar conceitos...",
+      "searchAriaLabel": "Buscar conceitos",
+      "filtersTitle": "Filtros",
+      "filtersAriaLabel": "Filtros",
+      "chapterFilterAriaLabel": "Filtrar por capítulo",
+      "allChapters": "Todos os capítulos",
+      "currentChapter": "Atual",
+      "sortBy": "Ordenar por",
+      "loading": "Carregando conceitos...",
+      "empty": "Nenhum Key Concept neste filtro.",
+      "goToPageTitle": "Ir para página",
+      "goToPageAriaLabel": "Ir para a página {{page}}",
+      "pageLabel": "p. {{page}}",
+      "relationCount_one": "{{count}} link",
+      "relationCount_other": "{{count}} links",
+      "relationCountTitle_one": "{{count}} vínculo",
+      "relationCountTitle_other": "{{count}} vínculos",
+      "filters": {
+        "all": "Todos",
+        "page": "Página",
+        "highlighted": "Highlights",
+        "unlinked": "Sem links"
+      },
+      "sorts": {
+        "recent": "Recentes",
+        "title": "A-Z",
+        "links": "Mais ligados",
+        "page": "Por capítulo"
+      }
+    },
+    "currentPage": {
+      "title": "Conceitos nesta página",
+      "empty": "Nenhum Key Concept nesta página.",
+      "noNote": "Sem nota adicional"
+    },
+    "graph": {
+      "title": "Mapa de notas",
+      "description": "Explore as relações entre suas notas.",
+      "closeTitle": "Fechar",
+      "closeAriaLabel": "Fechar mapa",
+      "searchPlaceholder": "Buscar notas",
+      "searchAriaLabel": "Buscar notas no mapa",
+      "chapterFilterAriaLabel": "Filtrar mapa por capítulo",
+      "allChapters": "Todos os capítulos",
+      "useCurrentChapterTitle": "Usar capítulo atual",
+      "useCurrentChapterAriaLabel": "Usar capítulo atual",
+      "stats_one": "{{count}} nota · {{relations}} vínculo",
+      "stats_other": "{{count}} notas · {{relations}} vínculos",
+      "openNote": "Abrir nota",
+      "pageLabel": "p. {{page}}",
+      "emptyDetails": "Selecione uma nota para ver seus detalhes."
+    },
+    "preview": {
+      "title": "Mapa do conhecimento",
+      "openTitle": "Abrir mapa",
+      "openAriaLabel": "Abrir mapa do conhecimento",
+      "empty": "Crie conceitos e links para formar o mapa.",
+      "svgAriaLabel": "Preview do mapa de conceitos"
+    },
+    "pageContext": {
+      "currentPage": "Página atual",
+      "wholeBook": "Livro inteiro",
+      "conceptCount_one": "{{count}} conceito",
+      "conceptCount_other": "{{count}} conceitos"
+    },
+    "relatedPages": {
+      "title": "Páginas relacionadas",
+      "empty": "Nenhuma página anotada ainda.",
+      "more": "mais"
+    },
+    "sigma": {
+      "empty": "Crie notas e vínculos para formar o mapa deste livro.",
+      "loadFailed": "Não foi possível abrir o mapa.",
+      "controlsAriaLabel": "Controles do mapa",
+      "zoomIn": "Aproximar",
+      "zoomOut": "Afastar",
+      "fit": "Enquadrar tudo"
+    },
+    "errors": {
+      "loadFailed": "Não foi possível carregar conceitos",
+      "updateFailed": "Não foi possível atualizar conceitos"
+    },
+    "relativeTime": {
+      "now": "agora",
+      "minutes_one": "ha {{count}} min",
+      "minutes_other": "ha {{count}} min",
+      "hours_one": "ha {{count}} h",
+      "hours_other": "ha {{count}} h",
+      "days_one": "ha {{count}} dia",
+      "days_other": "ha {{count}} dias"
+    }
+  },
+  "chapters": {
+    "collapseAriaLabel": "Recolher",
+    "expandAriaLabel": "Expandir",
+    "markUnreadAriaLabel": "Marcar como não lido",
+    "markReadAriaLabel": "Marcar como lido",
+    "goToPageTitle": "Ir para a página {{page}}",
+    "unknownPage": "Página desconhecida",
+    "resizeAriaLabel": "Redimensionar painel de capítulos",
+    "closeAriaLabel": "Fechar painel de capítulos",
+    "loading": "Carregando capítulos…",
+    "empty": "Este PDF não possui capítulos ou bookmarks.",
+    "untitled": "(sem título)",
+    "structureFailed": "Não foi possível ler a estrutura de capítulos deste PDF."
+  }
+}

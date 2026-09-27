@@ -1,5 +1,6 @@
 import { ChevronRight, FileText } from "lucide-react";
 import type { AnnotatedPage } from "../../../../../types/AnnotationTypes";
+import { useTranslation } from "../../../../../i18n";
 
 interface RelatedPagesStripProps {
   pages: AnnotatedPage[];
@@ -12,6 +13,7 @@ export default function RelatedPagesStrip({
   currentPage,
   onGoToPage,
 }: RelatedPagesStripProps) {
+  const { t } = useTranslation();
   const nearby = pages
     .filter((page) => page.conceptCount > 0)
     .sort((a, b) => Math.abs(a.page - currentPage) - Math.abs(b.page - currentPage) || a.page - b.page);
@@ -23,14 +25,14 @@ export default function RelatedPagesStrip({
       <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
         <span className="inline-flex items-center gap-2">
           <FileText size={14} />
-          Paginas relacionadas
+          {t("pdf:annotations.relatedPages.title")}
         </span>
         {rest > 0 && <span className="text-[11px] font-normal text-zinc-500">+{rest}</span>}
       </div>
 
       {visible.length === 0 ? (
         <div className="rounded-sm border border-zinc-800 bg-zinc-950/60 px-3 py-4 text-center text-xs text-zinc-500">
-          Nenhuma pagina anotada ainda.
+          {t("pdf:annotations.relatedPages.empty")}
         </div>
       ) : (
         <div className="grid grid-cols-5 gap-2">
@@ -60,7 +62,7 @@ export default function RelatedPagesStrip({
               className="flex min-w-0 flex-col items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900/70 p-2 text-[10px] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
             >
               <span>+{rest}</span>
-              <span>mais</span>
+              <span>{t("pdf:annotations.relatedPages.more")}</span>
               <ChevronRight size={13} />
             </button>
           )}

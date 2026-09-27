@@ -24,6 +24,7 @@ import ConceptEditor from "./ConceptEditor";
 import ConceptList from "./ConceptList";
 import GraphDialog from "./GraphDialog";
 import { useKeyConcepts } from "./useKeyConcepts";
+import { useTranslation } from "../../../../../i18n";
 
 interface AnnotationPanelProps {
   bookId: string;
@@ -52,6 +53,7 @@ export default function AnnotationPanel({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNote, setDraftNote] = useState("");
   const [creationSelection, setCreationSelection] = useState<PdfSelectionPayload | null>(initialSelection);
+  const { t } = useTranslation();
   const [panelView, setPanelView] = useState<"list" | "compose" | "detail">(initialSelection?.text?.trim() ? "compose" : "list");
   const [pendingLinkedIds, setPendingLinkedIds] = useState<Set<string>>(new Set());
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
@@ -244,32 +246,45 @@ export default function AnnotationPanel({
       <header className="shrink-0 border-b border-zinc-800 px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold leading-tight">Notas</h2>
+            <h2 className="text-lg font-semibold leading-tight">
+              {t("pdf:annotations.panel.title")}
+            </h2>
             <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-zinc-400">
               <BookOpen size={12} />
-              <span className="truncate">{currentChapter?.title ?? "Livro inteiro"}</span>
+              <span className="truncate">
+                {currentChapter?.title ?? t("pdf:annotations.panel.wholeBook")}
+              </span>
             </div>
-            <div className="mt-1 text-xs text-zinc-500">{concepts.graph.concepts.length} notas · página {currentPage}</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              {t("pdf:annotations.panel.summary", {
+                count: concepts.graph.concepts.length,
+                page: currentPage,
+              })}
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-            title="Fechar"
-            aria-label="Fechar annotations"
+            title={t("pdf:annotations.panel.closeTitle")}
+            aria-label={t("pdf:annotations.panel.closeAriaLabel")}
           >
             <X size={16} />
           </button>
         </div>
       </header>
 
-      <nav className="flex shrink-0 items-center gap-2 border-b border-zinc-800 px-3 py-2" aria-label="Navegação das notas">
-        <button type="button" onClick={() => setPanelView("list")} className={`rounded-md px-3 py-2 text-sm ${panelView === "list" ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900"}`}>Todas</button>
-        <button type="button" onClick={() => setGraphOpen(true)} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"><Network size={15} /> Mapa</button>
+      <nav className="flex shrink-0 items-center gap-2 border-b border-zinc-800 px-3 py-2" aria-label={t("pdf:annotations.panel.navAriaLabel")}>
+        <button type="button" onClick={() => setPanelView("list")} className={`rounded-md px-3 py-2 text-sm ${panelView === "list" ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900"}`}>{t("pdf:annotations.panel.all")}</button>
+        <button type="button" onClick={() => setGraphOpen(true)} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"><Network size={15} /> {t("pdf:annotations.panel.map")}</button>
         <button type="button" onClick={() => {
           if (draftTitle || draftNote) setPanelView("compose");
           else openBlankComposer();
-        }} className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-white"><Plus size={15} /> {draftTitle || draftNote ? "Rascunho" : "Nova nota"}</button>
+        }} className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-white"><Plus size={15} />
+          {draftTitle || draftNote
+            ? t("pdf:annotations.panel.draft")
+            : t("pdf:annotations.panel.newNote")}
+        </button>
       </nav>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -298,7 +313,11 @@ export default function AnnotationPanel({
           {(actionError || concepts.error) && (
             <div className="flex items-start justify-between gap-2 rounded-sm border border-red-950 bg-red-950/30 px-2 py-1.5 text-xs text-red-200">
               <span>{actionError || concepts.error}</span>
-              <button type="button" onClick={() => setActionError(null)} aria-label="Fechar erro">
+              <button
+                type="button"
+                onClick={() => setActionError(null)}
+                aria-label={t("pdf:annotations.panel.closeErrorAriaLabel")}
+              >
                 <X size={13} />
               </button>
             </div>
@@ -325,7 +344,7 @@ export default function AnnotationPanel({
 
           {panelView === "detail" && selectedConcept && (
             <div>
-              <button type="button" onClick={() => setPanelView("list")} className="mb-4 text-sm text-zinc-400 hover:text-zinc-100">← Todas as notas</button>
+              <button type="button" onClick={() => setPanelView("list")} className="mb-4 text-sm text-zinc-400 hover:text-zinc-100">{t("pdf:annotations.panel.allNotes")}</button>
             <ConceptEditor
               selected={selectedConcept}
               concepts={concepts.graph.concepts}

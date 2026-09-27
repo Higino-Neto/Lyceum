@@ -1,0 +1,180 @@
+{
+  "viewer": {
+    "secureUrlFailed": "Could not create a secure URL for PDF.js.",
+    "loadFailed": "PDF.js Viewer could not load.",
+    "frameTitleNoName": "Mozilla PDF.js Viewer",
+    "frameTitle": "{{name}} - PDF.js"
+  },
+  "annotations": {
+    "panel": {
+      "title": "Notes",
+      "wholeBook": "Whole book",
+      "summary_one": "{{count}} note · page {{page}}",
+      "summary_other": "{{count}} notes · page {{page}}",
+      "closeTitle": "Close",
+      "closeAriaLabel": "Close notes",
+      "navAriaLabel": "Notes navigation",
+      "all": "All",
+      "map": "Map",
+      "draft": "Draft",
+      "newNote": "New note",
+      "closeErrorAriaLabel": "Close error",
+      "allNotes": "← All notes"
+    },
+    "composer": {
+      "title": "New note",
+      "page": "Page {{page}}",
+      "linkedToSelection": " · linked to the selected excerpt",
+      "closeAriaLabel": "Close editor",
+      "selectedExcerpt": "Selected excerpt",
+      "removeLink": "Remove link",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Give the note a name",
+      "duplicateTitle": "A note with this title already exists.",
+      "contentLabel": "Content",
+      "optional": "(optional)",
+      "notePlaceholder": "Write your ideas about the excerpt...",
+      "linkSection": "Link to other notes",
+      "save": "Save note"
+    },
+    "editor": {
+      "empty": "Select a note to edit.",
+      "goToPageTitle": "Go to page",
+      "goToPageAriaLabel": "Go to page {{page}}",
+      "deleteTitle": "Delete note",
+      "deleteAriaLabel": "Delete note",
+      "confirmDelete": "Confirm",
+      "titleLabel": "Title",
+      "titleAriaLabel": "Note title",
+      "pageLabel": "Page",
+      "pageAriaLabel": "Note page",
+      "contentLabel": "Content",
+      "notePlaceholder": "Optional note",
+      "duplicateTitle": "A note with this title already exists.",
+      "invalidPage": "Enter a valid page.",
+      "save": "Save changes",
+      "linksSummary_one": "Links · {{count}}",
+      "linksSummary_other": "Links · {{count}}",
+      "removeLinkTitle": "Remove link",
+      "removeLinkAriaLabel": "Remove link",
+      "addLink": "Add link",
+      "linksLabel": "Links"
+    },
+    "linkPicker": {
+      "empty": "No concept found.",
+      "selectedCount_one": "{{count}} selected",
+      "selectedCount_other": "{{count}} selected",
+      "searchPlaceholder": "Search to link",
+      "searchAriaLabel": "Search concepts to link",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
+    },
+    "list": {
+      "allConcepts": "All concepts",
+      "searchPlaceholder": "Search concepts...",
+      "searchAriaLabel": "Search concepts",
+      "filtersTitle": "Filters",
+      "filtersAriaLabel": "Filters",
+      "chapterFilterAriaLabel": "Filter by chapter",
+      "allChapters": "All chapters",
+      "currentChapter": "Current",
+      "sortBy": "Sort by",
+      "loading": "Loading concepts...",
+      "empty": "No key concept in this filter.",
+      "goToPageTitle": "Go to page",
+      "goToPageAriaLabel": "Go to page {{page}}",
+      "pageLabel": "p. {{page}}",
+      "relationCount_one": "{{count}} link",
+      "relationCount_other": "{{count}} links",
+      "relationCountTitle_one": "{{count}} link",
+      "relationCountTitle_other": "{{count}} links",
+      "filters": {
+        "all": "All",
+        "page": "Page",
+        "highlighted": "Highlights",
+        "unlinked": "No links"
+      },
+      "sorts": {
+        "recent": "Recent",
+        "title": "A-Z",
+        "links": "Most linked",
+        "page": "By chapter"
+      }
+    },
+    "currentPage": {
+      "title": "Concepts on this page",
+      "empty": "No key concept on this page.",
+      "noNote": "No additional note"
+    },
+    "graph": {
+      "title": "Note map",
+      "description": "Explore the relations between your notes.",
+      "closeTitle": "Close",
+      "closeAriaLabel": "Close map",
+      "searchPlaceholder": "Search notes",
+      "searchAriaLabel": "Search notes in the map",
+      "chapterFilterAriaLabel": "Filter map by chapter",
+      "allChapters": "All chapters",
+      "useCurrentChapterTitle": "Use current chapter",
+      "useCurrentChapterAriaLabel": "Use current chapter",
+      "stats_one": "{{count}} note · {{relations}} link",
+      "stats_other": "{{count}} notes · {{relations}} links",
+      "openNote": "Open note",
+      "pageLabel": "p. {{page}}",
+      "emptyDetails": "Select a note to see its details."
+    },
+    "preview": {
+      "title": "Knowledge map",
+      "openTitle": "Open map",
+      "openAriaLabel": "Open knowledge map",
+      "empty": "Create concepts and links to build the map.",
+      "svgAriaLabel": "Concept map preview"
+    },
+    "pageContext": {
+      "currentPage": "Current page",
+      "wholeBook": "Whole book",
+      "conceptCount_one": "{{count}} concept",
+      "conceptCount_other": "{{count}} concepts"
+    },
+    "relatedPages": {
+      "title": "Related pages",
+      "empty": "No annotated page yet.",
+      "more": "more"
+    },
+    "sigma": {
+      "empty": "Create notes and links to build this book's map.",
+      "loadFailed": "Could not open the map.",
+      "controlsAriaLabel": "Map controls",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit all"
+    },
+    "errors": {
+      "loadFailed": "Could not load concepts",
+      "updateFailed": "Could not update concepts"
+    },
+    "relativeTime": {
+      "now": "now",
+      "minutes_one": "{{count}} min ago",
+      "minutes_other": "{{count}} min ago",
+      "hours_one": "{{count}} h ago",
+      "hours_other": "{{count}} h ago",
+      "days_one": "{{count}} day ago",
+      "days_other": "{{count}} days ago"
+    }
+  },
+  "chapters": {
+    "collapseAriaLabel": "Collapse",
+    "expandAriaLabel": "Expand",
+    "markUnreadAriaLabel": "Mark as unread",
+    "markReadAriaLabel": "Mark as read",
+    "goToPageTitle": "Go to page {{page}}",
+    "unknownPage": "Unknown page",
+    "resizeAriaLabel": "Resize chapters panel",
+    "closeAriaLabel": "Close chapters panel",
+    "loading": "Loading chapters…",
+    "empty": "This PDF has no chapters or bookmarks.",
+    "untitled": "(untitled)",
+    "structureFailed": "Could not read the chapter structure of this PDF."
+  }
+}

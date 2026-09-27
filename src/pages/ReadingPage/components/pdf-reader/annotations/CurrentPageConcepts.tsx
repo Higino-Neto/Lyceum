@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import type { KeyConcept } from "../../../../../types/AnnotationTypes";
 import AnnotationEmptyState from "./AnnotationEmptyState";
 import { conceptAccent } from "./annotationPanelUtils";
+import { useTranslation } from "../../../../../i18n";
 
 interface CurrentPageConceptsProps {
   concepts: KeyConcept[];
@@ -16,6 +17,7 @@ export default function CurrentPageConcepts({
   onToggleCollapsed,
   onSelectConcept,
 }: CurrentPageConceptsProps) {
+  const { t } = useTranslation();
   return (
     <section className="space-y-2">
       <button
@@ -23,13 +25,13 @@ export default function CurrentPageConcepts({
         onClick={onToggleCollapsed}
         className="flex w-full items-center justify-between text-left text-xs font-semibold text-zinc-200"
       >
-        <span>Conceitos nesta pagina</span>
+        <span>{t("pdf:annotations.currentPage.title")}</span>
         {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
       </button>
 
       {!collapsed && (
         concepts.length === 0 ? (
-          <AnnotationEmptyState>Nenhum Key Concept nesta pagina.</AnnotationEmptyState>
+          <AnnotationEmptyState>{t("pdf:annotations.currentPage.empty")}</AnnotationEmptyState>
         ) : (
           <div className="space-y-1.5">
             {concepts.map((concept, index) => (
@@ -47,7 +49,7 @@ export default function CurrentPageConcepts({
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-zinc-100">{concept.title}</span>
                   <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
-                    {concept.excerpt || concept.note || "Sem nota adicional"}
+                    {concept.excerpt || concept.note || t("pdf:annotations.currentPage.noNote")}
                   </span>
                 </span>
                 <ChevronRight size={14} className="text-zinc-500" />

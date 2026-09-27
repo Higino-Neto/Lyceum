@@ -16,6 +16,7 @@ import {
   paginate,
   type SortMode,
 } from "./annotationPanelUtils";
+import { useTranslation, type TranslationKey } from "../../../../../i18n";
 
 interface ConceptListProps {
   concepts: KeyConcept[];
@@ -36,18 +37,18 @@ interface ConceptListProps {
   onGoToPage: (page: number) => void;
 }
 
-const filterButtons: Array<{ value: FilterScope; label: string }> = [
-  { value: "all", label: "Todos" },
-  { value: "page", label: "Pagina" },
-  { value: "highlighted", label: "Highlights" },
-  { value: "unlinked", label: "Sem links" },
+const filterButtons: Array<{ value: FilterScope; labelKey: TranslationKey }> = [
+  { value: "all", labelKey: "pdf:annotations.list.filters.all" },
+  { value: "page", labelKey: "pdf:annotations.list.filters.page" },
+  { value: "highlighted", labelKey: "pdf:annotations.list.filters.highlighted" },
+  { value: "unlinked", labelKey: "pdf:annotations.list.filters.unlinked" },
 ];
 
-const sortTabs: Array<{ value: SortMode; label: string }> = [
-  { value: "recent", label: "Recentes" },
-  { value: "title", label: "A-Z" },
-  { value: "links", label: "Mais ligados" },
-  { value: "page", label: "Por capitulo" },
+const sortTabs: Array<{ value: SortMode; labelKey: TranslationKey }> = [
+  { value: "recent", labelKey: "pdf:annotations.list.sorts.recent" },
+  { value: "title", labelKey: "pdf:annotations.list.sorts.title" },
+  { value: "links", labelKey: "pdf:annotations.list.sorts.links" },
+  { value: "page", labelKey: "pdf:annotations.list.sorts.page" },
 ];
 
 function ConceptRow({
@@ -63,6 +64,8 @@ function ConceptRow({
   onSelect: () => void;
   onGoToPage: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <article
       className={[
@@ -81,21 +84,29 @@ function ConceptRow({
         <span className="min-w-0">
           <span className="block truncate text-xs font-semibold text-zinc-100">{concept.title}</span>
           <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
-            p. {concept.page} · {formatRelativeUpdatedAt(concept.updatedAt)}
+            {t("pdf:annotations.list.pageLabel", { page: concept.page })} ·{" "}
+            {formatRelativeUpdatedAt(concept.updatedAt)}
           </span>
         </span>
       </button>
       <div className="flex items-center gap-1 text-zinc-500">
-        {relationCount > 0 && <span className="text-[11px]" title={`${relationCount} vínculos`}>{relationCount} links</span>}
+        {relationCount > 0 && (
+          <span
+            className="text-[11px]"
+            title={t("pdf:annotations.list.relationCountTitle", { count: relationCount })}
+          >
+            {t("pdf:annotations.list.relationCount", { count: relationCount })}
+          </span>
+        )}
         <button
           type="button"
           onClick={onGoToPage}
           className="inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-sm text-[11px] hover:bg-zinc-800 hover:text-zinc-100"
-          title="Ir para pagina"
-          aria-label="Ir para pagina"
+          title={t("pdf:annotations.list.goToPageTitle")}
+          aria-label={t("pdf:annotations.list.goToPageAriaLabel", { page: concept.page })}
         >
           <ExternalLink size={13} />
-          p. {concept.page}
+          {t("pdf:annotations.list.pageLabel", { page: concept.page })}
         </button>
       </div>
     </article>
@@ -120,6 +131,7 @@ export default function ConceptList({
   onSelectConcept,
   onGoToPage,
 }: ConceptListProps) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -133,7 +145,7 @@ export default function ConceptList({
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
-        <span>Todos os conceitos</span>
+        <span>{t("pdf:annotations.list.allConcepts")}</span>
         <span className="text-[11px] font-normal text-zinc-500">{concepts.length}</span>
       </div>
 
@@ -143,9 +155,9 @@ export default function ConceptList({
           <input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Buscar conceitos..."
+            placeholder={t("pdf:annotations.list.searchPlaceholder")}
             className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 pl-8 pr-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
-            aria-label="Buscar conceitos"
+            aria-label={t("pdf:annotations.list.searchAriaLabel")}
           />
         </label>
         <button
@@ -157,8 +169,8 @@ export default function ConceptList({
               ? "border-zinc-500 bg-zinc-800"
               : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
           ].join(" ")}
-          title="Filtros"
-          aria-label="Filtros"
+          title={t("pdf:annotations.list.filtersTitle")}
+          aria-label={t("pdf:annotations.list.filtersAriaLabel")}
         >
           <SlidersHorizontal size={14} />
         </button>
@@ -179,7 +191,7 @@ export default function ConceptList({
                     : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700",
                 ].join(" ")}
               >
-                {filter.label}
+                {t(filter.labelKey)}
               </button>
             ))}
           </div>
@@ -193,9 +205,9 @@ export default function ConceptList({
                   onFilterScopeChange(value === "all" ? "all" : "chapter");
                 }}
                 className="h-8 min-w-0 rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-[11px] text-zinc-200 outline-none focus:border-emerald-500"
-                aria-label="Filtrar por capitulo"
+                aria-label={t("pdf:annotations.list.chapterFilterAriaLabel")}
               >
-                <option value="all">Todos os capitulos</option>
+                <option value="all">{t("pdf:annotations.list.allChapters")}</option>
                 {chapterRanges.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.title} - {chapter.conceptCount}
@@ -213,23 +225,28 @@ export default function ConceptList({
                 disabled={!currentChapter}
                 className="h-8 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-[11px] text-zinc-300 hover:border-zinc-700 disabled:opacity-40"
               >
-                Atual
+                {t("pdf:annotations.list.currentChapter")}
               </button>
             </div>
           )}
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-xs text-zinc-500">Ordenar por
+      <label className="flex items-center gap-2 text-xs text-zinc-500">
+        {t("pdf:annotations.list.sortBy")}
         <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as SortMode)} className="ml-auto h-8 rounded-md border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300">
-          {sortTabs.map((tab) => <option key={tab.value} value={tab.value}>{tab.label}</option>)}
+          {sortTabs.map((tab) => (
+            <option key={tab.value} value={tab.value}>{t(tab.labelKey)}</option>
+          ))}
         </select>
       </label>
 
       {loading ? (
-        <div className="py-8 text-center text-xs text-zinc-500">Carregando concepts...</div>
+        <div className="py-8 text-center text-xs text-zinc-500">
+          {t("pdf:annotations.list.loading")}
+        </div>
       ) : concepts.length === 0 ? (
-        <AnnotationEmptyState>Nenhum Key Concept neste filtro.</AnnotationEmptyState>
+        <AnnotationEmptyState>{t("pdf:annotations.list.empty")}</AnnotationEmptyState>
       ) : (
         <div className="space-y-1.5">
           {paginated.items.map((concept) => (
@@ -252,7 +269,7 @@ export default function ConceptList({
             onClick={() => setPage((value) => Math.max(1, value - 1))}
             disabled={paginated.page <= 1}
             className="inline-flex h-7 w-7 items-center justify-center rounded-sm disabled:opacity-40"
-            aria-label="Pagina anterior"
+            aria-label={t("pdf:annotations.linkPicker.previousPage")}
           >
             <ChevronLeft size={13} />
           </button>
@@ -262,7 +279,7 @@ export default function ConceptList({
             onClick={() => setPage((value) => Math.min(paginated.pageCount, value + 1))}
             disabled={paginated.page >= paginated.pageCount}
             className="inline-flex h-7 w-7 items-center justify-center rounded-sm disabled:opacity-40"
-            aria-label="Proxima pagina"
+            aria-label={t("pdf:annotations.linkPicker.nextPage")}
           >
             <ChevronRight size={13} />
           </button>

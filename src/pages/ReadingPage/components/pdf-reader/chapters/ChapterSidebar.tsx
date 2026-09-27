@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChapterNode, ChapterTracker } from "./useChapterTracker";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslation } from "../../../../../i18n";
 
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 640;
@@ -43,6 +44,7 @@ function ChapterRow({
   node: ChapterNode;
   tracker: ChapterTracker;
 }) {
+  const { t } = useTranslation();
   const isRead = !!tracker.readMap[node.id];
   const isExpanded = !!tracker.expandedMap[node.id];
 
@@ -84,7 +86,11 @@ function ChapterRow({
         <button
           type="button"
           onClick={handleToggleExpanded}
-          aria-label={isExpanded ? "Recolher" : "Expandir"}
+          aria-label={
+            isExpanded
+              ? t("pdf:chapters.collapseAriaLabel")
+              : t("pdf:chapters.expandAriaLabel")
+          }
           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-zinc-400 transition-colors ${
             node.hasChildren
               ? "hover:bg-zinc-700 hover:text-zinc-100"
@@ -113,7 +119,11 @@ function ChapterRow({
           type="button"
           onClick={handleToggleRead}
           aria-pressed={isRead}
-          aria-label={isRead ? "Marcar como não lido" : "Marcar como lido"}
+          aria-label={
+            isRead
+              ? t("pdf:chapters.markUnreadAriaLabel")
+              : t("pdf:chapters.markReadAriaLabel")
+          }
           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm border text-[11px] transition-colors ${
             isRead
               ? "border-zinc-600 bg-green-500 text-zinc-700"
@@ -131,8 +141,8 @@ function ChapterRow({
             disabled={!node.page}
             title={
               node.page
-                ? `Ir para a página ${node.page}`
-                : "Página desconhecida"
+                ? t("pdf:chapters.goToPageTitle", { page: node.page })
+                : t("pdf:chapters.unknownPage")
             }
             className={`min-w-0 flex-1 truncate text-left transition-colors ${
               isRead ? "text-zinc-500 line-through" : "text-zinc-200"
@@ -161,6 +171,7 @@ export default function ChapterSidebar({
   tracker,
   onClose,
 }: ChapterSidebarProps) {
+  const { t } = useTranslation();
   const {
     outline,
     loading,
@@ -219,7 +230,7 @@ export default function ChapterSidebar({
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Redimensionar painel de capítulos"
+        aria-label={t("pdf:chapters.resizeAriaLabel")}
         onPointerDown={handleResizeStart}
         className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize bg-transparent transition-colors"
       />
@@ -251,7 +262,7 @@ export default function ChapterSidebar({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fechar painel de capítulos"
+            aria-label={t("pdf:chapters.closeAriaLabel")}
             className="flex h-6 w-6 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
           >
             ✕
@@ -262,7 +273,7 @@ export default function ChapterSidebar({
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {loading && (
           <p className="px-3 py-4 text-xs text-zinc-500">
-            Carregando capítulos…
+            {t("pdf:chapters.loading")}
           </p>
         )}
 
@@ -272,7 +283,7 @@ export default function ChapterSidebar({
 
         {!loading && !error && !hasOutline && (
           <p className="px-3 py-4 text-xs text-zinc-500">
-            Este PDF não possui capítulos ou bookmarks.
+            {t("pdf:chapters.empty")}
           </p>
         )}
 
