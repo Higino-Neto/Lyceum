@@ -38,7 +38,8 @@
     "errors": {
       "noPath": "The conversion result has no verifiable path",
       "deleteFailed": "Could not delete the converted file",
-      "nothingConvertible": "None of the selected books can be converted to that format"
+      "nothingConvertible": "None of the selected books can be converted to that format",
+      "openConvertedFailed": "Could not open the converted file"
     },
     "toasts": {
       "queued_one": "{{count}} conversion added to the queue",

@@ -7,6 +7,7 @@ import type {
 } from "../../../types/LibraryTypes";
 import { classifyFolder, getTitleWithoutExtension } from "./folders";
 import { calculateSimilarity } from "./search";
+import { getActiveLocale, normalizeCase } from "../../../i18n";
 
 export type SpecialFolderType = "merged" | "collection";
 
@@ -118,7 +119,7 @@ function getBookSortTitle(book: BookWithThumbnail): string {
   return getTitleWithoutExtension(
     book.title || book.fileName || book.filePath || "",
     book.fileType,
-  ).toLocaleLowerCase("pt-BR");
+  ).toLocaleLowerCase(getActiveLocale());
 }
 
 function getBookSortDate(book: BookWithThumbnail): number {
@@ -135,7 +136,7 @@ export function sortBooksForLibraryView(
   indexed.sort((left, right) => {
     const titleCompare = getBookSortTitle(left.book).localeCompare(
       getBookSortTitle(right.book),
-      "pt-BR",
+      getActiveLocale(),
       { sensitivity: "base", numeric: true },
     );
 
@@ -174,7 +175,7 @@ export function matchesLibrarySearch(book: BookWithThumbnail, query: string): bo
       candidate.publisher,
     ].filter(Boolean).join(" ");
     return (
-      haystack.toLocaleLowerCase("pt-BR").includes(trimmed.toLocaleLowerCase("pt-BR"))
+      normalizeCase(haystack).includes(normalizeCase(trimmed))
       || calculateSimilarity(candidate.title || "", candidate.author || null, trimmed).matches
     );
   });

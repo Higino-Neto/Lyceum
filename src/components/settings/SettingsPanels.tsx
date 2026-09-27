@@ -48,7 +48,7 @@ import {
   getEnabledNavigationRoutes,
   getRouteLabel,
 } from "../../navigation/routes";
-import { LanguageSwitcher, useLanguage, useTranslation } from "../../i18n";
+import { LanguageSwitcher, translate, useLanguage, useTranslation } from "../../i18n";
 import type { TranslationKey } from "../../i18n";
 
 type DesktopUpdateStatus =
@@ -113,7 +113,7 @@ async function fetchCurrentUser(): Promise<{
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) throw new Error("Usuário não autenticado");
+  if (error || !user) throw new Error(translate("settings:account.errors.notAuthenticated"));
 
   const profile = await getUserProfile();
 
@@ -134,7 +134,7 @@ async function updateUserMetadata(metadata: UserMetadata) {
   });
 
   if (error) throw error;
-  if (!data?.user) throw new Error("Erro ao atualizar usuário");
+  if (!data?.user) throw new Error(translate("settings:account.errors.updateFailed"));
 
   await updateUserProfile(metadata.full_name, metadata.avatar_url);
 

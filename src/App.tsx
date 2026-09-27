@@ -32,6 +32,7 @@ import {
 } from "./navigation/routes";
 import { usePeriodicBackup } from "./features/backup/usePeriodicBackup";
 import { useNavigationBootstrap } from "./features/navigation/useNavigationBootstrap";
+import { useTranslation } from "./i18n";
 
 // import React from "react";
 // import ReactDOMClient from "react-dom/client";
@@ -54,6 +55,7 @@ const SIDEBAR_EXPANDED_WIDTH = 168;
 function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const { isLoggedIn, signOut: authSignOut, user } = useAuth();
   const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } =
     useAppSettings();
@@ -297,12 +299,12 @@ function AppShell() {
         item.targetFormat === "pdf",
       );
       if (!result) {
-        toast.error("Nao foi possivel abrir o arquivo convertido");
+        toast.error(t("conversion:queue.errors.openConvertedFailed"));
         return;
       }
       if ("error" in result) {
         toast.error(
-          result.message || "Nao foi possivel abrir o arquivo convertido",
+          result.message || t("conversion:queue.errors.openConvertedFailed"),
         );
         return;
       }
@@ -319,7 +321,7 @@ function AppShell() {
         },
       });
     },
-    [navigate],
+    [navigate, t],
   );
 
   const handleSidebarSignOut = async () => {
@@ -625,9 +627,9 @@ function AppShell() {
                 />
                 <ConfirmDialog
                   isOpen={signOutConfirmationOpen}
-                  title="Sair da conta"
-                  message="Deseja realmente encerrar sua sessão no Lyceum?"
-                  confirmLabel="Sair"
+                  title={t("settings:account.signOutConfirmTitle")}
+                  message={t("settings:account.signOutConfirmMessage")}
+                  confirmLabel={t("settings:account.signOutConfirmLabel")}
                   onConfirm={() => void handleSidebarSignOut()}
                   onCancel={() => setSignOutConfirmationOpen(false)}
                   isDanger

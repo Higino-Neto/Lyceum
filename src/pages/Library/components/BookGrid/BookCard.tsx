@@ -10,6 +10,7 @@ import {
 import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
+import { useTranslation } from "../../../../i18n";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -103,6 +104,7 @@ function BookCard({
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
+  const { t } = useTranslation();
   const formatCount = book.mergedBooks?.length || 1;
   const isCollection = book.syntheticFolderType === "collection";
   const showCollectionGrid =
@@ -204,7 +206,7 @@ function BookCard({
           </div>
         )}
         {book.processingStatus === "failed" && (
-          <div className="absolute top-1.5 left-1.5 z-20" title="Arquivo corrompido ou não suportado">
+          <div className="absolute top-1.5 left-1.5 z-20" title={t("library:toasts.corruptedFile")}>
             <AlertTriangle size={15} className="text-amber-400 drop-shadow-sm" />
           </div>
         )}

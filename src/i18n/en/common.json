@@ -112,5 +112,13 @@
   },
   "labels": {
     "total": "Total: {{count}}"
+  },
+  "errors": {
+    "bookCreateFailed": "Error while creating the book in the database",
+    "bookCreateEmptyResponse": "The book \"{{title}}\" could not be created - empty response",
+    "bookCreateFailedFor": "Error while creating the book \"{{title}}\": {{reason}}",
+    "unknownError": "Unknown error",
+    "openLibrarySearchFailed": "Failed to search Open Library",
+    "userNotFound": "User not found"
   }
 }

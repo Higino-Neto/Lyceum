@@ -1,3 +1,5 @@
+import { translate } from "../i18n";
+
 export interface ExternalBook {
   key: string;
   title: string;
@@ -26,7 +28,7 @@ async function searchOpenLibrary(query: string, limit: number = 10): Promise<Ext
   );
 
   if (!response.ok) {
-    throw new Error('Failed to search Open Library');
+    throw new Error(translate("common:errors.openLibrarySearchFailed"));
   }
 
   const data = await response.json();

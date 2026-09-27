@@ -11,13 +11,14 @@ export {
   normalizeText,
   tokenize,
 } from "../../features/library/model/search";
-import { translate } from "../../i18n";
+import { getActiveLocale, translate } from "../../i18n";
+import { formatShortDate as formatShortDateValue } from "../../i18n/format";
 
 export const LOCAL_BOOK_PREFIX = "local-";
 
 export function getFileTypeLabel(fileType?: string, filePath?: string): string {
   const inferredType =
-    fileType || filePath?.split(".").pop()?.toLowerCase() || "arquivo";
+    fileType || filePath?.split(".").pop()?.toLowerCase() || translate("library:units.file");
   return inferredType.toUpperCase();
 }
 
@@ -62,7 +63,7 @@ export function formatShortDate(dateStr?: string | null): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("pt-BR");
+  return formatShortDateValue(date, getActiveLocale());
 }
 
 export function normalizeFolderPath(folderPath?: string | null): string {

@@ -78,7 +78,8 @@
     "chapters_one": "{{count}} cap.",
     "chapters_other": "{{count}} caps.",
     "pagesAbbrev_one": "{{count}} pags.",
-    "pagesAbbrev_other": "{{count}} pags."
+    "pagesAbbrev_other": "{{count}} pags.",
+    "file": "arquivo"
   },
   "header": {
     "title": "Biblioteca",
@@ -509,6 +510,7 @@
     "booksRemovedFromLibrary_one": "{{count}} livro removido da biblioteca",
     "booksRemovedFromLibrary_other": "{{count}} livros removidos da biblioteca",
     "itemsNotRemoved_one": "{{count}} item não removido",
-    "itemsNotRemoved_other": "{{count}} itens não removidos"
+    "itemsNotRemoved_other": "{{count}} itens não removidos",
+    "corruptedFile": "Arquivo corrompido ou não suportado"
   }
 }

@@ -54,7 +54,7 @@ describe("getUser", () => {
       error: null,
     });
 
-    await expect(getUser()).rejects.toThrow("User not found");
+    await expect(getUser()).rejects.toThrow("Usuário não encontrado");
   });
 
   it("throws error when authentication fails", async () => {

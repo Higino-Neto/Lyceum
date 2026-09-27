@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { translate } from "../i18n";
 
 export interface ReadingEntry {
   id: string;
@@ -154,20 +155,25 @@ export async function getOrCreateBook(
 
     if (error) {
       console.error("Supabase RPC error for book:", title, error);
-      throw new Error(error.message || "Erro ao criar livro no banco de dados");
+      throw new Error(error.message || translate("common:errors.bookCreateFailed"));
     }
 
     if (!data) {
-      throw new Error(`Livro "${title}" não pôde ser criado - resposta vazia`);
+      throw new Error(translate("common:errors.bookCreateEmptyResponse", { title }));
     }
 
     return String(data);
   } catch (err) {
     console.error("getOrCreateBook exception:", err);
     if (err instanceof Error) {
-      throw new Error(`Erro ao criar livro "${title}": ${err.message}`);
+      throw new Error(translate("common:errors.bookCreateFailedFor", { title, reason: err.message }));
     }
-    throw new Error(`Erro ao criar livro "${title}": Erro desconhecido`);
+    throw new Error(
+      translate("common:errors.bookCreateFailedFor", {
+        title,
+        reason: translate("common:errors.unknownError"),
+      }),
+    );
   }
 }
 

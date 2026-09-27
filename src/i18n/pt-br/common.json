@@ -112,5 +112,13 @@
   },
   "labels": {
     "total": "Total: {{count}}"
+  },
+  "errors": {
+    "bookCreateFailed": "Erro ao criar livro no banco de dados",
+    "bookCreateEmptyResponse": "O livro \"{{title}}\" não pôde ser criado - resposta vazia",
+    "bookCreateFailedFor": "Erro ao criar livro \"{{title}}\": {{reason}}",
+    "unknownError": "Erro desconhecido",
+    "openLibrarySearchFailed": "Falha ao buscar no Open Library",
+    "userNotFound": "Usuário não encontrado"
   }
 }

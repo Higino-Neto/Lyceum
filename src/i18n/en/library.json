@@ -78,7 +78,8 @@
     "chapters_one": "{{count}} chapter",
     "chapters_other": "{{count}} chapters",
     "pagesAbbrev_one": "{{count}} page",
-    "pagesAbbrev_other": "{{count}} pages"
+    "pagesAbbrev_other": "{{count}} pages",
+    "file": "file"
   },
   "header": {
     "title": "Library",
@@ -509,6 +510,7 @@
     "booksRemovedFromLibrary_one": "{{count}} book removed from the library",
     "booksRemovedFromLibrary_other": "{{count}} books removed from the library",
     "itemsNotRemoved_one": "{{count}} item not removed",
-    "itemsNotRemoved_other": "{{count}} items not removed"
+    "itemsNotRemoved_other": "{{count}} items not removed",
+    "corruptedFile": "Corrupted or unsupported file"
   }
 }

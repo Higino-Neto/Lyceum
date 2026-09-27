@@ -38,7 +38,8 @@
     "errors": {
       "noPath": "O resultado da conversão não possui caminho verificável",
       "deleteFailed": "Não foi possível excluir o arquivo convertido",
-      "nothingConvertible": "Nenhum livro selecionado pode ser convertido para esse formato"
+      "nothingConvertible": "Nenhum livro selecionado pode ser convertido para esse formato",
+      "openConvertedFailed": "Não foi possível abrir o arquivo convertido"
     },
     "toasts": {
       "queued_one": "{{count}} conversão adicionada à fila",

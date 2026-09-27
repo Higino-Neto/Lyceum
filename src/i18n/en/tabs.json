@@ -5,5 +5,9 @@
   "ariaLabels": {
     "detach": "Open in new window",
     "close": "Close"
+  },
+  "errors": {
+    "reopenFailed": "Could not reopen the document",
+    "loadFailed": "Could not load this file"
   }
 }

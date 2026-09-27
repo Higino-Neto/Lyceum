@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "../i18n";
 
 export interface DictionaryInfo {
   id: string;
@@ -40,6 +41,7 @@ function setSelectedDictId(dictId: string): void {
 }
 
 export function useDictionary() {
+  const { t } = useTranslation();
   const [dictionaries, setDictionaries] = useState<DictionaryInfo[]>([]);
   const [selectedDict, setSelectedDict] = useState<string>(getSelectedDictId());
   const [isLoaded, setIsLoaded] = useState(false);
@@ -81,7 +83,7 @@ export function useDictionary() {
     try {
       const result = await api.dictionaryDownload(dictId);
       if (!result.success) {
-        toast.error(result.error || "Erro ao baixar dicionário");
+        toast.error(result.error || t("settings:dictionaries.toasts.downloadFailed"));
         return false;
       }
       await loadDictionaries();
@@ -101,7 +103,7 @@ export function useDictionary() {
     try {
       const result = await api.dictionaryDelete(dictId);
       if (!result.success) {
-        toast.error("Erro ao remover dicionário");
+        toast.error(t("settings:dictionaries.toasts.removeFailed"));
         return false;
       }
       await loadDictionaries();

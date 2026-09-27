@@ -200,7 +200,11 @@
     "signOut": "Sair da conta",
     "signOutConfirmTitle": "Sair da conta",
     "signOutConfirmMessage": "Deseja realmente encerrar sua sessão no Lyceum?",
-    "signOutConfirmLabel": "Sair"
+    "signOutConfirmLabel": "Sair",
+    "errors": {
+      "notAuthenticated": "Usuário não autenticado",
+      "updateFailed": "Erro ao atualizar usuário"
+    }
   },
 
   "appearance": {
@@ -275,7 +279,11 @@
     "activate": "Ativar",
     "remove": "Remover",
     "removeLabel": "Remover dicionário",
-    "download": "Baixar"
+    "download": "Baixar",
+    "toasts": {
+      "downloadFailed": "Erro ao baixar dicionário",
+      "removeFailed": "Erro ao remover dicionário"
+    }
   },
 
   "beta": {

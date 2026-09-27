@@ -200,7 +200,11 @@
     "signOut": "Sign out",
     "signOutConfirmTitle": "Sign out",
     "signOutConfirmMessage": "Do you really want to end your session in Lyceum?",
-    "signOutConfirmLabel": "Sign out"
+    "signOutConfirmLabel": "Sign out",
+    "errors": {
+      "notAuthenticated": "User not authenticated",
+      "updateFailed": "Error while updating the user"
+    }
   },
 
   "appearance": {
@@ -275,7 +279,11 @@
     "activate": "Activate",
     "remove": "Remove",
     "removeLabel": "Remove dictionary",
-    "download": "Download"
+    "download": "Download",
+    "toasts": {
+      "downloadFailed": "Could not download the dictionary",
+      "removeFailed": "Could not remove the dictionary"
+    }
   },
 
   "beta": {

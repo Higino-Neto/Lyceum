@@ -5,5 +5,9 @@
   "ariaLabels": {
     "detach": "Abrir em nova janela",
     "close": "Fechar"
+  },
+  "errors": {
+    "reopenFailed": "Não foi possível reabrir o documento",
+    "loadFailed": "Não foi possível carregar este arquivo"
   }
 }

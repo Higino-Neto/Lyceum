@@ -13,6 +13,7 @@ import {
   PdfRenderer,
   PersistedDocumentTab,
 } from "../types/DocumentTab";
+import { useTranslation } from "../i18n";
 
 const STORAGE_KEY = "document_tabs";
 const DEFAULT_PDF_RENDERER: PdfRenderer = "pdfjs";
@@ -369,6 +370,7 @@ export function TabProvider({
   scope = "main",
   initialTab = null,
 }: TabProviderProps) {
+  const { t } = useTranslation();
   const initialState = useMemo(() => createInitialState(scope, initialTab), [scope, initialTab]);
   const [tabs, setTabs] = useState<DocumentTab[]>(initialState.tabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(initialState.activeTabId);
@@ -697,7 +699,7 @@ export function TabProvider({
       const reopened = await window.api.openDocumentByHash(tab.fileHash, tab.filePath, tab.fileType === "pdf");
       if (!reopened || "error" in reopened || !reopened.fileHash ||
           (tab.fileType === "epub" && !reopened.fileBuffer)) {
-        throw new Error("Nao foi possivel reabrir o documento");
+        throw new Error(t("tabs:errors.reopenFailed"));
       }
 
       if (reopened.fileBuffer && reopened.fileType !== "pdf") {
@@ -727,7 +729,7 @@ export function TabProvider({
       );
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel carregar este arquivo";
+        error instanceof Error ? error.message : t("tabs:errors.loadFailed");
 
       setTabs((previousTabs) =>
         previousTabs.map((candidate) =>
@@ -743,7 +745,7 @@ export function TabProvider({
     } finally {
       pendingLoadsRef.current.delete(tab.id);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const activeTab = tabs.find((tab) => tab.id === activeTabId);
