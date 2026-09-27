@@ -118,7 +118,7 @@ describe("conversion workspace", () => {
       conversionOptions: expect.objectContaining({ pdfMarginTopMm: 27, pdfLineHeight: 1.7 }),
       outputDirectory: "C:\\saida",
     });
-    expect(screen.getByTestId("logs")).toHaveTextContent("pipeline de conversao em execucao");
+    expect(screen.getByTestId("logs")).toHaveTextContent("pipeline de conversão em execução");
     expect(screen.getByTestId("logs")).toHaveTextContent("Aviso controlado");
   });
 
@@ -177,7 +177,7 @@ describe("conversion workspace", () => {
     );
 
     expect(await screen.findByText("Margem superior")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Fechar conversao" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Fechar conversão" })).toHaveLength(1);
     expect(screen.getByAltText("Livro de teste.epub")).toHaveAttribute("src", book.thumbnail);
   });
 });

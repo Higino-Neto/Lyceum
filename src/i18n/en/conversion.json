@@ -1,0 +1,191 @@
+{
+  "formats": {
+    "epub": "Reflowable reading",
+    "pdf": "Fixed layout",
+    "azw3": "Kindle KF8",
+    "kfx": "Kindle Previewer",
+    "lyceum": "Canonical package",
+    "txt": "Lightweight text",
+    "html": "Web file",
+    "unknownFile": "file"
+  },
+  "status": {
+    "done": "Finished",
+    "canceled": "Canceled",
+    "running": "Converting",
+    "pending": "Waiting",
+    "failed": "Failed"
+  },
+  "queue": {
+    "messages": {
+      "preparing": "Preparing file...",
+      "analyzing": "Analyzing structure and assets...",
+      "validating": "Validating output file...",
+      "done": "Finished",
+      "failed": "Failed to convert",
+      "canceled": "Canceled",
+      "pending": "Waiting in queue",
+      "sameFormat": "Source and output share the same format",
+      "unsupportedSource": "Source format not supported by the current converter"
+    },
+    "logs": {
+      "running": "{{title}}: conversion pipeline running",
+      "finished": "{{title}}: conversion finished in {{seconds}}s",
+      "cancelRequested": "{{title}}: cancellation requested",
+      "deleteFailed": "{{title}}: failed to delete the converted file",
+      "started": "{{title}}: starting {{source}} to {{target}}"
+    },
+    "errors": {
+      "noPath": "The conversion result has no verifiable path",
+      "deleteFailed": "Could not delete the converted file",
+      "nothingConvertible": "None of the selected books can be converted to that format"
+    },
+    "toasts": {
+      "queued_one": "{{count}} conversion added to the queue",
+      "queued_other": "{{count}} conversions added to the queue",
+      "deleted": "Converted file deleted"
+    }
+  },
+  "options": {
+    "pdf": {
+      "pageSize": "Page size",
+      "pageSizes": {
+        "A4": "A4",
+        "A5": "A5",
+        "Letter": "Letter",
+        "Legal": "Legal"
+      },
+      "marginTop": "Top margin",
+      "marginBottom": "Bottom margin",
+      "marginLeft": "Left margin",
+      "marginRight": "Right margin",
+      "fontSize": "Text size",
+      "lineHeight": "Line height",
+      "paragraphSpacing": "Paragraph spacing",
+      "chapterPageBreaks": "New chapter on a new page",
+      "generateOutline": "Generate chapter bookmarks"
+    },
+    "epub": {
+      "layout": "Layout",
+      "layouts": {
+        "auto": "Automatic",
+        "fixed-layout": "Visual, page by page",
+        "reflow": "Reflowable text"
+      },
+      "lineHeight": "Line height",
+      "paragraphSpacing": "Paragraph spacing",
+      "generateIndex": "Generate table of contents"
+    },
+    "kindle": {
+      "profile": "Kindle profile",
+      "profiles": {
+        "legacy-paperwhite": "Older Paperwhite",
+        "kindle-compatible": "Broad compatibility",
+        "modern-kindle": "Modern Kindle",
+        "scribe": "Kindle Scribe"
+      },
+      "preserveCover": "Keep cover",
+      "preserveMetadata": "Keep metadata",
+      "generateIndex": "Generate table of contents"
+    },
+    "html": {
+      "preserveMetadata": "Keep metadata"
+    },
+    "txt": {
+      "lineEnding": "Line ending",
+      "lineEndings": {
+        "crlf": "Windows (CRLF)",
+        "lf": "Unix (LF)"
+      }
+    },
+    "default": {
+      "preserveCover": "Keep cover",
+      "preserveMetadata": "Keep metadata"
+    }
+  },
+  "libraryPanel": {
+    "title": "Add from library",
+    "description": "Same filter used in Atlas.",
+    "open": "Search books",
+    "close": "Close search",
+    "desktopOnly": "Library search is only available in the desktop app.",
+    "loading": "Loading books...",
+    "empty": "No books found."
+  },
+  "selected": {
+    "title_one": "Selected books ({{count}})",
+    "title_other": "Selected books ({{count}})",
+    "searchPlaceholder": "Filter selection...",
+    "empty": "Search the library or select books in the Library and click Convert.",
+    "output": "Output: {{format}}",
+    "removeTitle": "Remove from conversion",
+    "removeAriaLabel": "Remove {{title}} from the conversion"
+  },
+  "queueTable": {
+    "title_one": "Conversion queue ({{count}})",
+    "title_other": "Conversion queue ({{count}})",
+    "empty": "The queue shows up here once you start a conversion.",
+    "columns": {
+      "book": "Book",
+      "formats": "Source - Output",
+      "progress": "Progress",
+      "status": "Status",
+      "size": "Size",
+      "actions": "Actions"
+    },
+    "actions": {
+      "cancelTitle": "Stop conversion",
+      "cancelAriaLabel": "Stop the conversion of {{title}}",
+      "openTitle": "Open in Lyceum",
+      "openAriaLabel": "Open the converted {{title}} in Lyceum",
+      "revealTitle": "Show in folder",
+      "revealAriaLabel": "Show the converted {{title}} in the folder",
+      "deleteTitle": "Delete converted file",
+      "deleteAriaLabel": "Delete the converted file of {{title}}",
+      "removeTitle": "Remove from queue",
+      "removeAriaLabel": "Remove {{title}} from the queue"
+    },
+    "deleteConfirm": "Delete the converted file of \"{{title}}\" from disk?"
+  },
+  "logs": {
+    "title": "Conversion logs",
+    "clearTitle": "Clear logs",
+    "clearAriaLabel": "Clear conversion logs",
+    "empty": "No event recorded in this session.",
+    "levels": {
+      "info": "INFO",
+      "success": "SUCCESS",
+      "warning": "WARNING",
+      "error": "ERROR"
+    }
+  },
+  "recent": {
+    "title": "Recent conversions",
+    "empty": "No finished conversion in this session."
+  },
+  "settings": {
+    "title": "Conversion settings",
+    "selectBook": "Select or add a book to configure the conversion",
+    "outputFormat": "Output format",
+    "formatOptions": "Options for {{format}}",
+    "destination": "Destination",
+    "clear": "Clear",
+    "nextToOriginal": "Next to the original file",
+    "chooseFolder": "Choose folder",
+    "summary_one": "{{count}} book - individual settings",
+    "summary_other": "{{count}} books - individual settings",
+    "estimated": "{{size}} estimated",
+    "cancel": "Cancel",
+    "convert_one": "Convert {{count}} book",
+    "convert_other": "Convert {{count}} books"
+  },
+  "dialog": {
+    "title": "Conversion",
+    "description": "Choose books, formats and destination without leaving the current screen.",
+    "closeTitle": "Close",
+    "closeAriaLabel": "Close conversion"
+  },
+  "errors": {
+    "providerMissing": "useConversionQueue must be used inside ConversionQueueProvider"
+  }
+}

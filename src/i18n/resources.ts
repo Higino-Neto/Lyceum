@@ -6,6 +6,7 @@ import enDialogs from "./en/dialogs.json";
 import enLibrary from "./en/library.json";
 import enReading from "./en/reading.json";
 import enCommon from "./en/common.json";
+import enConversion from "./en/conversion.json";
 import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
 import enHabits from "./en/habits.json";
@@ -19,6 +20,7 @@ import ptBrDialogs from "./pt-br/dialogs.json";
 import ptBrLibrary from "./pt-br/library.json";
 import ptBrReading from "./pt-br/reading.json";
 import ptBrCommon from "./pt-br/common.json";
+import ptBrConversion from "./pt-br/conversion.json";
 import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
 import ptBrHabits from "./pt-br/habits.json";
@@ -34,6 +36,7 @@ import ptBrTabs from "./pt-br/tabs.json";
 const en = {
   atlas: enAtlas,
   common: enCommon,
+  conversion: enConversion,
   auth: enAuth,
   dashboard: enDashboard,
   dialogs: enDialogs,
@@ -49,6 +52,7 @@ const en = {
 const ptBR = {
   atlas: ptBrAtlas,
   common: ptBrCommon,
+  conversion: ptBrConversion,
   auth: ptBrAuth,
   dashboard: ptBrDashboard,
   dialogs: ptBrDialogs,

@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { BookWithThumbnail } from "../types/LibraryTypes";
 import type { LyceumConversionOptions } from "../lib/lyceum/schema/types";
+import { translate } from "../i18n";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
@@ -170,7 +171,7 @@ export function canConvertBook(
 }
 
 export function getBookSourceFormat(book: BookWithThumbnail): string {
-  return inferFormat(book) || "arquivo";
+  return inferFormat(book) || translate("conversion:formats.unknownFile");
 }
 
 function createQueueId(book: BookWithThumbnail, targetFormat: ConversionOutputFormat) {
@@ -239,7 +240,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
              ? {
                  ...candidate,
                  status: "running",
-                 message: "Preparando arquivo...",
+                 message: translate("conversion:queue.messages.preparing"),
                  progress: 10,
                  startedAt,
                }
@@ -249,13 +250,21 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
        addLog({
          itemId: item.id,
          level: "info",
-         message: `${item.book.title}: iniciando ${item.sourceFormat.toUpperCase()} para ${item.targetFormat.toUpperCase()}`,
+         message: translate("conversion:queue.logs.started", {
+           title: item.book.title,
+           source: item.sourceFormat.toUpperCase(),
+           target: item.targetFormat.toUpperCase(),
+         }),
          detail: item.book.filePath,
        });
 
        try {
-         updateProgress(item.id, 28, "Analisando estrutura e recursos...");
-         addLog({ itemId: item.id, level: "info", message: `${item.book.title}: pipeline de conversao em execucao` });
+         updateProgress(item.id, 28, translate("conversion:queue.messages.analyzing"));
+         addLog({
+           itemId: item.id,
+           level: "info",
+           message: translate("conversion:queue.logs.running", { title: item.book.title }),
+         });
          const requestOptions = {
            jobId: item.id,
            conversionOptions: item.options,
@@ -273,12 +282,12 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
          if (canceledRef.current.has(item.id) || result?.canceled) {
            canceledRef.current.delete(item.id);
            setQueue((current) => current.map((candidate) => candidate.id === item.id
-             ? { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() }
+             ? { ...candidate, status: "canceled", message: translate("conversion:queue.messages.canceled"), progress: 0, finishedAt: Date.now() }
              : candidate));
            continue;
          }
 
-         updateProgress(item.id, 92, "Validando arquivo de saida...");
+         updateProgress(item.id, 92, translate("conversion:queue.messages.validating"));
          const report = result?.report;
          const warnings = Array.isArray(report?.warnings) ? report.warnings : [];
 
@@ -289,8 +298,8 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
                    ...candidate,
                    status: result?.success ? "done" : "error",
                    message: result?.success
-                     ? "Concluído"
-                     : result?.error || "Erro ao converter",
+                     ? translate("conversion:queue.messages.done")
+                     : result?.error || translate("conversion:queue.messages.failed"),
                    outputPath: result?.outputPath,
                    outputHash: result?.fileHash,
                    outputSize: result?.fileSize,
@@ -306,19 +315,26 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            addLog({
              itemId: item.id,
              level: "success",
-             message: `${item.book.title}: conversao concluida em ${(Math.max(0, Date.now() - startedAt) / 1000).toFixed(1)}s`,
+             message: translate("conversion:queue.logs.finished", {
+               title: item.book.title,
+               seconds: (Math.max(0, Date.now() - startedAt) / 1000).toFixed(1),
+             }),
              detail: result.outputPath,
            });
            warnings.forEach((warning) => addLog({ itemId: item.id, level: "warning", message: `${item.book.title}: ${warning}` }));
          } else {
-           addLog({ itemId: item.id, level: "error", message: `${item.book.title}: ${result?.error || "Erro ao converter"}` });
+           addLog({
+             itemId: item.id,
+             level: "error",
+             message: `${item.book.title}: ${result?.error || translate("conversion:queue.messages.failed")}`,
+           });
          }
        } catch (error) {
-         const message = error instanceof Error ? error.message : "Erro ao converter";
+         const message = error instanceof Error ? error.message : translate("conversion:queue.messages.failed");
          if (canceledRef.current.has(item.id) || (error instanceof DOMException && error.name === "AbortError")) {
            canceledRef.current.delete(item.id);
            setQueue((current) => current.map((candidate) => candidate.id === item.id
-             ? { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() }
+             ? { ...candidate, status: "canceled", message: translate("conversion:queue.messages.canceled"), progress: 0, finishedAt: Date.now() }
              : candidate));
            continue;
          }
@@ -374,9 +390,13 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
     canceledRef.current.add(itemId);
     setQueue((current) => current.map((candidate) => {
       if (candidate.id !== itemId || !["pending", "running"].includes(candidate.status)) return candidate;
-      return { ...candidate, status: "canceled", message: "Cancelada", progress: 0, finishedAt: Date.now() };
+      return { ...candidate, status: "canceled", message: translate("conversion:queue.messages.canceled"), progress: 0, finishedAt: Date.now() };
     }));
-    addLog({ itemId, level: "warning", message: `${item.book.title}: cancelamento solicitado` });
+    addLog({
+      itemId,
+      level: "warning",
+      message: translate("conversion:queue.logs.cancelRequested", { title: item.book.title }),
+    });
     await window.api.cancelConversion(itemId).catch(() => ({ success: false, active: false }));
     if (wasPending) canceledRef.current.delete(itemId);
   }, [addLog, queue]);
@@ -385,14 +405,19 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
     const item = queue.find((candidate) => candidate.id === itemId);
     if (!item) return false;
     if (item.status === "done" && (!item.outputHash || !item.outputPath)) {
-      toast.error("O resultado da conversao nao possui caminho verificavel");
+      toast.error(translate("conversion:queue.errors.noPath"));
       return false;
     }
     if (item.status === "done" && item.outputHash && item.outputPath) {
       const result = await window.api.deleteConvertedOutput(item.outputPath, item.outputHash);
       if (!result.success) {
-        toast.error(result.error || "Nao foi possivel excluir o arquivo convertido");
-        addLog({ itemId, level: "error", message: `${item.book.title}: falha ao excluir o arquivo convertido`, detail: result.error });
+        toast.error(result.error || translate("conversion:queue.errors.deleteFailed"));
+        addLog({
+          itemId,
+          level: "error",
+          message: translate("conversion:queue.logs.deleteFailed", { title: item.book.title }),
+          detail: result.error,
+        });
         return false;
       }
     }
@@ -401,7 +426,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
     progressBucketsRef.current.delete(itemId);
     setQueue((current) => current.filter((candidate) => candidate.id !== itemId));
     setLogs((current) => current.filter((entry) => entry.itemId !== itemId));
-    if (item.status === "done") toast.success("Arquivo convertido excluido");
+    if (item.status === "done") toast.success(translate("conversion:queue.toasts.deleted"));
     return true;
   }, [addLog, queue]);
 
@@ -420,10 +445,10 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
          outputPath,
          status: convertible ? "pending" : "error",
          message: convertible
-           ? "Aguardando na fila"
+           ? translate("conversion:queue.messages.pending")
            : supportedInputs.has(sourceFormat)
-             ? "Origem e saída têm o mesmo formato"
-             : "Formato de origem não suportado pelo conversor atual",
+             ? translate("conversion:queue.messages.sameFormat")
+             : translate("conversion:queue.messages.unsupportedSource"),
          progress: 0,
        };
     },
@@ -436,9 +461,9 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
 
       const runnable = items.filter((item) => item.status === "pending");
       if (runnable.length === 0) {
-        toast.error("Nenhum livro selecionado pode ser convertido para esse formato");
+        toast.error(translate("conversion:queue.errors.nothingConvertible"));
       } else {
-        toast.success(`${runnable.length} conversão${runnable.length !== 1 ? "ões" : ""} adicionada${runnable.length !== 1 ? "s" : ""} à fila`);
+        toast.success(translate("conversion:queue.toasts.queued", { count: runnable.length }));
       }
 
       setQueue((current) => [...items, ...current]);
@@ -510,7 +535,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
 export function useConversionQueue() {
   const context = useContext(ConversionQueueContext);
   if (!context) {
-    throw new Error("useConversionQueue must be used inside ConversionQueueProvider");
+    throw new Error(translate("conversion:errors.providerMissing"));
   }
   return context;
 }

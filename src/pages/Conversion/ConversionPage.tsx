@@ -51,31 +51,37 @@ import {
 import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnail";
 import AnimatedModal from "../../components/ui/AnimatedModal";
 import { AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
 
 const outputFormats: {
   value: ConversionOutputFormat;
-  label: string;
-  description: string;
+  descriptionKey: TranslationKey;
 }[] = [
-  { value: "epub", label: "EPUB", description: "Leitura fluida" },
-  { value: "pdf", label: "PDF", description: "Layout fixo" },
-  { value: "azw3", label: "AZW3", description: "Kindle KF8" },
-  { value: "kfx", label: "KFX", description: "Kindle Previewer" },
-  { value: "lyceum", label: "LYCEUM", description: "Pacote canonico" },
-  { value: "txt", label: "TXT", description: "Texto leve" },
-  { value: "html", label: "HTML", description: "Arquivo web" },
+  { value: "epub", descriptionKey: "conversion:formats.epub" },
+  { value: "pdf", descriptionKey: "conversion:formats.pdf" },
+  { value: "azw3", descriptionKey: "conversion:formats.azw3" },
+  { value: "kfx", descriptionKey: "conversion:formats.kfx" },
+  { value: "lyceum", descriptionKey: "conversion:formats.lyceum" },
+  { value: "txt", descriptionKey: "conversion:formats.txt" },
+  { value: "html", descriptionKey: "conversion:formats.html" },
 ];
 
 function bookKey(book: BookWithThumbnail) {
   return `${book.fileHash}:${book.filePath}`;
 }
 
-function statusLabel(item: ConversionQueueItem) {
-  if (item.status === "done") return "Concluido";
-  if (item.status === "error") return item.message;
-  if (item.status === "canceled") return "Cancelada";
-  if (item.status === "running") return "Convertendo";
-  return "Aguardando";
+const STATUS_LABEL_KEYS = {
+  done: "conversion:status.done",
+  error: "conversion:status.failed",
+  canceled: "conversion:status.canceled",
+  running: "conversion:status.running",
+  pending: "conversion:status.pending",
+} as const satisfies Record<ConversionQueueItem["status"], TranslationKey>;
+
+function statusLabel(item: ConversionQueueItem): TranslationKey {
+  if (item.status === "error") return "conversion:status.failed";
+  return STATUS_LABEL_KEYS[item.status];
 }
 
 function Cover({ book }: { book: BookWithThumbnail }) {
@@ -190,26 +196,29 @@ function FormatOptions({
   options: ConversionOptions;
   onChange: (updates: Partial<ConversionOptions>) => void;
 }) {
+  const { t } = useTranslation();
+
   if (format === "pdf") {
     return (
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-zinc-400">
-          <span>Tamanho da pagina</span>
+          <span>{t("conversion:options.pdf.pageSize")}</span>
           <select value={options.pdfPageSize} onChange={(event) => onChange({ pdfPageSize: event.target.value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
-            <option value="A4">A4</option><option value="A5">A5</option><option value="Letter">Carta</option><option value="Legal">Oficio</option>
+            <option value="A4">A4</option><option value="A5">A5</option><option value="Letter">{t("conversion:options.pdf.pageSizes.Letter")}</option>
+            <option value="Legal">{t("conversion:options.pdf.pageSizes.Legal")}</option>
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">
-          <NumberOption label="Margem superior" value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
-          <NumberOption label="Margem inferior" value={options.pdfMarginBottomMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginBottomMm: value })} />
-          <NumberOption label="Margem esquerda" value={options.pdfMarginLeftMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginLeftMm: value })} />
-          <NumberOption label="Margem direita" value={options.pdfMarginRightMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginRightMm: value })} />
-          <NumberOption label="Tamanho do texto" value={options.pdfFontSizePt} min={7} max={24} step={0.5} suffix="pt" onChange={(value) => onChange({ pdfFontSizePt: value })} />
-          <NumberOption label="Entrelinha" value={options.pdfLineHeight} min={1} max={2.4} step={0.05} onChange={(value) => onChange({ pdfLineHeight: value })} />
-          <NumberOption label="Espaco entre paragrafos" value={options.pdfParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ pdfParagraphSpacingEm: value })} />
+          <NumberOption label={t("conversion:options.pdf.marginTop")} value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
+          <NumberOption label={t("conversion:options.pdf.marginBottom")} value={options.pdfMarginBottomMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginBottomMm: value })} />
+          <NumberOption label={t("conversion:options.pdf.marginLeft")} value={options.pdfMarginLeftMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginLeftMm: value })} />
+          <NumberOption label={t("conversion:options.pdf.marginRight")} value={options.pdfMarginRightMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginRightMm: value })} />
+          <NumberOption label={t("conversion:options.pdf.fontSize")} value={options.pdfFontSizePt} min={7} max={24} step={0.5} suffix="pt" onChange={(value) => onChange({ pdfFontSizePt: value })} />
+          <NumberOption label={t("conversion:options.pdf.lineHeight")} value={options.pdfLineHeight} min={1} max={2.4} step={0.05} onChange={(value) => onChange({ pdfLineHeight: value })} />
+          <NumberOption label={t("conversion:options.pdf.paragraphSpacing")} value={options.pdfParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ pdfParagraphSpacingEm: value })} />
         </div>
-        <ToggleOption label="Novo capitulo em nova pagina" checked={options.pdfChapterPageBreaks} onChange={() => onChange({ pdfChapterPageBreaks: !options.pdfChapterPageBreaks })} />
-        <ToggleOption label="Gerar marcadores de capitulos" checked={options.pdfGenerateOutline} onChange={() => onChange({ pdfGenerateOutline: !options.pdfGenerateOutline })} />
+        <ToggleOption label={t("conversion:options.pdf.chapterPageBreaks")} checked={options.pdfChapterPageBreaks} onChange={() => onChange({ pdfChapterPageBreaks: !options.pdfChapterPageBreaks })} />
+        <ToggleOption label={t("conversion:options.pdf.generateOutline")} checked={options.pdfGenerateOutline} onChange={() => onChange({ pdfGenerateOutline: !options.pdfGenerateOutline })} />
       </div>
     );
   }
@@ -218,16 +227,18 @@ function FormatOptions({
     return (
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-zinc-400">
-          <span>Layout</span>
+          <span>{t("conversion:options.epub.layout")}</span>
           <select value={options.epubLayout} onChange={(event) => onChange({ epubLayout: event.target.value as ConversionOptions["epubLayout"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
-            <option value="auto">Automatico</option><option value="fixed-layout">Visual, pagina por pagina</option><option value="reflow">Texto fluido</option>
+            <option value="auto">{t("conversion:options.epub.layouts.auto")}</option>
+            <option value="fixed-layout">{t("conversion:options.epub.layouts.fixed-layout")}</option>
+            <option value="reflow">{t("conversion:options.epub.layouts.reflow")}</option>
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">
-          <NumberOption label="Entrelinha" value={options.epubLineHeight} min={1} max={2.2} step={0.05} onChange={(value) => onChange({ epubLineHeight: value })} />
-          <NumberOption label="Espaco entre paragrafos" value={options.epubParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ epubParagraphSpacingEm: value })} />
+          <NumberOption label={t("conversion:options.epub.lineHeight")} value={options.epubLineHeight} min={1} max={2.2} step={0.05} onChange={(value) => onChange({ epubLineHeight: value })} />
+          <NumberOption label={t("conversion:options.epub.paragraphSpacing")} value={options.epubParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ epubParagraphSpacingEm: value })} />
         </div>
-        <ToggleOption label="Gerar sumario" checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
+        <ToggleOption label={t("conversion:options.epub.generateIndex")} checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
       </div>
     );
   }
@@ -236,31 +247,35 @@ function FormatOptions({
     return (
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-zinc-400">
-          <span>Perfil Kindle</span>
+          <span>{t("conversion:options.kindle.profile")}</span>
           <select value={options.kindleProfile} onChange={(event) => onChange({ kindleProfile: event.target.value as ConversionOptions["kindleProfile"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
-            <option value="legacy-paperwhite">Paperwhite antigo</option><option value="kindle-compatible">Compatibilidade ampla</option><option value="modern-kindle">Kindle moderno</option><option value="scribe">Kindle Scribe</option>
+            <option value="legacy-paperwhite">{t("conversion:options.kindle.profiles.legacy-paperwhite")}</option>
+            <option value="kindle-compatible">{t("conversion:options.kindle.profiles.kindle-compatible")}</option>
+            <option value="modern-kindle">{t("conversion:options.kindle.profiles.modern-kindle")}</option>
+            <option value="scribe">{t("conversion:options.kindle.profiles.scribe")}</option>
           </select>
         </label>
-        <ToggleOption label="Preservar capa" checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
-        <ToggleOption label="Preservar metadados" checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
-        <ToggleOption label="Gerar sumario" checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
+        <ToggleOption label={t("conversion:options.kindle.preserveCover")} checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
+        <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+        <ToggleOption label={t("conversion:options.kindle.generateIndex")} checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
       </div>
     );
   }
 
-  if (format === "html") return <ToggleOption label="Preservar metadados" checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />;
+  if (format === "html") return <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />;
   if (format === "txt") return (
     <label className="block space-y-1 text-xs text-zinc-400">
-      <span>Quebra de linha</span>
+      <span>{t("conversion:options.txt.lineEnding")}</span>
       <select value={options.txtLineEnding} onChange={(event) => onChange({ txtLineEnding: event.target.value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
-        <option value="crlf">Windows (CRLF)</option><option value="lf">Unix (LF)</option>
+        <option value="crlf">{t("conversion:options.txt.lineEndings.crlf")}</option>
+        <option value="lf">{t("conversion:options.txt.lineEndings.lf")}</option>
       </select>
     </label>
   );
   return (
     <div className="space-y-2">
-      <ToggleOption label="Preservar capa" checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
-      <ToggleOption label="Preservar metadados" checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+      <ToggleOption label={t("conversion:options.kindle.preserveCover")} checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
+      <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
     </div>
   );
 }
@@ -274,6 +289,7 @@ function LibrarySearchPanel({
   selectedBooks,
   onAddBooks,
 }: LibrarySearchPanelProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("title_asc");
@@ -308,10 +324,10 @@ function LibrarySearchPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-zinc-100">
-            Adicionar da biblioteca
+            {t("conversion:libraryPanel.title")}
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Mesmo filtro usado no Atlas.
+            {t("conversion:libraryPanel.description")}
           </p>
         </div>
         <button
@@ -320,7 +336,9 @@ function LibrarySearchPanel({
           className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
         >
           {open ? <X size={14} /> : <FilePlus size={14} />}
-          {open ? "Fechar busca" : "Buscar livros"}
+          {open
+            ? t("conversion:libraryPanel.close")
+            : t("conversion:libraryPanel.open")}
         </button>
       </div>
 
@@ -336,16 +354,16 @@ function LibrarySearchPanel({
           />
           {!apiAvailable ? (
             <div className="rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-500">
-              A busca da biblioteca esta disponivel no app desktop.
+              {t("conversion:libraryPanel.desktopOnly")}
             </div>
           ) : booksQuery.isLoading || booksQuery.isFetching ? (
             <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-sm text-zinc-500">
               <RefreshCw size={15} className="animate-spin" />
-              Carregando livros...
+              {t("conversion:libraryPanel.loading")}
             </div>
           ) : filteredBooks.length === 0 ? (
             <div className="rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-500">
-              Nenhum livro encontrado.
+              {t("conversion:libraryPanel.empty")}
             </div>
           ) : (
             <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -395,6 +413,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
     cancelConversion,
     deleteConversion,
   } = useConversionQueue();
+  const { t, i18n } = useTranslation();
   const [selectedBookHash, setSelectedBookHash] = useState<string | null>(null);
   const [bookConfigs, setBookConfigs] = useState<Map<string, {
     targetFormat: ConversionOutputFormat;
@@ -488,12 +507,12 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
   }, [draftBooks, selectedBookHash]);
 
   const selectedBooks = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
+    const normalized = normalizeCase(search.trim());
     if (!normalized) return draftBooks;
     return draftBooks.filter((book) =>
       [book.title, book.author, book.fileName, book.filePath]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalized)),
+        .some((value) => normalizeCase(String(value)).includes(normalized)),
     );
   }, [draftBooks, search]);
 
@@ -540,7 +559,14 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
   };
 
   const handleDeleteConversion = async (item: ConversionQueueItem) => {
-    if (item.status === "done" && !window.confirm(`Excluir o arquivo convertido de "${getTitleWithoutExtension(item.book.title, item.book.fileType)}" do disco?`)) {
+    if (
+      item.status === "done" &&
+      !window.confirm(
+        t("conversion:queueTable.deleteConfirm", {
+          title: getTitleWithoutExtension(item.book.title, item.book.fileType),
+        }),
+      )
+    ) {
       return;
     }
     await deleteConversion(item.id);
@@ -569,7 +595,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
           <div className="mb-3 rounded-sm border border-zinc-800 bg-zinc-900/40">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
               <h2 className="text-sm font-semibold text-zinc-100">
-                Livros selecionados ({draftBooks.length})
+                {t("conversion:selected.title", { count: draftBooks.length })}
               </h2>
               <label className="flex h-9 min-w-0 flex-[1_1_16rem] items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-500 sm:max-w-sm">
                 <Search size={15} />
@@ -577,14 +603,14 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-zinc-200 outline-none placeholder:text-zinc-600"
-                  placeholder="Filtrar selecao..."
+                  placeholder={t("conversion:selected.searchPlaceholder")}
                 />
               </label>
             </div>
             {selectedBooks.length === 0 ? (
               <div className="flex min-h-44 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-zinc-500">
                 <CircleAlert size={22} className="text-zinc-600" />
-                Busque livros da biblioteca ou selecione livros na Biblioteca e clique em Converter.
+                {t("conversion:selected.empty")}
               </div>
              ) : (
                <div className="grid gap-3 p-3 lg:grid-cols-2 xl:grid-cols-3">
@@ -611,7 +637,9 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                          </p>
                          <span className="mt-3 inline-flex items-center gap-1.5 rounded-sm bg-green-500/10 px-2 py-1 text-xs text-green-400">
                            <CircleCheck size={13} />
-                           Saida: {cfg.targetFormat.toUpperCase()}
+                           {t("conversion:selected.output", {
+                             format: cfg.targetFormat.toUpperCase(),
+                           })}
                          </span>
                        </div>
                        <button
@@ -621,8 +649,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                            handleRemoveBook(book);
                          }}
                          className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-                         title="Remover da conversao"
-                         aria-label={`Remover ${book.title} da conversao`}
+                         title={t("conversion:selected.removeTitle")}
+                         aria-label={t("conversion:selected.removeAriaLabel", {
+                           title: book.title,
+                         })}
                        >
                          <X size={14} />
                        </button>
@@ -641,26 +671,26 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
            <div className="mb-3 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/40">
              <div className="border-b border-zinc-800 px-4 py-3">
                <h2 className="text-sm font-semibold text-zinc-100">
-                 Fila de conversao ({visibleQueue.length})
+                 {t("conversion:queueTable.title", { count: visibleQueue.length })}
                </h2>
              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px] table-fixed text-left text-sm">
                   <thead className="text-xs text-zinc-500">
                     <tr className="border-b border-zinc-800">
-                      <th className="w-[200px] px-4 py-3 font-medium">Livro</th>
-                      <th className="w-[120px] px-3 py-3 font-medium">Origem - Saida</th>
-                      <th className="w-[170px] px-3 py-3 font-medium">Progresso</th>
-                      <th className="w-[130px] px-3 py-3 font-medium">Status</th>
-                      <th className="w-[60px] px-2 py-3 font-medium">Tamanho</th>
-                      <th className="w-[120px] px-2 py-3 font-medium">Acoes</th>
+                      <th className="w-[200px] px-4 py-3 font-medium">{t("conversion:queueTable.columns.book")}</th>
+                      <th className="w-[120px] px-3 py-3 font-medium">{t("conversion:queueTable.columns.formats")}</th>
+                      <th className="w-[170px] px-3 py-3 font-medium">{t("conversion:queueTable.columns.progress")}</th>
+                      <th className="w-[130px] px-3 py-3 font-medium">{t("conversion:queueTable.columns.status")}</th>
+                      <th className="w-[60px] px-2 py-3 font-medium">{t("conversion:queueTable.columns.size")}</th>
+                      <th className="w-[120px] px-2 py-3 font-medium">{t("conversion:queueTable.columns.actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800">
                     {visibleQueue.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
-                          A fila aparece aqui quando voce inicia a conversao.
+                          {t("conversion:queueTable.empty")}
                         </td>
                       </tr>
                     ) : (
@@ -720,7 +750,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                   />
                                 </div>
                                 <span className="w-10 flex-shrink-0 text-right text-xs text-zinc-400">
-                                  {item.progress}%
+                                  {formatNumber(item.progress, i18n.language)}%
                                 </span>
                               </div>
                             </td>
@@ -745,7 +775,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                 ) : (
                                   <Clock3 size={15} />
                                 )}
-                                {statusLabel(item)}
+                                {item.status === "error" ? item.message : t(statusLabel(item))}
                               </span>
                             </td>
                             <td className="px-2 py-2.5 text-xs text-zinc-400">
@@ -762,8 +792,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                     type="button"
                                     onClick={() => void cancelConversion(item.id)}
                                     className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-amber-300"
-                                    title="Parar conversao"
-                                    aria-label={`Parar conversao de ${item.book.title}`}
+                                    title={t("conversion:queueTable.actions.cancelTitle")}
+                                    aria-label={t("conversion:queueTable.actions.cancelAriaLabel", {
+                                      title: item.book.title,
+                                    })}
                                   >
                                     <Square size={13} fill="currentColor" />
                                   </button>
@@ -775,8 +807,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                       disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)}
                                       onClick={() => onOpenConverted?.(item)}
                                       className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
-                                      title="Abrir no Lyceum"
-                                      aria-label={`Abrir ${item.book.title} convertido no Lyceum`}
+                                      title={t("conversion:queueTable.actions.openTitle")}
+                                      aria-label={t("conversion:queueTable.actions.openAriaLabel", {
+                                        title: item.book.title,
+                                      })}
                                     >
                                       <BookOpen size={15} />
                                     </button>
@@ -785,8 +819,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                       disabled={!item.outputPath}
                                       onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)}
                                       className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
-                                      title="Mostrar na pasta"
-                                      aria-label={`Mostrar ${item.book.title} convertido na pasta`}
+                                      title={t("conversion:queueTable.actions.revealTitle")}
+                                      aria-label={t("conversion:queueTable.actions.revealAriaLabel", {
+                                        title: item.book.title,
+                                      })}
                                     >
                                       <FolderOpen size={15} />
                                     </button>
@@ -797,8 +833,20 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                     type="button"
                                     onClick={() => void handleDeleteConversion(item)}
                                     className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-500/10 hover:text-red-300"
-                                    title={item.status === "done" ? "Excluir arquivo convertido" : "Remover da fila"}
-                                    aria-label={item.status === "done" ? `Excluir arquivo convertido de ${item.book.title}` : `Remover ${item.book.title} da fila`}
+                                    title={
+                                      item.status === "done"
+                                        ? t("conversion:queueTable.actions.deleteTitle")
+                                        : t("conversion:queueTable.actions.removeTitle")
+                                    }
+                                    aria-label={
+                                      item.status === "done"
+                                        ? t("conversion:queueTable.actions.deleteAriaLabel", {
+                                            title: item.book.title,
+                                          })
+                                        : t("conversion:queueTable.actions.removeAriaLabel", {
+                                            title: item.book.title,
+                                          })
+                                    }
                                   >
                                     <Trash2 size={14} />
                                   </button>
@@ -818,19 +866,31 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
                   <ListTree size={15} className="text-green-400" />
-                  Logs da conversao
+                  {t("conversion:logs.title")}
                 </h2>
-                <button type="button" onClick={clearLogs} disabled={logs.length === 0} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30" title="Limpar logs" aria-label="Limpar logs de conversao">
+                <button type="button" onClick={clearLogs} disabled={logs.length === 0} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30" title={t("conversion:logs.clearTitle")}
+                  aria-label={t("conversion:logs.clearAriaLabel")}>
                   <Trash2 size={14} />
                 </button>
               </div>
               <div className="max-h-56 overflow-y-auto font-mono text-xs">
                 {visibleLogs.length === 0 ? (
-                  <div className="px-4 py-6 text-center font-sans text-sm text-zinc-600">Nenhum evento registrado nesta sessao.</div>
+                  <div className="px-4 py-6 text-center font-sans text-sm text-zinc-600">
+                    {t("conversion:logs.empty")}
+                  </div>
                 ) : visibleLogs.map((entry) => (
                   <div key={entry.id} className="grid grid-cols-[5.25rem_4.5rem_minmax(0,1fr)] gap-2 border-b border-zinc-900 px-4 py-2 last:border-0">
-                    <time className="text-zinc-600">{new Date(entry.timestamp).toLocaleTimeString("pt-BR", { hour12: false })}</time>
-                    <span className={entry.level === "error" ? "text-red-400" : entry.level === "warning" ? "text-amber-300" : entry.level === "success" ? "text-green-400" : "text-sky-300"}>{entry.level.toUpperCase()}</span>
+                    <time className="text-zinc-600">
+                      {new Intl.DateTimeFormat(getActiveLocale(), {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      }).format(new Date(entry.timestamp))}
+                    </time>
+                    <span className={entry.level === "error" ? "text-red-400" : entry.level === "warning" ? "text-amber-300" : entry.level === "success" ? "text-green-400" : "text-sky-300"}>
+                      {t(`conversion:logs.levels.${entry.level}` as const)}
+                    </span>
                     <span className="min-w-0 break-words text-zinc-300">{entry.message}{entry.detail && <span className="mt-0.5 block text-zinc-600">{entry.detail}</span>}</span>
                   </div>
                 ))}
@@ -839,7 +899,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
 
           <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/40">
             <div className="border-b border-zinc-800 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-100">Conversoes recentes</h2>
+              <h2 className="text-sm font-semibold text-zinc-100">{t("conversion:recent.title")}</h2>
             </div>
             <div className="divide-y divide-zinc-800">
               {queue.filter((item) => item.status === "done").slice(0, 4).map((item) => (
@@ -854,15 +914,16 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)} onClick={() => onOpenConverted?.(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title="Abrir no Lyceum"><BookOpen size={14} /></button>
-                    <button type="button" disabled={!item.outputPath} onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title="Mostrar na pasta"><FolderOpen size={14} /></button>
-                    <button type="button" onClick={() => void handleDeleteConversion(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-500/10 hover:text-red-300" title="Excluir arquivo convertido" aria-label={`Excluir arquivo convertido de ${item.book.title}`}><Trash2 size={14} /></button>
+                    <button type="button" disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)} onClick={() => onOpenConverted?.(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title={t("conversion:queueTable.actions.openTitle")}><BookOpen size={14} /></button>
+                    <button type="button" disabled={!item.outputPath} onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title={t("conversion:queueTable.actions.revealTitle")}><FolderOpen size={14} /></button>
+                    <button type="button" onClick={() => void handleDeleteConversion(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-500/10 hover:text-red-300" title={t("conversion:queueTable.actions.deleteTitle")}
+                      aria-label={t("conversion:queueTable.actions.deleteAriaLabel", { title: item.book.title })}><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
               {queue.every((item) => item.status !== "done") && (
                 <div className="px-4 py-6 text-center text-sm text-zinc-500">
-                  Nenhuma conversao concluida nesta sessao.
+                  {t("conversion:recent.empty")}
                 </div>
               )}
             </div>
@@ -872,7 +933,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
         <aside className="flex-none overflow-visible rounded-sm border border-zinc-800 bg-zinc-900/60 lg:min-h-0 lg:overflow-y-auto">
           <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
             <div className="min-w-0">
-              <h2 className="font-semibold text-zinc-100">Configuracao de conversao</h2>
+              <h2 className="font-semibold text-zinc-100">{t("conversion:settings.title")}</h2>
               {selectedBook && (
                 <p className="truncate text-xs text-zinc-500">
                   {getTitleWithoutExtension(selectedBook.title, selectedBook.fileType)}
@@ -884,7 +945,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
            {!selectedBook ? (
              <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-zinc-500">
                <Info size={28} className="text-zinc-600" />
-               <p>Selecione ou adicione um livro para configurar a conversao</p>
+               <p>{t("conversion:settings.selectBook")}</p>
              </div>
            ) : (
              (() => {
@@ -894,7 +955,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                  <div className="space-y-6 p-5">
                    <section>
                      <div className="mb-2 flex items-center gap-2">
-                       <h3 className="text-sm font-semibold text-zinc-100">Formato de saida</h3>
+                       <h3 className="text-sm font-semibold text-zinc-100">{t("conversion:settings.outputFormat")}</h3>
                        <Info size={14} className="text-zinc-500" />
                      </div>
                      <div className="grid grid-cols-2 gap-2">
@@ -911,10 +972,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                            >
                              <FileText size={22} className={selected ? "mx-auto text-green-300" : "mx-auto text-zinc-400"} />
                              <span className="mt-2 block text-sm font-semibold text-zinc-100">
-                               {format.label}
+                               {format.value.toUpperCase()}
                              </span>
                              <span className="mt-1 block text-[11px] text-zinc-500">
-                               {format.description}
+                               {t(format.descriptionKey)}
                              </span>
                              {selected && (
                                <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-zinc-950">
@@ -928,7 +989,11 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                    </section>
 
                    <section>
-                     <h3 className="mb-3 text-sm font-semibold text-zinc-100">Opcoes para {cfg.targetFormat.toUpperCase()}</h3>
+                     <h3 className="mb-3 text-sm font-semibold text-zinc-100">
+                       {t("conversion:settings.formatOptions", {
+                         format: cfg.targetFormat.toUpperCase(),
+                       })}
+                     </h3>
                      <FormatOptions
                        format={cfg.targetFormat}
                        options={cfg.options}
@@ -937,7 +1002,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                    </section>
 
                    <section>
-                     <h3 className="mb-2 text-sm font-semibold text-zinc-100">Destino</h3>
+                     <h3 className="mb-2 text-sm font-semibold text-zinc-100">{t("conversion:settings.destination")}</h3>
                      <div className="space-y-2">
                        {cfg.outputPath ? (
                          <div className="flex min-h-9 items-center justify-between gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3">
@@ -950,13 +1015,13 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                              onClick={() => setBookConfig(selectedBook.fileHash, { outputPath: undefined })}
                              className="flex-shrink-0 text-xs text-zinc-500 hover:text-zinc-300"
                            >
-                             Limpar
+                             {t("conversion:settings.clear")}
                            </button>
                          </div>
                        ) : (
                          <div className="flex h-9 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-300">
                            <Folder size={15} className="text-zinc-500" />
-                           <span>Ao lado do arquivo original</span>
+                           <span>{t("conversion:settings.nextToOriginal")}</span>
                          </div>
                        )}
                        <button
@@ -970,7 +1035,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                          className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900 text-sm text-zinc-300 hover:bg-zinc-800"
                        >
                          <FolderOpen size={14} />
-                         Escolher pasta
+                         {t("conversion:settings.chooseFolder")}
                        </button>
                      </div>
                    </section>
@@ -982,10 +1047,11 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                        </span>
                        <div className="min-w-0">
                          <p className="font-semibold text-zinc-100">
-                           {convertibleCount} {convertibleCount === 1 ? "livro" : "livros"} <span className="text-zinc-500">-</span> configuracoes individuais
+                           {t("conversion:settings.summary", { count: convertibleCount })}{" "}
+                           <span className="text-zinc-500">-</span>
                          </p>
                          <p className="mt-1 text-sm text-zinc-400">
-                           {estimatedSize} estimados
+                           {t("conversion:settings.estimated", { size: estimatedSize })}
                          </p>
                        </div>
                      </div>
@@ -1001,7 +1067,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               onClick={handleCancel}
               className="h-11 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
             >
-              Cancelar
+              {t("conversion:settings.cancel")}
             </button>
             <button
               type="button"
@@ -1010,7 +1076,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               className="flex h-11 flex-[1.8] items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-semibold text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
-              Converter {convertibleCount} {convertibleCount === 1 ? "livro" : "livros"}
+              {t("conversion:settings.convert", { count: convertibleCount })}
             </button>
           </div>
         </aside>
@@ -1026,6 +1092,8 @@ interface ConversionDialogProps {
 }
 
 export function ConversionDialog({ isOpen, onClose, onOpenConverted }: ConversionDialogProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1053,18 +1121,18 @@ export function ConversionDialog({ isOpen, onClose, onOpenConverted }: Conversio
           <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 sm:px-6">
             <div className="min-w-0">
               <h2 id="conversion-dialog-title" className="truncate text-base font-semibold text-zinc-100">
-                Conversao
+                {t("conversion:dialog.title")}
               </h2>
               <p className="hidden text-xs text-zinc-500 sm:block">
-                Escolha livros, formatos e destino sem sair da tela atual.
+                {t("conversion:dialog.description")}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-              title="Fechar"
-              aria-label="Fechar conversao"
+              title={t("conversion:dialog.closeTitle")}
+              aria-label={t("conversion:dialog.closeAriaLabel")}
             >
               <X size={17} />
             </button>
