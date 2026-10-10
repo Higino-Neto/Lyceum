@@ -11,6 +11,37 @@ const browserEvents = path.resolve(__dirname, "node_modules/events/events.js");
 const isLegacyWindowsBuild = process.env.LYCEUM_LEGACY_WINDOWS === "1";
 const rendererTarget = isLegacyWindowsBuild ? "chrome108" : "es2022";
 const electronTarget = isLegacyWindowsBuild ? "node16.17" : "node20";
+// Electron 22 (the Windows 7/8/8.1 runtime) can only load a CommonJS main
+// entry; ESM support landed in Electron 28. Root package.json is "type":
+// "module", so the Legacy build emits a nested dist-electron/package.json that
+// marks the bundled main process files as CommonJS instead of renaming them.
+const electronMainOutput = isLegacyWindowsBuild
+  ? [
+      {
+        format: "cjs",
+        entryFileNames: "[name].js",
+        chunkFileNames: "chunks/[name].js",
+        assetFileNames: "assets/[name][extname]",
+      },
+    ]
+  : {
+      entryFileNames: "[name].js",
+      chunkFileNames: "chunks/[name].js",
+      assetFileNames: "assets/[name][extname]",
+    };
+
+function legacyCommonJsPackagePlugin(): Plugin {
+  return {
+    name: "lyceum-legacy-commonjs-package",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "package.json",
+        source: `${JSON.stringify({ type: "commonjs" }, null, 2)}\n`,
+      });
+    },
+  };
+}
 
 function pdfjsOverlayDevPlugin(): Plugin {
   const overlayDir = path.resolve(__dirname, "resources/pdfjs-viewer");
@@ -73,6 +104,7 @@ export default defineConfig({
           "workers/processing.worker": "electron/workers/processing.worker.ts",
         },
         vite: {
+          plugins: isLegacyWindowsBuild ? [legacyCommonJsPackagePlugin()] : [],
           resolve: {
             alias: {
               canvas: optionalCanvasStub,
@@ -91,11 +123,7 @@ export default defineConfig({
                 "@napi-rs/canvas",
                 "pdfjs-dist/legacy/build/pdf.mjs",
               ],
-              output: {
-                entryFileNames: "[name].js",
-                chunkFileNames: "chunks/[name].js",
-                assetFileNames: "assets/[name][extname]",
-              },
+              output: electronMainOutput,
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
