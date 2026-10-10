@@ -22,10 +22,10 @@ interface FilterBarProps {
 }
 
 const sortLabelKeys: Record<SortOption, TranslationKey> = {
-  title_asc: "library:filters.sort.title_asc",
-  title_desc: "library:filters.sort.title_desc",
   recent_desc: "library:filters.sort.recent_desc",
   recent_asc: "library:filters.sort.recent_asc",
+  title_asc: "library:filters.sort.title_asc",
+  title_desc: "library:filters.sort.title_desc",
   pages_desc: "library:filters.sort.pages_desc",
   pages_asc: "library:filters.sort.pages_asc",
   size_desc: "library:filters.sort.size_desc",

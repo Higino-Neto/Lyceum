@@ -75,7 +75,7 @@
     ],
     "artifactName": "${productName}-${version}-Linux-x86_64.${ext}",
     "category": "Education",
-    "maintainer": "Higino-Neto <tawl.tack@gmail.com>",
+    "maintainer": "Higino-Neto <higino.dev@gmail.com>",
     "icon": "resources/icons/icon_512.png",
     "executableName": "lyceum"
   },

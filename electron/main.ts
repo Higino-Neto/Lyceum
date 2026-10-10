@@ -1061,7 +1061,7 @@ async function listUsbBooks(query: UsbBookListQuery = {}): Promise<LibraryListRe
       .some((value) => String(value).toLowerCase().includes(search));
   });
 
-  const sort = query.sort || "title_asc";
+  const sort = query.sort || "recent_desc";
   filtered = filtered.sort((a, b) => {
     const titleCompare = a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" });
     if (sort === "title_desc") return -titleCompare;
