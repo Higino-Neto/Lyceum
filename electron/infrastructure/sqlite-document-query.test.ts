@@ -73,6 +73,20 @@ describe("SQLite document query repository", () => {
       .toEqual(["b", "c"]);
   });
 
+  it("filters by explicit and inferred reading status", () => {
+    const repository = createSqliteDocumentQueryRepository(db, libraryPath);
+    // "a": explicit status. "b": inferred from progress (reached last page). "c": untouched.
+    db.prepare("UPDATE documents SET readingStatus = 'want_to_read' WHERE fileHash = 'a'").run();
+    db.prepare("UPDATE documents SET currentPage = 100, numPages = 100 WHERE fileHash = 'b'").run();
+
+    expect(repository.list({ readingStatus: "want_to_read" }).items.map((item) => item.fileHash).sort())
+      .toEqual(["a", "c"]);
+    expect(repository.list({ readingStatus: "read" }).items.map((item) => item.fileHash))
+      .toEqual(["b"]);
+    expect(repository.list({ readingStatus: "all" }).total).toBe(3);
+    expect(repository.list({ readingStatus: "reading" }).total).toBe(0);
+  });
+
   it("counts documents in normalized folders", () => {
     const repository = createSqliteDocumentQueryRepository(db, libraryPath);
     expect(repository.folderCounts()).toEqual({

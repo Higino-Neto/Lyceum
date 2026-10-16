@@ -341,7 +341,18 @@ export function updateReadingState(fileHash: string, state: ReadingPosition) {
 }
 
 export function updateReadingStatus(fileHash: string, status: ReadingStatus): boolean {
-  return readerProgress.updateStatus(fileHash, status);
+  const updated = readerProgress.updateStatus(fileHash, status);
+  // A merged book (several formats sharing a bookId) is one book in the
+  // library view, so keep every variant in the same status category.
+  const document = documentQueries.byHash(fileHash);
+  if (document?.bookId) {
+    for (const variant of documentQueries.byBookId(document.bookId)) {
+      if (variant.fileHash !== fileHash) {
+        readerProgress.updateStatus(variant.fileHash, status);
+      }
+    }
+  }
+  return updated;
 }
 
 export function createKeyConcept(input: CreateKeyConceptInput): KeyConcept {
@@ -1562,6 +1573,15 @@ export function toggleFavorite(fileHash: string): boolean {
 
 export function updateRating(fileHash: string, rating: number): void {
   documentMetadata.updateRating(fileHash, rating);
+  // Score belongs to the merged book, not a single format variant.
+  const document = documentQueries.byHash(fileHash);
+  if (document?.bookId) {
+    for (const variant of documentQueries.byBookId(document.bookId)) {
+      if (variant.fileHash !== fileHash) {
+        documentMetadata.updateRating(variant.fileHash, rating);
+      }
+    }
+  }
 }
 
 export function updateNotes(fileHash: string, notes: string): void {

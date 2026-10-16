@@ -1363,6 +1363,7 @@ function LibraryContent() {
       collapseSpecialFolders: currentFolderType === "normal",
       search: deferredSearch,
       fileTypes: fileTypeFilter,
+      readingStatus: readingStatusFilter,
       sort,
       previousCache: mergedBookCacheRef.current,
     });
@@ -1374,6 +1375,7 @@ function LibraryContent() {
     currentFolderType,
     deferredSearch,
     fileTypeFilter,
+    readingStatusFilter,
     sort,
     specialFolderBooks,
     visibleSpecialFolders,

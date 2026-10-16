@@ -46,7 +46,7 @@ import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
 import AnimatedModal from "../../../components/ui/AnimatedModal";
 import Select from "../../../components/ui/Select";
-import { getEffectiveReadingStatus, READING_STATUS_LABEL_KEYS } from "../../../lib/readingStatus";
+import { getEffectiveReadingStatus, READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
@@ -129,7 +129,9 @@ export default function BookDetailPanel({
     let canceled = false;
     setThumbnail(selectedVariant.thumbnail);
     setStatus(getEffectiveReadingStatus(selectedVariant));
-    setRating(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
+    const nextRating = Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0));
+    setRating(nextRating);
+    savedRatingRef.current = nextRating;
 
     if (!selectedVariant.thumbnail && selectedVariant.thumbnailPath) {
       window.api.getThumbnail(selectedVariant.thumbnailPath).then((value: string | null) => {
@@ -154,6 +156,19 @@ export default function BookDetailPanel({
   const [thumbnailKey, setThumbnailKey] = useState(0);
   const [status, setStatus] = useState<ReadingStatus>(getEffectiveReadingStatus(selectedVariant));
   const [rating, setRating] = useState<number>(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
+  const savedRatingRef = useRef<number>(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
+
+  const handlePersistRating = async () => {
+    const value = Number(Math.max(0, Math.min(10, rating)).toFixed(1));
+    if (value === savedRatingRef.current) return;
+    savedRatingRef.current = value;
+    try {
+      await window.api.updateRating(selectedVariant.fileHash, value);
+      await onRefresh(selectedVariant.fileHash);
+    } catch {
+      toast.error(t("library:detail.updateRatingFailed"));
+    }
+  };
   const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
   const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
 
@@ -773,6 +788,48 @@ export default function BookDetailPanel({
           </p>
         </div> */}
 
+        <div className="space-y-1.5">
+          <label className="text-xs text-zinc-500">{t("library:sections.readingStatus")}</label>
+          <Select
+            value={status}
+            onChange={async (value) => {
+              const newStatus = value as ReadingStatus;
+              setStatus(newStatus);
+              try {
+                await window.api.updateReadingStatus(selectedVariant.fileHash, newStatus);
+                await onRefresh(selectedVariant.fileHash);
+              } catch (err) {
+                toast.error(t("library:detail.updateStatusFailed"));
+              }
+            }}
+            items={READING_STATUS_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t(option.labelKey),
+            }))}
+          />
+          {status === "read" && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-zinc-500 whitespace-nowrap">{t("library:detail.score")}</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                value={rating}
+                onChange={(e) => setRating(Math.max(0, Math.min(10, parseFloat(e.target.value) || 0)))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                onBlur={handlePersistRating}
+                className="h-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
+              />
+              <span className="text-xs text-zinc-500">/10</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button
             type="button"
@@ -787,61 +844,6 @@ export default function BookDetailPanel({
                 : t("library:detail.startReading")
               : t("library:detail.unsupportedFormat")}
           </button>
-        <div className="space-y-2 mt-3">
-          <label className="text-xs text-zinc-500">{t("library:sections.readingStatus")}</label>
-          <Select
-            value={status}
-            onChange={async (value) => {
-              const newStatus = value as ReadingStatus;
-              setStatus(newStatus);
-              try {
-                await window.api.updateReadingStatus(selectedVariant.fileHash, newStatus);
-                await onRefresh(selectedVariant.fileHash);
-              } catch (err) {
-                toast.error("Failed to update status");
-              }
-            }}
-            items={[
-              { value: "want_to_read", label: t(READING_STATUS_LABEL_KEYS.want_to_read) },
-              { value: "reading", label: t(READING_STATUS_LABEL_KEYS.reading) },
-              { value: "paused", label: t(READING_STATUS_LABEL_KEYS.paused) },
-              { value: "read", label: t(READING_STATUS_LABEL_KEYS.read) },
-            ]}
-          />
-          {status === "read" && (
-            <div className="flex items-center gap-2 mt-1">
-              <label className="text-xs text-zinc-500 whitespace-nowrap">Score</label>
-              <input
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                value={rating}
-                onChange={(e) => setRating(Math.max(0, Math.min(10, parseFloat(e.target.value) || 0)))}
-                onKeyDown={async (e) => {
-                  if (e.key === "Enter") {
-                    try {
-                      await window.api.updateRating(selectedVariant.fileHash, Number(rating.toFixed(1)));
-                      await onRefresh(selectedVariant.fileHash);
-                    } catch (err) {
-                      toast.error("Failed to update rating");
-                    }
-                  }
-                }}
-                onBlur={async () => {
-                  try {
-                    await window.api.updateRating(selectedVariant.fileHash, Number(rating.toFixed(1)));
-                    await onRefresh(selectedVariant.fileHash);
-                  } catch (err) {
-                    toast.error("Failed to update rating");
-                  }
-                }}
-                className="h-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
-              />
-              <span className="text-xs text-zinc-500">/10</span>
-            </div>
-          )}
-        </div>
 
         {onOpenPreview && (
           <button

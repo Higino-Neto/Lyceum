@@ -7,6 +7,7 @@ import {
   getPathLeaf,
   isAbsoluteFolderPath,
   matchesLibraryFileTypes,
+  matchesLibraryReadingStatus,
   matchesLibrarySearch,
   normalizeAbsoluteFolderPath,
   pickRepresentativeBook,
@@ -80,6 +81,33 @@ describe("library view model", () => {
     expect(matchesLibraryFileTypes(merged, ["cbz"])).toBe(false);
   });
 
+  it("matches a reading status against any variant and infers status from progress", () => {
+    const merged = book({
+      mergedBooks: [book({ fileHash: "epub", readingStatus: "read" })],
+    });
+    const inProgress = book({ fileHash: "progress", readingStatus: null, currentPage: 50, numPages: 100 });
+    const untouched = book({ fileHash: "new", readingStatus: null, currentPage: 0 });
+
+    expect(matchesLibraryReadingStatus(merged, "read")).toBe(true);
+    expect(matchesLibraryReadingStatus(merged, "reading")).toBe(false);
+    expect(matchesLibraryReadingStatus(inProgress, "reading")).toBe(true);
+    expect(matchesLibraryReadingStatus(untouched, "want_to_read")).toBe(true);
+    expect(matchesLibraryReadingStatus(untouched, null)).toBe(true);
+    expect(matchesLibraryReadingStatus(untouched, "all")).toBe(true);
+  });
+
+  it("hides collections from status filters when no contained book matches", () => {
+    const reading = book({
+      fileHash: "collection-folder:/library/_clube",
+      syntheticFolderType: "collection",
+      syntheticFolderPath: "_clube",
+      mergedBooks: [book({ fileHash: "inside", readingStatus: "reading" })],
+    });
+
+    expect(matchesLibraryReadingStatus(reading, "reading")).toBe(true);
+    expect(matchesLibraryReadingStatus(reading, "read")).toBe(false);
+  });
+
   it("discovers nested special folders only when requested", () => {
     const nested = folder("_Unidas", "normal/_Unidas");
     const roots = [folder("normal", "normal", [nested]), folder("__Coleção", "__Coleção")];
@@ -140,5 +168,30 @@ describe("library view model", () => {
     };
     expect(buildDisplayBooks(input).books).toBe(original);
     expect(buildDisplayBooks({ ...input, section: "unsynced" }).books).toEqual(original);
+  });
+
+  it("excludes collections and merged folders that do not match the reading status filter", () => {
+    const collection = book({
+      id: -1,
+      fileHash: "collection-folder:/library/_clube",
+      syntheticFolderType: "collection",
+      mergedBooks: [book({ fileHash: "inside", readingStatus: "reading" })],
+    });
+    const input = {
+      section: "synced" as const,
+      books: [],
+      specialFolderBooks: [collection],
+      specialFolderPaths: [],
+      collapseSpecialFolders: false,
+      search: "",
+      fileTypes: ["all" as const],
+      readingStatus: "reading" as string | null,
+      sort: "title_asc" as const,
+      previousCache: new Map(),
+    };
+
+    expect(buildDisplayBooks(input).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
+    expect(buildDisplayBooks({ ...input, readingStatus: "read" }).books).toEqual([]);
+    expect(buildDisplayBooks({ ...input, readingStatus: "all" }).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
   });
 });

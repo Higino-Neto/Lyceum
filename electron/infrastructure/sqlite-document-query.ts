@@ -112,7 +112,15 @@ export function createSqliteDocumentQueryRepository(
       }
 
       if (query.readingStatus && query.readingStatus !== "all") {
-        where.push("d.readingStatus = ?");
+        // Mirrors getEffectiveReadingStatus on the renderer: explicit status
+        // wins, otherwise infer from progress so the filter matches the icons
+        // shown in the book grid.
+        where.push(`COALESCE(d.readingStatus,
+          CASE
+            WHEN COALESCE(d.numPages, 0) > 1 AND COALESCE(d.currentPage, 0) >= d.numPages THEN 'read'
+            WHEN COALESCE(d.currentPage, 0) > 1 THEN 'reading'
+            ELSE 'want_to_read'
+          END) = ?`);
         values.push(query.readingStatus);
       }
 

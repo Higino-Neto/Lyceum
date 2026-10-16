@@ -251,10 +251,10 @@ function BookListItem({
 
 export function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbnail) {
   const previousMergedSignature = previous.mergedBooks
-    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}`)
+    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}:${book.readingStatus || ""}:${book.rating || 0}`)
     .join("|");
   const nextMergedSignature = next.mergedBooks
-    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}`)
+    ?.map((book) => `${book.fileHash}:${book.thumbnail || ""}:${book.thumbnailPath || ""}:${book.readingStatus || ""}:${book.rating || 0}`)
     .join("|");
 
   return (
@@ -272,6 +272,9 @@ export function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbna
     previous.processingStatus === next.processingStatus &&
     previous.syntheticFolderPath === next.syntheticFolderPath &&
     previous.syntheticFolderType === next.syntheticFolderType &&
+    previous.readingStatus === next.readingStatus &&
+    previous.currentPage === next.currentPage &&
+    previous.rating === next.rating &&
     previousMergedSignature === nextMergedSignature
   );
 }

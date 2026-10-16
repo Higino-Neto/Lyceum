@@ -11,7 +11,7 @@ import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
 import { useTranslation } from "../../../../i18n";
-import { getEffectiveReadingStatus } from "../../../../lib/readingStatus";
+import { getEffectiveReadingStatus, READING_STATUS_LABEL_KEYS } from "../../../../lib/readingStatus";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -102,7 +102,6 @@ function BookCard({
   canDropOnBook,
   onDropOnBook,
 }: BookCardProps) {
-  const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const { t } = useTranslation();
@@ -157,8 +156,6 @@ function BookCard({
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       draggable={!selectionMode || isChecked}
       onDragStartCapture={(e) => {
         if (selectionMode && !isChecked) {
@@ -224,7 +221,7 @@ function BookCard({
           </div>
         )}
         {statusIcon && (
-          <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-zinc-950/90 p-1 border border-zinc-800/80 shadow-md" title={t(`reading:status.${effectiveStatus === "want_to_read" ? "wantToRead" : effectiveStatus === "read" ? "read" : effectiveStatus === "paused" ? "paused" : "reading"}`)}>
+          <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-zinc-950/90 p-1 border border-zinc-800/80 shadow-md" title={t(READING_STATUS_LABEL_KEYS[effectiveStatus])}>
             <statusIcon.Icon size={16} className={`${statusIcon.color} drop-shadow-sm`} />
           </div>
         )}
@@ -234,8 +231,8 @@ function BookCard({
           </div>
         )}
         
-        {showSyncActions && onSync && hovered && (
-          <div className="absolute top-2 right-2 z-20">
+        {showSyncActions && onSync && (
+          <div className="absolute top-2 right-2 z-20 hidden group-hover:block">
             <button
               onClick={(e) => {
                 e.stopPropagation();

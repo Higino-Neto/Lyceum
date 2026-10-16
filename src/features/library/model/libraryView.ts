@@ -8,6 +8,7 @@ import type {
 import { classifyFolder, getTitleWithoutExtension } from "./folders";
 import { calculateSimilarity } from "./search";
 import { getActiveLocale, normalizeCase } from "../../../i18n";
+import { getEffectiveReadingStatus } from "../../../lib/readingStatus";
 
 export type SpecialFolderType = "merged" | "collection";
 
@@ -195,6 +196,21 @@ export function matchesLibraryFileTypes(
   );
 }
 
+/** A book (or collection) matches a reading-status filter when any of its
+ * variants has that effective status. Collections and merged folders are
+ * included only when at least one contained book matches, so they stop
+ * appearing under every status category. */
+export function matchesLibraryReadingStatus(
+  book: BookWithThumbnail,
+  readingStatus: string | null | undefined,
+): boolean {
+  if (!readingStatus || readingStatus === "all") return true;
+  const candidates = book.mergedBooks?.length ? book.mergedBooks : [book];
+  return candidates.some(
+    (candidate) => getEffectiveReadingStatus(candidate) === readingStatus,
+  );
+}
+
 export function getMergedBookSignature(group: BookWithThumbnail[]): string {
   return group.map((book) => [
     book.id,
@@ -227,6 +243,7 @@ export interface DisplayBooksInput {
   collapseSpecialFolders: boolean;
   search: string;
   fileTypes: LibraryFileTypeFilter[];
+  readingStatus?: string | null;
   sort: LibrarySortOption;
   previousCache: Map<string, MergedBookCacheEntry>;
 }
@@ -240,7 +257,9 @@ export function buildDisplayBooks(input: DisplayBooksInput): {
 
   const filteredSpecialFolderBooks = input.section === "synced"
     ? input.specialFolderBooks.filter((book) =>
-      matchesLibrarySearch(book, input.search) && matchesLibraryFileTypes(book, input.fileTypes))
+      matchesLibrarySearch(book, input.search)
+      && matchesLibraryFileTypes(book, input.fileTypes)
+      && matchesLibraryReadingStatus(book, input.readingStatus))
     : [];
   const collapsedPaths = input.collapseSpecialFolders
     ? input.specialFolderPaths.map(normalizeAbsoluteFolderPath)
