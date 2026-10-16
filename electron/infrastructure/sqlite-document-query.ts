@@ -111,6 +111,11 @@ export function createSqliteDocumentQueryRepository(
         where.push("(d.isSynced IS NULL OR d.isSynced <> 1)");
       }
 
+      if (query.readingStatus && query.readingStatus !== "all") {
+        where.push("d.readingStatus = ?");
+        values.push(query.readingStatus);
+      }
+
       if (query.fileType && query.fileType !== "all") {
         const fileTypes = String(query.fileType)
           .split(",")

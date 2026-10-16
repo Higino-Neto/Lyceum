@@ -171,6 +171,7 @@ function LibraryContent() {
   const searchWasActiveRef = useRef(false);
   const [sort, setSort] = useLocalStorage<SortOption>("library_sort", "title_asc");
   const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter[]>([]);
+  const [readingStatusFilter, setReadingStatusFilter] = useLocalStorage<"all" | "want_to_read" | "reading" | "paused" | "read">("library_readingStatusFilter", "all");
   const [activeSection, setActiveSection] = useLocalStorage<LibrarySection>("library_activeSection", "synced");
 
   const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
@@ -253,6 +254,7 @@ function LibraryContent() {
       fileTypes: fileTypeFilter,
       selectedFolder,
       includeSubfolders: settings.showSubfolderBooks,
+      readingStatusFilter,
     }),
     [
       activeSection,
@@ -261,6 +263,7 @@ function LibraryContent() {
       selectedFolder,
       settings.showSubfolderBooks,
       sort,
+      readingStatusFilter,
     ],
   );
 
@@ -1658,6 +1661,8 @@ function LibraryContent() {
               draggingBookHashes={folderDragDrop.draggedBooks}
               onImportBook={handleImportBook}
               onDissolveFolder={openDissolveFolderDialog}
+              readingStatusFilter={readingStatusFilter}
+              onReadingStatusFilterChange={setReadingStatusFilter}
             />
           </div>
           <button

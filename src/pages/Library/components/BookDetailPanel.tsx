@@ -28,7 +28,7 @@ import {
   i18next as i18n,
   useTranslation,
 } from "../../../i18n";
-import { BookWithThumbnail } from "../../../types/LibraryTypes";
+import { BookWithThumbnail, ReadingStatus } from "../../../types/LibraryTypes";
 import {
   formatPageCount,
   getBookFolderLabel,
@@ -45,6 +45,8 @@ import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
 import AnimatedModal from "../../../components/ui/AnimatedModal";
+import Select from "../../../components/ui/Select";
+import { getEffectiveReadingStatus, READING_STATUS_LABEL_KEYS } from "../../../lib/readingStatus";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
@@ -126,6 +128,8 @@ export default function BookDetailPanel({
   useEffect(() => {
     let canceled = false;
     setThumbnail(selectedVariant.thumbnail);
+    setStatus(getEffectiveReadingStatus(selectedVariant));
+    setRating(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
 
     if (!selectedVariant.thumbnail && selectedVariant.thumbnailPath) {
       window.api.getThumbnail(selectedVariant.thumbnailPath).then((value: string | null) => {
@@ -136,7 +140,7 @@ export default function BookDetailPanel({
     }
 
     return () => { canceled = true; };
-  }, [selectedVariant.fileHash, selectedVariant.thumbnail, selectedVariant.thumbnailPath]);
+  }, [selectedVariant.fileHash, selectedVariant.thumbnail, selectedVariant.thumbnailPath, selectedVariant.readingStatus, selectedVariant.currentPage, selectedVariant.numPages, selectedVariant.rating]);
   const [bookPath, setBookPath] = useState<string>("");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
@@ -148,6 +152,8 @@ export default function BookDetailPanel({
     imagePath: string;
   }>({ open: false, imagePath: "" });
   const [thumbnailKey, setThumbnailKey] = useState(0);
+  const [status, setStatus] = useState<ReadingStatus>(getEffectiveReadingStatus(selectedVariant));
+  const [rating, setRating] = useState<number>(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
   const [vocabularyStats, setVocabularyStats] = useState<{ hasIndex: boolean; totalWords: number; uniqueWords: number } | null>(null);
   const [isExtractingVocabulary, setIsExtractingVocabulary] = useState(false);
 
@@ -781,6 +787,62 @@ export default function BookDetailPanel({
                 : t("library:detail.startReading")
               : t("library:detail.unsupportedFormat")}
           </button>
+        <div className="space-y-2 mt-3">
+          <label className="text-xs text-zinc-500">{t("library:sections.readingStatus")}</label>
+          <Select
+            value={status}
+            onChange={async (value) => {
+              const newStatus = value as ReadingStatus;
+              setStatus(newStatus);
+              try {
+                await window.api.updateReadingStatus(selectedVariant.fileHash, newStatus);
+                await onRefresh(selectedVariant.fileHash);
+              } catch (err) {
+                toast.error("Failed to update status");
+              }
+            }}
+            items={[
+              { value: "want_to_read", label: t(READING_STATUS_LABEL_KEYS.want_to_read) },
+              { value: "reading", label: t(READING_STATUS_LABEL_KEYS.reading) },
+              { value: "paused", label: t(READING_STATUS_LABEL_KEYS.paused) },
+              { value: "read", label: t(READING_STATUS_LABEL_KEYS.read) },
+            ]}
+          />
+          {status === "read" && (
+            <div className="flex items-center gap-2 mt-1">
+              <label className="text-xs text-zinc-500 whitespace-nowrap">Score</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                value={rating}
+                onChange={(e) => setRating(Math.max(0, Math.min(10, parseFloat(e.target.value) || 0)))}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    try {
+                      await window.api.updateRating(selectedVariant.fileHash, Number(rating.toFixed(1)));
+                      await onRefresh(selectedVariant.fileHash);
+                    } catch (err) {
+                      toast.error("Failed to update rating");
+                    }
+                  }
+                }}
+                onBlur={async () => {
+                  try {
+                    await window.api.updateRating(selectedVariant.fileHash, Number(rating.toFixed(1)));
+                    await onRefresh(selectedVariant.fileHash);
+                  } catch (err) {
+                    toast.error("Failed to update rating");
+                  }
+                }}
+                className="h-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
+              />
+              <span className="text-xs text-zinc-500">/10</span>
+            </div>
+          )}
+        </div>
+
         {onOpenPreview && (
           <button
             type="button"

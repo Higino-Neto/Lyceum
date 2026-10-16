@@ -52,6 +52,7 @@
   "sections": {
     "sourceFolders": "Pastas fonte",
     "watchFolders": "Pastas externas",
+    "readingStatus": "Status de leitura",
     "addTo": "Adicionar {{label}}",
     "synced": "Sincronizados",
     "unsynced": "Não sincronizados",
@@ -113,6 +114,13 @@
     "deleteConfirm": "Tem certeza que deseja excluir \"{{title}}\"?"
   },
   "filters": {
+    "status": {
+      "all": "Todos os livros",
+      "reading": "Lendo",
+      "wantToRead": "Quero ler",
+      "read": "Lido",
+      "paused": "Pausado"
+    },
     "searchPlaceholder": "Buscar por título, pasta, tipo ou páginas...",
     "clearSearch": "Limpar busca",
     "sort": {

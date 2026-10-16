@@ -10,6 +10,7 @@ export interface LibraryQueryInput {
   fileTypes: readonly string[];
   selectedFolder: string | null;
   includeSubfolders: boolean;
+  readingStatusFilter?: string | null;
 }
 
 export interface BuiltLibraryQuery {
@@ -19,10 +20,14 @@ export interface BuiltLibraryQuery {
   fileType: string;
   folderPath: string | null;
   includeSubfolders: boolean;
+  readingStatus?: string | null;
 }
 
 /** Builds the transport query without leaking view-state rules into the page. */
 export function buildLibraryQuery(input: LibraryQueryInput): BuiltLibraryQuery {
+  const readingStatus = input.readingStatusFilter && input.readingStatusFilter !== "all"
+    ? input.readingStatusFilter
+    : undefined;
   return {
     section: input.section,
     search: input.search,
@@ -30,5 +35,6 @@ export function buildLibraryQuery(input: LibraryQueryInput): BuiltLibraryQuery {
     fileType: input.fileTypes.length === 0 ? "all" : input.fileTypes.join(","),
     folderPath: input.section === "usb" ? null : input.selectedFolder,
     includeSubfolders: input.includeSubfolders,
+    readingStatus,
   };
 }

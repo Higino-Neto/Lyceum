@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Copy, FileText, Folder, Move, MoreVertical, Trash2 } from "lucide-react";
+import { AlertTriangle, BookmarkCheck, BookOpen, Check, CheckCircle, Copy, FileText, Folder, Move, MoreVertical, PauseCircle, Trash2 } from "lucide-react";
 import { memo, useState, type DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
@@ -11,6 +11,7 @@ import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
 import { useTranslation } from "../../../../i18n";
+import { getEffectiveReadingStatus } from "../../../../lib/readingStatus";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -114,6 +115,23 @@ function BookCard({
       ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
       : getFileTypeLabel(book.fileType, book.filePath);
 
+  const effectiveStatus = getEffectiveReadingStatus(book);
+  const statusIcon = (() => {
+    switch (effectiveStatus) {
+      case "reading":
+        return { Icon: BookOpen, color: "text-green-400" };
+      case "want_to_read":
+        return { Icon: BookmarkCheck, color: "text-amber-400" };
+      case "read":
+        return { Icon: CheckCircle, color: "text-green-500" };
+      case "paused":
+        return { Icon: PauseCircle, color: "text-yellow-400" };
+      default:
+        return null;
+    }
+  })();
+  const showScore = effectiveStatus === "read" && book.rating > 0;
+
   const handleClick = () => {
     if (selectionMode) {
       onToggleSelection?.(book);
@@ -205,6 +223,11 @@ function BookCard({
             <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
           </div>
         )}
+        {statusIcon && (
+          <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-zinc-950/90 p-1 border border-zinc-800/80 shadow-md" title={t(`reading:status.${effectiveStatus === "want_to_read" ? "wantToRead" : effectiveStatus === "read" ? "read" : effectiveStatus === "paused" ? "paused" : "reading"}`)}>
+            <statusIcon.Icon size={16} className={`${statusIcon.color} drop-shadow-sm`} />
+          </div>
+        )}
         {book.processingStatus === "failed" && (
           <div className="absolute top-1.5 left-1.5 z-20" title={t("library:toasts.corruptedFile")}>
             <AlertTriangle size={15} className="text-amber-400 drop-shadow-sm" />
@@ -287,6 +310,11 @@ function BookCard({
           ) : (
             <>
               <span>{formatPageCount(book.numPages, book.fileType)}</span>
+              {showScore && (
+                <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+                  {Number(book.rating).toFixed(1)}/10
+                </span>
+              )}
               <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
                 {formatLabel}
               </span>

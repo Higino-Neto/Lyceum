@@ -120,6 +120,8 @@ function FolderTreeContainer({
   draggingBookHashes = [],
   onImportBook,
   onDissolveFolder,
+  readingStatusFilter,
+  onReadingStatusFilterChange,
   data,
   loadChildren,
 }: FolderTreeProps & { data: FolderTreeData; loadChildren?: LoadFolderChildren }) {
@@ -292,6 +294,30 @@ function FolderTreeContainer({
         onAdd: handleAddSourceFolder,
       });
     items.push(...sourceNodes);
+
+    const statusFilterVal = readingStatusFilter ?? "all";
+    items.push({
+      kind: "section" as const,
+      id: "status",
+      labelKey: "library:sections.readingStatus",
+    } as any);
+    const statusOptions = [
+      { id: "all", value: "all", labelKey: "library:filters.status.all" },
+      { id: "reading", value: "reading", labelKey: "library:filters.status.reading" },
+      { id: "want_to_read", value: "want_to_read", labelKey: "library:filters.status.wantToRead" },
+      { id: "read", value: "read", labelKey: "library:filters.status.read" },
+      { id: "paused", value: "paused", labelKey: "library:filters.status.paused" },
+    ];
+    statusOptions.forEach((opt) => {
+      items.push({
+        kind: "filter" as const,
+        id: `status-${opt.id}`,
+        labelKey: opt.labelKey as any,
+        active: statusFilterVal === opt.value,
+        onClick: () => onReadingStatusFilterChange?.(opt.value as any),
+      } as any);
+    });
+
     if (data.watchFolders.length > 0)
       items.push({
         kind: "section",
@@ -301,7 +327,7 @@ function FolderTreeContainer({
       });
     items.push(...data.watchFolders.map((folder) => ({ kind: "watch" as const, folder, count: data.watchFolderCounts[folder.id] ?? "?" })));
     return items;
-  }, [libraryFolders, expandedPaths, sourceRootPaths, creatingFolderAt, sourceFolders, totalBooks, dragOver, data.watchFolders, data.watchFolderCounts]);
+  }, [libraryFolders, expandedPaths, sourceRootPaths, creatingFolderAt, sourceFolders, totalBooks, dragOver, data.watchFolders, data.watchFolderCounts, readingStatusFilter, onReadingStatusFilterChange]);
 
   async function handleResync() {
     setSyncing(true);
@@ -376,7 +402,21 @@ function FolderTreeContainer({
     }
     if (item.kind === "section")
       return <FolderTreeSection labelKey={item.labelKey} onAdd={item.onAdd} />;
+    if ((item as any).kind === "filter") {
+      const f = item as any;
+      return (
+        <div
+          onClick={f.onClick}
+          className={`ml-2 mr-1 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs transition-colors ${
+            f.active ? "bg-zinc-800 text-green-400" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          <span className="truncate">{t(f.labelKey)}</span>
+        </div>
+      );
+    }
     if (item.kind === "watch") return renderWatchItem(item);
+    if (item.kind !== "folder") return null;
     const folderBookCount = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, false);
     const itemTotalBooks = countBooksFromIndex(item.node.folder.path, libraryPath, folderCountIndex, includeSubfolders);
     return (

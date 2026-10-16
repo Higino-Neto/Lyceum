@@ -52,6 +52,7 @@
   "sections": {
     "sourceFolders": "Source folders",
     "watchFolders": "Watched folders",
+    "readingStatus": "Reading status",
     "addTo": "Add {{label}}",
     "synced": "Synced",
     "unsynced": "Not synced",
@@ -113,6 +114,13 @@
     "deleteConfirm": "Are you sure you want to delete \"{{title}}\"?"
   },
   "filters": {
+    "status": {
+      "all": "All books",
+      "reading": "Currently reading",
+      "wantToRead": "Want to read",
+      "read": "Read",
+      "paused": "Paused"
+    },
     "searchPlaceholder": "Search by title, folder, type or pages...",
     "clearSearch": "Clear search",
     "sort": {

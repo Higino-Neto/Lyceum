@@ -207,6 +207,7 @@ export interface LibraryListQuery {
   includeSubfolders?: boolean;
   fileType?: string;
   sort?: LibrarySortOption;
+  readingStatus?: string | null;
   limit?: number;
   offset?: number;
 }

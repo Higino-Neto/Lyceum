@@ -22,6 +22,8 @@ export interface FolderTreeProps {
   draggingBookHashes?: string[];
   onImportBook?: (targetFolder: string | null) => Promise<void>;
   onDissolveFolder?: (folder: FolderInfo) => void;
+  readingStatusFilter?: ReadingStatusFilter;
+  onReadingStatusFilterChange?: (value: ReadingStatusFilter) => void;
 }
 
 export interface ContextMenuState {
@@ -39,6 +41,8 @@ export interface FlatFolderNode {
   readOnly?: boolean;
 }
 
+export type ReadingStatusFilter = "all" | "want_to_read" | "reading" | "paused" | "read";
+
 export type FolderTreeListItem =
   | { kind: "root"; totalBooks: number; dropTarget: boolean }
   | { kind: "folder"; node: FlatFolderNode }
@@ -48,6 +52,14 @@ export type FolderTreeListItem =
       id: string;
       labelKey: TranslationKey;
       onAdd?: () => void;
+    }
+  | {
+      kind: "filter";
+      id: string;
+      labelKey: TranslationKey;
+      active: boolean;
+      onClick: () => void;
+      icon?: any;
     }
   | { kind: "watch"; folder: WatchFolderInfo; count: number | string };
 
