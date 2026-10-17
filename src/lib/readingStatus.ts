@@ -129,11 +129,14 @@ export function getGroupReadingStatus(book: GroupReadingStatusSource): ReadingSt
 
   const mostAdvanced = variants.reduce(
     (best, variant) =>
-      (Number(variant.currentPage) || 0) > (Number(best.currentPage) || 0)
+      (Number(variant.currentPage) || 0) > (Number(best?.currentPage) || 0)
         ? variant
         : best,
     variants[0],
   );
+
+  if(!mostAdvanced)
+    return "unknown";
   return getEffectiveReadingStatus(mostAdvanced);
 }
 
