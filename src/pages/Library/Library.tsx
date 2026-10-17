@@ -44,7 +44,7 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
-import { BookWithThumbnail, FolderInfo, LibrarySection } from "../../types/LibraryTypes";
+import { BookWithThumbnail, FolderInfo, LibrarySection, ReadingStatus } from "../../types/LibraryTypes";
 import toast from "react-hot-toast";
 import {
   getBookFolderLabel,
@@ -78,6 +78,8 @@ import {
   type MergedBookCacheEntry,
 } from "../../features/library/model/libraryView";
 import { useLibraryEvents } from "../../features/library/ui/useLibraryEvents";
+import Select from "../../components/ui/Select";
+import { LIBRARY_STATUS_SELECT_OPTIONS } from "../../lib/readingStatus";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 interface UsbLibraryApi {
@@ -171,7 +173,12 @@ function LibraryContent() {
   const searchWasActiveRef = useRef(false);
   const [sort, setSort] = useLocalStorage<SortOption>("library_sort", "title_asc");
   const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter[]>([]);
-  const [readingStatusFilter, setReadingStatusFilter] = useLocalStorage<"all" | "want_to_read" | "reading" | "paused" | "read">("library_readingStatusFilter", "all");
+  // Eye filters: which statuses are visible in the grid. By default books
+  // marked "not a book" and untouched books ("unknown") are hidden.
+  const [visibleStatuses, setVisibleStatuses] = useLocalStorage<ReadingStatus[]>(
+    "library_visibleStatuses",
+    ["reading", "want_to_read", "read", "paused"],
+  );
   const [activeSection, setActiveSection] = useLocalStorage<LibrarySection>("library_activeSection", "synced");
 
   const [selectedBook, setSelectedBook] = useState<BookWithThumbnail | null>(
@@ -207,6 +214,7 @@ function LibraryContent() {
   });
   const [bulkDeleteFileAlso, setBulkDeleteFileAlso] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState("");
   const [cutBookHashes, setCutBookHashes] = useState<string[]>([]);
   const [copiedBookHashes, setCopiedBookHashes] = useState<string[]>([]);
   const [regeneratingAllThumbnails, setRegeneratingAllThumbnails] = useState(false);
@@ -254,7 +262,7 @@ function LibraryContent() {
       fileTypes: fileTypeFilter,
       selectedFolder,
       includeSubfolders: settings.showSubfolderBooks,
-      readingStatusFilter,
+      visibleStatuses,
     }),
     [
       activeSection,
@@ -263,7 +271,7 @@ function LibraryContent() {
       selectedFolder,
       settings.showSubfolderBooks,
       sort,
-      readingStatusFilter,
+      visibleStatuses,
     ],
   );
 
@@ -1363,7 +1371,7 @@ function LibraryContent() {
       collapseSpecialFolders: currentFolderType === "normal",
       search: deferredSearch,
       fileTypes: fileTypeFilter,
-      readingStatus: readingStatusFilter,
+      readingStatuses: visibleStatuses,
       sort,
       previousCache: mergedBookCacheRef.current,
     });
@@ -1375,7 +1383,7 @@ function LibraryContent() {
     currentFolderType,
     deferredSearch,
     fileTypeFilter,
-    readingStatusFilter,
+    visibleStatuses,
     sort,
     specialFolderBooks,
     visibleSpecialFolders,
@@ -1510,6 +1518,31 @@ function LibraryContent() {
 
   const getSelectedFileHashes = () =>
     getConcreteFileHashesFromBooks(selectedConcreteBooks);
+
+  // Applies one reading status to every selected book (and to every variant of
+  // a merged book), so a right-click multi-selection can be reclassified at once.
+  const handleBulkStatusChange = async (value: string) => {
+    const status = value as ReadingStatus;
+    const fileHashes = getSelectedFileHashes();
+    if (fileHashes.length === 0) return;
+    setBulkStatus("");
+    setBulkBusy(true);
+    try {
+      let failed = 0;
+      for (const fileHash of fileHashes) {
+        const result = await window.api.updateReadingStatus(fileHash, status);
+        if (result && result.success === false) failed++;
+      }
+      await refreshLibraryState();
+      if (selectedBook) await handleBookRefresh();
+      if (failed > 0) toast.error(t("library:detail.updateStatusFailed"));
+      else toast.success(t("library:page.bulkStatusUpdated"));
+    } catch {
+      toast.error(t("library:detail.updateStatusFailed"));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const runMergeBooks = async () => {
     if (selectedConcreteBooks.length < 2) return;
@@ -1663,8 +1696,14 @@ function LibraryContent() {
               draggingBookHashes={folderDragDrop.draggedBooks}
               onImportBook={handleImportBook}
               onDissolveFolder={openDissolveFolderDialog}
-              readingStatusFilter={readingStatusFilter}
-              onReadingStatusFilterChange={setReadingStatusFilter}
+              visibleStatuses={visibleStatuses}
+              onToggleStatus={(status) => {
+                setVisibleStatuses((current) =>
+                  current.includes(status)
+                    ? current.filter((value) => value !== status)
+                    : [...current, status],
+                );
+              }}
             />
           </div>
           <button
@@ -1858,6 +1897,24 @@ function LibraryContent() {
                   <CheckSquare size={16} className="text-green-400" />
                   {t("library:page.selectedItems", { count: selectedHashes.size })}
                 </div>
+
+                {activeSection !== "usb" && (
+                  <div className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-0.5">
+                    <span className="whitespace-nowrap text-xs text-zinc-500">
+                      {t("library:sections.readingStatus")}
+                    </span>
+                    <Select
+                      value={bulkStatus || undefined}
+                      onChange={handleBulkStatusChange}
+                      disabled={bulkBusy || selectedConcreteBooks.length === 0}
+                      items={LIBRARY_STATUS_SELECT_OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: t(option.labelKey),
+                      }))}
+                      placeholder={t("library:page.setStatus")}
+                    />
+                  </div>
+                )}
 
                 <button
                   onClick={selectAllFiltered}

@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Folder, FolderPlus, RefreshCw, X } from "lucide-react";
+import { Eye, EyeOff, Folder, FolderPlus, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
-import type { FolderInfo } from "../../../../types/LibraryTypes";
+import type { FolderInfo, ReadingStatus } from "../../../../types/LibraryTypes";
+import {
+  LIBRARY_STATUS_FILTER_VALUES,
+  READING_STATUS_LABEL_KEYS,
+} from "../../../../lib/readingStatus";
 import { useOptionalLibraryContext } from "../../../../contexts/LibraryContext";
 import {
   folderChildrenQueryKey,
@@ -38,6 +42,15 @@ import type {
   LoadFolderChildren,
 } from "./types";
 import { useTranslation } from "../../../../i18n";
+
+const STATUS_DOT: Record<ReadingStatus, string> = {
+  reading: "bg-green-400",
+  want_to_read: "bg-zinc-400",
+  read: "bg-green-600",
+  paused: "bg-amber-400",
+  not_a_book: "bg-zinc-600",
+  unknown: "bg-zinc-700",
+};
 
 export default function FolderTree(props: FolderTreeProps) {
   const libraryContext = useOptionalLibraryContext();
@@ -120,8 +133,8 @@ function FolderTreeContainer({
   draggingBookHashes = [],
   onImportBook,
   onDissolveFolder,
-  readingStatusFilter,
-  onReadingStatusFilterChange,
+  visibleStatuses = [],
+  onToggleStatus,
   data,
   loadChildren,
 }: FolderTreeProps & { data: FolderTreeData; loadChildren?: LoadFolderChildren }) {
@@ -295,27 +308,19 @@ function FolderTreeContainer({
       });
     items.push(...sourceNodes);
 
-    const statusFilterVal = readingStatusFilter ?? "all";
     items.push({
       kind: "section" as const,
       id: "status",
       labelKey: "library:sections.readingStatus",
     } as any);
-    const statusOptions = [
-      { id: "all", value: "all", labelKey: "library:filters.status.all" },
-      { id: "reading", value: "reading", labelKey: "library:filters.status.reading" },
-      { id: "want_to_read", value: "want_to_read", labelKey: "library:filters.status.wantToRead" },
-      { id: "read", value: "read", labelKey: "library:filters.status.read" },
-      { id: "paused", value: "paused", labelKey: "library:filters.status.paused" },
-    ];
-    statusOptions.forEach((opt) => {
+    LIBRARY_STATUS_FILTER_VALUES.forEach((status) => {
       items.push({
         kind: "filter" as const,
-        id: `status-${opt.id}`,
-        labelKey: opt.labelKey as any,
-        active: statusFilterVal === opt.value,
-        onClick: () => onReadingStatusFilterChange?.(opt.value as any),
-      } as any);
+        id: `status-${status}`,
+        status,
+        visible: visibleStatuses.includes(status),
+        onToggle: () => onToggleStatus?.(status),
+      });
     });
 
     if (data.watchFolders.length > 0)
@@ -327,7 +332,7 @@ function FolderTreeContainer({
       });
     items.push(...data.watchFolders.map((folder) => ({ kind: "watch" as const, folder, count: data.watchFolderCounts[folder.id] ?? "?" })));
     return items;
-  }, [libraryFolders, expandedPaths, sourceRootPaths, creatingFolderAt, sourceFolders, totalBooks, dragOver, data.watchFolders, data.watchFolderCounts, readingStatusFilter, onReadingStatusFilterChange]);
+  }, [libraryFolders, expandedPaths, sourceRootPaths, creatingFolderAt, sourceFolders, totalBooks, dragOver, data.watchFolders, data.watchFolderCounts, visibleStatuses, onToggleStatus]);
 
   async function handleResync() {
     setSyncing(true);
@@ -402,16 +407,24 @@ function FolderTreeContainer({
     }
     if (item.kind === "section")
       return <FolderTreeSection labelKey={item.labelKey} onAdd={item.onAdd} />;
-    if ((item as any).kind === "filter") {
-      const f = item as any;
+    if (item.kind === "filter") {
       return (
         <div
-          onClick={f.onClick}
+          onClick={item.onToggle}
+          title={t(item.visible ? "library:filters.status.hide" : "library:filters.status.show")}
           className={`ml-2 mr-1 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs transition-colors ${
-            f.active ? "bg-zinc-800 text-green-400" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          }`}
+            item.visible ? "text-zinc-200" : "text-zinc-500"
+          } hover:bg-zinc-800 hover:text-zinc-100`}
         >
-          <span className="truncate">{t(f.labelKey)}</span>
+          <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+            item.visible ? STATUS_DOT[item.status] : "bg-zinc-700"
+          }`} />
+          <span className={`truncate ${item.visible ? "" : "line-through decoration-zinc-700"}`}>
+            {t(READING_STATUS_LABEL_KEYS[item.status])}
+          </span>
+          <span className="ml-auto flex-shrink-0">
+            {item.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+          </span>
         </div>
       );
     }

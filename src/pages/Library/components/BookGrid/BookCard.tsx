@@ -1,4 +1,4 @@
-import { AlertTriangle, BookmarkCheck, BookOpen, Check, CheckCircle, Copy, FileText, Folder, Move, MoreVertical, PauseCircle, Trash2 } from "lucide-react";
+import { AlertTriangle, Ban, BookmarkCheck, BookOpen, Check, CheckCircle, CircleHelp, Copy, FileText, Folder, Move, MoreVertical, PauseCircle, Trash2 } from "lucide-react";
 import { memo, useState, type DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
@@ -11,7 +11,7 @@ import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
 import { useTranslation } from "../../../../i18n";
-import { getEffectiveReadingStatus, READING_STATUS_LABEL_KEYS } from "../../../../lib/readingStatus";
+import { getEffectiveReadingStatus, getGroupRating, getGroupReadingStatus, isMergedGroup, READING_STATUS_LABEL_KEYS } from "../../../../lib/readingStatus";
 
 interface BookCardProps {
   book: BookWithThumbnail;
@@ -114,7 +114,14 @@ function BookCard({
       ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
       : getFileTypeLabel(book.fileType, book.filePath);
 
-  const effectiveStatus = getEffectiveReadingStatus(book);
+  // Merged variants behave as one book: the grid shows one shared status and
+  // score instead of whichever variant happens to be the representative.
+  const effectiveStatus = isMergedGroup(book)
+    ? getGroupReadingStatus(book)
+    : getEffectiveReadingStatus(book);
+  const bookScore = isMergedGroup(book)
+    ? getGroupRating(book)
+    : Math.max(0, Number(book.rating) || 0);
   const statusIcon = (() => {
     switch (effectiveStatus) {
       case "reading":
@@ -125,11 +132,15 @@ function BookCard({
         return { Icon: CheckCircle, color: "text-green-500" };
       case "paused":
         return { Icon: PauseCircle, color: "text-yellow-400" };
+      case "not_a_book":
+        return { Icon: Ban, color: "text-zinc-500" };
+      case "unknown":
+        return { Icon: CircleHelp, color: "text-zinc-600" };
       default:
         return null;
     }
   })();
-  const showScore = effectiveStatus === "read" && book.rating > 0;
+  const showScore = effectiveStatus === "read" && bookScore > 0;
 
   const handleClick = () => {
     if (selectionMode) {
@@ -309,7 +320,7 @@ function BookCard({
               <span>{formatPageCount(book.numPages, book.fileType)}</span>
               {showScore && (
                 <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
-                  {Number(book.rating).toFixed(1)}/10
+                  {Number(bookScore).toFixed(1)}/10
                 </span>
               )}
               <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">

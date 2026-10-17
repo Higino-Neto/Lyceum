@@ -3,7 +3,9 @@
     "wantToRead": "To read",
     "reading": "Reading",
     "paused": "Paused",
-    "read": "Finished"
+    "read": "Finished",
+    "notABook": "Not a book",
+    "unknown": "Unknown"
   },
   "bookSearch": {
     "placeholder": "Search or type a book...",

@@ -2,6 +2,7 @@ import type {
   FolderChangedPayload,
   FolderInfo,
   LibraryRootInfo,
+  ReadingStatus,
   WatchFolderInfo,
 } from "../../../../types/LibraryTypes";
 import type { DocumentRecord } from "../../../../types/ReadingTypes";
@@ -22,8 +23,8 @@ export interface FolderTreeProps {
   draggingBookHashes?: string[];
   onImportBook?: (targetFolder: string | null) => Promise<void>;
   onDissolveFolder?: (folder: FolderInfo) => void;
-  readingStatusFilter?: ReadingStatusFilter;
-  onReadingStatusFilterChange?: (value: ReadingStatusFilter) => void;
+  visibleStatuses?: ReadingStatus[];
+  onToggleStatus?: (status: ReadingStatus) => void;
 }
 
 export interface ContextMenuState {
@@ -41,8 +42,6 @@ export interface FlatFolderNode {
   readOnly?: boolean;
 }
 
-export type ReadingStatusFilter = "all" | "want_to_read" | "reading" | "paused" | "read";
-
 export type FolderTreeListItem =
   | { kind: "root"; totalBooks: number; dropTarget: boolean }
   | { kind: "folder"; node: FlatFolderNode }
@@ -56,10 +55,9 @@ export type FolderTreeListItem =
   | {
       kind: "filter";
       id: string;
-      labelKey: TranslationKey;
-      active: boolean;
-      onClick: () => void;
-      icon?: any;
+      status: ReadingStatus;
+      visible: boolean;
+      onToggle: () => void;
     }
   | { kind: "watch"; folder: WatchFolderInfo; count: number | string };
 

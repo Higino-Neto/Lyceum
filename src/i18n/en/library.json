@@ -119,7 +119,9 @@
       "reading": "Currently reading",
       "wantToRead": "Want to read",
       "read": "Read",
-      "paused": "Paused"
+      "paused": "Paused",
+      "show": "Show this status",
+      "hide": "Hide this status"
     },
     "searchPlaceholder": "Search by title, folder, type or pages...",
     "clearSearch": "Clear search",
@@ -431,6 +433,8 @@
     "collectionName": "Collection name",
     "selectedItems_one": "{{count}} item selected",
     "selectedItems_other": "{{count}} items selected",
+    "setStatus": "Set status",
+    "bulkStatusUpdated": "Reading status updated for the selected books",
     "deleteFolder": "Delete folder",
     "dissolveBooks": "Dissolve books",
     "renameFolder": "Rename folder",

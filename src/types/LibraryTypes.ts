@@ -16,7 +16,13 @@ export type BookFileType =
 export type LibraryBookFileType = BookFileType;
 export type ReadingDocumentFileType = BookFileType;
 export type BookFormat = BookFileType;
-export type ReadingStatus = "want_to_read" | "reading" | "paused" | "read";
+export type ReadingStatus =
+  | "want_to_read"
+  | "reading"
+  | "paused"
+  | "read"
+  | "not_a_book"
+  | "unknown";
 
 export interface DocumentRecord {
   id: number;
@@ -208,6 +214,7 @@ export interface LibraryListQuery {
   fileType?: string;
   sort?: LibrarySortOption;
   readingStatus?: string | null;
+  readingStatuses?: string[] | null;
   limit?: number;
   offset?: number;
 }

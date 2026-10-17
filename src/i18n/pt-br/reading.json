@@ -3,7 +3,9 @@
     "wantToRead": "Fila",
     "reading": "Lendo",
     "paused": "Pausado",
-    "read": "Concluído"
+    "read": "Concluído",
+    "notABook": "Não é um livro",
+    "unknown": "Desconhecido"
   },
   "bookSearch": {
     "placeholder": "Buscar ou digitar livro...",

@@ -831,7 +831,7 @@ export default function StatusBoard({
   const counts = READING_STATUS_OPTIONS.reduce<Record<ReadingStatus, number>>((acc, option) => {
     acc[option.value] = items.filter((item) => item.status === option.value).length;
     return acc;
-  }, { want_to_read: 0, reading: 0, paused: 0, read: 0 });
+  }, { want_to_read: 0, reading: 0, paused: 0, read: 0, not_a_book: 0, unknown: 0 });
   const selectedItem = items.find((item) => item.id === selectedItemId) || activeItems[0] || null;
 
   return (

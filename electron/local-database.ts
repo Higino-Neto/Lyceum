@@ -1385,7 +1385,6 @@ export function unmergeDocuments(bookId: string): DocumentRecord[] {
 
 type SharedMetadata = Pick<
   DocumentRecord,
-  | "title"
   | "author"
   | "description"
   | "isbn"
@@ -1402,7 +1401,8 @@ type SharedMetadata = Pick<
 >;
 
 const SHARED_METADATA_FIELDS: (keyof SharedMetadata)[] = [
-  "title",
+  // "title" is intentionally not shared: each format variant keeps its own
+  // file name after a merge instead of being overwritten by one title.
   "author",
   "description",
   "isbn",
@@ -1493,7 +1493,9 @@ export function mergeDocuments(fileHashes: string[], bookId: string): {
     for (const doc of docs) {
       update.run(
         bookId,
-        sharedMetadata.title,
+        // Each format variant keeps the name of its own file: merging books
+        // must not replace distinct names with one shared title.
+        doc.title,
         sharedMetadata.author,
         sharedMetadata.description,
         sharedMetadata.isbn,

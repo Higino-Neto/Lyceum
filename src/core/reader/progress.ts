@@ -14,7 +14,14 @@ export interface ReaderProgressRepository {
 }
 
 export function assertReadingStatus(status: ReadingStatus): void {
-  if (status !== "want_to_read" && status !== "reading" && status !== "paused" && status !== "read") {
+  if (
+    status !== "want_to_read" &&
+    status !== "reading" &&
+    status !== "paused" &&
+    status !== "read" &&
+    status !== "not_a_book" &&
+    status !== "unknown"
+  ) {
     throw new Error("Invalid reading status");
   }
 }

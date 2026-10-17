@@ -41,12 +41,27 @@ const getTitleWithoutExtension = (title: string, fileType?: string) => {
   }
   return title.replace(/\.[a-z0-9]+$/i, "");
 };
+
+const clampRating = (value: unknown): number =>
+  Math.max(0, Math.min(10, Number(value) || 0));
+
+/** Ratings are stored as 0 when unscored, which the input must show as empty. */
+const formatRatingInput = (value: unknown): string => {
+  const rating = clampRating(value);
+  return rating === 0 ? "" : String(rating);
+};
+
+const parseRatingInput = (value: string): number | null => {
+  if (value.trim() === "") return null;
+  const parsed = Number.parseFloat(value.replace(",", "."));
+  return Number.isFinite(parsed) ? clampRating(parsed) : null;
+};
 import toast from "react-hot-toast";
 import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
 import AnimatedModal from "../../../components/ui/AnimatedModal";
 import Select from "../../../components/ui/Select";
-import { getEffectiveReadingStatus, READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
+import { getEffectiveReadingStatus, getGroupRating, getGroupReadingStatus, isMergedGroup, LIBRARY_STATUS_SELECT_OPTIONS } from "../../../lib/readingStatus";
 
 interface BookDetailPanelProps {
   book: BookWithThumbnail;
@@ -120,6 +135,18 @@ export default function BookDetailPanel({
     formatVariants[0] ||
     book;
   const variantSignature = formatVariants.map((variant) => variant.fileHash).join("\u001f");
+  // A merged book (shared bookId or a merged folder) is shown as one book, so
+  // status and score are written to every format variant to keep it consistent.
+  // Collections group independent books, so they are excluded from these writes.
+  const mergedGroupVariants =
+    isMergedGroup(book) && formatVariants.length > 1 ? formatVariants : null;
+  const writeTargets = mergedGroupVariants ?? [selectedVariant];
+  const groupStatus = mergedGroupVariants
+    ? getGroupReadingStatus(book)
+    : getEffectiveReadingStatus(selectedVariant);
+  const groupRating = mergedGroupVariants
+    ? getGroupRating(book)
+    : clampRating(selectedVariant.rating);
   const [thumbnail, setThumbnail] = useState(selectedVariant.thumbnail);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDissolveDialog, setShowDissolveDialog] = useState(false);
@@ -128,9 +155,9 @@ export default function BookDetailPanel({
   useEffect(() => {
     let canceled = false;
     setThumbnail(selectedVariant.thumbnail);
-    setStatus(getEffectiveReadingStatus(selectedVariant));
-    const nextRating = Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0));
-    setRating(nextRating);
+    setStatus(groupStatus);
+    const nextRating = groupRating;
+    setRatingInput(formatRatingInput(nextRating));
     savedRatingRef.current = nextRating;
 
     if (!selectedVariant.thumbnail && selectedVariant.thumbnailPath) {
@@ -142,7 +169,7 @@ export default function BookDetailPanel({
     }
 
     return () => { canceled = true; };
-  }, [selectedVariant.fileHash, selectedVariant.thumbnail, selectedVariant.thumbnailPath, selectedVariant.readingStatus, selectedVariant.currentPage, selectedVariant.numPages, selectedVariant.rating]);
+  }, [selectedVariant.fileHash, selectedVariant.thumbnail, selectedVariant.thumbnailPath, variantSignature, groupStatus, groupRating]);
   const [bookPath, setBookPath] = useState<string>("");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [editValue, setEditValue] = useState("");
@@ -154,16 +181,22 @@ export default function BookDetailPanel({
     imagePath: string;
   }>({ open: false, imagePath: "" });
   const [thumbnailKey, setThumbnailKey] = useState(0);
-  const [status, setStatus] = useState<ReadingStatus>(getEffectiveReadingStatus(selectedVariant));
-  const [rating, setRating] = useState<number>(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
-  const savedRatingRef = useRef<number>(Math.max(0, Math.min(10, Number(selectedVariant.rating) || 0)));
+  const [status, setStatus] = useState<ReadingStatus>(groupStatus);
+  // Score input is string-backed so an unscored book shows an empty field
+  // instead of a stray "0".
+  const [ratingInput, setRatingInput] = useState<string>(formatRatingInput(groupRating));
+  const savedRatingRef = useRef<number>(groupRating);
 
   const handlePersistRating = async () => {
-    const value = Number(Math.max(0, Math.min(10, rating)).toFixed(1));
+    const parsed = parseRatingInput(ratingInput);
+    const value = Number((parsed ?? 0).toFixed(1));
     if (value === savedRatingRef.current) return;
     savedRatingRef.current = value;
+    setRatingInput(formatRatingInput(value));
     try {
-      await window.api.updateRating(selectedVariant.fileHash, value);
+      for (const target of writeTargets) {
+        await window.api.updateRating(target.fileHash, value);
+      }
       await onRefresh(selectedVariant.fileHash);
     } catch {
       toast.error(t("library:detail.updateRatingFailed"));
@@ -796,13 +829,20 @@ export default function BookDetailPanel({
               const newStatus = value as ReadingStatus;
               setStatus(newStatus);
               try {
-                await window.api.updateReadingStatus(selectedVariant.fileHash, newStatus);
+                // Merged variants are one book: keep every format in the same
+                // status so the group never shows a contradictory state.
+                let failed = false;
+                for (const variant of writeTargets) {
+                  const result = await window.api.updateReadingStatus(variant.fileHash, newStatus);
+                  if (result && result.success === false) failed = true;
+                }
                 await onRefresh(selectedVariant.fileHash);
+                if (failed) toast.error(t("library:detail.updateStatusFailed"));
               } catch (err) {
                 toast.error(t("library:detail.updateStatusFailed"));
               }
             }}
-            items={READING_STATUS_OPTIONS.map((option) => ({
+            items={LIBRARY_STATUS_SELECT_OPTIONS.map((option) => ({
               value: option.value,
               label: t(option.labelKey),
             }))}
@@ -815,8 +855,9 @@ export default function BookDetailPanel({
                 min="0"
                 max="10"
                 step="0.1"
-                value={rating}
-                onChange={(e) => setRating(Math.max(0, Math.min(10, parseFloat(e.target.value) || 0)))}
+                value={ratingInput}
+                placeholder="0"
+                onChange={(e) => setRatingInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.currentTarget.blur();

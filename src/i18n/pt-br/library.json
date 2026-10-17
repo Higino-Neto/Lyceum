@@ -119,7 +119,9 @@
       "reading": "Lendo",
       "wantToRead": "Quero ler",
       "read": "Lido",
-      "paused": "Pausado"
+      "paused": "Pausado",
+      "show": "Mostrar este status",
+      "hide": "Ocultar este status"
     },
     "searchPlaceholder": "Buscar por título, pasta, tipo ou páginas...",
     "clearSearch": "Limpar busca",
@@ -431,6 +433,8 @@
     "collectionName": "Nome da coleção",
     "selectedItems_one": "{{count}} item selecionado",
     "selectedItems_other": "{{count}} itens selecionados",
+    "setStatus": "Definir status",
+    "bulkStatusUpdated": "Status de leitura atualizado para os livros selecionados",
     "deleteFolder": "Excluir pasta",
     "dissolveBooks": "Desmesclar livros",
     "renameFolder": "Renomear pasta",

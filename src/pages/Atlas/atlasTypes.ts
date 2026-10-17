@@ -56,6 +56,22 @@ export const STATUS_VISUAL: Record<ReadingStatus, {
     border: "border-green-500/40",
     bg: "bg-green-500/10",
   },
+  not_a_book: {
+    labelKey: "reading:status.notABook",
+    detailKey: "reading:status.notABook",
+    dot: "bg-zinc-500",
+    text: "text-zinc-400",
+    border: "border-zinc-700",
+    bg: "bg-zinc-900",
+  },
+  unknown: {
+    labelKey: "reading:status.unknown",
+    detailKey: "reading:status.unknown",
+    dot: "bg-zinc-600",
+    text: "text-zinc-400",
+    border: "border-zinc-700",
+    bg: "bg-zinc-900",
+  },
 };
 
 const STATUS_EMPTY_KEYS: Record<ReadingStatus, TranslationKey> = {
@@ -63,6 +79,8 @@ const STATUS_EMPTY_KEYS: Record<ReadingStatus, TranslationKey> = {
   reading: "atlas:status.empty.reading",
   paused: "atlas:status.empty.paused",
   read: "atlas:status.empty.read",
+  not_a_book: "reading:status.notABook",
+  unknown: "reading:status.unknown",
 };
 
 export function statusLabel(status: ReadingStatus): string {

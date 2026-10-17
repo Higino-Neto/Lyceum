@@ -13,6 +13,7 @@ import {
   pickRepresentativeBook,
   sortBooksForLibraryView,
 } from "./libraryView";
+import { getGroupRating, getGroupReadingStatus } from "../../../lib/readingStatus";
 
 function book(overrides: Partial<BookWithThumbnail> = {}): BookWithThumbnail {
   return {
@@ -81,19 +82,50 @@ describe("library view model", () => {
     expect(matchesLibraryFileTypes(merged, ["cbz"])).toBe(false);
   });
 
-  it("matches a reading status against any variant and infers status from progress", () => {
+  it("matches a reading status set against the merged book's group status", () => {
     const merged = book({
+      bookId: "merged-book",
       mergedBooks: [book({ fileHash: "epub", readingStatus: "read" })],
     });
     const inProgress = book({ fileHash: "progress", readingStatus: null, currentPage: 50, numPages: 100 });
     const untouched = book({ fileHash: "new", readingStatus: null, currentPage: 0 });
 
-    expect(matchesLibraryReadingStatus(merged, "read")).toBe(true);
-    expect(matchesLibraryReadingStatus(merged, "reading")).toBe(false);
-    expect(matchesLibraryReadingStatus(inProgress, "reading")).toBe(true);
-    expect(matchesLibraryReadingStatus(untouched, "want_to_read")).toBe(true);
+    expect(matchesLibraryReadingStatus(merged, ["read"])).toBe(true);
+    expect(matchesLibraryReadingStatus(merged, ["reading"])).toBe(false);
+    expect(matchesLibraryReadingStatus(merged, ["reading", "read"])).toBe(true);
+    expect(matchesLibraryReadingStatus(inProgress, ["reading"])).toBe(true);
+    expect(matchesLibraryReadingStatus(untouched, ["want_to_read"])).toBe(false);
+    expect(matchesLibraryReadingStatus(untouched, ["unknown"])).toBe(true);
     expect(matchesLibraryReadingStatus(untouched, null)).toBe(true);
-    expect(matchesLibraryReadingStatus(untouched, "all")).toBe(true);
+    expect(matchesLibraryReadingStatus(untouched, [])).toBe(false);
+  });
+
+  it("resolves one status and score for a merged book with divergent variants", () => {
+    const merged = book({
+      bookId: "merged-book",
+      mergedBooks: [
+        book({ fileHash: "epub", readingStatus: "reading", rating: 6 }),
+        book({ fileHash: "pdf", readingStatus: "read", rating: 9 }),
+      ],
+    });
+
+    expect(getGroupReadingStatus(merged)).toBe("read");
+    expect(getGroupRating(merged)).toBe(9);
+    // The status filter follows the same single status the grid shows.
+    expect(matchesLibraryReadingStatus(merged, ["read"])).toBe(true);
+    expect(matchesLibraryReadingStatus(merged, ["reading"])).toBe(false);
+  });
+
+  it("infers a merged book status from its most advanced variant", () => {
+    const merged = book({
+      bookId: "merged-book",
+      mergedBooks: [
+        book({ fileHash: "epub", readingStatus: null, currentPage: 0 }),
+        book({ fileHash: "pdf", readingStatus: null, currentPage: 40, numPages: 100 }),
+      ],
+    });
+
+    expect(getGroupReadingStatus(merged)).toBe("reading");
   });
 
   it("hides collections from status filters when no contained book matches", () => {
@@ -104,8 +136,8 @@ describe("library view model", () => {
       mergedBooks: [book({ fileHash: "inside", readingStatus: "reading" })],
     });
 
-    expect(matchesLibraryReadingStatus(reading, "reading")).toBe(true);
-    expect(matchesLibraryReadingStatus(reading, "read")).toBe(false);
+    expect(matchesLibraryReadingStatus(reading, ["reading"])).toBe(true);
+    expect(matchesLibraryReadingStatus(reading, ["read"])).toBe(false);
   });
 
   it("discovers nested special folders only when requested", () => {
@@ -185,13 +217,14 @@ describe("library view model", () => {
       collapseSpecialFolders: false,
       search: "",
       fileTypes: ["all" as const],
-      readingStatus: "reading" as string | null,
+      readingStatuses: ["reading"] as string[] | null,
       sort: "title_asc" as const,
       previousCache: new Map(),
     };
 
     expect(buildDisplayBooks(input).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
-    expect(buildDisplayBooks({ ...input, readingStatus: "read" }).books).toEqual([]);
-    expect(buildDisplayBooks({ ...input, readingStatus: "all" }).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
+    expect(buildDisplayBooks({ ...input, readingStatuses: ["read"] }).books).toEqual([]);
+    expect(buildDisplayBooks({ ...input, readingStatuses: null }).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
+    expect(buildDisplayBooks({ ...input, readingStatuses: [] }).books).toEqual([]);
   });
 });

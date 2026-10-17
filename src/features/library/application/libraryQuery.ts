@@ -2,6 +2,7 @@ import type {
   LibrarySection,
   LibrarySortOption,
 } from "../../../types/LibraryTypes";
+import { LIBRARY_STATUS_FILTER_VALUES } from "../../../lib/readingStatus";
 
 export interface LibraryQueryInput {
   section: LibrarySection;
@@ -10,7 +11,7 @@ export interface LibraryQueryInput {
   fileTypes: readonly string[];
   selectedFolder: string | null;
   includeSubfolders: boolean;
-  readingStatusFilter?: string | null;
+  visibleStatuses?: readonly string[] | null;
 }
 
 export interface BuiltLibraryQuery {
@@ -20,13 +21,15 @@ export interface BuiltLibraryQuery {
   fileType: string;
   folderPath: string | null;
   includeSubfolders: boolean;
-  readingStatus?: string | null;
+  readingStatuses?: string[] | null;
 }
 
 /** Builds the transport query without leaking view-state rules into the page. */
 export function buildLibraryQuery(input: LibraryQueryInput): BuiltLibraryQuery {
-  const readingStatus = input.readingStatusFilter && input.readingStatusFilter !== "all"
-    ? input.readingStatusFilter
+  // An empty array means everything is hidden; keep it as an empty filter
+  // instead of dropping it (which would show all books).
+  const readingStatuses = input.visibleStatuses && input.visibleStatuses.length < LIBRARY_STATUS_FILTER_VALUES.length
+    ? [...input.visibleStatuses]
     : undefined;
   return {
     section: input.section,
@@ -35,6 +38,6 @@ export function buildLibraryQuery(input: LibraryQueryInput): BuiltLibraryQuery {
     fileType: input.fileTypes.length === 0 ? "all" : input.fileTypes.join(","),
     folderPath: input.section === "usb" ? null : input.selectedFolder,
     includeSubfolders: input.includeSubfolders,
-    readingStatus,
+    readingStatuses,
   };
 }

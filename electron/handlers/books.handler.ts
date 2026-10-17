@@ -116,10 +116,17 @@ function getAnnotationPageThumbnailPath(bookId: string, page: number) {
 export function registerBookHandlers(documentMetadata: DocumentMetadataRepository) {
   function syncMergedBookMetadata(bookId: string | null | undefined, primaryHash: string, metadata: EditableBookMetadata) {
     if (!bookId) return;
+    // A merged book shares its metadata, but never the title: each format
+    // variant keeps the name of its own file.
+    const sharedMetadata: EditableBookMetadata = {
+      ...metadata,
+      title: undefined,
+      titleSort: undefined,
+    };
     const groupDocs = getDocumentsByBookId(bookId);
     for (const groupDoc of groupDocs) {
       if (groupDoc.fileHash !== primaryHash) {
-        documentMetadata.updateMetadata(groupDoc.fileHash, metadata);
+        documentMetadata.updateMetadata(groupDoc.fileHash, sharedMetadata);
       }
     }
   }

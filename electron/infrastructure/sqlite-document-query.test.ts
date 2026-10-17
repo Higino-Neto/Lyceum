@@ -75,14 +75,19 @@ describe("SQLite document query repository", () => {
 
   it("filters by explicit and inferred reading status", () => {
     const repository = createSqliteDocumentQueryRepository(db, libraryPath);
-    // "a": explicit status. "b": inferred from progress (reached last page). "c": untouched.
+    // "a": explicit status. "b": inferred from progress (reached last page). "c": untouched -> unknown.
     db.prepare("UPDATE documents SET readingStatus = 'want_to_read' WHERE fileHash = 'a'").run();
     db.prepare("UPDATE documents SET currentPage = 100, numPages = 100 WHERE fileHash = 'b'").run();
 
-    expect(repository.list({ readingStatus: "want_to_read" }).items.map((item) => item.fileHash).sort())
-      .toEqual(["a", "c"]);
-    expect(repository.list({ readingStatus: "read" }).items.map((item) => item.fileHash))
+    expect(repository.list({ readingStatuses: ["want_to_read"] }).items.map((item) => item.fileHash))
+      .toEqual(["a"]);
+    expect(repository.list({ readingStatuses: ["read"] }).items.map((item) => item.fileHash))
       .toEqual(["b"]);
+    expect(repository.list({ readingStatuses: ["unknown"] }).items.map((item) => item.fileHash))
+      .toEqual(["c"]);
+    expect(repository.list({ readingStatuses: ["want_to_read", "read", "paused"] }).total).toBe(2);
+    expect(repository.list({ readingStatuses: [] }).total).toBe(0);
+    expect(repository.list({ readingStatuses: null }).total).toBe(3);
     expect(repository.list({ readingStatus: "all" }).total).toBe(3);
     expect(repository.list({ readingStatus: "reading" }).total).toBe(0);
   });

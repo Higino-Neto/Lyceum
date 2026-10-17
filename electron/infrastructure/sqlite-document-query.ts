@@ -111,17 +111,28 @@ export function createSqliteDocumentQueryRepository(
         where.push("(d.isSynced IS NULL OR d.isSynced <> 1)");
       }
 
-      if (query.readingStatus && query.readingStatus !== "all") {
-        // Mirrors getEffectiveReadingStatus on the renderer: explicit status
-        // wins, otherwise infer from progress so the filter matches the icons
-        // shown in the book grid.
-        where.push(`COALESCE(d.readingStatus,
-          CASE
-            WHEN COALESCE(d.numPages, 0) > 1 AND COALESCE(d.currentPage, 0) >= d.numPages THEN 'read'
-            WHEN COALESCE(d.currentPage, 0) > 1 THEN 'reading'
-            ELSE 'want_to_read'
-          END) = ?`);
-        values.push(query.readingStatus);
+      // Explicit status wins, otherwise infer from progress so the filter
+      // matches the icons shown in the book grid. A book nobody chose a
+      // status for is "unknown".
+      const effectiveStatus = `COALESCE(d.readingStatus,
+        CASE
+          WHEN COALESCE(d.numPages, 0) > 1 AND COALESCE(d.currentPage, 0) >= d.numPages THEN 'read'
+          WHEN COALESCE(d.currentPage, 0) > 1 THEN 'reading'
+          ELSE 'unknown'
+        END)`;
+
+      const requestedStatuses = Array.isArray(query.readingStatuses)
+        ? query.readingStatuses
+        : query.readingStatus && query.readingStatus !== "all"
+          ? [query.readingStatus]
+          : [];
+
+      if (requestedStatuses.length > 0) {
+        where.push(`${effectiveStatus} IN (${requestedStatuses.map(() => "?").join(",")})`);
+        values.push(...requestedStatuses);
+      } else if (Array.isArray(query.readingStatuses)) {
+        // Everything hidden by the eye filters.
+        where.push("1 = 0");
       }
 
       if (query.fileType && query.fileType !== "all") {
