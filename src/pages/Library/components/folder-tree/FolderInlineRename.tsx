@@ -19,7 +19,7 @@ export default function FolderInlineRename({
         if (event.key === "Enter") onSubmit();
         if (event.key === "Escape") onCancel();
       }}
-      className="flex-1 rounded-sm border border-zinc-600 bg-zinc-700 px-1.5 py-0.5 text-sm text-zinc-100 focus:outline-none"
+      className="flex-1 rounded-sm border border-border-strong bg-border-strong px-1.5 py-0.5 text-sm text-foreground focus:outline-none"
       autoFocus
       onClick={(event) => event.stopPropagation()}
     />

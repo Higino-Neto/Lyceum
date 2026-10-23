@@ -64,13 +64,13 @@ function StatTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+    <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-        <div className="text-zinc-500">{icon}</div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground-subtle">{label}</p>
+        <div className="text-foreground-subtle">{icon}</div>
       </div>
-      <p className="mt-3 text-2xl font-semibold text-zinc-50">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500">{helper}</p>
+      <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+      <p className="mt-1 text-xs text-foreground-subtle">{helper}</p>
     </div>
   );
 }
@@ -79,7 +79,7 @@ function EmptyChart() {
   const { t } = useTranslation();
 
   return (
-    <div className="grid h-56 place-items-center text-center text-sm text-zinc-500">
+    <div className="grid h-56 place-items-center text-center text-sm text-foreground-subtle">
       {t("mobile:dashboard.chartEmpty")}
     </div>
   );
@@ -184,27 +184,27 @@ export default function MobileDashboardScreen({
         error={readingsError || statsError}
         onRetry={() => { void Promise.all([refetchReadings(), refetchStats()]); }}
       />
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
               {t("mobile:dashboard.todayKicker")}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold text-zinc-50">
+            <h1 className="mt-1 text-2xl font-semibold text-foreground">
               {summary.todayPages > 0
                 ? t("mobile:dashboard.pagesToday", { count: summary.todayPages })
                 : t("mobile:dashboard.logYourReading")}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
+            <p className="mt-2 text-sm leading-6 text-foreground-muted">
               {t("mobile:dashboard.body")}
             </p>
           </div>
-          {isLoading && <Loader2 className="mt-1 animate-spin text-zinc-500" size={20} />}
+          {isLoading && <Loader2 className="mt-1 animate-spin text-foreground-subtle" size={20} />}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button
-            className="flex h-12 items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white"
+            className="flex h-12 items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground"
             onClick={onOpenRegister}
             type="button"
           >
@@ -212,7 +212,7 @@ export default function MobileDashboardScreen({
             {t("mobile:dashboard.log")}
           </button>
           <button
-            className="flex h-12 items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200"
+            className="flex h-12 items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground"
             onClick={copyDailyReadings}
             type="button"
           >
@@ -222,12 +222,12 @@ export default function MobileDashboardScreen({
         </div>
       </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-100">
+          <h2 className="text-sm font-semibold text-foreground">
             {t("mobile:dashboard.weekPace")}
           </h2>
-          <span className="text-xs text-zinc-500">{number(summary.weekPages)}p</span>
+          <span className="text-xs text-foreground-subtle">{number(summary.weekPages)}p</span>
         </div>
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((day) => (
@@ -235,10 +235,10 @@ export default function MobileDashboardScreen({
               <div
                 className={`mx-auto grid h-9 w-9 place-items-center rounded-full border text-xs font-semibold ${
                   day.hasRead
-                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : day.date === toLocalIsoDate(new Date())
-                      ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                      : "border-zinc-800 bg-zinc-950 text-zinc-600"
+                      ? "border-primary/60 bg-primary-muted text-primary"
+                      : "border-border bg-background text-foreground-subtle"
                 }`}
                 title={`${day.date}: ${number(day.pages)}p`}
                 role="img"
@@ -246,21 +246,21 @@ export default function MobileDashboardScreen({
               >
                 {day.hasRead ? day.pages : day.dayNumber}
               </div>
-              <p className="mt-1 text-[11px] font-medium text-zinc-500">{day.dayLabel}</p>
+              <p className="mt-1 text-[11px] font-medium text-foreground-subtle">{day.dayLabel}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900">
-        <div className="flex border-b border-zinc-800">
+      <div className="rounded-2xl border border-border bg-surface">
+        <div className="flex border-b border-border">
           {(["daily", "category"] as const).map((mode) => (
             <button
               key={mode}
               className={`h-11 flex-1 text-sm font-semibold ${
                 chartMode === mode
-                  ? "bg-zinc-800 text-zinc-100"
-                  : "text-zinc-500"
+                  ? "bg-surface-muted text-foreground"
+                  : "text-foreground-subtle"
               }`}
               onClick={() => setChartMode(mode)}
               type="button"
@@ -292,24 +292,24 @@ export default function MobileDashboardScreen({
           ) : chartMode === "daily" ? (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={dailyData} margin={{ left: -18, right: 8, top: 12, bottom: 0 }}>
-                <CartesianGrid stroke="var(--ui-zinc-800)" strokeDasharray="2 3" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={formatShortDate} stroke="var(--ui-zinc-600)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--ui-zinc-600)" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid stroke="var(--border)" strokeDasharray="2 3" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatShortDate} stroke="var(--foreground-subtle)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--foreground-subtle)" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 4 }}
+                  contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 4, color: "var(--foreground)" }}
                   labelFormatter={formatShortDate}
                 />
-                <Line type="monotone" dataKey="pages" stroke="var(--accent-500)" strokeWidth={3} dot={false} />
+                <Line type="monotone" dataKey="pages" stroke="var(--primary)" strokeWidth={3} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           ) : categoryTotals.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={categoryTotals} layout="vertical" margin={{ left: 12, right: 8, top: 8, bottom: 8 }}>
-                <CartesianGrid stroke="var(--ui-zinc-800)" strokeDasharray="2 3" horizontal={false} />
+                <CartesianGrid stroke="var(--border)" strokeDasharray="2 3" horizontal={false} />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={88} stroke="var(--ui-zinc-500)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 4 }} />
-                <Bar dataKey="pages" fill="var(--accent-500)" radius={[0, 4, 4, 0]} />
+                <YAxis dataKey="name" type="category" width={88} stroke="var(--foreground-subtle)" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 4, color: "var(--foreground)" }} />
+                <Bar dataKey="pages" fill="var(--primary)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -321,17 +321,17 @@ export default function MobileDashboardScreen({
       <div className="mobile-card p-4">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("mobile:dashboard.consistency")}
             </h2>
-            <p className="mt-1 text-xs text-zinc-500">{t("mobile:dashboard.lastWeeks")}</p>
+            <p className="mt-1 text-xs text-foreground-subtle">{t("mobile:dashboard.lastWeeks")}</p>
           </div>
-          <CalendarDays size={18} className="text-emerald-400" />
+          <CalendarDays size={18} className="text-primary" />
         </div>
         <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-hidden" role="img" aria-label={t("mobile:dashboard.heatmapAria", { count: summary.readingDays })}>
           {heatmapData.map((day) => {
             const intensity = day.pages <= 0 ? 0 : Math.max(1, Math.ceil((day.pages / heatmapMax) * 4));
-            const tones = ["bg-zinc-800", "bg-emerald-950", "bg-emerald-800", "bg-emerald-600", "bg-emerald-400"];
+            const tones = ["bg-surface-muted", "bg-primary-muted", "bg-primary-muted", "bg-primary", "bg-primary"];
             return <span key={day.date} className={`aspect-square min-w-0 rounded-[4px] ${tones[intensity]}`} title={t("mobile:dashboard.heatmapCellTitle", {
                 date: dateLabelForHeatmap(day.date),
                 count: day.pages,
@@ -343,12 +343,12 @@ export default function MobileDashboardScreen({
             />;
           })}
         </div>
-        <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-zinc-500"><span>{t("mobile:dashboard.less")}</span>{["bg-zinc-800", "bg-emerald-950", "bg-emerald-800", "bg-emerald-600", "bg-emerald-400"].map((tone) => <span key={tone} className={`h-2.5 w-2.5 rounded-[3px] ${tone}`} />)}<span>{t("mobile:dashboard.more")}</span></div>
+        <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-foreground-subtle"><span>{t("mobile:dashboard.less")}</span>{["bg-surface-muted", "bg-primary-muted", "bg-primary-muted", "bg-primary", "bg-primary"].map((tone) => <span key={tone} className={`h-2.5 w-2.5 rounded-[3px] ${tone}`} />)}<span>{t("mobile:dashboard.more")}</span></div>
       </div>
 
-      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary-muted p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-muted text-primary"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-primary">
               {t("mobile:dashboard.keepReading")}
-            </p><p className="mt-1 truncate text-sm font-semibold text-zinc-100">{recentBook.title}</p><p className="mt-0.5 text-xs text-zinc-400">
+            </p><p className="mt-1 truncate text-sm font-semibold text-foreground">{recentBook.title}</p><p className="mt-0.5 text-xs text-foreground-muted">
               {t("mobile:dashboard.completed", { count: Math.round(recentBook.progressPercent || 0) })}
             </p></div></button>}
 
@@ -385,7 +385,7 @@ export default function MobileDashboardScreen({
         />
       </div>
 
-      <button className="flex min-h-12 w-full items-center justify-center gap-2 text-sm font-semibold text-zinc-400" onClick={onOpenLeaderboard} type="button"><Trophy size={17} className="text-emerald-400" />
+      <button className="flex min-h-12 w-full items-center justify-center gap-2 text-sm font-semibold text-foreground-muted" onClick={onOpenLeaderboard} type="button"><Trophy size={17} className="text-primary" />
         {t("mobile:dashboard.viewLeaderboard")}
       </button>
     </section>

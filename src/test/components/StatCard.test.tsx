@@ -40,8 +40,8 @@ describe("StatCard", () => {
 
   it("has correct styling classes", () => {
     const { container } = render(<StatCard value={<span>100</span>} />);
-    expect(container.firstChild).toHaveClass("bg-zinc-900");
-    expect(container.firstChild).toHaveClass("border-zinc-800");
+    expect(container.firstChild).toHaveClass("bg-surface");
+    expect(container.firstChild).toHaveClass("border-border");
     expect(container.firstChild).toHaveClass("rounded-sm");
   });
 });

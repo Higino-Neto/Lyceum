@@ -151,11 +151,11 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-zinc-800/80 py-6 first:pt-0 last:border-b-0 last:pb-0">
+    <section className="border-b border-border/80 py-6 first:pt-0 last:border-b-0 last:pb-0">
       <div className="mb-4">
-        <h3 className="text-base font-semibold text-zinc-100">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {description && (
-          <p className="mt-1 text-sm leading-6 text-zinc-500">{description}</p>
+          <p className="mt-1 text-sm leading-6 text-foreground-subtle">{description}</p>
         )}
       </div>
       {children}
@@ -165,7 +165,7 @@ function SettingsSection({
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
       {children}
     </label>
   );
@@ -175,8 +175,8 @@ function inputClasses(disabled = false) {
   return [
     "w-full rounded border px-3 py-2 text-sm transition",
     disabled
-      ? "border-zinc-800 bg-zinc-900/70 text-zinc-500"
-      : "border-zinc-700 bg-zinc-950/60 text-zinc-100 placeholder:text-zinc-600 focus:border-green-500",
+      ? "border-border bg-surface/70 text-foreground-subtle"
+      : "border-border-strong bg-background/60 text-foreground placeholder:text-input-placeholder focus:border-primary",
   ].join(" ");
 }
 
@@ -193,7 +193,7 @@ function PrimaryButton({
     <button
       type={type}
       disabled={disabled}
-      className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-4 text-sm font-medium text-black transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex h-9 items-center gap-2 rounded bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>
@@ -211,7 +211,7 @@ function DangerButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-4 text-sm font-medium text-red-300 transition hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-200"
+      className="inline-flex h-9 items-center gap-2 rounded border border-destructive/30 bg-destructive-muted px-4 text-sm font-medium text-destructive transition hover:border-destructive/50 hover:bg-destructive-muted hover:text-destructive"
     >
       {children}
     </button>
@@ -291,21 +291,21 @@ export function AppearanceSettingsPanel() {
                 onClick={() => setTheme(themeId)}
                 className={`rounded border p-4 text-left transition ${
                   isSelected
-                    ? "border-green-500 bg-green-500/10"
-                    : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-900"
+                    ? "border-primary bg-primary-muted"
+                    : "border-border bg-surface-muted/40 hover:border-border-strong hover:bg-surface-muted"
                 }`}
               >
                 <div className="mb-3 flex items-center justify-between">
                   <Icon
                     size={18}
-                    className={isSelected ? "text-green-500" : "text-zinc-500"}
+                    className={isSelected ? "text-primary" : "text-foreground-subtle"}
                   />
-                  {isSelected && <Check size={16} className="text-green-500" />}
+                  {isSelected && <Check size={16} className="text-primary" />}
                 </div>
-                <p className="text-sm font-medium text-zinc-100">
+                <p className="text-sm font-medium text-foreground">
                   {option.label}
                 </p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                <p className="mt-1 text-xs leading-5 text-foreground-subtle">
                   {option.description}
                 </p>
               </button>
@@ -314,7 +314,7 @@ export function AppearanceSettingsPanel() {
         </div>
 
         {settings.theme === "system" && (
-          <p className="mt-3 text-xs text-zinc-500">
+          <p className="mt-3 text-xs text-foreground-subtle">
             {t("settings:appearance.activeTheme", {
               theme: t(
                 effectiveTheme === "light"
@@ -341,38 +341,38 @@ export function AppearanceSettingsPanel() {
                 onClick={() => setAccentColor(color.id)}
                 className={`flex items-center justify-between gap-3 rounded border px-3 py-3 text-left transition ${
                   isSelected
-                    ? "border-green-500 bg-green-500/10"
-                    : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-900"
+                    ? "border-primary bg-primary-muted"
+                    : "border-border bg-surface-muted/40 hover:border-border-strong hover:bg-surface-muted"
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <span
-                    className="h-6 w-6 shrink-0 rounded-full border border-zinc-700"
+                    className="h-6 w-6 shrink-0 rounded-full border border-border-strong"
                     style={{ backgroundColor: color.swatch }}
                   />
-                  <span className="truncate text-sm font-medium text-zinc-100">
+                  <span className="truncate text-sm font-medium text-foreground">
                     {t(`settings:appearance.accent.colors.${color.id}`)}
                   </span>
                 </span>
-                {isSelected && <Check size={16} className="text-green-500" />}
+                {isSelected && <Check size={16} className="text-primary" />}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-5 rounded border border-zinc-800 bg-zinc-950/40 p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-100">
-            <Palette size={16} className="text-green-500" />
+        <div className="mt-5 rounded border border-border bg-surface-muted/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+            <Palette size={16} className="text-primary" />
             {t("settings:appearance.accent.preview")}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="inline-flex h-9 items-center rounded bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-500">
+            <button className="inline-flex h-9 items-center rounded bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover">
               {t("settings:appearance.accent.primaryButton")}
             </button>
-            <span className="rounded border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-sm text-green-400">
+            <span className="rounded border border-primary-border bg-primary-muted px-3 py-1.5 text-sm text-primary">
               {t("settings:appearance.accent.activeState")}
             </span>
-            <span className="text-sm text-green-500">
+            <span className="text-sm text-primary">
               {t("settings:appearance.accent.highlightedLink")}
             </span>
           </div>
@@ -535,7 +535,7 @@ export function AccountSettingsPanel({
         <form onSubmit={handleNameSubmit} className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-[104px_1fr]">
             <div className="relative h-24 w-24">
-              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border-strong bg-surface">
                 {avatarPreview || avatarUrl ? (
                   <img
                     src={avatarPreview || avatarUrl}
@@ -543,7 +543,7 @@ export function AccountSettingsPanel({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <User size={38} className="text-zinc-500" />
+                  <User size={38} className="text-foreground-subtle" />
                 )}
               </div>
               <button
@@ -551,7 +551,7 @@ export function AccountSettingsPanel({
                 title={t("settings:account.changeAvatar")}
                 aria-label={t("settings:account.changeAvatar")}
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600 bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100 disabled:opacity-50"
+                className="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface-muted text-foreground transition hover:bg-border-strong hover:text-foreground disabled:opacity-50"
                 disabled={isUploading}
               >
                 <Camera size={15} />
@@ -587,7 +587,7 @@ export function AccountSettingsPanel({
               <div>
                 <FieldLabel>{t("settings:account.nickname")}</FieldLabel>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-2 text-sm text-zinc-600">
+                  <span className="pointer-events-none absolute left-3 top-2 text-sm text-foreground-subtle">
                     @
                   </span>
                   <input
@@ -598,7 +598,7 @@ export function AccountSettingsPanel({
                     placeholder={t("settings:account.nicknamePlaceholder")}
                   />
                 </div>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-foreground-subtle">
                   {t("settings:account.nicknameHint")}
                 </p>
               </div>
@@ -693,10 +693,10 @@ export function GeneralSettingsPanel() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-zinc-100">
+              <p className="text-sm font-medium text-foreground">
                 {t("settings:general.autoHide.title")}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-foreground-subtle">
                 {t("settings:general.autoHide.description")}
               </p>
             </div>
@@ -704,11 +704,11 @@ export function GeneralSettingsPanel() {
               type="button"
               onClick={() => setAutoHideEnabled(!settings.autoHideEnabled)}
               className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-                settings.autoHideEnabled ? "bg-green-500" : "bg-zinc-700"
+                settings.autoHideEnabled ? "bg-primary" : "bg-border-strong"
               }`}
             >
               <span
-                className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                   settings.autoHideEnabled ? "translate-x-4" : "translate-x-0"
                 }`}
               />
@@ -716,12 +716,12 @@ export function GeneralSettingsPanel() {
           </div>
 
           {settings.autoHideEnabled && (
-            <div className="flex items-center justify-between pl-4 border-l-2 border-zinc-800">
+            <div className="flex items-center justify-between pl-4 border-l-2 border-border">
               <div>
-                <p className="text-sm font-medium text-zinc-100">
+                <p className="text-sm font-medium text-foreground">
                   {t("settings:general.overlayMode.title")}
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-foreground-subtle">
                   {t("settings:general.overlayMode.description")}
                 </p>
               </div>
@@ -729,11 +729,11 @@ export function GeneralSettingsPanel() {
                 type="button"
                 onClick={() => setAutoHideOverlay(!settings.autoHideOverlay)}
                 className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-                  settings.autoHideOverlay ? "bg-green-500" : "bg-zinc-700"
+                  settings.autoHideOverlay ? "bg-primary" : "bg-border-strong"
                 }`}
               >
                 <span
-                  className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                  className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                     settings.autoHideOverlay ? "translate-x-4" : "translate-x-0"
                   }`}
                 />
@@ -749,10 +749,10 @@ export function GeneralSettingsPanel() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-zinc-100">
+            <p className="text-sm font-medium text-foreground">
               {t("settings:general.copyYesterdayReadings.title")}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-foreground-subtle">
               {t("settings:general.copyYesterdayReadings.description")}
             </p>
           </div>
@@ -760,11 +760,11 @@ export function GeneralSettingsPanel() {
             type="button"
             onClick={() => setCopyYesterdayReadings(!settings.copyYesterdayReadings)}
             className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-              settings.copyYesterdayReadings ? "bg-green-500" : "bg-zinc-700"
+              settings.copyYesterdayReadings ? "bg-primary" : "bg-border-strong"
             }`}
           >
             <span
-              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+              className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                 settings.copyYesterdayReadings ? "translate-x-4" : "translate-x-0"
               }`}
             />
@@ -797,10 +797,10 @@ export function HotkeysSettingsPanel() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-zinc-100">
+              <p className="text-sm font-medium text-foreground">
                 {t("settings:hotkeys.enable.title")}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-foreground-subtle">
                 {t("settings:hotkeys.enable.description")}
               </p>
             </div>
@@ -809,18 +809,18 @@ export function HotkeysSettingsPanel() {
               aria-label={t("settings:hotkeys.enable.toggleLabel")}
               aria-pressed={settings.hotkeysEnabled}
               onClick={() => setHotkeysEnabled(!settings.hotkeysEnabled)}
-              className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${settings.hotkeysEnabled ? "bg-green-500" : "bg-zinc-700"}`}
+              className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${settings.hotkeysEnabled ? "bg-primary" : "bg-border-strong"}`}
             >
-              <span className={`h-4 w-4 rounded-full bg-white transition-transform ${settings.hotkeysEnabled ? "translate-x-4" : "translate-x-0"}`} />
+              <span className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${settings.hotkeysEnabled ? "translate-x-4" : "translate-x-0"}`} />
             </button>
           </div>
 
           
 
-          <div className="divide-y divide-zinc-800 rounded border border-zinc-800">
+          <div className="divide-y divide-border rounded border border-border">
             {routes.map((route) => (
               <div key={route.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
-                <span className="text-sm text-zinc-200">
+                <span className="text-sm text-foreground">
                   {getRouteLabel(route, t)}
                 </span>
                 <select
@@ -829,7 +829,7 @@ export function HotkeysSettingsPanel() {
                   })}
                   value={bindings[route.id] || ""}
                   onChange={(event) => setHotkeyBinding(route.id, event.target.value)}
-                  className="h-8 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200"
+                  className="h-8 rounded border border-border-strong bg-background px-3 text-sm text-foreground"
                 >
                   <option value="">{t("settings:hotkeys.noShortcut")}</option>
                   {Array.from({ length: 9 }, (_, index) => String(index + 1)).map((key) => (
@@ -843,12 +843,12 @@ export function HotkeysSettingsPanel() {
           <button
             type="button"
             onClick={resetHotkeyBindings}
-            className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 hover:bg-zinc-800"
+            className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-sm text-foreground hover:bg-surface-muted"
           >
             <Keyboard size={15} />
             {t("settings:hotkeys.resetAutomaticOrder")}
           </button>
-          <p className="text-xs leading-5 text-zinc-500">
+          <p className="text-xs leading-5 text-foreground-subtle">
             {t("settings:hotkeys.automaticOrderNote")}
           </p>
         </div>
@@ -912,28 +912,28 @@ export function BackupSettingsPanel() {
       >
         <div className="space-y-4">
           <label className="flex items-center justify-between gap-4">
-            <span className="text-sm font-medium text-zinc-100">
+            <span className="text-sm font-medium text-foreground">
               {t("settings:backups.enable")}
             </span>
-            <input type="checkbox" checked={settings.weeklyBackupEnabled} onChange={(event) => setWeeklyBackupEnabled(event.target.checked)} className="h-4 w-4 accent-green-500" />
+            <input type="checkbox" checked={settings.weeklyBackupEnabled} onChange={(event) => setWeeklyBackupEnabled(event.target.checked)} className="h-4 w-4 accent-primary" />
           </label>
-          <div className="space-y-2 rounded border border-zinc-800 p-3">
+          <div className="space-y-2 rounded border border-border p-3">
             {backupOptions.map(([key, labelKey]) => (
-              <label key={key} className="flex items-center gap-3 text-sm text-zinc-300">
-                <input type="checkbox" checked={settings[key]} onChange={(event) => setBackupSelection(key, event.target.checked)} className="h-4 w-4 accent-green-500" />
+              <label key={key} className="flex items-center gap-3 text-sm text-foreground">
+                <input type="checkbox" checked={settings[key]} onChange={(event) => setBackupSelection(key, event.target.checked)} className="h-4 w-4 accent-primary" />
                 {t(labelKey)}
               </label>
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-foreground-subtle">
               {lastBackup
                 ? t("settings:backups.lastBackup", {
                     date: new Date(lastBackup).toLocaleString(locale),
                   })
                 : t("settings:backups.noBackupYet")}
             </span>
-            <button type="button" disabled={running} onClick={() => void runBackup()} className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50">
+            <button type="button" disabled={running} onClick={() => void runBackup()} className="inline-flex h-9 items-center gap-2 rounded bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50">
               <DatabaseBackup size={15} />
               {running
                 ? t("settings:backups.running")
@@ -963,10 +963,10 @@ export function LibrarySettingsPanel() {
         <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-zinc-100">
+            <p className="text-sm font-medium text-foreground">
               {t("settings:library.showSubfolderBooks.title")}
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
+            <p className="mt-1 text-xs leading-5 text-foreground-subtle">
               {t("settings:library.showSubfolderBooks.description")}
             </p>
           </div>
@@ -975,24 +975,24 @@ export function LibrarySettingsPanel() {
             aria-label={t("settings:library.showSubfolderBooks.toggleLabel")}
             onClick={() => setShowSubfolderBooks(!settings.showSubfolderBooks)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-              settings.showSubfolderBooks ? "bg-green-500" : "bg-zinc-700"
+              settings.showSubfolderBooks ? "bg-primary" : "bg-border-strong"
             }`}
             aria-pressed={settings.showSubfolderBooks}
           >
             <span
-              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+              className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                 settings.showSubfolderBooks ? "translate-x-4" : "translate-x-0"
               }`}
             />
           </button>
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-zinc-800/70 pt-5">
+        <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-5">
           <div>
-            <p className="text-sm font-medium text-zinc-100">
+            <p className="text-sm font-medium text-foreground">
               {t("settings:library.unifiedView.title")}
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
+            <p className="mt-1 text-xs leading-5 text-foreground-subtle">
               {t("settings:library.unifiedView.description")}
             </p>
           </div>
@@ -1001,12 +1001,12 @@ export function LibrarySettingsPanel() {
             aria-label={t("settings:library.unifiedView.toggleLabel")}
             onClick={() => setUnifiedLibraryView(!settings.unifiedLibraryView)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-              settings.unifiedLibraryView ? "bg-green-500" : "bg-zinc-700"
+              settings.unifiedLibraryView ? "bg-primary" : "bg-border-strong"
             }`}
             aria-pressed={settings.unifiedLibraryView}
           >
             <span
-              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+              className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                 settings.unifiedLibraryView ? "translate-x-4" : "translate-x-0"
               }`}
             />
@@ -1106,17 +1106,17 @@ export function UpdatesSettingsPanel() {
         description={t("settings:updates.description")}
       >
         <div className="space-y-5">
-          <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
+          <div className="rounded border border-border bg-background/40 p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-zinc-100">
+                <p className="text-sm font-semibold text-foreground">
                   Lyceum {updateState.currentVersion}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">
+                <p className="mt-1 text-sm leading-6 text-foreground-subtle">
                   {t(UPDATE_STATUS_LABEL_KEYS[updateState.status])}
                 </p>
                 {updateState.updateInfo?.version && updateState.updateInfo.version !== updateState.currentVersion ? (
-                  <p className="mt-2 text-sm text-green-400">
+                  <p className="mt-2 text-sm text-primary">
                     {releaseDate
                       ? t("settings:updates.availableVersion", {
                           version: updateState.updateInfo.version,
@@ -1128,12 +1128,12 @@ export function UpdatesSettingsPanel() {
                   </p>
                 ) : null}
                 {checkedAt ? (
-                  <p className="mt-2 text-xs text-zinc-600">
+                  <p className="mt-2 text-xs text-foreground-subtle">
                     {t("settings:updates.lastCheck", { date: checkedAt })}
                   </p>
                 ) : null}
                 {downloadedAt ? (
-                  <p className="mt-1 text-xs text-zinc-600">
+                  <p className="mt-1 text-xs text-foreground-subtle">
                     {t("settings:updates.downloadFinished", { date: downloadedAt })}
                   </p>
                 ) : null}
@@ -1144,7 +1144,7 @@ export function UpdatesSettingsPanel() {
                   type="button"
                   onClick={checkForUpdates}
                   disabled={!updateState.canCheck || isChecking || isDownloading}
-                  className="inline-flex h-9 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-sm font-medium text-foreground transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={isChecking ? "animate-spin" : ""} />
                   {t("settings:updates.check")}
@@ -1153,7 +1153,7 @@ export function UpdatesSettingsPanel() {
                   <button
                     type="button"
                     onClick={downloadUpdate}
-                    className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
+                    className="inline-flex h-9 items-center gap-2 rounded bg-primary px-3 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover"
                   >
                     <Download size={14} />
                     {t("settings:updates.download")}
@@ -1163,7 +1163,7 @@ export function UpdatesSettingsPanel() {
                   <button
                     type="button"
                     onClick={installNow}
-                    className="inline-flex h-9 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500"
+                    className="inline-flex h-9 items-center gap-2 rounded bg-primary px-3 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover"
                   >
                     <Download size={14} />
                     {t("settings:updates.installNow")}
@@ -1174,15 +1174,15 @@ export function UpdatesSettingsPanel() {
 
             {isDownloading || updateState.status === "downloaded" ? (
               <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                <div className="mb-2 flex items-center justify-between text-xs text-foreground-subtle">
                   <span>{Math.round(progress)}%</span>
                   <span>
                     {formatBytes(updateState.progress?.transferred)} / {formatBytes(updateState.progress?.total)}
                   </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
                   <div
-                    className="h-full rounded-full bg-green-500 transition-all"
+                    className="h-full rounded-full bg-primary transition-all"
                     style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
                   />
                 </div>
@@ -1190,24 +1190,24 @@ export function UpdatesSettingsPanel() {
             ) : null}
 
             {updateState.status === "downloaded" ? (
-              <p className="mt-4 text-xs leading-5 text-zinc-500">
+              <p className="mt-4 text-xs leading-5 text-foreground-subtle">
                 {t("settings:updates.installLaterNote")}
               </p>
             ) : null}
 
             {updateState.error ? (
-              <p className="mt-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p className="mt-4 rounded border border-destructive/30 bg-destructive-muted px-3 py-2 text-sm text-destructive">
                 {updateState.error}
               </p>
             ) : null}
           </div>
 
           {updateState.updateInfo?.releaseNotes ? (
-            <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
-              <p className="text-sm font-semibold text-zinc-100">
+            <div className="rounded border border-border bg-background/40 p-4">
+              <p className="text-sm font-semibold text-foreground">
                 {t("settings:updates.releaseNotes")}
               </p>
-              <div className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-zinc-400">
+              <div className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-foreground-muted">
                 {updateState.updateInfo.releaseNotes}
               </div>
             </div>
@@ -1239,8 +1239,8 @@ export function DictionarySettingsPanel() {
         description={t("settings:dictionaries.description")}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <BookOpen size={16} className="text-zinc-500" />
+          <div className="flex items-center gap-2 text-sm text-foreground-muted">
+            <BookOpen size={16} className="text-foreground-subtle" />
             <span>
               {t("settings:dictionaries.available", {
                 count: dictionaries.length,
@@ -1249,7 +1249,7 @@ export function DictionarySettingsPanel() {
           </div>
           <button
             onClick={() => refreshIndex()}
-            className="inline-flex h-8 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+            className="inline-flex h-8 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-sm text-foreground transition hover:bg-surface-muted hover:text-foreground"
             title={t("settings:dictionaries.refreshList")}
           >
             <RefreshCw size={14} />
@@ -1263,11 +1263,11 @@ export function DictionarySettingsPanel() {
             <Skeleton className="h-14 w-full" />
           </div>
         ) : dictionaries.length === 0 ? (
-          <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center text-sm text-zinc-500">
+          <div className="rounded border border-dashed border-border bg-background/40 px-4 py-8 text-center text-sm text-foreground-subtle">
             {t("settings:dictionaries.empty")}
           </div>
         ) : (
-          <div className="overflow-hidden rounded border border-zinc-800">
+          <div className="overflow-hidden rounded border border-border">
             {dictionaries.map((dict) => {
               const progress = downloadProgress[dict.id] || 0;
               const isDownloadingThis =
@@ -1276,17 +1276,17 @@ export function DictionarySettingsPanel() {
               return (
                 <div
                   key={dict.id}
-                  className={`flex items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 last:border-b-0 ${
+                  className={`flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0 ${
                     selectedDict === dict.id
-                      ? "bg-green-500/5"
-                      : "bg-zinc-950/30"
+                      ? "bg-primary-muted"
+                      : "bg-background/30"
                   }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {dict.name}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-foreground-subtle">
                       {t("settings:dictionaries.languagePair", {
                         source: dict.sourceLang.toUpperCase(),
                         target: dict.targetLang.toUpperCase(),
@@ -1298,7 +1298,7 @@ export function DictionarySettingsPanel() {
 
                   <div className="flex shrink-0 items-center gap-2">
                     {isDownloadingThis ? (
-                      <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <div className="flex items-center gap-2 text-sm text-foreground-muted">
                         <RefreshCw size={14} className="animate-spin" />
                         {progress}%
                       </div>
@@ -1308,8 +1308,8 @@ export function DictionarySettingsPanel() {
                           onClick={() => selectDictionary(dict.id)}
                           className={`h-8 rounded px-3 text-sm font-medium transition ${
                             selectedDict === dict.id
-                              ? "bg-zinc-100 text-zinc-950"
-                              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+                              ? "bg-surface-muted text-foreground"
+                              : "bg-surface-muted text-foreground hover:bg-border-strong hover:text-foreground"
                           }`}
                         >
                           {selectedDict === dict.id
@@ -1318,7 +1318,7 @@ export function DictionarySettingsPanel() {
                         </button>
                         <button
                           onClick={() => deleteDictionary(dict.id)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-subtle transition hover:bg-destructive-muted hover:text-destructive"
                           title={t("settings:dictionaries.remove")}
                           aria-label={t("settings:dictionaries.removeLabel")}
                         >
@@ -1329,7 +1329,7 @@ export function DictionarySettingsPanel() {
                       <button
                         onClick={() => downloadDictionary(dict.id)}
                         disabled={isDownloading}
-                        className="inline-flex h-8 items-center gap-2 rounded bg-green-600 px-3 text-sm font-medium text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-8 items-center gap-2 rounded bg-primary px-3 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Download size={14} />
                         {t("settings:dictionaries.download")}
@@ -1406,11 +1406,11 @@ export function BetaSettingsPanel() {
           {features.map((feature) => (
             <li
               key={feature.key}
-              className="flex items-center justify-between gap-4 rounded border border-zinc-800 bg-zinc-950/40 px-3 py-2.5"
+              className="flex items-center justify-between gap-4 rounded border border-border bg-background/40 px-3 py-2.5"
             >
               <div>
-                <p className="text-sm font-medium text-zinc-100">{feature.label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{feature.hint}</p>
+                <p className="text-sm font-medium text-foreground">{feature.label}</p>
+                <p className="mt-0.5 text-xs text-foreground-subtle">{feature.hint}</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -1423,11 +1423,11 @@ export function BetaSettingsPanel() {
                     handleToggle(feature.route, feature.setEnabled, feature.enabled)
                   }
                   className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                    feature.enabled ? "bg-green-500" : "bg-zinc-700"
+                    feature.enabled ? "bg-primary" : "bg-border-strong"
                   }`}
                 >
                   <span
-                    className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                    className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                       feature.enabled ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
@@ -1489,7 +1489,7 @@ export function ZoomSettingsPanel() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleZoomOut}
-              className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-background/40 text-foreground transition hover:bg-surface-muted hover:text-foreground"
               title={t("settings:zoom.zoomOut")}
               aria-label={t("settings:zoom.zoomOut")}
             >
@@ -1503,13 +1503,13 @@ export function ZoomSettingsPanel() {
                 max={300}
                 value={zoomPercent}
                 onChange={handleSliderChange}
-                className="w-full accent-green-500"
+                className="w-full accent-primary"
               />
             </div>
 
             <button
               onClick={handleZoomIn}
-              className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-700 bg-zinc-950/40 text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-background/40 text-foreground transition hover:bg-surface-muted hover:text-foreground"
               title={t("settings:zoom.zoomIn")}
               aria-label={t("settings:zoom.zoomIn")}
             >
@@ -1518,17 +1518,17 @@ export function ZoomSettingsPanel() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">{zoomPercent}%</span>
+            <span className="text-sm text-foreground-muted">{zoomPercent}%</span>
             <button
               onClick={handleReset}
-              className="inline-flex h-8 items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+              className="inline-flex h-8 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-sm text-foreground transition hover:bg-surface-muted hover:text-foreground"
             >
               <RotateCcw size={14} />
               {t("settings:zoom.reset")}
             </button>
           </div>
 
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             {t("settings:zoom.shortcutsHint")}
           </p>
         </div>
@@ -1549,10 +1549,10 @@ export function PerformanceSettingsPanel() {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-zinc-100">
+            <p className="text-sm font-medium text-foreground">
               {t("settings:performance.reduceEffects.title")}
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
+            <p className="mt-1 text-xs leading-5 text-foreground-subtle">
               {t("settings:performance.reduceEffects.description")}
             </p>
           </div>
@@ -1561,12 +1561,12 @@ export function PerformanceSettingsPanel() {
             aria-label={t("settings:performance.reduceEffects.toggleLabel")}
             onClick={() => setReducedEffects(!settings.reducedEffects)}
             className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-              settings.reducedEffects ? "bg-green-500" : "bg-zinc-700"
+              settings.reducedEffects ? "bg-primary" : "bg-border-strong"
             }`}
             aria-pressed={settings.reducedEffects}
           >
             <span
-              className={`h-4 w-4 rounded-full bg-white transition-transform ${
+              className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
                 settings.reducedEffects ? "translate-x-4" : "translate-x-0"
               }`}
             />

@@ -11,12 +11,12 @@ const STROKE_WIDTH = 1.5;
 
 export default function StatCard({ icon: Icon, value, extraInfo }: Props) {
   return (
-    <div className="lyceum-interactive-card bg-zinc-900 border border-zinc-800 rounded-sm p-4 hover:border-zinc-700 transition group">
+    <div className="lyceum-interactive-card bg-surface border border-border rounded-sm p-4 hover:border-border-strong transition group">
       <div className="flex items-center gap-3">
         {Icon && (
           <Icon 
             size={ICON_SIZE} 
-            className="text-zinc-500 group-hover:text-zinc-400 transition-colors" 
+            className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
             strokeWidth={STROKE_WIDTH}
           />
         )}
@@ -24,7 +24,7 @@ export default function StatCard({ icon: Icon, value, extraInfo }: Props) {
           <h3 className="text-2xl font-semibold tracking-tight">
             {value}
           </h3>
-          <a className="text-green-500 text-sm">{extraInfo}</a>
+          <a className="text-primary text-sm">{extraInfo}</a>
         </div>
       </div>
     </div>

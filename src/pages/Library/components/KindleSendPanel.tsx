@@ -112,12 +112,12 @@ function Toggle({
       disabled={disabled}
       onClick={onChange}
       className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? "bg-green-500" : "bg-zinc-700"
+        checked ? "bg-primary" : "bg-border-strong"
       }`}
       title={checked ? t("library:kindle.toggleOn") : t("library:kindle.toggleOff")}
     >
       <span
-        className={`h-4 w-4 rounded-full bg-white transition-transform ${
+        className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
           checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
@@ -137,7 +137,7 @@ function MiniCover({ book }: { book: BookWithThumbnail }) {
   }
 
   return (
-    <div className="flex h-12 w-8 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-600">
+    <div className="flex h-12 w-8 flex-shrink-0 items-center justify-center rounded-sm border border-border bg-background text-foreground-subtle">
       <FileText size={15} />
     </div>
   );
@@ -292,20 +292,20 @@ export default function KindleSendPanel({
 
   return (
     <aside
-      className="lyceum-kindle-send-panel flex h-full w-[390px] flex-shrink-0 flex-col border-l border-zinc-800 bg-zinc-900 text-zinc-100"
+      className="lyceum-kindle-send-panel flex h-full w-[390px] flex-shrink-0 flex-col border-l border-border bg-surface text-foreground"
       aria-label={t("library:kindle.aria")}
     >
-      <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+      <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">{t("library:kindle.title")}</h2>
-          <p className="mt-0.5 truncate text-xs text-zinc-500">
+          <p className="mt-0.5 truncate text-xs text-foreground-subtle">
             {t("library:kindle.selectedBooks", { count: books.length })}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-sm p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          className="rounded-sm p-1.5 text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
           title={t("common:actions.close")}
         >
           <X size={17} />
@@ -313,17 +313,17 @@ export default function KindleSendPanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <section className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950/60 p-3">
+        <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <Smartphone size={17} className="flex-shrink-0 text-green-400" />
+              <Smartphone size={17} className="flex-shrink-0 text-primary" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
                   {loadingDevices
                     ? t("library:kindle.searching")
                     : selectedDevice?.name || t("library:kindle.noDevice")}
                 </p>
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-xs text-foreground-subtle">
                   {selectedDevice?.isMtp
                     ? t("library:kindle.mtp")
                     : selectedDevice
@@ -336,7 +336,7 @@ export default function KindleSendPanel({
               type="button"
               onClick={() => void refreshDevices()}
               disabled={loadingDevices || sending}
-              className="rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
+              className="rounded-sm p-2 text-foreground-subtle hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
               title={t("library:kindle.refreshDevices")}
             >
               <RefreshCw size={15} className={loadingDevices ? "animate-spin" : ""} />
@@ -347,7 +347,7 @@ export default function KindleSendPanel({
             <select
               value={selectedDevice?.id || ""}
               onChange={(event) => setSelectedDeviceId(event.target.value)}
-              className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-sm text-zinc-200 outline-none focus:border-green-500"
+              className="h-9 w-full rounded-sm border border-border bg-surface px-2 text-sm text-foreground outline-none focus:border-primary"
             >
               {devices.map((device) => (
                 <option key={device.id} value={device.id}>
@@ -357,21 +357,21 @@ export default function KindleSendPanel({
             </select>
           )}
 
-          <div className="mt-3 flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400">
-            <Folder size={14} className="flex-shrink-0 text-zinc-500" />
+          <div className="mt-3 flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-xs text-foreground-muted">
+            <Folder size={14} className="flex-shrink-0 text-foreground-subtle" />
             <span className="truncate">{destinationLabel}</span>
           </div>
         </section>
 
-        <section className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950/60 p-3">
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-foreground-subtle">
             {t("library:kindle.transferOptions")}
           </h3>
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">{t("library:kindle.convertAzw3")}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-foreground">{t("library:kindle.convertAzw3")}</p>
+                <p className="text-xs text-foreground-subtle">
                   {t("library:kindle.convertAzw3Hint")}
                 </p>
               </div>
@@ -383,8 +383,8 @@ export default function KindleSendPanel({
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">{t("library:kindle.preserveMetadata")}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-foreground">{t("library:kindle.preserveMetadata")}</p>
+                <p className="text-xs text-foreground-subtle">
                   {t("library:kindle.preserveMetadataHint")}
                 </p>
               </div>
@@ -396,8 +396,8 @@ export default function KindleSendPanel({
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-200">{t("library:kindle.organizeByAuthor")}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-foreground">{t("library:kindle.organizeByAuthor")}</p>
+                <p className="text-xs text-foreground-subtle">
                   {t("library:kindle.organizeByAuthorHint")}
                 </p>
               </div>
@@ -412,10 +412,10 @@ export default function KindleSendPanel({
 
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
               {t("library:kindle.selectedHeading")}
             </h3>
-            <span className="text-xs text-zinc-600">{formatFileSize(totalSize)}</span>
+            <span className="text-xs text-foreground-subtle">{formatFileSize(totalSize)}</span>
           </div>
           <div className="space-y-2">
             {books.map((book) => {
@@ -432,19 +432,19 @@ export default function KindleSendPanel({
               return (
                 <article
                   key={book.fileHash}
-                  className="flex min-w-0 gap-3 rounded-sm border border-zinc-800 bg-zinc-950/60 p-2.5"
+                  className="flex min-w-0 gap-3 rounded-sm border border-border bg-background/60 p-2.5"
                 >
                   <MiniCover book={book} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {getTitleWithoutExtension(book.title, book.fileType)}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
+                    <p className="mt-0.5 truncate text-xs text-foreground-subtle">
                       {book.author || t("library:kindle.unknownAuthor")} - {getFileTypeLabel(book.fileType, book.filePath)} - {formatFileSize(book.fileSize)}
                     </p>
                     <p
                       className={`mt-2 flex items-center gap-1.5 text-xs ${
-                        hasError ? "text-red-300" : isDone ? "text-green-400" : shouldConvert ? "text-amber-300" : "text-zinc-400"
+                        hasError ? "text-destructive" : isDone ? "text-primary" : shouldConvert ? "text-warning" : "text-foreground-muted"
                       }`}
                     >
                       {hasError ? (
@@ -459,10 +459,10 @@ export default function KindleSendPanel({
                       <span className="truncate">{fallbackStatus}</span>
                     </p>
                     {result?.note && (
-                      <p className="mt-1 text-[11px] leading-4 text-zinc-500">{result.note}</p>
+                      <p className="mt-1 text-[11px] leading-4 text-foreground-subtle">{result.note}</p>
                     )}
                     {result?.outputPath && (
-                      <p className="mt-1 truncate text-[11px] text-zinc-600" title={result.outputPath}>{result.outputPath}</p>
+                      <p className="mt-1 truncate text-[11px] text-foreground-subtle" title={result.outputPath}>{result.outputPath}</p>
                     )}
                   </div>
                 </article>
@@ -472,8 +472,8 @@ export default function KindleSendPanel({
         </section>
       </div>
 
-      <footer className="flex-shrink-0 border-t border-zinc-800 bg-zinc-900/95 p-4">
-        <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
+      <footer className="flex-shrink-0 border-t border-border bg-overlay p-4">
+        <div className="mb-3 flex items-center justify-between text-xs text-foreground-subtle">
           <span>{t("library:kindle.conversions", { count: convertibleCount })}</span>
           <span>
             {results.size > 0
@@ -491,7 +491,7 @@ export default function KindleSendPanel({
             type="button"
             onClick={onClose}
             disabled={sending}
-            className="h-10 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+            className="h-10 flex-1 rounded-sm border border-border bg-background text-sm text-foreground hover:bg-surface-muted disabled:opacity-50"
           >
             {t("common:actions.cancel")}
           </button>
@@ -499,7 +499,7 @@ export default function KindleSendPanel({
             type="button"
             onClick={handleSend}
             disabled={sending || books.length === 0 || !selectedDevice}
-            className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-semibold text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
             {sending

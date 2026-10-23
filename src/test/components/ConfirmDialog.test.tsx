@@ -76,7 +76,7 @@ describe("ConfirmDialog", () => {
       <ConfirmDialog {...defaultProps} isDanger />
     );
     const confirmButton = screen.getByText("Confirmar");
-    expect(confirmButton).toHaveClass("bg-red-500");
+    expect(confirmButton).toHaveClass("bg-destructive");
   });
 
   it("shows warning icon when isDanger is true", () => {
@@ -87,13 +87,13 @@ describe("ConfirmDialog", () => {
 
   it("does not show warning icon when isDanger is false", () => {
     const { container } = render(<ConfirmDialog {...defaultProps} />);
-    const alertIcons = container.querySelectorAll(".text-red-400");
+    const alertIcons = container.querySelectorAll(".text-destructive");
     expect(alertIcons.length).toBe(0);
   });
 
   it("has correct styling classes", () => {
     const { container } = render(<ConfirmDialog {...defaultProps} />);
     const dialog = container.firstChild as HTMLElement;
-    expect(dialog).toHaveClass("fixed", "inset-0", "bg-black/50");
+    expect(dialog).toHaveClass("fixed", "inset-0", "bg-backdrop");
   });
 });

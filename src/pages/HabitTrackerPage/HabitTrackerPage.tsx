@@ -99,33 +99,33 @@ export default function HabitTrackerPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-zinc-950 px-3 py-3 text-zinc-100 md:px-5 md:py-5">
-      <div className="flex min-h-[calc(100vh-24px)] w-full flex-col rounded-sm bg-zinc-900/95  ring-zinc-800/80 md:min-h-[calc(100vh-80px)]">
+    <div className="min-h-[calc(100vh-80px)] bg-background px-3 py-3 text-foreground md:px-5 md:py-5">
+      <div className="flex min-h-[calc(100vh-24px)] w-full flex-col rounded-sm bg-overlay  ring-border-strong md:min-h-[calc(100vh-80px)]">
         <div className="flex flex-1 flex-col">
           <div
             className="flex-1 overflow-x-auto lg:overflow-x-visible"
             onDragOver={handleMatrixDragOver}
           >
-            <div className="min-w-270 overflow-hidden rounded-sm border border-zinc-800/80 bg-zinc-950/35 lg:min-w-0">
+            <div className="min-w-270 overflow-hidden rounded-sm border border-border/80 bg-background/35 lg:min-w-0">
               <div
-                className="grid items-center border-b border-zinc-800/80 bg-zinc-900/90"
+                className="grid items-center border-b border-border/80 bg-overlay"
                 style={{ gridTemplateColumns }}
               >
                 <div className="px-1 flex justify-center">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-zinc-500">
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-foreground-subtle">
                     {t("habits:matrix.columnHeading")}
                   </p>
                 </div>
                 {days.map((item, index) => (
                   <div
                     key={item.dateKey}
-                    className={`flex h-14 flex-col items-center justify-center gap-0.5 border-l border-zinc-800/80 text-center ${
-                      index === days.length - 1 ? "border-r border-zinc-800/80" : ""
-                    } ${item.isCurrentDay ? "bg-zinc-800/35" : ""}`}
+                    className={`flex h-14 flex-col items-center justify-center gap-0.5 border-l border-border/80 text-center ${
+                      index === days.length - 1 ? "border-r border-border/80" : ""
+                    } ${item.isCurrentDay ? "bg-surface-muted/35" : ""}`}
                   >
                     <span
                       className={`text-[11px] uppercase tracking-[0.2em] ${
-                        item.isCurrentDay ? "text-green-400" : "text-zinc-600"
+                        item.isCurrentDay ? "text-primary" : "text-foreground-subtle"
                       }`}
                     >
                       {item.weekday}
@@ -133,8 +133,8 @@ export default function HabitTrackerPage() {
                     <span
                       className={`text-sm ${
                         item.isCurrentDay
-                          ? "font-semibold text-zinc-100"
-                          : "text-zinc-400"
+                          ? "font-semibold text-foreground"
+                          : "text-foreground-muted"
                       }`}
                     >
                       {item.day}
@@ -144,7 +144,7 @@ export default function HabitTrackerPage() {
               </div>
 
               {habits.length === 0 ? (
-                <div className="py-12 text-center text-sm text-zinc-500">
+                <div className="py-12 text-center text-sm text-foreground-subtle">
                   {t("habits:matrix.empty")}
                 </div>
               ) : (
@@ -190,7 +190,7 @@ export default function HabitTrackerPage() {
 
               <form
                 onSubmit={handleCreateHabit}
-                className="grid items-center border-t border-zinc-900/80"
+                className="grid items-center border-t border-border/80"
                 style={{ gridTemplateColumns }}
               >
                 <div className="px-3 py-3">
@@ -202,20 +202,20 @@ export default function HabitTrackerPage() {
                         onChange={(event) => setNewHabitName(event.target.value)}
                         placeholder={t("habits:form.namePlaceholder")}
                         aria-label={t("habits:form.nameLabel")}
-                        className="h-8 min-w-0 w-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                        className="h-8 min-w-0 w-8 flex-1 rounded-sm border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-input-placeholder"
                         maxLength={48}
                       />
                       <button
                         type="submit"
                         aria-label={t("habits:form.addLabel")}
                         disabled={!canCreateHabit}
-                        className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-medium text-zinc-950 transition hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                        className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary text-sm font-medium text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-foreground-subtle"
                       >
                         <Plus size={16} />
                       </button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-foreground-subtle">
                         <input
                           type="checkbox"
                           checked={newHabitIsMeasured}
@@ -227,7 +227,7 @@ export default function HabitTrackerPage() {
                               setNewHabitUnit("");
                             }
                           }}
-                          className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-950 text-green-500 focus:ring-0"
+                          className="h-3.5 w-3.5 rounded border-border-strong bg-background text-primary focus:ring-0"
                         />
                         {t("habits:form.measureToggle")}
                       </label>
@@ -238,7 +238,7 @@ export default function HabitTrackerPage() {
                           onChange={(event) => setNewHabitUnit(event.target.value)}
                           placeholder={t("habits:form.unitPlaceholder")}
                           aria-label={t("habits:form.unitLabel")}
-                          className="h-8 min-w-0 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                          className="h-8 min-w-0 flex-1 rounded-sm border border-border bg-background px-3 text-sm text-foreground placeholder:text-input-placeholder"
                           maxLength={16}
                         />
                       )}
@@ -248,8 +248,8 @@ export default function HabitTrackerPage() {
                 {days.map((item, index) => (
                   <div
                     key={item.dateKey}
-                    className={`aspect-square w-full border-l border-zinc-900/80 bg-transparent ${
-                      index === days.length - 1 ? "border-r border-zinc-900/80" : ""
+                    className={`aspect-square w-full border-l border-border/80 bg-transparent ${
+                      index === days.length - 1 ? "border-r border-border/80" : ""
                     }`}
                   />
                 ))}
@@ -257,7 +257,7 @@ export default function HabitTrackerPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex justify-center border-t border-zinc-800/80 pt-5">
+          <div className="mt-5 flex justify-center border-t border-border/80 pt-5">
             <MonthNavigator
               label={monthLabel}
               onPrevious={() =>

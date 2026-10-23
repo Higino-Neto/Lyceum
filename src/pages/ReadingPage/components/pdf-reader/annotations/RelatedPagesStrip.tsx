@@ -22,16 +22,16 @@ export default function RelatedPagesStrip({
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
+      <div className="flex items-center justify-between text-xs font-semibold text-foreground">
         <span className="inline-flex items-center gap-2">
           <FileText size={14} />
           {t("pdf:annotations.relatedPages.title")}
         </span>
-        {rest > 0 && <span className="text-[11px] font-normal text-zinc-500">+{rest}</span>}
+        {rest > 0 && <span className="text-[11px] font-normal text-foreground-subtle">+{rest}</span>}
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-sm border border-zinc-800 bg-zinc-950/60 px-3 py-4 text-center text-xs text-zinc-500">
+        <div className="rounded-sm border border-border bg-background/60 px-3 py-4 text-center text-xs text-foreground-subtle">
           {t("pdf:annotations.relatedPages.empty")}
         </div>
       ) : (
@@ -42,24 +42,24 @@ export default function RelatedPagesStrip({
               type="button"
               onClick={() => onGoToPage(item.page)}
               className={[
-                "min-w-0 rounded-sm border bg-zinc-900/70 p-1.5 text-left hover:border-zinc-700",
-                item.page === currentPage ? "border-emerald-500" : "border-zinc-800",
+                "min-w-0 rounded-sm border bg-surface/70 p-1.5 text-left hover:border-border-strong",
+                item.page === currentPage ? "border-primary" : "border-border",
               ].join(" ")}
             >
-              <span className="block aspect-[3/4] rounded-[2px] border border-zinc-700 bg-zinc-950 p-1">
-                <span className="mb-1 block h-1.5 rounded-sm bg-zinc-700" />
-                <span className="mb-1 block h-1 rounded-sm bg-zinc-800" />
-                <span className="mb-1 block h-1 rounded-sm bg-zinc-800" />
-                <span className="block h-7 rounded-sm bg-zinc-800/70" />
+              <span className="block aspect-[3/4] rounded-[2px] border border-border-strong bg-background p-1">
+                <span className="mb-1 block h-1.5 rounded-sm bg-border-strong" />
+                <span className="mb-1 block h-1 rounded-sm bg-surface-muted" />
+                <span className="mb-1 block h-1 rounded-sm bg-surface-muted" />
+                <span className="block h-7 rounded-sm bg-surface-muted/70" />
               </span>
-              <span className="mt-1 block truncate text-center text-[10px] text-zinc-400">{item.page}</span>
+              <span className="mt-1 block truncate text-center text-[10px] text-foreground-muted">{item.page}</span>
             </button>
           ))}
           {rest > 0 && (
             <button
               type="button"
               onClick={() => onGoToPage(nearby[4]?.page ?? visible[0].page)}
-              className="flex min-w-0 flex-col items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900/70 p-2 text-[10px] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+              className="flex min-w-0 flex-col items-center justify-center rounded-sm border border-border bg-surface/70 p-2 text-[10px] text-foreground-subtle hover:border-border-strong hover:text-foreground"
             >
               <span>+{rest}</span>
               <span>{t("pdf:annotations.relatedPages.more")}</span>

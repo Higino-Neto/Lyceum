@@ -1,12 +1,12 @@
 .lyceum-pdf-reader {
-  --pdf-accent: #34d399;
-  --pdf-accent-strong: #10b981;
-  --pdf-chrome: rgba(9, 12, 16, 0.94);
-  --pdf-surface: #151a20;
-  --pdf-stage: #20262d;
+  --pdf-accent: var(--primary);
+  --pdf-accent-strong: var(--primary);
+  --pdf-chrome: color-mix(in srgb, var(--background) 94%, transparent);
+  --pdf-surface: var(--surface);
+  --pdf-stage: var(--background);
   --pdf-page-filter: none;
   --pdf-reader-brightness: 1;
-  color: #f8fafc;
+  color: var(--foreground);
   background: var(--pdf-stage);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
@@ -34,7 +34,7 @@
   overflow: auto;
   overscroll-behavior: contain;
   background:
-    radial-gradient(circle at 50% -10%, rgba(71, 85, 105, 0.2), transparent 44%),
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--border-strong) 20%, transparent), transparent 44%),
     var(--pdf-stage);
   touch-action: pan-x pan-y;
   scrollbar-width: none;
@@ -53,7 +53,7 @@
   margin: 0 auto 18px;
   border: 0;
   border-radius: 3px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 8px 28px var(--shadow), 0 1px 2px var(--shadow);
   filter: var(--pdf-page-filter) brightness(var(--pdf-reader-brightness)) contrast(var(--pdf-reader-contrast, 1));
   clip-path: inset(var(--pdf-reader-crop, 0%));
   transition: filter 160ms ease, box-shadow 160ms ease;
@@ -68,7 +68,7 @@
 }
 
 .lyceum-pdf-reader__viewer .textLayer ::selection {
-  background: rgba(16, 185, 129, 0.42);
+  background: var(--selection);
 }
 
 .lyceum-pdf-reader__viewer .textLayer .highlight {
@@ -89,7 +89,7 @@
   inset: 0;
   z-index: 35;
   border: 0;
-  background: rgba(0, 0, 0, 0.48);
+  background: var(--backdrop);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
@@ -109,15 +109,15 @@
 .lyceum-pdf-reader__topbar {
   top: 0;
   padding-top: env(safe-area-inset-top);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 30px var(--shadow);
 }
 
 .lyceum-pdf-reader__bottom-bar {
   bottom: 0;
   padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 30px var(--shadow);
 }
 
 .lyceum-pdf-reader[data-controls="hidden"] .lyceum-pdf-reader__topbar {
@@ -140,19 +140,19 @@
   place-items: center;
   border: 0;
   border-radius: 999px;
-  color: #e2e8f0;
+  color: var(--foreground);
   background: transparent;
 }
 
 .lyceum-pdf-reader__icon-button:active {
-  color: white;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
   transform: scale(0.94);
 }
 
 .lyceum-pdf-reader__icon-button[aria-pressed="true"] {
-  color: #6ee7b7;
-  background: rgba(16, 185, 129, 0.13);
+  color: var(--primary);
+  background: var(--primary-muted);
 }
 
 .lyceum-pdf-reader__progress {
@@ -162,14 +162,14 @@
   accent-color: var(--pdf-accent-strong);
   appearance: none;
   -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
   touch-action: none;
 }
 
 .lyceum-pdf-reader__progress::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--pdf-accent-strong) var(--pdf-progress), rgba(255, 255, 255, 0.14) var(--pdf-progress));
+  background: linear-gradient(90deg, var(--pdf-accent-strong) var(--pdf-progress), color-mix(in srgb, var(--foreground) 14%, transparent) var(--pdf-progress));
 }
 
 .lyceum-pdf-reader__progress::-webkit-slider-thumb {
@@ -178,16 +178,16 @@
   margin-top: -8px;
   appearance: none;
   -webkit-appearance: none;
-  border: 3px solid #ecfdf5;
+  border: 3px solid var(--surface);
   border-radius: 50%;
   background: var(--pdf-accent-strong);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 3px 12px var(--shadow);
 }
 
 .lyceum-pdf-reader__progress::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  border: 3px solid #ecfdf5;
+  border: 3px solid var(--surface);
   border-radius: 50%;
   background: var(--pdf-accent-strong);
 }
@@ -201,9 +201,9 @@
   flex-direction: column;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
-  color: #f8fafc;
-  background: #11161c;
-  box-shadow: -18px 0 46px rgba(0, 0, 0, 0.44);
+  color: var(--foreground);
+  background: var(--surface);
+  box-shadow: -18px 0 46px var(--shadow);
   animation: lyceum-pdf-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -221,7 +221,7 @@
   height: 4px;
   margin: 9px auto 2px;
   border-radius: 99px;
-  background: #475569;
+  background: var(--border-strong);
 }
 
 .lyceum-pdf-reader__thumbnail {
@@ -230,8 +230,8 @@
   min-height: 126px;
   overflow: hidden;
   border-radius: 4px;
-  background: #2a323c;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.26);
+  background: var(--surface-muted);
+  box-shadow: 0 5px 18px var(--shadow);
 }
 
 .lyceum-pdf-reader__thumbnail canvas {
@@ -249,11 +249,11 @@
   width: 48px;
   height: 48px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   border-radius: 50%;
-  color: #d1fae5;
-  background: rgba(5, 10, 14, 0.72);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: 0 8px 24px var(--shadow);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: opacity 180ms ease, transform 180ms ease;
@@ -270,13 +270,13 @@
   height: 4px;
   overflow: hidden;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
 }
 
 .lyceum-pdf-reader__loading-value {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #10b981, #6ee7b7);
+  background: linear-gradient(90deg, var(--primary), var(--primary-hover));
   transition: width 160ms ease;
 }
 
@@ -284,9 +284,9 @@
   width: min(82vw, 420px);
   aspect-ratio: 0.707;
   border-radius: 4px;
-  background: linear-gradient(100deg, #262d35 20%, #343d47 42%, #262d35 64%);
+  background: linear-gradient(100deg, var(--surface-muted) 20%, var(--border-strong) 42%, var(--surface-muted) 64%);
   background-size: 220% 100%;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 12px 40px var(--shadow);
   animation: lyceum-pdf-shimmer 1.45s linear infinite;
 }
 

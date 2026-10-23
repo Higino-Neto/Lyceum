@@ -64,6 +64,6 @@ describe("ProtectedRoute", () => {
     );
     
     const loader = container.firstChild as HTMLElement;
-    expect(loader).toHaveClass("h-screen", "bg-zinc-950", "flex", "items-center", "justify-center");
+    expect(loader).toHaveClass("h-screen", "bg-background", "flex", "items-center", "justify-center");
   });
 });

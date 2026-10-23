@@ -81,12 +81,12 @@ function DayCellComponent({
 
   return (
     <div
-      className={`group relative flex aspect-square w-full items-center justify-center border-l border-zinc-900/80 transition-colors duration-150 ${
-        isLastColumn ? "border-r border-zinc-900/80" : ""
-      } ${active ? "bg-green-500/5" : "bg-transparent"}`}
+      className={`group relative flex aspect-square w-full items-center justify-center border-l border-border/80 transition-colors duration-150 ${
+        isLastColumn ? "border-r border-border/80" : ""
+      } ${active ? "bg-primary-muted" : "bg-transparent"}`}
     >
       {isCurrentDay && (
-        <span className="pointer-events-none absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-zinc-700/80" />
+        <span className="pointer-events-none absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-border-strong/80" />
       )}
       {isMeasured && isEditing ? (
         <input
@@ -105,7 +105,7 @@ function DayCellComponent({
             }
           }}
           aria-label={t("habits:day.valueAriaLabel", { label })}
-          className="relative z-10 h-full w-full bg-zinc-950/95 px-1 text-center text-xs font-semibold text-green-400 outline-none"
+          className="relative z-10 h-full w-full bg-overlay px-1 text-center text-xs font-semibold text-primary outline-none"
           autoFocus
         />
       ) : (
@@ -114,22 +114,22 @@ function DayCellComponent({
           onClick={handleOpenMeasureInput}
           aria-pressed={active}
           aria-label={label}
-          className="flex h-full w-full cursor-pointer items-center justify-center focus-visible:bg-zinc-800/40"
+          className="flex h-full w-full cursor-pointer items-center justify-center focus-visible:bg-surface-muted/40"
         >
           {isMeasured ? (
             active && measurementValue !== null ? (
-              <span className="relative z-10 text-xs font-semibold text-green-400">
+              <span className="relative z-10 text-xs font-semibold text-primary">
                 {formatMeasurementValue(measurementValue)}
               </span>
             ) : (
-              <span className="relative z-10 h-2 w-2 rounded-full bg-zinc-600/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" />
+              <span className="relative z-10 h-2 w-2 rounded-full bg-border-strong/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" />
             )
           ) : (
             <span
               className={`relative z-10 rounded-full transition-all duration-150 ${
                 active
-                  ? "h-3 w-3 bg-green-500"
-                  : "h-2 w-2 bg-zinc-600/55 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+                  ? "h-3 w-3 bg-primary"
+                  : "h-2 w-2 bg-border-strong/55 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
               }`}
             />
           )}

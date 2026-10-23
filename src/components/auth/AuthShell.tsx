@@ -20,29 +20,29 @@ export function AuthShell({
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-full bg-zinc-950 text-zinc-100">
+    <div className="min-h-full bg-background text-foreground">
       <section className="flex min-h-[calc(100vh-54px)] items-center justify-center px-5 py-8 sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-7 flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-green-500/30 bg-green-500/10 text-green-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-primary-border bg-primary-muted text-primary">
               <Icon size={20} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
+              <h1 className="text-2xl font-semibold tracking-normal text-foreground">
                 {t(titleKey)}
               </h1>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">
+              <p className="mt-1 text-sm leading-6 text-foreground-muted">
                 {t(subtitleKey)}
               </p>
             </div>
           </div>
 
-          <div className="rounded border border-zinc-800 bg-zinc-900/80 p-5 shadow-2xl shadow-black/30 sm:p-6">
+          <div className="rounded border border-border bg-surface/80 p-5 shadow-2xl shadow-shadow sm:p-6">
             {children}
           </div>
 
           {footer && (
-            <div className="mt-5 text-center text-sm text-zinc-400">{footer}</div>
+            <div className="mt-5 text-center text-sm text-foreground-muted">{footer}</div>
           )}
         </div>
       </section>
@@ -59,7 +59,7 @@ export function AuthField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
         {label}
       </span>
       {children}
@@ -68,7 +68,7 @@ export function AuthField({
 }
 
 export const authInputClasses =
-  "h-11 w-full rounded border border-zinc-700 bg-zinc-950/70 px-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-green-500 disabled:cursor-not-allowed disabled:opacity-60";
+  "h-11 w-full rounded border border-border-strong bg-input px-3 text-sm text-foreground outline-none transition placeholder:text-input-placeholder focus:border-focus-ring disabled:cursor-not-allowed disabled:opacity-60";
 
 export const authButtonClasses =
-  "inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-green-600 px-4 text-sm font-semibold text-black transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50";

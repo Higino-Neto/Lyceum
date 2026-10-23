@@ -80,7 +80,7 @@ function ChapterRow({
   return (
     <li>
       <div
-        className="group flex items-center gap-1.5 py-1 pr-2 text-[12px] leading-tight hover:bg-zinc-800/60"
+        className="group flex items-center gap-1.5 py-1 pr-2 text-[12px] leading-tight hover:bg-surface-muted/60"
         style={{ paddingLeft: `${8 + node.depth * 14}px` }}
       >
         <button
@@ -91,9 +91,9 @@ function ChapterRow({
               ? t("pdf:chapters.collapseAriaLabel")
               : t("pdf:chapters.expandAriaLabel")
           }
-          className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-zinc-400 transition-colors ${
+          className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm text-foreground-muted transition-colors ${
             node.hasChildren
-              ? "hover:bg-zinc-700 hover:text-zinc-100"
+              ? "hover:bg-border-strong hover:text-foreground"
               : "cursor-default opacity-0"
           }`}
           tabIndex={node.hasChildren ? 0 : -1}
@@ -126,8 +126,8 @@ function ChapterRow({
           }
           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm border text-[11px] transition-colors ${
             isRead
-              ? "border-zinc-600 bg-green-500 text-zinc-700"
-              : "border-zinc-600 text-transparent hover:border-zinc-400"
+              ? "border-border-strong bg-primary text-primary-foreground"
+              : "border-border-strong text-transparent hover:border-border-strong"
           }`}
         >
           <Check strokeWidth={3} />
@@ -145,8 +145,8 @@ function ChapterRow({
                 : t("pdf:chapters.unknownPage")
             }
             className={`min-w-0 flex-1 truncate text-left transition-colors ${
-              isRead ? "text-zinc-500 line-through" : "text-zinc-200"
-            } ${node.page ? "hover:text-green-200" : "cursor-default"}`}
+              isRead ? "text-foreground-subtle line-through" : "text-foreground"
+            } ${node.page ? "hover:text-primary" : "cursor-default"}`}
           >
             {node.title
               .replace(/\uFFFD/g, "")
@@ -224,7 +224,7 @@ export default function ChapterSidebar({
 
   return (
     <aside
-      className="relative flex h-full flex-shrink-0 flex-col border-r border-zinc-800 bg-zinc-900"
+      className="relative flex h-full flex-shrink-0 flex-col border-r border-border bg-surface"
       style={{ width: `${width}px` }}
     >
       <div
@@ -237,24 +237,24 @@ export default function ChapterSidebar({
       {isResizing && (
         <div className="fixed inset-0 z-50 cursor-col-resize" />
       )}
-      {/* <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-300">
+      {/* <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-foreground">
           Capítulos
         </span>
       </div> */}
 
       {hasOutline && (
-        <div className="flex gap-3 border-b border-zinc-800 px-3 py-2">
+        <div className="flex gap-3 border-b border-border px-3 py-2">
           <div className="w-full">
-            <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-400">
+            <div className="mb-1 flex items-center justify-between text-[11px] text-foreground-muted">
               <span>
                 {readCount}/{totalCount}
               </span>
               <span>{progress}%</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
               <div
-                className="h-full rounded-full bg-green-500/80 transition-all"
+                className="h-full rounded-full bg-primary transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -263,7 +263,7 @@ export default function ChapterSidebar({
             type="button"
             onClick={onClose}
             aria-label={t("pdf:chapters.closeAriaLabel")}
-            className="flex h-6 w-6 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            className="flex h-6 w-6 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground"
           >
             ✕
           </button>
@@ -272,17 +272,17 @@ export default function ChapterSidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {loading && (
-          <p className="px-3 py-4 text-xs text-zinc-500">
+          <p className="px-3 py-4 text-xs text-foreground-subtle">
             {t("pdf:chapters.loading")}
           </p>
         )}
 
         {!loading && error && (
-          <p className="px-3 py-4 text-xs text-red-300">{error}</p>
+          <p className="px-3 py-4 text-xs text-destructive">{error}</p>
         )}
 
         {!loading && !error && !hasOutline && (
-          <p className="px-3 py-4 text-xs text-zinc-500">
+          <p className="px-3 py-4 text-xs text-foreground-subtle">
             {t("pdf:chapters.empty")}
           </p>
         )}

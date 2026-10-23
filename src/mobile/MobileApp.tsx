@@ -91,11 +91,11 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
   return (
     <div className="grid min-h-[280px] place-items-center px-6 text-center">
       <div>
-        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded bg-green-500/10 text-green-400">
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded bg-primary-muted text-primary">
           <BookOpen size={24} />
         </div>
-        <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-foreground-muted">{body}</p>
         {action && <div className="mt-5">{action}</div>}
       </div>
     </div>
@@ -108,8 +108,8 @@ function MobileStartupSkeleton() {
   return (
     <div className="mobile-app-skeleton mx-auto flex w-full max-w-[480px] flex-col px-4 pb-28 pt-[max(22px,env(safe-area-inset-top))]" role="status" aria-label={t("mobile:startup.ariaLabel")}>
       <div className="flex items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-300"><BookOpen size={22} /></div>
-        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-400">Lyceum</p><p className="mt-1 text-sm text-zinc-500">{t("mobile:startup.preparingLibrary")}</p></div>
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary-muted text-primary"><BookOpen size={22} /></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-primary">Lyceum</p><p className="mt-1 text-sm text-foreground-subtle">{t("mobile:startup.preparingLibrary")}</p></div>
       </div>
       <div className="mobile-skeleton-block mt-8 h-40 rounded-3xl" />
       <div className="mt-4 grid grid-cols-2 gap-3"><div className="mobile-skeleton-block h-28 rounded-2xl" /><div className="mobile-skeleton-block h-28 rounded-2xl" /></div>
@@ -213,13 +213,13 @@ function MissingBookFile({
   return (
     <section className="grid min-h-[calc(100dvh-128px)] place-items-center p-6 text-center">
       <div className="max-w-sm">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded border border-zinc-800 bg-zinc-900 text-green-400">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded border border-border bg-surface text-primary">
           <BookOpen size={26} />
         </div>
-        <h2 className="mt-5 text-lg font-semibold text-zinc-100">
+        <h2 className="mt-5 text-lg font-semibold text-foreground">
           {loading ? t("mobile:reader.loadingFile") : t("mobile:reader.fileNotFound")}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">
+        <p className="mt-2 text-sm leading-6 text-foreground-muted">
           {loading
             ? t("mobile:reader.restoringFile")
             : t("mobile:reader.fileDetached", { title: book.title })}
@@ -227,14 +227,14 @@ function MissingBookFile({
         {!loading && (
           <div className="mt-6 grid gap-2">
             <button
-              className="h-11 rounded bg-green-600 px-4 text-sm font-semibold text-white"
+              className="h-11 rounded bg-primary px-4 text-sm font-semibold text-primary-foreground"
               onClick={onAttach}
               type="button"
             >
               {t("mobile:reader.relinkFile")}
             </button>
             <button
-              className="h-11 rounded border border-zinc-800 bg-zinc-900 px-4 text-sm font-medium text-zinc-200"
+              className="h-11 rounded border border-border bg-surface px-4 text-sm font-medium text-foreground"
               onClick={onBack}
               type="button"
             >
@@ -700,21 +700,21 @@ function MobileApp() {
   if (!repositoryReady || !authReady) return <MobileStartupSkeleton />;
 
   return (
-    <div className="lyceum-app min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="lyceum-app min-h-screen bg-background text-foreground">
       <Toaster
         position="top-center"
         toastOptions={{
           duration: 4200,
           style: {
-            background: "#18181b",
-            border: "1px solid #27272a",
-            color: "#f4f4f5",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            color: "var(--foreground)",
             borderRadius: "4px",
           },
         }}
       />
       {!isOnline ? (
-        <div className="fixed inset-x-0 top-0 z-50 mx-auto max-w-[480px] bg-amber-500 px-4 py-2 text-center text-xs font-semibold text-zinc-950" role="status">
+        <div className="fixed inset-x-0 top-0 z-50 mx-auto max-w-[480px] bg-warning px-4 py-2 text-center text-xs font-semibold text-warning-foreground" role="status">
           {t("mobile:offline.banner")}
         </div>
       ) : null}
@@ -744,50 +744,50 @@ function MobileApp() {
       />
 
       {importJobs.length > 0 && (
-        <aside className="fixed inset-x-3 bottom-[calc(82px+env(safe-area-inset-bottom))] z-[80] mx-auto max-w-[454px] rounded-2xl border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl" aria-label={t("mobile:imports.title")}>
+        <aside className="fixed inset-x-3 bottom-[calc(82px+env(safe-area-inset-bottom))] z-[80] mx-auto max-w-[454px] rounded-2xl border border-border-strong bg-overlay p-3 shadow-2xl shadow-shadow backdrop-blur-xl" aria-label={t("mobile:imports.title")}>
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
               {t("mobile:imports.heading")}
             </p>
-            <button className="grid h-8 w-8 place-items-center rounded-full bg-zinc-900 text-zinc-400" onClick={() => setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing"))} aria-label={t("mobile:imports.clearFinished")} type="button"><X size={15} /></button>
+            <button className="grid h-8 w-8 place-items-center rounded-full bg-surface text-foreground-muted" onClick={() => setImportJobs((current) => current.filter((job) => job.status === "reading" || job.status === "processing"))} aria-label={t("mobile:imports.clearFinished")} type="button"><X size={15} /></button>
           </div>
           <div className="max-h-52 space-y-2 overflow-y-auto">
             {importJobs.map((job) => {
               const running = job.status === "reading" || job.status === "processing";
-              return <div key={job.id} className="rounded-xl bg-zinc-900 p-3">
+              return <div key={job.id} className="rounded-xl bg-surface p-3">
                 <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-100">{job.name}</p><p className={`mt-0.5 text-[11px] ${job.status === "error" ? "text-red-400" : job.status === "done" ? "text-emerald-400" : "text-zinc-500"}`}>{job.message || t("mobile:imports.preparing")}</p></div>
-                  {running ? <button className="h-8 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300" onClick={() => importControllersRef.current.get(job.id)?.abort()} type="button">{t("mobile:imports.cancelJob")}</button> : <span className="text-xs tabular-nums text-zinc-500">{job.status === "done" ? "100%" : job.status === "cancelled" ? t("mobile:imports.cancelled") : t("mobile:imports.failed")}</span>}
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{job.name}</p><p className={`mt-0.5 text-[11px] ${job.status === "error" ? "text-destructive" : job.status === "done" ? "text-primary" : "text-foreground-subtle"}`}>{job.message || t("mobile:imports.preparing")}</p></div>
+                  {running ? <button className="h-8 rounded-lg bg-surface-muted px-3 text-xs font-semibold text-foreground" onClick={() => importControllersRef.current.get(job.id)?.abort()} type="button">{t("mobile:imports.cancelJob")}</button> : <span className="text-xs tabular-nums text-foreground-subtle">{job.status === "done" ? "100%" : job.status === "cancelled" ? t("mobile:imports.cancelled") : t("mobile:imports.failed")}</span>}
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800"><div className={`h-full rounded-full transition-all duration-200 ${job.status === "error" ? "bg-red-500" : job.status === "cancelled" ? "bg-zinc-600" : "bg-emerald-500"}`} style={{ width: job.progress + "%" }} /></div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted"><div className={`h-full rounded-full transition-all duration-200 ${job.status === "error" ? "bg-destructive" : job.status === "cancelled" ? "bg-border-strong" : "bg-primary"}`} style={{ width: job.progress + "%" }} /></div>
               </div>;
             })}
           </div>
         </aside>
       )}
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-zinc-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-background">
         {activeTab === "library" || (activeTab === "reader" && isEbookReader) ? null : (
           <header
             className={
               activeTab === "reader" && isEbookReader
-                ? "sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/95 px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))] backdrop-blur"
-                : "sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/95 px-4 pb-3 pt-[max(14px,env(safe-area-inset-top))] backdrop-blur"
+                ? "sticky top-0 z-20 border-b border-border bg-overlay px-3 pb-2 pt-[max(10px,env(safe-area-inset-top))] backdrop-blur"
+                : "sticky top-0 z-20 border-b border-border bg-overlay px-4 pb-3 pt-[max(14px,env(safe-area-inset-top))] backdrop-blur"
             }
           >
             <div className="flex items-center justify-between">
               <div>
                 {!(activeTab === "reader" && isEbookReader) && (
-                  <p className="text-xs font-medium uppercase tracking-wide text-green-400">Lyceum Mobile</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary">Lyceum Mobile</p>
                 )}
-                <h1 className={activeTab === "reader" && isEbookReader ? "text-base font-semibold text-zinc-50" : "mt-1 text-xl font-semibold text-zinc-50"}>
+                <h1 className={activeTab === "reader" && isEbookReader ? "text-base font-semibold text-foreground" : "mt-1 text-xl font-semibold text-foreground"}>
                   {activeTab === "reader"
                     ? t("mobile:reader.title")
                     : t(tabs.find((tab) => tab.id === activeTab)?.labelKey ?? "mobile:tabs.dashboard")}
                 </h1>
               </div>
               <button
-                className="grid h-10 w-10 place-items-center rounded border border-zinc-800 bg-zinc-900 text-zinc-200"
+                className="grid h-10 w-10 place-items-center rounded border border-border bg-surface text-foreground"
                 onClick={() => setActiveTab("profile")}
                 type="button"
                 aria-label={t("mobile:profile.openAriaLabel")}
@@ -799,7 +799,7 @@ function MobileApp() {
         )}
 
         <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) || keyboardOpen ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
-          <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-zinc-500">{t("mobile:startup.loading")}</div>}>
+          <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-foreground-subtle">{t("mobile:startup.loading")}</div>}>
           {activeTab === "dashboard" && (
             <MobileDashboardScreen
               sessionEmail={sessionEmail}
@@ -881,7 +881,7 @@ function MobileApp() {
                       body={t("mobile:reader.noBookSelectedBody")}
                       action={
                         <button
-                          className="rounded bg-green-600 px-4 py-3 text-sm font-semibold text-white"
+                          className="rounded bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
                           onClick={() => setActiveTab("library")}
                           type="button"
                         >
@@ -891,31 +891,31 @@ function MobileApp() {
                     />
                   ) : (
                     <>
-                      {selectedBook.fileType !== "pdf" && <div className={isEbookReader ? "rounded bg-zinc-900/70 px-3 py-2" : "rounded border border-zinc-800 bg-zinc-900 p-4"}>
+                      {selectedBook.fileType !== "pdf" && <div className={isEbookReader ? "rounded bg-surface/70 px-3 py-2" : "rounded border border-border bg-surface p-4"}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className={isEbookReader ? "truncate text-sm font-semibold text-zinc-50" : "truncate text-lg font-semibold text-zinc-50"}>{selectedBook.title}</p>
-                            <p className="mt-1 truncate text-xs text-zinc-500">{selectedBook.author || selectedBook.fileName}</p>
+                            <p className={isEbookReader ? "truncate text-sm font-semibold text-foreground" : "truncate text-lg font-semibold text-foreground"}>{selectedBook.title}</p>
+                            <p className="mt-1 truncate text-xs text-foreground-subtle">{selectedBook.author || selectedBook.fileName}</p>
                           </div>
                           <button
-                            className="grid h-9 w-9 place-items-center rounded bg-zinc-950 text-zinc-300"
+                            className="grid h-9 w-9 place-items-center rounded bg-background text-foreground"
                             onClick={() => toggleFavorite(selectedBook.id)}
                             type="button"
                             aria-label={t("mobile:book.favorite")}
                           >
                             <Heart
-                              className={selectedBook.isFavorite ? "fill-green-400 text-green-400" : ""}
+                              className={selectedBook.isFavorite ? "fill-primary text-primary" : ""}
                               size={18}
                             />
                           </button>
                         </div>
 
-                        <div className="mt-3 rounded bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
+                        <div className="mt-3 rounded bg-background px-3 py-2 text-xs text-foreground-muted">
                           {selectedBook.fileType.toUpperCase()} · {getProgress(selectedBook)}%
                         </div>
                       </div>}
 
-                    <div className={isEbookReader ? "overflow-hidden bg-zinc-900" : "overflow-hidden rounded border border-zinc-800 bg-zinc-900"}>
+                    <div className={isEbookReader ? "overflow-hidden bg-surface" : "overflow-hidden rounded border border-border bg-surface"}>
                         {selectedBook.fileType === "pdf" && selectedBookDataUrl ? (
                           <PdfPane
                             key={selectedBook.id}
@@ -968,7 +968,7 @@ function MobileApp() {
                             }))}
                           />
                         ) : (
-                          <div className="min-h-[360px] p-5 text-sm leading-7 text-zinc-300">
+                          <div className="min-h-[360px] p-5 text-sm leading-7 text-foreground">
                             <p>
                               {t("mobile:book.mobileReady")} {t("mobile:book.mobileReadyBody")}
                             </p>
@@ -977,9 +977,9 @@ function MobileApp() {
                       </div>
 
                       {!isEbookReader && (
-                      <div className="rounded border border-zinc-800 bg-zinc-900 p-4">
+                      <div className="rounded border border-border bg-surface p-4">
                         <button
-                          className="mb-4 flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white"
+                          className="mb-4 flex h-11 w-full items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground"
                           onClick={() => {
                             setReadingSeedBookId(selectedBook.id);
                             setActiveTab("readings");
@@ -1001,11 +1001,11 @@ function MobileApp() {
                           ))}
                         </MobileSelect>
                         </MobileFieldFrame>
-                        <label className="mt-4 block text-sm font-medium text-zinc-100">
+                        <label className="mt-4 block text-sm font-medium text-foreground">
                           {t("mobile:book.notes")}
                         </label>
                         <textarea
-                          className="mt-2 min-h-24 w-full resize-none rounded border border-zinc-800 bg-zinc-950 p-3 text-sm"
+                          className="mt-2 min-h-24 w-full resize-none rounded border border-border bg-background p-3 text-sm"
                           value={selectedBook.notes || ""}
                           onChange={(event) => saveBookNotes(selectedBook.id, event.target.value)}
                           placeholder={t("mobile:book.notesPlaceholder")}
@@ -1028,11 +1028,11 @@ function MobileApp() {
 
           {activeTab === "profile" && (
             <section className="space-y-5 p-4">
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-base font-semibold text-foreground">
                     {t("mobile:profile.accountAndDevice")}
                   </p>
-                <div className="mt-4 space-y-3 text-sm text-zinc-400">
+                <div className="mt-4 space-y-3 text-sm text-foreground-muted">
                   <p>
                     {t("mobile:profile.version")}:{" "}
                     {import.meta.env.VITE_APP_VERSION || t("mobile:profile.versionFallback")}
@@ -1053,7 +1053,7 @@ function MobileApp() {
                 </div>
                 {sessionEmail && (
                   <button
-                    className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200"
+                    className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground"
                     onClick={() => setActiveTab("leaderboard")}
                     type="button"
                   >
@@ -1063,22 +1063,22 @@ function MobileApp() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+              <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-base font-semibold text-zinc-100">
+                    <p className="text-base font-semibold text-foreground">
                       {t("mobile:profile.updates")}
                     </p>
-                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                    <p className="mt-1 text-sm leading-6 text-foreground-muted">
                       {getNativeApkUpdateText(nativeApkUpdate)}
                     </p>
                   </div>
                   {nativeApkUpdate.status === "checking" ? (
-                    <RefreshCw className="mt-1 animate-spin text-emerald-400" size={18} />
+                    <RefreshCw className="mt-1 animate-spin text-primary" size={18} />
                   ) : null}
                 </div>
 
-                <div className="mt-4 space-y-2 text-xs text-zinc-500">
+                <div className="mt-4 space-y-2 text-xs text-foreground-subtle">
                   {nativeApkUpdate.installed ? (
                     <p>
                       {t("mobile:profile.installed")}: {nativeApkUpdate.installed.versionName} ({nativeApkUpdate.installed.versionCode})
@@ -1097,15 +1097,15 @@ function MobileApp() {
 
                 {nativeApkUpdate.status === "downloading" ? (
                   <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                    <div className="mb-2 flex items-center justify-between text-xs text-foreground-subtle">
                       <span>{Math.round(nativeUpdateProgress)}%</span>
                       <span>
                         {formatMobileBytes(nativeApkUpdate.progress?.loaded)} / {formatMobileBytes(nativeApkUpdate.progress?.total)}
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                    <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        className="h-full rounded-full bg-primary transition-all"
                         style={{ width: `${Math.max(0, Math.min(100, nativeUpdateProgress))}%` }}
                       />
                     </div>
@@ -1113,7 +1113,7 @@ function MobileApp() {
                 ) : null}
 
                 {nativeApkUpdate.manifest?.notes ? (
-                  <p className="mt-4 whitespace-pre-wrap rounded border border-zinc-800 bg-zinc-950 p-3 text-sm leading-6 text-zinc-400">
+                  <p className="mt-4 whitespace-pre-wrap rounded border border-border bg-background p-3 text-sm leading-6 text-foreground-muted">
                     {nativeApkUpdate.manifest.notes}
                   </p>
                 ) : null}
@@ -1121,7 +1121,7 @@ function MobileApp() {
                 <div className="mt-4 grid gap-2">
                   {nativeApkUpdate.status === "permission-required" ? (
                     <button
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground"
                       onClick={openNativeInstallSettings}
                       type="button"
                     >
@@ -1130,7 +1130,7 @@ function MobileApp() {
                   ) : null}
                   {nativeApkUpdate.status === "available" || nativeApkUpdate.status === "permission-required" ? (
                     <button
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
                       onClick={installNativeUpdate}
                       disabled={nativeApkUpdateBusy}
                       type="button"
@@ -1140,7 +1140,7 @@ function MobileApp() {
                     </button>
                   ) : null}
                   <button
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200 disabled:opacity-60"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground disabled:opacity-60"
                     onClick={() => { void refreshNativeApkUpdate(false); }}
                     disabled={nativeApkUpdate.status === "checking" || nativeApkUpdateBusy}
                     type="button"
@@ -1151,17 +1151,17 @@ function MobileApp() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                <p className="text-base font-semibold text-zinc-100">
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-base font-semibold text-foreground">
                   {sessionEmail ? t("mobile:account.connected") : t("mobile:account.signIn")}
                 </p>
                 {getMobileSupabaseConfigError() ? (
-                  <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  <p className="mt-3 rounded border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
                     {getMobileSupabaseConfigError()}
                   </p>
                 ) : null}
                 {authError ? (
-                  <p className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200" role="alert">
+                  <p className="mt-3 rounded border border-destructive/30 bg-destructive-muted p-3 text-sm text-destructive" role="alert">
                     {authError}
                   </p>
                 ) : null}
@@ -1174,7 +1174,7 @@ function MobileApp() {
                   </MobileFieldFrame>
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      className="rounded bg-green-600 px-3 py-3 text-sm font-semibold text-white"
+                      className="rounded bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground"
                       onClick={() => signIn("signin")}
                       disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
@@ -1182,7 +1182,7 @@ function MobileApp() {
                       {authBusy ? t("mobile:account.signingIn") : t("mobile:account.signIn")}
                     </button>
                     <button
-                      className="rounded border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm font-semibold text-zinc-100"
+                      className="rounded border border-border bg-background px-3 py-3 text-sm font-semibold text-foreground"
                       onClick={() => signIn("signup")}
                       disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
                       type="button"
@@ -1192,7 +1192,7 @@ function MobileApp() {
                   </div>
                   {!sessionEmail ? (
                     <button
-                      className="h-10 w-full text-xs font-semibold text-emerald-400 disabled:opacity-50"
+                      className="h-10 w-full text-xs font-semibold text-primary disabled:opacity-50"
                       onClick={requestPasswordReset}
                       disabled={authBusy || !hasSupabaseConfig() || !isOnline}
                       type="button"
@@ -1202,7 +1202,7 @@ function MobileApp() {
                   ) : null}
                   {sessionEmail && (
                     <button
-                      className="h-11 w-full rounded border border-zinc-800 text-sm font-medium text-zinc-300"
+                      className="h-11 w-full rounded border border-border text-sm font-medium text-foreground"
                       onClick={async () => {
                         if (await confirm(t("mobile:account.signOutConfirm"))) await signOut();
                       }}
@@ -1214,7 +1214,7 @@ function MobileApp() {
                   )}
                 </div>
               </div>
-              <div><h2 className="mb-3 text-base font-semibold text-zinc-100">
+              <div><h2 className="mb-3 text-base font-semibold text-foreground">
                 {t("mobile:profile.dataAndBackup")}
               </h2><MobileBackupPanel state={state} setState={setState} /></div>
             </section>
@@ -1223,7 +1223,7 @@ function MobileApp() {
         </main>
 
         {activeTab === "reader" && isEbookReader || keyboardOpen ? null : (
-          <nav aria-label={t("mobile:account.primaryNavAriaLabel")} className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.06] bg-[#111216]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <nav aria-label={t("mobile:account.primaryNavAriaLabel")} className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-border/[0.06] bg-overlay px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_var(--shadow)] backdrop-blur-xl">
             <div className="grid grid-cols-5 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -1232,7 +1232,7 @@ function MobileApp() {
                   <button
                     key={tab.id}
                     className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold transition active:scale-95 ${
-                      active ? "bg-emerald-500/10 text-emerald-400" : "text-zinc-400"
+                      active ? "bg-primary-muted text-primary" : "text-foreground-muted"
                     }`}
                     aria-current={active ? "page" : undefined}
                     onClick={() => {

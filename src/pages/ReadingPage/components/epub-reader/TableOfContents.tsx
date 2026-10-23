@@ -39,16 +39,16 @@ export default function TableOfContents({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-y-0 right-0 z-40 flex w-72 flex-col border-l border-zinc-800 bg-zinc-950 shadow-xl lg:w-80">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-        <div className="flex items-center gap-2 text-zinc-100">
+    <div className="absolute inset-y-0 right-0 z-40 flex w-72 flex-col border-l border-border bg-background shadow-xl lg:w-80">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 text-foreground">
           <List size={18} />
           <span className="font-medium">{t("epub:toc.title")}</span>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-sm p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="rounded-sm p-1.5 text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
           title={t("epub:toc.closeTitle")}
         >
           <X size={18} />
@@ -57,7 +57,7 @@ export default function TableOfContents({
 
       <div className="flex-1 overflow-y-auto overscroll-contain py-2">
         {flattened.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-zinc-500">
+          <div className="px-4 py-8 text-center text-sm text-foreground-subtle">
             {t("epub:toc.empty")}
           </div>
         ) : (
@@ -72,10 +72,10 @@ export default function TableOfContents({
                   <button
                     type="button"
                     onClick={() => onSelectChapter(item.href)}
-                    className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
+                    className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-surface-muted ${
                       isActive
-                        ? "bg-zinc-800/50 text-amber-200"
-                        : "text-zinc-300"
+                        ? "bg-surface-muted/50 text-warning"
+                        : "text-foreground"
                     }`}
                     style={{ paddingLeft: `${level * 16 + 16}px` }}
                     title={decodeHtmlEntities(item.label)}

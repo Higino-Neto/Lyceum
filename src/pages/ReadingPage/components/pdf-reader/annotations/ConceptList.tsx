@@ -71,8 +71,8 @@ function ConceptRow({
       className={[
         "grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm border px-2 py-2 transition",
         selected
-          ? "border-zinc-500 bg-zinc-800"
-          : "border-zinc-800 bg-zinc-900/70 hover:border-zinc-700",
+          ? "border-border-strong bg-surface-muted"
+          : "border-border bg-surface/70 hover:border-border-strong",
       ].join(" ")}
     >
       <button
@@ -80,16 +80,16 @@ function ConceptRow({
         onClick={onSelect}
         className="grid min-w-0 grid-cols-[14px_1fr] items-center gap-2 text-left"
       >
-        <span className={`h-2.5 w-2.5 rounded-full ${concept.highlightJson ? "bg-zinc-300" : "bg-zinc-600"}`} aria-hidden="true" />
+        <span className={`h-2.5 w-2.5 rounded-full ${concept.highlightJson ? "bg-foreground-muted" : "bg-border-strong"}`} aria-hidden="true" />
         <span className="min-w-0">
-          <span className="block truncate text-xs font-semibold text-zinc-100">{concept.title}</span>
-          <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
+          <span className="block truncate text-xs font-semibold text-foreground">{concept.title}</span>
+          <span className="mt-0.5 block truncate text-[11px] text-foreground-subtle">
             {t("pdf:annotations.list.pageLabel", { page: concept.page })} ·{" "}
             {formatRelativeUpdatedAt(concept.updatedAt)}
           </span>
         </span>
       </button>
-      <div className="flex items-center gap-1 text-zinc-500">
+      <div className="flex items-center gap-1 text-foreground-subtle">
         {relationCount > 0 && (
           <span
             className="text-[11px]"
@@ -101,7 +101,7 @@ function ConceptRow({
         <button
           type="button"
           onClick={onGoToPage}
-          className="inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-sm text-[11px] hover:bg-zinc-800 hover:text-zinc-100"
+          className="inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-sm text-[11px] hover:bg-surface-muted hover:text-foreground"
           title={t("pdf:annotations.list.goToPageTitle")}
           aria-label={t("pdf:annotations.list.goToPageAriaLabel", { page: concept.page })}
         >
@@ -144,19 +144,19 @@ export default function ConceptList({
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
+      <div className="flex items-center justify-between text-xs font-semibold text-foreground">
         <span>{t("pdf:annotations.list.allConcepts")}</span>
-        <span className="text-[11px] font-normal text-zinc-500">{concepts.length}</span>
+        <span className="text-[11px] font-normal text-foreground-subtle">{concepts.length}</span>
       </div>
 
       <div className="flex gap-2">
         <label className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle" size={14} />
           <input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={t("pdf:annotations.list.searchPlaceholder")}
-            className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 pl-8 pr-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+            className="h-9 w-full rounded-sm border border-border bg-background pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-input-placeholder focus:border-primary"
             aria-label={t("pdf:annotations.list.searchAriaLabel")}
           />
         </label>
@@ -164,10 +164,10 @@ export default function ConceptList({
           type="button"
           onClick={() => setFiltersOpen((value) => !value)}
           className={[
-            "flex h-9 w-9 items-center justify-center rounded-sm border text-zinc-300",
+            "flex h-9 w-9 items-center justify-center rounded-sm border text-foreground",
             filtersOpen || filterScope !== "all"
-              ? "border-zinc-500 bg-zinc-800"
-              : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
+              ? "border-border-strong bg-surface-muted"
+              : "border-border bg-surface hover:border-border-strong",
           ].join(" ")}
           title={t("pdf:annotations.list.filtersTitle")}
           aria-label={t("pdf:annotations.list.filtersAriaLabel")}
@@ -177,7 +177,7 @@ export default function ConceptList({
       </div>
 
       {filtersOpen && (
-        <div className="space-y-2 rounded-sm border border-zinc-800 bg-zinc-950/70 p-2">
+        <div className="space-y-2 rounded-sm border border-border bg-background/70 p-2">
           <div className="flex flex-wrap gap-1.5">
             {filterButtons.map((filter) => (
               <button
@@ -187,8 +187,8 @@ export default function ConceptList({
                 className={[
                   "h-7 rounded-sm border px-2 text-[11px]",
                   filterScope === filter.value
-                    ? "border-zinc-500 bg-zinc-800 text-zinc-100"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700",
+                    ? "border-border-strong bg-surface-muted text-foreground"
+                    : "border-border bg-surface text-foreground-muted hover:border-border-strong",
                 ].join(" ")}
               >
                 {t(filter.labelKey)}
@@ -204,7 +204,7 @@ export default function ConceptList({
                   onSelectedChapterChange(value);
                   onFilterScopeChange(value === "all" ? "all" : "chapter");
                 }}
-                className="h-8 min-w-0 rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-[11px] text-zinc-200 outline-none focus:border-emerald-500"
+                className="h-8 min-w-0 rounded-sm border border-border bg-background px-2 text-[11px] text-foreground outline-none focus:border-primary"
                 aria-label={t("pdf:annotations.list.chapterFilterAriaLabel")}
               >
                 <option value="all">{t("pdf:annotations.list.allChapters")}</option>
@@ -223,7 +223,7 @@ export default function ConceptList({
                   }
                 }}
                 disabled={!currentChapter}
-                className="h-8 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-[11px] text-zinc-300 hover:border-zinc-700 disabled:opacity-40"
+                className="h-8 rounded-sm border border-border bg-surface px-2 text-[11px] text-foreground hover:border-border-strong disabled:opacity-40"
               >
                 {t("pdf:annotations.list.currentChapter")}
               </button>
@@ -232,9 +232,9 @@ export default function ConceptList({
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-xs text-zinc-500">
+      <label className="flex items-center gap-2 text-xs text-foreground-subtle">
         {t("pdf:annotations.list.sortBy")}
-        <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as SortMode)} className="ml-auto h-8 rounded-md border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300">
+        <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as SortMode)} className="ml-auto h-8 rounded-md border border-border bg-surface px-2 text-xs text-foreground">
           {sortTabs.map((tab) => (
             <option key={tab.value} value={tab.value}>{t(tab.labelKey)}</option>
           ))}
@@ -242,7 +242,7 @@ export default function ConceptList({
       </label>
 
       {loading ? (
-        <div className="py-8 text-center text-xs text-zinc-500">
+        <div className="py-8 text-center text-xs text-foreground-subtle">
           {t("pdf:annotations.list.loading")}
         </div>
       ) : concepts.length === 0 ? (
@@ -263,7 +263,7 @@ export default function ConceptList({
       )}
 
       {concepts.length > CONCEPT_LIST_PAGE_SIZE && (
-        <div className="flex items-center justify-between rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-[11px] text-zinc-500">
+        <div className="flex items-center justify-between rounded-sm border border-border bg-surface/60 px-2 py-1.5 text-[11px] text-foreground-subtle">
           <button
             type="button"
             onClick={() => setPage((value) => Math.max(1, value - 1))}

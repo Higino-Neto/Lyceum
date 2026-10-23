@@ -6,6 +6,7 @@ This documentation explains Lyceum from end to end: product behavior, architectu
 
 - [Architecture](architecture.md)
 - [Library and Reader](library-reader.md)
+- [Semantic Design Tokens](design-tokens.md)
 - [PDF Reader Architecture](pdf-reader-architecture.md)
 - [Data and Sync](data-and-sync.md)
 - [Development Guide](development.md)

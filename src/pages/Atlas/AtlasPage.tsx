@@ -307,21 +307,21 @@ export default function AtlasPage() {
 
   if (!apiAvailable) {
     return (
-      <div className="flex h-full items-center justify-center bg-zinc-950 p-6 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center bg-background p-6 text-sm text-foreground-subtle">
         {t("atlas:desktopOnly")}
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-zinc-950 p-4 text-zinc-100">
+    <div className="flex h-full min-h-0 flex-col bg-background p-4 text-foreground">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900">
-            <BookMarked size={20} className="text-green-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-border bg-surface">
+            <BookMarked size={20} className="text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-zinc-100">Atlas</h1>
+            <h1 className="text-lg font-semibold text-foreground">Atlas</h1>
           </div>
         </div>
       </header>

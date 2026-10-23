@@ -32,7 +32,7 @@ export default function LibraryReadingPreviewPane({
   return (
     <motion.aside
       data-library-preview
-      className={`lyceum-library-reading-preview h-full overflow-hidden border-l border-zinc-800 bg-zinc-950 ${
+      className={`lyceum-library-reading-preview h-full overflow-hidden border-l border-border bg-background ${
         drawer ? "fixed bottom-0 right-0 top-0 z-50 shadow-2xl" : "relative flex-shrink-0"
       }`}
       style={{
@@ -51,24 +51,24 @@ export default function LibraryReadingPreviewPane({
       <button
         type="button"
         onPointerDown={onResizeStart}
-        className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
+        className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-primary-hover ${
           drawer ? "hidden" : ""
         }`}
         title={t("library:preview.resize")}
       />
 
       <div className="flex h-full min-w-0 flex-col">
-        <header className="flex h-11 flex-shrink-0 items-center justify-between border-b border-zinc-800 px-3">
+        <header className="flex h-11 flex-shrink-0 items-center justify-between border-b border-border px-3">
           <div className="flex min-w-0 items-center gap-2">
-            <BookOpen size={16} className="flex-shrink-0 text-green-400" />
-            <span className="truncate text-sm font-medium text-zinc-200">
+            <BookOpen size={16} className="flex-shrink-0 text-primary" />
+            <span className="truncate text-sm font-medium text-foreground">
               {t("library:preview.title")}
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm text-foreground-subtle transition-colors hover:bg-surface-muted hover:text-foreground"
             title={t("library:preview.close")}
             aria-label={t("library:preview.close")}
           >

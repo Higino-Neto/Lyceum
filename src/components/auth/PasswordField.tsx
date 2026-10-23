@@ -45,7 +45,7 @@ export function PasswordField({
         />
         <button
           type="button"
-          className="absolute right-1 top-1 inline-flex h-9 w-9 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="absolute right-1 top-1 inline-flex h-9 w-9 items-center justify-center rounded text-foreground-subtle transition hover:bg-surface-muted hover:text-foreground"
           onClick={() => setIsVisible((current) => !current)}
           aria-label={toggleLabel}
           title={toggleLabel}

@@ -1420,11 +1420,11 @@ const persistReadingLocation = useCallback(
           height: 100%;
           overflow-y: ${isPaginated ? "hidden" : "auto"};
           overflow-x: hidden;
-          background-color: var(--ui-zinc-900);
+          background-color: var(--surface);
           overscroll-behavior: contain;
           overflow-anchor: none !important;
           scrollbar-width: thin;
-          scrollbar-color: var(--ui-zinc-700) transparent;
+          scrollbar-color: var(--border-strong) transparent;
         }
         
         .epub-container::-webkit-scrollbar {
@@ -1436,7 +1436,7 @@ const persistReadingLocation = useCallback(
         }
         
         .epub-container::-webkit-scrollbar-thumb {
-          background-color: var(--ui-zinc-700);
+          background-color: var(--border-strong);
           border-radius: 3px;
         }
 
@@ -1464,7 +1464,7 @@ const persistReadingLocation = useCallback(
         <>
           <button
             type="button"
-            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
+            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-border-strong bg-background/80 p-2 text-foreground opacity-75 transition hover:opacity-100"
             onClick={goToPreviousPage}
             title={t("epub:navigation.previousPage")}
           >
@@ -1473,7 +1473,7 @@ const persistReadingLocation = useCallback(
 
           <button
             type="button"
-            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-zinc-700 bg-zinc-950/80 p-2 text-zinc-300 opacity-75 transition hover:opacity-100"
+            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-sm border border-border-strong bg-background/80 p-2 text-foreground opacity-75 transition hover:opacity-100"
             onClick={goToNextPage}
             title={t("epub:navigation.nextPage")}
           >

@@ -51,14 +51,14 @@ export function LibraryPickerDialog({ open, books, onClose, onSelect }: LibraryP
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="flex h-[84vh] w-full max-w-6xl flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
+      <div className="flex h-[84vh] w-full max-w-6xl flex-col overflow-hidden rounded-sm border border-border bg-background shadow-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">
+            <h2 className="text-sm font-semibold text-foreground">
               {t("atlas:libraryPicker.title")}
             </h2>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-foreground-subtle">
               {t("atlas:libraryPicker.count", {
                 count: filtered.length,
                 total: books.length,
@@ -68,7 +68,7 @@ export function LibraryPickerDialog({ open, books, onClose, onSelect }: LibraryP
           <button
             type="button"
             onClick={onClose}
-            className="h-8 cursor-pointer rounded-sm border border-zinc-800 px-3 text-xs text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+            className="h-8 cursor-pointer rounded-sm border border-border px-3 text-xs text-foreground-muted hover:bg-surface hover:text-foreground"
           >
             {t("atlas:libraryPicker.close")}
           </button>
@@ -84,7 +84,7 @@ export function LibraryPickerDialog({ open, books, onClose, onSelect }: LibraryP
           />
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {filtered.length === 0 ? (
-              <div className="flex min-h-72 items-center justify-center rounded-sm border border-dashed border-zinc-800 text-sm text-zinc-500">
+              <div className="flex min-h-72 items-center justify-center rounded-sm border border-dashed border-border text-sm text-foreground-subtle">
                 {t("atlas:libraryPicker.empty")}
               </div>
             ) : (
@@ -133,16 +133,16 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
       <form
-        className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+        className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit({ title, author, status });
         }}
       >
-        <div className="border-b border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold text-zinc-100">
+        <div className="border-b border-border p-4">
+          <h2 className="text-sm font-semibold text-foreground">
             {t("atlas:manualDialog.title")}
           </h2>
         </div>
@@ -151,19 +151,19 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder={t("atlas:manualDialog.titlePlaceholder")}
-            className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+            className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
             autoFocus
           />
           <input
             value={author}
             onChange={(event) => setAuthor(event.target.value)}
             placeholder={t("atlas:manualDialog.authorPlaceholder")}
-            className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+            className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
           />
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as ReadingStatus)}
-            className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+            className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
           >
             {READING_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -172,11 +172,11 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
             ))}
           </select>
         </div>
-        <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
-          <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100">
+        <div className="flex justify-end gap-2 border-t border-border p-4">
+          <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground">
             Cancelar
           </button>
-          <button type="submit" className="h-9 cursor-pointer rounded-sm bg-green-500 px-3 text-sm font-medium text-zinc-950 hover:bg-green-400">
+          <button type="submit" className="h-9 cursor-pointer rounded-sm bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
             {t("atlas:manualDialog.submit")}
           </button>
         </div>

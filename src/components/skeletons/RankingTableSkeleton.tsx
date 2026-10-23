@@ -3,18 +3,18 @@ import Skeleton from "../Skeleton";
 export function RankingTableSkeleton() {
   return (
     <div className="overflow-hidden rounded-sm md:row-span-2">
-      <div className="flex border-b border-zinc-800">
+      <div className="flex border-b border-border">
         {["D", "S", "M", "G"].map((d) => (
-          <div key={d} className="flex-1 py-2.5 flex items-center justify-center text-xs font-medium text-zinc-400">
+          <div key={d} className="flex-1 py-2.5 flex items-center justify-center text-xs font-medium text-foreground-muted">
             {d}
           </div>
         ))}
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider" />
+        <thead className="bg-surface-muted text-foreground-muted uppercase text-xs tracking-wider" />
         <tbody>
           {Array.from({ length: 4 }).map((_, i) => (
-            <tr key={i} className="border-t border-zinc-800">
+            <tr key={i} className="border-t border-border">
               <td className="px-4 py-3">
                 <Skeleton className="h-4 w-6" />
               </td>

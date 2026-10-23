@@ -7,13 +7,13 @@ export function PasswordRequirements({ password }: { password: string }) {
   const requirements = getPasswordRequirements(password);
 
   return (
-    <ul className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+    <ul className="grid gap-2 text-xs text-foreground-subtle sm:grid-cols-2">
       {requirements.map((requirement) => {
         const Icon = requirement.met ? Check : X;
         return (
           <li
             key={requirement.id}
-            className={requirement.met ? "flex items-center gap-2 text-green-400" : "flex items-center gap-2"}
+            className={requirement.met ? "flex items-center gap-2 text-success" : "flex items-center gap-2"}
           >
             <Icon size={14} />
             <span>{t(requirement.labelKey, requirement.values)}</span>

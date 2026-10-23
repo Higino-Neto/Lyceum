@@ -8,12 +8,12 @@ export function LocalCover({ book }: { book: BookWithThumbnail }) {
   return (
     <div
       ref={thumbnailRef}
-      className="flex aspect-[2/3] w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
+      className="flex aspect-[2/3] w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border bg-background"
     >
       {thumbnail ? (
         <img src={thumbnail} alt={book.title} className="h-full w-full object-contain" />
       ) : (
-        <FileText size={18} className="text-zinc-600" />
+        <FileText size={18} className="text-foreground-subtle" />
       )}
     </div>
   );

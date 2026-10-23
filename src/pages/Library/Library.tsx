@@ -119,22 +119,22 @@ function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className="lyceum-library-recent-book lyceum-interactive-row flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/60 px-2 py-1.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+      className="lyceum-library-recent-book lyceum-interactive-row flex min-w-[210px] max-w-[260px] cursor-pointer items-center gap-2 rounded-sm border border-border bg-surface/60 px-2 py-1.5 text-left transition-colors hover:border-border-strong hover:bg-surface"
     >
-      <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
+      <div className="flex h-9 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border bg-background">
         {thumbnail ? (
           <img src={thumbnail} alt={book.title} className="h-full w-full object-contain" />
         ) : (
-          <span className="text-[9px] font-medium text-zinc-600">
+          <span className="text-[9px] font-medium text-foreground-subtle">
             {getFileTypeLabel(book.fileType, book.filePath)}
           </span>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-zinc-200">
+        <p className="truncate text-xs font-medium text-foreground">
           {getTitleWithoutExtension(book.title, book.fileType)}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+        <p className="mt-0.5 truncate text-[11px] text-foreground-subtle">
           {getBookFolderLabel(book.filePath)}
         </p>
       </div>
@@ -1396,7 +1396,7 @@ function LibraryContent() {
   const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
     <section className="mb-4">
       <div className="mb-1.5 flex items-center justify-between">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
           {t("library:page.continueReading")}
         </h2>
       </div>
@@ -1413,7 +1413,7 @@ function LibraryContent() {
   ) : null;
 
   const folderExplorerSection = activeSection !== "usb" ? (
-    <section className={unifiedLibraryView ? "mb-4" : "mb-5 border-b border-zinc-800 pb-4"}>
+    <section className={unifiedLibraryView ? "mb-4" : "mb-5 border-b border-border pb-4"}>
       <FolderPathBar
         folders={folderStructure}
         selectedFolder={selectedFolder}
@@ -1446,7 +1446,7 @@ function LibraryContent() {
     <>
       {folderExplorerSection}
       {recentBooksSection && (
-        <div className="mb-4 border-b border-zinc-800 pb-4">
+        <div className="mb-4 border-b border-border pb-4">
           {recentBooksSection}
         </div>
       )}
@@ -1660,12 +1660,12 @@ function LibraryContent() {
 
   if (!electronApiAvailable) {
     return (
-      <div className="lyceum-page-library flex h-full min-h-0 items-center justify-center bg-zinc-950 p-6 text-zinc-100">
-        <div className="max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-5 text-sm text-zinc-300">
-          <h1 className="mb-2 text-base font-semibold text-zinc-100">
+      <div className="lyceum-page-library flex h-full min-h-0 items-center justify-center bg-background p-6 text-foreground">
+        <div className="max-w-md rounded-sm border border-border bg-surface p-5 text-sm text-foreground">
+          <h1 className="mb-2 text-base font-semibold text-foreground">
             {t("library:page.electronUnavailable")}
           </h1>
-          <p className="text-zinc-400">
+          <p className="text-foreground-muted">
             {t("library:page.electronUnavailableHint")}
           </p>
         </div>
@@ -1674,13 +1674,13 @@ function LibraryContent() {
   }
 
   return (
-    <div className="lyceum-page-library relative flex h-full min-h-0 overflow-hidden bg-zinc-950 p-1 text-zinc-100 xs:p-2">
+    <div className="lyceum-page-library relative flex h-full min-h-0 overflow-hidden bg-background p-1 text-foreground xs:p-2">
       {showSidebar && (
         <aside
-          className={`lyceum-library-sidebar h-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/95 ${
+          className={`lyceum-library-sidebar h-full overflow-hidden rounded-sm border border-border bg-overlay ${
             sidebarIsDrawer
               ? "fixed bottom-2 left-2 top-2 z-50 shadow-2xl"
-              : "relative flex-shrink-0 bg-zinc-900/50"
+              : "relative flex-shrink-0 bg-surface/50"
           }`}
           style={{ width: sidebarIsDrawer ? "min(88vw, 320px)" : sidebarWidth }}
         >
@@ -1709,7 +1709,7 @@ function LibraryContent() {
           <button
             type="button"
             onPointerDown={(event) => startPaneResize("sidebar", event)}
-            className={`absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
+            className={`absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-primary-hover ${
               sidebarIsDrawer ? "hidden" : ""
             }`}
             title={t("library:page.resizeFoldersPanel")}
@@ -1720,7 +1720,7 @@ function LibraryContent() {
       {showSidebar && sidebarIsDrawer && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/55"
+          className="fixed inset-0 z-40 bg-backdrop"
           onClick={() => setShowSidebar(false)}
           aria-label={t("library:page.closeFoldersPanel")}
         />
@@ -1728,19 +1728,19 @@ function LibraryContent() {
 
       <div
         data-library-shell
-        className={`lyceum-library-shell flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 ${
+        className={`lyceum-library-shell flex h-full min-w-0 flex-1 overflow-hidden rounded-sm border border-border bg-background ${
           showSidebar && !sidebarIsDrawer ? "ml-2" : ""
         }`}
       >
         <div className="flex h-full min-w-0 flex-1 flex-col">
-          <header className="flex flex-shrink-0 flex-col gap-3 border-b border-zinc-800 px-2 py-3 sm:px-4 xl:flex-row xl:items-center xl:justify-between">
+          <header className="flex flex-shrink-0 flex-col gap-3 border-b border-border px-2 py-3 sm:px-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-              <BookOpen size={20} className="text-zinc-400" />
+              <BookOpen size={20} className="text-foreground-muted" />
               <h1 className="text-base font-semibold tracking-tight">
                 {t("library:page.title")}
               </h1>
-              <span className="hidden text-zinc-700 sm:inline">|</span>
-              <span className="text-xs text-zinc-500 sm:whitespace-nowrap">
+              <span className="hidden text-foreground sm:inline">|</span>
+              <span className="text-xs text-foreground-subtle sm:whitespace-nowrap">
                 {t("library:page.volumes", {
                   count: counts.synced + counts.unsynced + counts.usb,
                 })}
@@ -1764,7 +1764,7 @@ function LibraryContent() {
             <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
+                className="cursor-pointer rounded-sm bg-surface-muted p-2 text-foreground-muted transition-colors hover:bg-border-strong"
                 title={
                   showSidebar
                     ? t("library:page.hideFoldersPanel")
@@ -1784,7 +1784,7 @@ function LibraryContent() {
                     ? (window.api as unknown as UsbLibraryApi).scanUsbBooks?.()
                     : window.api.openLibraryFolder()
                 }
-                className="cursor-pointer rounded-sm bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700"
+                className="cursor-pointer rounded-sm bg-surface-muted p-2 text-foreground-muted transition-colors hover:bg-border-strong"
                 title={
                   activeSection === "usb"
                     ? t("library:page.scanUsb")
@@ -1802,7 +1802,7 @@ function LibraryContent() {
                 <button
                   type="button"
                   onClick={() => openDissolveFolderDialog(currentFolder)}
-                  className="flex h-8 items-center gap-1.5 rounded-sm border border-red-500/30 bg-red-500/10 px-2.5 text-xs text-red-300 hover:bg-red-500/20"
+                  className="flex h-8 items-center gap-1.5 rounded-sm border border-destructive/30 bg-destructive-muted px-2.5 text-xs text-destructive hover:bg-destructive-muted"
                   title={
                     currentFolderType === "collection"
                       ? t("library:page.removeCollectionKeepingBooks")
@@ -1816,13 +1816,13 @@ function LibraryContent() {
                 </button>
               )}
 
-              <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
+              <div className="flex items-center rounded-sm border border-border bg-surface p-0.5">
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "grid"
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
+                      ? "bg-border-strong text-foreground"
+                      : "text-foreground-subtle hover:text-foreground"
                   }`}
                   title={t("library:page.viewGrid")}
                 >
@@ -1832,8 +1832,8 @@ function LibraryContent() {
                   onClick={() => setViewMode("list")}
                   className={`cursor-pointer rounded-sm p-1.5 ${
                     viewMode === "list"
-                      ? "bg-zinc-700 text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
+                      ? "bg-border-strong text-foreground"
+                      : "text-foreground-subtle hover:text-foreground"
                   }`}
                   title={t("library:page.viewList")}
                 >
@@ -1842,7 +1842,7 @@ function LibraryContent() {
               </div>
 
               {!compactHeader && (
-              <div className="flex items-center rounded-sm border border-zinc-800 bg-zinc-900 p-0.5">
+              <div className="flex items-center rounded-sm border border-border bg-surface p-0.5">
                 {(
                   [
                     ["compact", "P"],
@@ -1855,8 +1855,8 @@ function LibraryContent() {
                     onClick={() => setGridDensity(density)}
                     className={`h-7 w-7 cursor-pointer rounded-sm text-xs transition-colors ${
                       gridDensity === density
-                        ? "bg-zinc-700 text-white"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "bg-border-strong text-foreground"
+                        : "text-foreground-subtle hover:text-foreground"
                     }`}
                     title={t("library:page.densitySize", { label })}
                   >
@@ -1870,7 +1870,7 @@ function LibraryContent() {
                 type="button"
                 onClick={runRegenerateAllThumbnails}
                 disabled={regeneratingAllThumbnails}
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-border bg-surface text-foreground-muted hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 title={t("library:page.regenerateAllThumbnails")}
                 aria-label={t("library:page.regenerateAllThumbnails")}
               >
@@ -1880,7 +1880,7 @@ function LibraryContent() {
           </header>
 
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
-            <div className="flex-shrink-0 border-zinc-900">
+            <div className="flex-shrink-0 border-border">
               <FilterBar
                 search={search}
                 onSearchChange={setSearch}
@@ -1892,15 +1892,15 @@ function LibraryContent() {
             </div>
 
             {selectedHashes.size > 0 && (
-              <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900/95 p-2.5 shadow-xl">
-                <div className="flex items-center gap-2 text-sm text-zinc-200">
-                  <CheckSquare size={16} className="text-green-400" />
+              <div className="lyceum-selection-toolbar sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-border bg-overlay p-2.5 shadow-xl">
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <CheckSquare size={16} className="text-primary" />
                   {t("library:page.selectedItems", { count: selectedHashes.size })}
                 </div>
 
                 {activeSection !== "usb" && (
-                  <div className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-0.5">
-                    <span className="whitespace-nowrap text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 rounded-sm border border-border bg-surface px-2 py-0.5">
+                    <span className="whitespace-nowrap text-xs text-foreground-subtle">
                       {t("library:sections.readingStatus")}
                     </span>
                     <Select
@@ -1918,7 +1918,7 @@ function LibraryContent() {
 
                 <button
                   onClick={selectAllFiltered}
-                  className="flex items-center gap-2 cursor-pointer rounded-sm border border-zinc-800 bg-zinc-800 px-3 py-2 text-xs text-zinc-200"
+                  className="flex items-center gap-2 cursor-pointer rounded-sm border border-border bg-surface-muted px-3 py-2 text-xs text-foreground"
                 >
                   <LayoutGrid size={14} />
                   {t("library:page.selectAll")}
@@ -1926,7 +1926,7 @@ function LibraryContent() {
                 <button
                   onClick={openConversionWithSelection}
                   disabled={selectedConcreteBooks.length === 0}
-                  className="flex cursor-pointer items-center gap-2 rounded-sm bg-green-500 px-3 py-2 text-xs font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex cursor-pointer items-center gap-2 rounded-sm bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Shuffle size={14} />
                   {t("library:page.convert")}
@@ -1935,7 +1935,7 @@ function LibraryContent() {
                   <button
                     onClick={openKindlePanel}
                     disabled={selectedConcreteBooks.length === 0}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-surface-muted px-3 py-2 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Send size={14} />
                     Kindle
@@ -1945,7 +1945,7 @@ function LibraryContent() {
                   <button
                     onClick={() => setConfirmMergeBooks(true)}
                     disabled={bulkBusy || selectedConcreteBooks.length < 2}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-surface-muted px-3 py-2 text-xs text-foreground hover:bg-border-strong disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <GitMerge size={14} />
                     {t("library:page.merge")}
@@ -1955,7 +1955,7 @@ function LibraryContent() {
                   <button
                     onClick={() => setCollectionDialog({ open: true, name: "" })}
                     disabled={bulkBusy || selectedConcreteBooks.length === 0}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm  bg-zinc-800 px-3 py-2 text-xs text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm  bg-surface-muted px-3 py-2 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Layers size={14} />
                     {t("library:page.collection")}
@@ -1964,7 +1964,7 @@ function LibraryContent() {
                   <button
                     onClick={runBulkRegenerateThumbnails}
                     disabled={bulkBusy || selectedConcreteBooks.length === 0}
-                  className="flex cursor-pointer items-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  className="flex cursor-pointer items-center gap-2 rounded-sm bg-surface-muted px-3 py-2 text-xs text-foreground hover:bg-border-strong disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={bulkBusy ? "animate-spin" : ""} />
                   {t("library:page.thumbnails")}
@@ -1974,11 +1974,11 @@ function LibraryContent() {
                   disabled={bulkBusy}
                   className={`flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-xs disabled:opacity-50 ${
                     currentFolderType !== "normal"
-                      ? "border border-zinc-700 bg-zinc-800 text-zinc-100 hover:border-green-500/50 hover:bg-zinc-700"
-                      : "bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                      ? "border border-border-strong bg-surface-muted text-foreground hover:border-primary/50 hover:bg-border-strong"
+                      : "bg-destructive-muted text-destructive hover:bg-destructive-muted"
                   }`}
                 >
-                  {currentFolderType !== "normal" ? <Unlink size={14} className="text-green-400" /> : <Trash2 size={14} />}
+                  {currentFolderType !== "normal" ? <Unlink size={14} className="text-primary" /> : <Trash2 size={14} />}
                   {currentFolderType === "collection"
                     ? t("library:page.removeFromCollection")
                     : currentFolderType === "merged"
@@ -1987,7 +1987,7 @@ function LibraryContent() {
                 </button>
                 <button
                   onClick={clearSelection}
-                  className="ml-auto cursor-pointer rounded-sm p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  className="ml-auto cursor-pointer rounded-sm p-2 text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
                   title={t("library:page.exitSelection")}
                 >
                   <X size={16} />
@@ -1996,7 +1996,7 @@ function LibraryContent() {
             )}
 
             {loading ? (
-              <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
+              <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-foreground-subtle">
                 <RefreshCw size={16} className="animate-spin" />
                 {t("library:page.loading")}
               </div>
@@ -2044,7 +2044,7 @@ function LibraryContent() {
         {selectedBook && !kindlePanelOpen && rightPanelsAreDrawer && (
           <motion.button
             type="button"
-            className="fixed inset-0 z-40 bg-black/55"
+            className="fixed inset-0 z-40 bg-backdrop"
             onClick={() => setSelectedBook(null)}
             aria-label={t("library:page.closeDetails")}
             initial={reduceMotion ? false : { opacity: 0 }}
@@ -2058,7 +2058,7 @@ function LibraryContent() {
         <AnimatePresence initial={false}>
         {selectedBook && !kindlePanelOpen && (
           <motion.aside
-            className={`lyceum-library-detail h-full overflow-hidden border-l border-zinc-800 bg-zinc-900 ${
+            className={`lyceum-library-detail h-full overflow-hidden border-l border-border bg-surface ${
               rightPanelsAreDrawer
                 ? "fixed bottom-0 right-0 top-0 z-50 shadow-2xl"
                 : "relative flex-shrink-0"
@@ -2079,7 +2079,7 @@ function LibraryContent() {
             <button
               type="button"
               onPointerDown={(event) => startPaneResize("details", event)}
-              className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-green-500/70 ${
+              className={`absolute -left-1 top-0 z-20 h-full w-3 cursor-col-resize bg-transparent hover:bg-primary-hover ${
                 rightPanelsAreDrawer ? "hidden" : ""
               }`}
               title={t("library:page.resizeDetails")}
@@ -2123,7 +2123,7 @@ function LibraryContent() {
         {readingPreviewOpen && !kindlePanelOpen && rightPanelsAreDrawer && (
           <motion.button
             type="button"
-            className="fixed inset-0 z-40 bg-black/55"
+            className="fixed inset-0 z-40 bg-backdrop"
             onClick={() => {
               setReadingPreviewOpen(false);
               setReadingPreviewTab(null);
@@ -2163,23 +2163,23 @@ function LibraryContent() {
       </div>
 
       {createFolderDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
           <form
-            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl"
             onSubmit={(event) => {
               event.preventDefault();
               confirmCreateFolder();
             }}
           >
-            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
-              <FolderOpen size={18} className="text-green-400" />
-              <h2 className="text-sm font-semibold text-zinc-100">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <FolderOpen size={18} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">
                 {t("library:page.newFolder")}
               </h2>
             </div>
 
             <div className="space-y-3 p-4">
-              <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <label className="block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                 {t("library:page.folderName")}
               </label>
               <input
@@ -2191,27 +2191,27 @@ function LibraryContent() {
                     folderName: event.target.value,
                   }))
                 }
-                className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
                 autoFocus
               />
-              <p className="text-xs text-zinc-600">
+              <p className="text-xs text-foreground-subtle">
                 {t("library:page.destination", {
                   path: createFolderDialog.parentPath || t("library:page.title"),
                 })}
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+            <div className="flex justify-end gap-2 border-t border-border p-4">
               <button
                 type="button"
                 onClick={closeCreateFolderDialog}
-                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 type="submit"
-                className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
+                className="cursor-pointer rounded-sm bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 {t("library:page.create")}
               </button>
@@ -2221,23 +2221,23 @@ function LibraryContent() {
       )}
 
       {collectionDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
           <form
-            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl"
             onSubmit={(event) => {
               event.preventDefault();
               runCreateCollection();
             }}
           >
-            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
-              <Layers size={18} className="text-green-300" />
-              <h2 className="text-sm font-semibold text-zinc-100">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <Layers size={18} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">
                 {t("library:page.newCollection")}
               </h2>
             </div>
 
             <div className="space-y-3 p-4">
-              <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <label className="block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                 {t("library:page.collectionName")}
               </label>
               <input
@@ -2249,27 +2249,27 @@ function LibraryContent() {
                     name: event.target.value,
                   }))
                 }
-                className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
                 autoFocus
               />
-              <p className="text-xs text-zinc-600">
+              <p className="text-xs text-foreground-subtle">
                 {t("library:page.selectedItems", { count: selectedBooks.length })}
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+            <div className="flex justify-end gap-2 border-t border-border p-4">
               <button
                 type="button"
                 onClick={() => setCollectionDialog({ open: false, name: "" })}
                 disabled={bulkBusy}
-                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-50"
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={bulkBusy || collectionDialog.name.trim().length === 0}
-                className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-sm bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {bulkBusy ? t("library:page.creating") : t("library:page.create")}
               </button>
@@ -2279,23 +2279,23 @@ function LibraryContent() {
       )}
 
       {folderActionDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
           <form
-            className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+            className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl"
             onSubmit={(event) => {
               event.preventDefault();
               confirmFolderAction();
             }}
           >
-            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               {folderActionDialog.mode === "delete" ? (
-                <Trash2 size={18} className="text-red-400" />
+                <Trash2 size={18} className="text-destructive" />
               ) : folderActionDialog.mode === "dissolve" ? (
-                <Unlink size={18} className="text-red-300" />
+                <Unlink size={18} className="text-destructive" />
               ) : (
-                <FolderOpen size={18} className="text-green-400" />
+                <FolderOpen size={18} className="text-primary" />
               )}
-              <h2 className="text-sm font-semibold text-zinc-100">
+              <h2 className="text-sm font-semibold text-foreground">
                 {folderActionDialog.mode === "delete"
                   ? t("library:page.deleteFolder")
                   : folderActionDialog.mode === "dissolve"
@@ -2309,29 +2309,29 @@ function LibraryContent() {
             <div className="space-y-3 p-4">
               {folderActionDialog.mode === "delete" ? (
                 <>
-                  <p className="text-sm text-zinc-400">
+                  <p className="text-sm text-foreground-muted">
                     {t("library:page.deleteFolderConfirm", {
                       name: folderActionDialog.folder.name,
                     })}
                   </p>
-                  <p className="text-xs text-zinc-600">
+                  <p className="text-xs text-foreground-subtle">
                     {t("library:page.deleteFolderWarning")}
                   </p>
                 </>
               ) : folderActionDialog.mode === "dissolve" ? (
                 <>
-                  <p className="text-sm text-zinc-300">
+                  <p className="text-sm text-foreground">
                     {classifyFolder(folderActionDialog.folder.name) === "collection"
                       ? t("library:page.dissolveCollectionHint")
                       : t("library:page.dissolveMergeHint")}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-foreground-subtle">
                     {t("library:page.dissolveSafeHint")}
                   </p>
                 </>
               ) : (
                 <>
-                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  <label className="block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                     {t("library:page.folderName")}
                   </label>
                   <input
@@ -2344,18 +2344,18 @@ function LibraryContent() {
                           : current,
                       )
                     }
-                    className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                    className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
                     autoFocus
                   />
                 </>
               )}
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+            <div className="flex justify-end gap-2 border-t border-border p-4">
               <button
                 type="button"
                 onClick={closeFolderActionDialog}
-                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground"
               >
                 {t("common:actions.cancel")}
               </button>
@@ -2363,10 +2363,10 @@ function LibraryContent() {
                 type="submit"
                 className={`cursor-pointer rounded-sm px-4 py-2 text-sm font-medium ${
                   folderActionDialog.mode === "delete"
-                    ? "bg-red-500 text-white hover:bg-red-400"
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive-hover"
                     : folderActionDialog.mode === "dissolve"
-                      ? "bg-red-500 text-white hover:bg-red-400"
-                    : "bg-green-500 text-zinc-950 hover:bg-green-400"
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive-hover"
+                    : "bg-primary text-primary-foreground hover:bg-primary-hover"
                 }`}
               >
                 {folderActionDialog.mode === "delete"
@@ -2394,8 +2394,8 @@ function LibraryContent() {
       />
 
       {confirmBulkDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+          <div className="bg-surface border border-border p-6 rounded-sm max-w-md w-full mx-4">
             <h3 className="text-base font-medium mb-2">
               {currentFolderType === "collection"
                 ? t("library:page.removeFromCollection")
@@ -2403,7 +2403,7 @@ function LibraryContent() {
                   ? t("library:page.removeFromMerge")
                   : t("library:page.confirmDelete")}
             </h3>
-            <p className="text-sm text-zinc-400 mb-4">
+            <p className="text-sm text-foreground-muted mb-4">
               {currentFolderType === "collection"
                 ? t("library:page.leaveCollectionBody", {
                     count: selectedBooks.length,
@@ -2416,26 +2416,26 @@ function LibraryContent() {
                     count: selectedBooks.length,
                   })}
             </p>
-            {currentFolderType === "normal" && <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
+            {currentFolderType === "normal" && <label className="flex items-center gap-2 mb-4 text-sm text-foreground cursor-pointer">
               <input
                 type="checkbox"
                 checked={bulkDeleteFileAlso}
                 onChange={(e) => setBulkDeleteFileAlso(e.target.checked)}
-                className="w-4 h-4 accent-green-500 cursor-pointer"
+                className="w-4 h-4 accent-primary cursor-pointer"
               />
               {t("library:page.deleteFilesAlso", { count: selectedBooks.length })}
             </label>}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => { setConfirmBulkDelete(false); setBulkDeleteFileAlso(false); }}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 onClick={runBulkDelete}
                 disabled={bulkBusy || selectedConcreteBooks.length === 0}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-destructive hover:bg-destructive-hover text-destructive-foreground text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy
                   ? t("library:page.removing")
@@ -2451,32 +2451,32 @@ function LibraryContent() {
       )}
 
       {confirmMergeBooks && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+          <div className="bg-surface border border-border p-6 rounded-sm max-w-md w-full mx-4">
             <div className="mb-3 flex items-center gap-2">
-              <GitMerge size={18} className="text-green-400" />
+              <GitMerge size={18} className="text-primary" />
               <h3 className="text-base font-medium">
                 {t("library:books.mergeBooks")}
               </h3>
             </div>
-            <p className="text-sm text-zinc-400 mb-4">
+            <p className="text-sm text-foreground-muted mb-4">
               {t("library:page.mergeBooksBody")}
             </p>
-            <div className="mb-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-500">
+            <div className="mb-4 rounded-sm border border-border bg-background px-3 py-2 text-xs text-foreground-subtle">
               {t("library:page.selectedItems", { count: selectedBooks.length })}
             </div>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirmMergeBooks(false)}
                 disabled={bulkBusy}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors disabled:opacity-50"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 onClick={runMergeBooks}
                 disabled={bulkBusy || selectedConcreteBooks.length < 2}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 hover:bg-green-400 text-zinc-950 text-sm font-medium transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {bulkBusy ? t("library:page.merging") : t("library:page.merge")}
               </button>
@@ -2486,15 +2486,15 @@ function LibraryContent() {
       )}
 
       {syncDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
+          <div className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               {syncDialog.action === "move" ? (
-                <Move size={18} className="text-green-400" />
+                <Move size={18} className="text-primary" />
               ) : (
-                <Copy size={18} className="text-green-400" />
+                <Copy size={18} className="text-primary" />
               )}
-              <h2 className="text-sm font-semibold text-zinc-100">
+              <h2 className="text-sm font-semibold text-foreground">
                 {syncDialog.action === "move"
                   ? t("library:page.moveToLibrary")
                   : t("library:page.copyToLibrary")}
@@ -2502,13 +2502,13 @@ function LibraryContent() {
             </div>
 
             <div className="space-y-3 p-4">
-              <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <label className="block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                 {t("library:page.destinationFolder")}
               </label>
               <select
                 value={syncTargetFolder}
                 onChange={(event) => setSyncTargetFolder(event.target.value)}
-                className="h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none focus:border-green-500"
+                className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
               >
                 <option value="">{t("library:page.root")}</option>
                 {libraryFolders.map((folder) => (
@@ -2519,18 +2519,18 @@ function LibraryContent() {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-zinc-800 p-4">
+            <div className="flex justify-end gap-2 border-t border-border p-4">
               <button
                 type="button"
                 onClick={() => setSyncDialog(null)}
-                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                className="cursor-pointer rounded-sm px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
                 onClick={confirmSyncToLibrary}
-                className="cursor-pointer rounded-sm bg-green-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-green-400"
+                className="cursor-pointer rounded-sm bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 {syncDialog.action === "move"
                   ? t("library:page.move")

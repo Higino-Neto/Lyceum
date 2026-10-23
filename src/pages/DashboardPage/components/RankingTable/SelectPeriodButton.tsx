@@ -67,8 +67,8 @@ export default function SelectPeriodButton({
           }}
           className={`cursor-pointer flex-1 py-3 flex items-center justify-center gap-1  font-medium transition ${
             period === p.key
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
+              ? "bg-surface-muted text-foreground"
+              : "text-foreground-muted hover:text-foreground hover:bg-surface-muted/40"
           }`}
           aria-label={t(p.labelKeyAria)}
         >

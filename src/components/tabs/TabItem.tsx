@@ -41,7 +41,7 @@ function TabVisual({
   const { t } = useTranslation();
 
   const Icon = tab.fileType === "pdf" ? FileText : BookOpen;
-  const iconColor = tab.fileType === "pdf" ? "text-red-400" : "text-blue-400";
+  const iconColor = tab.fileType === "pdf" ? "text-destructive" : "text-info";
 
   const handleClose = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -61,17 +61,17 @@ function TabVisual({
       {...dragAttributes}
       {...dragListeners}
       className={[
-        "group relative flex h-full w-full min-w-0 max-w-[240px] items-center gap-2 overflow-hidden border-r border-zinc-700 px-3 text-left transition-colors duration-150",
+        "group relative flex h-full w-full min-w-0 max-w-[240px] items-center gap-2 overflow-hidden border-r border-border-strong px-3 text-left transition-colors duration-150",
         isActive
-          ? "bg-zinc-800 text-zinc-100"
-          : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
+          ? "bg-surface-muted text-foreground"
+          : "bg-surface text-foreground-muted hover:bg-surface-muted hover:text-foreground",
         isDragging ? "cursor-grabbing opacity-50" : "cursor-grab",
       ].join(" ")}
     >
       {isActive && onActivate && (
         <motion.span
           layoutId="reading-active-tab-line"
-          className="absolute left-0 right-0 top-0 h-0.5 bg-green-500"
+          className="absolute left-0 right-0 top-0 h-0.5 bg-primary"
           transition={springFast}
         />
       )}
@@ -90,7 +90,7 @@ function TabVisual({
             role="button"
             tabIndex={-1}
             onClick={handleDetach}
-            className="cursor-default rounded p-0.5 hover:bg-zinc-700"
+            className="cursor-default rounded p-0.5 hover:bg-surface"
             title={t("tabs:ariaLabels.detach")}
           >
             <ExternalLink size={12} />
@@ -103,7 +103,7 @@ function TabVisual({
           role="button"
           tabIndex={-1}
           onClick={handleClose}
-          className="cursor-default rounded p-0.5 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100"
+          className="cursor-default rounded p-0.5 opacity-0 transition-opacity hover:bg-surface group-hover:opacity-100"
           title={t("tabs:ariaLabels.close")}
         >
           <X size={14} />

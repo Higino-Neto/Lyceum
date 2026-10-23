@@ -28,13 +28,13 @@ export default function FolderContextMenu({
   const folderType = classifyFolder(folder.name);
   return (
     <div
-      className="fixed z-50 min-w-[140px] rounded-sm border border-zinc-700 bg-zinc-800 py-1 shadow-lg"
+      className="fixed z-50 min-w-[140px] rounded-sm border border-border-strong bg-surface-muted py-1 shadow-lg"
       style={{ left: x, top: y }}
       onClick={(event) => event.stopPropagation()}
     >
       <button
         onClick={() => onCreateFolder(folder)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-border-strong"
       >
         <FolderPlus size={14} />
         {t("library:folders.newFolder")}
@@ -42,7 +42,7 @@ export default function FolderContextMenu({
       {onImportBook && (
         <button
           onClick={() => onImportBook(folder)}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-border-strong"
         >
           <FilePlus size={14} />
           {t("library:folders.addBook")}
@@ -50,16 +50,16 @@ export default function FolderContextMenu({
       )}
       <button
         onClick={() => onRenameFolder(folder)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-700"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-border-strong"
       >
         <Pencil size={14} />
         {t("library:folders.rename")}
       </button>
-      <div className="my-1 border-t border-zinc-700" />
+      <div className="my-1 border-t border-border-strong" />
       {folderType !== "normal" && onDissolveFolder && (
         <button
           onClick={() => onDissolveFolder(folder)}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-400 hover:bg-red-500/10"
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive-muted"
         >
           <Unlink size={14} />
           {folderType === "collection"
@@ -69,7 +69,7 @@ export default function FolderContextMenu({
       )}
       <button
         onClick={() => onDeleteFolder(folder)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-destructive hover:bg-border-strong"
       >
         <Trash2 size={14} />
         {t("library:folders.delete")}

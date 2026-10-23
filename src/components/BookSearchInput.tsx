@@ -98,7 +98,7 @@ export function BookSearchInput({
         ) : (
           <Search
             size={16}
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500"
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-foreground-subtle"
           />
         )}
         <input
@@ -111,7 +111,7 @@ export function BookSearchInput({
               ? ""
               : t("reading:bookSearch.placeholder")
           }
-          className={`w-full rounded bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm ${
+          className={`w-full rounded bg-transparent border-0 focus:ring-0 text-foreground placeholder:text-input-placeholder px-2 py-2 text-sm ${
             selectedBook ? "pl-12" : "pl-8"
           }`}
         />
@@ -119,7 +119,7 @@ export function BookSearchInput({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground-muted"
           >
             <X size={14} />
           </button>
@@ -127,9 +127,9 @@ export function BookSearchInput({
       </div>
 
       {showResults && (results.length > 0 || loading) && !selectedBook && (
-        <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl max-h-72 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-surface-muted border border-border-strong rounded-sm shadow-xl max-h-72 overflow-y-auto">
           {loading ? (
-            <div className="p-3 text-zinc-400 text-sm">
+            <div className="p-3 text-foreground-muted text-sm">
                 {t("reading:bookSearch.searching")}
               </div>
           ) : (
@@ -138,7 +138,7 @@ export function BookSearchInput({
                 key={book.id}
                 type="button"
                 onClick={() => handleSelect(book)}
-                className="w-full flex items-center gap-3 p-2 hover:bg-zinc-700 transition text-left"
+                className="w-full flex items-center gap-3 p-2 hover:bg-surface transition text-left"
               >
                 {book.thumbnail_url ? (
                   <img
@@ -147,16 +147,16 @@ export function BookSearchInput({
                     className="w-8 h-12 object-cover rounded shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-12 bg-zinc-700 rounded flex items-center justify-center shrink-0">
-                    <BookOpen size={14} className="text-zinc-500" />
+                  <div className="w-8 h-12 bg-surface rounded flex items-center justify-center shrink-0">
+                    <BookOpen size={14} className="text-foreground-subtle" />
                   </div>
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm text-zinc-100 truncate">
+                  <div className="text-sm text-foreground truncate">
                     {book.title}
                   </div>
                   {book.author && (
-                    <div className="text-xs text-zinc-400 truncate">
+                    <div className="text-xs text-foreground-muted truncate">
                       {book.author}
                     </div>
                   )}
@@ -172,14 +172,14 @@ export function BookSearchInput({
         results.length === 0 &&
         value.length >= 2 &&
         !selectedBook && (
-          <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-sm shadow-xl p-3">
+          <div className="absolute z-50 w-full mt-1 bg-surface-muted border border-border-strong rounded-sm shadow-xl p-3">
             {error ? (
-              <div className="flex items-center gap-2 text-zinc-400 text-sm">
+              <div className="flex items-center gap-2 text-foreground-muted text-sm">
                 <AlertCircle size={14} />
                 <span>{t("reading:bookSearch.apiUnavailable")}</span>
               </div>
             ) : (
-              <div className="text-sm text-zinc-400">
+              <div className="text-sm text-foreground-muted">
                 {t("reading:bookSearch.empty")}
               </div>
             )}

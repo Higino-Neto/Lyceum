@@ -98,11 +98,11 @@ function BookListItem({
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      className={`lyceum-interactive-row grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-900 transition-shadow ${
+      className={`lyceum-interactive-row grid min-h-12 cursor-pointer items-center rounded-sm border bg-surface transition-shadow ${
         isSelected
-          ? "border-zinc-500 ring-1 ring-zinc-500"
-          : "border-zinc-800 hover:border-zinc-700"
-      } ${isChecked ? "border-green-500 bg-green-950/20" : ""}`}
+          ? "border-border-strong ring-1 ring-border-strong"
+          : "border-border hover:border-border-strong"
+      } ${isChecked ? "border-primary bg-primary-muted" : ""}`}
       style={{ gridTemplateColumns }}
       draggable={!selectionMode || isChecked}
       onDragStartCapture={(e) => {
@@ -133,20 +133,20 @@ function BookListItem({
         <div
           className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm border ${
             isChecked
-              ? "border-green-500 bg-green-500 text-zinc-950"
+              ? "border-primary bg-primary text-primary-foreground"
               : selectionMode
-                ? "border-zinc-600 bg-zinc-950 text-transparent"
+                ? "border-border-strong bg-background text-transparent"
                 : "border-transparent text-transparent"
           }`}
         >
           <Check size={13} />
         </div>
         {isCollection ? (
-          <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800 flex items-center justify-center">
-            <Folder size={16} className="text-emerald-400" />
+          <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted flex items-center justify-center">
+            <Folder size={16} className="text-primary" />
           </div>
         ) : (
-          <div ref={thumbnailRef} className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-800">
+          <div ref={thumbnailRef} className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted">
             {thumbnail ? (
               <img
                 src={thumbnail}
@@ -155,18 +155,18 @@ function BookListItem({
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <FileText size={14} className="text-zinc-600" />
+                <FileText size={14} className="text-foreground-subtle" />
               </div>
             )}
           </div>
         )}
         <div className="min-w-0">
-          <p className="min-w-0 truncate text-sm text-zinc-200">
+          <p className="min-w-0 truncate text-sm text-foreground">
             {getTitleWithoutExtension(book.title, book.fileType)}
           </p>
           {(listLayout === "compact" || listLayout === "narrow") && (
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-            <span className={`rounded-sm px-1.5 py-0.5 ${isCollection ? "bg-emerald-950/50 text-emerald-300" : "bg-zinc-800 uppercase text-zinc-300"}`}>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-foreground-subtle">
+            <span className={`rounded-sm px-1.5 py-0.5 ${isCollection ? "bg-primary-muted text-primary" : "bg-surface-muted uppercase text-foreground"}`}>
                 {isCollection ? t("library:list.collection") : formatLabel}
               </span>
               {listLayout !== "narrow" && (
@@ -180,29 +180,29 @@ function BookListItem({
       </div>
 
       {(listLayout === "full" || listLayout === "medium") && (
-      <div className="truncate px-3 py-2 text-xs text-zinc-500">
+      <div className="truncate px-3 py-2 text-xs text-foreground-subtle">
         {getBookFolderLabel(book.filePath)}
       </div>
       )}
       {(listLayout === "full" || listLayout === "medium") && (
-      <div className="px-3 py-2 text-xs text-zinc-400">
+      <div className="px-3 py-2 text-xs text-foreground-muted">
         {isCollection ? (
-          <span className="rounded-sm bg-emerald-950/50 px-1.5 py-0.5 text-emerald-300">Coleção</span>
+          <span className="rounded-sm bg-primary-muted px-1.5 py-0.5 text-primary">Coleção</span>
         ) : formatLabel}
       </div>
       )}
       {listLayout !== "narrow" && (
-      <div className="px-3 py-2 text-xs text-zinc-400">
+      <div className="px-3 py-2 text-xs text-foreground-muted">
         {isCollection ? `${book.mergedBooks?.length || 0} livros` : formatPageCount(book.numPages, book.fileType)}
       </div>
       )}
       {(listLayout === "full" || listLayout === "medium") && (
-      <div className="px-3 py-2 text-xs text-zinc-500">
+      <div className="px-3 py-2 text-xs text-foreground-subtle">
         {formatShortDate(book.lastOpenedAt || book.createdAt)}
       </div>
       )}
       {listLayout === "full" && (
-      <div className="px-3 py-2 text-xs text-zinc-500">
+      <div className="px-3 py-2 text-xs text-foreground-subtle">
         {formatFileSize(book.fileSize)}
       </div>
       )}
@@ -215,20 +215,20 @@ function BookListItem({
                 e.stopPropagation();
                 onSync(book, "move");
               }}
-              className="cursor-pointer rounded p-2 hover:bg-zinc-800"
+              className="cursor-pointer rounded p-2 hover:bg-surface-muted"
               title={t("library:list.moveToLibrary")}
             >
-              <Move size={15} className="text-zinc-400" />
+              <Move size={15} className="text-foreground-muted" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onSync(book, "copy");
               }}
-              className="cursor-pointer rounded p-2 hover:bg-zinc-800"
+              className="cursor-pointer rounded p-2 hover:bg-surface-muted"
               title={t("library:list.copyToLibrary")}
             >
-              <Copy size={15} className="text-zinc-400" />
+              <Copy size={15} className="text-foreground-muted" />
             </button>
           </>
         )}
@@ -238,10 +238,10 @@ function BookListItem({
               e.stopPropagation();
               onDelete(book);
             }}
-            className="cursor-pointer rounded p-2 hover:bg-red-500/20"
+            className="cursor-pointer rounded p-2 hover:bg-destructive-muted"
             title={t("library:list.remove")}
           >
-            <Trash2 size={15} className="text-red-400" />
+            <Trash2 size={15} className="text-destructive" />
           </button>
         )}
       </div>

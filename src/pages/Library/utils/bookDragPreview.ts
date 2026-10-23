@@ -8,25 +8,34 @@ function drawPreview(count: number) {
   const context = canvas.getContext("2d");
   if (!context) return null;
 
-  context.fillStyle = "rgba(24, 24, 27, 0.97)";
-  context.strokeStyle = "rgba(82, 82, 91, 0.95)";
+  const themeColor = (name: string, fallback: string) =>
+    typeof window === "undefined"
+      ? fallback
+      : getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim() || fallback;
+
+  context.fillStyle = themeColor("--surface", "#18181b");
+  context.strokeStyle = themeColor("--border-strong", "#52525b");
   context.lineWidth = 1;
   context.beginPath();
   context.roundRect(0.5, 0.5, PREVIEW_WIDTH - 1, PREVIEW_HEIGHT - 1, 8);
   context.fill();
   context.stroke();
 
-  context.fillStyle = "rgba(74, 222, 128, 0.14)";
+  context.globalAlpha = 0.14;
+  context.fillStyle = themeColor("--primary", "#4ade80");
   context.beginPath();
   context.roundRect(10, 9, 32, 32, 6);
   context.fill();
+  context.globalAlpha = 1;
 
-  context.strokeStyle = "#4ade80";
+  context.strokeStyle = themeColor("--primary", "#4ade80");
   context.lineWidth = 1.6;
   context.strokeRect(22, 16, 12, 16);
   context.strokeRect(18, 19, 12, 16);
 
-  context.fillStyle = "#f4f4f5";
+  context.fillStyle = themeColor("--foreground", "#f4f4f5");
   context.font = "600 14px system-ui, sans-serif";
   context.textBaseline = "middle";
   context.fillText(`${count} ${count === 1 ? "livro" : "livros"}`, 54, PREVIEW_HEIGHT / 2);

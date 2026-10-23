@@ -14,6 +14,7 @@ import {
   CMD_SET_ANNOTATIONS_STATE,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_THEME,
   EVT_DOCUMENT_READY,
   EVT_CREATE_CONCEPT,
   EVT_RESTORE_COMPLETE,
@@ -25,6 +26,11 @@ import {
   type PdfViewerEvent,
   type PdfViewState,
 } from "./pdfBridgeProtocol";
+import { useAppSettings } from "../../../../contexts/AppSettingsContext";
+import {
+  SEMANTIC_TOKEN_NAMES,
+  resolveThemeTokens,
+} from "../../../../theme/tokens";
 
 import { CMD_SET_BOOK_LANDMARKS, type BookLandmark } from "../../../../core/pdf-reader-core/contract";
 import { translate, useTranslation } from "../../../../i18n";
@@ -63,6 +69,7 @@ export default function PdfJsViewer({
   onCloseChapters,
 }: PdfJsViewerProps) {
   const { t } = useTranslation();
+  const { effectiveTheme, settings } = useAppSettings();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<PdfViewState | null>(null);
   const devRestoreStateRef = useRef<PdfViewState | null>(null);
@@ -89,6 +96,20 @@ export default function PdfJsViewer({
   const postToViewer = useCallback((type: string, payload: Record<string, unknown> = {}) => {
     postToPdfViewer(iframeRef.current?.contentWindow, type, payload);
   }, []);
+
+  const viewerTheme = useMemo(() => {
+    const tokens = resolveThemeTokens(effectiveTheme, settings.accentColor);
+    return {
+      theme: effectiveTheme,
+      colors: Object.fromEntries(
+        SEMANTIC_TOKEN_NAMES.map((name) => [name, tokens[name]]),
+      ),
+    };
+  }, [effectiveTheme, settings.accentColor]);
+
+  const syncViewerTheme = useCallback(() => {
+    postToViewer(CMD_SET_THEME, viewerTheme);
+  }, [postToViewer, viewerTheme]);
 
   const subscribeToViewerEvents = useCallback((handler: (data: PdfViewerEvent) => void) => {
     viewerSubscribersRef.current.add(handler);
@@ -205,9 +226,11 @@ export default function PdfJsViewer({
       } else if (data.type === EVT_RESTORE_COMPLETE) {
         restoreCompletedRef.current = true;
       } else if (data.type === "lyceum-pdfjs:ready") {
+        syncViewerTheme();
         syncChapterButtonState();
         syncAnnotationButtonState();
       } else if (data.type === EVT_DOCUMENT_READY) {
+        syncViewerTheme();
         setDocumentReady(true);
         void restoreViewerState();
       } else if (data.type === EVT_STATE_CHANGED) {
@@ -220,7 +243,11 @@ export default function PdfJsViewer({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncChapterButtonState]);
+  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncChapterButtonState, syncViewerTheme]);
+
+  useEffect(() => {
+    syncViewerTheme();
+  }, [syncViewerTheme]);
 
   useEffect(() => {
     syncChapterButtonState();
@@ -343,7 +370,7 @@ export default function PdfJsViewer({
 
   if (!viewerUrls) {
     return (
-      <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400">
+      <div className="flex h-full items-center justify-center px-6 text-center text-sm text-foreground-muted">
         translate("pdf:viewer.secureUrlFailed")
       </div>
     );
@@ -353,7 +380,7 @@ export default function PdfJsViewer({
   if (import.meta.env.DEV) viewerUrl.searchParams.set("devrev", String(viewerRevision));
 
   return (
-    <div className="relative flex h-full w-full bg-zinc-950">
+    <div className="relative flex h-full w-full bg-background">
       <AnimatePresence initial={false}>
         {showChapters && (
           <motion.div
@@ -371,7 +398,7 @@ export default function PdfJsViewer({
 
       <div className="relative min-w-0 flex-1">
         {loadError && (
-          <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-red-900/70 bg-red-950/90 px-3 py-2 text-sm text-red-100 shadow-lg">
+          <div className="absolute inset-x-4 top-4 z-10 rounded-sm border border-destructive/70 bg-destructive px-3 py-2 text-sm text-destructive-foreground shadow-lg">
             {loadError}
           </div>
         )}
@@ -385,9 +412,10 @@ export default function PdfJsViewer({
               ? t("pdf:viewer.frameTitle", { name: fileName })
               : t("pdf:viewer.frameTitleNoName")
           }
-          className="h-full w-full border-0 bg-zinc-950"
+          className="h-full w-full border-0 bg-background"
           sandbox="allow-scripts allow-same-origin allow-downloads"
           onLoad={() => {
+            syncViewerTheme();
             syncChapterButtonState();
             syncAnnotationButtonState();
           }}

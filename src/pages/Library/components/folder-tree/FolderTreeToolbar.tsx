@@ -36,8 +36,8 @@ export default function FolderTreeToolbar({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <FolderOpen size={16} className="text-zinc-500" />
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+        <FolderOpen size={16} className="text-foreground-subtle" />
+        <span className="text-xs font-medium uppercase tracking-wider text-foreground-muted">
           {t("library:folderTree.title")}
         </span>
       </div>
@@ -97,7 +97,7 @@ function IconButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="cursor-pointer rounded-sm p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+      className="cursor-pointer rounded-sm p-1.5 text-foreground-subtle transition-colors hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       title={title}
     >
       {children}

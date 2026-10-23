@@ -112,7 +112,7 @@ export default function ReadingCharts() {
     if (isLoading) {
       return (
         <div className="h-48 flex items-center justify-center">
-          <div className="w-5 h-5 border border-zinc-700 border-t-green-600 rounded-full animate-spin" />
+          <div className="w-5 h-5 border border-border-strong border-t-green-600 rounded-full animate-spin" />
         </div>
       );
     }
@@ -140,21 +140,21 @@ export default function ReadingCharts() {
 
   return (
     <div className="">
-      <div className="flex border-b-2 border-zinc-800">
+      <div className="flex border-b-2 border-border">
         {CHART_OPTIONS.map((option) => (
           <motion.button
             key={option.key}
             onClick={() => setActiveChart(option.key)}
             className={`relative flex-1 cursor-pointer rounded-t-sm py-3.5 text-sm font-medium transition ${
               activeChart === option.key
-                ? "text-zinc-100"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
+                ? "text-foreground"
+                : "text-foreground-muted hover:text-foreground hover:bg-surface-muted/40"
             }`}
           >
             {activeChart === option.key && (
               <motion.span
                 layoutId="dashboard-chart-active-tab"
-                className="absolute inset-0 rounded-t-sm bg-zinc-800"
+                className="absolute inset-0 rounded-t-sm bg-surface-muted"
                 transition={springFast}
               />
             )}
@@ -195,8 +195,8 @@ export default function ReadingCharts() {
               <span
                 className={
                   userData.user.isCurrentUser
-                    ? "text-zinc-200 font-medium"
-                  : "text-zinc-500"
+                    ? "text-foreground font-medium"
+                  : "text-foreground-subtle"
                 }
               >
                 {userData.user.username}

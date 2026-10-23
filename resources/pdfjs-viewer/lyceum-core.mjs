@@ -51,6 +51,19 @@ var CMD_SET_BOOK_LANDMARKS = "lyceum-pdfjs:book-landmarks";
 function isBookLandmark(value) {
   return isRecord(value) && Number.isInteger(value.page) && value.page > 0 && (value.kind === "highlight" || value.kind === "note");
 }
+var CMD_SET_THEME = "lyceum-pdfjs:cmd-set-theme";
+var THEME_COLOR_NAME = /^[a-z][a-z0-9-]*$/;
+function isPdfViewerTheme(value) {
+  if (!isRecord(value) || value.theme !== "light" && value.theme !== "dark") {
+    return false;
+  }
+  if (!isRecord(value.colors)) {
+    return false;
+  }
+  return Object.entries(value.colors).every(
+    ([name, color]) => THEME_COLOR_NAME.test(name) && typeof color === "string"
+  );
+}
 
 // src/core/pdf-reader-core/geometry.ts
 function makeLayerRect(rect, layerBounds) {
@@ -304,6 +317,7 @@ export {
   CMD_SET_BOOK_LANDMARKS,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_THEME,
   EVT_CREATE_CONCEPT,
   EVT_DOCUMENT_READY,
   EVT_OUTLINE_LOADED,
@@ -326,6 +340,7 @@ export {
   isPdfSelectionPayload,
   isPdfSelectionRect,
   isPdfViewState,
+  isPdfViewerTheme,
   isRecord,
   isWordCharacter,
   makeLayerRect,

@@ -83,27 +83,27 @@ function DetailSkeleton() {
   return (
     <div className="animate-pulse space-y-4 p-4">
       <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
-        <div className="aspect-[3/4] rounded-md bg-zinc-800" />
+        <div className="aspect-[3/4] rounded-md bg-surface-muted" />
         <div className="space-y-3">
-          <div className="h-4 w-20 rounded-sm bg-zinc-800" />
-          <div className="h-3 w-28 rounded-sm bg-zinc-800" />
-          <div className="h-3 w-24 rounded-sm bg-zinc-800" />
-          <div className="h-3 w-32 rounded-sm bg-zinc-800" />
+          <div className="h-4 w-20 rounded-sm bg-surface-muted" />
+          <div className="h-3 w-28 rounded-sm bg-surface-muted" />
+          <div className="h-3 w-24 rounded-sm bg-surface-muted" />
+          <div className="h-3 w-32 rounded-sm bg-surface-muted" />
         </div>
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
-        <div className="h-6 w-48 rounded-sm bg-zinc-800" />
+        <div className="h-4 w-12 rounded-sm bg-surface-muted" />
+        <div className="h-6 w-48 rounded-sm bg-surface-muted" />
       </div>
       <div className="space-y-2">
-        <div className="h-4 w-12 rounded-sm bg-zinc-800" />
-        <div className="h-5 w-36 rounded-sm bg-zinc-800" />
+        <div className="h-4 w-12 rounded-sm bg-surface-muted" />
+        <div className="h-5 w-36 rounded-sm bg-surface-muted" />
       </div>
-      <div className="h-10 w-full rounded-sm bg-zinc-800" />
+      <div className="h-10 w-full rounded-sm bg-surface-muted" />
       <div className="grid grid-cols-3 gap-2">
-        <div className="h-10 rounded-sm bg-zinc-800" />
-        <div className="h-10 rounded-sm bg-zinc-800" />
-        <div className="h-10 rounded-sm bg-zinc-800" />
+        <div className="h-10 rounded-sm bg-surface-muted" />
+        <div className="h-10 rounded-sm bg-surface-muted" />
+        <div className="h-10 rounded-sm bg-surface-muted" />
       </div>
     </div>
   );
@@ -510,16 +510,16 @@ export default function BookDetailPanel({
   const hasFormatVariants = formatVariants.length > 1;
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col bg-zinc-900">
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
-        <h2 className="text-base font-semibold text-zinc-100">
+    <div className="flex h-full w-full min-w-0 flex-col bg-surface">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-surface/50">
+        <h2 className="text-base font-semibold text-foreground">
           {t("library:detail.title")}
         </h2>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-surface-muted rounded-sm transition-colors cursor-pointer"
         >
-          <X size={18} className="text-zinc-400" />
+          <X size={18} className="text-foreground-muted" />
         </button>
 
       </div>
@@ -528,7 +528,7 @@ export default function BookDetailPanel({
         <div
           role="tablist"
           aria-label={t("library:detail.formats")}
-          className={`flex flex-shrink-0 gap-2 overflow-x-auto border-b border-zinc-800 bg-zinc-950/70 px-3 py-2 ${formatVariants.length <= 3 ? "justify-center" : "justify-start"}`}
+          className={`flex flex-shrink-0 gap-2 overflow-x-auto border-b border-border bg-background/70 px-3 py-2 ${formatVariants.length <= 3 ? "justify-center" : "justify-start"}`}
         >
           {formatVariants.map((variant, index) => {
             const formatLabel = getFileTypeLabel(variant.fileType, variant.filePath);
@@ -555,8 +555,8 @@ export default function BookDetailPanel({
                 }}
                 className={`min-w-16 whitespace-nowrap rounded border px-3 py-2 text-xs font-semibold transition-all ${
                   selectedVariant.fileHash === variant.fileHash
-                    ? "border-green-500/50 bg-green-500/15 text-green-300 shadow-sm"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200"
+                    ? "border-primary/50 bg-primary-muted text-primary shadow-sm"
+                    : "border-border bg-surface text-foreground-subtle hover:border-border-strong hover:bg-surface-muted hover:text-foreground"
                 }`}
               >
                 {label}
@@ -573,8 +573,8 @@ export default function BookDetailPanel({
         <div className="space-y-4">
           <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
           <div 
-            className={`relative aspect-[3/4] bg-zinc-800 rounded-md overflow-hidden shadow-lg cursor-pointer transition-all group ${
-              isDragging ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900" : "hover:ring-2 hover:ring-zinc-600"
+            className={`relative aspect-[3/4] bg-surface-muted rounded-md overflow-hidden shadow-lg cursor-pointer transition-all group ${
+              isDragging ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface" : "hover:ring-2 hover:ring-border-strong"
             }`}
             onClick={handleThumbnailClick}
             onDragOver={handleDragOver}
@@ -594,23 +594,23 @@ export default function BookDetailPanel({
                 className="h-full w-full object-contain"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600">
+              <div className="w-full h-full flex flex-col items-center justify-center text-foreground-subtle">
                 <FileText size={32} />
               </div>
             )}
             {selectedVariant.processingStatus === "processing" && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <RefreshCw size={24} className="text-white animate-spin" />
+              <div className="absolute inset-0 bg-backdrop flex items-center justify-center">
+                <RefreshCw size={24} className="text-foreground animate-spin" />
               </div>
             )}
             {selectedVariant.processingStatus === "failed" && (
               <div className="absolute top-1.5 left-1.5 z-20" title={t("library:detail.corruptedOrUnsupported")}>
-                <AlertTriangle size={18} className="text-amber-400 drop-shadow-sm" />
+                <AlertTriangle size={18} className="text-warning drop-shadow-sm" />
               </div>
             )}
             {isDragging && (
-              <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 text-green-400">
+              <div className="absolute inset-0 bg-primary-muted flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-primary">
                   <Image size={32} />
                   <span className="text-sm font-medium">
                     {t("library:detail.dropToSetCover")}
@@ -619,8 +619,8 @@ export default function BookDetailPanel({
               </div>
             )}
             {!readOnly && !isDragging && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 text-white">
+              <div className="absolute inset-0 bg-backdrop opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-foreground">
                   <Upload size={24} />
                   <span className="text-xs font-medium">
                     {t("library:detail.setCover")}
@@ -632,24 +632,24 @@ export default function BookDetailPanel({
 
           <div className="space-y-3">
             <div className="flex items-start gap-2">
-              <FileText size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+              <FileText size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-500">{t("library:detail.file")}</p>
-                <p className="text-sm text-zinc-300">
+                <p className="text-xs text-foreground-subtle">{t("library:detail.file")}</p>
+                <p className="text-sm text-foreground">
                   {t("library:units.pagesAbbrev", { count: selectedVariant.numPages })}
                 </p>
-                <p className="text-xs text-zinc-500">{formatFileSize(selectedVariant.fileSize)}</p>
+                <p className="text-xs text-foreground-subtle">{formatFileSize(selectedVariant.fileSize)}</p>
               </div>
             </div>
 
             {selectedVariant.processingStatus === "failed" && (
-              <div className="flex items-start gap-2 rounded-sm bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-                <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 rounded-sm bg-warning-muted border border-warning/20 px-3 py-2">
+                <AlertTriangle size={14} className="text-warning flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-400">
+                  <p className="text-xs font-medium text-warning">
                     {t("library:detail.corrupted")}
                   </p>
-                  <p className="text-[11px] text-amber-300/70">
+                  <p className="text-[11px] text-warning">
                     {t("library:detail.corruptedHint")}
                   </p>
                 </div>
@@ -657,30 +657,30 @@ export default function BookDetailPanel({
             )}
 
             <div className="flex items-start gap-2">
-              <Calendar size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+              <Calendar size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-500">Adicionado em</p>
-                <p className="text-sm text-zinc-300">{formatDate(selectedVariant.createdAt)}</p>
+                <p className="text-xs text-foreground-subtle">Adicionado em</p>
+                <p className="text-sm text-foreground">{formatDate(selectedVariant.createdAt)}</p>
               </div>
             </div>
 
             {bookPath && (
               <div className="flex items-start gap-2">
-                <MapPin size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+                <MapPin size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-500">Localização</p>
+                  <p className="text-xs text-foreground-subtle">Localização</p>
                   <div className="flex items-center gap-1 flex-wrap">
                     {getPathParts().map((part, index) => (
                       <span key={index} className="flex items-center gap-1">
-                        {index > 0 && <span className="text-zinc-600">/</span>}
-                        <span className="text-sm text-zinc-300">{part}</span>
+                        {index > 0 && <span className="text-foreground-subtle">/</span>}
+                        <span className="text-sm text-foreground">{part}</span>
                       </span>
                     ))}
                   </div>
                   {selectedVariant.fileType && (
                     <div className="flex items-center gap-1 mt-1">
-                      <FileType size={12} className="text-zinc-500" />
-                      <span className="text-xs text-zinc-400 uppercase">{selectedVariant.fileType}</span>
+                      <FileType size={12} className="text-foreground-subtle" />
+                      <span className="text-xs text-foreground-muted uppercase">{selectedVariant.fileType}</span>
                     </div>
                   )}
                 </div>
@@ -689,20 +689,20 @@ export default function BookDetailPanel({
 
             {selectedVariant.isbn && (
               <div className="flex items-start gap-2">
-                <Hash size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+                <Hash size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-500">ISBN</p>
-                  <p className="text-sm text-zinc-300 truncate">{selectedVariant.isbn}</p>
+                  <p className="text-xs text-foreground-subtle">ISBN</p>
+                  <p className="text-sm text-foreground truncate">{selectedVariant.isbn}</p>
                 </div>
               </div>
             )}
 
             {selectedVariant.publisher && (
               <div className="flex items-start gap-2">
-                <Info size={14} className="text-zinc-500 flex-shrink-0 mt-0.5" />
+                <Info size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-500">Editora</p>
-                  <p className="text-sm text-zinc-300 truncate">{selectedVariant.publisher}</p>
+                  <p className="text-xs text-foreground-subtle">Editora</p>
+                  <p className="text-sm text-foreground truncate">{selectedVariant.publisher}</p>
                 </div>
               </div>
             )}
@@ -711,43 +711,43 @@ export default function BookDetailPanel({
 
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-zinc-500 mb-1">Título</p>
+            <p className="text-xs text-foreground-subtle mb-1">Título</p>
             {editMode === "title" ? (
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-sm px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-green-500"
+                  className="flex-1 bg-surface-muted border border-border-strong rounded-sm px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
                   autoFocus
                 />
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
                   aria-label={t("common:actions.save")}
-                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
+                  className="p-1.5 bg-primary text-primary-foreground hover:bg-primary-hover rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Save size={14} className="text-white" />
+                  <Save size={14} className="text-foreground" />
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="p-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-sm transition-colors cursor-pointer"
+                  className="p-1.5 bg-border-strong hover:bg-border-strong rounded-sm transition-colors cursor-pointer"
                 >
-                  <XCircle size={14} className="text-zinc-300" />
+                  <XCircle size={14} className="text-foreground" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-zinc-100 leading-tight flex-1 line-clamp-2">
+                <h3 className="text-lg font-bold text-foreground leading-tight flex-1 line-clamp-2">
                   {getTitleWithoutExtension(selectedVariant.title, selectedVariant.fileType)}
                 </h3>
                 {!readOnly && (
                 <button
                   onClick={handleStartEditTitle}
-                  className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
+                  className="p-1 hover:bg-surface-muted rounded-sm transition-colors cursor-pointer flex-shrink-0"
                   title={t("library:detail.editTitle")}
                 >
-                  <Pencil size={14} className="text-zinc-500" />
+                  <Pencil size={14} className="text-foreground-subtle" />
                 </button>
                 )}
               </div>
@@ -755,14 +755,14 @@ export default function BookDetailPanel({
           </div>
 
           <div>
-            <p className="text-xs text-zinc-500 mb-1">{t("common:fields.author")}</p>
+            <p className="text-xs text-foreground-subtle mb-1">{t("common:fields.author")}</p>
             {editMode === "author" ? (
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-sm px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-green-500"
+                  className="flex-1 bg-surface-muted border border-border-strong rounded-sm px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
                   placeholder={t("library:detail.authorPlaceholder")}
                   autoFocus
                 />
@@ -770,29 +770,29 @@ export default function BookDetailPanel({
                   onClick={handleSaveEdit}
                   disabled={isSaving}
                   aria-label={t("common:actions.save")}
-                  className="p-1.5 bg-green-600 hover:bg-green-500 rounded-sm transition-colors cursor-pointer disabled:opacity-50"
+                  className="p-1.5 bg-primary text-primary-foreground hover:bg-primary-hover rounded-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Save size={14} className="text-white" />
+                  <Save size={14} className="text-foreground" />
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="p-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-sm transition-colors cursor-pointer"
+                  className="p-1.5 bg-border-strong hover:bg-border-strong rounded-sm transition-colors cursor-pointer"
                 >
-                  <XCircle size={14} className="text-zinc-300" />
+                  <XCircle size={14} className="text-foreground" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <p className="text-sm text-zinc-300 flex-1 truncate">
+                <p className="text-sm text-foreground flex-1 truncate">
                   {selectedVariant.author || t("common:fields.unknown")}
                 </p>
                 {!readOnly && (
                 <button
                   onClick={handleStartEditAuthor}
-                  className="p-1 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer flex-shrink-0"
+                  className="p-1 hover:bg-surface-muted rounded-sm transition-colors cursor-pointer flex-shrink-0"
                   title={t("library:detail.editAuthor")}
                 >
-                  <Pencil size={14} className="text-zinc-500" />
+                  <Pencil size={14} className="text-foreground-subtle" />
                 </button>
                 )}
               </div>
@@ -804,7 +804,7 @@ export default function BookDetailPanel({
           <button
             type="button"
             onClick={() => setShowMetadataSearchDialog(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-sm bg-zinc-800 px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-600 cursor-pointer"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-surface-muted px-3 py-2 text-sm text-foreground transition-colors hover:bg-border-strong cursor-pointer"
           >
             <Search size={15} />
             {t("library:detail.searchMetadata")}
@@ -812,17 +812,17 @@ export default function BookDetailPanel({
         )}
 
         {/* <div className="space-y-2">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             {formatPageCount(selectedVariant.numPages, selectedVariant.fileType)}{" "}
-            <span className="text-zinc-700">|</span>{" "}
+            <span className="text-foreground">|</span>{" "}
             {getFileTypeLabel(selectedVariant.fileType, selectedVariant.filePath)}{" "}
-            <span className="text-zinc-700">|</span>{" "}
+            <span className="text-foreground">|</span>{" "}
             {getBookFolderLabel(selectedVariant.filePath)}
           </p>
         </div> */}
 
         <div className="space-y-1.5">
-          <label className="text-xs text-zinc-500">{t("library:sections.readingStatus")}</label>
+          <label className="text-xs text-foreground-subtle">{t("library:sections.readingStatus")}</label>
           <Select
             value={status}
             onChange={async (value) => {
@@ -849,7 +849,7 @@ export default function BookDetailPanel({
           />
           {status === "read" && (
             <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-500 whitespace-nowrap">{t("library:detail.score")}</label>
+              <label className="text-xs text-foreground-subtle whitespace-nowrap">{t("library:detail.score")}</label>
               <input
                 type="number"
                 min="0"
@@ -864,9 +864,9 @@ export default function BookDetailPanel({
                   }
                 }}
                 onBlur={handlePersistRating}
-                className="h-8 flex-1 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none focus:border-green-500"
+                className="h-8 flex-1 rounded-sm border border-border bg-surface px-2 text-xs text-foreground focus:outline-none focus:border-primary"
               />
-              <span className="text-xs text-zinc-500">/10</span>
+              <span className="text-xs text-foreground-subtle">/10</span>
             </div>
           )}
         </div>
@@ -876,7 +876,7 @@ export default function BookDetailPanel({
             type="button"
             onClick={() => onOpenReader(selectedVariant)}
             disabled={!canOpenInReader}
-            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-green-500 px-2 py-2.5 text-sm font-bold transition-colors  hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-700"
+            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary px-2 py-2.5 text-sm font-bold transition-colors  hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-primary-foreground"
           >
             <BookOpen size={16} strokeWidth={3} />
             {canOpenInReader
@@ -891,7 +891,7 @@ export default function BookDetailPanel({
             type="button"
             onClick={() => onOpenPreview(selectedVariant)}
             disabled={!canOpenInReader}
-            className={`bg-zinc-800 text-zinc-300 hover:bg-zinc-600 hover:text-green-200 flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-800 disabled:text-zinc-500`}
+            className={`bg-surface-muted text-foreground hover:bg-border-strong hover:text-primary flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-muted disabled:text-foreground-subtle`}
             title={
               previewOpen
                 ? t("library:detail.closePreview")
@@ -912,7 +912,7 @@ export default function BookDetailPanel({
           <div className={`grid gap-2 ${selectedVariant.fileType === "epub" ? "grid-cols-2" : "grid-cols-3"}`}>
             <button
               onClick={() => onConvert?.(selectedVariant)}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 cursor-pointer"
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 text-xs text-foreground transition-colors hover:bg-border-strong cursor-pointer"
               title={t("library:detail.convert")}
             >
               <Shuffle size={14} />
@@ -922,7 +922,7 @@ export default function BookDetailPanel({
             <button
               onClick={handleExtractVocabulary}
               disabled={isExtractingVocabulary}
-              className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 text-xs text-foreground transition-colors hover:bg-border-strong disabled:cursor-not-allowed disabled:opacity-50"
               title={
                 vocabularyStats?.hasIndex
                   ? t("library:detail.updateVocabulary")
@@ -939,7 +939,7 @@ export default function BookDetailPanel({
             )}
           <button
             onClick={handleRegenerateThumbnail}
-            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 text-xs text-foreground transition-colors hover:bg-border-strong"
             title={t("library:detail.regenerateThumbnail")}
           >
             <RefreshCw size={13} />
@@ -949,7 +949,7 @@ export default function BookDetailPanel({
           </button>
           <button
             onClick={handleShowInFolder}
-            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-zinc-800 px-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="cursor-pointer flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 text-xs text-foreground transition-colors hover:bg-border-strong"
             title={t("library:detail.openFolder")}
           >
             <FolderOpen size={13} />
@@ -958,11 +958,11 @@ export default function BookDetailPanel({
           </div>
 
           {vocabularyStats?.hasIndex && (
-            <div className="flex items-center justify-between gap-2 rounded-sm border border-zinc-800/70 px-2 py-1.5 text-xs text-zinc-500">
+            <div className="flex items-center justify-between gap-2 rounded-sm border border-border/70 px-2 py-1.5 text-xs text-foreground-subtle">
               <span>{t("library:detail.uniqueWords")}</span>
-              <span className="text-zinc-300">
+              <span className="text-foreground">
                 {vocabularyStats.uniqueWords.toLocaleString()}
-                <span className="text-zinc-600"> / </span>
+                <span className="text-foreground-subtle"> / </span>
                 {vocabularyStats.totalWords.toLocaleString()}
               </span>
             </div>
@@ -977,7 +977,7 @@ export default function BookDetailPanel({
           <button
             onClick={handleDissolve}
             disabled={showDissolveDialog}
-          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-red-500/10 py-2 text-xs text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-destructive-muted py-2 text-xs text-destructive transition-colors hover:bg-destructive-muted disabled:opacity-50"
           >
             <Unlink size={12} />
             {t("library:detail.dissolveKeepFiles")}
@@ -986,7 +986,7 @@ export default function BookDetailPanel({
         <button
           onClick={handleDelete}
           disabled={showDeleteDialog}
-          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer bg-surface-muted hover:bg-destructive-muted text-foreground-muted hover:text-destructive disabled:opacity-50"
         >
           <Trash2 size={12} />
           {t('common:actions.remove')}
@@ -997,12 +997,12 @@ export default function BookDetailPanel({
           ariaLabel={t("library:detail.confirmRemoval")}
           onBackdropClick={cancelDelete}
           backdropClassName="px-4"
-          className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
+          className="w-full max-w-md rounded-sm border border-border bg-surface p-6"
         >
               <h3 className="text-base font-medium mb-2">
                 {t("library:detail.removeTitle")}
               </h3>
-              <p className="text-sm text-zinc-400 mb-4">
+              <p className="text-sm text-foreground-muted mb-4">
                 {canRemoveFromGroup
                   ? t("library:detail.removeFromGroupConfirm", {
                       title: selectedVariant.title,
@@ -1011,25 +1011,25 @@ export default function BookDetailPanel({
                       title: selectedVariant.title,
                     })}
               </p>
-              {!canRemoveFromGroup && <label className="flex items-center gap-2 mb-4 text-sm text-zinc-300 cursor-pointer">
+              {!canRemoveFromGroup && <label className="flex items-center gap-2 mb-4 text-sm text-foreground cursor-pointer">
                 <input
                   type="checkbox"
                   checked={deleteFileAlso}
                   onChange={(e) => setDeleteFileAlso(e.target.checked)}
-                  className="w-4 h-4 accent-green-500 cursor-pointer"
+                  className="w-4 h-4 accent-primary cursor-pointer"
                 />
                 {t("library:detail.deleteFileAlso")}
               </label>}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDelete}
-                  className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                  className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors"
                 >
                   {t("common:actions.cancel")}
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="cursor-pointer px-4 py-2 rounded-sm bg-red-600 hover:bg-red-500 text-zinc-800 text-sm font-medium transition-colors"
+                  className="cursor-pointer px-4 py-2 rounded-sm bg-destructive hover:bg-destructive-hover text-destructive-foreground text-sm font-medium transition-colors"
                 >
                   {canRemoveFromGroup
                     ? t("common:actions.remove")
@@ -1042,24 +1042,24 @@ export default function BookDetailPanel({
           ariaLabel={t("library:detail.dissolveAria")}
           onBackdropClick={() => setShowDissolveDialog(false)}
           backdropClassName="px-4"
-          className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 p-6"
+          className="w-full max-w-md rounded-sm border border-border bg-surface p-6"
         >
               <h3 className="mb-2 text-base font-medium">
                 {t("library:detail.dissolveTitle")}
               </h3>
-              <p className="mb-4 text-sm text-zinc-400">
+              <p className="mb-4 text-sm text-foreground-muted">
                 {t("library:detail.dissolveBody", { count: formatVariants.length })}
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowDissolveDialog(false)}
-                  className="rounded-sm bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700"
+                  className="rounded-sm bg-surface-muted px-4 py-2 text-sm hover:bg-border-strong"
                 >
                   {t("common:actions.cancel")}
                 </button>
                 <button
                   onClick={handleDissolve}
-                  className="rounded-sm bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-400"
+                  className="rounded-sm bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive-hover"
                 >
                   {t("library:detail.dissolve")}
                 </button>

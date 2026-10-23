@@ -90,7 +90,7 @@ export default function SignUp() {
       footer={
         <>
           {t("auth:signUp.hasAccount")}{" "}
-          <Link to="/signin" className="text-green-500 transition hover:text-green-400">
+          <Link to="/signin" className="text-primary transition hover:text-primary">
             {t("auth:signUp.signIn")}
           </Link>
         </>
@@ -98,14 +98,14 @@ export default function SignUp() {
     >
       {confirmationEmail ? (
         <div className="space-y-4">
-          <div className="rounded border border-green-500/30 bg-green-500/10 p-4 text-sm leading-6 text-green-100">
+          <div className="rounded border border-primary/30 bg-primary-muted p-4 text-sm leading-6 text-primary">
             {t("auth:signUp.confirmation.message", { email: confirmationEmail })}
           </div>
           <button
             type="button"
             onClick={handleResendConfirmation}
             disabled={resending}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-zinc-700 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong text-sm font-medium text-foreground transition hover:border-border-strong hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RotateCcw size={16} />
             {resending

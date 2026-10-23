@@ -74,13 +74,13 @@ function Avatar({
   return (
     <div
       className={`grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border ${
-        current ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-800 bg-zinc-950"
+        current ? "border-primary bg-primary-muted" : "border-border bg-background"
       }`}
     >
       {src ? (
         <img className="h-full w-full object-cover" src={src} alt={name || t("mobile:leaderboard.avatarAlt")} />
       ) : (
-        <User size={17} className={current ? "text-emerald-400" : "text-zinc-500"} />
+        <User size={17} className={current ? "text-primary" : "text-foreground-subtle"} />
       )}
     </div>
   );
@@ -114,18 +114,18 @@ function RequestRow({
   const { t } = useTranslation();
   const incoming = request.direction === "incoming";
   return (
-    <article className="flex items-center gap-3 border-b border-zinc-800 p-3 last:border-b-0">
+    <article className="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
       <Avatar src={request.other_avatar_url} name={request.other_name} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-100">
+        <p className="truncate text-sm font-medium text-foreground">
           {displayName(request.other_name, request.other_nickname)}
         </p>
-        <p className="truncate text-xs text-zinc-500">@{request.other_nickname}</p>
+        <p className="truncate text-xs text-foreground-subtle">@{request.other_nickname}</p>
       </div>
       {incoming ? (
         <div className="flex gap-1">
           <button
-            className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white disabled:opacity-60"
+            className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-60"
             disabled={busy}
             onClick={() => onAccept(request.id)}
             type="button"
@@ -134,7 +134,7 @@ function RequestRow({
             <Check size={16} />
           </button>
           <button
-            className="grid h-11 w-11 place-items-center rounded-xl bg-red-950/60 text-red-300 disabled:opacity-60"
+            className="grid h-11 w-11 place-items-center rounded-xl bg-destructive text-destructive-foreground disabled:opacity-60"
             disabled={busy}
             onClick={() => onDecline(request.id)}
             type="button"
@@ -145,7 +145,7 @@ function RequestRow({
         </div>
       ) : (
         <button
-          className="h-11 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-xs font-semibold text-zinc-300 disabled:opacity-60"
+          className="h-11 rounded-xl border border-border bg-background px-3 text-xs font-semibold text-foreground disabled:opacity-60"
           disabled={busy}
           onClick={() => onCancel(request.id)}
           type="button"
@@ -169,16 +169,16 @@ function FriendRow({
   const { t, i18n } = useTranslation();
 
   return (
-    <article className="flex items-center gap-3 border-b border-zinc-800 p-3 last:border-b-0">
+    <article className="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
       <Avatar src={friend.avatar_url} name={friend.name} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-100">{displayName(friend.name, friend.nickname)}</p>
-        <p className="truncate text-xs text-zinc-500">
+        <p className="truncate text-sm font-medium text-foreground">{displayName(friend.name, friend.nickname)}</p>
+        <p className="truncate text-xs text-foreground-subtle">
         @{friend.nickname} · {formatNumber(friend.total_pages, i18n.language)}p
       </p>
       </div>
       <button
-        className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-950 text-red-300 disabled:opacity-60"
+        className="grid h-11 w-11 place-items-center rounded-xl bg-background text-destructive disabled:opacity-60"
         disabled={busy}
         onClick={() => onRemove(friend.user_id)}
         type="button"
@@ -280,10 +280,10 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
     <div className="space-y-4">
       <MobileCard className="p-5">
         <div className="flex items-center gap-2">
-          <Users size={17} className="text-zinc-500" />
-          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.friendsTitle")}</h2>
+          <Users size={17} className="text-foreground-subtle" />
+          <h2 className="text-sm font-semibold text-foreground">{t("mobile:leaderboard.friendsTitle")}</h2>
           {incomingCount > 0 && (
-            <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
               {incomingCount}
             </span>
           )}
@@ -310,7 +310,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               placeholder={t("mobile:leaderboard.nicknamePlaceholder")}
             />
             <button
-              className="h-11 rounded bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              className="h-11 rounded bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               disabled={busy || !nickname.trim()}
               type="submit"
             >
@@ -343,7 +343,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               placeholder={t("mobile:leaderboard.friendNicknamePlaceholder")}
             />
             <button
-              className="grid h-11 w-11 place-items-center rounded border border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-60"
+              className="grid h-11 w-11 place-items-center rounded border border-border bg-background text-foreground disabled:opacity-60"
               disabled={busy || !friendNickname.trim()}
               onClick={() => searchMutation.mutate()}
               type="button"
@@ -352,7 +352,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
               {searchMutation.isPending ? <Loader2 className="animate-spin" size={17} /> : <Search size={17} />}
             </button>
             <button
-              className="grid h-11 w-11 place-items-center rounded bg-emerald-600 text-white disabled:opacity-60"
+              className="grid h-11 w-11 place-items-center rounded bg-primary text-primary-foreground disabled:opacity-60"
               disabled={busy || !friendNickname.trim()}
               type="submit"
               aria-label={t("mobile:leaderboard.sendInvite")}
@@ -361,14 +361,14 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             </button>
           </div>
           </MobileFieldFrame>
-          {searchResult && <p className="text-xs text-zinc-500">{searchResult}</p>}
+          {searchResult && <p className="text-xs text-foreground-subtle">{searchResult}</p>}
         </form>
       </MobileCard>
 
       <MobileCard className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.invites")}</h2>
-          {requestsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h2 className="text-sm font-semibold text-foreground">{t("mobile:leaderboard.invites")}</h2>
+          {requestsLoading && <Loader2 className="animate-spin text-foreground-subtle" size={16} />}
         </div>
         {requests.length > 0 ? (
           requests.map((request) => (
@@ -382,14 +382,14 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             />
           ))
         ) : (
-          <p className="p-4 text-sm text-zinc-500">{t("mobile:leaderboard.noPendingInvites")}</p>
+          <p className="p-4 text-sm text-foreground-subtle">{t("mobile:leaderboard.noPendingInvites")}</p>
         )}
       </MobileCard>
 
       <MobileCard className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.yourNetwork")}</h2>
-          {friendsLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h2 className="text-sm font-semibold text-foreground">{t("mobile:leaderboard.yourNetwork")}</h2>
+          {friendsLoading && <Loader2 className="animate-spin text-foreground-subtle" size={16} />}
         </div>
         {friends.length > 0 ? (
           friends.map((friend) => (
@@ -409,7 +409,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
             />
           ))
         ) : (
-          <p className="p-4 text-sm text-zinc-500">{t("mobile:leaderboard.noFriends")}</p>
+          <p className="p-4 text-sm text-foreground-subtle">{t("mobile:leaderboard.noFriends")}</p>
         )}
       </MobileCard>
     </div>
@@ -429,23 +429,23 @@ function RankingRow({
   const current = Boolean(user.is_current_user);
   return (
     <article
-      className={`flex items-center gap-3 border-b border-zinc-800 p-4 last:border-b-0 ${
-        current ? "bg-emerald-500/5" : ""
+      className={`flex items-center gap-3 border-b border-border p-4 last:border-b-0 ${
+        current ? "bg-primary-muted" : ""
       }`}
     >
       <div className="w-8 text-center">
         {index === 0 ? (
-          <Crown size={18} className="mx-auto text-emerald-400" />
+          <Crown size={18} className="mx-auto text-primary" />
         ) : (
-          <span className="text-sm font-semibold text-zinc-500">#{index + 1}</span>
+          <span className="text-sm font-semibold text-foreground-subtle">#{index + 1}</span>
         )}
       </div>
       <Avatar src={user.avatar_url} name={user.username} current={current} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-zinc-100">
+        <p className="truncate text-sm font-semibold text-foreground">
           {current ? t("mobile:leaderboard.you") : user.username}
         </p>
-        <p className="mt-1 truncate text-xs text-zinc-500">
+        <p className="mt-1 truncate text-xs text-foreground-subtle">
           {user.nickname
             ? `@${user.nickname}`
             : current
@@ -454,10 +454,10 @@ function RankingRow({
         </p>
       </div>
       <div className="text-right">
-        <p className="text-base font-semibold text-zinc-100">
+        <p className="text-base font-semibold text-foreground">
           {formatNumber(pages, i18n.language)}p
         </p>
-        <p className="text-[11px] uppercase tracking-wide text-zinc-600">
+        <p className="text-[11px] uppercase tracking-wide text-foreground-subtle">
           {t("mobile:leaderboard.pages")}
         </p>
       </div>
@@ -509,27 +509,27 @@ export default function MobileLeaderboardScreen({
       <MobileCard className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
               {t("mobile:leaderboard.kicker")}
             </p>
-            <h1 className="mt-1 text-xl font-semibold text-zinc-50">
+            <h1 className="mt-1 text-xl font-semibold text-foreground">
               {t("mobile:leaderboard.headline")}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
+            <p className="mt-2 text-sm leading-6 text-foreground-muted">
               {t("mobile:leaderboard.body")}
             </p>
           </div>
-          <div className="grid h-11 w-11 place-items-center rounded bg-emerald-500/10 text-emerald-400">
+          <div className="grid h-11 w-11 place-items-center rounded bg-primary-muted text-primary">
             <Trophy size={22} />
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-4 gap-1 rounded-2xl border border-white/[0.05] bg-zinc-950/80 p-1.5">
+        <div className="mt-5 grid grid-cols-4 gap-1 rounded-2xl border border-border/[0.05] bg-background/80 p-1.5">
           {PERIODS.map((item) => (
             <button
               key={item.key}
               className={`min-h-10 rounded-xl text-xs font-semibold transition active:scale-95 ${
-                period === item.key ? "bg-emerald-500/15 text-emerald-300 shadow-sm" : "text-zinc-500"
+                period === item.key ? "bg-primary-muted text-primary shadow-sm" : "text-foreground-subtle"
               }`}
               onClick={() => setPeriod(item.key)}
               type="button"
@@ -556,7 +556,7 @@ export default function MobileLeaderboardScreen({
         </div>
 
         <button
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded border border-zinc-800 bg-zinc-950 text-sm font-semibold text-zinc-200"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground"
           onClick={() => setShowFriends((current) => !current)}
           type="button"
         >
@@ -567,15 +567,15 @@ export default function MobileLeaderboardScreen({
         </button>
       </MobileCard>
 
-      {showFriends && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-zinc-950 p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label={t("mobile:leaderboard.manageFriends")} onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-zinc-100">{t("mobile:leaderboard.manageFriends")}</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={() => setShowFriends(false)} aria-label={t("mobile:leaderboard.closeFriends")} type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
+      {showFriends && <div className="fixed inset-0 z-50 bg-backdrop" onClick={() => setShowFriends(false)}><div className="ml-auto h-full w-full max-w-[480px] overflow-y-auto bg-background p-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label={t("mobile:leaderboard.manageFriends")} onClick={(event) => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-foreground">{t("mobile:leaderboard.manageFriends")}</h2><button className="grid h-11 w-11 place-items-center rounded-full bg-surface" onClick={() => setShowFriends(false)} aria-label={t("mobile:leaderboard.closeFriends")} type="button"><X size={19} /></button></div><MobileFriendsPanel enabled={enabled} /></div></div>}
 
       <MobileCard className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
+        <div className="flex items-center justify-between border-b border-border p-4">
           <div className="flex items-center gap-2">
-            <Trophy size={16} className="text-zinc-500" />
-            <h2 className="text-sm font-semibold text-zinc-100">{t("mobile:leaderboard.ranking")}</h2>
+            <Trophy size={16} className="text-foreground-subtle" />
+            <h2 className="text-sm font-semibold text-foreground">{t("mobile:leaderboard.ranking")}</h2>
           </div>
-          {isLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
+          {isLoading && <Loader2 className="animate-spin text-foreground-subtle" size={16} />}
         </div>
 
         {sortedRanking.length > 0 ? (
@@ -589,11 +589,11 @@ export default function MobileLeaderboardScreen({
           ))
         ) : (
           <div className="p-8 text-center">
-            <Users size={24} className="mx-auto text-zinc-600" />
-            <p className="mt-3 text-sm font-medium text-zinc-300">
+            <Users size={24} className="mx-auto text-foreground-subtle" />
+            <p className="mt-3 text-sm font-medium text-foreground">
               {t("mobile:leaderboard.rankingEmpty")}
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
+            <p className="mt-1 text-xs leading-5 text-foreground-subtle">
               {t("mobile:leaderboard.rankingEmptyBody")}
             </p>
           </div>

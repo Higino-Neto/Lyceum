@@ -77,16 +77,16 @@ export function ReadingHeatMap() {
   const darkPanelColors = useMemo(() => {
     if (!value || value.length === 0) {
       return {
-        0: "var(--ui-zinc-800)",
-        1: "var(--accent-600)",
-        2: "var(--accent-600)",
-        3: "var(--accent-600)",
-        4: "var(--accent-500)",
-        5: "var(--accent-500)",
-        6: "var(--accent-500)",
-        7: "var(--accent-500)",
-        8: "var(--accent-500)",
-        9: "var(--accent-500)",
+        0: "var(--surface-muted)",
+        1: "color-mix(in srgb, var(--primary) 18%, var(--surface))",
+        2: "color-mix(in srgb, var(--primary) 22%, var(--surface))",
+        3: "color-mix(in srgb, var(--primary) 28%, var(--surface))",
+        4: "color-mix(in srgb, var(--primary) 36%, var(--surface))",
+        5: "color-mix(in srgb, var(--primary) 44%, var(--surface))",
+        6: "color-mix(in srgb, var(--primary) 52%, var(--surface))",
+        7: "color-mix(in srgb, var(--primary) 62%, var(--surface))",
+        8: "color-mix(in srgb, var(--primary) 74%, var(--surface))",
+        9: "color-mix(in srgb, var(--primary) 88%, var(--surface))",
       };
     }
 
@@ -96,16 +96,16 @@ export function ReadingHeatMap() {
     const range = max - min || 1;
 
     const colors = [
-      "var(--ui-zinc-800)",
-      "var(--accent-900)",
-      "var(--accent-800)",
-      "var(--accent-700)",
-      "var(--accent-600)",
-      "var(--accent-500)",
-      "var(--accent-400)",
-      "var(--accent-300)",
-      "var(--accent-200)",
-      "var(--accent-100)",
+      "var(--surface-muted)",
+      "color-mix(in srgb, var(--primary) 18%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 22%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 28%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 36%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 44%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 52%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 62%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 74%, var(--surface))",
+      "color-mix(in srgb, var(--primary) 88%, var(--surface))",
     ];
 
     return colors;
@@ -129,8 +129,8 @@ export function ReadingHeatMap() {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center bg-zinc-900 text-white rounded-sm h-full p-4">
-        <div className="flex-1 flex items-center justify-center text-red-400 text-sm">
+      <div className="flex flex-col items-center justify-center bg-surface text-foreground rounded-sm h-full p-4">
+        <div className="flex-1 flex items-center justify-center text-destructive text-sm">
           {t("dashboard:heatmap.error", { message: error?.message ?? "" })}
         </div>
       </div>
@@ -156,9 +156,9 @@ export function ReadingHeatMap() {
   };
 
   return (
-    <div className="flex flex-col bg-zinc-900 text-white rounded-sm  h-full p-4">
+    <div className="flex flex-col bg-surface text-foreground rounded-sm  h-full p-4">
       <div className="flex items-center justify-start gap-2 mb-2">
-        <CalendarDays size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
+        <CalendarDays size={ICON_SIZE} className="text-foreground-subtle" strokeWidth={STROKE_WIDTH} />
       </div>
       <div className="flex flex-col h-full w-full justify-center items-center">
         <div className="w-full">
@@ -174,7 +174,7 @@ export function ReadingHeatMap() {
           panelColors={darkPanelColors}
           rectProps={{ rx: 2 }}
           legendCellSize={0}
-          style={{ color: "var(--ui-zinc-200)", width: "100%" }}
+          style={{ color: "var(--foreground)", width: "100%" }}
           rectRender={rectRender}
         />
       </div>

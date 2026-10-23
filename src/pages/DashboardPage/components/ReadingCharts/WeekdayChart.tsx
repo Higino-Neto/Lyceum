@@ -49,7 +49,7 @@ export default function WeekdayChart({ usersData }: { usersData: UserReadingData
 
   if (!hasData) {
     return (
-      <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+      <div className="h-48 flex items-center justify-center text-foreground-subtle text-sm">
         {t("dashboard:charts.noData")}
       </div>
     );
@@ -60,18 +60,18 @@ export default function WeekdayChart({ usersData }: { usersData: UserReadingData
       <BarChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="1 1"
-          stroke="var(--ui-zinc-800)"
+          stroke="var(--border)"
           vertical={false}
         />
         <XAxis
           dataKey="day"
-          stroke="var(--ui-zinc-600)"
+          stroke="var(--foreground-subtle)"
           fontSize={11}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          stroke="var(--ui-zinc-600)"
+          stroke="var(--foreground-subtle)"
           fontSize={11}
           tickLine={false}
           axisLine={false}

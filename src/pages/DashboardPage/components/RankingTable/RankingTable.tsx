@@ -93,14 +93,14 @@ export default function RankingTable() {
 
   return (
     <div className="overflow-hidden rounded-sm">
-      <div className="flex border-b border-zinc-800">
+      <div className="flex border-b border-border">
         <SelectPeriodButton onChange={setPeriod} />
         <button
           onClick={() => setChipsOpen((value: boolean) => !value)}
           className={`flex cursor-pointer items-center justify-center px-2 py-3 text-xs transition ${
             isCategoryActive
-              ? "bg-green-600/15 text-green-400"
-              : "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300"
+              ? "bg-primary-muted text-primary"
+              : "text-foreground-subtle hover:bg-surface-muted/40 hover:text-foreground"
           }`}
           title={t("dashboard:ranking.filterByCategory")}
         >
@@ -109,13 +109,13 @@ export default function RankingTable() {
       </div>
 
       {chipsOpen && (
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-zinc-800 bg-zinc-850 px-2 py-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-surface-muted px-2 py-1.5">
           <button
             onClick={() => setSelectedCategoryId(null)}
             className={`shrink-0 cursor-pointer whitespace-nowrap rounded-sm px-2 py-1 text-[11px] font-medium transition ${
               !selectedCategoryId
-                ? "bg-green-600/20 text-green-400"
-                : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                ? "bg-primary-muted text-primary"
+                : "text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
             }`}
           >
             {t("dashboard:ranking.allCategories")}
@@ -130,8 +130,8 @@ export default function RankingTable() {
               }
               className={`shrink-0 cursor-pointer whitespace-nowrap rounded-sm px-2 py-1 text-[11px] font-medium transition ${
                 selectedCategoryId === category.id
-                  ? "bg-green-600/20 text-green-400"
-                  : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                  ? "bg-primary-muted text-primary"
+                  : "text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
               }`}
             >
               {category.name}
@@ -141,30 +141,30 @@ export default function RankingTable() {
       )}
 
       <table className="w-full text-base">
-        <thead className="bg-zinc-800 text-xs uppercase tracking-wider text-zinc-400" />
+        <thead className="bg-surface-muted text-xs uppercase tracking-wider text-foreground-muted" />
         <tbody>
           {shouldShowAddFriendPrompt ? (
             <tr>
               <td
                 colSpan={5}
-                className="px-4 py-8 text-center text-sm text-zinc-500"
+                className="px-4 py-8 text-center text-sm text-foreground-subtle"
               >
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900">
-                    <UserPlus size={18} className="text-zinc-500" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface">
+                    <UserPlus size={18} className="text-foreground-subtle" />
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-300">
+                    <p className="font-medium text-foreground">
                       {t("dashboard:ranking.addFriendsTitle")}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-foreground-subtle">
                       {t("dashboard:ranking.addFriendsDescription")}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => openFriendsSettings()}
-                    className="inline-flex h-8 items-center gap-2 rounded bg-green-600 px-3 text-xs font-medium text-black transition hover:bg-green-500"
+                    className="inline-flex h-8 items-center gap-2 rounded bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary-hover"
                   >
                     <UserPlus size={14} />
                     {t("dashboard:ranking.addFriend")}
@@ -181,17 +181,17 @@ export default function RankingTable() {
               return (
                 <tr
                   key={user.user_id}
-                  className="border-t border-zinc-800 transition hover:bg-zinc-800/40"
+                  className="border-t border-border transition hover:bg-surface-muted/40"
                 >
                   <td className="w-10 px-4 py-4 font-medium">
                     {index === 0 ? (
                       <Crown
-                        className="text-zinc-300"
+                        className="text-foreground"
                         size={ICON_SIZE}
                         strokeWidth={STROKE_WIDTH}
                       />
                     ) : (
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-foreground-subtle">
                         #{index + 1}
                       </span>
                     )}
@@ -203,7 +203,7 @@ export default function RankingTable() {
                         !isCurrentUser && openFriendsSettings(user.user_id)
                       }
                       disabled={isCurrentUser}
-                      className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-900 bg-zinc-800 disabled:cursor-default"
+                      className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-surface-muted disabled:cursor-default"
                       title={
                         isCurrentUser
                           ? t("dashboard:ranking.you")
@@ -218,11 +218,11 @@ export default function RankingTable() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <User size={ICON_SIZE} className="text-zinc-500" />
+                        <User size={ICON_SIZE} className="text-foreground-subtle" />
                       )}
                     </button>
                   </td>
-                  <td className="px-4 py-4 text-zinc-200">
+                  <td className="px-4 py-4 text-foreground">
                     <button
                       type="button"
                       onClick={() =>
@@ -239,7 +239,7 @@ export default function RankingTable() {
                       <span className="truncate">{user.username}</span>
                     </button>
                   </td>
-                  <td className="px-4 py-4 text-right font-semibold text-zinc-300">
+                  <td className="px-4 py-4 text-right font-semibold text-foreground">
                     {Number(user[pageField] || 0)}p
                   </td>
                   <td className="w-10 px-2 py-4">
@@ -248,9 +248,9 @@ export default function RankingTable() {
                         onClick={() => toggleUser(user)}
                         className={`rounded p-1.5 transition ${
                           selectionState === "selected"
-                            ? "text-zinc-500 hover:bg-zinc-800"
+                            ? "text-foreground-subtle hover:bg-surface-muted"
                             : canSelectMore
-                              ? "cursor-pointer hover:bg-zinc-800 hover:text-zinc-300"
+                              ? "cursor-pointer hover:bg-surface-muted hover:text-foreground"
                               : "cursor-not-allowed"
                         }`}
                         disabled={!canSelectMore && !isUserSelected(user.user_id)}

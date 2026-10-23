@@ -22,9 +22,9 @@ export function useLibraryEvents({ enabled, refresh }: UseLibraryEventsOptions) 
         toast(notification.message, {
           icon: "⚠️",
           style: {
-            background: "#1c1917",
-            border: "1px solid #d97706",
-            color: "#fbbf24",
+            background: "var(--warning-muted)",
+            border: "1px solid var(--warning)",
+            color: "var(--warning-foreground)",
           },
         });
       } else {

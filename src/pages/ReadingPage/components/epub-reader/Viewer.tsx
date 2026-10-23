@@ -178,12 +178,12 @@ function ResultBlock({
   icon: ReactNode;
 }) {
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-3">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+    <section className="rounded-md border border-border bg-background/80 px-3 py-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-foreground-subtle">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="text-sm leading-6 text-zinc-100">{text}</p>
+      <p className="text-sm leading-6 text-foreground">{text}</p>
     </section>
   );
 }
@@ -194,28 +194,28 @@ function TranslationEntryList({ entries }: { entries: TranslationEntry[] }) {
   if (!entries.length) return null;
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3">
-      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+    <section className="rounded-md border border-border bg-background/60 px-3 py-3">
+      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-foreground-subtle">
         <Languages size={14} />
         <span>{t("epub:viewer.meanings")}</span>
       </div>
 
       <ul className="space-y-2">
         {entries.map((entry) => (
-          <li key={entry.key} className="rounded-sm bg-zinc-900/70 px-3 py-2">
+          <li key={entry.key} className="rounded-sm bg-surface/70 px-3 py-2">
             <div className="flex items-start gap-2">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-500" />
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground-subtle" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <p className="text-sm leading-6 text-zinc-100">{entry.text}</p>
+                  <p className="text-sm leading-6 text-foreground">{entry.text}</p>
                   {entry.label && (
-                    <span className="text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-foreground-subtle">
                       {entry.label}
                     </span>
                   )}
                 </div>
                 {entry.detail && (
-                  <p className="mt-1 text-xs italic leading-5 text-zinc-500">"{entry.detail}"</p>
+                  <p className="mt-1 text-xs italic leading-5 text-foreground-subtle">"{entry.detail}"</p>
                 )}
               </div>
             </div>
@@ -265,7 +265,7 @@ function TranslationDock({
   return (
     <LearningDock title={title} subtitle={subtitle} onClose={onClose}>
       {isLoading ? (
-        <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
+        <div className="flex items-center gap-2 rounded-md border border-border bg-background/60 px-3 py-3 text-sm text-foreground-muted">
           <LoaderCircle size={16} className="animate-spin" />
           {t("epub:viewer.processing")}
         </div>
@@ -289,12 +289,12 @@ function TranslationDock({
           )}
           <TranslationEntryList entries={translatedEntries} />
           {!hasVisibleResult && !error && (
-            <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-400">
+            <div className="rounded-md border border-border bg-background/60 px-3 py-3 text-sm text-foreground-muted">
               {t("epub:viewer.noResult")}
             </div>
           )}
           {error && (
-            <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-100">
+            <div className="rounded-md border border-destructive/20 bg-destructive-muted px-3 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -318,12 +318,12 @@ function LearningDock({
   const { t } = useTranslation();
 
   return (
-    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/95 shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[390px]">
-      <div className="flex items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950/40 px-4 py-3">
+    <aside className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex max-h-[70vh] min-h-[200px] flex-col overflow-hidden rounded-md border border-border bg-overlay shadow-2xl lg:inset-x-auto lg:right-4 lg:top-4 lg:bottom-4 lg:h-auto lg:min-h-0 lg:w-[390px]">
+      <div className="flex items-start justify-between gap-3 border-b border-border bg-background/40 px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-zinc-100">{title}</p>
+          <p className="truncate text-base font-semibold text-foreground">{title}</p>
           {subtitle ? (
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground-subtle">
               {subtitle}
             </div>
           ) : null}
@@ -331,7 +331,7 @@ function LearningDock({
 
         <button
           type="button"
-          className="rounded-sm p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="rounded-sm p-2 text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
           onClick={onClose}
           title={t("epub:viewer.close")}
         >
@@ -786,7 +786,7 @@ if (controller.signal.aborted) return;
           <button
             type="button"
             onClick={() => setFocusMode(false)}
-            className="flex items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition"
+            className="flex items-center gap-2 rounded-sm border border-border-strong bg-overlay px-3 py-2 text-sm text-foreground hover:bg-surface-muted transition"
             title={t("epub:viewer.exitFocusMode")}
           >
             <Focus size={16} />
@@ -827,7 +827,7 @@ if (controller.signal.aborted) return;
                   <span>{activeWordLookup.dictionary.phonetic}</span>
                 )}
                 {activeWordLookup.wordCount !== null && activeWordLookup.wordCount !== undefined && (
-                  <span className="ml-2 text-zinc-500">
+                  <span className="ml-2 text-foreground-subtle">
                     {formatNumber(activeWordLookup.wordCount, i18n.language)}{" "}
                     {t("epub:viewer.occurrences", { count: activeWordLookup.wordCount })}
                   </span>

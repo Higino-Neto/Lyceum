@@ -30,12 +30,12 @@ export default function Select({
       <RadixSelect.Trigger
         className="
           flex h-8 min-w-[160px] items-center justify-between
-          gap-2 rounded-md border border-zinc-700
-          bg-zinc-900 px-3
-          text-xs text-zinc-300
+          gap-2 rounded-md border border-border
+          bg-surface px-3
+          text-xs text-foreground-muted
           outline-none transition-colors
 
-          hover:border-zinc-600
+          hover:border-border-strong
 
           outline-none
           focus:outline-none
@@ -43,8 +43,8 @@ export default function Select({
           focus:ring-0
           focus-visible:ring-0
 
-          data-[placeholder]:text-zinc-500
-          data-[state=open]:border-zinc-600
+          data-[placeholder]:text-foreground-subtle
+          data-[state=open]:border-primary
 
           disabled:cursor-not-allowed
           disabled:opacity-50
@@ -53,7 +53,7 @@ export default function Select({
         <RadixSelect.Value placeholder={placeholder} />
 
         <RadixSelect.Icon>
-          <ChevronDown size={14} className="text-zinc-500" />
+          <ChevronDown size={14} className="text-foreground-subtle" />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
 
@@ -64,8 +64,8 @@ export default function Select({
           className="
             z-[9999] min-w-[var(--radix-select-trigger-width)]
             overflow-hidden rounded-md
-            border border-zinc-700
-            bg-zinc-900
+            border border-border-strong
+            bg-surface
             p-1 shadow-xl
 
           outline-none
@@ -84,11 +84,11 @@ export default function Select({
                   relative flex cursor-pointer
                   items-center rounded-sm
                   px-3 py-2 pl-8
-                  text-xs text-zinc-300
+                  text-xs text-foreground-muted
                   outline-none transition-colors
 
-                  data-[highlighted]:bg-zinc-800
-                  data-[highlighted]:text-zinc-100
+                  data-[highlighted]:bg-surface-muted
+                  data-[highlighted]:text-foreground
                 "
               >
                 <RadixSelect.ItemIndicator

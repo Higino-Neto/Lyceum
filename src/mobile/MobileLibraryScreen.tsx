@@ -99,7 +99,7 @@ function BookCover({ book }: { book: MobileBook }) {
   return book.thumbnailUrl ? (
     <img className="h-full w-full object-cover" src={book.thumbnailUrl} alt="" />
   ) : (
-    <div className="grid h-full w-full place-items-center bg-emerald-950 text-xs font-bold uppercase text-emerald-400">
+    <div className="grid h-full w-full place-items-center bg-primary-muted text-xs font-bold uppercase text-primary">
       {book.fileType}
     </div>
   );
@@ -132,22 +132,22 @@ function FolderTreeNode({
   const selected = selectedFolderId === folder.id;
   return (
     <div>
-      <div className={`flex items-center rounded-xl ${selected ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-300"}`} style={{ marginLeft: depth * 12 }}>
-        <button className="grid h-10 w-8 shrink-0 place-items-center text-zinc-500 disabled:pointer-events-none" disabled={!children.length} onClick={() => onToggle(folder.id)} aria-label={
+      <div className={`flex items-center rounded-xl ${selected ? "bg-primary-muted text-primary" : "text-foreground"}`} style={{ marginLeft: depth * 12 }}>
+        <button className="grid h-10 w-8 shrink-0 place-items-center text-foreground-subtle disabled:pointer-events-none" disabled={!children.length} onClick={() => onToggle(folder.id)} aria-label={
             children.length
               ? isExpanded
                 ? t("mobile:library.collapseFolderAriaLabel", { name: folder.name })
                 : t("mobile:library.expandFolderAriaLabel", { name: folder.name })
               : undefined
           } type="button">
-          {children.length ? isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} /> : <span className="h-1 w-1 rounded-full bg-zinc-700" />}
+          {children.length ? isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} /> : <span className="h-1 w-1 rounded-full bg-border-strong" />}
         </button>
         <button className="flex min-w-0 flex-1 items-center gap-2 py-2.5 text-left text-sm" onClick={() => onSelect(folder)} type="button">
           {selected ? <FolderOpen size={17} /> : <Folder size={17} />}
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-          <span className="text-[11px] tabular-nums text-zinc-600">{count}</span>
+          <span className="text-[11px] tabular-nums text-foreground-subtle">{count}</span>
         </button>
-        <button className="grid h-10 w-9 shrink-0 place-items-center text-zinc-500" onClick={() => onAction(folder)} aria-label={t("mobile:library.folderActionsAriaLabel", { name: folder.name })} type="button"><MoreVertical size={15} /></button>
+        <button className="grid h-10 w-9 shrink-0 place-items-center text-foreground-subtle" onClick={() => onAction(folder)} aria-label={t("mobile:library.folderActionsAriaLabel", { name: folder.name })} type="button"><MoreVertical size={15} /></button>
       </div>
       {children.length > 0 && isExpanded && (
         <div>{children.map((child) => <FolderTreeNode key={child.id} folder={child} folders={folders} books={books} selectedFolderId={selectedFolderId} expanded={expanded} onToggle={onToggle} onSelect={onSelect} onAction={onAction} />)}</div>
@@ -179,16 +179,16 @@ function BookEditor({
   const update = (patch: Partial<MobileBook>) => setDraft((current) => ({ ...current, ...patch }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/70 backdrop-blur-sm">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={t("mobile:library.detailsAriaLabel")}>
+    <div className="fixed inset-0 z-50 flex items-end bg-backdrop backdrop-blur-sm">
+      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-border bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={t("mobile:library.detailsAriaLabel")}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wider text-emerald-400">
+            <p className="text-xs uppercase tracking-wider text-primary">
               {t("mobile:library.detailsKicker")}
             </p>
             <h2 className="mt-1 text-lg font-semibold">{book.title}</h2>
           </div>
-          <button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" onClick={onClose} aria-label={t("mobile:library.closeDetailsAriaLabel")} type="button"><X size={18} /></button>
+          <button className="grid h-11 w-11 place-items-center rounded-full bg-surface" onClick={onClose} aria-label={t("mobile:library.closeDetailsAriaLabel")} type="button"><X size={18} /></button>
         </div>
 
         <div className="mt-5 grid gap-3">
@@ -196,44 +196,44 @@ function BookEditor({
             {t("mobile:library.readingStatus")}
             <select className="mobile-field" value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_KEYS).map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}</select>
           </label>
-          <button className={`flex h-12 items-center justify-center gap-2 rounded-xl border ${draft.isFavorite ? "border-emerald-500 bg-emerald-500/15 text-emerald-300" : "border-zinc-800 bg-zinc-900"}`} onClick={() => update({ isFavorite: !draft.isFavorite })} type="button"><Heart className={draft.isFavorite ? "fill-current" : ""} size={17} /> {draft.isFavorite ? t("mobile:library.favorite") : t("mobile:library.addToFavorites")}</button>
-          <details className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
+          <button className={`flex h-12 items-center justify-center gap-2 rounded-xl border ${draft.isFavorite ? "border-primary bg-primary-muted text-primary" : "border-border bg-surface"}`} onClick={() => update({ isFavorite: !draft.isFavorite })} type="button"><Heart className={draft.isFavorite ? "fill-current" : ""} size={17} /> {draft.isFavorite ? t("mobile:library.favorite") : t("mobile:library.addToFavorites")}</button>
+          <details className="rounded-2xl border border-border bg-surface/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
             {t("mobile:library.metadataAndNotes")}
           </summary><div className="mt-4 grid gap-3">
-          <input className="rounded-lg bg-zinc-800 p-3" aria-label={t("mobile:library.tagsPlaceholder")} placeholder={t("mobile:library.tagsPlaceholder")} value={draft.tags?.join(", ") || ""} onChange={e => update({ tags: e.target.value.split(",").map(t => t.trim()) })} />
-          <input className="rounded-lg bg-zinc-800 p-3" placeholder={t("mobile:library.seriesPlaceholder")} value={draft.seriesName || ""} onChange={e => update({ seriesName: e.target.value })} />
-          <input className="rounded-lg bg-zinc-800 p-3" aria-label={t("mobile:library.seriesVolumeAriaLabel")} type="number" step="0.1" value={draft.seriesIndex ?? ""} onChange={e => update({ seriesIndex: e.target.value ? Number(e.target.value) : undefined })} />
-          <input className="rounded-lg bg-zinc-800 p-3" placeholder={t("mobile:library.languagePlaceholder")} value={draft.language || ""} onChange={e => update({ language: e.target.value })} />
+          <input className="rounded-lg bg-surface-muted p-3" aria-label={t("mobile:library.tagsPlaceholder")} placeholder={t("mobile:library.tagsPlaceholder")} value={draft.tags?.join(", ") || ""} onChange={e => update({ tags: e.target.value.split(",").map(t => t.trim()) })} />
+          <input className="rounded-lg bg-surface-muted p-3" placeholder={t("mobile:library.seriesPlaceholder")} value={draft.seriesName || ""} onChange={e => update({ seriesName: e.target.value })} />
+          <input className="rounded-lg bg-surface-muted p-3" aria-label={t("mobile:library.seriesVolumeAriaLabel")} type="number" step="0.1" value={draft.seriesIndex ?? ""} onChange={e => update({ seriesIndex: e.target.value ? Number(e.target.value) : undefined })} />
+          <input className="rounded-lg bg-surface-muted p-3" placeholder={t("mobile:library.languagePlaceholder")} value={draft.language || ""} onChange={e => update({ language: e.target.value })} />
           <label className="text-sm">{t("mobile:library.changeCover")} <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { toast.error(t("mobile:library.coverTooLarge")); return; } try { update({ thumbnailUrl: await readFileAsDataUrl(file), thumbnailSource: "extracted", thumbnailExtractAttempted: true }); } catch { toast.error(t("mobile:library.coverReadFailed")); } }} /></label>
-          <button className="rounded-lg bg-zinc-800 p-3" disabled={!draft.isbn} onClick={async () => { try { const results = await searchAllBooks(`isbn:${draft.isbn}`, []); const result = results.find(r => r.source === "external")?.data; if (!result) { toast(t("mobile:library.isbnNotFound")); return; } update({ title: result.title, author: result.author || undefined }); toast.success(t("mobile:library.metadataLoaded")); } catch { toast.error(t("mobile:library.isbnLookupFailed")); } }}>{t("mobile:library.lookupIsbn")}</button>
-          <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={t("mobile:library.titlePlaceholder")} />
-          <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.author || ""} onChange={(event) => update({ author: event.target.value })} placeholder={t("mobile:library.authorPlaceholder")} />
+          <button className="rounded-lg bg-surface-muted p-3" disabled={!draft.isbn} onClick={async () => { try { const results = await searchAllBooks(`isbn:${draft.isbn}`, []); const result = results.find(r => r.source === "external")?.data; if (!result) { toast(t("mobile:library.isbnNotFound")); return; } update({ title: result.title, author: result.author || undefined }); toast.success(t("mobile:library.metadataLoaded")); } catch { toast.error(t("mobile:library.isbnLookupFailed")); } }}>{t("mobile:library.lookupIsbn")}</button>
+          <input className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={t("mobile:library.titlePlaceholder")} />
+          <input className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.author || ""} onChange={(event) => update({ author: event.target.value })} placeholder={t("mobile:library.authorPlaceholder")} />
           <div className="grid grid-cols-2 gap-3">
-            <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.publisher || ""} onChange={(event) => update({ publisher: event.target.value })} placeholder={t("mobile:library.publisherPlaceholder")} />
-            <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.publishDate || ""} onChange={(event) => update({ publishDate: event.target.value })} placeholder={t("mobile:library.publishDatePlaceholder")} />
+            <input className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.publisher || ""} onChange={(event) => update({ publisher: event.target.value })} placeholder={t("mobile:library.publisherPlaceholder")} />
+            <input className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.publishDate || ""} onChange={(event) => update({ publishDate: event.target.value })} placeholder={t("mobile:library.publishDatePlaceholder")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.isbn || ""} onChange={(event) => update({ isbn: event.target.value })} placeholder="ISBN" />
+            <input className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.isbn || ""} onChange={(event) => update({ isbn: event.target.value })} placeholder="ISBN" />
             <div>
-              <input list="mobile-book-categories" className="h-11 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.category} onChange={(event) => update({ category: event.target.value })} placeholder={t("mobile:library.categoryPlaceholder")} />
+              <input list="mobile-book-categories" className="h-11 w-full rounded-xl border border-border bg-surface px-3" value={draft.category} onChange={(event) => update({ category: event.target.value })} placeholder={t("mobile:library.categoryPlaceholder")} />
               <datalist id="mobile-book-categories">{Array.from(new Set([...categories, draft.category])).map((category) => <option key={category} value={category} />)}</datalist>
             </div>
           </div>
-          <label className="rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-sm text-zinc-400">
-            {t("mobile:library.rating")}: <span className="text-zinc-100">{draft.rating || 0}/5</span>
-            <input className="mt-2 w-full accent-emerald-500" type="range" min="0" max="5" step="1" value={draft.rating || 0} onChange={(event) => update({ rating: Number(event.target.value) })} />
+          <label className="rounded-xl border border-border bg-surface p-3 text-sm text-foreground-muted">
+            {t("mobile:library.rating")}: <span className="text-foreground">{draft.rating || 0}/5</span>
+            <input className="mt-2 w-full accent-primary" type="range" min="0" max="5" step="1" value={draft.rating || 0} onChange={(event) => update({ rating: Number(event.target.value) })} />
           </label>
-          <textarea className="min-h-24 rounded-xl border border-zinc-800 bg-zinc-900 p-3" value={draft.description || ""} onChange={(event) => update({ description: event.target.value })} placeholder={t("mobile:library.descriptionPlaceholder")} />
-          <textarea className="min-h-28 rounded-xl border border-zinc-800 bg-zinc-900 p-3" aria-label={t("mobile:library.notesAriaLabel")} value={draft.notes || ""} onChange={(event) => update({ notes: event.target.value })} placeholder={t("mobile:library.notesPlaceholder")} />
+          <textarea className="min-h-24 rounded-xl border border-border bg-surface p-3" value={draft.description || ""} onChange={(event) => update({ description: event.target.value })} placeholder={t("mobile:library.descriptionPlaceholder")} />
+          <textarea className="min-h-28 rounded-xl border border-border bg-surface p-3" aria-label={t("mobile:library.notesAriaLabel")} value={draft.notes || ""} onChange={(event) => update({ notes: event.target.value })} placeholder={t("mobile:library.notesPlaceholder")} />
           </div></details>
 
-          <label className="text-sm text-zinc-400">{t("mobile:library.managedFolder")}</label>
-          <select className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-3" value={draft.folderId || ""} onChange={(event) => update({ folderId: event.target.value || undefined })}>
+          <label className="text-sm text-foreground-muted">{t("mobile:library.managedFolder")}</label>
+          <select className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.folderId || ""} onChange={(event) => update({ folderId: event.target.value || undefined })}>
             <option value="">{t("mobile:library.libraryOption")}</option>
             {folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, folders)}</option>)}
           </select>
 
-          <button className="h-12 rounded-xl bg-emerald-600 font-semibold text-white" onClick={async () => {
+          <button className="h-12 rounded-xl bg-primary font-semibold text-primary-foreground" onClick={async () => {
             if (draft.folderId !== book.folderId) {
               setMoving(true);
               await onMove(draft.folderId);
@@ -255,10 +255,10 @@ function BookEditor({
               updatedAt: new Date().toISOString(),
             });
           }} disabled={moving} type="button">{moving ? t("mobile:library.moving") : t("mobile:library.saveChanges")}</button>
-          <details className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
+          <details className="rounded-2xl border border-border bg-surface/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
             {t("mobile:library.fileAndSharing")}
-          </summary><div className="mt-3 grid gap-2"><button className="min-h-11 rounded-xl bg-zinc-800 px-3 text-sm" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.exportFile")}</button><button className="min-h-11 rounded-xl bg-zinc-800 px-3 text-sm" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.sendToKindle")}</button></div></details>
-          <button className="h-11 rounded-xl border border-red-900/70 bg-red-950/30 font-medium text-red-300" onClick={onDelete} type="button">{t("mobile:library.removeBook")}</button>
+          </summary><div className="mt-3 grid gap-2"><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.exportFile")}</button><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.sendToKindle")}</button></div></details>
+          <button className="h-11 rounded-xl border border-destructive/70 bg-destructive-muted font-medium text-destructive" onClick={onDelete} type="button">{t("mobile:library.removeBook")}</button>
         </div>
       </div>
     </div>
@@ -347,31 +347,31 @@ export default function MobileLibraryScreen({
   };
 
   return (
-    <section className="min-h-screen bg-[#050607] px-4 pb-[calc(90px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-zinc-100">
+    <section className="min-h-screen bg-background px-4 pb-[calc(90px+env(safe-area-inset-bottom))] pt-[max(10px,env(safe-area-inset-top))] text-foreground">
       <ReaderTools />
-      {advancedOpen && <div className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={() => setAdvancedOpen(false)}><div className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border border-zinc-700 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={t("mobile:library.filtersAriaLabel")} onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-emerald-400">{t("mobile:library.libraryOption")}</p><h2 className="mt-1 text-xl font-semibold">{t("mobile:library.filtersAndCollections")}</h2></div><button className="grid h-11 w-11 place-items-center rounded-full bg-zinc-900" aria-label={t("mobile:library.closeFiltersAriaLabel")} onClick={() => setAdvancedOpen(false)} type="button"><X size={19} /></button></div>
+      {advancedOpen && <div className="fixed inset-0 z-50 flex items-end bg-backdrop" onClick={() => setAdvancedOpen(false)}><div className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border border-border-strong bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={t("mobile:library.filtersAriaLabel")} onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-primary">{t("mobile:library.libraryOption")}</p><h2 className="mt-1 text-xl font-semibold">{t("mobile:library.filtersAndCollections")}</h2></div><button className="grid h-11 w-11 place-items-center rounded-full bg-surface" aria-label={t("mobile:library.closeFiltersAriaLabel")} onClick={() => setAdvancedOpen(false)} type="button"><X size={19} /></button></div>
         <div className="mt-5 grid gap-3 text-sm">
-          <select aria-label={t("mobile:library.filterByStatus")} className="rounded bg-zinc-800 p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">{t("mobile:library.allStatuses")}</option>{Object.entries(STATUS_KEYS).map(([v, labelKey]) => <option key={v} value={v}>{t(labelKey)}</option>)}</select>
-          <select aria-label={t("mobile:library.filterByTag")} className="rounded bg-zinc-800 p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">{t("mobile:library.allTags")}</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</select>
-          <input className="rounded bg-zinc-800 p-2" placeholder={t("mobile:library.authorPlaceholder")} value={query.author || ""} onChange={e => setQuery({ author: e.target.value || undefined })} />
-          <input className="w-24 rounded bg-zinc-800 p-2" aria-label={t("mobile:library.minProgressAriaLabel")} placeholder={t("mobile:library.minProgressPlaceholder")} type="number" min="0" max="100" value={query.minProgress ?? ""} onChange={e => setQuery({ minProgress: e.target.value ? Number(e.target.value) : undefined })} />
-          <input className="w-24 rounded bg-zinc-800 p-2" aria-label={t("mobile:library.maxProgressAriaLabel")} placeholder={t("mobile:library.maxProgressPlaceholder")} type="number" min="0" max="100" value={query.maxProgress ?? ""} onChange={e => setQuery({ maxProgress: e.target.value ? Number(e.target.value) : undefined })} />
-          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc", minProgress: 1, maxProgress: 99 })}>{t("mobile:library.continueReading")}</button>
-          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc" })}>{t("mobile:library.recent")}</button>
-          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "imported_desc" })}>{t("mobile:library.added")}</button>
-          <button className="rounded bg-zinc-800 p-2" onClick={() => setQuery({ favoritesOnly: !query.favoritesOnly })}>{t("mobile:library.favorites")}</button>
-          <input className="rounded bg-zinc-800 p-2" placeholder={t("mobile:library.collectionNamePlaceholder")} value={collectionName} onChange={e => setCollectionName(e.target.value)} />
-          <button disabled={!collectionName.trim()} className="rounded bg-emerald-800 p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), rule: { ...query }, updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>{t("mobile:library.saveAutoFilter")}</button>
-          <button disabled={!collectionName.trim() || !selectedIds.size} className="rounded bg-emerald-800 p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), bookIds: [...selectedIds], updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>{t("mobile:library.collectionOfSelected")}</button>
-          {(state.collections || []).map(c => <button key={c.id} className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange(c.rule || { search: "", scope: "all", fileType: "all", sort: "title_asc", bookIds: c.bookIds })}>{c.name}</button>)}
-          <button className="rounded bg-zinc-800 p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "title_asc" })}>{t("mobile:library.clearFilters")}</button>
-          {bulkMode && <><input className="rounded bg-zinc-800 p-2" placeholder={t("mobile:library.bulkTagsPlaceholder")} value={bulkTags} onChange={e => setBulkTags(e.target.value)} /><button className="rounded bg-emerald-800 p-2" disabled={!selectedIds.size} onClick={() => selectedIds.forEach(id => { const b = state.books.find(b => b.id === id); onUpdateBook(id, { tags: [...new Set([...(b?.tags || []), ...bulkTags.split(",").map(t => t.trim()).filter(Boolean)])] }); })}>{t("mobile:library.applyBulkTags")}</button></>}
+          <select aria-label={t("mobile:library.filterByStatus")} className="rounded bg-surface-muted p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">{t("mobile:library.allStatuses")}</option>{Object.entries(STATUS_KEYS).map(([v, labelKey]) => <option key={v} value={v}>{t(labelKey)}</option>)}</select>
+          <select aria-label={t("mobile:library.filterByTag")} className="rounded bg-surface-muted p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">{t("mobile:library.allTags")}</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</select>
+          <input className="rounded bg-surface-muted p-2" placeholder={t("mobile:library.authorPlaceholder")} value={query.author || ""} onChange={e => setQuery({ author: e.target.value || undefined })} />
+          <input className="w-24 rounded bg-surface-muted p-2" aria-label={t("mobile:library.minProgressAriaLabel")} placeholder={t("mobile:library.minProgressPlaceholder")} type="number" min="0" max="100" value={query.minProgress ?? ""} onChange={e => setQuery({ minProgress: e.target.value ? Number(e.target.value) : undefined })} />
+          <input className="w-24 rounded bg-surface-muted p-2" aria-label={t("mobile:library.maxProgressAriaLabel")} placeholder={t("mobile:library.maxProgressPlaceholder")} type="number" min="0" max="100" value={query.maxProgress ?? ""} onChange={e => setQuery({ maxProgress: e.target.value ? Number(e.target.value) : undefined })} />
+          <button className="rounded bg-surface-muted p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc", minProgress: 1, maxProgress: 99 })}>{t("mobile:library.continueReading")}</button>
+          <button className="rounded bg-surface-muted p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "recent_desc" })}>{t("mobile:library.recent")}</button>
+          <button className="rounded bg-surface-muted p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "imported_desc" })}>{t("mobile:library.added")}</button>
+          <button className="rounded bg-surface-muted p-2" onClick={() => setQuery({ favoritesOnly: !query.favoritesOnly })}>{t("mobile:library.favorites")}</button>
+          <input className="rounded bg-surface-muted p-2" placeholder={t("mobile:library.collectionNamePlaceholder")} value={collectionName} onChange={e => setCollectionName(e.target.value)} />
+          <button disabled={!collectionName.trim()} className="rounded bg-primary-muted p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), rule: { ...query }, updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>{t("mobile:library.saveAutoFilter")}</button>
+          <button disabled={!collectionName.trim() || !selectedIds.size} className="rounded bg-primary-muted p-2" onClick={() => { onCollectionsChange?.([...(state.collections || []), { id: makeMobileId("collection"), name: collectionName.trim(), bookIds: [...selectedIds], updatedAt: new Date().toISOString() }]); setCollectionName(""); }}>{t("mobile:library.collectionOfSelected")}</button>
+          {(state.collections || []).map(c => <button key={c.id} className="rounded bg-surface-muted p-2" onClick={() => onQueryChange(c.rule || { search: "", scope: "all", fileType: "all", sort: "title_asc", bookIds: c.bookIds })}>{c.name}</button>)}
+          <button className="rounded bg-surface-muted p-2" onClick={() => onQueryChange({ search: "", scope: "all", fileType: "all", sort: "title_asc" })}>{t("mobile:library.clearFilters")}</button>
+          {bulkMode && <><input className="rounded bg-surface-muted p-2" placeholder={t("mobile:library.bulkTagsPlaceholder")} value={bulkTags} onChange={e => setBulkTags(e.target.value)} /><button className="rounded bg-primary-muted p-2" disabled={!selectedIds.size} onClick={() => selectedIds.forEach(id => { const b = state.books.find(b => b.id === id); onUpdateBook(id, { tags: [...new Set([...(b?.tags || []), ...bulkTags.split(",").map(t => t.trim()).filter(Boolean)])] }); })}>{t("mobile:library.applyBulkTags")}</button></>}
         </div>
       </div></div>}
       <header className="flex h-12 items-center justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => setDrawerOpen(true)} aria-label={t("mobile:library.menuAriaLabel")} type="button"><Menu size={23} /></button>
-          <div className="min-w-0"><h1 className="truncate text-xl font-extrabold">{t("mobile:library.breadcrumbRoot")}</h1><p className="text-xs text-zinc-500">{t("mobile:library.volumeCount", { count: state.books.length })}</p></div>
+          <div className="min-w-0"><h1 className="truncate text-xl font-extrabold">{t("mobile:library.breadcrumbRoot")}</h1><p className="text-xs text-foreground-subtle">{t("mobile:library.volumeCount", { count: state.books.length })}</p></div>
         </div>
         <div className="flex gap-1">
           <button className="grid h-10 w-10 place-items-center rounded-full" onClick={() => searchRef.current?.focus()} aria-label={t("mobile:library.searchAriaLabel")} type="button"><Search size={20} /></button>
@@ -379,25 +379,25 @@ export default function MobileLibraryScreen({
         </div>
       </header>
 
-      {(folderTrail.length > 0 || currentSource) && <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto rounded-xl bg-zinc-900/80 px-2 py-1 text-xs" aria-label={t("mobile:library.breadcrumbAriaLabel")}>
-        <button className={`shrink-0 rounded-lg px-2.5 py-2 ${!currentFolder && !currentSource ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400"}`} onClick={() => setQuery({ folderId: undefined, sourceFolderId: undefined })} type="button">{t("mobile:library.breadcrumbRoot")}</button>
-        {folderTrail.map((folder) => <span className="flex shrink-0 items-center" key={folder.id}><ChevronRight size={13} className="text-zinc-700" /><button className={`rounded-lg px-2.5 py-2 ${folder.id === query.folderId ? "bg-emerald-500/15 text-emerald-300" : "text-zinc-400"}`} onClick={() => openFolder(folder)} type="button">{folder.name}</button></span>)}
-        {currentSource && <span className="flex shrink-0 items-center"><ChevronRight size={13} className="text-zinc-700" /><span className="rounded-lg bg-emerald-500/15 px-2.5 py-2 text-emerald-300">{t("mobile:library.breadcrumbSource", { name: currentSource.name })}</span></span>}
+      {(folderTrail.length > 0 || currentSource) && <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto rounded-xl bg-surface/80 px-2 py-1 text-xs" aria-label={t("mobile:library.breadcrumbAriaLabel")}>
+        <button className={`shrink-0 rounded-lg px-2.5 py-2 ${!currentFolder && !currentSource ? "bg-primary-muted text-primary" : "text-foreground-muted"}`} onClick={() => setQuery({ folderId: undefined, sourceFolderId: undefined })} type="button">{t("mobile:library.breadcrumbRoot")}</button>
+        {folderTrail.map((folder) => <span className="flex shrink-0 items-center" key={folder.id}><ChevronRight size={13} className="text-foreground-subtle" /><button className={`rounded-lg px-2.5 py-2 ${folder.id === query.folderId ? "bg-primary-muted text-primary" : "text-foreground-muted"}`} onClick={() => openFolder(folder)} type="button">{folder.name}</button></span>)}
+        {currentSource && <span className="flex shrink-0 items-center"><ChevronRight size={13} className="text-foreground-subtle" /><span className="rounded-lg bg-primary-muted px-2.5 py-2 text-primary">{t("mobile:library.breadcrumbSource", { name: currentSource.name })}</span></span>}
       </nav>}
 
       <div className="relative mt-3">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-        <input ref={searchRef} className="h-11 w-full rounded-2xl border border-white/5 bg-[#17181c] pl-11 pr-4 text-sm outline-none focus:border-emerald-500/50" placeholder={t("mobile:library.searchPlaceholder")} value={query.search} onChange={(event) => setQuery({ search: event.target.value })} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground-subtle" size={18} />
+        <input ref={searchRef} className="h-11 w-full rounded-2xl border border-border bg-surface pl-11 pr-4 text-sm outline-none focus:border-primary/50" placeholder={t("mobile:library.searchPlaceholder")} value={query.search} onChange={(event) => setQuery({ search: event.target.value })} />
       </div>
 
 
 
       {state.books.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {(["all", "managed", "source"] as const).map((scope) => <button key={scope} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold ${query.scope === scope ? "bg-emerald-600 text-white" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ scope })} type="button">{t(SCOPE_KEYS[scope])}</button>)}
-        {(["pdf", "epub", "txt"] as const).map((fileType) => <button key={fileType} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold uppercase ${query.fileType === fileType ? "bg-zinc-100 text-zinc-950" : "bg-zinc-900 text-zinc-400"}`} onClick={() => setQuery({ fileType: query.fileType === fileType ? "all" : fileType })} type="button">{fileType}</button>)}
+        {(["all", "managed", "source"] as const).map((scope) => <button key={scope} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold ${query.scope === scope ? "bg-primary text-primary-foreground" : "bg-surface text-foreground-muted"}`} onClick={() => setQuery({ scope })} type="button">{t(SCOPE_KEYS[scope])}</button>)}
+        {(["pdf", "epub", "txt"] as const).map((fileType) => <button key={fileType} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold uppercase ${query.fileType === fileType ? "bg-surface-muted text-foreground" : "bg-surface text-foreground-muted"}`} onClick={() => setQuery({ fileType: query.fileType === fileType ? "all" : fileType })} type="button">{fileType}</button>)}
       </div>}
 
-      {state.books.length > 0 && <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+      {state.books.length > 0 && <div className="mt-3 flex items-center justify-between text-xs text-foreground-subtle">
         <span>
           {t("mobile:library.resultCount", {
             count: books.length,
@@ -405,29 +405,29 @@ export default function MobileLibraryScreen({
           })}
         </span>
         <div className="flex gap-1">
-          <button className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-900 text-emerald-400" onClick={() => openFolderDialog("create", undefined, query.folderId)} aria-label={t("mobile:library.newFolderAriaLabel")} type="button"><Plus size={17} /></button>
-          <button className={`grid h-9 w-9 place-items-center rounded-lg ${bulkMode ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-900"}`} onClick={() => { setBulkMode((value) => !value); setSelectedIds(new Set()); }} aria-label={t("mobile:library.bulkSelectionAriaLabel")} type="button"><Check size={16} /></button>
-          <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "grid" ? "bg-zinc-700 text-white" : "bg-zinc-900"}`} onClick={() => onViewChange("grid")} aria-label={t("mobile:library.gridViewAriaLabel")} type="button"><Grid2X2 size={16} /></button>
-          <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "list" ? "bg-zinc-700 text-white" : "bg-zinc-900"}`} onClick={() => onViewChange("list")} aria-label={t("mobile:library.listViewAriaLabel")} type="button"><List size={17} /></button>
+          <button className="grid h-9 w-9 place-items-center rounded-lg bg-surface text-primary" onClick={() => openFolderDialog("create", undefined, query.folderId)} aria-label={t("mobile:library.newFolderAriaLabel")} type="button"><Plus size={17} /></button>
+          <button className={`grid h-9 w-9 place-items-center rounded-lg ${bulkMode ? "bg-primary-muted text-primary" : "bg-surface"}`} onClick={() => { setBulkMode((value) => !value); setSelectedIds(new Set()); }} aria-label={t("mobile:library.bulkSelectionAriaLabel")} type="button"><Check size={16} /></button>
+          <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "grid" ? "bg-border-strong text-foreground" : "bg-surface"}`} onClick={() => onViewChange("grid")} aria-label={t("mobile:library.gridViewAriaLabel")} type="button"><Grid2X2 size={16} /></button>
+          <button className={`grid h-9 w-9 place-items-center rounded-lg ${view === "list" ? "bg-border-strong text-foreground" : "bg-surface"}`} onClick={() => onViewChange("list")} aria-label={t("mobile:library.listViewAriaLabel")} type="button"><List size={17} /></button>
         </div>
       </div>}
 
       {visibleChildFolders.length > 0 && (
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:library.folders")}</p>
-            <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-400" onClick={() => openFolderDialog("create", undefined, query.folderId)} type="button"><Plus size={14} /> {t("mobile:library.newShort")}</button>
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:library.folders")}</p>
+            <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary" onClick={() => openFolderDialog("create", undefined, query.folderId)} type="button"><Plus size={14} /> {t("mobile:library.newShort")}</button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {visibleChildFolders.map((folder) => {
               const folderIds = descendantFolderIds(folder.id, state.folders);
               const count = state.books.filter((book) => book.folderId && folderIds.has(book.folderId)).length;
-              return <article key={folder.id} className="relative rounded-2xl border border-white/5 bg-gradient-to-br from-zinc-800 to-zinc-900 p-3 shadow-lg shadow-black/10">
+              return <article key={folder.id} className="relative rounded-2xl border border-border bg-gradient-to-br from-surface-muted to-surface p-3 shadow-lg shadow-shadow">
                 <button className="flex w-full items-center gap-3 pr-8 text-left" onClick={() => openFolder(folder)} type="button">
-                  <span className="grid h-11 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-400"><FolderOpen size={24} /></span>
-                  <span className="min-w-0"><span className="block truncate text-sm font-semibold">{folder.name}</span><span className="mt-1 block text-[11px] text-zinc-500">{t("mobile:library.bookCount", { count })}</span></span>
+                  <span className="grid h-11 w-12 shrink-0 place-items-center rounded-xl bg-primary-muted text-primary"><FolderOpen size={24} /></span>
+                  <span className="min-w-0"><span className="block truncate text-sm font-semibold">{folder.name}</span><span className="mt-1 block text-[11px] text-foreground-subtle">{t("mobile:library.bookCount", { count })}</span></span>
                 </button>
-                <button className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full text-zinc-500" onClick={() => setFolderActionId(folder.id)} aria-label={t("mobile:library.folderActionsAriaLabel", { name: folder.name })} type="button"><MoreVertical size={16} /></button>
+                <button className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full text-foreground-subtle" onClick={() => setFolderActionId(folder.id)} aria-label={t("mobile:library.folderActionsAriaLabel", { name: folder.name })} type="button"><MoreVertical size={16} /></button>
               </article>;
             })}
           </div>
@@ -435,77 +435,77 @@ export default function MobileLibraryScreen({
       )}
 
       {books.length === 0 && visibleChildFolders.length === 0 ? (
-        <div className="grid min-h-[360px] place-items-center text-center"><div><BookOpen className="mx-auto text-emerald-400" size={34} /><h2 className="mt-4 text-lg font-semibold">
+        <div className="grid min-h-[360px] place-items-center text-center"><div><BookOpen className="mx-auto text-primary" size={34} /><h2 className="mt-4 text-lg font-semibold">
             {state.books.length
               ? t("mobile:library.noResult")
               : t("mobile:library.emptyLibrary")}
           </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-foreground-subtle">
             {t("mobile:library.emptyLibraryBody")}
           </p>
           <div className="mt-5 flex justify-center gap-2">
-            <button className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold" onClick={onImportFiles} type="button">{t("mobile:library.importBooks")}</button>
-            <button className="rounded-xl bg-zinc-800 px-4 py-3 text-sm font-semibold" onClick={() => onImportSourceFolder()} type="button">{t("mobile:library.sourceFolder")}</button>
+            <button className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground" onClick={onImportFiles} type="button">{t("mobile:library.importBooks")}</button>
+            <button className="rounded-xl bg-surface-muted px-4 py-3 text-sm font-semibold" onClick={() => onImportSourceFolder()} type="button">{t("mobile:library.sourceFolder")}</button>
           </div></div></div>
       ) : view === "grid" ? (
         <div className="mt-4 grid grid-cols-2 gap-3">{books.map((book) => {
           const progress = getBookProgress(book);
           const selected = selectedIds.has(book.id);
-          return <article key={book.id} className={`relative overflow-hidden rounded-2xl border bg-zinc-900 ${selected ? "border-emerald-500" : "border-white/5"}`}>
-            {bulkMode && <button className={`absolute left-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full ${selected ? "bg-emerald-500 text-white" : "bg-black/70 text-zinc-300"}`} onClick={() => toggleSelected(book.id)} aria-label={t("mobile:library.selectBookAriaLabel", { title: book.title })} type="button">{selected && <Check size={15} />}</button>}
-            <button className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-black/70" onClick={() => setEditingBookId(book.id)} aria-label={t("mobile:library.detailsAriaLabelExisting", { title: book.title })} type="button"><MoreVertical size={16} /></button>
-            <button className="w-full text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="aspect-[3/4] bg-zinc-800"><BookCover book={book} /></div><div className="p-3"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.author || folderPath(book.folderId, state.folders)}</p><div className="mt-3 h-1 rounded bg-zinc-800"><div className="h-full rounded bg-emerald-500" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[10px] text-zinc-500">{progress}% · {formatFileSize(book.fileSize)}</p></div></button>
+          return <article key={book.id} className={`relative overflow-hidden rounded-2xl border bg-surface ${selected ? "border-primary" : "border-border"}`}>
+            {bulkMode && <button className={`absolute left-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full ${selected ? "bg-primary text-primary-foreground" : "bg-backdrop text-foreground"}`} onClick={() => toggleSelected(book.id)} aria-label={t("mobile:library.selectBookAriaLabel", { title: book.title })} type="button">{selected && <Check size={15} />}</button>}
+            <button className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-backdrop" onClick={() => setEditingBookId(book.id)} aria-label={t("mobile:library.detailsAriaLabelExisting", { title: book.title })} type="button"><MoreVertical size={16} /></button>
+            <button className="w-full text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="aspect-[3/4] bg-surface-muted"><BookCover book={book} /></div><div className="p-3"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-foreground-subtle">{book.author || folderPath(book.folderId, state.folders)}</p><div className="mt-3 h-1 rounded bg-surface-muted"><div className="h-full rounded bg-primary" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[10px] text-foreground-subtle">{progress}% · {formatFileSize(book.fileSize)}</p></div></button>
           </article>;
         })}</div>
       ) : (
         <div className="mt-4 space-y-2">{books.map((book) => {
           const selected = selectedIds.has(book.id);
-          return <article key={book.id} className={`flex items-center gap-3 rounded-2xl border bg-zinc-900 p-2 ${selected ? "border-emerald-500" : "border-white/5"}`}><button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg"><BookCover book={book} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-zinc-500">{book.seriesName ? `${book.seriesName} · ${book.seriesIndex || ""} · ` : ""}{book.author || book.fileName}</p><p className="mt-1 text-[11px] text-zinc-600">{folderPath(book.folderId, state.folders)} · {getBookProgress(book)}%</p></div></button>{bulkMode ? <button className={`grid h-9 w-9 place-items-center rounded-full ${selected ? "bg-emerald-500" : "bg-zinc-800"}`} onClick={() => toggleSelected(book.id)} type="button">{selected && <Check size={15} />}</button> : <button className="grid h-10 w-10 place-items-center" onClick={() => setEditingBookId(book.id)} aria-label={t("mobile:library.detailsAriaLabelExisting", { title: book.title })} type="button"><ChevronRight size={18} /></button>}</article>;
+          return <article key={book.id} className={`flex items-center gap-3 rounded-2xl border bg-surface p-2 ${selected ? "border-primary" : "border-border"}`}><button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => bulkMode ? toggleSelected(book.id) : onOpenBook(book.id)} type="button"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg"><BookCover book={book} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold">{book.title}</p><p className="mt-1 truncate text-xs text-foreground-subtle">{book.seriesName ? `${book.seriesName} · ${book.seriesIndex || ""} · ` : ""}{book.author || book.fileName}</p><p className="mt-1 text-[11px] text-foreground-subtle">{folderPath(book.folderId, state.folders)} · {getBookProgress(book)}%</p></div></button>{bulkMode ? <button className={`grid h-9 w-9 place-items-center rounded-full ${selected ? "bg-primary text-primary-foreground" : "bg-surface-muted"}`} onClick={() => toggleSelected(book.id)} type="button">{selected && <Check size={15} />}</button> : <button className="grid h-10 w-10 place-items-center" onClick={() => setEditingBookId(book.id)} aria-label={t("mobile:library.detailsAriaLabelExisting", { title: book.title })} type="button"><ChevronRight size={18} /></button>}</article>;
         })}</div>
       )}
 
-      {state.books.length > 0 && <button className="fixed bottom-[calc(82px+env(safe-area-inset-bottom))] right-5 z-20 grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white shadow-xl shadow-black/40" onClick={onImportFiles} aria-label={t("mobile:library.importBooksAriaLabel")} type="button"><FilePlus2 size={24} /></button>}
+      {state.books.length > 0 && <button className="fixed bottom-[calc(82px+env(safe-area-inset-bottom))] right-5 z-20 grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-shadow" onClick={onImportFiles} aria-label={t("mobile:library.importBooksAriaLabel")} type="button"><FilePlus2 size={24} /></button>}
 
-      {sortOpen && <div className="fixed inset-0 z-40 flex items-end bg-black/60" onClick={() => setSortOpen(false)}><div className="w-full rounded-t-3xl bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-semibold">{t("mobile:library.sortTitle")}</h2><button onClick={() => setSortOpen(false)} type="button"><X /></button></div><div className="mt-4 grid gap-2">{Object.entries(SORT_KEYS).map(([value, labelKey]) => <button key={value} className={`flex h-11 items-center justify-between rounded-xl px-3 text-sm ${query.sort === value ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-900"}`} onClick={() => { setQuery({ sort: value as MobileLibraryQuery["sort"] }); setSortOpen(false); }} type="button"><span className="flex items-center gap-2"><ArrowDownAZ size={16} />{t(labelKey)}</span>{query.sort === value && <Check size={16} />}</button>)}</div><button className="mt-3 h-11 w-full rounded-xl bg-zinc-800 text-sm font-semibold text-emerald-300" onClick={() => { setSortOpen(false); setAdvancedOpen(true); }} type="button">{t("mobile:library.filtersAndCollections")}</button></div></div>}
+      {sortOpen && <div className="fixed inset-0 z-40 flex items-end bg-backdrop" onClick={() => setSortOpen(false)}><div className="w-full rounded-t-3xl bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-semibold">{t("mobile:library.sortTitle")}</h2><button onClick={() => setSortOpen(false)} type="button"><X /></button></div><div className="mt-4 grid gap-2">{Object.entries(SORT_KEYS).map(([value, labelKey]) => <button key={value} className={`flex h-11 items-center justify-between rounded-xl px-3 text-sm ${query.sort === value ? "bg-primary-muted text-primary" : "bg-surface"}`} onClick={() => { setQuery({ sort: value as MobileLibraryQuery["sort"] }); setSortOpen(false); }} type="button"><span className="flex items-center gap-2"><ArrowDownAZ size={16} />{t(labelKey)}</span>{query.sort === value && <Check size={16} />}</button>)}</div><button className="mt-3 h-11 w-full rounded-xl bg-surface-muted text-sm font-semibold text-foreground" onClick={() => { setSortOpen(false); setAdvancedOpen(true); }} type="button">{t("mobile:library.filtersAndCollections")}</button></div></div>}
 
-      {drawerOpen && <div className="fixed inset-0 z-50 bg-black/70" onClick={() => setDrawerOpen(false)}><aside className="h-full w-[88%] max-w-sm overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-4 pt-[max(18px,env(safe-area-inset-top))]" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-wider text-emerald-400">{t("mobile:library.organization")}</p><h2 className="text-xl font-bold">{t("mobile:library.folders")}</h2></div><button className="grid h-10 w-10 place-items-center rounded-full bg-zinc-900" onClick={() => setDrawerOpen(false)} type="button"><X size={18} /></button></div>
-        <div className="mt-5 grid grid-cols-2 gap-2"><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold" onClick={() => openFolderDialog("create", undefined, query.folderId)} type="button"><Plus size={16} />{t("mobile:library.newFolder")}</button><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-zinc-800 text-sm font-semibold" onClick={() => onImportSourceFolder()} type="button"><FolderInput size={16} />{t("mobile:library.sourceFolder")}</button></div>
-        <button className={`mt-4 flex h-11 w-full items-center gap-2 rounded-xl px-3 text-sm ${!query.folderId && !query.sourceFolderId ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-900"}`} onClick={() => { setQuery({ folderId: undefined, sourceFolderId: undefined }); setDrawerOpen(false); }} type="button"><BookOpen size={16} />{t("mobile:library.allBooks")}</button>
-        <div className="mt-5"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:library.managedFolders")}</p>{rootFolders.length ? <div className="space-y-1">{rootFolders.map((folder) => <FolderTreeNode key={folder.id} folder={folder} folders={state.folders} books={state.books} selectedFolderId={query.folderId} expanded={expandedFolders} onToggle={(folderId) => setExpandedFolders((current) => { const next = new Set(current); if (next.has(folderId)) next.delete(folderId); else next.add(folderId); return next; })} onSelect={openFolder} onAction={(item) => setFolderActionId(item.id)} />)}</div> : <p className="rounded-xl bg-zinc-900 p-3 text-sm text-zinc-500">{t("mobile:library.noFolders")}</p>}</div>
-        <div className="mt-5"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:library.sourceFolders")}</p>{state.sourceFolders.length ? <div className="space-y-2">{state.sourceFolders.map((source) => <div key={source.id} className={`rounded-xl border p-3 ${query.sourceFolderId === source.id ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-800 bg-zinc-900"}`}><button className="flex w-full items-center justify-between text-left" onClick={() => { setQuery({ sourceFolderId: source.id, folderId: undefined, scope: "source" }); setDrawerOpen(false); }} type="button"><span><span className="block text-sm font-medium">{source.name}</span><span className="mt-1 block text-xs text-zinc-500">{source.lastFileCount} arquivo(s) · {new Intl.DateTimeFormat(getActiveLocale(), { day: "2-digit", month: "short" }).format(new Date(source.lastImportedAt))}</span></span><ChevronRight size={17} /></button><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><button className="flex h-9 items-center justify-center gap-2 rounded-lg bg-zinc-800 text-xs font-semibold" onClick={() => onImportSourceFolder(source.id)} type="button"><RefreshCw size={14} />{t("mobile:library.reimportFolder")}</button><button className="grid h-9 w-9 place-items-center rounded-lg bg-red-950/40 text-red-300" onClick={() => onDeleteSourceFolder(source.id)} aria-label={t("mobile:library.disconnectSourceAriaLabel", { name: source.name })} type="button"><Trash2 size={14} /></button></div></div>)}</div> : <p className="rounded-xl bg-zinc-900 p-3 text-sm leading-5 text-zinc-500">{t("mobile:library.noSourceFolder")}</p>}</div>
+      {drawerOpen && <div className="fixed inset-0 z-50 bg-backdrop" onClick={() => setDrawerOpen(false)}><aside className="h-full w-[88%] max-w-sm overflow-y-auto border-r border-border bg-background p-4 pt-[max(18px,env(safe-area-inset-top))]" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-wider text-primary">{t("mobile:library.organization")}</p><h2 className="text-xl font-bold">{t("mobile:library.folders")}</h2></div><button className="grid h-10 w-10 place-items-center rounded-full bg-surface" onClick={() => setDrawerOpen(false)} type="button"><X size={18} /></button></div>
+        <div className="mt-5 grid grid-cols-2 gap-2"><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground" onClick={() => openFolderDialog("create", undefined, query.folderId)} type="button"><Plus size={16} />{t("mobile:library.newFolder")}</button><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-surface-muted text-sm font-semibold" onClick={() => onImportSourceFolder()} type="button"><FolderInput size={16} />{t("mobile:library.sourceFolder")}</button></div>
+        <button className={`mt-4 flex h-11 w-full items-center gap-2 rounded-xl px-3 text-sm ${!query.folderId && !query.sourceFolderId ? "bg-primary-muted text-primary" : "bg-surface"}`} onClick={() => { setQuery({ folderId: undefined, sourceFolderId: undefined }); setDrawerOpen(false); }} type="button"><BookOpen size={16} />{t("mobile:library.allBooks")}</button>
+        <div className="mt-5"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:library.managedFolders")}</p>{rootFolders.length ? <div className="space-y-1">{rootFolders.map((folder) => <FolderTreeNode key={folder.id} folder={folder} folders={state.folders} books={state.books} selectedFolderId={query.folderId} expanded={expandedFolders} onToggle={(folderId) => setExpandedFolders((current) => { const next = new Set(current); if (next.has(folderId)) next.delete(folderId); else next.add(folderId); return next; })} onSelect={openFolder} onAction={(item) => setFolderActionId(item.id)} />)}</div> : <p className="rounded-xl bg-surface p-3 text-sm text-foreground-subtle">{t("mobile:library.noFolders")}</p>}</div>
+        <div className="mt-5"><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:library.sourceFolders")}</p>{state.sourceFolders.length ? <div className="space-y-2">{state.sourceFolders.map((source) => <div key={source.id} className={`rounded-xl border p-3 ${query.sourceFolderId === source.id ? "border-primary bg-primary-muted" : "border-border bg-surface"}`}><button className="flex w-full items-center justify-between text-left" onClick={() => { setQuery({ sourceFolderId: source.id, folderId: undefined, scope: "source" }); setDrawerOpen(false); }} type="button"><span><span className="block text-sm font-medium">{source.name}</span><span className="mt-1 block text-xs text-foreground-subtle">{source.lastFileCount} arquivo(s) · {new Intl.DateTimeFormat(getActiveLocale(), { day: "2-digit", month: "short" }).format(new Date(source.lastImportedAt))}</span></span><ChevronRight size={17} /></button><div className="mt-2 grid grid-cols-[1fr_auto] gap-2"><button className="flex h-9 items-center justify-center gap-2 rounded-lg bg-surface-muted text-xs font-semibold" onClick={() => onImportSourceFolder(source.id)} type="button"><RefreshCw size={14} />{t("mobile:library.reimportFolder")}</button><button className="grid h-9 w-9 place-items-center rounded-lg bg-destructive text-destructive-foreground" onClick={() => onDeleteSourceFolder(source.id)} aria-label={t("mobile:library.disconnectSourceAriaLabel", { name: source.name })} type="button"><Trash2 size={14} /></button></div></div>)}</div> : <p className="rounded-xl bg-surface p-3 text-sm leading-5 text-foreground-subtle">{t("mobile:library.noSourceFolder")}</p>}</div>
       </aside></div>}
 
-      {folderAction && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 backdrop-blur-sm" onClick={() => setFolderActionId(undefined)}><div className="w-full rounded-t-3xl border border-zinc-800 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-400"><FolderOpen size={24} /></span><div className="min-w-0"><p className="truncate font-semibold">{folderAction.name}</p><p className="truncate text-xs text-zinc-500">{folderPath(folderAction.id, state.folders)}</p></div></div>
+      {folderAction && <div className="fixed inset-0 z-[60] flex items-end bg-backdrop backdrop-blur-sm" onClick={() => setFolderActionId(undefined)}><div className="w-full rounded-t-3xl border border-border bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-muted text-primary"><FolderOpen size={24} /></span><div className="min-w-0"><p className="truncate font-semibold">{folderAction.name}</p><p className="truncate text-xs text-foreground-subtle">{folderPath(folderAction.id, state.folders)}</p></div></div>
         <div className="mt-5 grid gap-2">
-          <button className="flex h-12 items-center gap-3 rounded-xl bg-zinc-900 px-4 text-sm font-medium" onClick={() => { openFolder(folderAction); setFolderActionId(undefined); }} type="button"><FolderOpen size={18} className="text-emerald-400" />{t("mobile:library.openFolder")}</button>
-          <button className="flex h-12 items-center gap-3 rounded-xl bg-zinc-900 px-4 text-sm font-medium" onClick={() => openFolderDialog("create", undefined, folderAction.id)} type="button"><Plus size={18} className="text-emerald-400" />{t("mobile:library.createSubfolder")}</button>
-          <button className="flex h-12 items-center gap-3 rounded-xl bg-zinc-900 px-4 text-sm font-medium" onClick={() => openFolderDialog("rename", folderAction)} type="button"><Pencil size={18} />{t("mobile:library.renameShort")}</button>
-          <label className="rounded-xl bg-zinc-900 px-4 py-3 text-xs text-zinc-500">
+          <button className="flex h-12 items-center gap-3 rounded-xl bg-surface px-4 text-sm font-medium" onClick={() => { openFolder(folderAction); setFolderActionId(undefined); }} type="button"><FolderOpen size={18} className="text-primary" />{t("mobile:library.openFolder")}</button>
+          <button className="flex h-12 items-center gap-3 rounded-xl bg-surface px-4 text-sm font-medium" onClick={() => openFolderDialog("create", undefined, folderAction.id)} type="button"><Plus size={18} className="text-primary" />{t("mobile:library.createSubfolder")}</button>
+          <button className="flex h-12 items-center gap-3 rounded-xl bg-surface px-4 text-sm font-medium" onClick={() => openFolderDialog("rename", folderAction)} type="button"><Pencil size={18} />{t("mobile:library.renameShort")}</button>
+          <label className="rounded-xl bg-surface px-4 py-3 text-xs text-foreground-subtle">
             {t("mobile:library.moveTo")}
-            <select className="mt-2 h-11 w-full rounded-xl bg-zinc-800 px-3 text-sm text-zinc-100" value={folderAction.parentId || ""} onChange={(event) => { onMoveFolder(folderAction.id, event.target.value || undefined); setFolderActionId(undefined); }}>
+            <select className="mt-2 h-11 w-full rounded-xl bg-surface-muted px-3 text-sm text-foreground" value={folderAction.parentId || ""} onChange={(event) => { onMoveFolder(folderAction.id, event.target.value || undefined); setFolderActionId(undefined); }}>
               <option value="">{t("mobile:library.libraryOption")}</option>
               {state.folders.filter((folder) => folder.id !== folderAction.id && !descendantFolderIds(folderAction.id, state.folders).has(folder.id)).map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}
             </select>
           </label>
-          <button className="flex h-12 items-center gap-3 rounded-xl bg-red-950/40 px-4 text-sm font-medium text-red-300" onClick={() => { onDeleteFolder(folderAction.id); setFolderActionId(undefined); }} type="button"><Trash2 size={18} />{t("mobile:library.deleteFolder")}</button>
+          <button className="flex h-12 items-center gap-3 rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground" onClick={() => { onDeleteFolder(folderAction.id); setFolderActionId(undefined); }} type="button"><Trash2 size={18} />{t("mobile:library.deleteFolder")}</button>
         </div>
       </div></div>}
 
-      {folderDialog && <div className="fixed inset-0 z-[70] flex items-end bg-black/70 backdrop-blur-sm" onClick={() => setFolderDialog(undefined)}><form className="w-full rounded-t-3xl border border-zinc-800 bg-zinc-950 p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); submitFolderDialog(); }}>
-        <div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-wider text-emerald-400">{t("mobile:library.organization")}</p><h2 className="mt-1 text-lg font-semibold">{folderDialog.mode === "rename" ? t("mobile:library.renameFolder") : t("mobile:library.newFolder")}</h2></div><button className="grid h-10 w-10 place-items-center rounded-full bg-zinc-900" onClick={() => setFolderDialog(undefined)} type="button"><X size={18} /></button></div>
-        <input autoFocus className="mt-5 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 text-base outline-none focus:border-emerald-500" value={folderName} onChange={(event) => setFolderName(event.target.value)} placeholder={t("mobile:library.folderNamePlaceholder")} />
-        <p className="mt-2 text-xs text-zinc-500">
+      {folderDialog && <div className="fixed inset-0 z-[70] flex items-end bg-backdrop backdrop-blur-sm" onClick={() => setFolderDialog(undefined)}><form className="w-full rounded-t-3xl border border-border bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); submitFolderDialog(); }}>
+        <div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-wider text-primary">{t("mobile:library.organization")}</p><h2 className="mt-1 text-lg font-semibold">{folderDialog.mode === "rename" ? t("mobile:library.renameFolder") : t("mobile:library.newFolder")}</h2></div><button className="grid h-10 w-10 place-items-center rounded-full bg-surface" onClick={() => setFolderDialog(undefined)} type="button"><X size={18} /></button></div>
+        <input autoFocus className="mt-5 h-12 w-full rounded-xl border border-border-strong bg-surface px-4 text-base outline-none focus:border-primary" value={folderName} onChange={(event) => setFolderName(event.target.value)} placeholder={t("mobile:library.folderNamePlaceholder")} />
+        <p className="mt-2 text-xs text-foreground-subtle">
           {t("mobile:library.destination", {
             path: folderPath(folderDialog.parentId, state.folders),
           })}
         </p>
-        <button className="mt-5 h-12 w-full rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-40" disabled={!folderName.trim()} type="submit">{folderDialog.mode === "rename" ? t("mobile:library.saveName") : t("mobile:library.createFolder")}</button>
+        <button className="mt-5 h-12 w-full rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-40" disabled={!folderName.trim()} type="submit">{folderDialog.mode === "rename" ? t("mobile:library.saveName") : t("mobile:library.createFolder")}</button>
       </form></div>}
 
-      {bulkMode && selectedIds.size > 0 && <div className="fixed inset-x-3 bottom-[calc(78px+env(safe-area-inset-bottom))] z-30 rounded-2xl border border-zinc-700 bg-zinc-900 p-3 shadow-2xl"><div className="flex items-center gap-2"><span className="text-sm font-semibold">
+      {bulkMode && selectedIds.size > 0 && <div className="fixed inset-x-3 bottom-[calc(78px+env(safe-area-inset-bottom))] z-30 rounded-2xl border border-border-strong bg-surface p-3 shadow-2xl"><div className="flex items-center gap-2"><span className="text-sm font-semibold">
             {t("mobile:library.selectedCount", { count: selectedIds.size })}
-          </span><select className="ml-auto h-9 min-w-0 rounded-lg bg-zinc-800 px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">{t("mobile:library.libraryOption")}</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</select><button className="grid h-9 w-9 place-items-center rounded-lg bg-zinc-800 text-emerald-300" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label={t("mobile:library.favoriteSelectedAriaLabel")} type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label={t("mobile:library.moveSelectedAriaLabel")} type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-red-950 text-red-300" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label={t("mobile:library.deleteSelectedAriaLabel")} type="button"><Trash2 size={16} /></button></div></div>}
+          </span><select className="ml-auto h-9 min-w-0 rounded-lg bg-surface-muted px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">{t("mobile:library.libraryOption")}</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</select><button className="grid h-9 w-9 place-items-center rounded-lg bg-surface-muted text-foreground" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label={t("mobile:library.favoriteSelectedAriaLabel")} type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label={t("mobile:library.moveSelectedAriaLabel")} type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-destructive text-destructive-foreground" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label={t("mobile:library.deleteSelectedAriaLabel")} type="button"><Trash2 size={16} /></button></div></div>}
 
       {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={async (patch) => { try { if (patch.thumbnailUrl && patch.thumbnailUrl !== editingBook.thumbnailUrl) patch = { ...patch, ...await persistExtractedBookThumbnail(editingBook, patch.thumbnailUrl) }; onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); } catch { toast.error(t("mobile:library.saveFailed")); } }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} />}
     </section>

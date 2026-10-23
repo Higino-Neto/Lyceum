@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
       footer={
         <Link
           to="/signin"
-          className="inline-flex items-center gap-2 text-green-500 transition hover:text-green-400"
+          className="inline-flex items-center gap-2 text-primary transition hover:text-primary"
         >
           <ArrowLeft size={15} />
           {t("auth:forgotPassword.backToSignIn")}
@@ -49,12 +49,12 @@ export default function ForgotPasswordPage() {
     >
       {sentTo ? (
         <div className="space-y-4">
-          <div className="rounded border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-100">
+          <div className="rounded border border-primary/30 bg-primary-muted p-4 text-sm text-primary">
             {t("auth:forgotPassword.message", { email: sentTo })}
           </div>
           <button
             type="button"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-zinc-700 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong text-sm font-medium text-foreground transition hover:border-border-strong hover:bg-surface-muted"
             onClick={() => setSentTo("")}
           >
             {t("auth:forgotPassword.useAnotherEmail")}

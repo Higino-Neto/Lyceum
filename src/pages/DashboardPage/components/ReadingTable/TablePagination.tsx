@@ -20,22 +20,22 @@ export default function TablePagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2 py-3 border-t border-zinc-800">
+    <div className="flex items-center justify-center gap-2 py-3 border-t border-border">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="p-1 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
+        className="p-1 hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
         title={t("dashboard:actions.previousPage")}
       >
         <ChevronLeft size={18} />
       </button>
-      <span className="text-sm text-zinc-400">
+      <span className="text-sm text-foreground-muted">
         {currentPage} / {totalPages}
       </span>
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="p-1 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
+        className="p-1 hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed transition rounded"
         title={t("dashboard:actions.nextPage")}
       >
         <ChevronRight size={18} />

@@ -106,13 +106,13 @@ function CoverPreview({
   const isEmpty = bookCount === 0 && folderCount === 0;
 
   return (
-    <div className="relative h-28 w-full flex justify-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 p-3">
+    <div className="relative h-28 w-full flex justify-center overflow-hidden rounded-sm border border-border bg-background p-3">
       {images.length > 0 ? (
         <div className="flex h-full items-end pl-2">
           {images.slice(0, 3).map((src, index) => (
             <div
               key={`${src}-${index}`}
-              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/20 hover:-translate-y-0.5"
+              className="h-[78px] w-[52px] overflow-hidden rounded-sm border border-border-strong bg-background shadow-xl shadow-shadow hover:-translate-y-0.5"
               style={{
                 marginLeft: index === 0 ? 0 : -18,
                 transform: `rotate(${[-6, 2, 7][index] || 0}deg) translateY(${index === 1 ? -7 : 0}px)`,
@@ -130,8 +130,8 @@ function CoverPreview({
         </div>
       ) : (
         <div className="flex h-full items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-zinc-500">
-            <div className="flex h-11 w-14 items-center justify-center rounded-sm border border-dashed border-zinc-700 bg-zinc-950/70">
+          <div className="flex flex-col items-center gap-2 text-foreground-subtle">
+            <div className="flex h-11 w-14 items-center justify-center rounded-sm border border-dashed border-border-strong bg-background/70">
               <Folder size={24} strokeWidth={1.4} />
             </div>
             {isEmpty && (
@@ -190,12 +190,12 @@ export default function FolderCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={[
-        "lyceum-interactive-card group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-zinc-950/60 p-2.5 text-left transition-all duration-200",
+        "lyceum-interactive-card group relative flex h-full min-h-[196px] cursor-pointer flex-col rounded-sm border bg-background/60 p-2.5 text-left transition-all duration-200",
         fluid ? "w-full" : "w-55",
-        "hover:border-green-400/60 hover:bg-zinc-900/90",
+        "hover:border-primary/60 hover:bg-overlay",
         "",
-        isSelected ? "border-green-400/80 bg-green-500/10 shadow-green-950/30" : "border-zinc-800",
-        isDropTarget ? "border-green-400 bg-green-500/10 ring-1 ring-green-400/70" : "",
+        isSelected ? "border-primary/80 bg-primary-muted shadow-shadow" : "border-border",
+        isDropTarget ? "border-primary bg-primary-muted ring-1 ring-focus-ring" : "",
       ].join(" ")}
     >
       {onContextMenu && (
@@ -207,7 +207,7 @@ export default function FolderCard({
             onContextMenu(id, event);
           }}
           onKeyDown={(event) => event.stopPropagation()}
-          className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950/75 text-zinc-500 opacity-0 shadow-sm transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/35 group-hover:opacity-100"
+          className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-background/75 text-foreground-subtle opacity-0 shadow-sm transition-all hover:border-border-strong hover:bg-surface hover:text-foreground focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring group-hover:opacity-100"
           aria-label={translate("library:folders.moreActions", { name })}
           title={translate("library:folders.moreActions", { name })}
         >
@@ -225,15 +225,15 @@ export default function FolderCard({
 
       <div className="mt-3 flex min-w-0 items-end gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-zinc-100">{name}</p>
+          <p className="truncate text-sm font-medium text-foreground">{name}</p>
           {detail && (
-            <p className="mt-0.5 truncate text-[10px] leading-3 text-zinc-500">
+            <p className="mt-0.5 truncate text-[10px] leading-3 text-foreground-subtle">
               {detail}
             </p>
           )}
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-subtle">
             <span className="inline-flex items-center gap-1">
-              <Boxes size={12} className={folderCount > 0 ? "text-green-300/80" : "text-zinc-600"} />
+              <Boxes size={12} className={folderCount > 0 ? "text-primary" : "text-foreground-subtle"} />
               {formatCount(
                 folderCount,
                 "library:counts.subfolder_one",
@@ -241,7 +241,7 @@ export default function FolderCard({
               )}
             </span>
             <span className="inline-flex items-center gap-1">
-              <BookOpen size={12} className={bookCount > 0 ? "text-amber-200/80" : "text-zinc-600"} />
+              <BookOpen size={12} className={bookCount > 0 ? "text-warning" : "text-foreground-subtle"} />
               {formatCount(
                 bookCount,
                 "library:counts.book_one",
@@ -256,8 +256,8 @@ export default function FolderCard({
           className={[
             "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm transition-all",
             empty
-              ? "border-zinc-800 text-zinc-600"
-              : " group-hover:bg-green-500 text-zinc-200 groud-hover:text-zinc-800 group-hover:translate-x-0.5",
+              ? "border-border text-foreground-subtle"
+              : " group-hover:bg-primary-hover text-foreground group-hover:text-primary-foreground group-hover:translate-x-0.5",
           ].join(" ")}
           aria-hidden="true"
         >

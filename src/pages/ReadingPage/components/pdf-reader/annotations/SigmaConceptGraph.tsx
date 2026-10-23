@@ -6,6 +6,14 @@ import type { ConceptRelation, KeyConcept } from "../../../../../types/Annotatio
 import { buildConceptGraphModel } from "./graphModel";
 import { useTranslation } from "../../../../../i18n";
 
+function readThemeColor(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
+    fallback
+  );
+}
+
 interface SigmaConceptGraphProps {
   concepts: KeyConcept[];
   relations: ConceptRelation[];
@@ -38,7 +46,7 @@ export default function SigmaConceptGraph({
       const selected = id === selectedConceptId;
       graph.mergeNodeAttributes(id, {
         size: selected ? (attributes.baseSize as number) + 3 : attributes.baseSize,
-        color: selected ? "#e4e4e7" : attributes.baseColor,
+        color: selected ? readThemeColor("--foreground", "#e4e4e7") : attributes.baseColor,
         highlighted: selected,
       });
     });
@@ -77,7 +85,7 @@ export default function SigmaConceptGraph({
           x: Math.cos(angle) * radius,
           y: Math.sin(angle) * radius,
           size: selected ? node.size + 3 : node.size,
-          color: selected ? "#e4e4e7" : node.color,
+          color: selected ? readThemeColor("--foreground", "#e4e4e7") : node.color,
           baseSize: node.size,
           baseColor: node.color,
           highlighted: selected,
@@ -87,7 +95,7 @@ export default function SigmaConceptGraph({
       model.edges.forEach((edge) => {
         graph.addEdgeWithKey(edge.id, edge.source, edge.target, {
           size: 1.2,
-          color: "#3f3f46",
+          color: readThemeColor("--border-strong", "#3f3f46"),
         });
       });
 
@@ -106,9 +114,9 @@ export default function SigmaConceptGraph({
 
       const renderer = new Sigma(graph, containerRef.current, {
         allowInvalidContainer: true,
-        defaultEdgeColor: "#3f3f46",
-        defaultNodeColor: "#a1a1aa",
-        labelColor: { color: "#e4e4e7" },
+        defaultEdgeColor: readThemeColor("--border-strong", "#3f3f46"),
+        defaultNodeColor: readThemeColor("--foreground-muted", "#a1a1aa"),
+        labelColor: { color: readThemeColor("--foreground", "#e4e4e7") },
         labelDensity: 0.12,
         labelRenderedSizeThreshold: 7,
         renderEdgeLabels: false,
@@ -142,23 +150,23 @@ export default function SigmaConceptGraph({
 
   if (model.nodes.length === 0) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center border border-zinc-800 bg-zinc-950/60 px-6 text-center text-sm text-zinc-500">
+      <div className="flex h-full min-h-0 items-center justify-center border border-border bg-background/60 px-6 text-center text-sm text-foreground-subtle">
         {t("pdf:annotations.sigma.empty")}
       </div>
     );
   }
 
-  return <div className="relative h-full min-h-0 w-full bg-zinc-950">
+  return <div className="relative h-full min-h-0 w-full bg-background">
     <div ref={containerRef} className="h-full w-full" />
     {error && (
-      <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 p-6 text-center text-sm text-zinc-400">
+      <div className="absolute inset-0 flex items-center justify-center bg-background p-6 text-center text-sm text-foreground-muted">
         {t("pdf:annotations.sigma.loadFailed")}
       </div>
     )}
-    <div className="absolute bottom-4 left-4 flex gap-1 rounded-lg border border-zinc-700 bg-zinc-900/95 p-1 shadow-lg" aria-label={t("pdf:annotations.sigma.controlsAriaLabel")}>
-      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedZoom({ duration: 180 })} className="rounded-md p-2 text-zinc-200 hover:bg-zinc-700" title={t("pdf:annotations.sigma.zoomIn")} aria-label={t("pdf:annotations.sigma.zoomIn")}><Plus size={17} /></button>
-      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedUnzoom({ duration: 180 })} className="rounded-md p-2 text-zinc-200 hover:bg-zinc-700" title={t("pdf:annotations.sigma.zoomOut")} aria-label={t("pdf:annotations.sigma.zoomOut")}><Minus size={17} /></button>
-      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedReset({ duration: 180 })} className="rounded-md p-2 text-zinc-200 hover:bg-zinc-700" title={t("pdf:annotations.sigma.fit")} aria-label={t("pdf:annotations.sigma.fit")}><Maximize size={17} /></button>
+    <div className="absolute bottom-4 left-4 flex gap-1 rounded-lg border border-border-strong bg-overlay p-1 shadow-lg" aria-label={t("pdf:annotations.sigma.controlsAriaLabel")}>
+      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedZoom({ duration: 180 })} className="rounded-md p-2 text-foreground hover:bg-border-strong" title={t("pdf:annotations.sigma.zoomIn")} aria-label={t("pdf:annotations.sigma.zoomIn")}><Plus size={17} /></button>
+      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedUnzoom({ duration: 180 })} className="rounded-md p-2 text-foreground hover:bg-border-strong" title={t("pdf:annotations.sigma.zoomOut")} aria-label={t("pdf:annotations.sigma.zoomOut")}><Minus size={17} /></button>
+      <button type="button" onClick={() => rendererRef.current?.getCamera().animatedReset({ duration: 180 })} className="rounded-md p-2 text-foreground hover:bg-border-strong" title={t("pdf:annotations.sigma.fit")} aria-label={t("pdf:annotations.sigma.fit")}><Maximize size={17} /></button>
     </div>
   </div>;
 }

@@ -57,7 +57,7 @@ function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
   const { isLoggedIn, signOut: authSignOut, user } = useAuth();
-  const { effectiveTheme, settings, setAutoHideEnabled, setAutoHideOverlay } =
+  const { settings, setAutoHideEnabled, setAutoHideOverlay } =
     useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage(
     "sidebarCollapsed",
@@ -420,28 +420,18 @@ function AppShell() {
     signOutConfirmationOpen,
   ]);
 
-  const toasterStyle =
-    effectiveTheme === "light"
-      ? {
-          background: "#f4f4f5",
-          color: "#18181b",
-          border: "1px solid #d4d4d8",
-          borderRadius: "4px",
-          padding: "12px 16px",
-          fontSize: "14px",
-        }
-      : {
-          background: "#27272a",
-          color: "#e4e4e7",
-          border: "1px solid #27272a",
-          borderRadius: "4px",
-          padding: "12px 16px",
-          fontSize: "14px",
-        };
+  const toasterStyle = {
+    background: "var(--surface)",
+    color: "var(--foreground)",
+    border: "1px solid var(--border)",
+    borderRadius: "4px",
+    padding: "12px 16px",
+    fontSize: "14px",
+  };
 
   return (
     <div
-      className="lyceum-app relative h-screen w-screen overflow-hidden bg-zinc-800"
+      className="lyceum-app relative h-screen w-screen overflow-hidden bg-surface-muted"
       style={{ padding: APP_FRAME_SIZE }}
     >
       {settings.autoHideEnabled && isElectron && !panelsVisible && (
@@ -462,7 +452,7 @@ function AppShell() {
           onMouseLeave={cancelEdgeIntent}
         />
       )}
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-zinc-950 text-zinc-100">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-background text-foreground">
         <Toaster
           position="top-center"
           toastOptions={{
@@ -472,20 +462,20 @@ function AppShell() {
             },
             success: {
               iconTheme: {
-                primary: "var(--accent-500)",
-                secondary: effectiveTheme === "light" ? "#f4f4f5" : "#27272a",
+                primary: "var(--primary)",
+                secondary: "var(--surface)",
               },
               style: {
-                borderColor: effectiveTheme === "light" ? "#d4d4d8" : "#27272a",
+                borderColor: "var(--border)",
               },
             },
             error: {
               iconTheme: {
-                primary: "#ef4444",
-                secondary: effectiveTheme === "light" ? "#f4f4f5" : "#27272a",
+                primary: "var(--destructive)",
+                secondary: "var(--surface)",
               },
               style: {
-                borderColor: effectiveTheme === "light" ? "#d4d4d8" : "#27272a",
+                borderColor: "var(--border)",
               },
             },
           }}

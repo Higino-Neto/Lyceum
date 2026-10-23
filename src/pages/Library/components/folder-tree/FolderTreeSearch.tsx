@@ -25,14 +25,14 @@ export default function FolderTreeSearch({
     <div className="relative">
       <Search
         size={14}
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle"
       />
       <input
         type="text"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={t("library:folderTree.searchPlaceholder")}
-        className="w-full rounded-sm border border-zinc-700 bg-zinc-800 py-1.5 pl-8 pr-3 text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-green-500 focus:outline-none"
+        className="w-full rounded-sm border border-border-strong bg-surface-muted py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-input-placeholder focus:border-primary focus:outline-none"
       />
     </div>
   );

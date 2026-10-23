@@ -178,11 +178,11 @@ export default function SettingsDialog({
       ariaLabelledBy="settings-title"
       onBackdropClick={onClose}
       backdropClassName="z-[90] px-4 py-6"
-      className="flex h-[min(760px,calc(100vh-48px))] w-full max-w-5xl overflow-hidden rounded border border-zinc-700/90 bg-zinc-900 text-zinc-100 shadow-2xl shadow-black/60"
+      className="flex h-[min(760px,calc(100vh-48px))] w-full max-w-5xl overflow-hidden rounded border border-border-strong bg-surface text-foreground shadow-2xl shadow-shadow"
     >
-        <aside className="hidden w-60 shrink-0 border-r border-zinc-800 bg-zinc-950/80 p-3 sm:block">
+        <aside className="hidden w-60 shrink-0 border-r border-border bg-background/80 p-3 sm:block">
           <div className="mb-4 flex h-10 items-center gap-2 px-2">
-            <SlidersHorizontal size={18} className="text-zinc-400" />
+            <SlidersHorizontal size={18} className="text-foreground-muted" />
             <h2 className="text-base font-semibold">
               {t("settings:title")}
             </h2>
@@ -199,14 +199,14 @@ export default function SettingsDialog({
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm transition ${
                     isActive
-                      ? "bg-zinc-800 text-zinc-50"
-                      : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                      ? "bg-surface-muted text-foreground"
+                      : "text-foreground-muted hover:bg-surface hover:text-foreground"
                   }`}
                 >
                   <Icon size={16} />
                   <span>{tabLabel(tab)}</span>
                   {tab.badgeCount ? (
-                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-green-500 px-1.5 text-[11px] font-semibold text-black">
+                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
                       {tab.badgeCount}
                     </span>
                   ) : null}
@@ -216,13 +216,13 @@ export default function SettingsDialog({
           </nav>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col bg-zinc-900">
-          <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 px-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 flex-col bg-surface">
+          <header className="flex min-h-14 items-center justify-between border-b border-border px-4 sm:px-6">
             <div className="min-w-0">
-              <h2 id="settings-title" className="truncate text-base font-semibold text-zinc-100">
+              <h2 id="settings-title" className="truncate text-base font-semibold text-foreground">
                 {t("settings:title")}
               </h2>
-              <p className="hidden text-xs text-zinc-500 sm:block">
+              <p className="hidden text-xs text-foreground-subtle sm:block">
                 {tabDescription(activeSettingsTab)}
               </p>
             </div>
@@ -233,7 +233,7 @@ export default function SettingsDialog({
                 onChange={(event) =>
                   setActiveTab(event.target.value as SettingsTabId)
                 }
-                className="h-9 rounded border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-200 sm:hidden"
+                className="h-9 rounded border border-input-border bg-input px-3 text-sm text-foreground sm:hidden"
                 aria-label={t("settings:selectTab")}
               >
                 {tabs.map((tab) => (
@@ -248,7 +248,7 @@ export default function SettingsDialog({
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
                 title={t("settings:close")}
                 aria-label={t("settings:closeLabel")}
               >
@@ -260,10 +260,10 @@ export default function SettingsDialog({
           <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-7">
             <div className="mx-auto max-w-3xl">
               <div className="mb-6">
-                <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
+                <h1 className="text-2xl font-semibold tracking-normal text-foreground">
                   {tabLabel(activeSettingsTab)}
                 </h1>
-                <p className="mt-1 text-sm text-zinc-500 sm:hidden">
+                <p className="mt-1 text-sm text-foreground-subtle sm:hidden">
                   {tabDescription(activeSettingsTab)}
                 </p>
               </div>

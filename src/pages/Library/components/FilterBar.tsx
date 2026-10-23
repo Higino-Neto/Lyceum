@@ -82,7 +82,7 @@ function SearchInput({
     <div className="relative min-w-0 flex-[1_1_220px]">
       <Search
         size={ICON_SIZE}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
         strokeWidth={STROKE_WIDTH}
       />
       <input
@@ -90,13 +90,13 @@ function SearchInput({
         placeholder={t("library:filters.searchPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 pl-9 pr-9 text-sm text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus-visible:border-green-500 focus-visible:ring-1 focus-visible:ring-green-500"
+        className="h-9 w-full rounded-sm border border-border bg-surface pl-9 pr-9 text-sm text-foreground outline-none placeholder:text-input-placeholder transition-colors focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-focus-ring"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
           title={t("library:filters.clearSearch")}
         >
           <X size={14} />
@@ -135,17 +135,17 @@ function SortSelect({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-300 hover:border-zinc-700 sm:w-auto"
+        className="flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-sm border border-border bg-surface px-2 text-xs text-foreground hover:border-border-strong sm:w-auto"
       >
-        <SlidersHorizontal size={ICON_SIZE} className="shrink-0 text-zinc-500" strokeWidth={STROKE_WIDTH} />
+        <SlidersHorizontal size={ICON_SIZE} className="shrink-0 text-foreground-subtle" strokeWidth={STROKE_WIDTH} />
         <span className="min-w-0 flex-1 truncate text-left sm:min-w-[90px]">
           {t(sortLabelKeys[value])}
         </span>
-        <ChevronDown size={12} className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} className={`shrink-0 text-foreground-subtle transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-sm border border-zinc-700 bg-zinc-900 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-sm border border-border-strong bg-surface shadow-xl">
           {options.map((opt) => (
             <button
               key={opt}
@@ -154,12 +154,12 @@ function SortSelect({
                 onChange(opt);
                 setOpen(false);
               }}
-              className={`flex w-full cursor-pointer items-center px-3 py-2 text-left text-xs transition-colors hover:bg-zinc-800 hover:text-zinc-100 ${
-                value === opt ? "text-green-400" : "text-zinc-300"
+              className={`flex w-full cursor-pointer items-center px-3 py-2 text-left text-xs transition-colors hover:bg-surface-muted hover:text-foreground ${
+                value === opt ? "text-primary" : "text-foreground"
               }`}
             >
               {opt === value ? (
-                <span className="mr-2 text-green-400">✓</span>
+                <span className="mr-2 text-primary">✓</span>
               ) : (
                 <span className="mr-2 w-3" />
               )}
@@ -218,21 +218,21 @@ function FileTypeSelect({
         onClick={() => setOpen((p) => !p)}
         className={`flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-sm border px-2 text-xs transition-colors sm:w-auto ${
           value.length > 0
-            ? "border-green-500/50 bg-green-500/10 text-green-200"
-            : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
+            ? "border-primary/50 bg-primary-muted text-primary"
+            : "border-border bg-surface text-foreground hover:border-border-strong"
         }`}
       >
-        <FileText size={14} className="shrink-0 text-zinc-500" />
+        <FileText size={14} className="shrink-0 text-foreground-subtle" />
         <span className="min-w-0 flex-1 truncate text-left sm:min-w-[50px]">{summary}</span>
-        <ChevronDown size={12} className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} className={`shrink-0 text-foreground-subtle transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 max-h-72 min-w-[180px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-sm border border-zinc-700 bg-zinc-900 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-1 max-h-72 min-w-[180px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-sm border border-border-strong bg-surface shadow-xl">
           <button
             type="button"
             onClick={value.length === allFileTypes.length ? deselectAll : selectAll}
-            className="flex w-full cursor-pointer items-center gap-2 border-b border-zinc-800 px-3 py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+            className="flex w-full cursor-pointer items-center gap-2 border-b border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:text-foreground"
           >
             {value.length === allFileTypes.length
               ? t("library:filters.fileTypes.deselectAll")
@@ -245,13 +245,13 @@ function FileTypeSelect({
                 key={type}
                 type="button"
                 onClick={() => toggleType(type)}
-                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-xs text-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
               >
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors ${
                     selected
-                      ? "border-green-500 bg-green-500 text-zinc-950"
-                      : "border-zinc-700 bg-transparent"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border-strong bg-transparent"
                   }`}
                 >
                   {selected && <span className="text-[10px] font-bold">✓</span>}

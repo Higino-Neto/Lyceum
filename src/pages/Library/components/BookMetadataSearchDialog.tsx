@@ -191,22 +191,22 @@ function mergeCandidate(current: EditableMetadataForm, candidate: BookMetadataCa
 function SourcePill({ source }: { source: BookMetadataCandidate["source"] }) {
   const label = source === "openlibrary" ? "OL" : source === "google" ? "GB" : "LOC";
   const className = source === "openlibrary"
-    ? "bg-emerald-500/12 text-emerald-300"
+    ? "bg-primary-muted text-primary"
     : source === "google"
-      ? "bg-sky-500/12 text-sky-300"
-      : "bg-violet-500/12 text-violet-300";
+      ? "bg-info-muted text-info"
+      : "bg-info-muted text-info";
   return <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${className}`}>{label}</span>;
 }
 
 function FieldBadge({ state }: { state: FieldState }) {
   const { t } = useTranslation();
   const className = state === "current"
-    ? "bg-zinc-800 text-zinc-500"
+    ? "bg-surface-muted text-foreground-subtle"
     : state === "imported"
-      ? "bg-emerald-500/12 text-emerald-300"
+      ? "bg-primary-muted text-primary"
       : state === "edited"
-        ? "bg-sky-500/12 text-sky-300"
-        : "bg-zinc-900 text-zinc-600";
+        ? "bg-info-muted text-info"
+        : "bg-surface text-foreground-subtle";
   return (
     <span className={`rounded-sm px-1.5 py-0.5 text-[10px] ${className}`}>
       {t(`library:metadata.fieldStates.${state}`)}
@@ -380,20 +380,20 @@ export default function BookMetadataSearchDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex h-[min(860px,94vh)] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 shadow-2xl">
-        <div className="flex flex-shrink-0 items-start justify-between border-b border-zinc-800 px-5 py-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-backdrop p-4">
+      <div className="flex h-[min(860px,94vh)] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-border bg-background shadow-2xl">
+        <div className="flex flex-shrink-0 items-start justify-between border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-zinc-100">
+            <h2 className="text-lg font-semibold text-foreground">
               {t("library:metadata.title")}
             </h2>
-            <p className="mt-1 truncate text-xs text-zinc-500">{titleWithoutExtension(book)}</p>
+            <p className="mt-1 truncate text-xs text-foreground-subtle">{titleWithoutExtension(book)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="rounded-sm p-2 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200 disabled:opacity-50"
+            className="rounded-sm p-2 text-foreground-subtle transition-colors hover:bg-surface hover:text-foreground disabled:opacity-50"
             title={t("library:metadata.close")}
           >
             <X size={18} />
@@ -401,22 +401,22 @@ export default function BookMetadataSearchDialog({
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[370px_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col border-b border-zinc-800 bg-zinc-950 lg:border-b-0 lg:border-r">
-            <div className="space-y-3 border-b border-zinc-800 p-4">
-              <div className="flex h-10 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3">
-                <Search size={15} className="text-zinc-500" />
+          <aside className="flex min-h-0 flex-col border-b border-border bg-background lg:border-b-0 lg:border-r">
+            <div className="space-y-3 border-b border-border p-4">
+              <div className="flex h-10 items-center gap-2 rounded-sm border border-border bg-surface px-3">
+                <Search size={15} className="text-foreground-subtle" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") void runSearch();
                   }}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-input-placeholder"
                   placeholder={t("library:metadata.searchPlaceholder")}
                 />
               </div>
 
-              <div className="grid grid-cols-4 gap-1 rounded-sm bg-zinc-900 p-1">
+              <div className="grid grid-cols-4 gap-1 rounded-sm bg-surface p-1">
                 {sourceOptions.map((option) => (
                   <button
                     key={option.value}
@@ -424,8 +424,8 @@ export default function BookMetadataSearchDialog({
                     onClick={() => setSource(option.value)}
                     className={`h-8 min-w-0 rounded-sm px-1 text-[11px] transition-colors ${
                       source === option.value
-                        ? "bg-emerald-500 text-zinc-950"
-                        : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
                     }`}
                     title={option.labelKey ? t(option.labelKey) : option.label}
                   >
@@ -437,7 +437,7 @@ export default function BookMetadataSearchDialog({
               </div>
 
               <div className="flex items-center justify-between gap-2">
-                <div className="flex gap-1 rounded-sm bg-zinc-900 p-1">
+                <div className="flex gap-1 rounded-sm bg-surface p-1">
                   {fieldOptions.map((option) => (
                     <button
                       key={option.value}
@@ -445,8 +445,8 @@ export default function BookMetadataSearchDialog({
                       onClick={() => setSearchField(option.value)}
                       className={`h-8 rounded-sm px-3 text-xs transition-colors ${
                         searchField === option.value
-                          ? "bg-zinc-800 text-emerald-300"
-                          : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                          ? "bg-surface-muted text-primary"
+                          : "text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
                       }`}
                     >
                       {t(option.labelKey)}
@@ -457,7 +457,7 @@ export default function BookMetadataSearchDialog({
                   type="button"
                   onClick={() => void runSearch()}
                   disabled={isSearching}
-                  className="flex h-9 items-center gap-1.5 rounded-sm bg-emerald-500 px-3 text-xs font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-9 items-center gap-1.5 rounded-sm bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSearching ? <RefreshCw size={13} className="animate-spin" /> : <Search size={13} />}
                   Buscar
@@ -466,15 +466,15 @@ export default function BookMetadataSearchDialog({
             </div>
 
             {(searchError || warnings.length > 0) && (
-              <div className="space-y-1 border-b border-zinc-800 bg-zinc-950 px-4 py-3 text-xs">
+              <div className="space-y-1 border-b border-border bg-background px-4 py-3 text-xs">
                 {searchError && (
-                  <div className="flex gap-2 text-red-300">
+                  <div className="flex gap-2 text-destructive">
                     <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
                     <span>{searchError}</span>
                   </div>
                 )}
                 {warnings.map((warning) => (
-                  <div key={warning} className="flex gap-2 text-amber-300">
+                  <div key={warning} className="flex gap-2 text-warning">
                     <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
                     <span>{warning}</span>
                   </div>
@@ -482,17 +482,17 @@ export default function BookMetadataSearchDialog({
               </div>
             )}
 
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2 text-xs text-zinc-500">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs text-foreground-subtle">
               <span>{results.length} resultado(s)</span>
               {selected && <span>{selected.sourceLabel}</span>}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {results.length === 0 ? (
-                <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-sm border border-dashed border-zinc-800 px-6 text-center">
-                  <Search size={22} className="mb-3 text-zinc-600" />
-                  <p className="text-sm text-zinc-500">Pesquise para encontrar metadados gratuitos.</p>
-                  <p className="mt-1 text-xs text-zinc-700">Open Library, Google Books e Library of Congress.</p>
+                <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-sm border border-dashed border-border px-6 text-center">
+                  <Search size={22} className="mb-3 text-foreground-subtle" />
+                  <p className="text-sm text-foreground-subtle">Pesquise para encontrar metadados gratuitos.</p>
+                  <p className="mt-1 text-xs text-foreground">Open Library, Google Books e Library of Congress.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -503,35 +503,35 @@ export default function BookMetadataSearchDialog({
                       onClick={() => setSelectedId(result.id)}
                       className={`flex w-full gap-3 rounded-sm border p-2 text-left transition-colors ${
                         selectedId === result.id
-                          ? "border-emerald-500/70 bg-emerald-500/10"
-                          : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                          ? "border-primary/70 bg-primary-muted"
+                          : "border-border bg-surface/50 hover:border-border-strong"
                       }`}
                     >
-                      <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-sm bg-zinc-900">
+                      <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-sm bg-surface">
                         {result.thumbnailUrl ? (
                           <img src={result.thumbnailUrl} alt="" className="h-full w-full object-contain" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-zinc-700">
+                          <div className="flex h-full w-full items-center justify-center text-foreground">
                             <Image size={18} />
                           </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-2 text-sm font-medium text-zinc-100">{result.title}</p>
-                          {selectedId === result.id && <Check size={15} className="mt-0.5 flex-shrink-0 text-emerald-300" />}
+                          <p className="line-clamp-2 text-sm font-medium text-foreground">{result.title}</p>
+                          {selectedId === result.id && <Check size={15} className="mt-0.5 flex-shrink-0 text-primary" />}
                         </div>
-                        <p className="mt-1 truncate text-xs text-zinc-400">{result.authors.join(", ") || t("library:metadata.unknownAuthor")}</p>
-                        <p className="mt-1 truncate text-xs text-zinc-600">
+                        <p className="mt-1 truncate text-xs text-foreground-muted">{result.authors.join(", ") || t("library:metadata.unknownAuthor")}</p>
+                        <p className="mt-1 truncate text-xs text-foreground-subtle">
                           {compact([result.publishedDate, result.publisher, result.language]) || result.sourceLabel}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           <SourcePill source={result.source} />
                           {(result.isbn13 || result.isbn10) && (
-                            <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">ISBN</span>
+                            <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-[10px] text-foreground-subtle">ISBN</span>
                           )}
                           {result.pageCount && (
-                            <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">{result.pageCount}p</span>
+                            <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-[10px] text-foreground-subtle">{result.pageCount}p</span>
                           )}
                         </div>
                       </div>
@@ -541,12 +541,12 @@ export default function BookMetadataSearchDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-zinc-800 p-3">
+            <div className="grid grid-cols-2 gap-2 border-t border-border p-3">
               <button
                 type="button"
                 onClick={applySelected}
                 disabled={!selected}
-                className="flex h-9 items-center justify-center gap-1.5 rounded-sm bg-emerald-500 px-3 text-xs font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 items-center justify-center gap-1.5 rounded-sm bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={13} />
                 {t("library:metadata.apply")}
@@ -554,7 +554,7 @@ export default function BookMetadataSearchDialog({
               <button
                 type="button"
                 onClick={() => setShowChangedOnly((value) => !value)}
-                className="flex h-9 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs text-zinc-300 transition-colors hover:bg-zinc-800"
+                className="flex h-9 items-center justify-center rounded-sm border border-border bg-surface px-3 text-xs text-foreground transition-colors hover:bg-surface-muted"
               >
                 {showChangedOnly
                   ? t("library:metadata.showAll")
@@ -568,7 +568,7 @@ export default function BookMetadataSearchDialog({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {visibleFields.map(([key, label, type]) => (
                   <label key={key} className={type === "textarea" ? "sm:col-span-2" : ""}>
-                    <span className="mb-1 flex items-center justify-between gap-2 text-xs text-zinc-500">
+                    <span className="mb-1 flex items-center justify-between gap-2 text-xs text-foreground-subtle">
                       {t(label)}
                       <FieldBadge state={fieldState(originalForm, form, key)} />
                     </span>
@@ -577,13 +577,13 @@ export default function BookMetadataSearchDialog({
                         value={form[key]}
                         onChange={(event) => updateField(key, event.target.value)}
                         rows={5}
-                        className="w-full resize-none rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-emerald-500"
+                        className="w-full resize-none rounded-sm border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary"
                       />
                     ) : (
                       <input
                         value={form[key]}
                         onChange={(event) => updateField(key, event.target.value)}
-                        className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-200 outline-none transition-colors focus:border-emerald-500"
+                        className="h-9 w-full rounded-sm border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
                       />
                     )}
                   </label>
@@ -591,11 +591,11 @@ export default function BookMetadataSearchDialog({
               </div>
 
               <div className="space-y-3">
-                <div className="aspect-[3/4] overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+                <div className="aspect-[3/4] overflow-hidden rounded-sm border border-border bg-surface">
                   {form.coverUrl ? (
                     <img src={form.coverUrl} alt="" className="h-full w-full object-contain" />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-700">
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-foreground">
                       <Image size={24} />
                       <span className="text-xs">
                         {t("library:metadata.noCover")}
@@ -609,34 +609,34 @@ export default function BookMetadataSearchDialog({
                     href={selected.externalUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-9 items-center justify-center gap-1.5 rounded-sm border border-zinc-800 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+                    className="flex h-9 items-center justify-center gap-1.5 rounded-sm border border-border text-xs text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
                   >
                     <ExternalLink size={13} />
                     {t("library:metadata.source")}
                   </a>
                 )}
 
-                <label className="flex items-start gap-2 text-xs text-zinc-400">
+                <label className="flex items-start gap-2 text-xs text-foreground-muted">
                   <input
                     type="checkbox"
                     checked={overwrite}
                     onChange={(event) => setOverwrite(event.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-emerald-500"
+                    className="mt-0.5 h-4 w-4 accent-primary"
                   />
                   {t("library:metadata.overwriteFields")}
                 </label>
-                <label className="flex items-start gap-2 text-xs text-zinc-400">
+                <label className="flex items-start gap-2 text-xs text-foreground-muted">
                   <input
                     type="checkbox"
                     checked={saveCover}
                     onChange={(event) => setSaveCover(event.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-emerald-500"
+                    className="mt-0.5 h-4 w-4 accent-primary"
                   />
                   {t("library:metadata.saveRemoteCover")}
                 </label>
 
-                <div className="rounded-sm border border-zinc-800 bg-zinc-900/60 p-2 text-xs text-zinc-500">
-                  <div className="mb-1 flex items-center gap-1.5 text-zinc-400">
+                <div className="rounded-sm border border-border bg-surface/60 p-2 text-xs text-foreground-subtle">
+                  <div className="mb-1 flex items-center gap-1.5 text-foreground-muted">
                     <Info size={12} />
                     {t("library:metadata.changedFields", { count: changedCount })}
                   </div>
@@ -647,12 +647,12 @@ export default function BookMetadataSearchDialog({
           </section>
         </div>
 
-        <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-t border-zinc-800 px-5 py-4">
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-4">
           <button
             type="button"
             onClick={() => setForm(originalForm)}
             disabled={isSaving}
-            className="flex h-9 items-center gap-1.5 rounded-sm px-3 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 disabled:opacity-50"
+            className="flex h-9 items-center gap-1.5 rounded-sm px-3 text-xs text-foreground-muted transition-colors hover:bg-surface hover:text-foreground disabled:opacity-50"
           >
             <RotateCcw size={13} />
             {t("library:metadata.restoreOriginal")}
@@ -662,7 +662,7 @@ export default function BookMetadataSearchDialog({
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="h-9 rounded-sm border border-zinc-800 bg-zinc-900 px-4 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className="h-9 rounded-sm border border-border bg-surface px-4 text-sm text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
               {t("common:actions.cancel")}
             </button>
@@ -670,7 +670,7 @@ export default function BookMetadataSearchDialog({
               type="button"
               onClick={() => void saveMetadata()}
               disabled={isSaving}
-              className="flex h-9 items-center gap-1.5 rounded-sm bg-emerald-500 px-4 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-9 items-center gap-1.5 rounded-sm bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
               {t("library:metadata.save")}

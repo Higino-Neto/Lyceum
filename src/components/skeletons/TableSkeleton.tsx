@@ -4,7 +4,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <tbody>
       {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-t border-zinc-800">
+        <tr key={i} className="border-t border-border">
           <td className="px-6 py-4">
             <Skeleton className="h-4 w-32" />
           </td>

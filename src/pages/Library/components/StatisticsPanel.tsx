@@ -50,78 +50,78 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
   if (!book) return null;
 
   return (
-    <div className="overflow-hidden w-100 bg-zinc-900 shadow-2xl z-50 flex flex-col h-full max-h-[calc(100vh-8.5rem)]">
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-        <h2 className="text-lg font-semibold text-zinc-100">
+    <div className="overflow-hidden w-100 bg-surface shadow-2xl z-50 flex flex-col h-full max-h-[calc(100vh-8.5rem)]">
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <h2 className="text-lg font-semibold text-foreground">
           {t("library:stats.title")}
         </h2>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-zinc-800 rounded-sm transition-colors cursor-pointer"
+          className="p-2 hover:bg-surface-muted rounded-sm transition-colors cursor-pointer"
         >
-          <X size={20} className="text-zinc-400" />
+          <X size={20} className="text-foreground-muted" />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="p-3 bg-zinc-800 rounded-sm">
-          <p className="text-sm text-zinc-200 font-medium line-clamp-2">{book.title}</p>
-          <p className="text-xs text-zinc-500 mt-1">
+        <div className="p-3 bg-surface-muted rounded-sm">
+          <p className="text-sm text-foreground font-medium line-clamp-2">{book.title}</p>
+          <p className="text-xs text-foreground-subtle mt-1">
             {book.author || t("library:stats.unknownAuthor")}
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <div className="p-3 bg-zinc-800 rounded-sm text-center">
-            <p className="text-lg font-semibold text-green-500">{totalPages}</p>
-            <p className="text-xs text-zinc-500">{t("library:stats.pages")}</p>
+          <div className="p-3 bg-surface-muted rounded-sm text-center">
+            <p className="text-lg font-semibold text-primary">{totalPages}</p>
+            <p className="text-xs text-foreground-subtle">{t("library:stats.pages")}</p>
           </div>
-          <div className="p-3 bg-zinc-800 rounded-sm text-center">
-            <p className="text-lg font-semibold text-zinc-200">{bookReadings.length}</p>
-            <p className="text-xs text-zinc-500">{t("library:stats.entries")}</p>
+          <div className="p-3 bg-surface-muted rounded-sm text-center">
+            <p className="text-lg font-semibold text-foreground">{bookReadings.length}</p>
+            <p className="text-xs text-foreground-subtle">{t("library:stats.entries")}</p>
           </div>
-          <div className="p-3 bg-zinc-800 rounded-sm text-center">
-            <p className="text-lg font-semibold text-zinc-200">{formatTime(totalTime)}</p>
-            <p className="text-xs text-zinc-500">{t("library:stats.time")}</p>
+          <div className="p-3 bg-surface-muted rounded-sm text-center">
+            <p className="text-lg font-semibold text-foreground">{formatTime(totalTime)}</p>
+            <p className="text-xs text-foreground-subtle">{t("library:stats.time")}</p>
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-medium text-foreground mb-3">
             {t("library:stats.history")}
           </h3>
           {loading ? (
             <div className="text-center py-4">
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-foreground-subtle">
                 {t("common:app.loading")}
               </p>
             </div>
           ) : bookReadings.length === 0 ? (
             <div className="text-center py-4">
-              <BookOpen size={32} className="mx-auto text-zinc-600 mb-2" />
-              <p className="text-xs text-zinc-500">
+              <BookOpen size={32} className="mx-auto text-foreground-subtle mb-2" />
+              <p className="text-xs text-foreground-subtle">
                 {t("library:stats.noReadings")}
               </p>
             </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {bookReadings.map((reading) => (
-                <div key={reading.id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-sm">
+                <div key={reading.id} className="flex items-center justify-between p-3 bg-surface-muted/50 rounded-sm">
                   <div className="flex items-center gap-3">
-                    <FileText size={16} className="text-zinc-500" />
+                    <FileText size={16} className="text-foreground-subtle" />
                     <div>
-                      <p className="text-sm text-zinc-300">
+                      <p className="text-sm text-foreground">
                         {t("library:stats.entryPages", { count: reading.pages })}
                       </p>
                       {reading.reading_time && (
-                        <p className="text-xs text-zinc-500 flex items-center gap-1">
+                        <p className="text-xs text-foreground-subtle flex items-center gap-1">
                           <Clock size={10} />
                           {formatTime(reading.reading_time)}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-zinc-500">
+                  <div className="flex items-center gap-1 text-foreground-subtle">
                     <Calendar size={12} />
                     <span className="text-xs">{formatDate(reading.reading_date)}</span>
                   </div>
@@ -132,10 +132,10 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
         </div>
       </div>
 
-      <div className="p-4 border-t border-zinc-800 space-y-2">
+      <div className="p-4 border-t border-border space-y-2">
         <button
           onClick={() => onEdit(book)}
-          className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-3 rounded-sm font-medium transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary-hover py-3 rounded-sm font-medium transition-colors cursor-pointer"
         >
           <Edit3 size={16} />
           {t("library:stats.editBook")}
@@ -146,7 +146,7 @@ export default function StatisticsPanel({ book, onClose, onEdit, onDelete }: Sta
               onDelete(book);
             }
           }}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-sm text-sm transition-colors cursor-pointer bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400"
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-sm text-sm transition-colors cursor-pointer bg-surface-muted hover:bg-destructive-muted text-foreground-muted hover:text-destructive"
         >
           <Trash2 size={16} />
           {t("library:stats.deleteBook")}

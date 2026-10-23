@@ -31,29 +31,29 @@ export default function ConfirmDialog({
       ariaLabel={title}
       onBackdropClick={onCancel}
       backdropClassName="px-4"
-      className="w-full max-w-md rounded-sm border border-zinc-800 bg-zinc-900 shadow-2xl"
+      className="w-full max-w-md rounded-sm border border-border bg-surface shadow-2xl"
     >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+        <div className="flex items-center justify-between p-4 border-b border-border-strong">
           <div className="flex items-center gap-2">
-            {isDanger && <AlertTriangle size={20} className="text-red-400" />}
-            <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
+            {isDanger && <AlertTriangle size={20} className="text-destructive" />}
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           </div>
           <button
             onClick={onCancel}
-            className="p-2 hover:bg-zinc-800 rounded-sm cursor-pointer"
+            className="p-2 hover:bg-surface-muted rounded-sm cursor-pointer"
           >
-            <X size={20} className="text-zinc-400" />
+            <X size={20} className="text-foreground-muted" />
           </button>
         </div>
 
         <div className="p-4">
-          <p className="text-zinc-400 text-sm">{message}</p>
+          <p className="text-foreground-muted text-sm">{message}</p>
         </div>
 
-        <div className="flex justify-end gap-2 p-4 border-t border-zinc-700">
+        <div className="flex justify-end gap-2 p-4 border-t border-border-strong">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-zinc-300 hover:text-zinc-100 cursor-pointer"
+            className="px-4 py-2 text-foreground-muted hover:text-foreground cursor-pointer"
           >
             {cancelLabel ?? t("dialogs:confirm.cancel")}
           </button>
@@ -61,8 +61,8 @@ export default function ConfirmDialog({
             onClick={onConfirm}
             className={`px-4 py-2 rounded-sm font-medium cursor-pointer ${
               isDanger
-                ? "bg-red-500 hover:bg-red-600 text-white"
-                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900"
+                ? "bg-destructive hover:bg-destructive-hover text-destructive-foreground"
+                : "bg-primary hover:bg-primary-hover text-primary-foreground"
             }`}
           >
             {confirmLabel ?? t("dialogs:confirm.confirm")}

@@ -45,18 +45,18 @@ export default function ConceptLinkPicker({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold text-zinc-300">{title}</span>
-        <span className="text-zinc-500">
+        <span className="font-semibold text-foreground">{title}</span>
+        <span className="text-foreground-subtle">
           {t("pdf:annotations.linkPicker.selectedCount", { count: selectedIds.size })}
         </span>
       </div>
       <label className="relative block">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle" size={14} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("pdf:annotations.linkPicker.searchPlaceholder")}
-          className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 pl-8 pr-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+          className="h-9 w-full rounded-sm border border-border bg-background pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-input-placeholder focus:border-primary"
           aria-label={t("pdf:annotations.linkPicker.searchAriaLabel")}
         />
       </label>
@@ -74,27 +74,27 @@ export default function ConceptLinkPicker({
                 className={[
                   "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-sm border px-2 py-2 text-left text-xs transition",
                   linked
-                    ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-100"
-                    : "border-zinc-800 bg-zinc-900/80 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-800",
+                    ? "border-primary/60 bg-primary-muted text-primary"
+                    : "border-border bg-surface/80 text-foreground hover:border-border-strong hover:bg-surface-muted",
                 ].join(" ")}
               >
                 <span className="min-w-0">
                   <span className="block truncate">{concept.title}</span>
-                  <span className="mt-0.5 block text-[10px] text-zinc-500">p. {concept.page}</span>
+                  <span className="mt-0.5 block text-[10px] text-foreground-subtle">p. {concept.page}</span>
                 </span>
-                <span className="shrink-0 text-[10px] text-emerald-300">{linked ? "linkado" : "linkar"}</span>
+                <span className="shrink-0 text-[10px] text-primary">{linked ? "linkado" : "linkar"}</span>
               </button>
             );
           })}
         </div>
       )}
       {candidates.length > LINK_PAGE_SIZE && (
-        <div className="flex items-center justify-between text-[11px] text-zinc-500">
+        <div className="flex items-center justify-between text-[11px] text-foreground-subtle">
           <button
             type="button"
             onClick={() => setPage((value) => Math.max(1, value - 1))}
             disabled={paginated.page <= 1}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 disabled:opacity-40"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-surface disabled:opacity-40"
             aria-label={t("pdf:annotations.linkPicker.previousPage")}
           >
             <ChevronLeft size={13} />
@@ -104,7 +104,7 @@ export default function ConceptLinkPicker({
             type="button"
             onClick={() => setPage((value) => Math.min(paginated.pageCount, value + 1))}
             disabled={paginated.page >= paginated.pageCount}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 disabled:opacity-40"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-surface disabled:opacity-40"
             aria-label={t("pdf:annotations.linkPicker.nextPage")}
           >
             <ChevronRight size={13} />

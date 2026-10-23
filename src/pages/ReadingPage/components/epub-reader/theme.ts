@@ -49,10 +49,13 @@ export const THEME_COLORS: Record<ThemeName, ThemeColors> = {
     border: "#e5e5e5",
   },
   dark: {
-    background: "var(--ui-zinc-900)",
-    text: "var(--ui-zinc-50)",
+    // EPUB content is rendered inside an isolated iframe/document that does not
+    // inherit the host's CSS custom properties. Keep explicit literals and do
+    // not couple book content to the application accent.
+    background: "#18181b",
+    text: "#fafafa",
     accent: "#94a3b8",
-    border: "var(--ui-zinc-700)",
+    border: "#3f3f46",
   },
   sepia: {
     background: "#f4ecd8",

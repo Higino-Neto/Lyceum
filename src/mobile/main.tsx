@@ -3,6 +3,7 @@ import { MobileConfirmProvider } from "./MobileConfirmDialog";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "../theme/boot";
 import "../index.css";
 import "./mobile.css";
 import MobileApp from "./MobileApp";

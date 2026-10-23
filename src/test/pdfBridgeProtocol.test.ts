@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  CMD_SET_THEME,
   PDF_BRIDGE_VERSION,
   PDF_VIEWER_ORIGIN,
+  isPdfViewerTheme,
   parsePdfViewerMessage,
 } from "../pages/ReadingPage/components/pdf-reader/pdfBridgeProtocol";
 
@@ -16,6 +18,32 @@ describe("PDF.js frame protocol", () => {
       version: PDF_BRIDGE_VERSION, type: "lyceum-pdfjs:state-changed", state,
     }), window);
     expect(parsed).toEqual({ version: PDF_BRIDGE_VERSION, type: "lyceum-pdfjs:state-changed", state });
+  });
+
+  it("defines a validated, additive theme command", () => {
+    expect(CMD_SET_THEME).toBe("lyceum-pdfjs:cmd-set-theme");
+    expect(
+      isPdfViewerTheme({
+        theme: "dark",
+        colors: { background: "#09090b", primary: "rgb(74 222 128)" },
+      }),
+    ).toBe(true);
+    expect(
+      isPdfViewerTheme({
+        theme: "light",
+        colors: { "foreground-muted": "#52525b" },
+      }),
+    ).toBe(true);
+
+    expect(isPdfViewerTheme(null)).toBe(false);
+    expect(isPdfViewerTheme({ theme: "sepia", colors: {} })).toBe(false);
+    expect(isPdfViewerTheme({ theme: "dark", colors: [] })).toBe(false);
+    expect(
+      isPdfViewerTheme({ theme: "dark", colors: { "not a token": "#fff" } }),
+    ).toBe(false);
+    expect(
+      isPdfViewerTheme({ theme: "dark", colors: { background: 123 } }),
+    ).toBe(false);
   });
 
   it("rejects a foreign frame, origin, version, and malformed payload", () => {

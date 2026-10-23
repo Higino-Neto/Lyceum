@@ -95,7 +95,7 @@ function Cover({ book }: { book: BookWithThumbnail }) {
   }
 
   return (
-    <div className="flex h-20 w-14 flex-shrink-0 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-950 text-zinc-600">
+    <div className="flex h-20 w-14 flex-shrink-0 items-center justify-center rounded-sm border border-border bg-background text-foreground-subtle">
       <FileText size={18} />
     </div>
   );
@@ -112,7 +112,7 @@ function MiniCover({ book }: { book: BookWithThumbnail }) {
   }
 
   return (
-    <div className="flex h-10 w-7 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-800 text-zinc-600">
+    <div className="flex h-10 w-7 flex-shrink-0 items-center justify-center rounded-sm bg-surface-muted text-foreground-subtle">
       <FileText size={13} />
     </div>
   );
@@ -129,12 +129,12 @@ function Toggle({ checked, onChange }: ToggleProps) {
       type="button"
       onClick={onChange}
       className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-        checked ? "bg-green-500" : "bg-zinc-700"
+        checked ? "bg-primary" : "bg-border-strong"
       }`}
       aria-pressed={checked}
     >
       <span
-        className={`h-4 w-4 rounded-full bg-white transition-transform ${
+        className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
           checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
@@ -160,9 +160,9 @@ function NumberOption({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="space-y-1 text-xs text-zinc-400">
+    <label className="space-y-1 text-xs text-foreground-muted">
       <span>{label}</span>
-      <span className="flex h-9 items-center rounded-sm border border-zinc-800 bg-zinc-950 px-2">
+      <span className="flex h-9 items-center rounded-sm border border-border bg-background px-2">
         <input
           type="number"
           min={min}
@@ -170,9 +170,9 @@ function NumberOption({
           step={step}
           value={value}
           onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
-          className="min-w-0 flex-1 bg-transparent text-sm text-zinc-200 outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
         />
-        {suffix && <span className="text-zinc-600">{suffix}</span>}
+        {suffix && <span className="text-foreground-subtle">{suffix}</span>}
       </span>
     </label>
   );
@@ -180,7 +180,7 @@ function NumberOption({
 
 function ToggleOption({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
-    <div className="flex min-h-8 items-center justify-between gap-3 text-sm text-zinc-300">
+    <div className="flex min-h-8 items-center justify-between gap-3 text-sm text-foreground">
       <span>{label}</span>
       <Toggle checked={checked} onChange={onChange} />
     </div>
@@ -201,9 +201,9 @@ function FormatOptions({
   if (format === "pdf") {
     return (
       <div className="space-y-4">
-        <label className="block space-y-1 text-xs text-zinc-400">
+        <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.pdf.pageSize")}</span>
-          <select value={options.pdfPageSize} onChange={(event) => onChange({ pdfPageSize: event.target.value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+          <select value={options.pdfPageSize} onChange={(event) => onChange({ pdfPageSize: event.target.value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
             <option value="A4">A4</option><option value="A5">A5</option><option value="Letter">{t("conversion:options.pdf.pageSizes.Letter")}</option>
             <option value="Legal">{t("conversion:options.pdf.pageSizes.Legal")}</option>
           </select>
@@ -226,9 +226,9 @@ function FormatOptions({
   if (format === "epub") {
     return (
       <div className="space-y-4">
-        <label className="block space-y-1 text-xs text-zinc-400">
+        <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.epub.layout")}</span>
-          <select value={options.epubLayout} onChange={(event) => onChange({ epubLayout: event.target.value as ConversionOptions["epubLayout"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+          <select value={options.epubLayout} onChange={(event) => onChange({ epubLayout: event.target.value as ConversionOptions["epubLayout"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
             <option value="auto">{t("conversion:options.epub.layouts.auto")}</option>
             <option value="fixed-layout">{t("conversion:options.epub.layouts.fixed-layout")}</option>
             <option value="reflow">{t("conversion:options.epub.layouts.reflow")}</option>
@@ -246,9 +246,9 @@ function FormatOptions({
   if (format === "azw3" || format === "kfx") {
     return (
       <div className="space-y-4">
-        <label className="block space-y-1 text-xs text-zinc-400">
+        <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.kindle.profile")}</span>
-          <select value={options.kindleProfile} onChange={(event) => onChange({ kindleProfile: event.target.value as ConversionOptions["kindleProfile"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+          <select value={options.kindleProfile} onChange={(event) => onChange({ kindleProfile: event.target.value as ConversionOptions["kindleProfile"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
             <option value="legacy-paperwhite">{t("conversion:options.kindle.profiles.legacy-paperwhite")}</option>
             <option value="kindle-compatible">{t("conversion:options.kindle.profiles.kindle-compatible")}</option>
             <option value="modern-kindle">{t("conversion:options.kindle.profiles.modern-kindle")}</option>
@@ -264,9 +264,9 @@ function FormatOptions({
 
   if (format === "html") return <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />;
   if (format === "txt") return (
-    <label className="block space-y-1 text-xs text-zinc-400">
+    <label className="block space-y-1 text-xs text-foreground-muted">
       <span>{t("conversion:options.txt.lineEnding")}</span>
-      <select value={options.txtLineEnding} onChange={(event) => onChange({ txtLineEnding: event.target.value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 text-sm text-zinc-200 outline-none">
+      <select value={options.txtLineEnding} onChange={(event) => onChange({ txtLineEnding: event.target.value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
         <option value="crlf">{t("conversion:options.txt.lineEndings.crlf")}</option>
         <option value="lf">{t("conversion:options.txt.lineEndings.lf")}</option>
       </select>
@@ -320,20 +320,20 @@ function LibrarySearchPanel({
   }, [booksQuery.data, fileType, search, selectedHashes, sort]);
 
   return (
-    <section className="mb-3 rounded-sm border border-zinc-800 bg-zinc-900/40">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+    <section className="mb-3 rounded-sm border border-border bg-surface/40">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-zinc-100">
+          <h2 className="text-sm font-semibold text-foreground">
             {t("conversion:libraryPanel.title")}
           </h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-foreground-subtle">
             {t("conversion:libraryPanel.description")}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
-          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-950 px-3 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
         >
           {open ? <X size={14} /> : <FilePlus size={14} />}
           {open
@@ -353,16 +353,16 @@ function LibrarySearchPanel({
             onFileTypeChange={setFileType}
           />
           {!apiAvailable ? (
-            <div className="rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-500">
+            <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
               {t("conversion:libraryPanel.desktopOnly")}
             </div>
           ) : booksQuery.isLoading || booksQuery.isFetching ? (
-            <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-sm text-zinc-500">
+            <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-border px-4 py-8 text-sm text-foreground-subtle">
               <RefreshCw size={15} className="animate-spin" />
               {t("conversion:libraryPanel.loading")}
             </div>
           ) : filteredBooks.length === 0 ? (
-            <div className="rounded-sm border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-500">
+            <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
               {t("conversion:libraryPanel.empty")}
             </div>
           ) : (
@@ -372,18 +372,18 @@ function LibrarySearchPanel({
                   key={bookKey(book)}
                   type="button"
                   onClick={() => onAddBooks([book])}
-                  className="flex min-w-0 cursor-pointer items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/80 p-2 text-left hover:border-green-500/50 hover:bg-green-500/5"
+                  className="flex min-w-0 cursor-pointer items-center gap-3 rounded-sm border border-border bg-background/80 p-2 text-left hover:border-primary/50 hover:bg-primary-muted"
                 >
                   <MiniCover book={book} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-zinc-200">
+                    <span className="block truncate text-sm font-medium text-foreground">
                       {getTitleWithoutExtension(book.title, book.fileType)}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                    <span className="mt-0.5 block truncate text-xs text-foreground-subtle">
                       {book.author || getBookFolderLabel(book.filePath)}
                     </span>
                   </span>
-                  <FilePlus size={15} className="flex-shrink-0 text-green-400" />
+                  <FilePlus size={15} className="flex-shrink-0 text-primary" />
                 </button>
               ))}
             </div>
@@ -587,29 +587,29 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
   };
 
   return (
-    <div className={`lyceum-page-conversion flex h-full min-h-0 flex-col overflow-hidden bg-zinc-950 p-3 text-zinc-100 ${className ?? ""}`}>
+    <div className={`lyceum-page-conversion flex h-full min-h-0 flex-col overflow-hidden bg-background p-3 text-foreground ${className ?? ""}`}>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_400px]">
         <main className="flex-none overflow-visible pr-0.5 lg:min-h-0 lg:overflow-y-auto">
           <LibrarySearchPanel selectedBooks={draftBooks} onAddBooks={addDraftBooks} />
 
-          <div className="mb-3 rounded-sm border border-zinc-800 bg-zinc-900/40">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-100">
+          <div className="mb-3 rounded-sm border border-border bg-surface/40">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-foreground">
                 {t("conversion:selected.title", { count: draftBooks.length })}
               </h2>
-              <label className="flex h-9 min-w-0 flex-[1_1_16rem] items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-500 sm:max-w-sm">
+              <label className="flex h-9 min-w-0 flex-[1_1_16rem] items-center gap-2 rounded-sm border border-border bg-background px-3 text-sm text-foreground-subtle sm:max-w-sm">
                 <Search size={15} />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-zinc-200 outline-none placeholder:text-zinc-600"
+                  className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-input-placeholder"
                   placeholder={t("conversion:selected.searchPlaceholder")}
                 />
               </label>
             </div>
             {selectedBooks.length === 0 ? (
-              <div className="flex min-h-44 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-zinc-500">
-                <CircleAlert size={22} className="text-zinc-600" />
+              <div className="flex min-h-44 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-foreground-subtle">
+                <CircleAlert size={22} className="text-foreground-subtle" />
                 {t("conversion:selected.empty")}
               </div>
              ) : (
@@ -621,21 +621,21 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      <article
                        key={bookKey(book)}
                        onClick={() => setSelectedBookHash(book.fileHash)}
-                       className={`relative flex min-w-0 cursor-pointer gap-3 rounded-sm border p-3 pr-10 transition-colors ${isSelected ? "border-green-500/60 bg-green-500/5 shadow-[0_0_20px_rgba(34,197,94,0.1)]" : "border-zinc-800 bg-zinc-950/70 hover:border-zinc-700"}`}
+                       className={`relative flex min-w-0 cursor-pointer gap-3 rounded-sm border p-3 pr-10 transition-colors ${isSelected ? "border-primary/60 bg-primary-muted shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_10%,transparent)]" : "border-border bg-background/70 hover:border-border-strong"}`}
                      >
                        <Cover book={book} />
                        <div className="min-w-0 flex-1">
-                         <h3 className="truncate text-sm font-semibold text-zinc-100">
+                         <h3 className="truncate text-sm font-semibold text-foreground">
                            {getTitleWithoutExtension(book.title, book.fileType)}
                          </h3>
-                         <p className="mt-1 truncate text-sm text-zinc-500">
+                         <p className="mt-1 truncate text-sm text-foreground-subtle">
                            {book.author || getBookFolderLabel(book.filePath)}
                          </p>
-                         <p className="mt-3 text-xs text-zinc-400">
+                         <p className="mt-3 text-xs text-foreground-muted">
                            {getFileTypeLabel(book.fileType, book.filePath)}{" "}
-                           <span className="text-zinc-700">-</span> {formatFileSize(book.fileSize)}
+                           <span className="text-foreground">-</span> {formatFileSize(book.fileSize)}
                          </p>
-                         <span className="mt-3 inline-flex items-center gap-1.5 rounded-sm bg-green-500/10 px-2 py-1 text-xs text-green-400">
+                         <span className="mt-3 inline-flex items-center gap-1.5 rounded-sm bg-primary-muted px-2 py-1 text-xs text-primary">
                            <CircleCheck size={13} />
                            {t("conversion:selected.output", {
                              format: cfg.targetFormat.toUpperCase(),
@@ -648,7 +648,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                            event.stopPropagation();
                            handleRemoveBook(book);
                          }}
-                         className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                         className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-sm text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
                          title={t("conversion:selected.removeTitle")}
                          aria-label={t("conversion:selected.removeAriaLabel", {
                            title: book.title,
@@ -657,7 +657,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                          <X size={14} />
                        </button>
                        {isSelected && (
-                         <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-zinc-950">
+                         <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                            <Check size={13} />
                          </span>
                        )}
@@ -668,16 +668,16 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
              )}
           </div>
 
-           <div className="mb-3 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/40">
-             <div className="border-b border-zinc-800 px-4 py-3">
-               <h2 className="text-sm font-semibold text-zinc-100">
+           <div className="mb-3 overflow-hidden rounded-sm border border-border bg-surface/40">
+             <div className="border-b border-border px-4 py-3">
+               <h2 className="text-sm font-semibold text-foreground">
                  {t("conversion:queueTable.title", { count: visibleQueue.length })}
                </h2>
              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px] table-fixed text-left text-sm">
-                  <thead className="text-xs text-zinc-500">
-                    <tr className="border-b border-zinc-800">
+                  <thead className="text-xs text-foreground-subtle">
+                    <tr className="border-b border-border">
                       <th className="w-[200px] px-4 py-3 font-medium">{t("conversion:queueTable.columns.book")}</th>
                       <th className="w-[120px] px-3 py-3 font-medium">{t("conversion:queueTable.columns.formats")}</th>
                       <th className="w-[170px] px-3 py-3 font-medium">{t("conversion:queueTable.columns.progress")}</th>
@@ -686,10 +686,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                       <th className="w-[120px] px-2 py-3 font-medium">{t("conversion:queueTable.columns.actions")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800">
+                  <tbody className="divide-y divide-border">
                     {visibleQueue.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                        <td colSpan={6} className="px-4 py-8 text-center text-foreground-subtle">
                           {t("conversion:queueTable.empty")}
                         </td>
                       </tr>
@@ -710,15 +710,15 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                         })();
 
                         return (
-                          <tr key={item.id} className="hover:bg-zinc-900/80">
+                          <tr key={item.id} className="hover:bg-surface/80">
                             <td className="w-[200px] px-4 py-2.5">
                               <div className="flex min-w-0 items-center gap-3">
                                 <MiniCover book={item.book} />
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate font-medium text-zinc-200">
+                                  <p className="truncate font-medium text-foreground">
                                     {getTitleWithoutExtension(item.book.title, item.book.fileType)}
                                   </p>
-                                  <p className="truncate text-xs text-zinc-500">
+                                  <p className="truncate text-xs text-foreground-subtle">
                                     {item.book.author || getBookFolderLabel(item.book.filePath)}
                                   </p>
                                 </div>
@@ -726,30 +726,30 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                             </td>
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2">
-                                <span className="text-zinc-300">{item.sourceFormat.toUpperCase()}</span>
-                                <ArrowRight size={14} className="text-zinc-600" />
-                                <span className="rounded-sm border border-green-500/50 bg-green-500/10 px-2 py-0.5 text-xs text-green-200">
+                                <span className="text-foreground">{item.sourceFormat.toUpperCase()}</span>
+                                <ArrowRight size={14} className="text-foreground-subtle" />
+                                <span className="rounded-sm border border-primary/50 bg-primary-muted px-2 py-0.5 text-xs text-primary">
                                   {item.targetFormat.toUpperCase()}
                                 </span>
                               </div>
                             </td>
                             <td className="w-[170px] px-3 py-2.5">
                               <div className="flex items-center gap-2">
-                                <div className="h-2 w-24 flex-shrink-0 overflow-hidden rounded-full bg-zinc-800">
+                                <div className="h-2 w-24 flex-shrink-0 overflow-hidden rounded-full bg-surface-muted">
                                   <div
                                     className={`h-full rounded-full transition-all duration-300 ${
                                       item.status === "done"
-                                        ? "bg-green-500"
+                                        ? "bg-primary"
                                         : item.status === "error"
-                                          ? "bg-red-500"
+                                          ? "bg-destructive"
                                           : item.status === "running"
-                                            ? "bg-green-500"
-                                            : "bg-zinc-700"
+                                            ? "bg-primary"
+                                            : "bg-border-strong"
                                     }`}
                                     style={{ width: `${item.progress}%` }}
                                   />
                                 </div>
-                                <span className="w-10 flex-shrink-0 text-right text-xs text-zinc-400">
+                                <span className="w-10 flex-shrink-0 text-right text-xs text-foreground-muted">
                                   {formatNumber(item.progress, i18n.language)}%
                                 </span>
                               </div>
@@ -758,12 +758,12 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                               <span
                                 className={`inline-flex items-center gap-1.5 ${
                                   item.status === "done"
-                                    ? "text-green-400"
+                                    ? "text-primary"
                                     : item.status === "error"
-                                      ? "text-red-400"
+                                      ? "text-destructive"
                                       : item.status === "running"
-                                        ? "text-amber-300"
-                                        : "text-zinc-500"
+                                        ? "text-warning"
+                                        : "text-foreground-subtle"
                                 }`}
                               >
                                 {item.status === "done" ? (
@@ -771,18 +771,18 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                 ) : item.status === "error" ? (
                                   <CircleAlert size={15} />
                                 ) : item.status === "running" ? (
-                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-300/30 border-t-amber-300" aria-hidden="true" />
+                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-warning/30 border-t-amber-300" aria-hidden="true" />
                                 ) : (
                                   <Clock3 size={15} />
                                 )}
                                 {item.status === "error" ? item.message : t(statusLabel(item))}
                               </span>
                             </td>
-                            <td className="px-2 py-2.5 text-xs text-zinc-400">
+                            <td className="px-2 py-2.5 text-xs text-foreground-muted">
                               {item.status === "done" ? (
                                 formatFileSize(estimatedOutputSize)
                               ) : (
-                                <span className="text-zinc-600">-</span>
+                                <span className="text-foreground-subtle">-</span>
                               )}
                             </td>
                             <td className="px-2 py-2.5">
@@ -791,7 +791,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                   <button
                                     type="button"
                                     onClick={() => void cancelConversion(item.id)}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-amber-300"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-warning"
                                     title={t("conversion:queueTable.actions.cancelTitle")}
                                     aria-label={t("conversion:queueTable.actions.cancelAriaLabel", {
                                       title: item.book.title,
@@ -806,7 +806,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                       type="button"
                                       disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)}
                                       onClick={() => onOpenConverted?.(item)}
-                                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
+                                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
                                       title={t("conversion:queueTable.actions.openTitle")}
                                       aria-label={t("conversion:queueTable.actions.openAriaLabel", {
                                         title: item.book.title,
@@ -818,7 +818,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                       type="button"
                                       disabled={!item.outputPath}
                                       onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)}
-                                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:cursor-not-allowed disabled:opacity-30"
+                                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
                                       title={t("conversion:queueTable.actions.revealTitle")}
                                       aria-label={t("conversion:queueTable.actions.revealAriaLabel", {
                                         title: item.book.title,
@@ -832,7 +832,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                   <button
                                     type="button"
                                     onClick={() => void handleDeleteConversion(item)}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-500/10 hover:text-red-300"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-foreground-muted hover:bg-destructive-muted hover:text-destructive"
                                     title={
                                       item.status === "done"
                                         ? t("conversion:queueTable.actions.deleteTitle")
@@ -862,25 +862,25 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               </div>
             </div>
 
-            <section className="mb-3 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950">
-              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-                  <ListTree size={15} className="text-green-400" />
+            <section className="mb-3 overflow-hidden rounded-sm border border-border bg-background">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <ListTree size={15} className="text-primary" />
                   {t("conversion:logs.title")}
                 </h2>
-                <button type="button" onClick={clearLogs} disabled={logs.length === 0} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30" title={t("conversion:logs.clearTitle")}
+                <button type="button" onClick={clearLogs} disabled={logs.length === 0} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-foreground-subtle hover:bg-surface-muted hover:text-foreground disabled:opacity-30" title={t("conversion:logs.clearTitle")}
                   aria-label={t("conversion:logs.clearAriaLabel")}>
                   <Trash2 size={14} />
                 </button>
               </div>
               <div className="max-h-56 overflow-y-auto font-mono text-xs">
                 {visibleLogs.length === 0 ? (
-                  <div className="px-4 py-6 text-center font-sans text-sm text-zinc-600">
+                  <div className="px-4 py-6 text-center font-sans text-sm text-foreground-subtle">
                     {t("conversion:logs.empty")}
                   </div>
                 ) : visibleLogs.map((entry) => (
-                  <div key={entry.id} className="grid grid-cols-[5.25rem_4.5rem_minmax(0,1fr)] gap-2 border-b border-zinc-900 px-4 py-2 last:border-0">
-                    <time className="text-zinc-600">
+                  <div key={entry.id} className="grid grid-cols-[5.25rem_4.5rem_minmax(0,1fr)] gap-2 border-b border-border px-4 py-2 last:border-0">
+                    <time className="text-foreground-subtle">
                       {new Intl.DateTimeFormat(getActiveLocale(), {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -888,41 +888,41 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                         hour12: false,
                       }).format(new Date(entry.timestamp))}
                     </time>
-                    <span className={entry.level === "error" ? "text-red-400" : entry.level === "warning" ? "text-amber-300" : entry.level === "success" ? "text-green-400" : "text-sky-300"}>
+                    <span className={entry.level === "error" ? "text-destructive" : entry.level === "warning" ? "text-warning" : entry.level === "success" ? "text-primary" : "text-info"}>
                       {t(`conversion:logs.levels.${entry.level}` as const)}
                     </span>
-                    <span className="min-w-0 break-words text-zinc-300">{entry.message}{entry.detail && <span className="mt-0.5 block text-zinc-600">{entry.detail}</span>}</span>
+                    <span className="min-w-0 break-words text-foreground">{entry.message}{entry.detail && <span className="mt-0.5 block text-foreground-subtle">{entry.detail}</span>}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-          <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/40">
-            <div className="border-b border-zinc-800 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-100">{t("conversion:recent.title")}</h2>
+          <div className="overflow-hidden rounded-sm border border-border bg-surface/40">
+            <div className="border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-foreground">{t("conversion:recent.title")}</h2>
             </div>
-            <div className="divide-y divide-zinc-800">
+            <div className="divide-y divide-border">
               {queue.filter((item) => item.status === "done").slice(0, 4).map((item) => (
                 <div key={`recent-${item.id}`} className="flex items-center gap-3 px-4 py-3">
                   <MiniCover book={item.book} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-200">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {getTitleWithoutExtension(item.book.title, item.book.fileType)}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-foreground-subtle">
                       {item.sourceFormat.toUpperCase()} - {item.targetFormat.toUpperCase()}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)} onClick={() => onOpenConverted?.(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title={t("conversion:queueTable.actions.openTitle")}><BookOpen size={14} /></button>
-                    <button type="button" disabled={!item.outputPath} onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-green-300 disabled:opacity-30" title={t("conversion:queueTable.actions.revealTitle")}><FolderOpen size={14} /></button>
-                    <button type="button" onClick={() => void handleDeleteConversion(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-500/10 hover:text-red-300" title={t("conversion:queueTable.actions.deleteTitle")}
+                    <button type="button" disabled={!item.outputHash || !["pdf", "epub"].includes(item.targetFormat)} onClick={() => onOpenConverted?.(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-primary disabled:opacity-30" title={t("conversion:queueTable.actions.openTitle")}><BookOpen size={14} /></button>
+                    <button type="button" disabled={!item.outputPath} onClick={() => item.outputPath && window.api.showBookInFolder(item.outputPath)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-primary disabled:opacity-30" title={t("conversion:queueTable.actions.revealTitle")}><FolderOpen size={14} /></button>
+                    <button type="button" onClick={() => void handleDeleteConversion(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-foreground-muted hover:bg-destructive-muted hover:text-destructive" title={t("conversion:queueTable.actions.deleteTitle")}
                       aria-label={t("conversion:queueTable.actions.deleteAriaLabel", { title: item.book.title })}><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
               {queue.every((item) => item.status !== "done") && (
-                <div className="px-4 py-6 text-center text-sm text-zinc-500">
+                <div className="px-4 py-6 text-center text-sm text-foreground-subtle">
                   {t("conversion:recent.empty")}
                 </div>
               )}
@@ -930,12 +930,12 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
           </div>
         </main>
 
-        <aside className="flex-none overflow-visible rounded-sm border border-zinc-800 bg-zinc-900/60 lg:min-h-0 lg:overflow-y-auto">
-          <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+        <aside className="flex-none overflow-visible rounded-sm border border-border bg-surface/60 lg:min-h-0 lg:overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="min-w-0">
-              <h2 className="font-semibold text-zinc-100">{t("conversion:settings.title")}</h2>
+              <h2 className="font-semibold text-foreground">{t("conversion:settings.title")}</h2>
               {selectedBook && (
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-xs text-foreground-subtle">
                   {getTitleWithoutExtension(selectedBook.title, selectedBook.fileType)}
                 </p>
               )}
@@ -943,8 +943,8 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
           </div>
 
            {!selectedBook ? (
-             <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-zinc-500">
-               <Info size={28} className="text-zinc-600" />
+             <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-foreground-subtle">
+               <Info size={28} className="text-foreground-subtle" />
                <p>{t("conversion:settings.selectBook")}</p>
              </div>
            ) : (
@@ -955,8 +955,8 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                  <div className="space-y-6 p-5">
                    <section>
                      <div className="mb-2 flex items-center gap-2">
-                       <h3 className="text-sm font-semibold text-zinc-100">{t("conversion:settings.outputFormat")}</h3>
-                       <Info size={14} className="text-zinc-500" />
+                       <h3 className="text-sm font-semibold text-foreground">{t("conversion:settings.outputFormat")}</h3>
+                       <Info size={14} className="text-foreground-subtle" />
                      </div>
                      <div className="grid grid-cols-2 gap-2">
                        {outputFormats.map((format) => {
@@ -968,17 +968,17 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                              type="button"
                              disabled={!usable}
                              onClick={() => setBookConfig(selectedBook.fileHash, { targetFormat: format.value })}
-                             className={`relative min-h-24 rounded-sm border p-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "border-green-400 bg-green-500/15 shadow-[0_0_18px_rgba(34,197,94,0.22)]" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"}`}
+                             className={`relative min-h-24 rounded-sm border p-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "border-primary bg-primary-muted shadow-[0_0_18px_color-mix(in_srgb,var(--primary)_22%,transparent)]" : "border-border bg-background hover:border-border-strong"}`}
                            >
-                             <FileText size={22} className={selected ? "mx-auto text-green-300" : "mx-auto text-zinc-400"} />
-                             <span className="mt-2 block text-sm font-semibold text-zinc-100">
+                             <FileText size={22} className={selected ? "mx-auto text-primary" : "mx-auto text-foreground-muted"} />
+                             <span className="mt-2 block text-sm font-semibold text-foreground">
                                {format.value.toUpperCase()}
                              </span>
-                             <span className="mt-1 block text-[11px] text-zinc-500">
+                             <span className="mt-1 block text-[11px] text-foreground-subtle">
                                {t(format.descriptionKey)}
                              </span>
                              {selected && (
-                               <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-zinc-950">
+                               <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                                  <Check size={13} />
                                </span>
                              )}
@@ -989,7 +989,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                    </section>
 
                    <section>
-                     <h3 className="mb-3 text-sm font-semibold text-zinc-100">
+                     <h3 className="mb-3 text-sm font-semibold text-foreground">
                        {t("conversion:settings.formatOptions", {
                          format: cfg.targetFormat.toUpperCase(),
                        })}
@@ -1002,25 +1002,25 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                    </section>
 
                    <section>
-                     <h3 className="mb-2 text-sm font-semibold text-zinc-100">{t("conversion:settings.destination")}</h3>
+                     <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:settings.destination")}</h3>
                      <div className="space-y-2">
                        {cfg.outputPath ? (
-                         <div className="flex min-h-9 items-center justify-between gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3">
+                         <div className="flex min-h-9 items-center justify-between gap-2 rounded-sm border border-border bg-background px-3">
                            <div className="flex min-w-0 items-center gap-2">
-                             <Folder size={15} className="flex-shrink-0 text-zinc-500" />
-                             <span className="truncate text-sm text-zinc-300">{cfg.outputPath}</span>
+                             <Folder size={15} className="flex-shrink-0 text-foreground-subtle" />
+                             <span className="truncate text-sm text-foreground">{cfg.outputPath}</span>
                            </div>
                            <button
                              type="button"
                              onClick={() => setBookConfig(selectedBook.fileHash, { outputPath: undefined })}
-                             className="flex-shrink-0 text-xs text-zinc-500 hover:text-zinc-300"
+                             className="flex-shrink-0 text-xs text-foreground-subtle hover:text-foreground"
                            >
                              {t("conversion:settings.clear")}
                            </button>
                          </div>
                        ) : (
-                         <div className="flex h-9 items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950 px-3 text-sm text-zinc-300">
-                           <Folder size={15} className="text-zinc-500" />
+                         <div className="flex h-9 items-center gap-2 rounded-sm border border-border bg-background px-3 text-sm text-foreground">
+                           <Folder size={15} className="text-foreground-subtle" />
                            <span>{t("conversion:settings.nextToOriginal")}</span>
                          </div>
                        )}
@@ -1032,7 +1032,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                              setBookConfig(selectedBook.fileHash, { outputPath: result.filePaths[0] });
                            }
                          }}
-                         className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-zinc-700 bg-zinc-900 text-sm text-zinc-300 hover:bg-zinc-800"
+                         className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-border-strong bg-surface text-sm text-foreground hover:bg-surface-muted"
                        >
                          <FolderOpen size={14} />
                          {t("conversion:settings.chooseFolder")}
@@ -1040,17 +1040,17 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      </div>
                    </section>
 
-                   <section className="rounded-sm border border-zinc-800 bg-zinc-950 p-4">
+                   <section className="rounded-sm border border-border bg-background p-4">
                      <div className="flex items-center gap-4">
-                       <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-400">
+                       <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-muted text-primary">
                          <Sparkles size={24} />
                        </span>
                        <div className="min-w-0">
-                         <p className="font-semibold text-zinc-100">
+                         <p className="font-semibold text-foreground">
                            {t("conversion:settings.summary", { count: convertibleCount })}{" "}
-                           <span className="text-zinc-500">-</span>
+                           <span className="text-foreground-subtle">-</span>
                          </p>
-                         <p className="mt-1 text-sm text-zinc-400">
+                         <p className="mt-1 text-sm text-foreground-muted">
                            {t("conversion:settings.estimated", { size: estimatedSize })}
                          </p>
                        </div>
@@ -1061,11 +1061,11 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
              })()
            )}
 
-          <div className="sticky bottom-0 flex gap-3 border-t border-zinc-800 bg-zinc-900/95 p-4 backdrop-blur">
+          <div className="sticky bottom-0 flex gap-3 border-t border-border bg-overlay p-4 backdrop-blur">
             <button
               type="button"
               onClick={handleCancel}
-              className="h-11 flex-1 rounded-sm border border-zinc-800 bg-zinc-950 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
+              className="h-11 flex-1 rounded-sm border border-border bg-background text-sm font-medium text-foreground hover:bg-surface-muted"
             >
               {t("conversion:settings.cancel")}
             </button>
@@ -1073,7 +1073,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               type="button"
               disabled={convertibleCount === 0}
               onClick={handleStart}
-              className="flex h-11 flex-[1.8] items-center justify-center gap-2 rounded-sm bg-green-500 text-sm font-semibold text-zinc-950 hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-11 flex-[1.8] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
               {t("conversion:settings.convert", { count: convertibleCount })}
@@ -1107,30 +1107,30 @@ export function ConversionDialog({ isOpen, onClose, onOpenConverted }: Conversio
 
   return (
     <div
-      className="fixed inset-0 z-[88] flex items-center justify-center bg-black/45 px-3 py-5"
+      className="fixed inset-0 z-[88] flex items-center justify-center bg-backdrop px-3 py-5"
       onMouseDown={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="conversion-dialog-title"
     >
       <div
-        className="flex h-[min(860px,calc(100vh-40px))] w-full max-w-7xl overflow-hidden rounded border border-zinc-700/90 bg-zinc-950 shadow-2xl shadow-black/60"
+        className="flex h-[min(860px,calc(100vh-40px))] w-full max-w-7xl overflow-hidden rounded border border-border-strong/90 bg-background shadow-2xl shadow-shadow"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex min-h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 sm:px-6">
+          <header className="flex min-h-14 items-center justify-between border-b border-border bg-surface px-4 sm:px-6">
             <div className="min-w-0">
-              <h2 id="conversion-dialog-title" className="truncate text-base font-semibold text-zinc-100">
+              <h2 id="conversion-dialog-title" className="truncate text-base font-semibold text-foreground">
                 {t("conversion:dialog.title")}
               </h2>
-              <p className="hidden text-xs text-zinc-500 sm:block">
+              <p className="hidden text-xs text-foreground-subtle sm:block">
                 {t("conversion:dialog.description")}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
               title={t("conversion:dialog.closeTitle")}
               aria-label={t("conversion:dialog.closeAriaLabel")}
             >

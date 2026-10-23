@@ -44,12 +44,12 @@ import type {
 import { useTranslation } from "../../../../i18n";
 
 const STATUS_DOT: Record<ReadingStatus, string> = {
-  reading: "bg-green-400",
-  want_to_read: "bg-zinc-400",
-  read: "bg-green-600",
-  paused: "bg-amber-400",
-  not_a_book: "bg-zinc-600",
-  unknown: "bg-zinc-700",
+  reading: "bg-primary",
+  want_to_read: "bg-foreground-muted",
+  read: "bg-primary",
+  paused: "bg-warning",
+  not_a_book: "bg-border-strong",
+  unknown: "bg-border-strong",
 };
 
 export default function FolderTree(props: FolderTreeProps) {
@@ -413,13 +413,13 @@ function FolderTreeContainer({
           onClick={item.onToggle}
           title={t(item.visible ? "library:filters.status.hide" : "library:filters.status.show")}
           className={`ml-2 mr-1 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs transition-colors ${
-            item.visible ? "text-zinc-200" : "text-zinc-500"
-          } hover:bg-zinc-800 hover:text-zinc-100`}
+            item.visible ? "text-foreground" : "text-foreground-subtle"
+          } hover:bg-surface-muted hover:text-foreground`}
         >
           <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
-            item.visible ? STATUS_DOT[item.status] : "bg-zinc-700"
+            item.visible ? STATUS_DOT[item.status] : "bg-border-strong"
           }`} />
-          <span className={`truncate ${item.visible ? "" : "line-through decoration-zinc-700"}`}>
+          <span className={`truncate ${item.visible ? "" : "line-through decoration-border-strong"}`}>
             {t(READING_STATUS_LABEL_KEYS[item.status])}
           </span>
           <span className="ml-auto flex-shrink-0">
@@ -477,7 +477,7 @@ function FolderTreeContainer({
 
   if (data.isLoading) {
     return (
-      <div className="flex cursor-wait items-center gap-2 p-3 text-xs text-zinc-500">
+      <div className="flex cursor-wait items-center gap-2 p-3 text-xs text-foreground-subtle">
         <RefreshCw size={12} className="animate-spin" />
         Carregando...
       </div>
@@ -487,7 +487,7 @@ function FolderTreeContainer({
   return (
     <FolderTreeDragProvider value={dragValue}>
       <div className="flex h-full flex-col">
-        <div className="flex flex-shrink-0 flex-col gap-2 border-b border-zinc-800 p-3">
+        <div className="flex flex-shrink-0 flex-col gap-2 border-b border-border p-3">
           <FolderTreeToolbar
             allExpanded={allExpanded}
             syncing={syncing}
@@ -563,9 +563,9 @@ function FolderTreeContainer({
         onClick={() => onFolderSelect(null)}
         className={`mb-1 flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors ${
           selectedFolder === null
-            ? "bg-zinc-800 text-zinc-100"
-            : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-        } ${item.dropTarget ? "bg-green-500/10 text-green-100 ring-1 ring-green-500" : ""}`}
+            ? "bg-surface-muted text-foreground"
+            : "text-foreground-muted hover:bg-surface-muted/50 hover:text-foreground"
+        } ${item.dropTarget ? "bg-primary-muted text-primary ring-1 ring-focus-ring" : ""}`}
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
@@ -577,9 +577,9 @@ function FolderTreeContainer({
           if (draggingBooks.length > 0 || draggingFolder) void handleDrop("");
         }}
       >
-        <Folder size={16} className="text-zinc-500" />
+        <Folder size={16} className="text-foreground-subtle" />
         <span className="flex-1 text-left">Raiz</span>
-        <span className={`mr-5 rounded-sm px-1.5 py-0.5 text-xs ${selectedFolder === null ? "bg-zinc-700 text-zinc-300" : "bg-zinc-800 text-zinc-500"}`}>
+        <span className={`mr-5 rounded-sm px-1.5 py-0.5 text-xs ${selectedFolder === null ? "bg-border-strong text-foreground" : "bg-surface-muted text-foreground-subtle"}`}>
           {item.totalBooks}
         </span>
       </button>
@@ -592,17 +592,17 @@ function FolderTreeContainer({
       <div
         onClick={() => onFolderSelect(item.folder.path)}
         className={`group flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors ${
-          isSelected ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+          isSelected ? "bg-surface-muted text-foreground" : "text-foreground-muted hover:bg-surface-muted/50 hover:text-foreground"
         }`}
       >
-        <FolderPlus size={15} className="text-zinc-500" />
+        <FolderPlus size={15} className="text-foreground-subtle" />
         <span className="min-w-0 flex-1">
           <span className="block truncate">{item.folder.label || item.folder.path.split(/[/\\]/).pop()}</span>
-          <span className="mt-0.5 block truncate text-[10px] leading-3 text-zinc-500" title={item.folder.path}>
+          <span className="mt-0.5 block truncate text-[10px] leading-3 text-foreground-subtle" title={item.folder.path}>
             {item.folder.path}
           </span>
         </span>
-        <span className={`mr-1 rounded-sm px-1.5 py-0.5 text-[11px] ${isSelected ? "bg-zinc-700 text-zinc-300" : "bg-zinc-800 text-zinc-500"}`}>
+        <span className={`mr-1 rounded-sm px-1.5 py-0.5 text-[11px] ${isSelected ? "bg-border-strong text-foreground" : "bg-surface-muted text-foreground-subtle"}`}>
           {item.count}
         </span>
         <button
@@ -612,7 +612,7 @@ function FolderTreeContainer({
             await refreshFolders();
             toast.success(t("library:folderTree.watchFolderRemoved"));
           }}
-          className="cursor-pointer rounded-sm p-0.5 text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-700 hover:text-red-400 group-hover:opacity-100"
+          className="cursor-pointer rounded-sm p-0.5 text-foreground-subtle opacity-0 transition-opacity hover:bg-border-strong hover:text-destructive group-hover:opacity-100"
           title={t("library:folderTree.removeWatchFolder")}
         >
           <X size={12} />

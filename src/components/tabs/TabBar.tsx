@@ -125,7 +125,7 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
 
   return (
     <motion.div
-      className="flex h-10 items-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900"
+      className="flex h-10 items-center overflow-hidden rounded-sm border border-border bg-surface"
       layout
       transition={reduceMotion ? { duration: 0 } : springFast}
     >
@@ -156,14 +156,14 @@ export default function TabBar({ onOpenFile }: TabBarProps) {
             </div>
           </SortableContext>
 
-          <div className="relative flex h-full flex-shrink-0 items-center border-r border-zinc-700 px-1">
+          <div className="relative flex h-full flex-shrink-0 items-center border-r border-border-strong px-1">
             <motion.button
               type="button"
               onClick={handleOpenFileClick}
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-zinc-700"
+              className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-surface-muted"
               title={t("tabs:openFile")}
             >
-              <Plus size={18} className="text-zinc-400" />
+              <Plus size={18} className="text-foreground-muted" />
             </motion.button>
           </div>
         </div>

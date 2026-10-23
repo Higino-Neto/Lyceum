@@ -70,8 +70,8 @@ export default function Sidebar({
         ? "w-13"
         : "w-42";
   const sidebarPosition = isOverlayMode
-    ? "absolute bottom-0 left-0 top-10 z-40 border-r border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/40 backdrop-blur"
-    : "bg-zinc-900";
+    ? "absolute bottom-0 left-0 top-10 z-40 border-r border-border-strong bg-overlay shadow-2xl shadow-shadow backdrop-blur"
+    : "bg-surface";
   const sidebarVisibility =
     isOverlayMode && isHidden
       ? "pointer-events-none -translate-x-full opacity-0"
@@ -153,7 +153,7 @@ export default function Sidebar({
         )}
       </nav>
 
-      <div className="flex flex-col mt-auto mb-3 text-zinc-500 text-center">
+      <div className="flex flex-col mt-auto mb-3 text-foreground-subtle text-center">
         <SidebarItem
           Icon={Settings}
           label={t("navigation:sidebar.settings")}
@@ -179,7 +179,7 @@ export default function Sidebar({
               collapsed={collapsed}
             />
             {!collapsed && userEmail && (
-              <div className="mx-3 mt-1 truncate text-left text-[11px] text-zinc-600">
+              <div className="mx-3 mt-1 truncate text-left text-[11px] text-foreground-subtle">
                 {userEmail}
               </div>
             )}

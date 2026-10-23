@@ -48,7 +48,7 @@ export default function SignIn() {
       footer={
         <>
           {t("auth:signIn.noAccount")}{" "}
-          <Link to="/signup" className="text-green-500 transition hover:text-green-400">
+          <Link to="/signup" className="text-primary transition hover:text-primary">
             {t("auth:signIn.createAccount")}
           </Link>
         </>
@@ -59,7 +59,7 @@ export default function SignIn() {
           <div className="relative">
             <Mail
               size={17}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
             />
             <input
               type="email"
@@ -83,7 +83,7 @@ export default function SignIn() {
           <div className="flex justify-end">
             <Link
               to="/forgot-password"
-              className="text-xs font-medium text-green-500 transition hover:text-green-400"
+              className="text-xs font-medium text-primary transition hover:text-primary"
             >
               {t("auth:signIn.forgotPassword")}
             </Link>

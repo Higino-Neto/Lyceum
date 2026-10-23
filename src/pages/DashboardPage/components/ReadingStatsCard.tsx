@@ -437,14 +437,14 @@ export default function ReadingStatsCard() {
   };
 
   const renderHeader = () => (
-    <div className="flex items-center justify-between gap-2 text-zinc-500">
+    <div className="flex items-center justify-between gap-2 text-foreground-subtle">
       <div className="flex items-center gap-2">
         <BookOpen size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
       </div>
       <button
         type="button"
         onClick={() => setAddPanelOpen((open) => !open)}
-        className="inline-flex h-6 w-6 items-center justify-center rounded-sm border border-zinc-700 cursor-pointer text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-sm border border-border-strong cursor-pointer text-foreground transition hover:border-border-strong hover:text-foreground"
         title={
           addPanelOpen
             ? t("dashboard:quickReading.closeBookPicker")
@@ -479,7 +479,7 @@ export default function ReadingStatsCard() {
           }}
           onFocus={() => setSuggestionsOpen(true)}
           onBlur={() => window.setTimeout(() => setSuggestionsOpen(false), 120)}
-          className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+          className="h-9 w-full rounded-sm border border-border-strong bg-surface px-2 text-sm text-foreground placeholder:text-input-placeholder focus:border-primary focus:ring-1 focus:ring-focus-ring"
           aria-label={t("dashboard:quickReading.searchRegisteredBook")}
           placeholder={
             booksLoading
@@ -490,9 +490,9 @@ export default function ReadingStatsCard() {
         />
 
         {suggestionsOpen ? (
-          <div className="absolute left-2 right-2 top-[calc(100%+0.25rem)] z-20 max-h-56 overflow-y-auto rounded-sm border border-zinc-700 bg-zinc-900 shadow-xl shadow-black/40">
+          <div className="absolute left-2 right-2 top-[calc(100%+0.25rem)] z-20 max-h-56 overflow-y-auto rounded-sm border border-border-strong bg-surface shadow-xl shadow-shadow">
             {booksLoading ? (
-              <div className="px-3 py-2 text-sm text-zinc-500">
+              <div className="px-3 py-2 text-sm text-foreground-subtle">
                 {t("dashboard:quickReading.loadingBooks")}
               </div>
             ) : suggestedBooksToAdd.length > 0 ? (
@@ -502,7 +502,7 @@ export default function ReadingStatsCard() {
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleAddRegisteredBook(book.id)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-foreground transition hover:bg-surface-muted"
                   aria-label={t("dashboard:quickReading.addBook", {
                     book: book.title,
                   })}
@@ -512,7 +512,7 @@ export default function ReadingStatsCard() {
                       {book.title}
                     </span>
                     {book.author ? (
-                      <span className="block truncate text-xs text-zinc-500">
+                      <span className="block truncate text-xs text-foreground-subtle">
                         {book.author}
                       </span>
                     ) : null}
@@ -520,12 +520,12 @@ export default function ReadingStatsCard() {
                   <Plus
                     size={ICON_SIZE}
                     strokeWidth={STROKE_WIDTH}
-                    className="shrink-0 text-green-500"
+                    className="shrink-0 text-primary"
                   />
                 </button>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-zinc-500">
+              <div className="px-3 py-2 text-sm text-foreground-subtle">
                 {t("dashboard:quickReading.noRegisteredBooks")}
               </div>
             )}
@@ -537,13 +537,13 @@ export default function ReadingStatsCard() {
 
   if (isLoading) {
     return (
-      <div className="h-full rounded-sm border border-zinc-800 bg-zinc-900 p-4">
-        <div className="h-5 w-28 animate-pulse rounded bg-zinc-800" />
+      <div className="h-full rounded-sm border border-border bg-surface p-4">
+        <div className="h-5 w-28 animate-pulse rounded bg-surface-muted" />
         <div className="mt-4 space-y-3">
           {[0, 1, 2].map((item) => (
             <div
               key={item}
-              className="h-12 animate-pulse rounded-sm bg-zinc-800"
+              className="h-12 animate-pulse rounded-sm bg-surface-muted"
             />
           ))}
         </div>
@@ -553,10 +553,10 @@ export default function ReadingStatsCard() {
 
   if (quickBooks.length === 0) {
     return (
-      <div className="flex h-full flex-col gap-3 rounded-sm border border-zinc-800 bg-zinc-900 p-4">
+      <div className="flex h-full flex-col gap-3 rounded-sm border border-border bg-surface p-4">
         {renderHeader()}
         {renderAddPanel()}
-        <div className="flex flex-1 items-center justify-center py-8 text-center text-sm text-zinc-500">
+        <div className="flex flex-1 items-center justify-center py-8 text-center text-sm text-foreground-subtle">
           {t("dashboard:quickReading.empty")}
         </div>
       </div>
@@ -564,7 +564,7 @@ export default function ReadingStatsCard() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 rounded-sm border border-zinc-800 bg-zinc-900 p-4">
+    <div className="flex h-full flex-col gap-3 rounded-sm border border-border bg-surface p-4">
       {renderHeader()}
       {renderAddPanel()}
 
@@ -590,7 +590,7 @@ export default function ReadingStatsCard() {
             <form
               key={book.key}
               onSubmit={(event) => handleSubmit(event, book)}
-              className="relative grid grid-cols-[minmax(100px,1fr)_minmax(3rem,4rem)_minmax(3rem,4rem)_auto_auto] items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-850 p-2"
+              className="relative grid grid-cols-[minmax(100px,1fr)_minmax(3rem,4rem)_minmax(3rem,4rem)_auto_auto] items-center gap-2 rounded-sm border border-border bg-surface-muted p-2"
             >
               <div className="min-w-0 flex">
                 <div>
@@ -601,7 +601,7 @@ export default function ReadingStatsCard() {
                         current === book.key ? null : book.key,
                       )
                     }
-                    className="flex h-9 w-5 cursor-pointer items-center justify-center rounded-sm hover:bg-zinc-800 text-zinc-500 transition hover:border-zinc-600 hover:text-zinc-200"
+                    className="flex h-9 w-5 cursor-pointer items-center justify-center rounded-sm hover:bg-surface-muted text-foreground-subtle transition hover:border-border-strong hover:text-foreground"
                     title={t("dashboard:quickReading.actions")}
                     aria-label={t("dashboard:quickReading.actionsFor", {
                       book: book.title,
@@ -611,14 +611,14 @@ export default function ReadingStatsCard() {
                   </button>
 
                   {actionMenuBookKey === book.key ? (
-                    <div className="absolute left-2 top-12 z-20 min-w-44 rounded-sm border border-zinc-700 bg-zinc-900 py-1">
+                    <div className="absolute left-2 top-12 z-20 min-w-44 rounded-sm border border-border-strong bg-surface py-1">
                       <button
                         type="button"
                         onClick={() => {
                           handleRemoveBook(book);
                           setActionMenuBookKey(null);
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/10"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive transition hover:bg-destructive-muted"
                         aria-label={t("dashboard:quickReading.removeBook", {
                           book: book.title,
                         })}
@@ -630,15 +630,15 @@ export default function ReadingStatsCard() {
                   ) : null}
                 </div>
                 <div className="min-w-0 ml-2">
-                  <div className="truncate text-sm font-medium text-zinc-100">
+                  <div className="truncate text-sm font-medium text-foreground">
                     {book.title}
                   </div>
-                  <div className="mt-0.5 text-xs text-zinc-500">
+                  <div className="mt-0.5 text-xs text-foreground-subtle">
                     {t("dashboard:quickReading.totalPages", {
                       count: book.totalPages,
                     })}{" "}
                     {book.todayPages > 0 && (
-                      <span className="font-semibold text-green-500">
+                      <span className="font-semibold text-primary">
                         {t("dashboard:quickReading.todayPages", {
                           count: book.todayPages,
                         })}
@@ -663,7 +663,7 @@ export default function ReadingStatsCard() {
                 aria-label={t("dashboard:quickReading.pagesLabel", {
                   book: book.title,
                 })}
-                className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-800/70 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                className="h-9 w-full rounded-sm border border-border-strong bg-surface-muted/70 px-2 text-sm text-foreground placeholder:text-input-placeholder focus:border-primary focus:ring-1 focus:ring-focus-ring"
               />
 
               <input
@@ -681,7 +681,7 @@ export default function ReadingStatsCard() {
                 aria-label={t("dashboard:quickReading.minutesLabel", {
                   book: book.title,
                 })}
-                className="h-9 w-full rounded-sm border border-zinc-700 bg-zinc-800/70 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                className="h-9 w-full rounded-sm border border-border-strong bg-surface-muted/70 px-2 text-sm text-foreground placeholder:text-input-placeholder focus:border-primary focus:ring-1 focus:ring-focus-ring"
               />
 
               <button
@@ -709,7 +709,7 @@ export default function ReadingStatsCard() {
                     scheduleFocus(() => focusNextQuickControl(target));
                   }
                 }}
-                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-2 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
+                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-sm border border-border-strong bg-surface-muted px-2 text-xs font-medium text-foreground transition hover:border-border-strong hover:text-foreground"
                 aria-label={t("dashboard:quickReading.dateLabel", {
                   book: book.title,
                 })}
@@ -734,10 +734,10 @@ export default function ReadingStatsCard() {
                   onKeyDown={handleFastKeyDown}
                   className={`flex h-9 w-9 cursor-pointer items-center justify-center gap-1.5 rounded-sm text-xs font-semibold transition ${
                     phase === "error"
-                      ? "bg-red-600 text-white"
+                      ? "bg-destructive text-destructive-foreground"
                       : canSubmit
-                        ? "bg-green-600 text-black hover:bg-green-500"
-                        : "cursor-not-allowed bg-zinc-800 text-zinc-600"
+                        ? "bg-primary text-primary-foreground hover:bg-primary-hover"
+                        : "cursor-not-allowed bg-surface-muted text-foreground-subtle"
                   }`}
                   title={
                     book.categoryId
@@ -762,7 +762,7 @@ export default function ReadingStatsCard() {
                     <X
                       size={ICON_SIZE}
                       strokeWidth={STROKE_WIDTH}
-                      className="text-red-300"
+                      className="text-destructive"
                     />
                   ) : (
                     <Send size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />

@@ -85,25 +85,25 @@ export default function FolderListItem({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={[
-        "grid min-h-12 cursor-pointer items-center rounded-sm border bg-zinc-950/70 transition-colors",
-        "hover:border-emerald-400/55 hover:bg-zinc-900",
-        isSelected ? "border-emerald-400/80 bg-emerald-500/10 ring-1 ring-emerald-400/35" : "border-zinc-800",
-        isDropTarget ? "border-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-400/70" : "",
+        "grid min-h-12 cursor-pointer items-center rounded-sm border bg-background/70 transition-colors",
+        "hover:border-primary/55 hover:bg-surface",
+        isSelected ? "border-primary/80 bg-primary-muted ring-1 ring-focus-ring" : "border-border",
+        isDropTarget ? "border-primary bg-primary-muted ring-1 ring-focus-ring" : "",
       ].join(" ")}
       style={{ gridTemplateColumns }}
     >
       <div className="flex min-w-0 items-center gap-3 px-3 py-2">
         <div className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-sm border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-sm border border-primary/20 bg-primary-muted text-primary">
           <Folder size={22} strokeWidth={1.5} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-100">
+          <p className="truncate text-sm font-medium text-foreground">
             {folder.name}
           </p>
           {(listLayout === "compact" || listLayout === "narrow") && (
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-              <span className="rounded-sm bg-emerald-400/10 px-1.5 py-0.5 uppercase text-emerald-200">
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-foreground-subtle">
+              <span className="rounded-sm bg-primary-muted px-1.5 py-0.5 uppercase text-primary">
                 Pasta
               </span>
               <span className="min-w-0 truncate">{metadata}</span>
@@ -113,17 +113,17 @@ export default function FolderListItem({
       </div>
 
       {(listLayout === "full" || listLayout === "medium") && (
-        <div className="truncate px-3 py-2 text-xs text-zinc-500">
+        <div className="truncate px-3 py-2 text-xs text-foreground-subtle">
           {detail || t("library:list.folderFallback")}
         </div>
       )}
       {(listLayout === "full" || listLayout === "medium") && (
-        <div className="px-3 py-2 text-xs text-emerald-200">Pasta</div>
+        <div className="px-3 py-2 text-xs text-primary">Pasta</div>
       )}
       {listLayout !== "narrow" && (
-        <div className="px-3 py-2 text-xs text-zinc-400">
+        <div className="px-3 py-2 text-xs text-foreground-muted">
           <span className="inline-flex items-center gap-1">
-            <BookOpen size={12} className={bookCount > 0 ? "text-amber-200/80" : "text-zinc-600"} />
+            <BookOpen size={12} className={bookCount > 0 ? "text-warning" : "text-foreground-subtle"} />
             {formatCount(
               bookCount,
               "library:counts.book_one",
@@ -133,9 +133,9 @@ export default function FolderListItem({
         </div>
       )}
       {(listLayout === "full" || listLayout === "medium") && (
-        <div className="px-3 py-2 text-xs text-zinc-400">
+        <div className="px-3 py-2 text-xs text-foreground-muted">
           <span className="inline-flex items-center gap-1">
-            <Boxes size={12} className={folderCount > 0 ? "text-emerald-300/80" : "text-zinc-600"} />
+            <Boxes size={12} className={folderCount > 0 ? "text-primary" : "text-foreground-subtle"} />
             {formatCount(
               folderCount,
               "library:counts.subfolder_one",
@@ -145,7 +145,7 @@ export default function FolderListItem({
         </div>
       )}
       {listLayout === "full" && (
-        <div className="px-3 py-2 text-xs text-zinc-600">-</div>
+        <div className="px-3 py-2 text-xs text-foreground-subtle">-</div>
       )}
 
       <div className="flex justify-end gap-1 px-2">
@@ -157,7 +157,7 @@ export default function FolderListItem({
               event.stopPropagation();
               onContextMenu(event);
             }}
-            className="cursor-pointer rounded p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+            className="cursor-pointer rounded p-2 text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
             aria-label={t("library:folders.moreActions", {
               name: folder.name,
             })}
@@ -166,7 +166,7 @@ export default function FolderListItem({
             <MoreVertical size={15} />
           </button>
         )}
-        <span className="flex h-8 w-8 items-center justify-center rounded-sm text-emerald-200">
+        <span className="flex h-8 w-8 items-center justify-center rounded-sm text-primary">
           <ChevronRight size={16} />
         </span>
       </div>

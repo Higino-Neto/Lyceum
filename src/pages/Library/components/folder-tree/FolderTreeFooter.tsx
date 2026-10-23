@@ -10,7 +10,7 @@ export default function FolderTreeFooter({
   const { t } = useTranslation();
 
   return (
-    <div className="flex-shrink-0 border-t border-zinc-800 px-3 py-2 text-xs text-zinc-500">
+    <div className="flex-shrink-0 border-t border-border px-3 py-2 text-xs text-foreground-subtle">
       <span>
         {t("library:counts.folder", { count: folderCount })} -{" "}
         {t("library:counts.book", { count: totalBooks })}

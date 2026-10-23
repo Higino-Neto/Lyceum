@@ -62,6 +62,31 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 - [x] Quando eu faço um desenho em uma página e tento dar zoom entre duas páginas, ele altera o scroll da tela para fittar uma página certa (isso é uma inconsistência e atrapalha o fluxo de leitura).
 
-- [ ] O botão de + Concept que aparece no viewer desktop atrapalha a leitura. Ele deveria aparecer apenas quando o usuário clicasse com botão direito no documento. Se ele clicar com botão direito e estiverselecionando algum texto, ele vai usar esse texto que ele selecionou, se não, ele também vai funcionar, vai estar naquela página, mas não terá texto. E ao invés de colocar um botão feio como está agora com texto, faça apenas um ícone bonito. Pensando bem, esse esse botão até pode aparecer, mas em conjunto com um botão de copiar, abaixo da última linha de seleção só quando o usuário soltar a tecla que ele está pressionando, assim não atrapalha a seleção enquanto ele ainda está fazendo ela.
+#### 2.0.0
 
-- [ ] A seleção de texto atual ainda não suporta zooms, se eu mudo o zoom ela quebra. Eu quero adicionar essa funcionalidade sem simplesmente excluir esse código que eu implementei, mas construir em cima dele, pois eu pretendo alterar muitas vezes essa parte de seleção, então eu preciso da minha própria seleção ao invés da seleção nativa do PDF.js (Mas pode usar a seleção do PDF.js como inspiração para resolver esse problema e similares).
+- [ ] O ring das pastas no foldergrid na library não está sendo mostrado na parte de cima. Como se o componente de cima cortasse ele ao invés de mostrar o topo. Resolva essa questão do espaçamento para que fique perfeitamente visível.
+
+- [ ] A label que mostra o número de volumes em cada Synced ou Not Synced ou USB Devices está com background escuro e o foreground escuro ao mesmo tempo, o que dá uma impressão estranha e fica feio. Resolva isso para todos os semelhantes dele.
+
+- [ ] O Folder Panel lateral esquerdo não está sendo mostrado no startup do aplicativo. Resolva isso.
+
+- [ ] O botão compare do editbookmetadata não funciona.
+
+- [ ] Existem vários compoenentes <select> na aplicação. Eu quero que você migre todos eles para o componente de UI <Select> que eu fiz, para deixar a UI mais consistente.
+
+- [ ] O Lyceum no linux não aparece como aplicativo recomendado no file explorer para abrir de fora do app. No windows ele já aparece. Resolva isso.
+
+- [ ] Quando eu clico no botão Open library folder de dentro da library, a pasta abre e o app para de responder até crashar.
+
+- [ ] A opção de organizar os livros da library por "list" está muito primitiva, refaça ela para ficar uma alternativa viável para quem gosta desse tipo de visão.
+
+- [ ] O folderTree não está persistindo as pastas que estão com as suas subpastas expandidas. Então quando eu clico fora, elas fecham. Isso é ruim. (O mesmo para as source folders).
+
+- [ ] No linux, eu não consigo pegar um arquivo de dentro da library e arrastar ele para o file explorer ou para o whatsapp como eu posso no windows. Resolva isso.
+
+- [ ] O Modal de folhear o livro dentro de /readings não está na paleta de cores do lyceum e nem no i18n. Nem nada relacionado a ele. Eu quero que você atualize esse componente para que ele seja integrado de fato à aplicação.
+
+- [ ] Na aba de conversão, eu quero que você troque completamente o search file dele pelo search file do atlas, que é muito melhor em vários aspectos. Na verdade, eu quero pegar aquele modal "Add from library" do atlas e modularizar ele para que eu possa chamar ele em features futuras.
+
+- [ ] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).
+

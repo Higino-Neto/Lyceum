@@ -31,7 +31,7 @@ export default function KnowledgeMapPreview({
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
+      <div className="flex items-center justify-between text-xs font-semibold text-foreground">
         <span className="inline-flex items-center gap-2">
           <Network size={14} />
           {t("pdf:annotations.preview.title")}
@@ -39,7 +39,7 @@ export default function KnowledgeMapPreview({
         <button
           type="button"
           onClick={onOpenGraph}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground"
           title={t("pdf:annotations.preview.openTitle")}
           aria-label={t("pdf:annotations.preview.openAriaLabel")}
         >
@@ -49,10 +49,10 @@ export default function KnowledgeMapPreview({
       <button
         type="button"
         onClick={onOpenGraph}
-        className="relative block h-28 w-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900/70 text-left hover:border-zinc-700"
+        className="relative block h-28 w-full overflow-hidden rounded-sm border border-border bg-surface/70 text-left hover:border-border-strong"
       >
         {positions.length === 0 ? (
-          <span className="flex h-full items-center justify-center px-5 text-center text-xs text-zinc-500">
+          <span className="flex h-full items-center justify-center px-5 text-center text-xs text-foreground-subtle">
             {t("pdf:annotations.preview.empty")}
           </span>
         ) : (

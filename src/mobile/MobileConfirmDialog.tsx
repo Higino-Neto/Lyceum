@@ -37,12 +37,12 @@ export function MobileConfirmProvider({ children }: { children: ReactNode }) {
     {children}
     <dialog ref={dialog} aria-labelledby="mobile-confirm-title" aria-describedby="mobile-confirm-message"
       onCancel={(event) => { event.preventDefault(); finish(null); }}
-      className="m-auto w-[calc(100%-32px)] max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-100 backdrop:bg-black/70">
+      className="m-auto w-[calc(100%-32px)] max-w-md rounded-2xl border border-border-strong bg-background p-5 text-foreground backdrop:bg-backdrop">
       <h2 id="mobile-confirm-title" className="text-lg font-semibold">{translate("mobile:confirm.title")}</h2>
-      <p id="mobile-confirm-message" className="my-4 text-sm leading-6 text-zinc-300">{message}</p>
+      <p id="mobile-confirm-message" className="my-4 text-sm leading-6 text-foreground">{message}</p>
       <div className="flex flex-wrap justify-end gap-3">
-        <button autoFocus type="button" className="rounded-xl bg-zinc-800 px-4 py-3" onClick={() => finish(null)}>{translate("mobile:confirm.cancel")}</button>
-        {options.map(option => <button key={option.value} type="button" className="rounded-xl bg-emerald-700 px-4 py-3" onClick={() => finish(option.value)}>{option.label}</button>)}
+        <button autoFocus type="button" className="rounded-xl bg-surface-muted px-4 py-3" onClick={() => finish(null)}>{translate("mobile:confirm.cancel")}</button>
+        {options.map(option => <button key={option.value} type="button" className="rounded-xl bg-primary px-4 py-3 text-primary-foreground" onClick={() => finish(option.value)}>{option.label}</button>)}
       </div>
     </dialog>
   </ChoiceContext.Provider></ConfirmContext.Provider>;

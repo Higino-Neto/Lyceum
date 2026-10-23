@@ -8,7 +8,7 @@ export default function ReadingTableHeader() {
   const { t } = useTranslation();
 
   return (
-    <thead className="bg-zinc-800 text-zinc-400 uppercase text-xs tracking-wider">
+    <thead className="bg-surface-muted text-foreground-muted uppercase text-xs tracking-wider">
       <tr>
         <th className="text-left px-4 py-3">
           <div className="flex items-center gap-2">

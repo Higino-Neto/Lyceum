@@ -86,8 +86,8 @@ export default function TitleBar({
   const isHidden = autoHideEnabled && !panelsVisible;
   const titleBarHeight = isHidden && !autoHideOverlay ? "h-0 overflow-hidden" : "h-10";
   const titleBarPosition = isOverlayMode
-    ? "absolute left-0 right-0 top-0 z-50 border-b border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/40 backdrop-blur"
-    : "bg-zinc-900";
+    ? "absolute left-0 right-0 top-0 z-50 border-b border-border-strong bg-overlay shadow-2xl shadow-shadow backdrop-blur"
+    : "bg-surface";
   const titleBarVisibility = isOverlayMode && isHidden
     ? "pointer-events-none -translate-y-14 opacity-0"
     : "translate-y-0 opacity-100";
@@ -110,16 +110,16 @@ export default function TitleBar({
             onContextMenu={handleContextMenuClick}
             title={t("navigation:titleBar.menu")}
             aria-label={t("navigation:titleBar.menu")}
-            className="h-full px-4 flex items-center justify-center text-zinc-400 hover:text-zinc-100 cursor-pointer"
+            className="h-full px-4 flex items-center justify-center text-foreground-muted hover:text-foreground cursor-pointer"
           >
             {collapsed ? <Menu size={20} /> : <Menu size={20} />}
           </button>
 
-          <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">
+          <span className="text-foreground-muted text-lg font-semibold tracking-wider ml-2">
             Lyceum
           </span>
           {!isLoggedIn && (
-            <span className="text-zinc-400 text-lg font-semibold tracking-wider ml-2">
+            <span className="text-foreground-muted text-lg font-semibold tracking-wider ml-2">
               ({t("common:app.offline")})
             </span>
           )
@@ -134,7 +134,7 @@ export default function TitleBar({
             onClick={handleMinimize}
             title={t("navigation:titleBar.minimize")}
             aria-label={t("navigation:titleBar.minimize")}
-            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center text-foreground-muted hover:bg-surface-muted hover:text-foreground cursor-pointer"
           >
             <Minus size={16} />
           </button>
@@ -150,7 +150,7 @@ export default function TitleBar({
                 ? t("navigation:titleBar.restore")
                 : t("navigation:titleBar.maximize")
             }
-            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center text-foreground-muted hover:bg-surface-muted hover:text-foreground cursor-pointer"
           >
             {isMaximized ? (
               <Copy size={14} className="rotate-180" />
@@ -162,7 +162,7 @@ export default function TitleBar({
             onClick={handleClose}
             title={t("navigation:titleBar.close")}
             aria-label={t("navigation:titleBar.close")}
-            className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:bg-red-600 hover:text-white cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center text-foreground-muted hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -171,12 +171,12 @@ export default function TitleBar({
 
       {showContextMenu && (
         <div
-          className="fixed z-[70] min-w-52 overflow-hidden rounded-md border border-zinc-700/80 bg-zinc-800/95 py-1 shadow-2xl shadow-black/40 backdrop-blur"
+          className="fixed z-[70] min-w-52 overflow-hidden rounded-md border border-border-strong bg-surface-muted py-1 shadow-2xl shadow-shadow backdrop-blur"
           style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
         >
           <button
             onClick={handleToggleAutoHide}
-            className="w-full px-4 py-2 text-left text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-foreground hover:bg-surface-muted flex items-center gap-2"
           >
             {autoHideEnabled && <Check size={14} />}
             {t("navigation:titleBar.autoHide")}{" "}
@@ -185,7 +185,7 @@ export default function TitleBar({
           {autoHideEnabled && (
             <button
               onClick={handleToggleAutoHideOverlay}
-              className="w-full px-4 py-2 text-left text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left text-foreground hover:bg-surface-muted flex items-center gap-2"
             >
               {autoHideOverlay && <Check size={14} />}
               {t("navigation:titleBar.overlay")}{" "}

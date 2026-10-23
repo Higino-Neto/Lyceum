@@ -140,26 +140,26 @@ export function getVocabularyStatusLabelKey(status: VocabularyStatus): Translati
 
 export function getVocabularyStatusClasses(status: VocabularyStatus) {
   if (status === "learning") {
-    return "bg-amber-400/15 text-amber-200 border border-amber-300/40";
+    return "bg-warning-muted text-warning border border-warning/40";
   }
 
   if (status === "known") {
-    return "bg-emerald-500/15 text-emerald-200 border border-emerald-300/40";
+    return "bg-primary-muted text-primary border border-primary/40";
   }
 
-  return "bg-zinc-800 text-zinc-300 border border-zinc-700";
+  return "bg-surface-muted text-foreground border border-border-strong";
 }
 
 export function getVocabularyRowClasses(status: VocabularyStatus) {
   if (status === "learning") {
-    return "border-amber-400/20 bg-amber-400/5";
+    return "border-warning/20 bg-warning-muted";
   }
 
   if (status === "known") {
-    return "border-emerald-400/20 bg-emerald-400/5";
+    return "border-primary/20 bg-primary-muted";
   }
 
-  return "border-zinc-800 bg-zinc-900/70";
+  return "border-border bg-surface/70";
 }
 
 export function buildVocabularyStorageKey(fileHash: string) {

@@ -56,24 +56,24 @@ export default function VocabularyPanel({
     <div className="absolute inset-0 z-40 flex justify-end">
       <button
         type="button"
-        className="absolute inset-0 bg-black/45"
+        className="absolute inset-0 bg-backdrop"
         onClick={onClose}
       />
 
-      <aside className="relative z-10 flex h-full w-full max-w-[360px] flex-col border-l border-zinc-800 bg-zinc-900 shadow-2xl">
-        <header className="border-b border-zinc-800 px-4 py-4">
+      <aside className="relative z-10 flex h-full w-full max-w-[360px] flex-col border-l border-border bg-surface shadow-2xl">
+        <header className="border-b border-border px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+              <p className="text-xs uppercase tracking-[0.18em] text-foreground-subtle">
                 {t("epub:vocabulary.title")}
               </p>
-              <h2 className="mt-1 text-base font-semibold text-zinc-100">
+              <h2 className="mt-1 text-base font-semibold text-foreground">
                 {fileName || t("epub:vocabulary.currentBook")}
               </h2>
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-foreground-muted">
                 {t("epub:vocabulary.tracked", { count: stats.trackedCount })}
               </p>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-foreground-subtle">
                 {t("epub:vocabulary.summary", {
                   known: stats.knownCount,
                   learning: stats.learningCount,
@@ -84,7 +84,7 @@ export default function VocabularyPanel({
 
             <button
               type="button"
-              className="rounded-sm p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded-sm p-2 text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
               onClick={onClose}
               title={t("epub:vocabulary.closeTitle")}
               aria-label={t("epub:vocabulary.closeAriaLabel")}
@@ -100,8 +100,8 @@ export default function VocabularyPanel({
                 type="button"
                 className={`rounded-sm px-3 py-1.5 text-sm transition ${
                   filter === filterOption
-                    ? "bg-zinc-100 text-zinc-900"
-                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    ? "bg-surface-muted text-foreground"
+                    : "bg-surface-muted text-foreground hover:bg-border-strong"
                 }`}
                 onClick={() => onFilterChange(filterOption)}
               >
@@ -111,7 +111,7 @@ export default function VocabularyPanel({
 
             <button
               type="button"
-              className="ml-auto inline-flex items-center gap-2 rounded-sm border border-zinc-800 px-3 py-1.5 text-sm text-zinc-200 transition hover:bg-zinc-800"
+              className="ml-auto inline-flex items-center gap-2 rounded-sm border border-border px-3 py-1.5 text-sm text-foreground transition hover:bg-surface-muted"
               onClick={onExportCsv}
             >
               <Download size={16} />
@@ -122,21 +122,21 @@ export default function VocabularyPanel({
 
         <div className="flex-1 overflow-y-auto">
           {filteredEntries.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-zinc-400">
+            <div className="px-4 py-6 text-sm text-foreground-muted">
               {t("epub:vocabulary.empty")}
             </div>
           ) : (
             filteredEntries.map((entry) => (
               <div
                 key={entry.normalizedWord}
-                className="border-b border-zinc-800 px-4 py-4"
+                className="border-b border-border px-4 py-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-zinc-100">
+                    <p className="text-sm font-semibold text-foreground">
                       {entry.displayWord}
                     </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-foreground-subtle">
                       {entry.normalizedWord}
                     </p>
                   </div>
@@ -145,8 +145,8 @@ export default function VocabularyPanel({
                     type="button"
                     className={`rounded-sm p-2 transition ${
                       entry.saved
-                        ? "bg-yellow-400/10 text-yellow-200 hover:bg-yellow-400/20"
-                        : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                        ? "bg-warning-muted text-warning hover:bg-warning-muted"
+                        : "text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
                     }`}
                     onClick={() => onToggleSaved(entry.normalizedWord)}
                     title={
@@ -167,7 +167,7 @@ export default function VocabularyPanel({
                       className={`rounded-sm px-3 py-1.5 text-sm transition ${
                         entry.status === status
                           ? getVocabularyStatusClasses(status)
-                          : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                          : "border border-border bg-surface text-foreground-muted hover:bg-surface-muted hover:text-foreground"
                       }`}
                       onClick={() => onStatusChange(entry.normalizedWord, status)}
                     >

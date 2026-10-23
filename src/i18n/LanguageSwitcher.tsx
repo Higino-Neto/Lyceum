@@ -31,13 +31,13 @@ export default function LanguageSwitcher({
 
   return (
     <div className="flex items-center gap-2">
-      {withIcon && <Languages size={16} className="shrink-0 text-zinc-500" />}
+      {withIcon && <Languages size={16} className="shrink-0 text-foreground-subtle" />}
       {/* <select
         id={selectId}
         value={language}
         onChange={(event) => void changeLanguage(event.target.value)}
         aria-label={label ?? t("settings:language.label")}
-        className={`w-full cursor-pointer rounded border border-zinc-700 bg-zinc-800/50 px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500 ${className}`}
+        className={`w-full cursor-pointer rounded border border-border-strong bg-surface-muted/50 px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-focus-ring ${className}`}
       >
         {options.map((option) => (
           <option key={option.code} value={option.code}>

@@ -110,3 +110,24 @@ export function isBookLandmark(value: unknown): value is BookLandmark {
   return isRecord(value) && Number.isInteger(value.page) && (value.page as number) > 0 &&
     (value.kind === "highlight" || value.kind === "note");
 }
+
+// Additive theme command for the isolated viewer document. The host sends the
+// already-resolved semantic token values, so the viewer never needs to know
+// which accent palette is active.
+export const CMD_SET_THEME = "lyceum-pdfjs:cmd-set-theme";
+export interface PdfViewerTheme {
+  theme: "light" | "dark";
+  colors: Record<string, string>;
+}
+const THEME_COLOR_NAME = /^[a-z][a-z0-9-]*$/;
+export function isPdfViewerTheme(value: unknown): value is PdfViewerTheme {
+  if (!isRecord(value) || (value.theme !== "light" && value.theme !== "dark")) {
+    return false;
+  }
+  if (!isRecord(value.colors)) {
+    return false;
+  }
+  return Object.entries(value.colors).every(
+    ([name, color]) => THEME_COLOR_NAME.test(name) && typeof color === "string",
+  );
+}

@@ -56,7 +56,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
         {paginatedReadings.map((reading: TableReading) => (
           <tr
             key={reading.id}
-            className="border-t border-zinc-800 hover:bg-zinc-800/40 transition"
+            className="border-t border-border hover:bg-surface-muted/40 transition"
           >
             <td className="px-4 py-3">{reading.source_name}</td>
             <td className="px-4 py-3">{reading.pages}</td>
@@ -71,7 +71,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
                 <button
                   type="button"
                   onClick={() => onEdit?.(reading)}
-                  className="text-zinc-500 hover:text-zinc-300 transition cursor-pointer p-1"
+                  className="text-foreground-subtle hover:text-foreground transition cursor-pointer p-1"
                   title={t("dashboard:actions.editReading")}
                 >
                   <Pencil size={18} />
@@ -79,7 +79,7 @@ export default function ReadingTableBody({ onlyTable = false, onEdit, onDelete, 
                 <button
                   type="button"
                   onClick={() => onDelete?.(reading)}
-                  className="text-zinc-500 hover:text-red-400 transition cursor-pointer p-1"
+                  className="text-foreground-subtle hover:text-destructive transition cursor-pointer p-1"
                   title={t("dashboard:actions.removeReading")}
                 >
                   <Trash2 size={18} />

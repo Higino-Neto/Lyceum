@@ -42,10 +42,10 @@ const STATE_LABEL_KEYS = {
 } as const satisfies Record<TimerState, TranslationKey>;
 
 const STATE_COLORS: Record<TimerState, string> = {
-  idle: "text-zinc-100",
-  running: "text-green-400",
-  paused: "text-amber-400",
-  finished: "text-green-300",
+  idle: "text-foreground",
+  running: "text-primary",
+  paused: "text-warning",
+  finished: "text-primary",
 };
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
@@ -122,8 +122,8 @@ function CircularProgress({
       />
       <defs>
         <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="var(--accent-600)" />
-          <stop offset="100%" stopColor="var(--accent-400)" />
+          <stop offset="0%" stopColor="var(--primary-hover)" />
+          <stop offset="100%" stopColor="var(--primary)" />
         </linearGradient>
       </defs>
     </svg>
@@ -285,24 +285,24 @@ export default function ReadingSessionTimer({
         onClick={() => setIsOpen((v) => !v)}
         className={`flex items-center gap-2 px-4 py-2 rounded-sm border cursor-pointer transition-all duration-200 group ${
           timerState === "running"
-            ? "border-green-600/60 bg-green-950/30 hover:bg-green-950/50"
+            ? "border-primary/60 bg-primary-muted hover:bg-primary-muted"
             : timerState === "paused"
-              ? "border-zinc-600/60 bg-zinc-950/20 hover:bg-zinc-950/30"
-              : "border-zinc-700/60 bg-zinc-900 hover:bg-zinc-800"
+              ? "border-border-strong/60 bg-background/20 hover:bg-background/30"
+              : "border-border-strong/60 bg-surface hover:bg-surface-muted"
         }`}
       >
         <Timer
           size={16}
           className={
             timerState === "running"
-              ? "text-green-400"
+              ? "text-primary"
               : timerState === "paused"
-                ? "text-amber-400"
-                : "text-zinc-400 group-hover:text-zinc-300"
+                ? "text-warning"
+                : "text-foreground-muted group-hover:text-foreground"
           }
         />
         {timerState === "idle" ? (
-          <span className="text-md text-zinc-400 group-hover:text-zinc-300 p-[1.5px]">
+          <span className="text-md text-foreground-muted group-hover:text-foreground p-[1.5px]">
             {t("reading:session.timer")}
           </span>
         ) : (
@@ -314,8 +314,8 @@ export default function ReadingSessionTimer({
         )}
         {timerState === "running" && (
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
           </span>
         )}
       </button>
@@ -324,7 +324,7 @@ export default function ReadingSessionTimer({
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-40 rounded-sm border border-zinc-800 shadow-2xl overflow-hidden"
+          className="absolute right-0 top-full mt-2 z-40 rounded-sm border border-border shadow-2xl overflow-hidden"
           style={{
             width: 300,
             background: "rgba(9,9,11,0.97)",
@@ -334,10 +334,10 @@ export default function ReadingSessionTimer({
           }}
         >
           {/* Cabeçalho */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/60">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
             <div className="flex items-center gap-2">
-              <BookOpen size={15} className="text-green-500" />
-              <span className="text-sm font-semibold text-zinc-200">
+              <BookOpen size={15} className="text-primary" />
+              <span className="text-sm font-semibold text-foreground">
                 {t("reading:session.title")}
               </span>
             </div>
@@ -345,7 +345,7 @@ export default function ReadingSessionTimer({
               onClick={() => setIsOpen(false)}
               title={t("reading:session.closeTitle")}
               aria-label={t("reading:session.closeAriaLabel")}
-              className="text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors"
+              className="text-foreground-subtle cursor-pointer hover:text-foreground-muted transition-colors"
             >
               <X size={15} />
             </button>
@@ -354,7 +354,7 @@ export default function ReadingSessionTimer({
           <div className="p-5 space-y-5">
             {/* Nome da obra */}
             <div>
-              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">
+              <p className="text-[10px] text-foreground-subtle uppercase tracking-widest mb-1">
                 {t("reading:session.bookName")}
               </p>
               <input
@@ -362,25 +362,25 @@ export default function ReadingSessionTimer({
                 value={sourceName}
                 onChange={(e) => setSourceName(e.target.value)}
                 placeholder={t("reading:session.bookNamePlaceholder")}
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-surface-muted/50 border border-border-strong/50 rounded-sm px-3 py-2 text-sm text-foreground placeholder:text-input-placeholder focus:outline-none focus:border-primary/50 transition-colors"
               />
             </div>
 
             {/* Categoria */}
             <div>
-              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">
+              <p className="text-[10px] text-foreground-subtle uppercase tracking-widest mb-1">
                 {t("reading:session.category")}
               </p>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-600/50 transition-colors"
+                className="w-full bg-surface-muted/50 border border-border-strong/50 rounded-sm px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
               >
-                <option value="" className="bg-zinc-900">
+                <option value="" className="bg-surface">
                   {t("reading:session.selectCategory")}
                 </option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-zinc-900">
+                  <option key={c.id} value={c.id} className="bg-surface">
                     {c.name} ({c.points_per_page}x)
                   </option>
                 ))}
@@ -402,7 +402,7 @@ export default function ReadingSessionTimer({
                     <div className="flex flex-col items-center gap-2">
                       <button
                         onClick={() => setHideAll((v) => !v)}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-surface-muted/90 border border-border-strong/50 text-xs text-foreground hover:text-foreground hover:bg-border-strong/90 transition-all"
                       >
                         {hideAll ? <Eye size={12} /> : <EyeOff size={12} />}
                         {hideAll
@@ -412,7 +412,7 @@ export default function ReadingSessionTimer({
                       <button
                         onClick={() => setHideSeconds((v) => !v)}
                         disabled={hideAll}
-                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800/90 border border-zinc-700/50 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-surface-muted/90 border border-border-strong/50 text-xs text-foreground hover:text-foreground hover:bg-border-strong/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Clock size={12} />
                         {hideSeconds
@@ -435,7 +435,7 @@ export default function ReadingSessionTimer({
                           hideAll,
                         )}
                       </span>
-                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">
+                      <span className="text-[10px] text-foreground-subtle uppercase tracking-widest">
                         {t(STATE_LABEL_KEYS[timerState])}
                       </span>
                     </>
@@ -449,7 +449,7 @@ export default function ReadingSessionTimer({
               {(timerState === "idle" || timerState === "paused") && (
                 <button
                   onClick={handleStart}
-                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all shadow-lg shadow-green-900/30 active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-sm transition-all shadow-lg shadow-shadow active:scale-95"
                 >
                   <Play size={14} fill="currentColor" />
                   {timerState === "paused"
@@ -460,7 +460,7 @@ export default function ReadingSessionTimer({
               {timerState === "running" && (
                 <button
                   onClick={handlePause}
-                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-zin-600/20 hover:bg-zinc-600/30 border border-zinc-600/30 text-zinc-400 text-sm font-medium transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-sm bg-surface-muted/20 hover:bg-surface-muted/40 border border-border-strong/30 text-foreground-muted text-sm font-medium transition-all active:scale-95"
                 >
                   <Pause size={14} fill="currentColor" />
                   {t("reading:session.pause")}
@@ -469,7 +469,7 @@ export default function ReadingSessionTimer({
               {timerState === "finished" && (
                 <button
                   onClick={handleReset}
-                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black font-semibold text-sm transition-all active:scale-95"
+                  className="cursor-pointer flex items-center gap-2 px-6 py-2.5 rounded-sm bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-sm transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                   {t("reading:session.newSession")}
@@ -478,7 +478,7 @@ export default function ReadingSessionTimer({
               {(timerState === "running" || timerState === "paused") && (
                 <button
                   onClick={handleReset}
-                  className="cursor-pointer p-2.5 rounded-sm border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-all active:scale-95"
+                  className="cursor-pointer p-2.5 rounded-sm border border-border-strong text-foreground-subtle hover:text-foreground hover:border-border-strong transition-all active:scale-95"
                 >
                   <RotateCcw size={14} />
                 </button>
@@ -488,7 +488,7 @@ export default function ReadingSessionTimer({
             {/* Presets de duração — só quando pode configurar */}
             {(timerState === "idle" || timerState === "finished") && (
               <div className="space-y-2.5">
-                <p className="text-[10px] text-zinc-600 uppercase tracking-widest text-center">
+                <p className="text-[10px] text-foreground-subtle uppercase tracking-widest text-center">
                   {t("reading:session.duration")}
                 </p>
                 <div className="grid grid-cols-4 gap-1.5">
@@ -498,8 +498,8 @@ export default function ReadingSessionTimer({
                       onClick={() => setDuration(p.minutes)}
                       className={`cursor-pointer py-2 rounded-sm text-xs font-medium transition-all ${
                         totalSeconds === p.minutes * 60
-                          ? "bg-green-600/20 border border-green-600/40 text-green-400"
-                          : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                          ? "bg-primary-muted border border-primary/40 text-primary"
+                          : "bg-surface-muted/60 border border-border-strong/40 text-foreground-muted hover:border-border-strong hover:text-foreground"
                       }`}
                     >
                       {p.label}
@@ -515,11 +515,11 @@ export default function ReadingSessionTimer({
                     value={customMinutes}
                     onChange={(e) => setCustomMinutes(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomDuration()}
-                    className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-sm px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-green-600/50 transition-colors"
+                    className="flex-1 bg-surface-muted/50 border border-border-strong/50 rounded-sm px-3 py-2 text-xs text-foreground placeholder:text-input-placeholder focus:outline-none focus:border-primary/50 transition-colors"
                   />
                   <button
                     onClick={handleCustomDuration}
-                    className="cursor-pointer px-3 py-2 rounded-sm bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-600 hover:text-zinc-100 transition-colors"
+                    className="cursor-pointer px-3 py-2 rounded-sm bg-surface-muted border border-border-strong text-foreground text-xs hover:border-border-strong hover:text-foreground transition-colors"
                   >
                     OK
                   </button>

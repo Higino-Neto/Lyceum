@@ -26,22 +26,22 @@ export default function SidebarItem({
       onClick={onClick}
       className={`
         lyceum-sidebar-item group relative flex items-center px-4 w-full h-12 cursor-pointer
-        ${active ? "bg-zinc-800" : ""}
+        ${active ? "bg-surface-muted" : ""}
         ${collapsed ? "" : "justify-start"}
       `}
     >
       <Icon 
         size={18} 
-        className={`group-hover:text-zinc-100 ${active ? "text-zinc-100" : "text-zinc-400"}`} 
+        className={`group-hover:text-foreground ${active ? "text-foreground" : "text-foreground-muted"}`}
       />
       {!collapsed && (
-        <span className={`ml-3 ${active ? "text-zinc-100" : "text-zinc-400"}`}>
+        <span className={`ml-3 ${active ? "text-foreground" : "text-foreground-muted"}`}>
           {label}
         </span>
       )}
       {badgeCount > 0 && (
         <span
-          className={`absolute inline-flex min-w-5 items-center justify-center rounded-full bg-green-500 px-1.5 text-[11px] font-semibold text-black ${
+          className={`absolute inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground ${
             collapsed ? "right-2 top-2" : "right-3"
           }`}
         >

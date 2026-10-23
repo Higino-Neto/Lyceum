@@ -18,7 +18,7 @@ export default function AreaChartComponent({ usersData }: AreaChartProps) {
 
   if (!hasPositiveChartData(chartData, usersData)) {
     return (
-      <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+      <div className="h-48 flex items-center justify-center text-foreground-subtle text-sm">
         {t("dashboard:charts.noData")}
       </div>
     );
@@ -29,13 +29,13 @@ export default function AreaChartComponent({ usersData }: AreaChartProps) {
       <AreaChart data={chartData} margin={{ top: 10, right: 20, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="1 1"
-          stroke="var(--ui-zinc-800)"
+          stroke="var(--border)"
           vertical={false}
         />
         <XAxis
           dataKey="date"
           tickFormatter={formatDate}
-          stroke="var(--ui-zinc-600)"
+          stroke="var(--foreground-subtle)"
           fontSize={11}
           tickLine={false}
           axisLine={false}
@@ -43,7 +43,7 @@ export default function AreaChartComponent({ usersData }: AreaChartProps) {
           minTickGap={30}
         />
         <YAxis
-          stroke="var(--ui-zinc-600)"
+          stroke="var(--foreground-subtle)"
           fontSize={11}
           tickLine={false}
           axisLine={false}

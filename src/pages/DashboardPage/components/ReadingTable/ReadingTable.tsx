@@ -50,7 +50,7 @@ export default function ReadingTable() {
 
   return (
     <>
-      <div className="overflow-hidden rounded-sm border border-zinc-800">
+      <div className="overflow-hidden rounded-sm border border-border">
         <table className="w-full text-sm">
           <ReadingTableHeader />
           <ReadingTableBody 

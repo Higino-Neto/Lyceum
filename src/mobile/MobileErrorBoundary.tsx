@@ -19,14 +19,14 @@ export default class MobileErrorBoundary extends Component<{ children: ReactNode
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-zinc-950 p-6 text-zinc-100">
-        <section className="w-full max-w-sm rounded-xl border border-red-500/30 bg-zinc-900 p-5 text-center" role="alert">
+      <main className="grid min-h-[100dvh] place-items-center bg-background p-6 text-foreground">
+        <section className="w-full max-w-sm rounded-xl border border-destructive/30 bg-surface p-5 text-center" role="alert">
           <h1 className="text-lg font-semibold">{translate("mobile:errorBoundary.title")}</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
+          <p className="mt-3 text-sm leading-6 text-foreground-muted">
             {translate("mobile:errorBoundary.body")}
           </p>
           <button
-            className="mt-5 h-11 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white"
+            className="mt-5 h-11 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
             onClick={() => window.location.reload()}
             type="button"
           >

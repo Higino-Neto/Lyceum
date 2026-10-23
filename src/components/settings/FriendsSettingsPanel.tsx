@@ -45,11 +45,11 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-zinc-800/80 py-6 first:pt-0 last:border-b-0 last:pb-0">
+    <section className="border-b border-border/80 py-6 first:pt-0 last:border-b-0 last:pb-0">
       <div className="mb-4">
-        <h3 className="text-base font-semibold text-zinc-100">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {description && (
-          <p className="mt-1 text-sm leading-6 text-zinc-500">{description}</p>
+          <p className="mt-1 text-sm leading-6 text-foreground-subtle">{description}</p>
         )}
       </div>
       {children}
@@ -59,7 +59,7 @@ function SettingsSection({
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
       {children}
     </label>
   );
@@ -69,8 +69,8 @@ function inputClasses(disabled = false) {
   return [
     "w-full rounded border px-3 py-2 text-sm transition",
     disabled
-      ? "border-zinc-800 bg-zinc-900/70 text-zinc-500"
-      : "border-zinc-700 bg-zinc-950/60 text-zinc-100 placeholder:text-zinc-600 focus:border-green-500",
+      ? "border-border bg-surface/70 text-foreground-subtle"
+      : "border-border-strong bg-background/60 text-foreground placeholder:text-input-placeholder focus:border-primary",
   ].join(" ");
 }
 
@@ -89,11 +89,11 @@ function SmallButton({
 }) {
   const variantClass = {
     default:
-      "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100",
+      "border-border-strong bg-surface text-foreground hover:bg-surface-muted hover:text-foreground",
     primary:
-      "border-green-600 bg-green-600 text-black hover:border-green-500 hover:bg-green-500",
+      "border-primary bg-primary text-primary-foreground hover:border-primary hover:bg-primary-hover",
     danger:
-      "border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-500/50 hover:bg-red-500/20",
+      "border-destructive/30 bg-destructive-muted text-destructive hover:border-destructive/50 hover:bg-destructive-muted",
   }[variant];
 
   return (
@@ -119,12 +119,12 @@ function Avatar({
 }) {
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 ${sizeClass}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border-strong bg-surface-muted ${sizeClass}`}
     >
       {src ? (
         <img src={src} alt={name || ""} className="h-full w-full object-cover" />
       ) : (
-        <User size={ICON_SIZE} className="text-zinc-500" />
+        <User size={ICON_SIZE} className="text-foreground-subtle" />
       )}
     </div>
   );
@@ -164,18 +164,18 @@ function RequestRow({
   const isIncoming = request.direction === "incoming";
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
       <div className="flex min-w-0 items-center gap-3">
         <Avatar src={request.other_avatar_url} name={request.other_name} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-100">
+          <p className="truncate text-sm font-medium text-foreground">
             {displayName(
               request.other_name,
               request.other_nickname,
               t("common:fields.unknown"),
             )}
           </p>
-          <p className="truncate text-xs text-zinc-500">
+          <p className="truncate text-xs text-foreground-subtle">
             @{request.other_nickname}
           </p>
         </div>
@@ -234,7 +234,7 @@ function FriendProfileCard({
 
   if (isLoading) {
     return (
-      <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
+      <div className="rounded border border-border bg-background/40 p-4">
         <Skeleton className="mb-4 h-16 w-full" />
         <Skeleton className="h-20 w-full" />
       </div>
@@ -251,7 +251,7 @@ function FriendProfileCard({
   ];
 
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-950/40 p-4">
+    <div className="rounded border border-border bg-background/40 p-4">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar
@@ -260,16 +260,16 @@ function FriendProfileCard({
             sizeClass="h-14 w-14"
           />
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-zinc-100">
+            <p className="truncate text-base font-semibold text-foreground">
               {displayName(
                 profile.name,
                 profile.nickname,
                 t("common:fields.unknown"),
               )}
             </p>
-            <p className="truncate text-sm text-zinc-500">@{profile.nickname}</p>
+            <p className="truncate text-sm text-foreground-subtle">@{profile.nickname}</p>
             {profile.friends_since && (
-              <p className="mt-1 text-xs text-zinc-600">
+              <p className="mt-1 text-xs text-foreground-subtle">
                 {t("friends:profile.friendsSince", {
                   date: new Date(profile.friends_since).toLocaleDateString(locale),
                 })}
@@ -280,7 +280,7 @@ function FriendProfileCard({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-subtle transition hover:bg-surface-muted hover:text-foreground"
           title={t("friends:profile.close")}
           aria-label={t("friends:profile.close")}
         >
@@ -290,9 +290,9 @@ function FriendProfileCard({
 
       <div className="grid gap-2 sm:grid-cols-4">
         {stats.map(([label, value]) => (
-          <div key={label} className="rounded border border-zinc-800 bg-zinc-900/60 p-3">
-            <p className="text-xs text-zinc-500">{label}</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-100">
+          <div key={label} className="rounded border border-border bg-surface/60 p-3">
+            <p className="text-xs text-foreground-subtle">{label}</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">
               {Number(value)}p
             </p>
           </div>
@@ -316,27 +316,27 @@ function FriendRow({
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
       <button
         type="button"
         onClick={() => onOpenProfile(friend.user_id)}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded text-left transition hover:text-zinc-100"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded text-left transition hover:text-foreground"
       >
         <Avatar src={friend.avatar_url} name={friend.name} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-100">
+          <p className="truncate text-sm font-medium text-foreground">
             {displayName(friend.name, friend.nickname, t("common:fields.unknown"))}
           </p>
-          <p className="truncate text-xs text-zinc-500">@{friend.nickname}</p>
+          <p className="truncate text-xs text-foreground-subtle">@{friend.nickname}</p>
         </div>
       </button>
 
       <div className="flex shrink-0 items-center gap-4">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-semibold text-zinc-200">
+          <p className="text-sm font-semibold text-foreground">
             {Number(friend.total_pages)}p
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             {t("friends:list.totalLabel")}
           </p>
         </div>
@@ -344,7 +344,7 @@ function FriendRow({
           type="button"
           onClick={() => onRemove(friend.user_id)}
           disabled={busy}
-          className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-subtle transition hover:bg-destructive-muted hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
           title={t("friends:list.remove")}
           aria-label={t("friends:list.remove")}
         >
@@ -374,7 +374,7 @@ function SearchResultCard({
     switch (result.friend_status) {
       case "self":
         return (
-          <span className="text-sm text-zinc-500">{t("friends:add.self")}</span>
+          <span className="text-sm text-foreground-subtle">{t("friends:add.self")}</span>
         );
       case "friends":
         return (
@@ -384,7 +384,7 @@ function SearchResultCard({
         );
       case "request_sent":
         return (
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-foreground-subtle">
             {t("friends:add.requestSent")}
           </span>
         );
@@ -414,14 +414,14 @@ function SearchResultCard({
   })();
 
   return (
-    <div className="mt-3 flex items-center justify-between gap-3 rounded border border-zinc-800 bg-zinc-950/40 p-4">
+    <div className="mt-3 flex items-center justify-between gap-3 rounded border border-border bg-background/40 p-4">
       <div className="flex min-w-0 items-center gap-3">
         <Avatar src={result.avatar_url} name={result.name} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-100">
+          <p className="truncate text-sm font-medium text-foreground">
             {displayName(result.name, result.nickname, t("common:fields.unknown"))}
           </p>
-          <p className="truncate text-xs text-zinc-500">@{result.nickname}</p>
+          <p className="truncate text-xs text-foreground-subtle">@{result.nickname}</p>
         </div>
       </div>
       <div className="shrink-0">{action}</div>
@@ -634,7 +634,7 @@ export default function FriendsSettingsPanel({
             <FieldLabel>{t("friends:nickname.label")}</FieldLabel>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <span className="pointer-events-none absolute left-3 top-2 text-sm text-zinc-600">
+                <span className="pointer-events-none absolute left-3 top-2 text-sm text-foreground-subtle">
                   @
                 </span>
                 <input
@@ -673,7 +673,7 @@ export default function FriendsSettingsPanel({
           <div className="relative flex-1">
             <Search
               size={15}
-              className="pointer-events-none absolute left-3 top-2.5 text-zinc-600"
+              className="pointer-events-none absolute left-3 top-2.5 text-foreground-subtle"
             />
             <input
               type="text"
@@ -710,11 +710,11 @@ export default function FriendsSettingsPanel({
         })}
       >
         {incomingRequests.length === 0 ? (
-          <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center text-sm text-zinc-500">
+          <div className="rounded border border-dashed border-border bg-background/40 px-4 py-8 text-center text-sm text-foreground-subtle">
             {t("friends:requests.incomingEmpty")}
           </div>
         ) : (
-          <div className="overflow-hidden rounded border border-zinc-800">
+          <div className="overflow-hidden rounded border border-border">
             {incomingRequests.map((request) => (
               <RequestRow
                 key={request.id}
@@ -731,7 +731,7 @@ export default function FriendsSettingsPanel({
 
       {outgoingRequests.length > 0 && (
         <SettingsSection title={t("friends:requests.outgoingTitle")}>
-          <div className="overflow-hidden rounded border border-zinc-800">
+          <div className="overflow-hidden rounded border border-border">
             {outgoingRequests.map((request) => (
               <RequestRow
                 key={request.id}
@@ -757,17 +757,17 @@ export default function FriendsSettingsPanel({
           />
 
           {friends.length === 0 ? (
-            <div className="rounded border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-8 text-center">
-              <Users className="mx-auto mb-3 text-zinc-600" size={24} />
-              <p className="text-sm font-medium text-zinc-300">
+            <div className="rounded border border-dashed border-border bg-background/40 px-4 py-8 text-center">
+              <Users className="mx-auto mb-3 text-foreground-subtle" size={24} />
+              <p className="text-sm font-medium text-foreground">
                 {t("friends:list.emptyTitle")}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-foreground-subtle">
                 {t("friends:list.emptyDescription")}
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded border border-zinc-800">
+            <div className="overflow-hidden rounded border border-border">
               {friends.map((friend) => (
                 <FriendRow
                   key={friend.user_id}

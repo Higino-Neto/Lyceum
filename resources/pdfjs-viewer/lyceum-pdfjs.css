@@ -1,61 +1,88 @@
+/*
+ * Isolated PDF.js viewer theme.
+ *
+ * These are dark fallbacks for standalone/initial rendering only. The host
+ * application sends resolved semantic token values through the `CMD_SET_THEME`
+ * postMessage command; features/theme/index.mjs writes them as
+ * `--lyceum-<token>` on the viewer document. Never assume the parent document's
+ * CSS variables are inherited here: this is a separate origin/document.
+ */
 html,
 body {
   color-scheme: dark;
-  background: #0a0a0f;
+  background: var(--lyceum-background, #09090b);
 }
 
 :root {
-  --main-color: #f4f4f5;
-  --body-bg-color: #0a0a0f;
-  --toolbar-bg-color: #18181b;
-  --toolbar-border-color: #27272a;
-  --toolbar-border-bottom: 1px solid #27272a;
+  --lyceum-background: #09090b;
+  --lyceum-foreground: #f4f4f5;
+  --lyceum-surface: #18181b;
+  --lyceum-surface-muted: #27272a;
+  --lyceum-foreground-muted: #a1a1aa;
+  --lyceum-foreground-subtle: #82828c;
+  --lyceum-border: #27272a;
+  --lyceum-border-strong: #3f3f46;
+  --lyceum-primary: #4ade80;
+  --lyceum-primary-hover: #86efac;
+  --lyceum-primary-foreground: #052e16;
+  --lyceum-primary-muted: rgb(74 222 128 / 0.18);
+  --lyceum-primary-border: rgb(74 222 128 / 0.42);
+  --lyceum-selection: rgb(74 222 128 / 0.3);
+  --lyceum-focus-ring: #4ade80;
+  --lyceum-overlay: rgb(24 24 27 / 0.95);
+  --lyceum-shadow: rgb(0 0 0 / 0.4);
+
+  --main-color: var(--lyceum-foreground);
+  --body-bg-color: var(--lyceum-background);
+  --toolbar-bg-color: var(--lyceum-surface);
+  --toolbar-border-color: var(--lyceum-border);
+  --toolbar-border-bottom: 1px solid var(--lyceum-border);
   --toolbar-box-shadow: none;
-  --toolbar-icon-bg-color: #d4d4d8;
-  --toolbar-icon-hover-bg-color: #f4f4f5;
-  --button-hover-color: #27272a;
-  --toggled-btn-color: #dcfce7;
-  --dropdown-btn-bg-color: #27272a;
-  --field-color: #f4f4f5;
-  --field-bg-color: #27272a;
-  --field-border-color: #3f3f46;
-  --separator-color: #3f3f46;
-  --doorhanger-bg-color: #18181b;
-  --doorhanger-border-color: #27272a;
-  --doorhanger-hover-bg-color: #27272a;
-  --doorhanger-separator-color: #27272a;
-  --sidebar-bg-color: #18181b;
-  --sidebar-toolbar-bg-color: #18181b;
-  --sidebar-border-color: #27272a;
-  --thumbnail-hover-color: #27272a;
-  --thumbnail-selected-color: rgb(34 197 94 / 0.24);
-  --focus-ring-color: #22c55e;
+  --toolbar-icon-bg-color: var(--lyceum-foreground-muted);
+  --toolbar-icon-hover-bg-color: var(--lyceum-foreground);
+  --button-hover-color: var(--lyceum-surface-muted);
+  --toggled-btn-color: var(--lyceum-primary);
+  --dropdown-btn-bg-color: var(--lyceum-surface-muted);
+  --field-color: var(--lyceum-foreground);
+  --field-bg-color: var(--lyceum-surface-muted);
+  --field-border-color: var(--lyceum-border-strong);
+  --separator-color: var(--lyceum-border-strong);
+  --doorhanger-bg-color: var(--lyceum-surface);
+  --doorhanger-border-color: var(--lyceum-border);
+  --doorhanger-hover-bg-color: var(--lyceum-surface-muted);
+  --doorhanger-separator-color: var(--lyceum-border-strong);
+  --sidebar-bg-color: var(--lyceum-surface);
+  --sidebar-toolbar-bg-color: var(--lyceum-surface);
+  --sidebar-border-color: var(--lyceum-border);
+  --thumbnail-hover-color: var(--lyceum-surface-muted);
+  --thumbnail-selected-color: var(--lyceum-primary-muted);
+  --focus-ring-color: var(--lyceum-focus-ring);
 }
 
 #outerContainer {
-  background: #0a0a0f;
+  background: var(--lyceum-background);
 }
 
 #toolbarContainer {
-  background: #18181b;
+  background: var(--lyceum-surface);
 }
 
 #toolbarContainer :is(.toolbarButton, .dropdownToolbarButton, .toolbarLabel) {
-  color: #e4e4e7;
+  color: var(--lyceum-foreground-muted);
 }
 
 #toolbarContainer :is(.toolbarButton, .dropdownToolbarButton):is(:hover, :focus-visible),
 #toolbarContainer .toolbarButton.toggled,
 #toolbarContainer .lyceumChapterToggle[aria-expanded="true"],
 #toolbarContainer .lyceumAnnotationToggle[aria-expanded="true"] {
-  background-color: #27272a;
-  color: #dcfce7;
+  background-color: var(--lyceum-surface-muted);
+  color: var(--lyceum-primary);
 }
 
 #toolbarContainer .toolbarButton.toggled::before,
 #toolbarContainer .lyceumChapterToggle[aria-expanded="true"]::before,
 #toolbarContainer .lyceumAnnotationToggle[aria-expanded="true"]::before {
-  background-color: #22c55e;
+  background-color: var(--lyceum-primary);
 }
 
 #toolbarContainer .lyceumAnnotationToggle {
@@ -74,8 +101,8 @@ body {
   min-width: 14px;
   height: 14px;
   border-radius: 999px;
-  background: #22c55e;
-  color: #052e16;
+  background: var(--lyceum-primary);
+  color: var(--lyceum-primary-foreground);
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;
@@ -84,14 +111,14 @@ body {
 
 #toolbarContainer input,
 #toolbarContainer select {
-  background-color: #27272a;
-  border-color: #3f3f46;
-  color: #f4f4f5;
+  background-color: var(--lyceum-surface-muted);
+  border-color: var(--lyceum-border-strong);
+  color: var(--lyceum-foreground);
 }
 
 #toolbarContainer .splitToolbarButtonSeparator,
 #toolbarContainer .toolbarButtonSpacer {
-  color: #3f3f46;
+  color: var(--lyceum-border-strong);
 }
 
 #viewerContainer {
@@ -99,7 +126,7 @@ body {
 }
 
 .textLayer {
-  --lyceum-selection-color: rgba(147, 170, 198, 0.32);
+  --lyceum-selection-color: var(--lyceum-selection);
   user-select: none;
 }
 
@@ -135,7 +162,7 @@ body {
   min-width: 1px;
   background: var(--lyceum-selection-color);
   border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(190, 209, 230, 0.12);
+  box-shadow: inset 0 0 0 1px var(--lyceum-primary-border);
 }
 
 .lyceumSelectionToolbar {
@@ -144,11 +171,11 @@ body {
   display: flex;
   gap: 3px;
   padding: 4px;
-  border: 1px solid #52525b;
+  border: 1px solid var(--lyceum-border-strong);
   border-radius: 9px;
-  background: rgba(39, 39, 42, 0.97);
-  color: #f4f4f5;
-  box-shadow: 0 12px 28px rgb(0 0 0 / 0.3);
+  background: var(--lyceum-overlay);
+  color: var(--lyceum-foreground);
+  box-shadow: 0 12px 28px var(--lyceum-shadow);
   font: 500 12px/1.2 system-ui, sans-serif;
 }
 
@@ -162,19 +189,19 @@ body {
   border-radius: 6px;
   padding: 0 9px;
   background: transparent;
-  color: #e4e4e7;
+  color: var(--lyceum-foreground-muted);
   cursor: pointer;
 }
 
 .lyceumSelectionAction:hover,
 .lyceumSelectionAction:focus-visible {
-  background: #3f3f46;
-  color: #fff;
+  background: var(--lyceum-surface-muted);
+  color: var(--lyceum-foreground);
   outline: 2px solid transparent;
 }
 
 .lyceumSelectionAction:focus-visible {
-  box-shadow: inset 0 0 0 2px #a1a1aa;
+  box-shadow: inset 0 0 0 2px var(--lyceum-focus-ring);
 }
 
 .page .lyceumKeyConceptHighlightLayer {
@@ -189,8 +216,8 @@ body {
   position: absolute;
   min-width: 1px;
   border-radius: 2px;
-  background: rgba(34, 197, 94, 0.24);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+  background: var(--lyceum-primary-muted);
+  box-shadow: inset 0 0 0 1px var(--lyceum-primary-border);
 }
 
 @media (forced-colors: active) {

@@ -151,12 +151,12 @@ function DayIcon({
   isWinningDay: boolean;
   reduceMotion: boolean;
 }) {
-  const winRing = isWinningDay ? "ring-2 ring-green-400 ring-offset-2 ring-offset-zinc-900" : "";
+  const winRing = isWinningDay ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface" : "";
 
   if (isFuture) {
     return (
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-zinc-700">
-        <Circle size={8} className="text-zinc-700" strokeWidth={1} />
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-border-strong">
+        <Circle size={8} className="text-foreground" strokeWidth={1} />
       </div>
     );
   }
@@ -165,11 +165,11 @@ function DayIcon({
     return (
       <div
         className={`relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 ${
-          isToday ? "border-green-400" : "border-zinc-700"
-        } bg-zinc-800 ${winRing}`}
+          isToday ? "border-primary" : "border-border-strong"
+        } bg-surface-muted ${winRing}`}
       >
         <motion.div
-          className="absolute inset-x-0 bottom-0 bg-green-500"
+          className="absolute inset-x-0 bottom-0 bg-primary"
           initial={reduceMotion ? false : { height: 0 }}
           animate={{ height: `${day.goalRatio * 100}%` }}
           transition={{ duration: reduceMotion ? 0 : 0.55, ease: "easeOut" }}
@@ -177,7 +177,7 @@ function DayIcon({
         {day.goalComplete && (
           <Check
             size={ICON_SIZE}
-            className="relative text-white"
+            className="relative text-foreground"
             strokeWidth={STROKE_WIDTH + 1}
           />
         )}
@@ -189,10 +189,10 @@ function DayIcon({
     return (
       <div
         className={`flex h-9 w-9 items-center justify-center rounded-full ${
-          isToday ? "bg-green-500" : "bg-green-600"
+          isToday ? "bg-primary" : "bg-primary"
         } ${winRing}`}
       >
-        <Check size={ICON_SIZE} className="text-white" strokeWidth={STROKE_WIDTH + 1} />
+        <Check size={ICON_SIZE} className="text-foreground" strokeWidth={STROKE_WIDTH + 1} />
       </div>
     );
   }
@@ -201,14 +201,14 @@ function DayIcon({
     <div
       className={`flex h-9 w-9 items-center justify-center rounded-full border-2 ${
         isToday
-          ? "border-zinc-500 bg-zinc-500/10"
-          : "border-zinc-700 bg-zinc-800"
+          ? "border-border-strong bg-foreground-subtle/10"
+          : "border-border-strong bg-surface-muted"
       } ${winRing}`}
     >
       {isToday ? (
-        <span className="text-[10px] font-bold text-zinc-400">!</span>
+        <span className="text-[10px] font-bold text-foreground-muted">!</span>
       ) : (
-        <Circle size={6} className="text-zinc-600" strokeWidth={STROKE_WIDTH} />
+        <Circle size={6} className="text-foreground-subtle" strokeWidth={STROKE_WIDTH} />
       )}
     </div>
   );
@@ -246,8 +246,8 @@ function GoalControls({
         onClick={() => setIsOpen((current) => !current)}
         className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border transition ${
           dailyGoal > 0
-            ? "border-green-600 bg-green-500/10 text-green-400"
-            : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-100"
+            ? "border-primary bg-primary-muted text-primary"
+            : "border-border-strong bg-surface-muted text-foreground-muted hover:text-foreground"
         }`}
         aria-label={t("dashboard:streak.goalLabel")}
         title={
@@ -263,7 +263,7 @@ function GoalControls({
         {isOpen && (
           <motion.form
             onSubmit={handleSubmit}
-            className="absolute right-0 top-10 z-20 flex items-center gap-2 rounded-sm border border-zinc-700 bg-zinc-950 p-2 shadow-xl"
+            className="absolute right-0 top-10 z-20 flex items-center gap-2 rounded-sm border border-border-strong bg-background p-2 shadow-xl"
             initial={reduceMotion ? false : { opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
@@ -277,11 +277,11 @@ function GoalControls({
               onChange={(event) => setGoalDraft(event.target.value)}
               placeholder={t("common:units.pageShort", { count: 0 }).replace("0", "")}
               aria-label={t("dashboard:streak.pagesPerDay")}
-              className="h-8 w-20 rounded-sm border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500"
+              className="h-8 w-20 rounded-sm border border-border-strong bg-surface px-2 text-sm text-foreground placeholder:text-input-placeholder focus:border-primary"
             />
             <button
               type="submit"
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm bg-green-600 text-black transition hover:bg-green-500"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm bg-primary text-primary-foreground transition hover:bg-primary-hover"
               aria-label={t("dashboard:streak.saveGoal")}
             >
               <Save size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
@@ -348,19 +348,19 @@ function WeeklyStreakPanel({
   const deltaText = getDeltaLabel(comparisonDelta, t);
   const deltaClass =
     comparisonDelta > 0
-      ? "text-green-400"
+      ? "text-primary"
       : comparisonDelta < 0
-        ? "text-red-400"
-        : "text-zinc-400";
+        ? "text-destructive"
+        : "text-foreground-muted";
 
   return (
-    <section className={index === 0 ? "space-y-12" : "space-y-3 border-t border-zinc-800 pt-3"}>
+    <section className={index === 0 ? "space-y-12" : "space-y-3 border-t border-border pt-3"}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Flame size={ICON_SIZE} className="text-zinc-500" strokeWidth={STROKE_WIDTH} />
+          <Flame size={ICON_SIZE} className="text-foreground-subtle" strokeWidth={STROKE_WIDTH} />
           <span
             className={`truncate text-sm font-semibold ${
-              person.isCurrentUser ? "text-zinc-200" : "text-zinc-400"
+              person.isCurrentUser ? "text-foreground" : "text-foreground-muted"
             }`}
           >
             {person.username}
@@ -401,7 +401,7 @@ function WeeklyStreakPanel({
                     />
                   </motion.div>
                   {day.hasRead && (
-                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-100 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-border-strong px-2 py-0.5 text-[10px] font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100">
                       {t("dashboard:streak.pages", { count: day.pagesRead })}
                     </div>
                   )}
@@ -409,12 +409,12 @@ function WeeklyStreakPanel({
                 <span
                   className={`text-[11px] font-medium ${
                     isFuture
-                      ? "text-zinc-600"
+                      ? "text-foreground-subtle"
                       : day.goalComplete
-                        ? "text-green-500"
+                        ? "text-primary"
                         : isToday
-                          ? "text-green-800"
-                          : "text-zinc-500"
+                          ? "text-primary"
+                          : "text-foreground-subtle"
                   }`}
                 >
                   {day.dayName}
@@ -441,11 +441,11 @@ function WeeklyStreakPanel({
             }}
           >
             {floatText.metaBatida ? (
-              <span className="text-amber-400">
+              <span className="text-warning">
                 {t("dashboard:streak.goalHit")}
               </span>
             ) : (
-              <span className="text-green-400">+{floatText.pages}p</span>
+              <span className="text-primary">+{floatText.pages}p</span>
             )}
           </motion.div>
         )}
@@ -457,9 +457,9 @@ function WeeklyStreakPanel({
             animate={pulse ? { scale: [1, 1.4, 1] } : { scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Flame className="text-zinc-400" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+            <Flame className="text-foreground-muted" size={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
           </motion.div>
-          <span className="text-sm font-bold text-zinc-400">
+          <span className="text-sm font-bold text-foreground-muted">
             {t("dashboard:streak.days", { count: currentStreak })}
           </span>
         </div>
@@ -467,13 +467,13 @@ function WeeklyStreakPanel({
         <div className="flex items-center gap-2">
           <Circle
             size={ICON_SIZE}
-            className={todayComplete ? "text-green-500" : "text-zinc-400"}
+            className={todayComplete ? "text-primary" : "text-foreground-muted"}
             strokeWidth={STROKE_WIDTH}
             fill={todayComplete ? "currentColor" : "none"}
           />
           <span
             className={`text-sm font-bold ${
-              todayComplete ? "text-green-500" : "text-zinc-400"
+              todayComplete ? "text-primary" : "text-foreground-muted"
             }`}
           >
             {dailyGoal > 0
@@ -593,20 +593,20 @@ export function WeeklyStreak() {
 
   if (isLoading || isLoadingSelected) {
     return (
-      <div className="h-full rounded-sm border border-zinc-800 bg-zinc-900 p-5">
-        <div className="mb-5 h-5 w-28 animate-pulse rounded bg-zinc-800" />
+      <div className="h-full rounded-sm border border-border bg-surface p-5">
+        <div className="mb-5 h-5 w-28 animate-pulse rounded bg-surface-muted" />
         <div className="mb-5 flex justify-between gap-2">
           {[...Array(7)].map((_, index) => (
             <div key={index} className="flex flex-1 flex-col items-center gap-2">
-              <div className="h-9 w-9 animate-pulse rounded-full bg-zinc-800" />
-              <div className="h-3 w-5 animate-pulse rounded bg-zinc-800" />
+              <div className="h-9 w-9 animate-pulse rounded-full bg-surface-muted" />
+              <div className="h-3 w-5 animate-pulse rounded bg-surface-muted" />
             </div>
           ))}
         </div>
-        <div className="mb-4 h-px bg-zinc-800" />
+        <div className="mb-4 h-px bg-surface-muted" />
         <div className="flex justify-between">
-          <div className="h-8 w-24 animate-pulse rounded bg-zinc-800" />
-          <div className="h-8 w-24 animate-pulse rounded bg-zinc-800" />
+          <div className="h-8 w-24 animate-pulse rounded bg-surface-muted" />
+          <div className="h-8 w-24 animate-pulse rounded bg-surface-muted" />
         </div>
       </div>
     );
@@ -614,7 +614,7 @@ export function WeeklyStreak() {
 
   return (
     <motion.div
-      className="flex h-full flex-col gap-3 rounded-sm border border-zinc-800 bg-zinc-900 p-4"
+      className="flex h-full flex-col gap-3 rounded-sm border border-border bg-surface p-4"
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : 0.16 }}

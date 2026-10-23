@@ -85,7 +85,7 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
 
   if (categoryData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (
-      <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+      <div className="h-48 flex items-center justify-center text-foreground-subtle text-sm">
         {t("dashboard:charts.noData")}
       </div>
     );
@@ -99,8 +99,8 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
           onClick={() => setChartType(opt.key as CategoryChartType)}
           className={`px-3 py-1 text-xs rounded-xs transition cursor-pointer ${
             chartType === opt.key
-              ? "bg-zinc-700 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "bg-border-strong text-foreground"
+              : "text-foreground-muted hover:text-foreground"
           }`}
         >
           {t(opt.labelKey)}
@@ -128,8 +128,8 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
               />
-              <span className="text-zinc-400">
-                {item.name}: <span className="text-zinc-200">{item.value}</span> pág
+              <span className="text-foreground-muted">
+                {item.name}: <span className="text-foreground">{item.value}</span> pág
                 ({Math.round((item.value / totalPages) * 100)}%)
               </span>
             </div>
@@ -146,7 +146,7 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
               outerRadius={80}
             >
               {treemapData.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} stroke="var(--ui-zinc-900)" strokeWidth={2} />
+                <Cell key={index} fill={entry.fill} stroke="var(--background)" strokeWidth={2} />
               ))}
             </Pie>
             <Tooltip content={<ChartTooltip />} />
@@ -161,16 +161,16 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
       {renderChartTypeSelector()}
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={categoryData} margin={{ top: 10, right: 20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="1 1" stroke="var(--ui-zinc-800)" vertical={false} />
+          <CartesianGrid strokeDasharray="1 1" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="name"
-            stroke="var(--ui-zinc-600)"
+            stroke="var(--foreground-subtle)"
             fontSize={10}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
-            stroke="var(--ui-zinc-600)"
+            stroke="var(--foreground-subtle)"
             fontSize={11}
             tickLine={false}
             axisLine={false}

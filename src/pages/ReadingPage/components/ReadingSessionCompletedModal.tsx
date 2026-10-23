@@ -55,24 +55,24 @@ function getRhythm(wpm: number): {
   if (wpm < 100)
     return {
       labelKey: "reading:session.completed.rhythm.levels.light.label",
-      color: "text-blue-400",
+      color: "text-info",
       descriptionKey: "reading:session.completed.rhythm.levels.light.description",
     };
   if (wpm < 150)
     return {
       labelKey: "reading:session.completed.rhythm.levels.moderate.label",
-      color: "text-green-400",
+      color: "text-primary",
       descriptionKey: "reading:session.completed.rhythm.levels.moderate.description",
     };
   if (wpm < 200)
     return {
       labelKey: "reading:session.completed.rhythm.levels.intense.label",
-      color: "text-amber-400",
+      color: "text-warning",
       descriptionKey: "reading:session.completed.rhythm.levels.intense.description",
     };
   return {
     labelKey: "reading:session.completed.rhythm.levels.fast.label",
-    color: "text-red-400",
+    color: "text-destructive",
     descriptionKey: "reading:session.completed.rhythm.levels.fast.description",
   };
 }
@@ -100,16 +100,16 @@ function StatPill({
     <div
       className={`flex flex-col items-center justify-center p-3 rounded-sm border ${
         accent
-          ? "bg-green-950/30 border-green-800/40"
-          : "bg-zinc-800/60 border-zinc-700/40"
+          ? "bg-primary-muted border-primary/40"
+          : "bg-surface-muted/60 border-border-strong/40"
       }`}
     >
       <span
-        className={`text-lg font-bold tabular-nums ${accent ? "text-green-400" : "text-zinc-100"}`}
+        className={`text-lg font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}
       >
         {value}
       </span>
-      <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5 text-center leading-tight">
+      <span className="text-[10px] text-foreground-subtle uppercase tracking-wider mt-0.5 text-center leading-tight">
         {label}
       </span>
     </div>
@@ -125,11 +125,11 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <Icon size={13} className="text-green-500" />
-      <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">
+      <Icon size={13} className="text-primary" />
+      <span className="text-[10px] uppercase tracking-[0.12em] text-foreground-subtle font-semibold">
         {label}
       </span>
-      <div className="flex-1 h-px bg-zinc-800" />
+      <div className="flex-1 h-px bg-surface-muted" />
     </div>
   );
 }
@@ -190,7 +190,7 @@ export default function ReadingSessionCompletedModal({
       transition={{ duration: reduceMotion ? 0 : 0.16 }}
     >
       <motion.div
-        className="relative bg-zinc-900 border border-zinc-800 rounded-sm w-full shadow-2xl flex flex-col"
+        className="relative bg-surface border border-border rounded-sm w-full shadow-2xl flex flex-col"
         variants={reduceMotion ? undefined : subtleScale}
         initial={reduceMotion ? false : "hidden"}
         animate="visible"
@@ -214,17 +214,17 @@ export default function ReadingSessionCompletedModal({
         {/* ── HEADER ── */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-sm bg-green-950/50 border border-green-800/40 flex items-center justify-center">
-              <BookOpen size={18} className="text-green-400" />
+            <div className="w-10 h-10 rounded-sm bg-primary-muted border border-primary/40 flex items-center justify-center">
+              <BookOpen size={18} className="text-primary" />
             </div>
             <div>
               <h2
-                className="text-lg font-bold text-zinc-100"
+                className="text-lg font-bold text-foreground"
                 style={{ fontFamily: "'Georgia', serif" }}
               >
                 {t("reading:session.completed.title")}
               </h2>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-foreground-subtle">
                 {formatSessionDate(session.date)}
               </p>
             </div>
@@ -236,33 +236,33 @@ export default function ReadingSessionCompletedModal({
             }}
             title={t("reading:session.completed.closeTitle")}
             aria-label={t("reading:session.completed.closeAriaLabel")}
-            className="mt-0.5 text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors p-1 rounded-sm hover:bg-zinc-800"
+            className="mt-0.5 text-foreground-subtle cursor-pointer hover:text-foreground-muted transition-colors p-1 rounded-sm hover:bg-surface-muted"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* ── BOOK IDENTITY ── */}
-        <div className="mx-6 mb-4 p-4 rounded-sm bg-zinc-800/40 border border-zinc-700/30 flex items-center gap-3 shrink-0">
+        <div className="mx-6 mb-4 p-4 rounded-sm bg-surface-muted/40 border border-border-strong/30 flex items-center gap-3 shrink-0">
           <div
-            className="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-400 border border-zinc-700"
+            className="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-foreground-muted border border-border-strong"
             style={{
               background:
-                "linear-gradient(160deg, var(--ui-zinc-800), var(--ui-zinc-900))",
+                "linear-gradient(160deg, var(--surface-muted), var(--surface))",
               writingMode: "vertical-rl",
             }}
           >
             {categoryLabel.slice(0, 3).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-zinc-100 font-semibold text-sm leading-snug truncate">
+            <p className="text-foreground font-semibold text-sm leading-snug truncate">
               {session.sourceName}
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] bg-green-950/60 text-green-400 border border-green-800/40 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] bg-primary-muted text-primary border border-primary/40 px-2 py-0.5 rounded-full">
                 {categoryLabel}
               </span>
-              <span className="text-[10px] text-zinc-600">
+              <span className="text-[10px] text-foreground-subtle">
                 {t("reading:session.completed.focusMinutes", {
                   count: session.spentTimeMinutes,
                 })}
@@ -270,10 +270,10 @@ export default function ReadingSessionCompletedModal({
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-2xl font-bold text-green-400 tabular-nums">
+            <p className="text-2xl font-bold text-primary tabular-nums">
               {accumulatedProgress}%
             </p>
-            <p className="text-[10px] text-zinc-600">
+            <p className="text-[10px] text-foreground-subtle">
               {t("reading:session.completed.ofTheBook")}
             </p>
           </div>
@@ -284,16 +284,16 @@ export default function ReadingSessionCompletedModal({
           className="overflow-y-auto flex-1 px-6 pb-2 space-y-5"
           style={{
             scrollbarWidth: "thin",
-            scrollbarColor: "var(--ui-zinc-700) transparent",
+            scrollbarColor: "var(--border-strong) transparent",
           }}
         >
           {/* Progress bar */}
           <div>
-            <div className="flex justify-between text-[10px] text-zinc-500 mb-1.5">
+            <div className="flex justify-between text-[10px] text-foreground-subtle mb-1.5">
               <span>
                 {t("reading:session.completed.page", { page: session.initialPage })}
               </span>
-              <span className="text-green-400 font-medium">
+              <span className="text-primary font-medium">
                 {t("reading:session.completed.pagesThisSession", { count: pagesRead })}
               </span>
               <span>
@@ -303,14 +303,14 @@ export default function ReadingSessionCompletedModal({
                 })}
               </span>
             </div>
-            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
               {/* Accumulated */}
               <div
                 className="h-full rounded-full relative"
                 style={{
                   width: `${accumulatedProgress}%`,
                   background:
-                    "linear-gradient(90deg, var(--accent-700), var(--accent-500))",
+                    "linear-gradient(90deg, var(--primary-hover), var(--primary))",
                   transition: "width 0.8s ease",
                 }}
               >
@@ -320,19 +320,19 @@ export default function ReadingSessionCompletedModal({
                   style={{
                     width: `${(pagesRead / Number(session.finalPage)) * 100}%`,
                     background:
-                      "color-mix(in srgb, var(--accent-300) 50%, transparent)",
+                      "color-mix(in srgb, var(--primary) 50%, transparent)",
                   }}
                 />
               </div>
             </div>
             <div className="flex justify-between text-[10px] mt-1">
-              <span className="text-zinc-600">
+              <span className="text-foreground-subtle">
                 {t("reading:session.completed.remainingWithPages", {
                   percent: remainingPercent,
                   pages: remainingPages,
                 })}
               </span>
-              <span className="text-zinc-600">
+              <span className="text-foreground-subtle">
                 {t("reading:session.completed.estimatedFinish", {
                   time: estimatedFinishHours,
                 })}
@@ -396,11 +396,11 @@ export default function ReadingSessionCompletedModal({
           </div>
 
           {/* ── RITMO ── */}
-          <div className="flex items-center justify-between p-3.5 rounded-sm bg-zinc-800/40 border border-zinc-700/30">
+          <div className="flex items-center justify-between p-3.5 rounded-sm bg-surface-muted/40 border border-border-strong/30">
             <div className="flex items-center gap-3">
               <Flame size={18} className={rhythm.color} />
               <div>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-foreground-muted">
                   {t("reading:session.completed.rhythm.title")}
                 </p>
                 <p className={`text-sm font-bold ${rhythm.color}`}>
@@ -409,10 +409,10 @@ export default function ReadingSessionCompletedModal({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-foreground-subtle">
                 {t(rhythm.descriptionKey)}
               </p>
-              <p className="text-[11px] text-zinc-600">
+              <p className="text-[11px] text-foreground-subtle">
                 {t("reading:session.completed.rhythm.wpm", { count: wpm })}
               </p>
             </div>
@@ -440,11 +440,11 @@ export default function ReadingSessionCompletedModal({
         </div>
 
         {/* ── FOOTER ── */}
-        <div className="px-6 py-4 border-t border-zinc-800/60 flex gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-border/60 flex gap-3 shrink-0">
           <button
             title={t("reading:session.completed.continueTitle")}
             onClick={onClose}
-            className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-sm border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
+            className="flex items-center cursor-pointer justify-center gap-2 flex-1 py-2.5 rounded-sm border border-border-strong text-foreground text-sm font-medium hover:bg-surface-muted hover:border-border-strong transition-colors"
           >
             {t("reading:session.completed.continue")}
             <ChevronDown size={16} />
@@ -454,7 +454,7 @@ export default function ReadingSessionCompletedModal({
               onClose();
               onSubmit();
             }}
-            className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-sm bg-green-600 hover:bg-green-500 text-black text-sm font-bold transition-colors shadow-lg shadow-green-900/20"
+            className="cursor-pointer pl-1 flex items-center justify-center gap-2 flex-1 py-2.5 rounded-sm bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-bold transition-colors shadow-lg shadow-shadow"
           >
             {t("reading:session.completed.finish")}
             <ChevronRight size={16} />

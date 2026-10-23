@@ -157,11 +157,11 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
         onBlur={handleBlur}
         onFocus={() => results.length > 0 && setShowResults(true)}
         placeholder={t("reading:bookSearch.placeholder")}
-        className="w-full rounded-sm bg-transparent border-0 focus:ring-0 text-zinc-100 placeholder:text-zinc-700 px-2 py-2 text-sm"
+        className="w-full rounded-sm bg-transparent border-0 focus:ring-0 text-foreground placeholder:text-input-placeholder px-2 py-2 text-sm"
       />
 
       {showResults && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 max-h-64 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-surface border border-border-strong max-h-64 overflow-y-auto">
           {results.map((book) => (
             <button
               key={book.id}
@@ -170,7 +170,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
                 e.preventDefault();
                 handleSelect(book);
               }}
-              className="w-full flex items-center gap-2 p-2 hover:bg-zinc-700 transition text-left"
+              className="w-full flex items-center gap-2 p-2 hover:bg-border-strong transition text-left"
             >
               {/* {isLocalBook(book) && book.thumbnailPath ? (
                 <img src={`thumbnail://${book.thumbnailPath}`} alt="" className="w-6 h-8 object-cover rounded flex-shrink-0" onError={(e) => {
@@ -179,23 +179,23 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
               ) : !isLocalBook(book) && book.thumbnail_url ? (
                 <img src={book.thumbnail_url} alt="" className="w-6 h-8 object-cover rounded flex-shrink-0" />
               ) : (
-                <div className="w-6 h-8 bg-zinc-700 rounded flex-shrink-0" />
+                <div className="w-6 h-8 bg-border-strong rounded flex-shrink-0" />
               )} */}
               <div className="min-w-0">
-                <div className="text-sm text-zinc-100 truncate">
+                <div className="text-sm text-foreground truncate">
                   {book.title}
                 </div>
                 {"author" in book && book.author && (
-                  <div className="text-xs text-zinc-400 truncate">
+                  <div className="text-xs text-foreground-muted truncate">
                     {book.author}
                   </div>
                 )}
                 {isLocalBook(book) ? (
-                  <div className="text-xs text-green-500 truncate">
+                  <div className="text-xs text-primary truncate">
                     {t("reading:bookSearch.local")}
                   </div>
                 ) : (
-                  <div className="text-xs text-green-500 truncate">
+                  <div className="text-xs text-primary truncate">
                     {t("reading:bookSearch.external")}
                   </div>
                 )}
@@ -427,19 +427,19 @@ export default function AddReadingPage() {
   // };
 
   return (
-    <div className="lyceum-page-add-reading bg-zinc-950 text-zinc-100 px-4">
+    <div className="lyceum-page-add-reading bg-background text-foreground px-4">
       <main className="min-h-screen flex-1 overflow-y-auto">
         <div className="py-6 space-y-4">
           {/* <header className="flex items-center justify-between">
 
             <div className="flex gap-2 items-center pl-4">
-              <BookPlus size={32} className="text-zinc-300" />
+              <BookPlus size={32} className="text-foreground" />
             </div>
           </header> */}
 
-          <section className="lyceum-add-form-card bg-zinc-900 border border-zinc-800 p-4 rounded-sm">
+          <section className="lyceum-add-form-card bg-surface border border-border p-4 rounded-sm">
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-12 gap-3 my-2 px-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-3 my-2 px-4 text-xs font-medium text-foreground-subtle uppercase tracking-wider">
                 <div className="col-span-4">{t("reading:add.columns.work")}</div>
                 <div className="col-span-1">
                   {t("reading:add.columns.pagesShort")}
@@ -459,7 +459,7 @@ export default function AddReadingPage() {
                 {entries.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="lyceum-add-entry-row grid grid-cols-12 gap-3 items-center bg-zinc-900/30 border border-zinc-800 rounded-sm p-2 hover:border-zinc-700 transition"
+                    className="lyceum-add-entry-row grid grid-cols-12 gap-3 items-center bg-surface/30 border border-border rounded-sm p-2 hover:border-border-strong transition"
                   >
                     <div className="col-span-4">
                       <BookSearch
@@ -482,7 +482,7 @@ export default function AddReadingPage() {
                         }
                         placeholder={t("reading:add.pagesPlaceholder")}
                         min="1"
-                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                        className="w-full bg-surface-muted/50 border border-border-strong rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-focus-ring"
                       />
                     </div>
 
@@ -495,7 +495,7 @@ export default function AddReadingPage() {
                         }
                         placeholder={t("reading:add.timePlaceholder")}
                         min="1"
-                        className="w-16 bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                        className="w-16 bg-surface-muted/50 border border-border-strong rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-focus-ring"
                       />
                     </div>
 
@@ -505,14 +505,14 @@ export default function AddReadingPage() {
                         onChange={(e) =>
                           updateEntry(entry.id, "category_id", e.target.value)
                         }
-                        className={`border-zinc-700 text-zinc-100 w-full bg-zinc-800/50 border rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer`}
+                        className={`border-border-strong text-foreground w-full bg-surface-muted/50 border rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-focus-ring cursor-pointer`}
                       >
                         <option value="">{t("reading:add.selectCategory")}</option>
                         {categories?.map((cat: any) => (
                           <option
                             key={cat.id}
                             value={cat.id}
-                            className="text-zinc-100"
+                            className="text-foreground"
                           >
                             {cat.name} ({cat.points_per_page}x)
                           </option>
@@ -520,7 +520,7 @@ export default function AddReadingPage() {
                       </select>
                       {/* {entry.category_id && (
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
-                          <span className="text-green-500 text-xs">✓</span>
+                          <span className="text-primary text-xs">✓</span>
                         </div>
                       )} */}
                     </div>
@@ -532,19 +532,19 @@ export default function AddReadingPage() {
                         onChange={(e) =>
                           updateEntry(entry.id, "date", e.target.value)
                         }
-                        className="w-full bg-zinc-800/50 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-green-500"
+                        className="w-full bg-surface-muted/50 border border-border-strong rounded px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-focus-ring"
                       />
                     </div>
 
                     <div className="col-span-2 flex items-center justify-end px-3 gap-2">
-                      {/* <span className="text-sm text-green-500 font-mono w-full">
+                      {/* <span className="text-sm text-primary font-mono w-full">
                         {calculateTotalPoints(entry)}
                       </span> */}
                       <div className="flex gap-4">
                         <button
                           type="button"
                           onClick={() => duplicateEntry(entry.id)}
-                          className="text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
+                          className="text-foreground-subtle hover:text-foreground transition cursor-pointer"
                           title={t("reading:add.actions.duplicateRow")}
                         >
                           <Copy size={18} />
@@ -556,8 +556,8 @@ export default function AddReadingPage() {
                           onClick={() => removeEntry(entry.id)}
                           className={
                             entries.length < 2
-                              ? `text-zinc-700 cursor-no-drop`
-                              : `text-zinc-500 hover:text-red-400 transition cursor-pointer`
+                              ? `text-foreground cursor-no-drop`
+                              : `text-foreground-subtle hover:text-destructive transition cursor-pointer`
                           }
                           title={t("reading:add.actions.removeRow")}
                         >
@@ -569,11 +569,11 @@ export default function AddReadingPage() {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between border-t border-zinc-800 pt-6">
+              <div className="flex items-center justify-between border-t border-border pt-6">
                 <button
                   type="button"
                   onClick={addNewEntry}
-                  className="cursor-pointer flex items-center gap-2 text-green-500 hover:text-green-400 transition text-sm font-medium"
+                  className="cursor-pointer flex items-center gap-2 text-primary hover:text-primary transition text-sm font-medium"
                 >
                   <Plus size={18} />
                   {t("reading:add.actions.addAnother")}
@@ -582,7 +582,7 @@ export default function AddReadingPage() {
                 <div className="flex gap-3">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 cursor-pointer bg-green-600 hover:bg-green-500 text-black font-medium px-8 py-2.5 rounded-sm transition text-sm"
+                    className="flex items-center gap-2 cursor-pointer bg-primary hover:bg-primary-hover text-primary-foreground font-medium px-8 py-2.5 rounded-sm transition text-sm"
                   >
                     <NotebookPen size={15} />
                     {t("reading:add.submit", { count: entries.length })}
@@ -592,17 +592,17 @@ export default function AddReadingPage() {
             </form>
           </section>
 
-          <section className="lyceum-add-table-card rounded-sm border border-zinc-800 bg-zinc-900">
+          <section className="lyceum-add-table-card rounded-sm border border-border bg-surface">
             <ReadingTable />
           </section>
 
-          <section className="lyceum-add-books-card rounded-sm border border-zinc-800 bg-zinc-900 p-4">
+          <section className="lyceum-add-books-card rounded-sm border border-border bg-surface p-4">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-zinc-100">
+                <h2 className="text-base font-semibold text-foreground">
                   {t("reading:add.myBooks.title")}
                 </h2>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-foreground-subtle">
                   {t("reading:add.myBooks.description")}
                 </p>
               </div>
@@ -611,7 +611,7 @@ export default function AddReadingPage() {
                 value={booksSearch}
                 onChange={(event) => setBooksSearch(event.target.value)}
                 placeholder={t("reading:add.myBooks.searchPlaceholder")}
-                className="w-full max-w-xs rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-green-500"
+                className="w-full max-w-xs rounded-sm border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-input-placeholder focus:border-primary"
               />
             </div>
 
@@ -630,7 +630,7 @@ export default function AddReadingPage() {
               </div>
 
               {selectedSupabaseBook && (
-                <aside className="lyceum-add-detail-panel w-96 flex-shrink-0 border-l border-zinc-800 bg-zinc-900">
+                <aside className="lyceum-add-detail-panel w-96 flex-shrink-0 border-l border-border bg-surface">
                   <StatisticsPanel
                     book={selectedSupabaseBook}
                     onClose={() => setSelectedSupabaseBook(null)}

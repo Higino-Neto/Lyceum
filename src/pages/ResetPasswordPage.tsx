@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
       footer={
         <Link
           to="/signin"
-          className="inline-flex items-center gap-2 text-green-500 transition hover:text-green-400"
+          className="inline-flex items-center gap-2 text-primary transition hover:text-primary"
         >
           <ArrowLeft size={15} />
           {t("auth:resetPassword.backToSignIn")}
@@ -63,15 +63,15 @@ export default function ResetPasswordPage() {
       }
     >
       {isLoading ? (
-        <div className="h-32 animate-pulse rounded border border-zinc-800 bg-zinc-950/60" />
+        <div className="h-32 animate-pulse rounded border border-border bg-background/60" />
       ) : !session ? (
         <div className="space-y-4">
-          <div className="rounded border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
+          <div className="rounded border border-warning/30 bg-warning-muted p-4 text-sm leading-6 text-warning">
             {authErrorMessage || t("auth:resetPassword.invalidLink")}
           </div>
           <Link
             to="/forgot-password"
-            className="inline-flex h-10 w-full items-center justify-center rounded border border-zinc-700 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+            className="inline-flex h-10 w-full items-center justify-center rounded border border-border-strong text-sm font-medium text-foreground transition hover:border-border-strong hover:bg-surface-muted"
           >
             {t("auth:resetPassword.requestNewLink")}
           </Link>

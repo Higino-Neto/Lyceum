@@ -21,7 +21,7 @@ function highlightMatch(text: string, term: string) {
   const parts = text.split(new RegExp(`(${escapeRegExp(term)})`, "gi"));
   return parts.map((part, index) =>
     part.toLowerCase() === term.toLowerCase() ? (
-      <span key={index} className="bg-green-500/30 text-green-300">
+      <span key={index} className="bg-primary-muted text-primary">
         {part}
       </span>
     ) : (
@@ -72,9 +72,9 @@ export default function FolderTreeNode({
     <div
       className={`group flex cursor-pointer items-center gap-1.5 rounded-sm transition-colors ${
         isSelected
-          ? "bg-zinc-800 text-zinc-100"
-          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-      } ${isDropTarget ? "bg-green-500/10 text-green-100 ring-1 ring-green-500" : ""} ${
+          ? "bg-surface-muted text-foreground"
+          : "text-foreground-muted hover:bg-surface-muted/50 hover:text-foreground"
+      } ${isDropTarget ? "bg-primary-muted text-primary ring-1 ring-focus-ring" : ""} ${
         isDragging ? "opacity-50" : ""
       }`}
       style={{
@@ -110,7 +110,7 @@ export default function FolderTreeNode({
       {hasChildren ? (
         <button
           onClick={(event) => onToggleExpand(folder, event)}
-          className="cursor-pointer rounded-sm p-0.5 hover:bg-zinc-700 hover:text-zinc-200"
+          className="cursor-pointer rounded-sm p-0.5 hover:bg-border-strong hover:text-foreground"
         >
           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
@@ -119,11 +119,11 @@ export default function FolderTreeNode({
       )}
 
       {sourcePathLabel ? (
-        <HardDrive size={15} className={isSelected ? "text-green-400" : "text-zinc-500"} />
+        <HardDrive size={15} className={isSelected ? "text-primary" : "text-foreground-subtle"} />
       ) : folderBookCount > 0 ? (
-        <FolderOpen size={15} className={isSelected ? "text-green-400" : "text-green-500"} />
+        <FolderOpen size={15} className={isSelected ? "text-primary" : "text-primary"} />
       ) : (
-        <Folder size={15} className={totalBooks > 0 ? "text-zinc-500" : "text-zinc-600"} />
+        <Folder size={15} className={totalBooks > 0 ? "text-foreground-subtle" : "text-foreground-subtle"} />
       )}
 
       {isRenaming && !readOnly ? (
@@ -139,20 +139,20 @@ export default function FolderTreeNode({
             {highlightMatch(folder.name, searchTerm)}
           </span>
           {sourcePathLabel && (
-            <span className="mt-0.5 block truncate text-[10px] leading-3 text-zinc-500" title={sourcePathLabel}>
+            <span className="mt-0.5 block truncate text-[10px] leading-3 text-foreground-subtle" title={sourcePathLabel}>
               {sourcePathLabel}
             </span>
           )}
         </span>
       )}
 
-      <div className={`flex items-center gap-1 text-xs ${isSelected ? "text-zinc-300" : "text-zinc-500"}`}>
+      <div className={`flex items-center gap-1 text-xs ${isSelected ? "text-foreground" : "text-foreground-subtle"}`}>
         {subfoldersBooks > 0 && (
           <span className="text-[10px]" title={`${folderBookCount} neste local, ${subfoldersBooks} em subpastas`}>
             +{subfoldersBooks}
           </span>
         )}
-        <span className={`rounded-sm px-1.5 py-0.5 ${isSelected ? "bg-zinc-700 text-zinc-300" : "bg-zinc-800"}`}>
+        <span className={`rounded-sm px-1.5 py-0.5 ${isSelected ? "bg-border-strong text-foreground" : "bg-surface-muted"}`}>
           {totalBooks}
         </span>
         {!readOnly && (
@@ -161,7 +161,7 @@ export default function FolderTreeNode({
               event.stopPropagation();
               onContextMenu(event, folder);
             }}
-            className="rounded-sm p-0.5 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100"
+            className="rounded-sm p-0.5 opacity-0 transition-opacity hover:bg-border-strong group-hover:opacity-100"
           >
             <MoreVertical size={12} />
           </button>

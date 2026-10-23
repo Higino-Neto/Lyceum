@@ -134,39 +134,39 @@ export default function CategoryManager({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-sm w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+    <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+      <div className="bg-surface border border-border-strong rounded-sm w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-4 border-b border-border-strong">
           <div className="flex items-center gap-2">
-            <Tag size={20} className="text-zinc-400" />
-            <h2 className="text-lg font-semibold text-zinc-100">
+            <Tag size={20} className="text-foreground-muted" />
+            <h2 className="text-lg font-semibold text-foreground">
               {t("library:categories.manage")}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-zinc-800 rounded-sm transition-colors"
+            className="p-2 hover:bg-surface-muted rounded-sm transition-colors"
           >
-            <X size={20} className="text-zinc-400" />
+            <X size={20} className="text-foreground-muted" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {loading && categories.length === 0 ? (
-            <div className="text-center py-8 text-zinc-500">
+            <div className="text-center py-8 text-foreground-subtle">
               {t("common:app.loading")}
             </div>
           ) : categories.length === 0 && !isCreating ? (
             <div className="text-center py-8">
-              <Tag size={32} className="mx-auto text-zinc-600 mb-2" />
-              <p className="text-zinc-500 text-sm">Nenhuma categoria ainda.</p>
-              <p className="text-zinc-600 text-xs mt-1">Crie categorias para organizar seus livros.</p>
+              <Tag size={32} className="mx-auto text-foreground-subtle mb-2" />
+              <p className="text-foreground-subtle text-sm">Nenhuma categoria ainda.</p>
+              <p className="text-foreground-subtle text-xs mt-1">Crie categorias para organizar seus livros.</p>
             </div>
           ) : (
             categories.map((cat) => (
               <div
                 key={cat.id}
-                className="flex items-center gap-3 p-3 bg-zinc-800 rounded-sm"
+                className="flex items-center gap-3 p-3 bg-surface-muted rounded-sm"
               >
                 {editingId === cat.id ? (
                   <>
@@ -182,7 +182,7 @@ export default function CategoryManager({
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      className="flex-1 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+                      className="flex-1 bg-border-strong border border-border-strong rounded px-2 py-1 text-sm text-foreground focus:outline-none focus:border-border-strong"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleUpdate(cat.id);
@@ -191,13 +191,13 @@ export default function CategoryManager({
                     />
                     <button
                       onClick={() => handleUpdate(cat.id)}
-                      className="p-1.5 hover:bg-zinc-700 rounded text-zinc-300"
+                      className="p-1.5 hover:bg-border-strong rounded text-foreground"
                     >
                       <Check size={16} />
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400"
+                      className="p-1.5 hover:bg-border-strong rounded text-foreground-muted"
                     >
                       <X size={16} />
                     </button>
@@ -209,20 +209,20 @@ export default function CategoryManager({
                       style={{ backgroundColor: cat.color }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-100 truncate">{cat.name}</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-sm text-foreground truncate">{cat.name}</p>
+                      <p className="text-xs text-foreground-subtle">
                         {cat.bookCount} livro{cat.bookCount !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <button
                       onClick={() => startEditing(cat)}
-                      className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-200"
+                      className="p-1.5 hover:bg-border-strong rounded text-foreground-muted hover:text-foreground"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id, cat.name)}
-                      className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-red-400"
+                      className="p-1.5 hover:bg-border-strong rounded text-foreground-muted hover:text-destructive"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -233,7 +233,7 @@ export default function CategoryManager({
           )}
 
           {isCreating && (
-            <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-sm border border-zinc-600">
+            <div className="flex items-center gap-3 p-3 bg-surface-muted rounded-sm border border-border-strong">
               <div
                 className="w-4 h-4 rounded-full flex-shrink-0 cursor-pointer"
                 style={{ backgroundColor: newColor }}
@@ -247,7 +247,7 @@ export default function CategoryManager({
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder={t("library:categories.namePlaceholder")}
-                className="flex-1 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+                className="flex-1 bg-border-strong border border-border-strong rounded px-2 py-1 text-sm text-foreground focus:outline-none focus:border-border-strong"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreate();
@@ -256,13 +256,13 @@ export default function CategoryManager({
               />
               <button
                 onClick={handleCreate}
-                className="p-1.5 hover:bg-zinc-700 rounded text-zinc-300"
+                className="p-1.5 hover:bg-border-strong rounded text-foreground"
               >
                 <Check size={16} />
               </button>
               <button
                 onClick={cancelEdit}
-                className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400"
+                className="p-1.5 hover:bg-border-strong rounded text-foreground-muted"
               >
                 <X size={16} />
               </button>
@@ -270,10 +270,10 @@ export default function CategoryManager({
           )}
         </div>
 
-        <div className="p-4 border-t border-zinc-700">
+        <div className="p-4 border-t border-border-strong">
           {isCreating || editingId ? (
             <div className="space-y-2">
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-foreground-subtle">
                 {t("library:categories.pickColor")}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -282,7 +282,7 @@ export default function CategoryManager({
                     key={color}
                     onClick={() => setNewColor(color)}
                     className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${
-                      newColor === color ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""
+                      newColor === color ? "ring-2 ring-border ring-offset-2 ring-offset-surface" : ""
                     }`}
                     style={{ backgroundColor: color }}
                   />
@@ -292,7 +292,7 @@ export default function CategoryManager({
           ) : (
             <button
               onClick={startCreating}
-              className="w-full flex items-center justify-center gap-2 bg-green-500 text-zinc-900 hover:bg-green-400 py-2.5 rounded-sm font-medium transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary-hover py-2.5 rounded-sm font-medium transition-colors cursor-pointer"
             >
               <Plus size={18} />
               {t("library:categories.new")}

@@ -41,7 +41,7 @@ describe("WeeklyStreak", () => {
 
   it("renders weekly streak component without crashing", () => {
     const { container } = renderWithProviders(<WeeklyStreak />);
-    expect(container.firstChild).toHaveClass("bg-zinc-900");
+    expect(container.firstChild).toHaveClass("bg-surface");
   });
 
   it("renders skeleton in loading state", () => {

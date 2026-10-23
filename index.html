@@ -5,10 +5,52 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lyceum</title>
-    <style>body { background-color: #09090b; }</style>
+    <style>
+      /* Pre-CSS fallback only. The real values live in src/theme/tokens.ts and
+         are applied by src/theme/boot.ts; scripts/check-design-tokens.mjs keeps
+         these two fallbacks in sync with the token definitions. */
+      html {
+        background-color: #09090b;
+        color-scheme: dark;
+      }
+      html.lyceum-theme-light {
+        background-color: #f4f5f7;
+        color-scheme: light;
+      }
+    </style>
+    <script>
+      // Minimal pre-paint theme resolution: avoids a dark flash for light users
+      // before the deferred module graph (theme/boot.ts) runs. Palette and
+      // semantic token values are not duplicated here.
+      (function () {
+        try {
+          var raw = localStorage.getItem("lyceum:app-settings");
+          var saved = raw ? JSON.parse(raw) : null;
+          var preference =
+            saved && (saved.theme === "light" || saved.theme === "dark" || saved.theme === "system")
+              ? saved.theme
+              : "dark";
+          var effective =
+            preference === "system"
+              ? window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark"
+              : preference;
+          var root = document.documentElement;
+          root.classList.toggle("lyceum-theme-light", effective === "light");
+          root.classList.toggle("lyceum-theme-dark", effective === "dark");
+          root.style.colorScheme = effective;
+          root.dataset.theme = preference;
+          root.dataset.effectiveTheme = effective;
+        } catch (_) {
+          // Boot script applies the safe defaults.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/src/theme/boot.ts"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

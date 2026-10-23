@@ -77,57 +77,57 @@ export default function EditReadingDialog({
   if (!isOpen || !reading) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-sm w-full max-w-md mx-4 shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-700">
-          <h2 className="text-lg font-semibold text-zinc-100">
+    <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+      <div className="bg-surface border border-border rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-shadow">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("dialogs:editReading.title")}
           </h2>
           <button
             onClick={onClose}
-            className="cursor-pointer p-2 hover:bg-zinc-800 rounded-sm transition-colors"
+            className="cursor-pointer p-2 hover:bg-surface-muted rounded-sm transition-colors"
           >
-            <X size={20} className="text-zinc-400" />
+            <X size={20} className="text-foreground-muted" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm text-zinc-400 mb-1">
+            <label className="block text-sm text-foreground-muted mb-1">
               Livro/Fonte
             </label>
             <input
               type="text"
               value={sourceName}
               onChange={(e) => setSourceName(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
+              className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-zinc-400 mb-1">
+              <label className="block text-sm text-foreground-muted mb-1">
                 {t("dialogs:editReading.fields.pages")}
               </label>
               <input
                 type="number"
                 value={pages}
                 onChange={(e) => setPages(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
+                className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
                 required
                 min="1"
               />
             </div>
             <div>
-              <label className="block text-sm text-zinc-400 mb-1">
+              <label className="block text-sm text-foreground-muted mb-1">
                 {t("dialogs:editReading.fields.time")}
               </label>
               <input
                 type="number"
                 value={readingTime}
                 onChange={(e) => setReadingTime(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
+                className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
                 required
                 min="1"
               />
@@ -135,13 +135,13 @@ export default function EditReadingDialog({
           </div>
 
           <div>
-            <label className="block text-sm text-zinc-400 mb-1">
+            <label className="block text-sm text-foreground-muted mb-1">
               Categoria
             </label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
+              className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
               required
             >
               <option value="">{t("dialogs:editReading.selectPlaceholder")}</option>
@@ -154,32 +154,32 @@ export default function EditReadingDialog({
           </div>
 
           <div>
-            <label className="block text-sm text-zinc-400 mb-1">
+            <label className="block text-sm text-foreground-muted mb-1">
               {t("dialogs:editReading.fields.date")}
             </label>
             <input
               type="date"
               value={readingDate}
               onChange={(e) => setReadingDate(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-4 py-2 focus:outline-none focus:border-zinc-500 text-zinc-100"
+              className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
               required
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer px-4 py-2 text-zinc-300 hover:text-zinc-100 transition-colors"
+              className="cursor-pointer px-4 py-2 text-foreground-muted hover:text-foreground transition-colors"
             >
               {t("dialogs:editReading.actions.cancel")}
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 cursor-pointer bg-green-500 hover:bg-green-600 text-zinc-900 rounded-sm font-medium transition-colors disabled:opacity-50"
+              className="px-4 py-2 cursor-pointer bg-primary hover:bg-primary-hover text-primary-foreground rounded-sm font-medium transition-colors disabled:opacity-50"
             >
               {isLoading
                 ? t("dialogs:editReading.actions.saving")

@@ -75,7 +75,7 @@ export default function TextPane({ bookId, dataUrl, initialProgress, initialOffs
   marks.forEach(a => { if (a.locator.format === "txt") { boundaries.add(Math.min(content.length, a.locator.offset)); boundaries.add(Math.min(content.length, a.locator.end || a.locator.offset)); } });
   if (hits[hit] !== undefined) { boundaries.add(hits[hit]); boundaries.add(hits[hit] + query.length); }
   const points = [...boundaries].sort((a, b) => a - b);
-  const cls = "rounded-lg bg-zinc-800 p-2 text-sm text-white";
+  const cls = "rounded-lg bg-surface-muted p-2 text-sm text-foreground";
   return <div className="relative">
     <div className="flex flex-wrap gap-2 p-2">
       <select aria-label={t("mobile:textPane.themeLabel")} className={cls} value={settings.theme} onChange={e => setSettings(s => ({ ...s, theme: e.target.value as ReaderTheme }))}>{Object.keys(THEME_COLORS).map(theme => <option key={theme} value={theme}>{t(THEME_LABELS[theme as ReaderTheme])}</option>)}</select>

@@ -28,7 +28,7 @@ export default function AnimatedModal({
     <AnimatePresence initial={false}>
       {open && (
         <motion.div
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${backdropClassName}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-backdrop ${backdropClassName}`}
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}

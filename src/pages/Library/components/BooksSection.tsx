@@ -335,8 +335,8 @@ export default function BooksSection({
     return (
       <div className="w-full">
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-6 h-6 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-500 text-sm">{t("library:books.loading")}</p>
+          <div className="w-6 h-6 border-2 border-border-strong border-t-transparent rounded-full animate-spin" />
+          <p className="text-foreground-subtle text-sm">{t("library:books.loading")}</p>
         </div>
       </div>
     );
@@ -349,9 +349,9 @@ export default function BooksSection({
     return (
       <div className="w-full">
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <BookOpen size={22} className="text-zinc-600" />
-          <p className="text-zinc-500 text-sm">{t("library:books.empty")}</p>
-          <p className="text-zinc-600 text-xs">{t("library:books.emptyHint")}</p>
+          <BookOpen size={22} className="text-foreground-subtle" />
+          <p className="text-foreground-subtle text-sm">{t("library:books.empty")}</p>
+          <p className="text-foreground-subtle text-xs">{t("library:books.emptyHint")}</p>
         </div>
       </div>
     );
@@ -362,20 +362,20 @@ export default function BooksSection({
       <div className="flex items-center gap-3 mt-3">
           {mergeMode ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs text-foreground-muted">
                 {t("library:books.selected", { count: selectedForMerge.size })}
               </span>
               <button
                 onClick={handleMergeSelected}
                 disabled={selectedForMerge.size < 2}
-                className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-sm text-sm flex items-center gap-2 transition-colors"
+                className="px-3 py-2 bg-border-strong hover:bg-border-strong disabled:opacity-50 disabled:cursor-not-allowed rounded-sm text-sm flex items-center gap-2 transition-colors"
               >
                 <GitMerge size={14} />
                 {t("library:books.mergeSelected")}
               </button>
               <button
                 onClick={() => { setMergeMode(false); setSelectedForMerge(new Set()); }}
-                className="cursor-pointer px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm transition-colors"
+                className="cursor-pointer px-3 py-2 bg-surface-muted hover:bg-border-strong rounded-sm text-sm transition-colors"
               >
                 Cancelar
               </button>
@@ -383,7 +383,7 @@ export default function BooksSection({
           ) : (
             <button
               onClick={() => setMergeMode(true)}
-              className="cursor-pointer px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-sm text-sm flex items-center gap-2 transition-colors"
+              className="cursor-pointer px-3 py-2 bg-surface-muted hover:bg-border-strong rounded-sm text-sm flex items-center gap-2 transition-colors"
             >
               <GitMerge size={14} />
               {t("library:books.mergeBooks")}
@@ -392,16 +392,16 @@ export default function BooksSection({
         </div>
 
       {duplicatedGroups.length > 0 && (
-        <div className="bg-yellow-900/20 border border-yellow-800 rounded-sm p-4">
+        <div className="bg-warning-muted border border-warning rounded-sm p-4">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-yellow-500" />
-            <h3 className="text-sm font-medium text-yellow-500">
+            <AlertTriangle size={16} className="text-warning" />
+            <h3 className="text-sm font-medium text-warning">
               {t("library:books.duplicatedGroups", {
                 count: duplicatedGroups.length,
               })}
             </h3>
           </div>
-          <p className="text-xs text-zinc-400 mb-3">
+          <p className="text-xs text-foreground-muted mb-3">
             {t("library:books.duplicatedHint")}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -411,15 +411,15 @@ export default function BooksSection({
                 onClick={() => setSelectedGroup(group)}
                 className={`cursor-pointer px-3 py-1 rounded-sm text-xs transition-colors ${
                   selectedGroup?.normalizedTitle === group.normalizedTitle
-                    ? "bg-yellow-600 text-white"
-                    : "bg-yellow-900/50 text-yellow-200 hover:bg-yellow-800"
+                    ? "bg-warning text-warning-foreground"
+                    : "bg-warning text-warning-foreground hover:bg-warning"
                 }`}
               >
                 {group.books[0].title} ({group.books.length})
               </button>
             ))}
             {duplicatedGroups.length > 5 && (
-              <span className="text-xs text-zinc-500 py-1">
+              <span className="text-xs text-foreground-subtle py-1">
                 {t("library:books.moreGroups", {
                   count: duplicatedGroups.length - 5,
                 })}
@@ -430,7 +430,7 @@ export default function BooksSection({
       )}
 
       {selectedGroup && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-sm p-4">
+        <div className="bg-surface border border-border rounded-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium">
               {t("library:books.mergeHeading", {
@@ -439,7 +439,7 @@ export default function BooksSection({
             </h3>
             <button
               onClick={() => { setSelectedGroup(null); onSelectBook?.(null); }}
-              className="cursor-pointer text-zinc-400 hover:text-white p-1"
+              className="cursor-pointer text-foreground-muted hover:text-foreground p-1"
             >
               ✕
             </button>
@@ -451,25 +451,25 @@ export default function BooksSection({
                 onClick={() => onSelectBook?.(book)}
                 className={`p-3 rounded-sm border cursor-pointer flex items-center gap-3 transition-colors ${
                   selectedBook?.id === book.id
-                    ? "border-zinc-500 bg-zinc-800"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                    ? "border-border-strong bg-surface-muted"
+                    : "border-border bg-surface hover:border-border-strong"
                 }`}
               >
                 <div className={`w-4 h-4 rounded border flex items-center justify-center ${
                   selectedBook?.id === book.id
-                    ? "bg-zinc-500 border-zinc-500"
-                    : "border-zinc-600"
+                    ? "bg-foreground-subtle border-border-strong"
+                    : "border-border-strong"
                 }`}>
                   {selectedBook?.id === book.id && <Check size={10} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-zinc-200 truncate">{book.title}</p>
-                  <p className="text-xs text-zinc-500 truncate">
+                  <p className="text-sm text-foreground truncate">{book.title}</p>
+                  <p className="text-xs text-foreground-subtle truncate">
                     {book.author || t("library:stats.unknownAuthor")}
                   </p>
                 </div>
                 {book.thumbnail_url && (
-                  <span className="flex h-12 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900">
+                  <span className="flex h-12 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface">
                     <img src={book.thumbnail_url} alt="" className="h-full w-full object-contain" />
                   </span>
                 )}
@@ -479,7 +479,7 @@ export default function BooksSection({
           {selectedBook && selectedGroup.books.length > 1 && (
             <button
               onClick={() => setShowMergeConfirm(true)}
-              className="cursor-pointer w-full py-2 bg-zinc-700 hover:bg-zinc-600 rounded-sm text-sm flex items-center justify-center gap-2 transition-colors"
+              className="cursor-pointer w-full py-2 bg-border-strong hover:bg-border-strong rounded-sm text-sm flex items-center justify-center gap-2 transition-colors"
             >
               {t("library:books.mergeInto", { title: selectedBook.title })}
             </button>
@@ -497,8 +497,8 @@ export default function BooksSection({
             <div
               key={book.id}
               className={`relative flex flex-col gap-2 group cursor-pointer transition-all ${
-                internalSelectedBook?.id === book.id ? 'ring-2 ring-zinc-500 rounded-sm' : ''
-              } ${isSelectedForMerge ? 'ring-2 ring-blue-500 rounded-sm' : ''}`}
+                internalSelectedBook?.id === book.id ? 'ring-2 ring-border-strong rounded-sm' : ''
+              } ${isSelectedForMerge ? 'ring-2 ring-info rounded-sm' : ''}`}
               onClick={() => {
                 if (mergeMode) {
                   toggleMergeSelection(book.id);
@@ -510,13 +510,13 @@ export default function BooksSection({
               {mergeMode && (
                 <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
                   isSelectedForMerge 
-                    ? 'bg-blue-500 border-blue-500' 
-                    : 'bg-zinc-950/80 border-zinc-500 hover:border-zinc-400'
+                    ? 'bg-info border-info'
+                    : 'bg-background/80 border-border-strong hover:border-border-strong'
                 }`}>
-                  {isSelectedForMerge && <Check size={14} className="text-white" />}
+                  {isSelectedForMerge && <Check size={14} className="text-info-foreground" />}
                 </div>
               )}
-              <div className="relative overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 aspect-[2/3]">
+              <div className="relative overflow-hidden rounded-sm border border-border bg-surface aspect-[2/3]">
                 {book.thumbnail_url ? (
                   <img
                     src={book.thumbnail_url}
@@ -525,19 +525,19 @@ export default function BooksSection({
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <FileText size={28} className="text-zinc-600" />
+                    <FileText size={28} className="text-foreground-subtle" />
                   </div>
                 )}
                 
               </div>
               
-              <p className="text-xs text-zinc-300 line-clamp-2">{book.title}</p>
-              <p className="text-xs text-zinc-500 truncate">
+              <p className="text-xs text-foreground line-clamp-2">{book.title}</p>
+              <p className="text-xs text-foreground-subtle truncate">
                 {book.author || t("library:stats.unknownAuthor")}
               </p>
               
               {linkedDocs.length > 0 && (
-                <p className="text-xs text-green-500 flex items-center gap-1">
+                <p className="text-xs text-primary flex items-center gap-1">
                   <Check size={10} />{" "}
                   {t("library:books.linked", { count: linkedDocs.length })}
                 </p>
@@ -554,20 +554,20 @@ export default function BooksSection({
             <div
               key={doc.fileHash}
               className={`relative flex flex-col gap-2 group cursor-pointer transition-all ${
-                isSelectedForMerge ? 'ring-2 ring-blue-500 rounded-sm' : ''
+                isSelectedForMerge ? 'ring-2 ring-info rounded-sm' : ''
               }`}
               onClick={() => toggleMergeSelection(itemId)}
             >
               {isSelectedForMerge && (
                 <div className={`absolute top-2 left-2 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
                   isSelectedForMerge 
-                    ? 'bg-blue-500 border-blue-500' 
-                    : 'bg-zinc-950/80 border-zinc-500 hover:border-zinc-400'
+                    ? 'bg-info border-info'
+                    : 'bg-background/80 border-border-strong hover:border-border-strong'
                 }`}>
-                  {isSelectedForMerge && <Check size={14} className="text-white" />}
+                  {isSelectedForMerge && <Check size={14} className="text-info-foreground" />}
                 </div>
               )}
-              <div className="relative overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 aspect-[2/3]">
+              <div className="relative overflow-hidden rounded-sm border border-border bg-surface aspect-[2/3]">
                 {localThumbnails[doc.fileHash] ? (
                   <img
                     src={localThumbnails[doc.fileHash]}
@@ -579,15 +579,15 @@ export default function BooksSection({
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <FileText size={28} className="text-zinc-600" />
+                    <FileText size={28} className="text-foreground-subtle" />
                   </div>
                 )}
               </div>
-              <p className="text-xs text-zinc-300 line-clamp-2">{doc.title}</p>
-              <p className="text-xs text-zinc-500 truncate">
+              <p className="text-xs text-foreground line-clamp-2">{doc.title}</p>
+              <p className="text-xs text-foreground-subtle truncate">
                 {t("common:units.page", { count: doc.numPages })}
               </p>
-              <span className="text-xs px-1.5 py-0.5 rounded bg-green-900 text-green-300 w-fit">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-primary-muted text-primary w-fit">
                 {t("library:books.local")}
               </span>
             </div>
@@ -596,12 +596,12 @@ export default function BooksSection({
       </div>
 
       {showMergeConfirm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+          <div className="bg-surface border border-border p-6 rounded-sm max-w-md w-full mx-4">
             <h3 className="text-base font-medium mb-2">
               {t("library:books.confirmMerge")}
             </h3>
-            <p className="text-sm text-zinc-400 mb-4">
+            <p className="text-sm text-foreground-muted mb-4">
               {t("library:books.confirmMergeBody", {
                 title: selectedBook?.title ?? "",
               })}
@@ -609,14 +609,14 @@ export default function BooksSection({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowMergeConfirm(false)}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleMerge}
                 disabled={merging}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary-hover text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? t("library:books.merging") : t("common:actions.confirm")}
               </button>
@@ -626,45 +626,45 @@ export default function BooksSection({
       )}
 
       {editingBook && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+          <div className="bg-surface border border-border p-6 rounded-sm max-w-md w-full mx-4">
             <h3 className="text-base font-medium mb-4">
               {t("library:books.editBook")}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">
+                <label className="block text-xs text-foreground-subtle mb-1">
                   {t("common:fields.title")}
                 </label>
                 <input
                   type="text"
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm"
+                  className="w-full bg-surface-muted border border-border-strong rounded-sm px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">
+                <label className="block text-xs text-foreground-subtle mb-1">
                   {t("common:fields.author")}
                 </label>
                 <input
                   type="text"
                   value={editForm.author}
                   onChange={(e) => setEditForm({ ...editForm, author: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm"
+                  className="w-full bg-surface-muted border border-border-strong rounded-sm px-3 py-2 text-sm"
                 />
               </div>
             </div>
             <div className="flex gap-3 justify-end mt-6">
               <button
                 onClick={() => setEditingBook(null)}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-100 text-zinc-900 hover:bg-white text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted text-foreground hover:bg-surface text-sm transition-colors"
               >
                 {t("common:actions.save")}
               </button>
@@ -674,12 +674,12 @@ export default function BooksSection({
       )}
 
       {showMergeNameDialog && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-sm max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-backdrop flex items-center justify-center z-50">
+          <div className="bg-surface border border-border p-6 rounded-sm max-w-md w-full mx-4">
             <h3 className="text-base font-medium mb-4">
               {t("library:books.mergedBookNameTitle")}
             </h3>
-            <p className="text-sm text-zinc-400 mb-4">
+            <p className="text-sm text-foreground-muted mb-4">
               {t("library:books.mergedBookNameBody", {
                 count: selectedForMerge.size,
               })}
@@ -689,20 +689,20 @@ export default function BooksSection({
               value={mergeFinalName}
               onChange={(e) => setMergeFinalName(e.target.value)}
               placeholder={t("library:books.mergedBookName")}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-sm px-3 py-2 text-sm mb-4"
+              className="w-full bg-surface-muted border border-border-strong rounded-sm px-3 py-2 text-sm mb-4"
               autoFocus
             />
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => { setShowMergeNameDialog(false); setMergeFinalName(""); }}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-zinc-800 hover:bg-zinc-700 text-sm transition-colors"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-surface-muted hover:bg-border-strong text-sm transition-colors"
               >
                 {t("common:actions.cancel")}
               </button>
               <button
                 onClick={executeMerge}
                 disabled={merging || !mergeFinalName.trim()}
-                className="cursor-pointer px-4 py-2 rounded-sm bg-green-500 text-white hover:bg-green-600 text-sm transition-colors disabled:opacity-50"
+                className="cursor-pointer px-4 py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary-hover text-sm transition-colors disabled:opacity-50"
               >
                 {merging ? t("library:books.merging") : t("library:books.merge")}
               </button>

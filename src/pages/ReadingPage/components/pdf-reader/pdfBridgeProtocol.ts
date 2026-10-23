@@ -13,8 +13,10 @@ import {
   CMD_SET_ANNOTATIONS_STATE,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_THEME,
   isOutlineNode,
   isPdfSelectionPayload,
+  isPdfViewerTheme,
   isPdfViewState,
   isRecord,
   PDF_BRIDGE_VERSION,
@@ -31,6 +33,7 @@ export {
   CMD_SET_ANNOTATIONS_STATE,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_THEME,
   EVT_CREATE_CONCEPT,
   EVT_DOCUMENT_READY,
   EVT_OUTLINE_LOADED,
@@ -41,10 +44,12 @@ export {
   EVT_TOGGLE_CHAPTERS,
   PDF_BRIDGE_VERSION,
   PDF_VIEWER_ORIGIN,
+  isPdfViewerTheme,
 };
 export type {
   OutlineNode,
   PdfSelectionPayload,
+  PdfViewerTheme,
   PdfViewState,
 } from "../../../../core/pdf-reader-core/contract";
 

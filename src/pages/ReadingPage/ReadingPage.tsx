@@ -83,10 +83,10 @@ function ReadingContent() {
 
     if (activeTab.loadError) {
       return (
-        <div className="flex h-full items-center justify-center px-6 text-center text-zinc-400">
+        <div className="flex h-full items-center justify-center px-6 text-center text-foreground-muted">
           <div className="space-y-2">
-            <p className="text-base text-zinc-200">Nao foi possivel reabrir esta aba.</p>
-            <p className="text-sm text-zinc-500">{activeTab.loadError}</p>
+            <p className="text-base text-foreground">Nao foi possivel reabrir esta aba.</p>
+            <p className="text-sm text-foreground-subtle">{activeTab.loadError}</p>
           </div>
         </div>
       );
@@ -94,7 +94,7 @@ function ReadingContent() {
 
     if (activeTab.isLoading || (activeTab.fileType === "epub" && !activeTab.buffer)) {
       return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
+        <div className="flex h-full items-center justify-center text-foreground-subtle">
           Carregando {activeTab.fileType.toUpperCase()}...
         </div>
       );
@@ -136,7 +136,7 @@ function ReadingContent() {
       )}
 
       <motion.div
-        className="h-full bg-zinc-950 text-zinc-100"
+        className="h-full bg-background text-foreground"
         initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.16 }}
@@ -153,7 +153,7 @@ function ReadingContent() {
             >
               {/* <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 pl-6">
-                  <BookOpenText size={32} className="text-zinc-300" />
+                  <BookOpenText size={32} className="text-foreground" />
                 </div>
               </div> */}
 
@@ -174,7 +174,7 @@ function ReadingContent() {
 
           {hasOpenTab ? (
             <motion.section
-              className="flex-1 min-h-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl"
+              className="flex-1 min-h-0 overflow-hidden rounded-sm border border-border bg-surface shadow-xl"
               layout
               variants={reduceMotion ? undefined : subtleScale}
               initial={reduceMotion ? false : "hidden"}
@@ -185,14 +185,14 @@ function ReadingContent() {
             </motion.section>
           ) : (
             <motion.section
-              className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-xl"
+              className="overflow-hidden rounded-sm border border-border bg-surface shadow-xl"
               variants={reduceMotion ? undefined : softFadeUp}
               initial={reduceMotion ? false : "hidden"}
               animate="visible"
               transition={reduceMotion ? { duration: 0 } : springFast}
             >
               <motion.div
-                className="p-4 text-sm text-zinc-500"
+                className="p-4 text-sm text-foreground-subtle"
                 initial={reduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: reduceMotion ? 0 : 0.08 }}
@@ -381,7 +381,7 @@ export function ReadingWorkspace({
 
   return (
     <motion.div
-      className={["flex h-full flex-col bg-zinc-950", className].filter(Boolean).join(" ")}
+      className={["flex h-full flex-col bg-background", className].filter(Boolean).join(" ")}
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : 0.16 }}

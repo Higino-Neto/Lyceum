@@ -25,14 +25,14 @@ export default function LibraryHeader({
   };
 
   return (
-    <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
+    <header className="border-b border-border px-6 py-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <BookOpen size={20} className="text-zinc-400" />
+        <BookOpen size={20} className="text-foreground-muted" />
         <h1 className="text-base font-semibold tracking-tight">
           {t("library:header.title")}
         </h1>
-        {/* <span className="text-zinc-700">|</span> */}
-        {/* <span className="text-xs text-zinc-500">
+        {/* <span className="text-foreground">|</span> */}
+        {/* <span className="text-xs text-foreground-subtle">
           {syncedCount + unsyncedCount} volumes
         </span> */}
       </div>
@@ -41,7 +41,7 @@ export default function LibraryHeader({
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
+            className="cursor-pointer p-2 bg-surface-muted text-foreground-muted hover:bg-border-strong rounded-sm transition-colors"
             title={
               showSidebar
                 ? t("library:header.hideFolderPanel")
@@ -54,7 +54,7 @@ export default function LibraryHeader({
 
         <button
           onClick={handleOpenLibraryFolder}
-          className="cursor-pointer p-2 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-sm transition-colors"
+          className="cursor-pointer p-2 bg-surface-muted text-foreground-muted hover:bg-border-strong rounded-sm transition-colors"
           title={t("library:header.openLibraryFolder")}
         >
           <FolderOpen size={18} />
@@ -76,13 +76,13 @@ function ViewModeToggle({
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-sm p-0.5">
+    <div className="flex items-center bg-surface border border-border rounded-sm p-0.5">
       <button
         onClick={() => onChange("grid")}
         className={`p-1.5 cursor-pointer rounded-sm ${
           value === "grid"
-            ? "bg-zinc-700 text-white"
-            : "text-zinc-500 hover:text-zinc-300"
+            ? "bg-border-strong text-foreground"
+            : "text-foreground-subtle hover:text-foreground"
         }`}
         title={t("library:header.gridView")}
         aria-label={t("library:header.gridView")}
@@ -93,8 +93,8 @@ function ViewModeToggle({
         onClick={() => onChange("list")}
         className={`p-1.5 cursor-pointer rounded-sm ${
           value === "list"
-            ? "bg-zinc-700 text-white"
-            : "text-zinc-500 hover:text-zinc-300"
+            ? "bg-border-strong text-foreground"
+            : "text-foreground-subtle hover:text-foreground"
         }`}
         title={t("library:header.listView")}
         aria-label={t("library:header.listView")}

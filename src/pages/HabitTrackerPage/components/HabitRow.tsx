@@ -67,8 +67,8 @@ export function HabitRow({
 
   return (
     <div
-      className={`group/habit grid items-center border-t border-zinc-900/80 transition-colors ${
-        isDropTarget ? "bg-zinc-800/35" : "hover:bg-zinc-950/30"
+      className={`group/habit grid items-center border-t border-border/80 transition-colors ${
+        isDropTarget ? "bg-surface-muted/35" : "hover:bg-background/30"
       } ${isDragging ? "opacity-45" : ""}`}
       style={{ gridTemplateColumns }}
       onDragEnter={onDragEnter}
@@ -81,7 +81,7 @@ export function HabitRow({
             <input
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
-              className="w-full rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+              className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm text-foreground"
               maxLength={48}
               autoFocus
               onKeyDown={(event) => {
@@ -97,7 +97,7 @@ export function HabitRow({
             <button
               type="button"
               onClick={handleSave}
-              className="p-1.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
+              className="p-1.5 hover:bg-border-strong rounded text-foreground cursor-pointer"
               aria-label={t("habits:row.save", { name: habit.name })}
             >
               <Check size={16} />
@@ -108,7 +108,7 @@ export function HabitRow({
                 setDraftName(habit.name);
                 setIsEditing(false);
               }}
-              className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 cursor-pointer"
+              className="p-1.5 hover:bg-border-strong rounded text-foreground-muted cursor-pointer"
               aria-label={t("habits:row.cancelEdit", { name: habit.name })}
             >
               <X size={16} />
@@ -121,19 +121,19 @@ export function HabitRow({
               draggable
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 transition hover:bg-zinc-800 hover:text-zinc-300 cursor-grab active:cursor-grabbing"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground-subtle transition hover:bg-surface-muted hover:text-foreground cursor-grab active:cursor-grabbing"
               aria-label={t("habits:row.reorder", { name: habit.name })}
             >
               <GripVertical size={15} />
             </button>
-            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
               {habitDisplayName}
             </h3>
             <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover/habit:opacity-100 focus-within:opacity-100">
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                className="p-1.5 hover:bg-border-strong rounded text-foreground-muted hover:text-foreground cursor-pointer"
                 aria-label={t("habits:row.rename", { name: habit.name })}
               >
                 <Edit3 size={14} />
@@ -141,7 +141,7 @@ export function HabitRow({
               <button
                 type="button"
                 onClick={onDelete}
-                className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-red-400 cursor-pointer"
+                className="p-1.5 hover:bg-border-strong rounded text-foreground-muted hover:text-destructive cursor-pointer"
                 aria-label={t("habits:row.delete", { name: habit.name })}
               >
                 <Trash2 size={14} />

@@ -553,14 +553,14 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: colors.background, color: colors.foreground }}>
       <ReaderTools onTurn={direction => { if (direction > 0) void renditionRef.current?.next(); else void renditionRef.current?.prev(); }} bookId={bookId} locator={currentCfiRef.current?.startsWith("epubcfi(") ? { format: "epub", cfi: currentCfiRef.current } : undefined} selection={selection} clearSelection={() => { setSelection(undefined); for (const iframe of containerRef.current?.querySelectorAll("iframe") || []) iframe.contentWindow?.getSelection()?.removeAllRanges(); }} history={history} navigate={l => { if (l.format === "epub") void renditionRef.current?.display(l.cfi); }} getText={async () => Array.from(containerRef.current?.querySelectorAll("iframe") || []).map(iframe => iframe.contentDocument?.body.textContent || "").join("\n")} />
-      {footnote && <div role="dialog" aria-label={t("mobile:epub.footnoteAriaLabel")} className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-zinc-900 p-4 text-zinc-100 shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>{t("common:actions.close")}</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
-      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.prev()}>{t("common:actions.previous")}</button><span>{positionLabel}</span><button className="rounded bg-zinc-800 p-3 text-white" onClick={() => void renditionRef.current?.next()}>{t("common:actions.next")}</button></div>}
+      {footnote && <div role="dialog" aria-label={t("mobile:epub.footnoteAriaLabel")} className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-surface p-4 text-foreground shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>{t("common:actions.close")}</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
+      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-surface-muted p-3 text-foreground" onClick={() => void renditionRef.current?.prev()}>{t("common:actions.previous")}</button><span>{positionLabel}</span><button className="rounded bg-surface-muted p-3 text-foreground" onClick={() => void renditionRef.current?.next()}>{t("common:actions.next")}</button></div>}
       {showOverlay && (
-        <div className="absolute inset-0 z-30 flex flex-col bg-zinc-950/95 backdrop-blur shadow-2xl">
+        <div className="absolute inset-0 z-30 flex flex-col bg-overlay backdrop-blur shadow-2xl">
           {/* Header bar */}
           <div className="flex items-center gap-2 px-3 py-3">
             <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
               onClick={onBack}
               type="button"
               aria-label={t("common:actions.back")}
@@ -568,14 +568,14 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               <X size={16} />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-zinc-100">{bookTitle}</p>
-              <div className="mt-1.5 h-1 rounded bg-zinc-800">
-                <div className="h-full rounded bg-green-500" style={{ width: `${progress}%` }} />
+              <p className="truncate text-sm font-semibold text-foreground">{bookTitle}</p>
+              <div className="mt-1.5 h-1 rounded bg-surface-muted">
+                <div className="h-full rounded bg-primary" style={{ width: `${progress}%` }} />
               </div>
             </div>
-            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-zinc-900 text-emerald-300" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
+            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface text-primary" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
             <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
               onClick={() => setTocOpen((value) => !value)}
               type="button"
               aria-label={t("mobile:epub.tocAriaLabel")}
@@ -583,7 +583,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               <List size={16} />
             </button>
             <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
               onClick={() => setSearchOpen((value) => !value)}
               type="button"
               aria-label={t("mobile:epub.searchAriaLabel")}
@@ -591,7 +591,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               {searchOpen ? <X size={16} /> : <Search size={16} />}
             </button>
             <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-zinc-900 text-zinc-100"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
               onClick={() => setShowOverlay(false)}
               type="button"
               aria-label={t("common:actions.close")}
@@ -602,10 +602,10 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
           {/* Search panel */}
           {searchOpen && (
-            <div className="border-t border-zinc-800 px-3 py-3">
+            <div className="border-t border-border px-3 py-3">
               <div className="flex gap-2">
                 <input
-                  className="h-10 min-w-0 flex-1 rounded bg-zinc-900 px-3 text-sm text-zinc-100"
+                  className="h-10 min-w-0 flex-1 rounded bg-surface px-3 text-sm text-foreground"
                   placeholder={t("mobile:epub.searchPlaceholder")}
                   value={query}
                   onChange={(event) => { searchGeneration.current++; setIsSearching(false); setQuery(event.target.value); }}
@@ -614,20 +614,20 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                   }}
                 />
                 <button
-                  className="rounded bg-green-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                  className="rounded bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                   onClick={() => { if (isSearching) { searchGeneration.current++; setIsSearching(false); } else void runSearch(); }}
                   type="button"
                 >
                   {isSearching ? t("common:actions.cancel") : t("mobile:epub.searchGo")}
                 </button>
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-zinc-500">
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-foreground-subtle">
                 <span>{hits.length > 0
                   ? t("mobile:epub.searchProgress", { hit: activeHitIndex + 1, total: hits.length })
                   : t("mobile:epub.searchHint")}</span>
                 <div className="flex gap-1">
                   <button
-                    className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-200 disabled:opacity-40"
+                    className="grid h-8 w-8 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
                     disabled={hits.length === 0}
                     onClick={() => goToHit(activeHitIndex - 1)}
                     type="button"
@@ -635,7 +635,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     <ChevronUp size={15} />
                   </button>
                   <button
-                    className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-200 disabled:opacity-40"
+                    className="grid h-8 w-8 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
                     disabled={hits.length === 0}
                     onClick={() => goToHit(activeHitIndex + 1)}
                     type="button"
@@ -645,7 +645,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 </div>
               </div>
               {hits[activeHitIndex] && (
-                <p className="mt-2 rounded bg-zinc-900 p-2 text-xs leading-5 text-zinc-300">
+                <p className="mt-2 rounded bg-surface p-2 text-xs leading-5 text-foreground">
                   {hits[activeHitIndex].label}: {hits[activeHitIndex].excerpt}
                 </p>
               )}
@@ -653,17 +653,17 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
           )}
 
           {/* Settings */}
-          <div className="flex-1 overflow-y-auto border-t border-zinc-800 px-3 py-4">
-            <label className="mb-4 flex gap-3 text-zinc-200"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> {t("mobile:reader.paginatedLabel")}</label>
+          <div className="flex-1 overflow-y-auto border-t border-border px-3 py-4">
+            <label className="mb-4 flex gap-3 text-foreground"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> {t("mobile:reader.paginatedLabel")}</label>
             {/* Font family */}
             <div className="mb-4">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontFamilyLabel")}</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.fontFamilyLabel")}</label>
               <div className="grid grid-cols-4 gap-2">
                 {fontOptions.map((font) => (
                   <button
                     key={font}
                     className={`h-9 rounded text-sm font-medium ${
-                      settings.fontFamily === font ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                      settings.fontFamily === font ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
                     }`}
                     onClick={() => updateSetting("fontFamily", font)}
                     type="button"
@@ -677,21 +677,21 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             {/* Font size + Line height */}
             <div className="mb-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontSizeLabel")}</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.fontSizeLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   <button
-                    className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
+                    className="grid h-9 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
                     disabled={settings.fontSize <= 60}
                     onClick={() => updateSetting("fontSize", Math.max(60, settings.fontSize - 5))}
                     type="button"
                   >
                     <Minus size={16} />
                   </button>
-                  <div className="grid h-9 place-items-center rounded bg-zinc-900 text-xs text-zinc-200">
+                  <div className="grid h-9 place-items-center rounded bg-surface text-xs text-foreground">
                     {settings.fontSize}%
                   </div>
                   <button
-                    className="grid h-9 place-items-center rounded bg-zinc-900 text-zinc-100 disabled:opacity-40"
+                    className="grid h-9 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
                     disabled={settings.fontSize >= 200}
                     onClick={() => updateSetting("fontSize", Math.min(200, settings.fontSize + 5))}
                     type="button"
@@ -701,9 +701,9 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.lineHeightLabel")}</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.lineHeightLabel")}</label>
                 <button
-                  className="h-9 w-full rounded bg-zinc-900 text-xs font-medium text-zinc-100"
+                  className="h-9 w-full rounded bg-surface text-xs font-medium text-foreground"
                   onClick={() => {
                     const next = settings.lineHeight >= 2.2 ? 1.0 : Number((settings.lineHeight + 0.15).toFixed(2));
                     updateSetting("lineHeight", next);
@@ -718,7 +718,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             {/* Font weight + Word spacing */}
             <div className="mb-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.fontWeightLabel")}</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.fontWeightLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {[
                     { value: 0, label: t("mobile:reader.fontWeights.light") },
@@ -728,7 +728,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     <button
                       key={value}
                       className={`h-9 rounded text-xs font-medium ${
-                        settings.fontWeight === value ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                        settings.fontWeight === value ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
                       }`}
                       onClick={() => updateSetting("fontWeight", value)}
                       type="button"
@@ -739,7 +739,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.wordSpacingLabel")}</label>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.wordSpacingLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {[
                     { value: 0, label: t("mobile:reader.wordSpacings.none") },
@@ -749,7 +749,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     <button
                       key={value}
                       className={`h-9 rounded text-xs font-medium ${
-                        settings.wordSpacing === value ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                        settings.wordSpacing === value ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
                       }`}
                       onClick={() => updateSetting("wordSpacing", value)}
                       type="button"
@@ -763,13 +763,13 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
             {/* Theme */}
             <div className="mb-4">
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.themeLabel")}</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.themeLabel")}</label>
               <div className="grid grid-cols-3 gap-2">
                 {(["paper", "dark", "sepia"] as ReaderTheme[]).map((item) => (
                   <button
                     key={item}
                     className={`flex h-9 items-center justify-center gap-2 rounded text-sm font-medium ${
-                      settings.theme === item ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                      settings.theme === item ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
                     }`}
                     onClick={() => updateSetting("theme", item)}
                     type="button"
@@ -783,13 +783,13 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
 
             {/* Margins */}
             <div>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{t("mobile:reader.marginsLabel")}</label>
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.marginsLabel")}</label>
               <div className="grid grid-cols-3 gap-2">
                 {(["compact", "medium", "wide"] as MarginLevel[]).map((level) => (
                   <button
                     key={level}
                     className={`h-9 rounded text-sm font-medium ${
-                      settings.marginLevel === level ? "bg-green-600 text-white" : "bg-zinc-900 text-zinc-200"
+                      settings.marginLevel === level ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
                     }`}
                     onClick={() => updateSetting("marginLevel", level)}
                     type="button"
@@ -809,12 +809,12 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
           className="h-full w-full"
         />
         {!ready && !error && (
-          <div className="absolute inset-0 grid place-items-center text-sm text-zinc-500">
+          <div className="absolute inset-0 grid place-items-center text-sm text-foreground-subtle">
             {t("mobile:epub.preparing")}
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-zinc-600">
+          <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-foreground-subtle">
             {error}
           </div>
         )}
@@ -831,15 +831,15 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       </div>
 
       {tocOpen && (
-        <div className="absolute inset-0 z-20 bg-zinc-950/80 backdrop-blur-sm">
-          <div className="absolute inset-y-0 left-0 w-[86%] max-w-sm md:max-w-md lg:max-w-xl overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-3 shadow-2xl">
+        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm">
+          <div className="absolute inset-y-0 left-0 w-[86%] max-w-sm md:max-w-md lg:max-w-xl overflow-y-auto border-r border-border bg-background p-3 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <BookMarked size={17} />
                 Sumario
               </div>
               <button
-                className="grid h-8 w-8 place-items-center rounded bg-zinc-900 text-zinc-100"
+                className="grid h-8 w-8 place-items-center rounded bg-surface text-foreground"
                 onClick={() => setTocOpen(false)}
                 type="button"
                 aria-label={t("mobile:epub.closeTocAriaLabel")}
@@ -848,13 +848,13 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               </button>
             </div>
             {tocItems.length === 0 ? (
-              <p className="rounded bg-zinc-900 p-3 text-sm text-zinc-400">{t("mobile:epub.noToc")}</p>
+              <p className="rounded bg-surface p-3 text-sm text-foreground-muted">{t("mobile:epub.noToc")}</p>
             ) : (
               <div className="space-y-1">
                 {tocItems.map((item, index) => (
                   <button
                     key={`${item.href}-${index}`}
-                    className="w-full rounded px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-900"
+                    className="w-full rounded px-3 py-2 text-left text-sm text-foreground hover:bg-surface"
                     style={{ paddingLeft: 12 + item.depth * 14 }}
                     onClick={() => displayTarget(item.href)}
                     type="button"

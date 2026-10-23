@@ -74,7 +74,7 @@ export default function Dashboard() {
   return (
     <SelectedUsersProvider>
       <motion.div
-        className="min-h-screen bg-zinc-950 text-zinc-100"
+        className="min-h-screen bg-background text-foreground"
         initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.18 }}
@@ -93,14 +93,14 @@ export default function Dashboard() {
               {isLoading ? (
                 <>
                   <motion.div
-                    className="rounded-sm border border-zinc-800 bg-zinc-900 md:col-span-2"
+                    className="rounded-sm border border-border bg-surface md:col-span-2"
                     variants={reduceMotion ? undefined : softFadeUp}
                     transition={panelTransition}
                   >
-                    <div className="m-8 h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                    <div className="m-8 h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </motion.div>
                   <motion.div
-                    className="overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-900"
+                    className="overflow-y-auto rounded-sm border border-border bg-surface"
                     variants={reduceMotion ? undefined : softFadeUp}
                     transition={panelTransition}
                   >
@@ -110,7 +110,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   <motion.div
-                    className="rounded-sm border border-zinc-800 bg-zinc-900 md:col-span-2"
+                    className="rounded-sm border border-border bg-surface md:col-span-2"
                     variants={reduceMotion ? undefined : softFadeUp}
                     transition={panelTransition}
                     whileHover={hoverMotion}
@@ -118,7 +118,7 @@ export default function Dashboard() {
                     <ReadingCharts />
                   </motion.div>
                   <motion.div
-                    className="overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-900"
+                    className="overflow-y-auto rounded-sm border border-border bg-surface"
                     variants={reduceMotion ? undefined : softFadeUp}
                     transition={panelTransition}
                     whileHover={hoverMotion}
@@ -128,7 +128,7 @@ export default function Dashboard() {
                 </>
               )}
               <motion.div
-                className="h-full rounded-sm border border-zinc-800 bg-zinc-900"
+                className="h-full rounded-sm border border-border bg-surface"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}
@@ -136,7 +136,7 @@ export default function Dashboard() {
                 <ReadingHeatMap />
               </motion.div>
               <motion.div
-                className="h-full rounded-sm bg-zinc-900"
+                className="h-full rounded-sm bg-surface"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}
@@ -144,7 +144,7 @@ export default function Dashboard() {
                 <WeeklyStreak />
               </motion.div>
               <motion.div
-                className="h-full rounded-sm bg-zinc-900"
+                className="h-full rounded-sm bg-surface"
                 variants={reduceMotion ? undefined : softFadeUp}
                 transition={panelTransition}
                 whileHover={hoverMotion}
@@ -158,22 +158,22 @@ export default function Dashboard() {
               transition={panelTransition}
             >
               <motion.div
-                className="rounded-sm border border-zinc-800 bg-zinc-900 p-4"
+                className="rounded-sm border border-border bg-surface p-4"
                 whileHover={hoverMotion}
               >
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <BookOpen
                       size={ICON_SIZE}
-                      className="text-zinc-500"
+                      className="text-foreground-subtle"
                       strokeWidth={STROKE_WIDTH}
                     />
-                    {/* <h2 className="text-zinc-500">Registros de Leitura</h2> */}
+                    {/* <h2 className="text-foreground-subtle">Registros de Leitura</h2> */}
                   </div>
                   <div className="flex items-center gap-2">
                      <motion.button
                        onClick={handleCopyDailyReadings}
-                       className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-md text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
+                       className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-border-strong bg-surface-muted px-3 py-1.5 text-md text-foreground transition hover:bg-border-strong hover:text-foreground"
                        title={
                          settings.copyYesterdayReadings
                            ? t("dashboard:actions.copyYesterday")
@@ -185,7 +185,7 @@ export default function Dashboard() {
                      </motion.button>
                     <motion.button
                       onClick={() => navigate("/add_reading")}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-green-600 px-3 py-1.5 text-md font-medium text-black transition hover:bg-green-500"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-md font-medium text-primary-foreground transition hover:bg-primary-hover"
                     >
                       <Plus size={16} />
                       {t("dashboard:actions.register")}

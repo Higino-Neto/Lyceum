@@ -14,6 +14,7 @@ import { installNavigationFeature } from "./features/navigation/index.mjs";
 import { installOutlineFeature } from "./features/outline/index.mjs";
 import { installZoomFeature } from "./features/zoom/index.mjs";
 import { installStateEventsFeature } from "./features/state-events/index.mjs";
+import { installThemeFeature } from "./features/theme/index.mjs";
 
 import { installBookEdgeFeature } from "./features/book-edge/index.mjs";
 
@@ -31,6 +32,7 @@ document.addEventListener(
   () => {
     configureBeforeRun();
 
+    installThemeFeature({ bus });
     installSelectionFeature({ bus, facade: fac, state });
     const toolbarHandle = installToolbarFeature({ bus, facade: fac, title });
     installAnnotationsFeature({ bus, state });

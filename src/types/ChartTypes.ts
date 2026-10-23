@@ -1,12 +1,12 @@
 import type { TranslationKey } from "../i18n";
 
 export const CHART_COLORS = [
-  "var(--accent-500)",
-  "#3b82f6",
-  "#8b5cf6",
-  "#f59e0b",
-  "#06b6d4",
-  "#ec4899",
+  "var(--primary)",
+  "var(--info)",
+  "var(--warning)",
+  "var(--success)",
+  "var(--destructive)",
+  "var(--foreground-muted)",
 ];
 
 export type ChartType = 

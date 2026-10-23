@@ -529,7 +529,7 @@ export default function BookGrid({
 
     return (
       <section className="mb-4">
-        <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-foreground-subtle">
           Pastas
         </h2>
         <div
@@ -628,7 +628,7 @@ export default function BookGrid({
   };
 
   const folderBookSeparator = hasFolders && hasBooks ? (
-    <div className="my-4 border-t border-zinc-800/80" aria-hidden="true" />
+    <div className="my-4 border-t border-border/80" aria-hidden="true" />
   ) : null;
 
   const folderContextMenu = contextMenu.visible && contextMenu.folder ? (
@@ -688,7 +688,7 @@ export default function BookGrid({
   ) : null;
 
   const loadingIndicator = loadingMore ? (
-    <div className="flex items-center justify-center gap-2 py-4 text-xs text-zinc-500">
+    <div className="flex items-center justify-center gap-2 py-4 text-xs text-foreground-subtle">
       <RefreshCw size={14} className="animate-spin" />
       {t("library:list.loadingMore")}
     </div>
@@ -705,8 +705,8 @@ export default function BookGrid({
         >
           <div ref={staticContentRef}>{topContent}</div>
           <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-20">
-            <BookOpen size={22} className="text-zinc-600" />
-            <p className="text-sm text-zinc-500">{t("library:list.empty")}</p>
+            <BookOpen size={22} className="text-foreground-subtle" />
+            <p className="text-sm text-foreground-subtle">{t("library:list.empty")}</p>
           </div>
           {folderContextMenu}
           {dropActionMenu}
@@ -782,7 +782,7 @@ export default function BookGrid({
           <div ref={staticContentRef} className="space-y-1">
             {topContent}
             <div
-              className="sticky top-0 z-10 grid rounded-sm border border-zinc-800 bg-zinc-950/95 text-xs uppercase tracking-wide text-zinc-500"
+              className="sticky top-0 z-10 grid rounded-sm border border-border bg-overlay text-xs uppercase tracking-wide text-foreground-subtle"
               style={{ gridTemplateColumns: listGridTemplate }}
             >
               {visibleListHeaders.map((header) => (
@@ -791,7 +791,7 @@ export default function BookGrid({
                   {listLayout === "full" && (
                   <button
                     type="button"
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-zinc-800 hover:border-green-500"
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-border hover:border-primary"
                     onPointerDown={(event) => startResize(header.key, header.min, event)}
                     aria-label={t("library:list.resizeColumn", {
                       column: t(header.labelKey),

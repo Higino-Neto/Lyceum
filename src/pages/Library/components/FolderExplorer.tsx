@@ -85,18 +85,18 @@ export function FolderPathBar({
   );
 
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-zinc-900 pb-3">
+    <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
       <button
         type="button"
         onClick={() => onFolderSelect(parentPath)}
         disabled={!selectedFolder}
-        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-border bg-surface text-foreground-muted transition-colors hover:border-border-strong hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         title={t("library:folderTree.upOneLevel")}
       >
         <ArrowUp size={16} />
       </button>
 
-      <nav className="flex min-w-0 flex-1 items-center overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 px-2">
+      <nav className="flex min-w-0 flex-1 items-center overflow-hidden rounded-sm border border-border bg-surface px-2">
         {breadcrumbs.map((crumb, index) => {
           const isLast = index === breadcrumbs.length - 1;
 
@@ -108,7 +108,7 @@ export function FolderPathBar({
               {index > 0 && (
                 <ChevronRight
                   size={13}
-                  className="mx-1 flex-shrink-0 text-zinc-600"
+                  className="mx-1 flex-shrink-0 text-foreground-subtle"
                 />
               )}
               <button
@@ -117,8 +117,8 @@ export function FolderPathBar({
                 disabled={isLast}
                 className={`min-w-0 truncate rounded-sm px-2 py-2 text-left text-xs transition-colors ${
                   isLast
-                    ? "cursor-default font-medium text-zinc-100"
-                    : "cursor-pointer text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                    ? "cursor-default font-medium text-foreground"
+                    : "cursor-pointer text-foreground-muted hover:bg-surface-muted hover:text-foreground"
                 }`}
                 title={crumb.label}
               >
@@ -133,7 +133,7 @@ export function FolderPathBar({
         <button
           type="button"
           onClick={() => onCreateFolder(selectedFolder)}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-green-500/60 hover:bg-green-500/10 hover:text-green-200"
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors hover:border-primary/60 hover:bg-primary-muted hover:text-primary"
         >
           <FolderPlus size={15} />
           {t("library:folders.newFolder")}
@@ -144,7 +144,7 @@ export function FolderPathBar({
         <button
           type="button"
           onClick={() => onImportBook(selectedFolder)}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100"
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors hover:border-border-strong hover:bg-surface-muted hover:text-foreground"
         >
           <FilePlus size={15} />
           {t("library:folders.addBook")}
@@ -227,18 +227,18 @@ export function FolderGrid({
   return (
     <section className="mb-5">
       <div className="mb-2 flex items-center justify-between px-2">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
           Pastas
         </h2>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-zinc-600">
+          <span className="text-[11px] text-foreground-subtle">
             {folders.length} pasta{folders.length !== 1 ? "s" : ""}
           </span>
           {onCollapsedChange && folders.length > 0 && (
             <button
               type="button"
               onClick={() => onCollapsedChange(!collapsed)}
-              className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              className="rounded px-2 py-1 text-[11px] text-foreground-muted hover:bg-surface-muted hover:text-foreground"
               aria-expanded={!collapsed}
             >
               {collapsed ? t("library:folders.show") : t("library:folders.hide")}
@@ -248,7 +248,7 @@ export function FolderGrid({
       </div>
 
       {collapsed ? null : folders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-zinc-800 bg-zinc-950/30 py-10 text-zinc-500">
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-background/30 py-10 text-foreground-subtle">
           <Folder size={32} strokeWidth={1.2} className="mb-3" />
           <p className="text-sm">Nenhuma subpasta</p>
         </div>

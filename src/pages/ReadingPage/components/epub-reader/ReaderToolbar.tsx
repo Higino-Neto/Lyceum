@@ -88,22 +88,22 @@ export default function ReaderToolbar({
   const getLanguageName = (code: LanguageCode) => getLanguageDisplayName(code, i18n.language);
 
   const triggerClasses =
-    "inline-flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800";
+    "inline-flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-sm text-foreground transition hover:bg-surface-muted";
 
   return (
-    <div className="border-b border-zinc-800 bg-zinc-900/95">
+    <div className="border-b border-border bg-overlay">
       <div className="flex flex-wrap items-center gap-2 p-3">
-        <div className="flex items-center gap-2 text-sm text-zinc-400 tabular-nums">
+        <div className="flex items-center gap-2 text-sm text-foreground-muted tabular-nums">
           {totalLocations > 0 && (
-            <span className="font-medium text-zinc-200">
+            <span className="font-medium text-foreground">
               {currentLocation}
-              <span className="text-zinc-500">/{totalLocations}</span>
+              <span className="text-foreground-subtle">/{totalLocations}</span>
             </span>
           )}
-          <span className="font-medium text-zinc-200">{readingProgress}%</span>
-          <div className="h-3 w-24 overflow-hidden rounded-full bg-zinc-800">
+          <span className="font-medium text-foreground">{readingProgress}%</span>
+          <div className="h-3 w-24 overflow-hidden rounded-full bg-surface-muted">
             <div
-              className="h-full rounded-full bg-zinc-400 transition-all"
+              className="h-full rounded-full bg-foreground-muted transition-all"
               style={{ width: `${readingProgress}%` }}
             />
           </div>
@@ -117,26 +117,26 @@ export default function ReaderToolbar({
           >
             <Type size={16} />
             <span>{settings.fontSize}%</span>
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "fontSize" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-surface p-3 shadow-2xl">
               <div className="mb-3 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => onFontSizeChange(Math.max(80, settings.fontSize - 10))}
-                  className="rounded-sm p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+                  className="rounded-sm p-1 text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
                 >
                   <Minus size={16} />
                 </button>
-                <span className="text-sm font-medium text-zinc-100">
+                <span className="text-sm font-medium text-foreground">
                   {settings.fontSize}%
                 </span>
                 <button
                   type="button"
                   onClick={() => onFontSizeChange(Math.min(200, settings.fontSize + 10))}
-                  className="rounded-sm p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+                  className="rounded-sm p-1 text-foreground-muted transition hover:bg-surface-muted hover:text-foreground"
                 >
                   <Plus size={16} />
                 </button>
@@ -149,7 +149,7 @@ export default function ReaderToolbar({
                 step="10"
                 value={settings.fontSize}
                 onChange={(event) => onFontSizeChange(Number(event.target.value))}
-                className="w-full accent-zinc-400"
+                className="w-full accent-primary"
               />
             </div>
           )}
@@ -168,11 +168,11 @@ export default function ReaderToolbar({
                 return font?.labelKey ? t(font.labelKey) : font?.value;
               })()}
             </span>
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "font" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-zinc-800 bg-zinc-900 p-2 shadow-2xl">
+            <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-border bg-surface p-2 shadow-2xl">
               {FONT_OPTIONS.map((font) => {
                 const isActive = settings.fontFamily === font.value;
 
@@ -186,13 +186,13 @@ export default function ReaderToolbar({
                     }}
                     className={`mb-1 flex w-full items-center justify-between rounded-sm px-3 py-2 text-left transition ${
                       isActive
-                        ? "bg-zinc-800 text-zinc-100"
-                        : "text-zinc-300 hover:bg-zinc-800/80"
+                        ? "bg-surface-muted text-foreground"
+                        : "text-foreground hover:bg-surface-muted/80"
                     }`}
                     style={{ fontFamily: getFontStack(font.value) }}
                   >
                     <span>{font.labelKey ? t(font.labelKey) : font.value}</span>
-                    <span className="text-xs text-zinc-500">Aa</span>
+                    <span className="text-xs text-foreground-subtle">Aa</span>
                   </button>
                 );
               })}
@@ -208,16 +208,16 @@ export default function ReaderToolbar({
           >
             <div className="flex items-center gap-2">
               <div
-                className="h-4 w-4 rounded-full border border-zinc-600"
+                className="h-4 w-4 rounded-full border border-border-strong"
                 style={{ backgroundColor: THEME_COLORS[settings.theme].background }}
               />
               <span className="capitalize">{t(THEME_LABEL_KEYS[settings.theme])}</span>
             </div>
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "theme" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-40 rounded-sm border border-zinc-800 bg-zinc-900 p-2 shadow-2xl">
+            <div className="absolute left-0 top-full z-50 mt-2 w-40 rounded-sm border border-border bg-surface p-2 shadow-2xl">
               {(["light", "dark", "sepia"] as ThemeName[]).map((theme) => {
                 const isActive = settings.theme === theme;
 
@@ -231,12 +231,12 @@ export default function ReaderToolbar({
                     }}
                     className={`mb-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm transition ${
                       isActive
-                        ? "bg-zinc-800 text-zinc-100"
-                        : "text-zinc-300 hover:bg-zinc-800/80"
+                        ? "bg-surface-muted text-foreground"
+                        : "text-foreground hover:bg-surface-muted/80"
                     }`}
                   >
                     <div
-                      className="h-4 w-4 rounded-full border border-zinc-600"
+                      className="h-4 w-4 rounded-full border border-border-strong"
                       style={{ backgroundColor: THEME_COLORS[theme].background }}
                     />
                     <span className="capitalize">{t(THEME_LABEL_KEYS[theme])}</span>
@@ -255,12 +255,12 @@ export default function ReaderToolbar({
             title={t("epub:toolbar.spacing")}
           >
             <ArrowUpDown size={16} />
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "spacing" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
-              <label className="mb-3 block text-sm text-zinc-400">
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-surface p-3 shadow-2xl">
+              <label className="mb-3 block text-sm text-foreground-muted">
                 {t("epub:toolbar.lineHeight", { value: settings.lineHeight })}
               </label>
               <input
@@ -270,7 +270,7 @@ export default function ReaderToolbar({
                 step="0.1"
                 value={settings.lineHeight}
                 onChange={(event) => onLineHeightChange(Number(event.target.value))}
-                className="w-full accent-zinc-400"
+                className="w-full accent-primary"
               />
             </div>
           )}
@@ -284,12 +284,12 @@ export default function ReaderToolbar({
             title={t("epub:toolbar.contentWidth")}
           >
             <ArrowLeftRight size={16} />
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "width" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
-              <label className="mb-3 block text-sm text-zinc-400">
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-surface p-3 shadow-2xl">
+              <label className="mb-3 block text-sm text-foreground-muted">
                 {t("epub:toolbar.contentWidthValue", { value: settings.contentWidth })}
               </label>
               <input
@@ -299,7 +299,7 @@ export default function ReaderToolbar({
                 step="5"
                 value={settings.contentWidth}
                 onChange={(event) => onContentWidthChange(Number(event.target.value))}
-                className="w-full accent-zinc-400"
+                className="w-full accent-primary"
               />
             </div>
           )}
@@ -313,15 +313,15 @@ export default function ReaderToolbar({
           >
             <Languages size={16} />
             <span>{getLanguageName(settings.sourceLanguage)}</span>
-            <ArrowRight size={14} className="text-zinc-500" />
+            <ArrowRight size={14} className="text-foreground-subtle" />
             <span>{getLanguageName(settings.targetLanguage)}</span>
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={14} className="text-foreground-subtle" />
           </button>
 
           {openMenu === "language" && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-zinc-800 bg-zinc-900 p-3 shadow-2xl">
+            <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-sm border border-border bg-surface p-3 shadow-2xl">
               <div className="mb-3">
-                <label className="mb-2 block text-xs text-zinc-500">
+                <label className="mb-2 block text-xs text-foreground-subtle">
                   {t("epub:toolbar.sourceLanguage")}
                 </label>
                 <div className="grid grid-cols-2 gap-1">
@@ -334,8 +334,8 @@ export default function ReaderToolbar({
                       }}
                       className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-xs transition ${
                         settings.sourceLanguage === lang.code
-                          ? "bg-zinc-700 text-zinc-100"
-                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                          ? "bg-border-strong text-foreground"
+                          : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
                       }`}
                     >
                       <span>{lang.flag}</span>
@@ -346,7 +346,7 @@ export default function ReaderToolbar({
               </div>
 
               <div>
-                <label className="mb-2 block text-xs text-zinc-500">
+                <label className="mb-2 block text-xs text-foreground-subtle">
                   {t("epub:toolbar.targetLanguage")}
                 </label>
                 <div className="grid grid-cols-2 gap-1">
@@ -359,8 +359,8 @@ export default function ReaderToolbar({
                       }}
                       className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-xs transition ${
                         settings.targetLanguage === lang.code
-                          ? "bg-zinc-700 text-zinc-100"
-                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                          ? "bg-border-strong text-foreground"
+                          : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
                       }`}
                     >
                       <span>{lang.flag}</span>
@@ -380,21 +380,21 @@ export default function ReaderToolbar({
               onClick={() => toggleMenu("settings")}
               className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
                 openMenu === "settings"
-                  ? "border-zinc-500/40 bg-zinc-500/10 text-zinc-200"
-                  : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                  ? "border-border-strong/40 bg-foreground-subtle/10 text-foreground"
+                  : "border-border bg-surface text-foreground hover:bg-surface-muted"
               }`}
             >
               <Settings size={16} />
               <ChevronRight
                 size={14}
-                className={`text-zinc-500 transition-transform ${
+                className={`text-foreground-subtle transition-transform ${
                   openMenu === "settings" ? "rotate-90" : ""
                 }`}
               />
             </button>
 
             {openMenu === "settings" && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-sm border border-zinc-800 bg-zinc-900 p-2 shadow-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-sm border border-border bg-surface p-2 shadow-2xl">
                 <button
                   type="button"
                   onClick={() => {
@@ -402,8 +402,8 @@ export default function ReaderToolbar({
                   }}
                   className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
                     settings.showHighlights
-                      ? "bg-zinc-800 text-zinc-100"
-                      : "text-zinc-300 hover:bg-zinc-800/80"
+                      ? "bg-surface-muted text-foreground"
+                      : "text-foreground hover:bg-surface-muted/80"
                   }`}
                 >
                   {settings.showHighlights ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -412,8 +412,8 @@ export default function ReaderToolbar({
                     : t("epub:toolbar.showHighlights")}
                 </button>
 
-                <div className="my-1 h-px bg-zinc-800" />
-                <p className="px-3 py-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                <div className="my-1 h-px bg-surface-muted" />
+                <p className="px-3 py-1 text-xs uppercase tracking-[0.16em] text-foreground-subtle">
                   {t("epub:toolbar.readingMode")}
                 </p>
 
@@ -429,8 +429,8 @@ export default function ReaderToolbar({
                     }}
                     className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
                       settings.epubReadingMode === mode
-                        ? "bg-zinc-800 text-zinc-100"
-                        : "text-zinc-300 hover:bg-zinc-800/80"
+                        ? "bg-surface-muted text-foreground"
+                        : "text-foreground hover:bg-surface-muted/80"
                     }`}
                   >
                     <Icon size={16} />
@@ -446,8 +446,8 @@ export default function ReaderToolbar({
                   }}
                   className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm transition ${
                     isVocabularyPanelOpen
-                      ? "bg-zinc-800 text-zinc-100"
-                      : "text-zinc-300 hover:bg-zinc-800/80"
+                      ? "bg-surface-muted text-foreground"
+                      : "text-foreground hover:bg-surface-muted/80"
                   }`}
                 >
                   <BookMarked size={16} />
@@ -462,8 +462,8 @@ export default function ReaderToolbar({
             onClick={onToggleToc}
             className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
               isTocOpen
-                ? "border-zinc-600 bg-zinc-800 text-zinc-100"
-                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "border-border-strong bg-surface-muted text-foreground"
+                : "border-border bg-surface text-foreground hover:bg-surface-muted"
             }`}
             title={t("epub:toolbar.toc")}
           >
@@ -475,8 +475,8 @@ export default function ReaderToolbar({
             onClick={() => onFocusModeChange(!settings.focusMode)}
             className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition ${
               settings.focusMode
-                ? "border-green-600 bg-green-900/50 text-green-400"
-                : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "border-primary bg-primary-muted text-primary"
+                : "border-border bg-surface text-foreground hover:bg-surface-muted"
             }`}
             title={t("epub:toolbar.focusMode")}
           >

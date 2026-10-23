@@ -37,7 +37,7 @@ function CollectionThumbnailTile({ book }: { book: BookWithThumbnail }) {
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
 
   return (
-    <div ref={thumbnailRef} className="min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+    <div ref={thumbnailRef} className="min-h-0 min-w-0 overflow-hidden bg-background">
       {thumbnail ? (
         <img
           src={thumbnail}
@@ -46,7 +46,7 @@ function CollectionThumbnailTile({ book }: { book: BookWithThumbnail }) {
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
-          <FileText size={18} className="text-zinc-700" />
+          <FileText size={18} className="text-foreground" />
         </div>
       )}
     </div>
@@ -63,13 +63,13 @@ function CollectionThumbnailGrid({
   if (previewBooks.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <FileText size={28} className="text-zinc-600" />
+        <FileText size={28} className="text-foreground-subtle" />
       </div>
     );
   }
 
   return (
-    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-zinc-800">
+    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-surface-muted">
       {previewBooks.map((previewBook) => (
         <CollectionThumbnailTile
           key={previewBook.fileHash}
@@ -77,7 +77,7 @@ function CollectionThumbnailGrid({
         />
       ))}
       {Array.from({ length: Math.max(0, 4 - previewBooks.length) }).map((_, index) => (
-        <div key={`empty-${index}`} className="bg-zinc-950" />
+        <div key={`empty-${index}`} className="bg-background" />
       ))}
     </div>
   );
@@ -125,17 +125,17 @@ function BookCard({
   const statusIcon = (() => {
     switch (effectiveStatus) {
       case "reading":
-        return { Icon: BookOpen, color: "text-green-400" };
+        return { Icon: BookOpen, color: "text-primary" };
       case "want_to_read":
-        return { Icon: BookmarkCheck, color: "text-amber-400" };
+        return { Icon: BookmarkCheck, color: "text-warning" };
       case "read":
-        return { Icon: CheckCircle, color: "text-green-500" };
+        return { Icon: CheckCircle, color: "text-primary" };
       case "paused":
-        return { Icon: PauseCircle, color: "text-yellow-400" };
+        return { Icon: PauseCircle, color: "text-warning" };
       case "not_a_book":
-        return { Icon: Ban, color: "text-zinc-500" };
+        return { Icon: Ban, color: "text-foreground-subtle" };
       case "unknown":
-        return { Icon: CircleHelp, color: "text-zinc-600" };
+        return { Icon: CircleHelp, color: "text-foreground-subtle" };
       default:
         return null;
     }
@@ -157,10 +157,10 @@ function BookCard({
 
   return (
     <div
-      className={`lyceum-interactive-card bg-zinc-900 group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
-          isSelected ? "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""
-        } ${isChecked ? "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-950 rounded-sm" : ""} ${
-          isCollection ? "border border-dashed border-zinc-700/40 hover:border-green-500/40" : ""
+      className={`lyceum-interactive-card bg-surface group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
+          isSelected ? "ring-2 ring-border-strong ring-offset-2 ring-offset-surface rounded-sm" : ""
+        } ${isChecked ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface rounded-sm" : ""} ${
+          isCollection ? "border border-dashed border-border-strong/40 hover:border-primary/40" : ""
         }`}
       onClick={handleClick}
       onContextMenu={(e) => {
@@ -196,22 +196,22 @@ function BookCard({
         <div
           className={`lyceum-selection-mark absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
             isChecked
-              ? "border-green-500 bg-green-500 text-zinc-950"
-              : "border-zinc-600 bg-zinc-950/80 text-transparent"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border-strong bg-background/80 text-transparent"
           }`}
         >
           <Check size={15} />
         </div>
       )}
 
-      <div ref={thumbnailRef} className={`relative aspect-[2/3] overflow-hidden rounded-sm border bg-zinc-900 ${
-          showCollectionGrid ? "border-dashed border-zinc-700/60" : "border-zinc-800"
+      <div ref={thumbnailRef} className={`relative aspect-[2/3] overflow-hidden rounded-sm border bg-surface ${
+          showCollectionGrid ? "border-dashed border-border-strong/60" : "border-border"
         }`}>
         {showCollectionGrid ? (
           <div className="relative h-full w-full">
             <CollectionThumbnailGrid books={book.mergedBooks || []} />
-            <div className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-sm bg-zinc-900/90 border border-zinc-700/60 shadow-sm">
-              <Folder size={13} className="text-green-400" />
+            <div className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-sm bg-overlay border border-border-strong/60 shadow-sm">
+              <Folder size={13} className="text-primary" />
             </div>
           </div>
         ) : thumbnail ? (
@@ -222,23 +222,23 @@ function BookCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <FileText size={28} className="text-zinc-600" />
+            <FileText size={28} className="text-foreground-subtle" />
           </div>
         )}
         
         {book.processingStatus === "processing" && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 bg-backdrop flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-border border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {statusIcon && (
-          <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-zinc-950/90 p-1 border border-zinc-800/80 shadow-md" title={t(READING_STATUS_LABEL_KEYS[effectiveStatus])}>
+          <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-overlay p-1 border border-border/80 shadow-md" title={t(READING_STATUS_LABEL_KEYS[effectiveStatus])}>
             <statusIcon.Icon size={16} className={`${statusIcon.color} drop-shadow-sm`} />
           </div>
         )}
         {book.processingStatus === "failed" && (
           <div className="absolute top-1.5 left-1.5 z-20" title={t("library:toasts.corruptedFile")}>
-            <AlertTriangle size={15} className="text-amber-400 drop-shadow-sm" />
+            <AlertTriangle size={15} className="text-warning drop-shadow-sm" />
           </div>
         )}
         
@@ -250,13 +250,13 @@ function BookCard({
                 e.preventDefault();
                 setMenuOpen(!menuOpen);
               }}
-              className="p-1 cursor-pointer bg-zinc-800 rounded hover:bg-zinc-700"
+              className="p-1 cursor-pointer bg-surface-muted rounded hover:bg-border-strong"
             >
               <MoreVertical size={14} />
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-sm shadow-lg z-30"
+                className="absolute right-0 mt-1 w-36 bg-surface-muted border border-border-strong rounded-sm shadow-lg z-30"
                 onMouseLeave={() => setMenuOpen(false)}
               >
                 <button
@@ -266,7 +266,7 @@ function BookCard({
                     onSync(book, "move");
                     setMenuOpen(false);
                   }}
-                  className="flex cursor-pointer items-center gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700 rounded-t-sm"
+                  className="flex cursor-pointer items-center gap-2 w-full px-3 py-2 text-xs hover:bg-border-strong rounded-t-sm"
                 >
                   <Move size={12} /> Mover para library
                 </button>
@@ -277,7 +277,7 @@ function BookCard({
                     onSync(book, "copy");
                     setMenuOpen(false);
                   }}
-                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-zinc-700"
+                  className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-border-strong"
                 >
                   <Copy size={12} /> Copiar para library
                 </button>
@@ -289,7 +289,7 @@ function BookCard({
                       onDelete(book);
                       setMenuOpen(false);
                     }}
-                    className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 rounded-b-sm border-t border-zinc-700"
+                    className="flex items-center cursor-pointer gap-2 w-full px-3 py-2 text-xs hover:bg-destructive-muted text-destructive rounded-b-sm border-t border-border-strong"
                   >
                     <Trash2 size={12} /> Remover
                   </button>
@@ -301,17 +301,17 @@ function BookCard({
       </div>
 
       <div className="flex h-[72px] flex-col">
-        <p className={`text-xs leading-4 ${isCollection ? "font-medium text-zinc-100" : "text-zinc-300"} line-clamp-2`}>
+        <p className={`text-xs leading-4 ${isCollection ? "font-medium text-foreground" : "text-foreground"} line-clamp-2`}>
           {getTitleWithoutExtension(book.title, book.fileType)}
         </p>
-        <p className="mt-1 truncate text-xs text-zinc-500">
+        <p className="mt-1 truncate text-xs text-foreground-subtle">
           {getBookFolderLabel(book.filePath)}
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-zinc-500">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-foreground-subtle">
           {isCollection ? (
             <>
               <span>{book.mergedBooks?.length || 0} livros</span>
-              <span className="bg-zinc-800 rounded-sm px-1.5 py-0.5 text-zinc-300 ">
+              <span className="bg-surface-muted rounded-sm px-1.5 py-0.5 text-foreground ">
                 Coleção
               </span>
             </>
@@ -319,11 +319,11 @@ function BookCard({
             <>
               <span>{formatPageCount(book.numPages, book.fileType)}</span>
               {showScore && (
-                <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+                <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
                   {Number(bookScore).toFixed(1)}/10
                 </span>
               )}
-              <span className="rounded-sm bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+              <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
                 {formatLabel}
               </span>
             </>

@@ -72,14 +72,14 @@ export default function ConceptEditor({
     <section className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Editar nota</div>
-          <div className="mt-1 truncate text-base font-semibold text-zinc-100">{selected.title}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-foreground-subtle">Editar nota</div>
+          <div className="mt-1 truncate text-base font-semibold text-foreground">{selected.title}</div>
         </div>
         <div className="flex gap-1.5">
           <button
             type="button"
             onClick={() => onGoToPage(selected.page)}
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-border-strong bg-surface text-foreground hover:bg-surface-muted hover:text-foreground"
             title={t("pdf:annotations.editor.goToPageTitle")}
             aria-label={t("pdf:annotations.editor.goToPageAriaLabel", {
               page: selected.page,
@@ -96,8 +96,8 @@ export default function ConceptEditor({
             className={[
               "flex h-8 items-center justify-center rounded-sm border px-2 text-xs transition",
               deleteArmed
-                ? "border-red-700 bg-red-900/50 text-red-100"
-                : "border-red-950 bg-red-950/30 text-red-300 hover:border-red-800 hover:bg-red-950",
+                ? "border-destructive bg-destructive text-destructive-foreground"
+                : "border-destructive bg-destructive-muted text-destructive hover:border-destructive hover:bg-destructive-hover",
             ].join(" ")}
             title={t("pdf:annotations.editor.deleteTitle")}
             aria-label={t("pdf:annotations.editor.deleteAriaLabel")}
@@ -108,40 +108,40 @@ export default function ConceptEditor({
       </div>
 
       <div className="grid grid-cols-[1fr_76px] gap-3">
-        <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.titleLabel")}</span><input
+        <label className="block space-y-2 text-sm text-foreground"><span>{t("pdf:annotations.editor.titleLabel")}</span><input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          className="h-10 w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-zinc-100 outline-none focus:border-zinc-400"
+          className="h-10 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 text-sm font-semibold text-foreground outline-none focus:border-border-strong"
           aria-label={t("pdf:annotations.editor.titleAriaLabel")}
         /></label>
-        <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.pageLabel")}</span><input
+        <label className="block space-y-2 text-sm text-foreground"><span>{t("pdf:annotations.editor.pageLabel")}</span><input
           value={page}
           onChange={(event) => setPage(event.target.value)}
           inputMode="numeric"
-          className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100 outline-none focus:border-zinc-400"
+          className="h-10 w-full rounded-md border border-border-strong bg-surface px-2 text-sm text-foreground outline-none focus:border-border-strong"
           aria-label={t("pdf:annotations.editor.pageAriaLabel")}
         /></label>
       </div>
 
       {selected.excerpt && (
-        <blockquote className="max-h-24 overflow-y-auto border-l-2 border-zinc-600 pl-3 text-sm leading-relaxed text-zinc-400">
+        <blockquote className="max-h-24 overflow-y-auto border-l-2 border-border-strong pl-3 text-sm leading-relaxed text-foreground-muted">
           {selected.excerpt}
         </blockquote>
       )}
 
-      <label className="block space-y-2 text-sm text-zinc-300"><span>{t("pdf:annotations.editor.contentLabel")}</span><textarea
+      <label className="block space-y-2 text-sm text-foreground"><span>{t("pdf:annotations.editor.contentLabel")}</span><textarea
         value={note}
         onChange={(event) => setNote(event.target.value)}
         rows={7}
         placeholder={t("pdf:annotations.editor.notePlaceholder")}
-        className="w-full resize-y rounded-md border border-zinc-700 bg-zinc-900 px-3 py-3 text-sm leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-zinc-400"
+        className="w-full resize-y rounded-md border border-border-strong bg-surface px-3 py-3 text-sm leading-relaxed text-foreground outline-none placeholder:text-input-placeholder focus:border-border-strong"
       /></label>
 
       {duplicate && (
-        <div className="text-xs text-amber-300">{t("pdf:annotations.editor.duplicateTitle")}</div>
+        <div className="text-xs text-warning">{t("pdf:annotations.editor.duplicateTitle")}</div>
       )}
       {pageNumber === null && (
-        <div className="text-xs text-amber-300">{t("pdf:annotations.editor.invalidPage")}</div>
+        <div className="text-xs text-warning">{t("pdf:annotations.editor.invalidPage")}</div>
       )}
 
       {dirty && title.trim() && (
@@ -153,15 +153,15 @@ export default function ConceptEditor({
               void onUpdate(selected.id, { title, note: nextNote, page: pageNumber });
             }
           }}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-zinc-200 px-3 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-surface-muted px-3 text-sm font-medium text-foreground transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Save size={14} />
           {t("pdf:annotations.editor.save")}
         </button>
       )}
 
-      <details className="space-y-2 border-t border-zinc-800 pt-3">
-        <summary className="cursor-pointer select-none text-sm font-medium text-zinc-300">
+      <details className="space-y-2 border-t border-border pt-3">
+        <summary className="cursor-pointer select-none text-sm font-medium text-foreground">
           {t("pdf:annotations.editor.linksSummary", { count: related.length })}
         </summary>
         {related.length > 0 && (
@@ -173,7 +173,7 @@ export default function ConceptEditor({
                   <button
                     type="button"
                     onClick={() => onGoToPage(concept.page)}
-                    className="min-w-0 flex-1 truncate rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-left text-xs text-zinc-200 hover:border-zinc-700"
+                    className="min-w-0 flex-1 truncate rounded-sm border border-border bg-surface px-2 py-1.5 text-left text-xs text-foreground hover:border-border-strong"
                   >
                     {concept.title}
                   </button>
@@ -181,7 +181,7 @@ export default function ConceptEditor({
                     <button
                       type="button"
                       onClick={() => onDeleteRelation(relation)}
-                      className="flex h-7 w-7 items-center justify-center rounded-sm border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-red-900 hover:text-red-300"
+                      className="flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-surface text-foreground-muted hover:border-destructive hover:text-destructive"
                       title={t("pdf:annotations.editor.removeLinkTitle")}
                       aria-label={t("pdf:annotations.editor.removeLinkAriaLabel")}
                     >

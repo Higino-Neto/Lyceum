@@ -91,6 +91,7 @@ const {
   BrowserWindow,
   ipcMain,
   dialog,
+  nativeTheme,
   protocol,
 } = electron;
 const require = createRequire(import.meta.url);
@@ -107,6 +108,7 @@ import { PDFDocument } from "pdf-lib";
 import type { BookFormat, LyceumConversionOptions } from "../src/lib/lyceum";
 import type { DocumentRecord, LibraryListResult } from "../src/types/LibraryTypes";
 import type { ConversionRequestOptions } from "./workers/protocol";
+import { DARK_TOKENS, LIGHT_TOKENS } from "../src/theme/tokens";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
 const bundledFromChunksDir = path.basename(__dirname) === "chunks";
@@ -2199,6 +2201,17 @@ function createLocalFileResponseFromBuffer(
   return { data: buffer, statusCode: 200, headers };
 }
 
+/**
+ * Native window chrome color used before the renderer paints. The preference
+ * can be "system", so the main process can only follow the OS here; explicit
+ * light/dark preferences are applied by the pre-paint script in index.html.
+ */
+function getWindowBackgroundColor(): string {
+  return nativeTheme.shouldUseDarkColors
+    ? DARK_TOKENS.background
+    : LIGHT_TOKENS.background;
+}
+
 function createAppWindow(
   options: BrowserWindowConstructorOptions = {}
 ) {
@@ -2210,7 +2223,8 @@ function createAppWindow(
     width: 1200,
     height: 800,
     frame: false,
-    backgroundColor: "#09090b",
+    show: false,
+    backgroundColor: getWindowBackgroundColor(),
     webPreferences: {
       preload: PRELOAD_ENTRY,
       contextIsolation: true,
@@ -2220,6 +2234,13 @@ function createAppWindow(
     },
     autoHideMenuBar: true,
     ...options,
+  });
+
+  // Avoid showing an unpainted window (dark default flashing for light users).
+  // If the event never fires (for example a load failure), the window stays
+  // hidden so the error can be diagnosed without a blank frame.
+  appWindow.once("ready-to-show", () => {
+    appWindow.show();
   });
 
   appWindow.webContents.on("did-finish-load", () => {
@@ -3518,6 +3539,17 @@ app.whenReady().then(async () => {
   registerCategoryHandlers(ipcMain, categories);
   registerDictionaryHandlers(ipcMain, () => win);
   registerPlatformHandlers(ipcMain);
+
+  // Keep native window backgrounds aligned when the OS theme changes while a
+  // window is open. The renderer owns explicit light/dark preferences.
+  nativeTheme.on("updated", () => {
+    const background = getWindowBackgroundColor();
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) {
+        window.setBackgroundColor(background);
+      }
+    }
+  });
 
   const initialAuthDeepLink = pendingAuthDeepLink ?? startupAuthDeepLink;
   const initialAuthRoute = initialAuthDeepLink ? parseAuthDeepLink(initialAuthDeepLink) : null;

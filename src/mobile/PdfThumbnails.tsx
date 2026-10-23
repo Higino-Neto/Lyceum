@@ -42,7 +42,7 @@ function PdfThumbnail({ pdf, pageNumber }: { pdf: PDFDocumentProxy | null | unde
     return () => { disposed = true; renderTask?.cancel?.(); };
   }, [pageNumber, pdf, visible]);
 
-  return <span ref={hostRef} className="lyceum-pdf-reader__thumbnail">{visible && !failed ? <canvas ref={canvasRef} /> : <span className="grid min-h-[126px] place-items-center text-slate-600"><FileText size={24} /></span>}</span>;
+  return <span ref={hostRef} className="lyceum-pdf-reader__thumbnail">{visible && !failed ? <canvas ref={canvasRef} /> : <span className="grid min-h-[126px] place-items-center text-foreground-subtle"><FileText size={24} /></span>}</span>;
 }
 
 
@@ -52,6 +52,6 @@ export default function PdfThumbnails({ pdf, pageCount, currentPage, labels, onP
   const rows = useVirtualizer({ count: Math.ceil(pageCount / 2), getScrollElement: () => scroll.current, estimateSize: () => 230, overscan: 2 });
   useEffect(() => { rows.scrollToIndex(Math.floor((currentPage - 1) / 2), { align: "center" }); }, [currentPage, rows]);
   return <div ref={scroll} className="h-[65dvh] overflow-auto" aria-label={t("mobile:pdf.thumbnailsAriaLabel")}><div className="relative w-full" style={{ height: rows.getTotalSize() }}>
-    {rows.getVirtualItems().map(row => <div key={row.key} className="absolute left-0 top-0 grid w-full grid-cols-2 gap-3" style={{ height: row.size, transform: `translateY(${row.start}px)` }}>{[row.index * 2 + 1, row.index * 2 + 2].filter(page => page <= pageCount).map(page => <button className={`overflow-hidden rounded-lg border p-2 text-xs ${page === currentPage ? "border-emerald-400 text-emerald-300" : "border-transparent text-slate-400"}`} key={page} onClick={() => onPage(page)}><span className="block h-[190px] overflow-hidden"><PdfThumbnail pdf={pdf} pageNumber={page} /></span>{labels?.[page - 1] || page}</button>)}</div>)}
+    {rows.getVirtualItems().map(row => <div key={row.key} className="absolute left-0 top-0 grid w-full grid-cols-2 gap-3" style={{ height: row.size, transform: `translateY(${row.start}px)` }}>{[row.index * 2 + 1, row.index * 2 + 2].filter(page => page <= pageCount).map(page => <button className={`overflow-hidden rounded-lg border p-2 text-xs ${page === currentPage ? "border-primary text-primary" : "border-transparent text-foreground-muted"}`} key={page} onClick={() => onPage(page)}><span className="block h-[190px] overflow-hidden"><PdfThumbnail pdf={pdf} pageNumber={page} /></span>{labels?.[page - 1] || page}</button>)}</div>)}
   </div></div>;
 }
