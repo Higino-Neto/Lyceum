@@ -19,10 +19,17 @@ function folderAncestors(folderPath: string): string[] {
   const normalized = normalizeFolderKey(folderPath);
   if (!normalized) return [];
 
-  const parts = normalized.split("/").filter(Boolean);
+  // Slice the normalized path at each separator instead of splitting and
+  // re-joining segments: rebuilding drops the leading "/" of POSIX absolute
+  // paths (and the "//" of UNC paths), so the ancestors would never match the
+  // keys built from `folder.fullPath`.
   const ancestors: string[] = [];
-  for (let index = 0; index < parts.length; index += 1) {
-    ancestors.push(parts.slice(0, index + 1).join("/"));
+  let end = normalized.length;
+  while (end > 0) {
+    ancestors.push(normalized.slice(0, end));
+    const separator = normalized.lastIndexOf("/", end - 1);
+    if (separator <= 0) break;
+    end = separator;
   }
   return ancestors;
 }
