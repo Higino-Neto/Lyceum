@@ -137,11 +137,18 @@ export function registerLibraryHandlers() {
   ipcMain.handle("library:open-folder", async () => {
     const libraryPath = LIBRARY_PATH();
     try {
+      // Ensure directory exists
+      try {
+        const fs = await import("node:fs");
+        if (!fs.existsSync(libraryPath)) {
+          fs.mkdirSync(libraryPath, { recursive: true });
+        }
+      } catch {}
       const error = await shell.openPath(libraryPath);
       if (error) {
-        // Fallback: try to open via external
         try {
           await shell.openExternal(`file://${libraryPath}`);
+          return libraryPath;
         } catch (fallbackError) {
           throw new Error(error || String(fallbackError));
         }

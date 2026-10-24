@@ -14,6 +14,7 @@ import {
   CMD_SET_ANNOTATIONS_STATE,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_STRINGS,
   CMD_SET_THEME,
   EVT_DOCUMENT_READY,
   EVT_CREATE_CONCEPT,
@@ -68,7 +69,7 @@ export default function PdfJsViewer({
   onToggleChapters,
   onCloseChapters,
 }: PdfJsViewerProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { effectiveTheme, settings } = useAppSettings();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<PdfViewState | null>(null);
@@ -107,9 +108,40 @@ export default function PdfJsViewer({
     };
   }, [effectiveTheme, settings.accentColor]);
 
+  const bookEdgeStrings = useMemo(() => ({
+    edgeAriaLabel: t("pdf:bookEdge.edgeAriaLabel"),
+    edgeTitle: t("pdf:bookEdge.edgeTitle"),
+    dialogTitle: t("pdf:bookEdge.dialogTitle"),
+    closeLabel: t("pdf:bookEdge.closeLabel"),
+    gridAriaLabel: t("pdf:bookEdge.gridAriaLabel"),
+    closeLookAriaLabel: t("pdf:bookEdge.closeLookAriaLabel"),
+    bookmarkAdd: t("pdf:bookEdge.bookmarkAdd"),
+    bookmarkRemove: t("pdf:bookEdge.bookmarkRemove"),
+    openPage: t("pdf:bookEdge.openPage"),
+    previous: t("pdf:bookEdge.previous"),
+    next: t("pdf:bookEdge.next"),
+    help: t("pdf:bookEdge.help"),
+    contextFallback: t("pdf:bookEdge.contextFallback"),
+    contextPage: t("pdf:bookEdge.contextPage", { page: "{{page}}" }),
+    range: t("pdf:bookEdge.range", { from: "{{from}}", to: "{{to}}", total: "{{total}}", selected: "{{selected}}" }),
+    selection: t("pdf:bookEdge.selection"),
+    inspectPage: t("pdf:bookEdge.inspectPage", { page: "{{page}}" }),
+    marked: t("pdf:bookEdge.marked"),
+    loading: t("pdf:bookEdge.loading"),
+    loadError: t("pdf:bookEdge.loadError"),
+    bookmarkSavedSession: t("pdf:bookEdge.bookmarkSavedSession"),
+    landmarkNote: t("pdf:bookEdge.landmarkNote", { page: "{{page}}" }),
+    landmarkHighlight: t("pdf:bookEdge.landmarkHighlight", { page: "{{page}}" }),
+    bookmarkTitle: t("pdf:bookEdge.bookmarkTitle", { page: "{{page}}" }),
+  }), [t]);
+
   const syncViewerTheme = useCallback(() => {
     postToViewer(CMD_SET_THEME, viewerTheme);
   }, [postToViewer, viewerTheme]);
+
+  const syncBookEdgeStrings = useCallback(() => {
+    postToViewer(CMD_SET_STRINGS, { bookEdge: bookEdgeStrings });
+  }, [postToViewer, bookEdgeStrings]);
 
   const subscribeToViewerEvents = useCallback((handler: (data: PdfViewerEvent) => void) => {
     viewerSubscribersRef.current.add(handler);
@@ -227,10 +259,12 @@ export default function PdfJsViewer({
         restoreCompletedRef.current = true;
       } else if (data.type === "lyceum-pdfjs:ready") {
         syncViewerTheme();
+        syncBookEdgeStrings();
         syncChapterButtonState();
         syncAnnotationButtonState();
       } else if (data.type === EVT_DOCUMENT_READY) {
         syncViewerTheme();
+        syncBookEdgeStrings();
         setDocumentReady(true);
         void restoreViewerState();
       } else if (data.type === EVT_STATE_CHANGED) {
@@ -243,11 +277,15 @@ export default function PdfJsViewer({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncChapterButtonState, syncViewerTheme]);
+  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncBookEdgeStrings, syncChapterButtonState, syncViewerTheme]);
 
   useEffect(() => {
     syncViewerTheme();
   }, [syncViewerTheme]);
+
+  useEffect(() => {
+    syncBookEdgeStrings();
+  }, [syncBookEdgeStrings]);
 
   useEffect(() => {
     syncChapterButtonState();
@@ -416,6 +454,7 @@ export default function PdfJsViewer({
           sandbox="allow-scripts allow-same-origin allow-downloads"
           onLoad={() => {
             syncViewerTheme();
+            syncBookEdgeStrings();
             syncChapterButtonState();
             syncAnnotationButtonState();
           }}

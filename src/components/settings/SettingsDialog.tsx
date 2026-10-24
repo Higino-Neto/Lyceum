@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BookOpen, DatabaseBackup, Download, FlaskConical, Gauge, Keyboard, Library, Palette, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
+import { BookOpen, DatabaseBackup, Download, FlaskConical, Gauge, Keyboard, Library, Palette, Plug, SlidersHorizontal, UserCircle, Users, X, ZoomIn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePendingFriendRequestCount } from "../../hooks/useFriends";
@@ -18,12 +18,13 @@ import {
   HotkeysSettingsPanel,
   UpdatesSettingsPanel,
   ZoomSettingsPanel,
+  PluginsSettingsPanel,
 } from "./SettingsPanels";
 import AnimatedModal from "../ui/AnimatedModal";
 import Select from "../ui/Select";
 import { useTranslation } from "../../i18n";
 
-export type SettingsTabId = "general" | "hotkeys" | "backup" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
+export type SettingsTabId = "general" | "hotkeys" | "backup" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance" | "plugins";
 
 const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "general",
@@ -38,6 +39,7 @@ const SETTINGS_TAB_IDS = new Set<SettingsTabId>([
   "dictionaries",
   "beta",
   "performance",
+  "plugins",
 ]);
 
 function isSettingsTabId(value: unknown): value is SettingsTabId {
@@ -121,6 +123,11 @@ export default function SettingsDialog({
         id: "beta",
         icon: FlaskConical,
         panel: <BetaSettingsPanel />,
+      },
+      {
+        id: "plugins",
+        icon: Plug,
+        panel: <PluginsSettingsPanel />,
       },
       {
         id: "library",

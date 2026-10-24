@@ -304,5 +304,23 @@
         "hint": "Daily habit tracker."
       }
     }
+  },
+  "plugins": {
+    "title": "Plugins",
+    "description": "Manage experimental features and optional components.",
+    "betaFeatures": "Beta features",
+    "betaFeaturesDescription": "Enable or disable beta routes and features.",
+    "libraryFeatures": "Library features",
+    "libraryFeaturesDescription": "Toggle library UI elements.",
+    "folderGrid": {
+      "title": "Folder grid",
+      "description": "Show the folder grid at the top of the library.",
+      "toggleLabel": "Toggle folder grid"
+    },
+    "continueReading": {
+      "title": "Continue reading",
+      "description": "Show the continue reading section in the library.",
+      "toggleLabel": "Toggle continue reading"
+    }
   }
 }

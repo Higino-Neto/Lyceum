@@ -5,6 +5,32 @@
     "frameTitleNoName": "Mozilla PDF.js Viewer",
     "frameTitle": "{{name}} - PDF.js"
   },
+  "bookEdge": {
+    "edgeAriaLabel": "BookEdge — browse the book without leaving reading",
+    "edgeTitle": "BookEdge · click a region to riffle",
+    "dialogTitle": "Riffle through the book",
+    "closeLabel": "Back to reading · Esc",
+    "gridAriaLabel": "Nearby pages",
+    "closeLookAriaLabel": "Close look",
+    "bookmarkAdd": "Add bookmark",
+    "bookmarkRemove": "Remove bookmark",
+    "openPage": "Open this page",
+    "previous": "← Previous",
+    "next": "Next →",
+    "help": "Scroll or arrows to riffle · PageUp / PageDown to jump · select a page to inspect",
+    "contextFallback": "Book",
+    "contextPage": "your reading stays on page {{page}}",
+    "range": "{{from}}–{{to}} of {{total}} · selection {{selected}}",
+    "selection": "selection",
+    "inspectPage": "Inspect page {{page}}",
+    "marked": " · marked",
+    "loading": "Loading page…",
+    "loadError": "Could not load. Select the page to try again.",
+    "bookmarkSavedSession": "Bookmark available this session; could not save on this device.",
+    "landmarkNote": "Note · {{page}}",
+    "landmarkHighlight": "Highlight · {{page}}",
+    "bookmarkTitle": "Bookmark · {{page}}"
+  },
   "annotations": {
     "panel": {
       "title": "Notes",

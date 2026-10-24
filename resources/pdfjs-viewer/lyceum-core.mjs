@@ -64,6 +64,10 @@ function isPdfViewerTheme(value) {
     ([name, color]) => THEME_COLOR_NAME.test(name) && typeof color === "string"
   );
 }
+var CMD_SET_STRINGS = "lyceum-pdfjs:cmd-set-strings";
+function isPdfViewerStrings(value) {
+  return isRecord(value);
+}
 
 // src/core/pdf-reader-core/geometry.ts
 function makeLayerRect(rect, layerBounds) {
@@ -317,6 +321,7 @@ export {
   CMD_SET_BOOK_LANDMARKS,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_STRINGS,
   CMD_SET_THEME,
   EVT_CREATE_CONCEPT,
   EVT_DOCUMENT_READY,
@@ -340,6 +345,7 @@ export {
   isPdfSelectionPayload,
   isPdfSelectionRect,
   isPdfViewState,
+  isPdfViewerStrings,
   isPdfViewerTheme,
   isRecord,
   isWordCharacter,

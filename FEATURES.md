@@ -89,3 +89,5 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 - [ ] Na aba de conversão, eu quero que você troque completamente o search file dele pelo search file do atlas, que é muito melhor em vários aspectos. Na verdade, eu quero pegar aquele modal "Add from library" do atlas e modularizar ele para que eu possa chamar ele em features futuras.
 
 - [x] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).
+
+- [ ] Adicionar uma aba nas configurações para plugins. Dentro dela é que ficará as abas que estão em beta e outras coisas que eu quero ter a possibilidade de habilitar ou desabilitar quando eu quiser. Tipo conseguir desabilitar o FolderGrid e o Continue Reading

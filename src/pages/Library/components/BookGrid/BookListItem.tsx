@@ -98,10 +98,10 @@ function BookListItem({
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      className={`lyceum-interactive-row grid min-h-12 cursor-pointer items-center rounded-sm border bg-surface transition-shadow ${
+      className={`lyceum-interactive-row group grid min-h-14 cursor-pointer items-center rounded-sm border bg-surface transition-all duration-150 ${
         isSelected
-          ? "border-border-strong ring-1 ring-border-strong"
-          : "border-border hover:border-border-strong"
+          ? "border-primary/60 ring-1 ring-primary/20"
+          : "border-border hover:border-border-strong hover:bg-surface-muted/40"
       } ${isChecked ? "border-primary bg-primary-muted" : ""}`}
       style={{ gridTemplateColumns }}
       draggable={!selectionMode || isChecked}
@@ -129,39 +129,39 @@ function BookListItem({
         onDropOnBook?.(book, event);
       }}
     >
-      <div className="flex min-w-0 items-center gap-3 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-3 px-3 py-2.5">
         <div
-          className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm border ${
+          className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm border transition-colors ${
             isChecked
               ? "border-primary bg-primary text-primary-foreground"
               : selectionMode
                 ? "border-border-strong bg-background text-transparent"
-                : "border-transparent text-transparent"
+                : "border-transparent text-transparent group-hover:border-border-strong"
           }`}
         >
           <Check size={13} />
         </div>
         {isCollection ? (
-          <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted flex items-center justify-center">
-            <Folder size={16} className="text-primary" />
+          <div className="h-12 w-9 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted flex items-center justify-center">
+            <Folder size={18} className="text-primary" />
           </div>
         ) : (
-          <div ref={thumbnailRef} className="h-11 w-8 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted">
+          <div ref={thumbnailRef} className="h-12 w-9 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted shadow-sm">
             {thumbnail ? (
               <img
                 src={thumbnail}
                 alt={book.title}
-                className="h-full w-full object-contain"
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <FileText size={14} className="text-foreground-subtle" />
+                <FileText size={16} className="text-foreground-subtle" />
               </div>
             )}
           </div>
         )}
         <div className="min-w-0">
-          <p className="min-w-0 truncate text-sm text-foreground">
+          <p className="min-w-0 truncate text-sm font-medium text-foreground">
             {getTitleWithoutExtension(book.title, book.fileType)}
           </p>
           {(listLayout === "compact" || listLayout === "narrow") && (
@@ -188,7 +188,9 @@ function BookListItem({
       <div className="px-3 py-2 text-xs text-foreground-muted">
         {isCollection ? (
           <span className="rounded-sm bg-primary-muted px-1.5 py-0.5 text-primary">Coleção</span>
-        ) : formatLabel}
+        ) : (
+          <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 uppercase text-foreground-subtle">{formatLabel}</span>
+        )}
       </div>
       )}
       {listLayout !== "narrow" && (

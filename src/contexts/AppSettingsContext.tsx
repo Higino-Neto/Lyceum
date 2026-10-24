@@ -47,6 +47,8 @@ export interface AppSettings {
   backupDocuments: boolean;
   backupHabits: boolean;
   backupCategories: boolean;
+  folderGridEnabled: boolean;
+  continueReadingEnabled: boolean;
 }
 
 interface AppSettingsContextValue {
@@ -68,6 +70,8 @@ interface AppSettingsContextValue {
   resetHotkeyBindings: () => void;
   setWeeklyBackupEnabled: (value: boolean) => void;
   setBackupSelection: (key: "backupDocuments" | "backupHabits" | "backupCategories", value: boolean) => void;
+  setFolderGridEnabled: (value: boolean) => void;
+  setContinueReadingEnabled: (value: boolean) => void;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -89,6 +93,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   backupDocuments: true,
   backupHabits: true,
   backupCategories: true,
+  folderGridEnabled: true,
+  continueReadingEnabled: true,
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -148,6 +154,8 @@ function loadSettings(): AppSettings {
       backupDocuments: parsed.backupDocuments ?? DEFAULT_SETTINGS.backupDocuments,
       backupHabits: parsed.backupHabits ?? DEFAULT_SETTINGS.backupHabits,
       backupCategories: parsed.backupCategories ?? DEFAULT_SETTINGS.backupCategories,
+      folderGridEnabled: (parsed as any).folderGridEnabled ?? DEFAULT_SETTINGS.folderGridEnabled,
+      continueReadingEnabled: (parsed as any).continueReadingEnabled ?? DEFAULT_SETTINGS.continueReadingEnabled,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -277,6 +285,10 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({ ...current, weeklyBackupEnabled: value })),
       setBackupSelection: (key, value) =>
         setSettings((current) => ({ ...current, [key]: value })),
+      setFolderGridEnabled: (value) =>
+        setSettings((current) => ({ ...current, folderGridEnabled: value })),
+      setContinueReadingEnabled: (value) =>
+        setSettings((current) => ({ ...current, continueReadingEnabled: value })),
     }),
     [effectiveTheme, settings],
   );

@@ -131,3 +131,39 @@ export function isPdfViewerTheme(value: unknown): value is PdfViewerTheme {
     ([name, color]) => THEME_COLOR_NAME.test(name) && typeof color === "string",
   );
 }
+
+// Additive i18n command for strings rendered inside the isolated viewer frame.
+export const CMD_SET_STRINGS = "lyceum-pdfjs:cmd-set-strings";
+export interface PdfViewerStrings {
+  bookEdge?: {
+    edgeAriaLabel?: string;
+    edgeTitle?: string;
+    dialogAriaLabelledBy?: string;
+    dialogTitle?: string;
+    closeLabel?: string;
+    closeEsc?: string;
+    gridAriaLabel?: string;
+    closeLookAriaLabel?: string;
+    bookmarkAdd?: string;
+    bookmarkRemove?: string;
+    openPage?: string;
+    previous?: string;
+    next?: string;
+    help?: string;
+    contextFallback?: string;
+    contextPage?: string;
+    range?: string;
+    selection?: string;
+    inspectPage?: string;
+    marked?: string;
+    loading?: string;
+    loadError?: string;
+    bookmarkSavedSession?: string;
+    landmarkNote?: string;
+    landmarkHighlight?: string;
+    bookmarkTitle?: string;
+  };
+}
+export function isPdfViewerStrings(value: unknown): value is PdfViewerStrings {
+  return isRecord(value);
+}

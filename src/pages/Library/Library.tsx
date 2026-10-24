@@ -1393,7 +1393,7 @@ function LibraryContent() {
 
   const selectableDisplayBooks = bookGridBooks;
 
-  const recentBooksSection = activeSection !== "usb" && globalRecentBooks.length > 0 ? (
+  const recentBooksSection = activeSection !== "usb" && settings.continueReadingEnabled !== false && globalRecentBooks.length > 0 ? (
     <section className="mb-4">
       <div className="mb-1.5 flex items-center justify-between">
         <h2 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
@@ -1421,7 +1421,7 @@ function LibraryContent() {
         onCreateFolder={openCreateFolderDialog}
         onImportBook={handleImportBook}
       />
-      {!unifiedLibraryView && (
+      {!unifiedLibraryView && settings.folderGridEnabled !== false && (
         <FolderGrid
           folders={classifiedVisibleFolders.normal}
           onFolderSelect={handleFolderSelect}

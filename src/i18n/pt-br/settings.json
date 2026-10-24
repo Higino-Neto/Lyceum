@@ -304,5 +304,23 @@
         "hint": "Rastreador de hábitos diários."
       }
     }
+  },
+  "plugins": {
+    "title": "Plugins",
+    "description": "Gerencie recursos experimentais e componentes opcionais.",
+    "betaFeatures": "Recursos beta",
+    "betaFeaturesDescription": "Ative ou desative rotas e recursos em beta.",
+    "libraryFeatures": "Recursos da biblioteca",
+    "libraryFeaturesDescription": "Ative ou desative elementos da interface da biblioteca.",
+    "folderGrid": {
+      "title": "Grade de pastas",
+      "description": "Mostrar a grade de pastas no topo da biblioteca.",
+      "toggleLabel": "Alternar grade de pastas"
+    },
+    "continueReading": {
+      "title": "Continuar lendo",
+      "description": "Mostrar a seção Continuar lendo na biblioteca.",
+      "toggleLabel": "Alternar continuar lendo"
+    }
   }
 }

@@ -1,20 +1,82 @@
-import { bookSections, edgePage, rifflePages, CMD_SET_BOOK_LANDMARKS, isBookLandmark } from "../../lyceum-core.mjs";
+import { bookSections, edgePage, rifflePages, CMD_SET_BOOK_LANDMARKS, CMD_SET_STRINGS, isBookLandmark } from "../../lyceum-core.mjs";
+
+const DEFAULT_STRINGS = {
+  edgeAriaLabel: "BookEdge — browse the book without leaving reading",
+  edgeTitle: "BookEdge · click a region to riffle",
+  dialogTitle: "Riffle through the book",
+  closeLabel: "Back to reading · Esc",
+  gridAriaLabel: "Nearby pages",
+  closeLookAriaLabel: "Close look",
+  bookmarkAdd: "Add bookmark",
+  bookmarkRemove: "Remove bookmark",
+  openPage: "Open this page",
+  previous: "← Previous",
+  next: "Next →",
+  help: "Scroll or arrows to riffle · PageUp / PageDown to jump · select a page to inspect",
+  contextFallback: "Book",
+  contextPage: "your reading stays on page {{page}}",
+  range: "{{from}}–{{to}} of {{total}} · selection {{selected}}",
+  selection: "selection",
+  inspectPage: "Inspect page {{page}}",
+  marked: " · marked",
+  loading: "Loading page…",
+  loadError: "Could not load. Select the page to try again.",
+  bookmarkSavedSession: "Bookmark available this session; could not save on this device.",
+  landmarkNote: "Note · {{page}}",
+  landmarkHighlight: "Highlight · {{page}}",
+  bookmarkTitle: "Bookmark · {{page}}",
+};
+
+function formatString(template, values = {}) {
+  if (!template) return "";
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => values[key] ?? "");
+}
 
 // Independent canvases share the open PDF document, never the reader's page or zoom.
 export function installBookEdgeFeature({ facade, app, bus }) {
+  let strings = { ...DEFAULT_STRINGS };
+
   const edge = document.createElement("button");
   edge.id = "lyceumBookEdge";
   edge.type = "button";
-  edge.setAttribute("aria-label", "BookEdge — explorar o livro sem sair da leitura");
-  edge.title = "BookEdge · clique em uma região para folhear";
+  edge.setAttribute("aria-label", strings.edgeAriaLabel);
+  edge.title = strings.edgeTitle;
   edge.hidden = true;
   document.body.append(edge);
   const dialog = document.createElement("dialog");
   dialog.id = "lyceumRiffle";
   dialog.setAttribute("aria-labelledby", "riffleTitle");
-  dialog.innerHTML = `<header><div><h2 id="riffleTitle">Folhear o livro</h2><p class="riffleContext"></p></div><button type="button" data-action="close">Voltar à leitura · Esc</button></header>
-    <div class="riffleBody"><div class="riffleGrid" aria-label="Páginas próximas"></div><section class="riffleLook" aria-label="Close Look"><div class="rifflePreview"></div><div class="riffleActions"><button type="button" data-action="bookmark">Marcar página</button><button type="button" data-action="open">Abrir esta página</button></div></section></div>
-    <footer><button type="button" data-action="previous">← Anteriores</button><span class="riffleRange" aria-live="polite"></span><button type="button" data-action="next">Próximas →</button></footer><p class="riffleHelp">Scroll ou setas para folhear · PageUp / PageDown para saltar · selecione uma página para inspecionar</p>`;
+  dialog.innerHTML = `<header><div><h2 id="riffleTitle">${strings.dialogTitle}</h2><p class="riffleContext"></p></div><button type="button" data-action="close">${strings.closeLabel}</button></header>
+    <div class="riffleBody"><div class="riffleGrid" aria-label="${strings.gridAriaLabel}"></div><section class="riffleLook" aria-label="${strings.closeLookAriaLabel}"><div class="rifflePreview"></div><div class="riffleActions"><button type="button" data-action="bookmark">${strings.bookmarkAdd}</button><button type="button" data-action="open">${strings.openPage}</button></div></section></div>
+    <footer><button type="button" data-action="previous">${strings.previous}</button><span class="riffleRange" aria-live="polite"></span><button type="button" data-action="next">${strings.next}</button></footer><p class="riffleHelp">${strings.help}</p>`;
+
+  function applyStrings(next = {}) {
+    strings = { ...DEFAULT_STRINGS, ...(next.bookEdge || next) };
+    edge.setAttribute("aria-label", strings.edgeAriaLabel);
+    edge.title = strings.edgeTitle;
+    const title = dialog.querySelector("#riffleTitle");
+    if (title) title.textContent = strings.dialogTitle;
+    const close = dialog.querySelector('[data-action="close"]');
+    if (close) close.textContent = strings.closeLabel;
+    const grid = dialog.querySelector(".riffleGrid");
+    if (grid) grid.setAttribute("aria-label", strings.gridAriaLabel);
+    const look = dialog.querySelector(".riffleLook");
+    if (look) look.setAttribute("aria-label", strings.closeLookAriaLabel);
+    const bookmark = button("bookmark");
+    if (bookmark && bookmarks) {
+      bookmark.textContent = bookmarks.has(selected) ? strings.bookmarkRemove : strings.bookmarkAdd;
+    } else if (bookmark) {
+      bookmark.textContent = strings.bookmarkAdd;
+    }
+    const open = button("open");
+    if (open) open.textContent = strings.openPage;
+    const prev = button("previous");
+    if (prev) prev.textContent = strings.previous;
+    const nextBtn = button("next");
+    if (nextBtn) nextBtn.textContent = strings.next;
+    const help = dialog.querySelector(".riffleHelp");
+    if (help) help.textContent = strings.help;
+  }
   document.body.append(dialog);
   const grid = dialog.querySelector(".riffleGrid");
   const preview = dialog.querySelector(".rifflePreview");
@@ -55,14 +117,14 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       const node = document.createElement("span");
       node.className = `bookEdgeLandmark ${mark.kind}`;
       node.style.top = `${position}%`;
-      node.title = `${mark.kind === "note" ? "Nota" : "Destaque"} · ${mark.page}`;
+      node.title = mark.kind === "note" ? formatString(strings.landmarkNote, { page: mark.page }) : formatString(strings.landmarkHighlight, { page: mark.page });
       edge.append(node);
     }
     for (const page of bookmarks) {
       const mark = document.createElement("span");
       mark.className = "bookEdgeBookmark";
       mark.style.top = `${(page - .5) / total * 100}%`;
-      mark.title = `Marca-página · ${page}`;
+      mark.title = formatString(strings.bookmarkTitle, { page });
       edge.append(mark);
     }
     const notch = document.createElement("span");
@@ -118,7 +180,7 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       copy.setAttribute("aria-label", `Preview da página ${pageNumber}`);
       host.replaceChildren(copy);
     } catch (error) {
-      if (token === generation && error?.name !== "RenderingCancelledException") host.textContent = "Não foi possível carregar. Selecione a página para tentar novamente.";
+      if (token === generation && error?.name !== "RenderingCancelledException") host.textContent = strings.loadError;
     }
   }
   async function show() {
@@ -126,11 +188,11 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     const token = generation;
     const pages = rifflePages(selected, total, count());
     grid.replaceChildren();
-    preview.textContent = "Carregando página…";
+    preview.textContent = strings.loading;
     const section = sections.find(item => selected >= item.page && selected <= item.end);
-    dialog.querySelector(".riffleContext").textContent = `${section?.title ?? "Livro"} · sua leitura permanece na página ${origin}`;
-    dialog.querySelector(".riffleRange").textContent = `${pages[0]}–${pages.at(-1)} de ${total} · seleção ${selected}`;
-    button("bookmark").textContent = bookmarks.has(selected) ? "Remover marca-página" : "Marcar página";
+    dialog.querySelector(".riffleContext").textContent = `${section?.title ?? strings.contextFallback} · ${formatString(strings.contextPage, { page: origin })}`;
+    dialog.querySelector(".riffleRange").textContent = formatString(strings.range, { from: pages[0], to: pages.at(-1), total, selected });
+    button("bookmark").textContent = bookmarks.has(selected) ? strings.bookmarkRemove : strings.bookmarkAdd;
     button("bookmark").setAttribute("aria-pressed", String(bookmarks.has(selected)));
     button("previous").disabled = selected === 1;
     button("next").disabled = selected === total;
@@ -138,13 +200,13 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       const tile = document.createElement("button");
       tile.type = "button";
       tile.className = "riffleTile";
-      tile.setAttribute("aria-label", `Inspecionar página ${page}`);
+      tile.setAttribute("aria-label", formatString(strings.inspectPage, { page }));
       tile.setAttribute("aria-pressed", String(page === selected));
       const sheet = document.createElement("span");
       sheet.className = "riffleSheet";
       sheet.textContent = "…";
       const label = document.createElement("span");
-      label.textContent = `${page}${bookmarks.has(page) ? " · marcada" : ""}`;
+      label.textContent = `${page}${bookmarks.has(page) ? strings.marked : ""}`;
       tile.append(sheet, label);
       tile.onclick = () => { selected = page; void show(); grid.querySelector('[aria-pressed="true"]')?.focus(); };
       grid.append(tile);
@@ -194,7 +256,7 @@ export function installBookEdgeFeature({ facade, app, bus }) {
   button("bookmark").onclick = () => {
     if (bookmarks.has(selected)) bookmarks.delete(selected); else bookmarks.add(selected);
     try { localStorage.setItem(bookmarkKey, JSON.stringify([...bookmarks])); }
-    catch { dialog.querySelector(".riffleHelp").textContent = "Marca disponível nesta sessão; não foi possível salvá-la neste dispositivo."; }
+    catch { dialog.querySelector(".riffleHelp").textContent = strings.bookmarkSavedSession; }
     paintEdge();
     void show();
   };
@@ -226,6 +288,11 @@ export function installBookEdgeFeature({ facade, app, bus }) {
   bus?.onCommand(CMD_SET_BOOK_LANDMARKS, data => {
     landmarks = Array.isArray(data.landmarks) ? data.landmarks.filter(isBookLandmark) : [];
     paintEdge();
+  });
+  bus?.onCommand(CMD_SET_STRINGS, data => {
+    applyStrings(data?.strings || data);
+    paintEdge();
+    void show();
   });
   app.eventBus.on("pagesinit", load);
   app.eventBus.on("pagechanging", paintEdge);

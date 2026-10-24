@@ -1565,3 +1565,156 @@ export function PerformanceSettingsPanel() {
     </div>
   );
 }
+
+export function PluginsSettingsPanel() {
+  const { settings, setBetaAtlasEnabled, setBetaConversionEnabled, setBetaHabitsEnabled, setFolderGridEnabled, setContinueReadingEnabled } = useAppSettings();
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-col gap-6">
+      <SettingsSection
+        title={t("settings:plugins.title")}
+        description={t("settings:plugins.description")}
+      />
+      <SettingsSection
+        title={t("settings:plugins.betaFeatures")}
+        description={t("settings:plugins.betaFeaturesDescription")}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("settings:beta.atlas.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
+                {t("settings:beta.atlas.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.atlas.title") })}
+              onClick={() => setBetaAtlasEnabled(!settings.betaAtlasEnabled)}
+              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                settings.betaAtlasEnabled ? "bg-primary" : "bg-border-strong"
+              }`}
+              aria-pressed={settings.betaAtlasEnabled}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+                  settings.betaAtlasEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("settings:beta.conversion.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
+                {t("settings:beta.conversion.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.conversion.title") })}
+              onClick={() => setBetaConversionEnabled(!settings.betaConversionEnabled)}
+              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                settings.betaConversionEnabled ? "bg-primary" : "bg-border-strong"
+              }`}
+              aria-pressed={settings.betaConversionEnabled}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+                  settings.betaConversionEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("settings:beta.habits.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
+                {t("settings:beta.habits.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.habits.title") })}
+              onClick={() => setBetaHabitsEnabled(!settings.betaHabitsEnabled)}
+              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                settings.betaHabitsEnabled ? "bg-primary" : "bg-border-strong"
+              }`}
+              aria-pressed={settings.betaHabitsEnabled}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+                  settings.betaHabitsEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </SettingsSection>
+      <SettingsSection
+        title={t("settings:plugins.libraryFeatures")}
+        description={t("settings:plugins.libraryFeaturesDescription")}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("settings:plugins.folderGrid.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
+                {t("settings:plugins.folderGrid.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t("settings:plugins.folderGrid.toggleLabel")}
+              onClick={() => setFolderGridEnabled(!settings.folderGridEnabled)}
+              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                settings.folderGridEnabled !== false ? "bg-primary" : "bg-border-strong"
+              }`}
+              aria-pressed={settings.folderGridEnabled !== false}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+                  settings.folderGridEnabled !== false ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t("settings:plugins.continueReading.title")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
+                {t("settings:plugins.continueReading.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t("settings:plugins.continueReading.toggleLabel")}
+              onClick={() => setContinueReadingEnabled(!settings.continueReadingEnabled)}
+              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                settings.continueReadingEnabled !== false ? "bg-primary" : "bg-border-strong"
+              }`}
+              aria-pressed={settings.continueReadingEnabled !== false}
+            >
+              <span
+                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+                  settings.continueReadingEnabled !== false ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}

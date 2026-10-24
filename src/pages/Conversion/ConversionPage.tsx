@@ -32,15 +32,8 @@ import {
   defaultConversionOptions,
 } from "../../contexts/ConversionQueueContext";
 import { BookWithThumbnail } from "../../types/LibraryTypes";
-import FilterBar, {
-  type FileTypeFilter,
-  type SortOption,
-} from "../Library/components/FilterBar";
 import {
   fetchAtlasBooks,
-  matchesLibraryBookFileTypes,
-  matchesLibraryBookSearch,
-  sortLibraryBooks,
 } from "../Atlas/atlasUtils";
 import {
   formatFileSize,
@@ -54,6 +47,7 @@ import Select from "../../components/ui/Select";
 import { AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
+import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
 
 const outputFormats: {
   value: ConversionOutputFormat;
@@ -277,9 +271,6 @@ function LibrarySearchPanel({
 }: LibrarySearchPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortOption>("title_asc");
-  const [fileType, setFileType] = useState<FileTypeFilter[]>([]);
   const apiAvailable = Boolean(window.api?.listBooks);
   const selectedHashes = useMemo(
     () => new Set(selectedBooks.map((book) => book.fileHash)),
@@ -289,94 +280,52 @@ function LibrarySearchPanel({
   const booksQuery = useQuery({
     queryKey: ["conversion-library-books"],
     queryFn: fetchAtlasBooks,
-    enabled: open && apiAvailable,
+    enabled: apiAvailable,
     staleTime: 20_000,
   });
 
-  const filteredBooks = useMemo(() => {
-    const books = booksQuery.data ?? [];
-    return sortLibraryBooks(
-      books.filter((book) => (
-        !selectedHashes.has(book.fileHash) &&
-        matchesLibraryBookSearch(book, search) &&
-        matchesLibraryBookFileTypes(book, fileType)
-      )),
-      sort,
-    ).slice(0, 24);
-  }, [booksQuery.data, fileType, search, selectedHashes, sort]);
+  const availableBooks = useMemo(
+    () => (booksQuery.data ?? []).filter((book) => !selectedHashes.has(book.fileHash)),
+    [booksQuery.data, selectedHashes],
+  );
 
   return (
-    <section className="mb-3 rounded-sm border border-border bg-surface/40">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">
-            {t("conversion:libraryPanel.title")}
-          </h2>
-          <p className="mt-0.5 text-xs text-foreground-subtle">
-            {t("conversion:libraryPanel.description")}
-          </p>
+    <>
+      <section className="mb-3 rounded-sm border border-border bg-surface/40">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-foreground">
+              {t("conversion:libraryPanel.title")}
+            </h2>
+            <p className="mt-0.5 text-xs text-foreground-subtle">
+              {t("conversion:libraryPanel.description")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
+          >
+            <FilePlus size={14} />
+            {t("conversion:libraryPanel.open")}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
-        >
-          {open ? <X size={14} /> : <FilePlus size={14} />}
-          {open
-            ? t("conversion:libraryPanel.close")
-            : t("conversion:libraryPanel.open")}
-        </button>
-      </div>
-
-      {open && (
-        <div className="p-3">
-          <FilterBar
-            search={search}
-            onSearchChange={setSearch}
-            sort={sort}
-            onSortChange={setSort}
-            fileType={fileType}
-            onFileTypeChange={setFileType}
-          />
-          {!apiAvailable ? (
-            <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
-              {t("conversion:libraryPanel.desktopOnly")}
-            </div>
-          ) : booksQuery.isLoading || booksQuery.isFetching ? (
-            <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-border px-4 py-8 text-sm text-foreground-subtle">
-              <RefreshCw size={15} className="animate-spin" />
-              {t("conversion:libraryPanel.loading")}
-            </div>
-          ) : filteredBooks.length === 0 ? (
-            <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
-              {t("conversion:libraryPanel.empty")}
-            </div>
-          ) : (
-            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredBooks.map((book) => (
-                <button
-                  key={bookKey(book)}
-                  type="button"
-                  onClick={() => onAddBooks([book])}
-                  className="flex min-w-0 cursor-pointer items-center gap-3 rounded-sm border border-border bg-background/80 p-2 text-left hover:border-primary/50 hover:bg-primary-muted"
-                >
-                  <MiniCover book={book} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">
-                      {getTitleWithoutExtension(book.title, book.fileType)}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-foreground-subtle">
-                      {book.author || getBookFolderLabel(book.filePath)}
-                    </span>
-                  </span>
-                  <FilePlus size={15} className="flex-shrink-0 text-primary" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
+        {!apiAvailable ? (
+          <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
+            {t("conversion:libraryPanel.desktopOnly")}
+          </div>
+        ) : null}
+      </section>
+      <LibraryPickerDialog
+        open={open}
+        books={availableBooks}
+        onClose={() => setOpen(false)}
+        onSelect={(book) => {
+          onAddBooks([book]);
+          setOpen(false);
+        }}
+      />
+    </>
   );
 }
 
