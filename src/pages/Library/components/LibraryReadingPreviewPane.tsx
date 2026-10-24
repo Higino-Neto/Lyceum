@@ -81,6 +81,7 @@ export default function LibraryReadingPreviewPane({
             <ReadingWorkspace
               incomingTab={incomingTab}
               onIncomingTabConsumed={onIncomingTabConsumed}
+              onEmptyTabs={onClose}
               enableShortcuts={false}
             />
           </TabProvider>

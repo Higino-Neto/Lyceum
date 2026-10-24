@@ -14,6 +14,7 @@ import type { TimerState, SessionTimerData } from "../../../types/ReadingTypes";
 import { supabase } from "../../../lib/supabase";
 import { getCategories } from "../../../api/database";
 import { useTranslation, type TranslationKey } from "../../../i18n";
+import Select from "../../../components/ui/Select";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -371,20 +372,7 @@ export default function ReadingSessionTimer({
               <p className="text-[10px] text-foreground-subtle uppercase tracking-widest mb-1">
                 {t("reading:session.category")}
               </p>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-surface-muted/50 border border-border-strong/50 rounded-sm px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
-              >
-                <option value="" className="bg-surface">
-                  {t("reading:session.selectCategory")}
-                </option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-surface">
-                    {c.name} ({c.points_per_page}x)
-                  </option>
-                ))}
-              </select>
+              <Select value={category} onChange={setCategory} placeholder={t("reading:session.selectCategory")} className="h-10 w-full text-sm" items={categories.map((c) => ({ value: c.id, label: `${c.name} (${c.points_per_page}x)` }))} />
             </div>
 
             {/* Timer circular */}

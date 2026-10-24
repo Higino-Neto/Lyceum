@@ -21,7 +21,11 @@ export default function LibraryHeader({
   const { t } = useTranslation();
 
   const handleOpenLibraryFolder = async () => {
-    await window.api.openLibraryFolder();
+    try {
+      await window.api.openLibraryFolder();
+    } catch {
+      // Avoid an unhandled IPC rejection from destabilising the renderer.
+    }
   };
 
   return (

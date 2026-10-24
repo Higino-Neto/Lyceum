@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { updateReadingEntry, getCategories, Category } from "../api/database";
+import Select from "./ui/Select";
 
 interface EditReadingDialogProps {
   isOpen: boolean;
@@ -138,19 +139,7 @@ export default function EditReadingDialog({
             <label className="block text-sm text-foreground-muted mb-1">
               Categoria
             </label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-input border border-input-border rounded-sm px-4 py-2 focus:outline-none focus:border-focus-ring text-foreground"
-              required
-            >
-              <option value="">{t("dialogs:editReading.selectPlaceholder")}</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+            <Select value={categoryId} onChange={setCategoryId} placeholder={t("dialogs:editReading.selectPlaceholder")} className="h-10 w-full text-sm" items={categories.map((cat) => ({ value: cat.id, label: cat.name }))} />
           </div>
 
           <div>

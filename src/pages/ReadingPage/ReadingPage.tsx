@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useReadingSession from "./hooks/useReadingSession";
 import ReadingSessionCompletedModal from "./components/ReadingSessionCompletedModal";
@@ -210,6 +210,7 @@ function ReadingContent() {
 interface ReadingWorkspaceProps {
   incomingTab?: ReadingLaunchState | null;
   onIncomingTabConsumed?: () => void;
+  onEmptyTabs?: () => void;
   enableShortcuts?: boolean;
   className?: string;
 }
@@ -217,6 +218,7 @@ interface ReadingWorkspaceProps {
 export function ReadingWorkspace({
   incomingTab = null,
   onIncomingTabConsumed,
+  onEmptyTabs,
   enableShortcuts = true,
   className = "",
 }: ReadingWorkspaceProps) {
@@ -230,6 +232,15 @@ export function ReadingWorkspace({
     removeTab,
     setActiveTab,
   } = useTabContext();
+  const hadTabsRef = useRef(false);
+
+  useEffect(() => {
+    if (tabs.length > 0) {
+      hadTabsRef.current = true;
+    } else if (hadTabsRef.current) {
+      onEmptyTabs?.();
+    }
+  }, [onEmptyTabs, tabs.length]);
 
   const handleOpenFile = useCallback(async () => {
     const result = await openReadableFile();

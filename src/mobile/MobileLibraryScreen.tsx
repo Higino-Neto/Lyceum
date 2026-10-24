@@ -5,6 +5,7 @@ import { makeMobileId, readFileAsDataUrl } from "./storage";
 import { searchAllBooks } from "../api/externalBooks";
 import { getActiveLocale, useTranslation, type TranslationKey } from "../i18n";
 import toast from "react-hot-toast";
+import { MobileSelect } from "./MobileControls";
 import {
   ArrowDownAZ,
   BookOpen,
@@ -194,7 +195,7 @@ function BookEditor({
         <div className="mt-5 grid gap-3">
           <label className="grid gap-2 text-sm font-semibold">
             {t("mobile:library.readingStatus")}
-            <select className="mobile-field" value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_KEYS).map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}</select>
+            <MobileSelect value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_KEYS).map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}</MobileSelect>
           </label>
           <button className={`flex h-12 items-center justify-center gap-2 rounded-xl border ${draft.isFavorite ? "border-primary bg-primary-muted text-primary" : "border-border bg-surface"}`} onClick={() => update({ isFavorite: !draft.isFavorite })} type="button"><Heart className={draft.isFavorite ? "fill-current" : ""} size={17} /> {draft.isFavorite ? t("mobile:library.favorite") : t("mobile:library.addToFavorites")}</button>
           <details className="rounded-2xl border border-border bg-surface/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
@@ -228,10 +229,10 @@ function BookEditor({
           </div></details>
 
           <label className="text-sm text-foreground-muted">{t("mobile:library.managedFolder")}</label>
-          <select className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.folderId || ""} onChange={(event) => update({ folderId: event.target.value || undefined })}>
+          <MobileSelect className="h-11 rounded-xl border border-border bg-surface px-3" value={draft.folderId || ""} onChange={(event) => update({ folderId: event.target.value || undefined })}>
             <option value="">{t("mobile:library.libraryOption")}</option>
             {folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, folders)}</option>)}
-          </select>
+          </MobileSelect>
 
           <button className="h-12 rounded-xl bg-primary font-semibold text-primary-foreground" onClick={async () => {
             if (draft.folderId !== book.folderId) {
@@ -351,8 +352,8 @@ export default function MobileLibraryScreen({
       <ReaderTools />
       {advancedOpen && <div className="fixed inset-0 z-50 flex items-end bg-backdrop" onClick={() => setAdvancedOpen(false)}><div className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl border border-border-strong bg-background p-5 pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={t("mobile:library.filtersAriaLabel")} onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-primary">{t("mobile:library.libraryOption")}</p><h2 className="mt-1 text-xl font-semibold">{t("mobile:library.filtersAndCollections")}</h2></div><button className="grid h-11 w-11 place-items-center rounded-full bg-surface" aria-label={t("mobile:library.closeFiltersAriaLabel")} onClick={() => setAdvancedOpen(false)} type="button"><X size={19} /></button></div>
         <div className="mt-5 grid gap-3 text-sm">
-          <select aria-label={t("mobile:library.filterByStatus")} className="rounded bg-surface-muted p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">{t("mobile:library.allStatuses")}</option>{Object.entries(STATUS_KEYS).map(([v, labelKey]) => <option key={v} value={v}>{t(labelKey)}</option>)}</select>
-          <select aria-label={t("mobile:library.filterByTag")} className="rounded bg-surface-muted p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">{t("mobile:library.allTags")}</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</select>
+          <MobileSelect aria-label={t("mobile:library.filterByStatus")} className="rounded bg-surface-muted p-2" value={query.status || ""} onChange={e => setQuery({ status: e.target.value as MobileBook["readingStatus"] || undefined })}><option value="">{t("mobile:library.allStatuses")}</option>{Object.entries(STATUS_KEYS).map(([v, labelKey]) => <option key={v} value={v}>{t(labelKey)}</option>)}</MobileSelect>
+          <MobileSelect aria-label={t("mobile:library.filterByTag")} className="rounded bg-surface-muted p-2" value={query.tag || ""} onChange={e => setQuery({ tag: e.target.value || undefined })}><option value="">{t("mobile:library.allTags")}</option>{[...new Set(state.books.flatMap(b => b.tags || []))].map(t => <option key={t}>{t}</option>)}</MobileSelect>
           <input className="rounded bg-surface-muted p-2" placeholder={t("mobile:library.authorPlaceholder")} value={query.author || ""} onChange={e => setQuery({ author: e.target.value || undefined })} />
           <input className="w-24 rounded bg-surface-muted p-2" aria-label={t("mobile:library.minProgressAriaLabel")} placeholder={t("mobile:library.minProgressPlaceholder")} type="number" min="0" max="100" value={query.minProgress ?? ""} onChange={e => setQuery({ minProgress: e.target.value ? Number(e.target.value) : undefined })} />
           <input className="w-24 rounded bg-surface-muted p-2" aria-label={t("mobile:library.maxProgressAriaLabel")} placeholder={t("mobile:library.maxProgressPlaceholder")} type="number" min="0" max="100" value={query.maxProgress ?? ""} onChange={e => setQuery({ maxProgress: e.target.value ? Number(e.target.value) : undefined })} />
@@ -483,10 +484,10 @@ export default function MobileLibraryScreen({
           <button className="flex h-12 items-center gap-3 rounded-xl bg-surface px-4 text-sm font-medium" onClick={() => openFolderDialog("rename", folderAction)} type="button"><Pencil size={18} />{t("mobile:library.renameShort")}</button>
           <label className="rounded-xl bg-surface px-4 py-3 text-xs text-foreground-subtle">
             {t("mobile:library.moveTo")}
-            <select className="mt-2 h-11 w-full rounded-xl bg-surface-muted px-3 text-sm text-foreground" value={folderAction.parentId || ""} onChange={(event) => { onMoveFolder(folderAction.id, event.target.value || undefined); setFolderActionId(undefined); }}>
+            <MobileSelect className="mt-2 h-11 w-full rounded-xl bg-surface-muted px-3 text-sm text-foreground" value={folderAction.parentId || ""} onChange={(event) => { onMoveFolder(folderAction.id, event.target.value || undefined); setFolderActionId(undefined); }}>
               <option value="">{t("mobile:library.libraryOption")}</option>
               {state.folders.filter((folder) => folder.id !== folderAction.id && !descendantFolderIds(folderAction.id, state.folders).has(folder.id)).map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}
-            </select>
+            </MobileSelect>
           </label>
           <button className="flex h-12 items-center gap-3 rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground" onClick={() => { onDeleteFolder(folderAction.id); setFolderActionId(undefined); }} type="button"><Trash2 size={18} />{t("mobile:library.deleteFolder")}</button>
         </div>
@@ -505,7 +506,7 @@ export default function MobileLibraryScreen({
 
       {bulkMode && selectedIds.size > 0 && <div className="fixed inset-x-3 bottom-[calc(78px+env(safe-area-inset-bottom))] z-30 rounded-2xl border border-border-strong bg-surface p-3 shadow-2xl"><div className="flex items-center gap-2"><span className="text-sm font-semibold">
             {t("mobile:library.selectedCount", { count: selectedIds.size })}
-          </span><select className="ml-auto h-9 min-w-0 rounded-lg bg-surface-muted px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">{t("mobile:library.libraryOption")}</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</select><button className="grid h-9 w-9 place-items-center rounded-lg bg-surface-muted text-foreground" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label={t("mobile:library.favoriteSelectedAriaLabel")} type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label={t("mobile:library.moveSelectedAriaLabel")} type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-destructive text-destructive-foreground" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label={t("mobile:library.deleteSelectedAriaLabel")} type="button"><Trash2 size={16} /></button></div></div>}
+          </span><MobileSelect className="ml-auto h-9 min-w-0 rounded-lg bg-surface-muted px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">{t("mobile:library.libraryOption")}</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</MobileSelect><button className="grid h-9 w-9 place-items-center rounded-lg bg-surface-muted text-foreground" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label={t("mobile:library.favoriteSelectedAriaLabel")} type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label={t("mobile:library.moveSelectedAriaLabel")} type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-destructive text-destructive-foreground" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label={t("mobile:library.deleteSelectedAriaLabel")} type="button"><Trash2 size={16} /></button></div></div>}
 
       {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={async (patch) => { try { if (patch.thumbnailUrl && patch.thumbnailUrl !== editingBook.thumbnailUrl) patch = { ...patch, ...await persistExtractedBookThumbnail(editingBook, patch.thumbnailUrl) }; onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); } catch { toast.error(t("mobile:library.saveFailed")); } }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} />}
     </section>

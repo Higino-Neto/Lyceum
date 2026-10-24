@@ -5,6 +5,7 @@ import type { ChapterRange } from "./chapterRanges";
 import { filterConceptsByChapter } from "./chapterRanges";
 import SigmaConceptGraph from "./SigmaConceptGraph";
 import { formatNumber, useTranslation } from "../../../../../i18n";
+import Select from "../../../../../components/ui/Select";
 
 interface GraphDialogProps {
   open: boolean;
@@ -131,19 +132,7 @@ export default function GraphDialog({
                     aria-label={t("pdf:annotations.graph.searchAriaLabel")}
                   />
                 </label>
-                <select
-                  value={selectedChapterId}
-                  onChange={(event) => onSelectedChapterChange(event.target.value)}
-                  className="h-9 min-w-[220px] rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary"
-                                   aria-label={t("pdf:annotations.graph.chapterFilterAriaLabel")}
-                >
-                  <option value="all">{t("pdf:annotations.graph.allChapters")}</option>
-                  {chapterRanges.map((chapter) => (
-                    <option key={chapter.id} value={chapter.id}>
-                      {chapter.title} - {chapter.conceptCount}
-                    </option>
-                  ))}
-                </select>
+                <Select value={selectedChapterId} onChange={onSelectedChapterChange} ariaLabel={t("pdf:annotations.graph.chapterFilterAriaLabel")} className="h-9 min-w-[220px] text-sm" items={[{ value: "all", label: t("pdf:annotations.graph.allChapters") }, ...chapterRanges.map((chapter) => ({ value: chapter.id, label: `${chapter.title} - ${chapter.conceptCount}` }))]} />
                 <button
                   type="button"
                   onClick={() => currentChapter && onSelectedChapterChange(currentChapter.id)}

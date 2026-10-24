@@ -791,11 +791,18 @@ export function registerBookHandlers(documentMetadata: DocumentMetadataRepositor
     if (docs.length === 0) return { success: false, count: 0, error: "Nenhum arquivo encontrado" };
     const iconPath = docs.find((doc) => doc.thumbnailPath && fs.existsSync(doc.thumbnailPath))?.thumbnailPath;
     const customIcon = dragImageDataUrl ? nativeImage.createFromDataURL(dragImageDataUrl) : nativeImage.createEmpty();
-    const icon = !customIcon.isEmpty()
+    let icon = !customIcon.isEmpty()
       ? customIcon
       : iconPath
         ? nativeImage.createFromPath(iconPath)
         : nativeImage.createEmpty();
+    // Linux drag targets reject an empty icon. A tiny transparent image keeps
+    // the native file drag valid when a document has no generated thumbnail.
+    if (icon.isEmpty()) {
+      icon = nativeImage.createFromDataURL(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLxYQAAAABJRU5ErkJggg==",
+      );
+    }
     event.sender.startDrag({
       file: docs[0].filePath,
       files: docs.map((doc) => doc.filePath),

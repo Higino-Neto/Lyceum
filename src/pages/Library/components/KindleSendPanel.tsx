@@ -14,6 +14,7 @@ import {
 import toast from "react-hot-toast";
 import { translate, useTranslation } from "../../../i18n";
 import { BookWithThumbnail } from "../../../types/LibraryTypes";
+import Select from "../../../components/ui/Select";
 import {
   formatFileSize,
   getFileTypeLabel,
@@ -344,17 +345,7 @@ export default function KindleSendPanel({
           </div>
 
           {devices.length > 1 && (
-            <select
-              value={selectedDevice?.id || ""}
-              onChange={(event) => setSelectedDeviceId(event.target.value)}
-              className="h-9 w-full rounded-sm border border-border bg-surface px-2 text-sm text-foreground outline-none focus:border-primary"
-            >
-              {devices.map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.name}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedDevice?.id || ""} onChange={setSelectedDeviceId} className="h-9 w-full text-sm" items={devices.map((device) => ({ value: device.id, label: device.name }))} />
           )}
 
           <div className="mt-3 flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-xs text-foreground-muted">

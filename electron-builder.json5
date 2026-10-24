@@ -23,13 +23,15 @@
       "ext": "pdf",
       "name": "PDF Document",
       "description": "PDF Document",
-      "icon": "pdf-icon"
+      "icon": "resources/icons/pdf-icon_512.png",
+      "mimeType": "application/pdf"
     },
     {
       "ext": "epub",
       "name": "EPUB Book",
       "description": "EPUB Book",
-      "icon": "epub-icon"
+      "icon": "resources/icons/epub-icon_512.png",
+      "mimeType": "application/epub+zip"
     }
   ],
   "asarUnpack": [
@@ -47,6 +49,8 @@
     "dist/**",
     "dist-electron/**",
     "resources/icons/icon_512.png",
+    "resources/icons/pdf-icon_512.png",
+    "resources/icons/epub-icon_512.png",
     "package.json",
     "!**/*.map",
     "!**/*.tsbuildinfo",
@@ -77,7 +81,18 @@
     "category": "Education",
     "maintainer": "Higino-Neto <higino.dev@gmail.com>",
     "icon": "resources/icons/icon_512.png",
-    "executableName": "lyceum"
+    "executableName": "lyceum",
+    "mimeTypes": [
+      "application/pdf",
+      "application/epub+zip"
+    ],
+    "desktop": {
+      "Name": "Lyceum",
+      "Comment": "A smarter home for every book you read",
+      "Categories": "Education;Office;Viewer;",
+      "MimeType": "application/pdf;application/epub+zip;x-scheme-handler/lyceum;",
+      "StartupWMClass": "Lyceum"
+    }
   },
   "publish": [
     {

@@ -4,6 +4,7 @@ import { useReaderData } from "./ReaderData";
 import type { ReaderLocator } from "./readerModel";
 import { FONT_LABELS, FONT_MAP, THEME_COLORS, THEME_LABELS, loadSettings, persistSettings, type FontFamily, type ReaderTheme } from "./textReaderSettings";
 import { useTranslation } from "../i18n";
+import { MobileSelect } from "./MobileControls";
 
 export default function TextPane({ bookId, dataUrl, initialProgress, initialOffset, onProgress }: {
   bookId: string; dataUrl: string; initialProgress: number; initialOffset?: number; onProgress: (percent: number, offset: number) => void;
@@ -78,8 +79,8 @@ export default function TextPane({ bookId, dataUrl, initialProgress, initialOffs
   const cls = "rounded-lg bg-surface-muted p-2 text-sm text-foreground";
   return <div className="relative">
     <div className="flex flex-wrap gap-2 p-2">
-      <select aria-label={t("mobile:textPane.themeLabel")} className={cls} value={settings.theme} onChange={e => setSettings(s => ({ ...s, theme: e.target.value as ReaderTheme }))}>{Object.keys(THEME_COLORS).map(theme => <option key={theme} value={theme}>{t(THEME_LABELS[theme as ReaderTheme])}</option>)}</select>
-      <select aria-label={t("mobile:textPane.fontLabel")} className={cls} value={settings.fontFamily} onChange={e => setSettings(s => ({ ...s, fontFamily: e.target.value as FontFamily }))}>{Object.keys(FONT_MAP).map(font => <option key={font} value={font}>{t(FONT_LABELS[font as FontFamily])}</option>)}</select>
+      <MobileSelect aria-label={t("mobile:textPane.themeLabel")} className={cls} value={settings.theme} onChange={e => setSettings(s => ({ ...s, theme: e.target.value as ReaderTheme }))}>{Object.keys(THEME_COLORS).map(theme => <option key={theme} value={theme}>{t(THEME_LABELS[theme as ReaderTheme])}</option>)}</MobileSelect>
+      <MobileSelect aria-label={t("mobile:textPane.fontLabel")} className={cls} value={settings.fontFamily} onChange={e => setSettings(s => ({ ...s, fontFamily: e.target.value as FontFamily }))}>{Object.keys(FONT_MAP).map(font => <option key={font} value={font}>{t(FONT_LABELS[font as FontFamily])}</option>)}</MobileSelect>
       <button className={cls} onClick={() => setSettings(s => ({ ...s, fontSize: Math.max(60, s.fontSize - 10) }))}>A−</button><button className={cls} onClick={() => setSettings(s => ({ ...s, fontSize: Math.min(200, s.fontSize + 10) }))}>A+</button>
       <input className={cls} placeholder={t("mobile:textPane.searchAriaLabel")} value={query} onChange={e => { setQuery(e.target.value); setHit(0); }} />
       <button className={cls} disabled={!hits.length} onClick={() => { const next = (hit + 1) % hits.length; setHit(next); history.jump({ format: "txt", offset: hits[next] }); }}>{hits.length ? t("mobile:textPane.searchProgress", { hit: hit + 1, total: hits.length }) : t("mobile:textPane.noResults")}</button>

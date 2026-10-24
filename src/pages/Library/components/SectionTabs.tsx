@@ -68,7 +68,13 @@ export default function SectionTabs({
             <span className="relative z-10 hidden min-w-0 max-w-28 truncate sm:inline lg:max-w-36">
               {t(section.labelKey)}
             </span>
-            <span className="relative z-10 rounded-sm bg-backdrop px-1.5 text-[11px]">
+            <span
+              className={`relative z-10 rounded-sm px-1.5 text-[11px] ${
+                isActive
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-surface-muted text-foreground-muted"
+              }`}
+            >
               {section.count}
             </span>
           </button>

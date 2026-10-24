@@ -52,6 +52,17 @@ const STATUS_DOT: Record<ReadingStatus, string> = {
   unknown: "bg-border-strong",
 };
 
+const EXPANDED_PATHS_STORAGE_KEY = "lyceum_library_folderTreeExpandedPaths";
+
+function readExpandedPaths() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(EXPANDED_PATHS_STORAGE_KEY) || "[]");
+    return new Set<string>(Array.isArray(value) ? value.filter((path): path is string => typeof path === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
 export default function FolderTree(props: FolderTreeProps) {
   const libraryContext = useOptionalLibraryContext();
 
@@ -141,7 +152,11 @@ function FolderTreeContainer({
   const { t } = useTranslation();
   const libraryContext = useOptionalLibraryContext();
   const [folders, setFolders] = useState<FolderInfo[]>(data.folders);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => collectExpandablePaths(data.folders));
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
+    const saved = readExpandedPaths();
+    if (saved.size > 0) return saved;
+    return collectExpandablePaths(data.folders);
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, folder: null });
@@ -162,8 +177,49 @@ function FolderTreeContainer({
 
   useEffect(() => {
     setFolders(visibleFolders(data.folders));
-    setExpandedPaths((current) => (current.size > 0 ? current : collectExpandablePaths(data.folders)));
+    // Don't auto-expand on data change if user has saved expanded paths
+    // Only auto-expand if no paths are saved
+    setExpandedPaths((current) => {
+      if (current.size > 0) return current;
+      return collectExpandablePaths(data.folders);
+    });
   }, [data.folders]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(EXPANDED_PATHS_STORAGE_KEY, JSON.stringify([...expandedPaths]));
+    } catch {
+      // Storage can be unavailable in restricted environments.
+    }
+  }, [expandedPaths]);
+
+  // Load children for expanded folders that haven't been loaded yet
+  useEffect(() => {
+    if (!loadChildren) return;
+    const loadUnloaded = async () => {
+      const toLoad: string[] = [];
+      const findUnloaded = (items: FolderInfo[]) => {
+        for (const folder of items) {
+          if (expandedPaths.has(folder.path) && folder.hasChildren && !folder.isLoaded) {
+            toLoad.push(folder.path);
+          }
+          if (folder.subfolders.length > 0) {
+            findUnloaded(folder.subfolders);
+          }
+        }
+      };
+      findUnloaded(folders);
+      for (const path of toLoad) {
+        try {
+          const children = await loadChildren(path);
+          setFolders((current) => updateFolderChildren(current, path, children));
+        } catch {
+          // ignore
+        }
+      }
+    };
+    void loadUnloaded();
+  }, [expandedPaths, folders, loadChildren]);
 
   useEffect(() => {
     if (!window.api?.getLibraryPath) return;

@@ -50,6 +50,7 @@ import {
 } from "../Library/utils";
 import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnail";
 import AnimatedModal from "../../components/ui/AnimatedModal";
+import Select from "../../components/ui/Select";
 import { AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
@@ -203,10 +204,7 @@ function FormatOptions({
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.pdf.pageSize")}</span>
-          <select value={options.pdfPageSize} onChange={(event) => onChange({ pdfPageSize: event.target.value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
-            <option value="A4">A4</option><option value="A5">A5</option><option value="Letter">{t("conversion:options.pdf.pageSizes.Letter")}</option>
-            <option value="Legal">{t("conversion:options.pdf.pageSizes.Legal")}</option>
-          </select>
+          <Select value={options.pdfPageSize} onChange={(value) => onChange({ pdfPageSize: value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full text-sm" items={[{ value: "A4", label: "A4" }, { value: "A5", label: "A5" }, { value: "Letter", label: t("conversion:options.pdf.pageSizes.Letter") }, { value: "Legal", label: t("conversion:options.pdf.pageSizes.Legal") }]} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <NumberOption label={t("conversion:options.pdf.marginTop")} value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
@@ -228,11 +226,7 @@ function FormatOptions({
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.epub.layout")}</span>
-          <select value={options.epubLayout} onChange={(event) => onChange({ epubLayout: event.target.value as ConversionOptions["epubLayout"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
-            <option value="auto">{t("conversion:options.epub.layouts.auto")}</option>
-            <option value="fixed-layout">{t("conversion:options.epub.layouts.fixed-layout")}</option>
-            <option value="reflow">{t("conversion:options.epub.layouts.reflow")}</option>
-          </select>
+          <Select value={options.epubLayout} onChange={(value) => onChange({ epubLayout: value as ConversionOptions["epubLayout"] })} className="h-9 w-full text-sm" items={[{ value: "auto", label: t("conversion:options.epub.layouts.auto") }, { value: "fixed-layout", label: t("conversion:options.epub.layouts.fixed-layout") }, { value: "reflow", label: t("conversion:options.epub.layouts.reflow") }]} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <NumberOption label={t("conversion:options.epub.lineHeight")} value={options.epubLineHeight} min={1} max={2.2} step={0.05} onChange={(value) => onChange({ epubLineHeight: value })} />
@@ -248,12 +242,7 @@ function FormatOptions({
       <div className="space-y-4">
         <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.kindle.profile")}</span>
-          <select value={options.kindleProfile} onChange={(event) => onChange({ kindleProfile: event.target.value as ConversionOptions["kindleProfile"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
-            <option value="legacy-paperwhite">{t("conversion:options.kindle.profiles.legacy-paperwhite")}</option>
-            <option value="kindle-compatible">{t("conversion:options.kindle.profiles.kindle-compatible")}</option>
-            <option value="modern-kindle">{t("conversion:options.kindle.profiles.modern-kindle")}</option>
-            <option value="scribe">{t("conversion:options.kindle.profiles.scribe")}</option>
-          </select>
+          <Select value={options.kindleProfile} onChange={(value) => onChange({ kindleProfile: value as ConversionOptions["kindleProfile"] })} className="h-9 w-full text-sm" items={[{ value: "legacy-paperwhite", label: t("conversion:options.kindle.profiles.legacy-paperwhite") }, { value: "kindle-compatible", label: t("conversion:options.kindle.profiles.kindle-compatible") }, { value: "modern-kindle", label: t("conversion:options.kindle.profiles.modern-kindle") }, { value: "scribe", label: t("conversion:options.kindle.profiles.scribe") }]} />
         </label>
         <ToggleOption label={t("conversion:options.kindle.preserveCover")} checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
         <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
@@ -266,10 +255,7 @@ function FormatOptions({
   if (format === "txt") return (
     <label className="block space-y-1 text-xs text-foreground-muted">
       <span>{t("conversion:options.txt.lineEnding")}</span>
-      <select value={options.txtLineEnding} onChange={(event) => onChange({ txtLineEnding: event.target.value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground outline-none">
-        <option value="crlf">{t("conversion:options.txt.lineEndings.crlf")}</option>
-        <option value="lf">{t("conversion:options.txt.lineEndings.lf")}</option>
-      </select>
+      <Select value={options.txtLineEnding} onChange={(value) => onChange({ txtLineEnding: value as ConversionOptions["txtLineEnding"] })} className="h-9 w-full text-sm" items={[{ value: "crlf", label: t("conversion:options.txt.lineEndings.crlf") }, { value: "lf", label: t("conversion:options.txt.lineEndings.lf") }]} />
     </label>
   );
   return (

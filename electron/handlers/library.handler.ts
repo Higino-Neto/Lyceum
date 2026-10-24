@@ -134,10 +134,22 @@ export function registerLibraryHandlers() {
     return getDocumentFolderCounts();
   });
 
-  ipcMain.handle("library:open-folder", () => {
+  ipcMain.handle("library:open-folder", async () => {
     const libraryPath = LIBRARY_PATH();
-    shell.openPath(libraryPath);
-    return libraryPath;
+    try {
+      const error = await shell.openPath(libraryPath);
+      if (error) {
+        // Fallback: try to open via external
+        try {
+          await shell.openExternal(`file://${libraryPath}`);
+        } catch (fallbackError) {
+          throw new Error(error || String(fallbackError));
+        }
+      }
+      return libraryPath;
+    } catch (err) {
+      throw err;
+    }
   });
 
   ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "move" | "copy", category?: string) => {

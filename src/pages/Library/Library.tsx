@@ -198,8 +198,6 @@ function LibraryContent() {
     hashes: string[];
     preview?: string;
     nativeStarted: boolean;
-    lastX: number;
-    lastY: number;
   } | null>(null);
   const mergedBookCacheRef = useRef(new Map<string, MergedBookCacheEntry>());
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
@@ -348,6 +346,12 @@ function LibraryContent() {
       setShowSidebar(true);
     }
     previousSidebarDrawerRef.current = sidebarIsDrawer;
+  }, [setShowSidebar, sidebarIsDrawer]);
+
+  // The folder tree is the primary library navigation. Always expose it on
+  // desktop startup; drawer-sized layouts keep their non-obstructive default.
+  useEffect(() => {
+    if (!sidebarIsDrawer) setShowSidebar(true);
   }, [setShowSidebar, sidebarIsDrawer]);
 
   const sourceRootPaths = useMemo(
@@ -1172,8 +1176,6 @@ function LibraryContent() {
       hashes: concreteHashes,
       preview: createBookDragPreview(concreteHashes.length),
       nativeStarted: false,
-      lastX: window.innerWidth / 2,
-      lastY: window.innerHeight / 2,
     };
   }, [findDisplayBookByHash, folderDragDrop, getConcreteFileHashesFromBooks, selectedBookMap, selectedHashes, t]);
 
@@ -1185,15 +1187,13 @@ function LibraryContent() {
     const inside = event.clientX > inset && event.clientY > inset &&
       event.clientX < window.innerWidth - inset && event.clientY < window.innerHeight - inset;
     if (inside) {
-      session.lastX = event.clientX;
-      session.lastY = event.clientY;
       return;
     }
 
-    const edgeThreshold = 72;
-    const leftApp = session.lastX < edgeThreshold || session.lastY < edgeThreshold ||
-      session.lastX > window.innerWidth - edgeThreshold || session.lastY > window.innerHeight - edgeThreshold;
-    if (!leftApp) return;
+    // Chromium reports (0, 0) for a native drag that has already crossed the
+    // window boundary on Linux. The previous edge heuristic then missed the
+    // hand-off unless the preceding drag event happened near an edge.
+    // `inside === false` is itself the reliable boundary signal.
 
     session.nativeStarted = true;
     event.preventDefault();
@@ -2505,18 +2505,7 @@ function LibraryContent() {
               <label className="block text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                 {t("library:page.destinationFolder")}
               </label>
-              <select
-                value={syncTargetFolder}
-                onChange={(event) => setSyncTargetFolder(event.target.value)}
-                className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
-              >
-                <option value="">{t("library:page.root")}</option>
-                {libraryFolders.map((folder) => (
-                  <option key={folder} value={folder}>
-                    {folder}
-                  </option>
-                ))}
-              </select>
+              <Select value={syncTargetFolder} onChange={setSyncTargetFolder} className="h-10 w-full text-sm" items={[{ value: "", label: t("library:page.root") }, ...libraryFolders.map((folder) => ({ value: folder, label: folder }))]} />
             </div>
 
             <div className="flex justify-end gap-2 border-t border-border p-4">

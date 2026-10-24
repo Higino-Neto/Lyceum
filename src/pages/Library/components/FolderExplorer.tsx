@@ -253,7 +253,7 @@ export function FolderGrid({
           <p className="text-sm">Nenhuma subpasta</p>
         </div>
       ) : (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-2 pr-1">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible px-1 pb-3 pt-1 pr-2">
           {folders.map((folder) => {
             const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
             const bookCount = getFolderBookCount(folder) || indexedInfo.bookCount;

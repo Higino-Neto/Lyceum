@@ -17,6 +17,7 @@ import { useRouteState } from "../hooks/useRouteState";
 import BooksSection from "./Library/components/BooksSection";
 import StatisticsPanel from "./Library/components/StatisticsPanel";
 import { DocumentRecord } from "../types/ReadingTypes";
+import Select from "../components/ui/Select";
 
 interface Book {
   id: string;
@@ -500,24 +501,7 @@ export default function AddReadingPage() {
                     </div>
 
                     <div className="col-span-2 relative">
-                      <select
-                        value={entry.category_id || ""}
-                        onChange={(e) =>
-                          updateEntry(entry.id, "category_id", e.target.value)
-                        }
-                        className={`border-border-strong text-foreground w-full bg-surface-muted/50 border rounded px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-focus-ring cursor-pointer`}
-                      >
-                        <option value="">{t("reading:add.selectCategory")}</option>
-                        {categories?.map((cat: any) => (
-                          <option
-                            key={cat.id}
-                            value={cat.id}
-                            className="text-foreground"
-                          >
-                            {cat.name} ({cat.points_per_page}x)
-                          </option>
-                        ))}
-                      </select>
+                      <Select value={entry.category_id || ""} onChange={(value) => updateEntry(entry.id, "category_id", value)} placeholder={t("reading:add.selectCategory")} className="h-10 w-full text-sm" items={(categories ?? []).map((cat: any) => ({ value: cat.id, label: `${cat.name} (${cat.points_per_page}x)` }))} />
                       {/* {entry.category_id && (
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
                           <span className="text-primary text-xs">✓</span>

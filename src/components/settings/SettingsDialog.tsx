@@ -20,6 +20,7 @@ import {
   ZoomSettingsPanel,
 } from "./SettingsPanels";
 import AnimatedModal from "../ui/AnimatedModal";
+import Select from "../ui/Select";
 import { useTranslation } from "../../i18n";
 
 export type SettingsTabId = "general" | "hotkeys" | "backup" | "library" | "updates" | "account" | "friends" | "appearance" | "zoom" | "dictionaries" | "beta" | "performance";
@@ -228,22 +229,7 @@ export default function SettingsDialog({
             </div>
 
             <div className="flex items-center gap-2">
-              <select
-                value={activeTab}
-                onChange={(event) =>
-                  setActiveTab(event.target.value as SettingsTabId)
-                }
-                className="h-9 rounded border border-input-border bg-input px-3 text-sm text-foreground sm:hidden"
-                aria-label={t("settings:selectTab")}
-              >
-                {tabs.map((tab) => (
-                  <option key={tab.id} value={tab.id}>
-                    {tab.badgeCount
-                      ? `${tabLabel(tab)} (${tab.badgeCount})`
-                      : tabLabel(tab)}
-                  </option>
-                ))}
-              </select>
+              <Select value={activeTab} onChange={(value) => setActiveTab(value as SettingsTabId)} className="h-9 min-w-[150px] text-sm sm:hidden" ariaLabel={t("settings:selectTab")} items={tabs.map((tab) => ({ value: tab.id, label: tab.badgeCount ? `${tabLabel(tab)} (${tab.badgeCount})` : tabLabel(tab) }))} />
 
               <button
                 type="button"

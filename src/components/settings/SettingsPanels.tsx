@@ -50,6 +50,7 @@ import {
 } from "../../navigation/routes";
 import { LanguageSwitcher, translate, useLanguage, useTranslation } from "../../i18n";
 import type { TranslationKey } from "../../i18n";
+import Select from "../ui/Select";
 
 type DesktopUpdateStatus =
   | "idle"
@@ -823,19 +824,7 @@ export function HotkeysSettingsPanel() {
                 <span className="text-sm text-foreground">
                   {getRouteLabel(route, t)}
                 </span>
-                <select
-                  aria-label={t("settings:hotkeys.routeShortcutLabel", {
-                    route: getRouteLabel(route, t),
-                  })}
-                  value={bindings[route.id] || ""}
-                  onChange={(event) => setHotkeyBinding(route.id, event.target.value)}
-                  className="h-8 rounded border border-border-strong bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="">{t("settings:hotkeys.noShortcut")}</option>
-                  {Array.from({ length: 9 }, (_, index) => String(index + 1)).map((key) => (
-                    <option key={key} value={key}>{key}</option>
-                  ))}
-                </select>
+                <Select ariaLabel={t("settings:hotkeys.routeShortcutLabel", { route: getRouteLabel(route, t) })} value={bindings[route.id] || ""} onChange={(value) => setHotkeyBinding(route.id, value)} className="h-8 min-w-[110px] text-sm" items={[{ value: "", label: t("settings:hotkeys.noShortcut") }, ...Array.from({ length: 9 }, (_, index) => String(index + 1)).map((key) => ({ value: key, label: key }))]} />
               </div>
             ))}
           </div>

@@ -6,12 +6,21 @@ export interface SelectItem {
   label: string;
 }
 
+// Radix reserves the empty string for clearing a selection. Keeping this
+// conversion inside the shared control lets callers retain native-select
+// semantics for meaningful "root" / "all" options.
+const EMPTY_VALUE = "__lyceum_empty_select_value__";
+const toRadixValue = (value: string) => value === "" ? EMPTY_VALUE : value;
+const fromRadixValue = (value: string) => value === EMPTY_VALUE ? "" : value;
+
 interface SelectProps {
   value?: string;
   onChange: (value: string) => void;
   items: SelectItem[];
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
 }
 
 export default function Select({
@@ -20,15 +29,17 @@ export default function Select({
   items,
   placeholder,
   disabled,
+  className,
+  ariaLabel,
 }: SelectProps) {
   return (
     <RadixSelect.Root
-      value={value}
-      onValueChange={onChange}
+      value={value === undefined ? undefined : toRadixValue(value)}
+      onValueChange={(nextValue) => onChange(fromRadixValue(nextValue))}
       disabled={disabled}
     >
       <RadixSelect.Trigger
-        className="
+        className={`
           flex h-8 min-w-[160px] items-center justify-between
           gap-2 rounded-md border border-border
           bg-surface px-3
@@ -48,7 +59,8 @@ export default function Select({
 
           disabled:cursor-not-allowed
           disabled:opacity-50
-        "
+        ${className ?? ""}`}
+        aria-label={ariaLabel}
       >
         <RadixSelect.Value placeholder={placeholder} />
 
@@ -79,7 +91,7 @@ export default function Select({
             {items.map((item) => (
               <RadixSelect.Item
                 key={item.value}
-                value={item.value}
+                value={toRadixValue(item.value)}
                 className="
                   relative flex cursor-pointer
                   items-center rounded-sm

@@ -64,15 +64,15 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 #### 2.0.0
 
-- [ ] O ring das pastas no foldergrid na library não está sendo mostrado na parte de cima. Como se o componente de cima cortasse ele ao invés de mostrar o topo. Resolva essa questão do espaçamento para que fique perfeitamente visível.
+- [x] O ring das pastas no foldergrid na library não está sendo mostrado na parte de cima. Como se o componente de cima cortasse ele ao invés de mostrar o topo. Resolva essa questão do espaçamento para que fique perfeitamente visível.
 
-- [ ] A label que mostra o número de volumes em cada Synced ou Not Synced ou USB Devices está com background escuro e o foreground escuro ao mesmo tempo, o que dá uma impressão estranha e fica feio. Resolva isso para todos os semelhantes dele.
+- [x] A label que mostra o número de volumes em cada Synced ou Not Synced ou USB Devices está com background escuro e o foreground escuro ao mesmo tempo, o que dá uma impressão estranha e fica feio. Resolva isso para todos os semelhantes dele.
 
-- [ ] O Folder Panel lateral esquerdo não está sendo mostrado no startup do aplicativo. Resolva isso.
+- [x] O Folder Panel lateral esquerdo não está sendo mostrado no startup do aplicativo. Resolva isso.
 
-- [ ] O botão compare do editbookmetadata não funciona.
+- [x] O botão compare do editbookmetadata não funciona.
 
-- [ ] Existem vários compoenentes <select> na aplicação. Eu quero que você migre todos eles para o componente de UI <Select> que eu fiz, para deixar a UI mais consistente.
+- [x] Existem vários compoenentes <select> na aplicação. Eu quero que você migre todos eles para o componente de UI <Select> que eu fiz, para deixar a UI mais consistente.
 
 - [ ] O Lyceum no linux não aparece como aplicativo recomendado no file explorer para abrir de fora do app. No windows ele já aparece. Resolva isso.
 
@@ -80,13 +80,12 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 - [ ] A opção de organizar os livros da library por "list" está muito primitiva, refaça ela para ficar uma alternativa viável para quem gosta desse tipo de visão.
 
-- [ ] O folderTree não está persistindo as pastas que estão com as suas subpastas expandidas. Então quando eu clico fora, elas fecham. Isso é ruim. (O mesmo para as source folders).
+- [ ] O folderTree não está persistindo as pastas que estão com as suas subpastas expandidas. Então quando eu clico fora, elas fecham. Isso é ruim. (O mesmo para as source folders). (Eu tentei modificar, mas agora ele fica com a seta apontando para baixo, mas não de fato atualiza o componente para mostrar as subfolders)
 
-- [ ] No linux, eu não consigo pegar um arquivo de dentro da library e arrastar ele para o file explorer ou para o whatsapp como eu posso no windows. Resolva isso.
+- [x] No linux, eu não consigo pegar um arquivo de dentro da library e arrastar ele para o file explorer ou para o whatsapp como eu posso no windows. Resolva isso.
 
 - [ ] O Modal de folhear o livro dentro de /readings não está na paleta de cores do lyceum e nem no i18n. Nem nada relacionado a ele. Eu quero que você atualize esse componente para que ele seja integrado de fato à aplicação.
 
 - [ ] Na aba de conversão, eu quero que você troque completamente o search file dele pelo search file do atlas, que é muito melhor em vários aspectos. Na verdade, eu quero pegar aquele modal "Add from library" do atlas e modularizar ele para que eu possa chamar ele em features futuras.
 
-- [ ] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).
-
+- [x] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).

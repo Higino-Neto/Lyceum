@@ -8,6 +8,7 @@ import type {
   ReadingStatus,
 } from "../../../types/LibraryTypes";
 import { READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
+import Select from "../../../components/ui/Select";
 import BookCard from "../../Library/components/BookGrid/BookCard";
 import FilterBar, {
   type FileTypeFilter,
@@ -160,17 +161,7 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
             placeholder={t("atlas:manualDialog.authorPlaceholder")}
             className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
           />
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value as ReadingStatus)}
-            className="h-10 w-full rounded-sm border border-border-strong bg-background px-3 text-sm text-foreground outline-none focus:border-primary"
-          >
-            {READING_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
+          <Select value={status} onChange={(value) => setStatus(value as ReadingStatus)} className="h-10 w-full text-sm" items={READING_STATUS_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))} />
         </div>
         <div className="flex justify-end gap-2 border-t border-border p-4">
           <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground">

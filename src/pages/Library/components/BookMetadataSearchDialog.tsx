@@ -553,7 +553,15 @@ export default function BookMetadataSearchDialog({
               </button>
               <button
                 type="button"
-                onClick={() => setShowChangedOnly((value) => !value)}
+                onClick={() => {
+                  // Comparing a selected result should work directly; users
+                  // should not have to discover the separate apply action
+                  // before they can inspect the proposed changes.
+                  if (!showChangedOnly && changedCount === 0 && selected) {
+                    setForm((current) => mergeCandidate(current, selected, overwrite));
+                  }
+                  setShowChangedOnly((value) => !value);
+                }}
                 className="flex h-9 items-center justify-center rounded-sm border border-border bg-surface px-3 text-xs text-foreground transition-colors hover:bg-surface-muted"
               >
                 {showChangedOnly

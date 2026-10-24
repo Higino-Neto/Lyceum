@@ -17,6 +17,7 @@ import {
   type SortMode,
 } from "./annotationPanelUtils";
 import { useTranslation, type TranslationKey } from "../../../../../i18n";
+import Select from "../../../../../components/ui/Select";
 
 interface ConceptListProps {
   concepts: KeyConcept[];
@@ -197,23 +198,16 @@ export default function ConceptList({
           </div>
           {chapterRanges.length > 0 && (
             <div className="grid grid-cols-[1fr_auto] gap-2">
-              <select
+              <Select
                 value={selectedChapterId}
-                onChange={(event) => {
-                  const value = event.target.value;
+                onChange={(value) => {
                   onSelectedChapterChange(value);
                   onFilterScopeChange(value === "all" ? "all" : "chapter");
                 }}
-                className="h-8 min-w-0 rounded-sm border border-border bg-background px-2 text-[11px] text-foreground outline-none focus:border-primary"
-                aria-label={t("pdf:annotations.list.chapterFilterAriaLabel")}
-              >
-                <option value="all">{t("pdf:annotations.list.allChapters")}</option>
-                {chapterRanges.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.title} - {chapter.conceptCount}
-                  </option>
-                ))}
-              </select>
+                className="h-8 min-w-0 text-[11px]"
+                ariaLabel={t("pdf:annotations.list.chapterFilterAriaLabel")}
+                items={[{ value: "all", label: t("pdf:annotations.list.allChapters") }, ...chapterRanges.map((chapter) => ({ value: chapter.id, label: `${chapter.title} - ${chapter.conceptCount}` }))]}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -234,11 +228,7 @@ export default function ConceptList({
 
       <label className="flex items-center gap-2 text-xs text-foreground-subtle">
         {t("pdf:annotations.list.sortBy")}
-        <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as SortMode)} className="ml-auto h-8 rounded-md border border-border bg-surface px-2 text-xs text-foreground">
-          {sortTabs.map((tab) => (
-            <option key={tab.value} value={tab.value}>{t(tab.labelKey)}</option>
-          ))}
-        </select>
+        <Select value={sortMode} onChange={(value) => onSortModeChange(value as SortMode)} className="ml-auto h-8 text-xs" items={sortTabs.map((tab) => ({ value: tab.value, label: t(tab.labelKey) }))} />
       </label>
 
       {loading ? (
