@@ -4,109 +4,10 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type {
-  BookWithThumbnail,
   ReadingStatus,
 } from "../../../types/LibraryTypes";
 import { READING_STATUS_OPTIONS } from "../../../lib/readingStatus";
 import Select from "../../../components/ui/Select";
-import BookCard from "../../Library/components/BookGrid/BookCard";
-import FilterBar, {
-  type FileTypeFilter,
-  type SortOption,
-} from "../../Library/components/FilterBar";
-import {
-  matchesLibraryBookFileTypes,
-  matchesLibraryBookSearch,
-  sortLibraryBooks,
-} from "../atlasUtils";
-
-interface LibraryPickerDialogProps {
-  open: boolean;
-  books: BookWithThumbnail[];
-  onClose: () => void;
-  onSelect: (book: BookWithThumbnail) => void;
-}
-
-export function LibraryPickerDialog({ open, books, onClose, onSelect }: LibraryPickerDialogProps) {
-  const { t } = useTranslation();
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortOption>("title_asc");
-  const [fileType, setFileType] = useState<FileTypeFilter[]>([]);
-
-  useEffect(() => {
-    if (!open) {
-      setSearch("");
-      setSort("title_asc");
-      setFileType([]);
-    }
-  }, [open]);
-
-  if (!open) return null;
-
-  const filtered = sortLibraryBooks(
-    books.filter((book) => (
-      matchesLibraryBookSearch(book, search) &&
-      matchesLibraryBookFileTypes(book, fileType)
-    )),
-    sort,
-  );
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop px-4">
-      <div className="flex h-[84vh] w-full max-w-6xl flex-col overflow-hidden rounded-sm border border-border bg-background shadow-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              {t("atlas:libraryPicker.title")}
-            </h2>
-            <p className="mt-1 text-xs text-foreground-subtle">
-              {t("atlas:libraryPicker.count", {
-                count: filtered.length,
-                total: books.length,
-              })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 cursor-pointer rounded-sm border border-border px-3 text-xs text-foreground-muted hover:bg-surface hover:text-foreground"
-          >
-            {t("atlas:libraryPicker.close")}
-          </button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col p-4">
-          <FilterBar
-            search={search}
-            onSearchChange={setSearch}
-            sort={sort}
-            onSortChange={setSort}
-            fileType={fileType}
-            onFileTypeChange={setFileType}
-          />
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            {filtered.length === 0 ? (
-              <div className="flex min-h-72 items-center justify-center rounded-sm border border-dashed border-border text-sm text-foreground-subtle">
-                {t("atlas:libraryPicker.empty")}
-              </div>
-            ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-4 pb-2">
-                {filtered.map((book) => (
-                  <BookCard
-                    key={book.fileHash}
-                    book={book}
-                    onOpen={onSelect}
-                    onClick={onSelect}
-                    showSyncActions={false}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 interface ManualBookDialogProps {
   open: boolean;
@@ -165,7 +66,7 @@ export function ManualBookDialog({ open, initialStatus = "want_to_read", onClose
         </div>
         <div className="flex justify-end gap-2 border-t border-border p-4">
           <button type="button" onClick={onClose} className="h-9 cursor-pointer rounded-sm px-3 text-sm text-foreground-muted hover:bg-surface-muted hover:text-foreground">
-            Cancelar
+            {t("common:actions.cancel")}
           </button>
           <button type="submit" className="h-9 cursor-pointer rounded-sm bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
             {t("atlas:manualDialog.submit")}

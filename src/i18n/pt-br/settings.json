@@ -52,6 +52,10 @@
     "dictionaries": {
       "label": "Dicionários",
       "description": "Pacotes offline para leitura."
+    },
+    "plugins": {
+      "label": "Plugins",
+      "description": "Ative ou desative recursos opcionais e módulos experimentais."
     }
   },
 

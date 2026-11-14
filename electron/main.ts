@@ -46,6 +46,8 @@ import {
   type BookFileType,
 } from "./services/document-processing";
 import { deleteBook } from "./services/document-service";
+import { WATCHER_IGNORED_PATTERNS } from "./services/watcher-ignores";
+import { registerLinuxRecommendedApp } from "./services/linux-file-associations";
 import {
   checkProcessingWorkers,
   convertPdfToEpubInWorker,
@@ -1765,6 +1767,8 @@ function setupFileWatcher() {
     persistent: true,
     ignoreInitial: true,
     depth: 99,
+    ignorePermissionErrors: true,
+    ignored: WATCHER_IGNORED_PATTERNS,
     awaitWriteFinish: {
       stabilityThreshold: 1000,
       pollInterval: 100,
@@ -3480,6 +3484,8 @@ async function runPackagedSmokeTest() {
 
 app.whenReady().then(async () => {
   logStartupEnvironment();
+
+  void registerLinuxRecommendedApp();
 
   if (isPackagedSmokeTest) {
     await runPackagedSmokeTest();

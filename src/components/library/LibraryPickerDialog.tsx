@@ -16,7 +16,7 @@ import {
   matchesLibraryBookFileTypes,
   matchesLibraryBookSearch,
   sortLibraryBooks,
-} from "../../pages/Atlas/atlasUtils";
+} from "../../components/library/libraryPickerFilters";
 
 interface LibraryPickerDialogProps {
   open: boolean;

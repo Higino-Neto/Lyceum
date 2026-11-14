@@ -82,6 +82,12 @@
     "maintainer": "Higino-Neto <higino.dev@gmail.com>",
     "icon": "resources/icons/icon_512.png",
     "executableName": "lyceum",
+    "deb": {
+      "afterInstall": "scripts/linux-after-install.sh"
+    },
+    "rpm": {
+      "afterInstall": "scripts/linux-after-install.sh"
+    },
     "mimeTypes": [
       "application/pdf",
       "application/epub+zip"

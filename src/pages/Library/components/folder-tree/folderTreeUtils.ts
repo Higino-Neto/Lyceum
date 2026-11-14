@@ -180,6 +180,41 @@ export function updateFolderChildren(
   });
 }
 
+export function mergeFolderTrees(
+  incoming: FolderInfo[],
+  current: FolderInfo[],
+): FolderInfo[] {
+  if (current.length === 0) return incoming;
+
+  const currentIndex = new Map(current.map((folder) => [folder.path, folder] as const));
+  return incoming.map((folder) => {
+    const local = currentIndex.get(folder.path);
+    if (!local) return folder;
+
+    // The query says nothing about this folder's children yet, but the local
+    // tree has already lazily loaded them — preserve the loaded subfolders
+    // instead of resetting to an unloaded node (chevron down with no children).
+    const preserveLocalChildren = !folder.isLoaded
+      && local.isLoaded
+      && folder.subfolders.length === 0
+      && local.subfolders.length > 0;
+
+    if (preserveLocalChildren) {
+      return {
+        ...folder,
+        subfolders: local.subfolders,
+        hasChildren: local.hasChildren,
+        isLoaded: local.isLoaded,
+      };
+    }
+
+    return {
+      ...folder,
+      subfolders: mergeFolderTrees(folder.subfolders, local.subfolders),
+    };
+  });
+}
+
 export function withCreateRows(
   nodes: FlatFolderNode[],
   creatingFolderAt: string | null,

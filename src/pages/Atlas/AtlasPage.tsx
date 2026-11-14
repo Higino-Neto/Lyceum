@@ -25,9 +25,9 @@ import BookMetadataSearchDialog, {
 import SetThumbnailDialog from "../../components/SetThumbnailDialog";
 import StatusBoardView from "./components/StatusBoard";
 import {
-  LibraryPickerDialog,
   ManualBookDialog,
 } from "./components/AtlasDialogs";
+import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
 import {
   ATLAS_BOOKS_QUERY_KEY,
   ATLAS_STATUS_QUERY_KEY,

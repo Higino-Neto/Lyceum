@@ -129,6 +129,7 @@ export default function PdfJsViewer({
     marked: t("pdf:bookEdge.marked"),
     loading: t("pdf:bookEdge.loading"),
     loadError: t("pdf:bookEdge.loadError"),
+    previewPage: t("pdf:bookEdge.previewPage", { page: "{{page}}" }),
     bookmarkSavedSession: t("pdf:bookEdge.bookmarkSavedSession"),
     landmarkNote: t("pdf:bookEdge.landmarkNote", { page: "{{page}}" }),
     landmarkHighlight: t("pdf:bookEdge.landmarkHighlight", { page: "{{page}}" }),

@@ -31,6 +31,7 @@ import {
   flattenTree,
   normalizeAbsolutePath,
   updateFolderChildren,
+  mergeFolderTrees,
   visibleFolders,
   withCreateRows,
 } from "./folderTreeUtils";
@@ -66,18 +67,27 @@ function readExpandedPaths() {
 export default function FolderTree(props: FolderTreeProps) {
   const libraryContext = useOptionalLibraryContext();
 
+  const libraryRoots = useMemo(
+    () => libraryContext?.libraryRoots ?? props.libraryRoots ?? [],
+    [libraryContext?.libraryRoots, props.libraryRoots],
+  );
+  const folderStructureData = useMemo<FolderTreeData>(
+    () => ({
+      folders: visibleFolders(props.folderStructure ?? []),
+      libraryRoots,
+      watchFolders: libraryContext?.watchFolders ?? [],
+      watchFolderCounts: libraryContext?.watchFolderCounts ?? {},
+      isLoading: libraryContext?.isLoading ?? false,
+      refreshFolders: libraryContext?.refreshFolders,
+    }),
+    [props.folderStructure, libraryRoots, libraryContext?.watchFolders, libraryContext?.watchFolderCounts, libraryContext?.isLoading, libraryContext?.refreshFolders],
+  );
+
   if (props.folderStructure) {
     return (
       <FolderTreeContainer
         {...props}
-        data={{
-          folders: visibleFolders(props.folderStructure),
-          libraryRoots: libraryContext?.libraryRoots ?? props.libraryRoots ?? [],
-          watchFolders: libraryContext?.watchFolders ?? [],
-          watchFolderCounts: libraryContext?.watchFolderCounts ?? {},
-          isLoading: libraryContext?.isLoading ?? false,
-          refreshFolders: libraryContext?.refreshFolders,
-        }}
+        data={folderStructureData}
       />
     );
   }
@@ -89,7 +99,10 @@ function FolderTreeFromQueries(props: FolderTreeProps) {
   const libraryContext = useOptionalLibraryContext();
   const queryClient = useQueryClient();
   const rootChildren = useFolderChildrenQuery(null);
-  const libraryRoots = libraryContext?.libraryRoots ?? props.libraryRoots ?? [];
+  const libraryRoots = useMemo(
+    () => libraryContext?.libraryRoots ?? props.libraryRoots ?? [],
+    [libraryContext?.libraryRoots, props.libraryRoots],
+  );
   const sourceRootFolders = useMemo(
     () =>
       libraryRoots
@@ -105,6 +118,21 @@ function FolderTreeFromQueries(props: FolderTreeProps) {
         })),
     [libraryRoots],
   );
+  const folders = useMemo(
+    () => [...visibleFolders(rootChildren.data ?? []), ...sourceRootFolders],
+    [rootChildren.data, sourceRootFolders],
+  );
+  const folderTreeData = useMemo(
+    () => ({
+      folders,
+      libraryRoots,
+      watchFolders: libraryContext?.watchFolders ?? [],
+      watchFolderCounts: libraryContext?.watchFolderCounts ?? {},
+      isLoading: Boolean(libraryContext?.isLoading || rootChildren.isLoading),
+      refreshFolders: libraryContext?.refreshFolders,
+    }),
+    [folders, libraryRoots, libraryContext?.watchFolders, libraryContext?.watchFolderCounts, libraryContext?.isLoading, libraryContext?.refreshFolders, rootChildren.isLoading],
+  );
   const loadChildren = useCallback<LoadFolderChildren>(
     (folderPath) =>
       queryClient.fetchQuery({
@@ -118,14 +146,7 @@ function FolderTreeFromQueries(props: FolderTreeProps) {
   return (
     <FolderTreeContainer
       {...props}
-      data={{
-        folders: [...visibleFolders(rootChildren.data ?? []), ...sourceRootFolders],
-        libraryRoots,
-        watchFolders: libraryContext?.watchFolders ?? [],
-        watchFolderCounts: libraryContext?.watchFolderCounts ?? {},
-        isLoading: Boolean(libraryContext?.isLoading || rootChildren.isLoading),
-        refreshFolders: libraryContext?.refreshFolders,
-      }}
+      data={folderTreeData}
       loadChildren={loadChildren}
     />
   );
@@ -176,7 +197,9 @@ function FolderTreeContainer({
   );
 
   useEffect(() => {
-    setFolders(visibleFolders(data.folders));
+    // Merge freshly queried folders into the local tree instead of replacing
+    // it, so lazily-loaded subfolders survive every query re-render.
+    setFolders((current) => mergeFolderTrees(visibleFolders(data.folders), current));
     // Don't auto-expand on data change if user has saved expanded paths
     // Only auto-expand if no paths are saved
     setExpandedPaths((current) => {

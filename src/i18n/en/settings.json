@@ -52,6 +52,10 @@
     "dictionaries": {
       "label": "Dictionaries",
       "description": "Offline packages for reading."
+    },
+    "plugins": {
+      "label": "Plugins",
+      "description": "Enable or disable optional features and experimental modules."
     }
   },
 

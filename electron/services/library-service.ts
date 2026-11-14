@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import chokidar, { type FSWatcher } from "chokidar";
+import { WATCHER_IGNORED_PATTERNS } from "./watcher-ignores";
 import {
   getAllDocuments,
   addDocument,
   getDocumentByHash,
   getDocumentByPath,
-  getDocumentByFilePath,
   updateThumbnailPath,
   updateDocumentNumPages,
   updateDocumentPath,
@@ -875,6 +875,8 @@ export function watchLibraryPath() {
     persistent: true,
     ignoreInitial: true,
     depth: 99,
+    ignorePermissionErrors: true,
+    ignored: WATCHER_IGNORED_PATTERNS,
     awaitWriteFinish: {
       stabilityThreshold: 500,
       pollInterval: 100,

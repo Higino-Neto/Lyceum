@@ -21,6 +21,7 @@ const DEFAULT_STRINGS = {
   marked: " · marked",
   loading: "Loading page…",
   loadError: "Could not load. Select the page to try again.",
+  previewPage: "Preview of page {{page}}",
   bookmarkSavedSession: "Bookmark available this session; could not save on this device.",
   landmarkNote: "Note · {{page}}",
   landmarkHighlight: "Highlight · {{page}}",
@@ -177,7 +178,7 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       copy.width = canvas.width;
       copy.height = canvas.height;
       copy.getContext("2d").drawImage(canvas, 0, 0);
-      copy.setAttribute("aria-label", `Preview da página ${pageNumber}`);
+      copy.setAttribute("aria-label", formatString(strings.previewPage, { page: pageNumber }));
       host.replaceChildren(copy);
     } catch (error) {
       if (token === generation && error?.name !== "RenderingCancelledException") host.textContent = strings.loadError;

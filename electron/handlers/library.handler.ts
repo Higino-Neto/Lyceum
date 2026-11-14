@@ -136,27 +136,25 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:open-folder", async () => {
     const libraryPath = LIBRARY_PATH();
+    // Ensure directory exists
     try {
-      // Ensure directory exists
-      try {
-        const fs = await import("node:fs");
-        if (!fs.existsSync(libraryPath)) {
-          fs.mkdirSync(libraryPath, { recursive: true });
-        }
-      } catch {}
-      const error = await shell.openPath(libraryPath);
-      if (error) {
-        try {
-          await shell.openExternal(`file://${libraryPath}`);
-          return libraryPath;
-        } catch (fallbackError) {
-          throw new Error(error || String(fallbackError));
-        }
+      const fs = await import("node:fs");
+      if (!fs.existsSync(libraryPath)) {
+        fs.mkdirSync(libraryPath, { recursive: true });
       }
-      return libraryPath;
-    } catch (err) {
-      throw err;
+    } catch (fsError) {
+      console.error("[LibraryHandler] Could not ensure library directory:", fsError);
     }
+    const error = await shell.openPath(libraryPath);
+    if (error) {
+      try {
+        await shell.openExternal(`file://${libraryPath}`);
+        return libraryPath;
+      } catch (fallbackError) {
+        throw new Error(error || String(fallbackError));
+      }
+    }
+    return libraryPath;
   });
 
   ipcMain.handle("library:sync-document", async (_, fileHash: string, action: "move" | "copy", category?: string) => {

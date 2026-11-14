@@ -1779,11 +1779,15 @@ function LibraryContent() {
               </button>
 
               <button
-                onClick={() =>
-                  activeSection === "usb"
-                    ? (window.api as unknown as UsbLibraryApi).scanUsbBooks?.()
-                    : window.api.openLibraryFolder()
-                }
+                onClick={() => {
+                  if (activeSection === "usb") {
+                    (window.api as unknown as UsbLibraryApi).scanUsbBooks?.();
+                    return;
+                  }
+                  void window.api.openLibraryFolder().catch(() => {
+                    // The main process already surfaces open failures; ignore here.
+                  });
+                }}
                 className="cursor-pointer rounded-sm bg-surface-muted p-2 text-foreground-muted transition-colors hover:bg-border-strong"
                 title={
                   activeSection === "usb"

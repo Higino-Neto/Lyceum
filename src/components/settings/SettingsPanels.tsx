@@ -149,7 +149,7 @@ function SettingsSection({
 }: {
   title: string;
   description?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <section className="border-b border-border/80 py-6 first:pt-0 last:border-b-0 last:pb-0">
@@ -1584,15 +1584,15 @@ export function PluginsSettingsPanel() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.atlas.title")}
+                {t("settings:beta.features.atlas.label")}
               </p>
               <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.atlas.description")}
+                {t("settings:beta.features.atlas.hint")}
               </p>
             </div>
             <button
               type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.atlas.title") })}
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.atlas.label") })}
               onClick={() => setBetaAtlasEnabled(!settings.betaAtlasEnabled)}
               className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
                 settings.betaAtlasEnabled ? "bg-primary" : "bg-border-strong"
@@ -1609,15 +1609,15 @@ export function PluginsSettingsPanel() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.conversion.title")}
+                {t("settings:beta.features.conversion.label")}
               </p>
               <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.conversion.description")}
+                {t("settings:beta.features.conversion.hint")}
               </p>
             </div>
             <button
               type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.conversion.title") })}
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.conversion.label") })}
               onClick={() => setBetaConversionEnabled(!settings.betaConversionEnabled)}
               className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
                 settings.betaConversionEnabled ? "bg-primary" : "bg-border-strong"
@@ -1634,15 +1634,15 @@ export function PluginsSettingsPanel() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.habits.title")}
+                {t("settings:beta.features.habits.label")}
               </p>
               <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.habits.description")}
+                {t("settings:beta.features.habits.hint")}
               </p>
             </div>
             <button
               type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.habits.title") })}
+              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.habits.label") })}
               onClick={() => setBetaHabitsEnabled(!settings.betaHabitsEnabled)}
               className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
                 settings.betaHabitsEnabled ? "bg-primary" : "bg-border-strong"

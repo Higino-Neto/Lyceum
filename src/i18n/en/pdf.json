@@ -26,6 +26,7 @@
     "marked": " · marked",
     "loading": "Loading page…",
     "loadError": "Could not load. Select the page to try again.",
+    "previewPage": "Preview of page {{page}}",
     "bookmarkSavedSession": "Bookmark available this session; could not save on this device.",
     "landmarkNote": "Note · {{page}}",
     "landmarkHighlight": "Highlight · {{page}}",

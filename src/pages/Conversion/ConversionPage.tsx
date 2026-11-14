@@ -556,25 +556,31 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      <article
                        key={bookKey(book)}
                        onClick={() => setSelectedBookHash(book.fileHash)}
-                       className={`relative flex min-w-0 cursor-pointer gap-3 rounded-sm border p-3 pr-10 transition-colors ${isSelected ? "border-primary/60 bg-primary-muted shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_10%,transparent)]" : "border-border bg-background/70 hover:border-border-strong"}`}
+                       className={`relative flex min-w-0 cursor-pointer gap-3 rounded-sm border p-3 pr-10 transition-colors ${isSelected ? "border-primary" : "border-border bg-background/70 hover:border-border-strong"}`}
                      >
                        <Cover book={book} />
                        <div className="min-w-0 flex-1">
                          <h3 className="truncate text-sm font-semibold text-foreground">
                            {getTitleWithoutExtension(book.title, book.fileType)}
                          </h3>
-                         <p className="mt-1 truncate text-sm text-foreground-subtle">
+                         {/* <p className="mt-1 truncate text-sm text-foreground-subtle">
                            {book.author || getBookFolderLabel(book.filePath)}
-                         </p>
-                         <p className="mt-3 text-xs text-foreground-muted">
+                         </p> */}
+                         {/* <p className="mt-3 text-xs text-foreground-muted">
                            {getFileTypeLabel(book.fileType, book.filePath)}{" "}
                            <span className="text-foreground">-</span> {formatFileSize(book.fileSize)}
+                         </p> */}
+                         <p className="mt-2 text-xs text-foreground-muted">
+                            {formatFileSize(book.fileSize)}
                          </p>
-                         <span className="mt-3 inline-flex items-center gap-1.5 rounded-sm bg-primary-muted px-2 py-1 text-xs text-primary">
+                         <span className="mt-3 inline-flex items-center gap-1.5 rounded-sm bg-surface px-2 py-1 text-xs text-primary">
                            <CircleCheck size={13} />
-                           {t("conversion:selected.output", {
+                           {/* {t("conversion:selected.output", {
                              format: cfg.targetFormat.toUpperCase(),
-                           })}
+                           })} */}
+                           {getFileTypeLabel(book.fileType, book.filePath)}
+                           <ArrowRight size={13} />
+                           {cfg.targetFormat.toUpperCase()}
                          </span>
                        </div>
                        <button
@@ -903,7 +909,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                              type="button"
                              disabled={!usable}
                              onClick={() => setBookConfig(selectedBook.fileHash, { targetFormat: format.value })}
-                             className={`relative min-h-24 rounded-sm border p-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "border-primary bg-primary-muted shadow-[0_0_18px_color-mix(in_srgb,var(--primary)_22%,transparent)]" : "border-border bg-background hover:border-border-strong"}`}
+                             className={`relative min-h-24 rounded-sm border p-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${selected ? "border-primary" : "border-border bg-background hover:border-border-strong"}`}
                            >
                              <FileText size={22} className={selected ? "mx-auto text-primary" : "mx-auto text-foreground-muted"} />
                              <span className="mt-2 block text-sm font-semibold text-foreground">
@@ -972,23 +978,6 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                          <FolderOpen size={14} />
                          {t("conversion:settings.chooseFolder")}
                        </button>
-                     </div>
-                   </section>
-
-                   <section className="rounded-sm border border-border bg-background p-4">
-                     <div className="flex items-center gap-4">
-                       <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-muted text-primary">
-                         <Sparkles size={24} />
-                       </span>
-                       <div className="min-w-0">
-                         <p className="font-semibold text-foreground">
-                           {t("conversion:settings.summary", { count: convertibleCount })}{" "}
-                           <span className="text-foreground-subtle">-</span>
-                         </p>
-                         <p className="mt-1 text-sm text-foreground-muted">
-                           {t("conversion:settings.estimated", { size: estimatedSize })}
-                         </p>
-                       </div>
                      </div>
                    </section>
                  </div>
