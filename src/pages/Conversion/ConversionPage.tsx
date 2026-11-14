@@ -7,8 +7,13 @@ import {
   CircleAlert,
   CircleCheck,
   Clock3,
+  FileImage,
   FilePlus,
   FileText,
+  Files,
+  HardDrive,
+  LayoutGrid,
+  RefreshCcw,
   Folder,
   FolderOpen,
   Info,
@@ -51,6 +56,10 @@ import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialo
 import { NumberOption, ToggleOption } from "./components/OptionControls";
 import { ImageOptions } from "./components/ImageOptions";
 import { IMAGE_BEARING_SOURCE_FORMATS } from "../../lib/lyceum/images/imagePresets";
+import ImagesToDocumentTool from "./tools/ImagesToDocumentTool";
+import MergePdfsTool from "./tools/MergePdfsTool";
+import OrganizePdfTool from "./tools/OrganizePdfTool";
+import { createLocalBook } from "../../utils/localBooks";
 
 const outputFormats: {
   value: ConversionOutputFormat;
@@ -231,6 +240,42 @@ function FormatOptions({
   );
 }
 
+type ConversionTool = "convert" | "images" | "merge" | "organize";
+
+const CONVERSION_TOOLS: { value: ConversionTool; labelKey: TranslationKey; icon: typeof FileText }[] = [
+  { value: "convert", labelKey: "conversion:tools.tabs.convert", icon: RefreshCcw },
+  { value: "images", labelKey: "conversion:tools.tabs.images", icon: FileImage },
+  { value: "merge", labelKey: "conversion:tools.tabs.merge", icon: Files },
+  { value: "organize", labelKey: "conversion:tools.tabs.organize", icon: LayoutGrid },
+];
+
+function ConversionToolTabs({ active, onChange }: { active: ConversionTool; onChange: (tool: ConversionTool) => void }) {
+  const { t } = useTranslation();
+  const toolsAvailable = Boolean(window.api?.runTool);
+  return (
+    <div role="tablist" aria-label={t("conversion:dialog.title")} className="mb-3 flex flex-shrink-0 gap-1 overflow-x-auto rounded-sm border border-border bg-surface/40 p-1">
+      {CONVERSION_TOOLS.filter((item) => item.value === "convert" || toolsAvailable).map(({ value, labelKey, icon: Icon }) => {
+        const selected = active === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(value)}
+            className={`inline-flex h-8 flex-shrink-0 items-center gap-2 rounded-sm px-3 text-xs font-medium transition-colors ${
+              selected ? "bg-background text-foreground shadow-sm" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+            }`}
+          >
+            <Icon size={14} className={selected ? "text-primary" : undefined} />
+            {t(labelKey)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 interface LibrarySearchPanelProps {
   selectedBooks: BookWithThumbnail[];
   onAddBooks: (books: BookWithThumbnail[]) => void;
@@ -243,6 +288,14 @@ function LibrarySearchPanel({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const apiAvailable = Boolean(window.api?.listBooks);
+  const canPickFiles = Boolean(window.api?.pickToolFiles);
+
+  const addFromComputer = async () => {
+    const picked = await window.api.pickToolFiles("books");
+    const known = new Set(selectedBooks.map((book) => book.filePath));
+    const books = picked.filter((file) => !known.has(file.path)).map((file, index) => createLocalBook(file, index));
+    if (books.length > 0) onAddBooks(books);
+  };
   const selectedHashes = useMemo(
     () => new Set(selectedBooks.map((book) => book.fileHash)),
     [selectedBooks],
@@ -272,14 +325,26 @@ function LibrarySearchPanel({
               {t("conversion:libraryPanel.description")}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
-          >
-            <FilePlus size={14} />
-            {t("conversion:libraryPanel.open")}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canPickFiles && (
+              <button
+                type="button"
+                onClick={() => void addFromComputer()}
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
+              >
+                <HardDrive size={14} />
+                {t("conversion:libraryPanel.addFromComputer")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-sm border border-border-strong bg-background px-3 text-xs font-medium text-foreground hover:bg-surface-muted hover:text-foreground"
+            >
+              <FilePlus size={14} />
+              {t("conversion:libraryPanel.open")}
+            </button>
+          </div>
         </div>
         {!apiAvailable ? (
           <div className="rounded-sm border border-dashed border-border px-4 py-8 text-center text-sm text-foreground-subtle">
@@ -330,6 +395,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
     new Map(),
   );
   const [search, setSearch] = useState("");
+  const [tool, setTool] = useState<ConversionTool>("convert");
 
   const defaultConfigFor = useCallback((book: BookWithThumbnail) => ({
     targetFormat: (outputFormats.find((format) => canConvertBook(book, format.value))?.value || "epub") as ConversionOutputFormat,
@@ -494,7 +560,11 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
 
   return (
     <div className={`lyceum-page-conversion flex h-full min-h-0 flex-col overflow-hidden bg-background p-3 text-foreground ${className ?? ""}`}>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_400px]">
+      <ConversionToolTabs active={tool} onChange={setTool} />
+      {tool === "images" && <ImagesToDocumentTool />}
+      {tool === "merge" && <MergePdfsTool />}
+      {tool === "organize" && <OrganizePdfTool />}
+      <div className={`${tool === "convert" ? "flex" : "hidden"} min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_400px]`}>
         <main className="flex-none overflow-visible pr-0.5 lg:min-h-0 lg:overflow-y-auto">
           <LibrarySearchPanel selectedBooks={draftBooks} onAddBooks={addDraftBooks} />
 

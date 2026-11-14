@@ -1,7 +1,10 @@
 import type { BookFormat, LyceumBookMetadata, LyceumConversionOptions } from "../../src/lib/lyceum";
 import type { EditableBookMetadata, FileMetadataUpdateResult } from "../services/book-file-metadata";
-import type { BookFileType, EpubMetadata, PdfMetadata } from "../services/document-processing";
+import type { BookFileType, EmbeddedBookMetadata } from "../services/document-processing";
 import type { ConversionPreviewInput, ConversionPreviewResult } from "../services/conversion-preview";
+import type { PdfToolRequest, PdfToolResponse } from "../services/pdf-tools-types";
+
+export type { PdfToolRequest, PdfToolResponse, PdfToolThumbnail } from "../services/pdf-tools-types";
 
 export type WorkerTaskKind =
   | "ping"
@@ -17,7 +20,8 @@ export type WorkerTaskKind =
   | "apply-book-cover"
   | "prepare-cover-image"
   | "validate-azw3"
-  | "conversion-preview";
+  | "conversion-preview"
+  | "pdf-tool";
 
 export interface WorkerRequest<T = unknown> {
   requestId: string;
@@ -48,7 +52,7 @@ export interface HashFileResult { fileHash: string; fileSize: number; buffer?: A
 export interface InspectBookResult extends HashFileResult {
   thumbnailPath?: string;
   numPages?: number;
-  metadata?: PdfMetadata | EpubMetadata;
+  metadata?: EmbeddedBookMetadata;
 }
 
 export interface ConvertViaLyceumWorkerInput {
@@ -136,6 +140,7 @@ export interface WorkerTaskPayloads {
   "prepare-cover-image": { sourcePath: string; outputPath: string };
   "validate-azw3": { filePath: string };
   "conversion-preview": ConversionPreviewInput;
+  "pdf-tool": PdfToolRequest;
 }
 
 export interface WorkerTaskResults {
@@ -153,4 +158,5 @@ export interface WorkerTaskResults {
   "prepare-cover-image": { outputPath: string };
   "validate-azw3": { valid: boolean; errors: string[]; warnings: string[] };
   "conversion-preview": ConversionPreviewResult;
+  "pdf-tool": PdfToolResponse;
 }

@@ -92,8 +92,7 @@ async function findFileByHash(fileHash: string, searchPaths: string[]) {
 
 async function inspectBook(payload: WorkerTaskPayloads["inspect-book"]): Promise<InspectBookResult> {
   const {
-    extractEpubMetadata,
-    extractPdfMetadata,
+    extractBookMetadata,
     generateThumbnail,
     getCbzPageCount,
     getEpubChapterCount,
@@ -103,11 +102,7 @@ async function inspectBook(payload: WorkerTaskPayloads["inspect-book"]): Promise
   if (payload.fileType === "cbz") await validateCbzFile(payload.filePath);
   const base = await hashPath(payload.filePath, payload.includeBuffer === true);
   const metadataPromise = payload.includeMetadata
-    ? payload.fileType === "pdf"
-      ? extractPdfMetadata(payload.filePath, "[Worker]")
-      : payload.fileType === "epub"
-        ? extractEpubMetadata(payload.filePath, "[Worker]")
-        : Promise.resolve(null)
+    ? extractBookMetadata(payload.filePath, payload.fileType)
     : Promise.resolve(null);
   const pageCountPromise = payload.fileType === "pdf"
     ? getPdfPageCount(payload.filePath, "[Worker]")
@@ -328,6 +323,22 @@ async function applyBookCover(payload: WorkerTaskPayloads["apply-book-cover"]): 
   return { fileResult, ...(hashed || {}), thumbnailPath };
 }
 
+async function runPdfTool(request: WorkerTaskPayloads["pdf-tool"], onProgress?: ConversionProgress): Promise<WorkerTaskResults["pdf-tool"]> {
+  const tools = await import("../services/pdf-tools");
+  switch (request.operation) {
+    case "images-to-pdf": return { operation: "result", result: await tools.imagesToPdf(request.input, onProgress) };
+    case "images-to-cbz": return { operation: "result", result: await tools.imagesToCbz(request.input, onProgress) };
+    case "merge-pdfs": return { operation: "result", result: await tools.mergePdfs(request.input, onProgress) };
+    case "organize-pdf": return { operation: "result", result: await tools.organizePdf(request.input, onProgress) };
+    case "info": return { operation: "info", info: await tools.getPdfToolInfo(request.input.filePath) };
+    case "thumbnails": return {
+      operation: "thumbnails",
+      thumbnails: await tools.renderPdfThumbnails(request.input.filePath, request.input.pages, request.input.maxDimension),
+    };
+    default: throw new Error("Operacao de PDF desconhecida");
+  }
+}
+
 async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPayloads[K], onProgress?: ConversionProgress): Promise<WorkerTaskResults[K]> {
   switch (kind) {
     case "ping": return { pong: true, pid: process.pid } as WorkerTaskResults[K];
@@ -379,6 +390,7 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
       const { renderConversionPreview } = await import("../services/conversion-preview");
       return await renderConversionPreview(payload as WorkerTaskPayloads["conversion-preview"]) as WorkerTaskResults[K];
     }
+    case "pdf-tool": return await runPdfTool(payload as WorkerTaskPayloads["pdf-tool"], onProgress) as WorkerTaskResults[K];
     default: throw new Error(`Unknown worker task: ${String(kind)}`);
   }
 }

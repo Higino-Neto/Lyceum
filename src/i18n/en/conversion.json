@@ -129,13 +129,14 @@
     }
   },
   "libraryPanel": {
-    "title": "Add from library",
-    "description": "Same filter used in Atlas.",
+    "title": "Add books",
+    "description": "From the library or from files on your computer (PDF, EPUB, CBZ, TXT, HTML).",
     "open": "Search books",
     "close": "Close search",
     "desktopOnly": "Library search is only available in the desktop app.",
     "loading": "Loading books...",
-    "empty": "No books found."
+    "empty": "No books found.",
+    "addFromComputer": "From computer"
   },
   "selected": {
     "title_one": "Selected books ({{count}})",
@@ -229,5 +230,90 @@
     "unchanged": "No changes: this page already fits the settings.",
     "error": "Could not generate the preview",
     "alt": "Preview of page {{page}}"
+  },
+  "tools": {
+    "tabs": {
+      "convert": "Convert formats",
+      "images": "Images → PDF/CBZ",
+      "merge": "Merge PDFs",
+      "organize": "Organize PDF"
+    },
+    "common": {
+      "addFromComputer": "Add from computer",
+      "addFromLibrary": "Add from library",
+      "remove": "Remove",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "dragHandle": "Drag to reorder",
+      "clear": "Clear list",
+      "documentTitle": "Document title",
+      "documentAuthor": "Author (optional)",
+      "running": "Processing...",
+      "done": "File created: {{name}}",
+      "pages_one": "{{count}} page",
+      "pages_other": "{{count}} pages",
+      "showInFolder": "Show in folder",
+      "failed": "Failed: {{message}}",
+      "desktopOnly": "These tools are only available in the desktop app.",
+      "output": "Output",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "options": "Options",
+      "dropHint": "Drag items to change the order."
+    },
+    "images": {
+      "title": "Images to PDF or CBZ",
+      "description": "Combine photos, scans or comic pages into a single file.",
+      "empty": "Add images (JPG, PNG, WEBP, TIFF...). The list order is the page order.",
+      "outputFormat": "Output format",
+      "pdfDescription": "Universal document",
+      "cbzDescription": "Comics and manga",
+      "pageSize": "Page size",
+      "pageSizes": {
+        "image": "Same as image",
+        "A4": "A4",
+        "Letter": "Letter"
+      },
+      "margin": "Margin",
+      "sortByName": "Sort by name",
+      "reverse": "Reverse order",
+      "run": "Create {{format}}"
+    },
+    "merge": {
+      "title": "Merge PDFs",
+      "description": "Combine several PDFs into one, in list order.",
+      "empty": "Add two or more PDFs from your computer or library.",
+      "needTwo": "Add at least two PDFs.",
+      "totalPages_one": "Total: {{count}} page",
+      "totalPages_other": "Total: {{count}} pages",
+      "run": "Merge {{count}} PDFs",
+      "pickerTitle": "Add PDF from library",
+      "pickerDescription": "Only library PDFs are listed here.",
+      "unreadable": "Could not read"
+    },
+    "organize": {
+      "title": "Organize PDF pages",
+      "description": "Reorder, rotate, delete or extract pages into a new PDF. The original file is not changed.",
+      "empty": "Choose a PDF to see its pages.",
+      "choose": "Choose PDF from computer",
+      "chooseLibrary": "Choose from library",
+      "change": "Change PDF",
+      "rotateLeft": "Rotate left",
+      "rotateRight": "Rotate right",
+      "delete": "Delete page",
+      "restore": "Restore page",
+      "page": "Page {{page}}",
+      "rangeLabel": "Extract pages",
+      "rangePlaceholder": "e.g. 1-3, 7, 10-",
+      "applyRange": "Keep only these",
+      "rangeHint": "Comma-separated ranges. \"10-\" runs to the end; \"5-1\" reverses.",
+      "invalidRange": "Invalid range: {{message}}",
+      "reset": "Undo changes",
+      "reverse": "Reverse order",
+      "summary": "{{kept}} of {{total}} pages in the result",
+      "run": "Save new PDF",
+      "loading": "Opening PDF...",
+      "noPages": "Keep at least one page."
+    }
   }
 }

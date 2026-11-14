@@ -1,3 +1,4 @@
+import type { EditableBookMetadata } from "./book-file-metadata";
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
@@ -31,6 +32,32 @@ export interface EpubMetadata {
   author?: string;
   producer?: string;
   creationDate?: string;
+}
+
+/** Every field embedded in the book file, plus the legacy aliases older callers read. */
+export type EmbeddedBookMetadata = EditableBookMetadata & {
+  /** @deprecated alias of `publisher`. */
+  producer?: string;
+  /** @deprecated alias of `publishDate`. */
+  creationDate?: string;
+};
+
+export async function extractBookMetadata(
+  filePath: string,
+  fileType: string | null | undefined,
+): Promise<EmbeddedBookMetadata | null> {
+  const { readBookMetadataFromFile } = await import("./book-file-metadata");
+  const fields = await readBookMetadataFromFile(filePath, fileType);
+  if (Object.keys(fields).length === 0) return null;
+  return { ...fields, producer: fields.publisher, creationDate: fields.publishDate };
+}
+
+/** Strips the legacy aliases so the result can be stored as a metadata patch. */
+export function toStoredMetadata(metadata: EmbeddedBookMetadata): EditableBookMetadata {
+  const fields: EmbeddedBookMetadata = { ...metadata };
+  delete fields.producer;
+  delete fields.creationDate;
+  return fields;
 }
 
 export interface GenerateThumbnailOptions {

@@ -29,6 +29,7 @@ import {
 } from "./file-service";
 import {
   isPdfMagicBytesValid,
+  toStoredMetadata,
   type BookFileType,
 } from "./document-processing";
 import {
@@ -489,12 +490,7 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       if (thumbnailPath) updateThumbnailPath(fileHash, thumbnailPath);
       updateFileSize(fileHash, stats.size);
       if (metadata) {
-        updateMetadata(fileHash, {
-          title: metadata.title,
-          author: metadata.author,
-          publisher: metadata.producer,
-          publishDate: metadata.creationDate,
-        });
+        updateMetadata(fileHash, toStoredMetadata(metadata));
       }
       updateProcessingStatus(fileHash, pdfCorrupted ? "failed" : "completed");
       updateDocumentPath(fileHash, filePath);
@@ -508,12 +504,7 @@ export async function processFile(filePath: string, options: ProcessFileOptions 
       if (newDoc) {
         updateFileSize(fileHash, stats.size);
         if (metadata) {
-          updateMetadata(fileHash, {
-            title: metadata.title,
-            author: metadata.author,
-            publisher: metadata.producer,
-            publishDate: metadata.creationDate,
-          });
+          updateMetadata(fileHash, toStoredMetadata(metadata));
         }
         updateDocumentSyncStatus(fileHash, isSynced, category);
         updateProcessingStatus(fileHash, pdfCorrupted ? "failed" : "completed");

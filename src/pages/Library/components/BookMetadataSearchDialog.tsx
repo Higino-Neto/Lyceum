@@ -353,14 +353,23 @@ export default function BookMetadataSearchDialog({
         }
       }
 
-      toast.success(
-        saveWarnings.length
-          ? t("library:metadata.toasts.savedWithWarnings", {
-              count: saveWarnings.length,
-            })
-          : t("library:metadata.toasts.saved"),
-        { id: loadingToast },
-      );
+      if (metadataResult.writtenToFile === false) {
+        toast(
+          t("library:metadata.toasts.savedLibraryOnly", {
+            reason: saveWarnings[0] || t("library:metadata.toasts.unknownReason"),
+          }),
+          { id: loadingToast, icon: "⚠️", duration: 7000 },
+        );
+      } else {
+        toast.success(
+          saveWarnings.length
+            ? t("library:metadata.toasts.savedInFileWithWarnings", {
+                warnings: saveWarnings.join(" "),
+              })
+            : t("library:metadata.toasts.savedInFile"),
+          { id: loadingToast, duration: saveWarnings.length ? 7000 : 4000 },
+        );
+      }
       onSaved(currentHash);
       onClose();
     } catch (error) {

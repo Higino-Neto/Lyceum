@@ -120,6 +120,8 @@ export default defineConfig({
                 "bindings",
                 "adm-zip",
                 "jsdom",
+                "nodemailer",
+                "nodemailer/lib/mail-composer",
                 "@napi-rs/canvas",
                 "pdfjs-dist/legacy/build/pdf.mjs",
               ],

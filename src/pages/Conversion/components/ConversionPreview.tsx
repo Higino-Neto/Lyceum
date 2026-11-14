@@ -5,6 +5,7 @@ import type { BookWithThumbnail } from "../../../types/LibraryTypes";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { formatFileSize } from "../../Library/utils";
 import { NumberOption } from "./OptionControls";
+import { isPathBasedBook } from "../../../utils/localBooks";
 
 type PreviewResponse = Awaited<ReturnType<typeof window.api.previewConversionPage>>;
 type PreviewData = NonNullable<PreviewResponse["preview"]>;
@@ -22,7 +23,7 @@ function imageOptionsKey(options: ConversionOptions) {
 }
 
 function isFileOnlyBook(book: BookWithThumbnail) {
-  return book.fileHash.startsWith("usb:") || book.fileHash.startsWith("mtp:");
+  return isPathBasedBook(book);
 }
 
 export function ConversionPreview({ book, options }: { book: BookWithThumbnail; options: ConversionOptions }) {

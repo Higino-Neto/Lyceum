@@ -4,8 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { Worker } from "node:worker_threads";
 import {
-  extractEpubMetadata,
-  extractPdfMetadata,
+  extractBookMetadata,
   generateThumbnail,
   getCbzPageCount,
   getEpubChapterCount,
@@ -338,7 +337,7 @@ export async function openAndProcess(input: OpenFileInput): Promise<InspectBookR
     console.warn("[processingClient] inspection worker failed; using main-thread fallback:", error);
     const base = await readAndHash(input.filePath);
     const [metadata, numPages, thumbnailPath] = await Promise.all([
-      input.fileType === "pdf" ? extractPdfMetadata(input.filePath) : input.fileType === "epub" ? extractEpubMetadata(input.filePath) : null,
+      extractBookMetadata(input.filePath, input.fileType),
       input.fileType === "pdf" ? getPdfPageCount(input.filePath) : input.fileType === "epub" ? getEpubChapterCount(input.filePath) : input.fileType === "cbz" ? getCbzPageCount(input.filePath) : undefined,
       generateThumbnail(input.filePath, base.fileHash, { thumbnailsDir: input.thumbnailsDir, force: input.force, fileType: input.fileType }),
     ]);
@@ -396,6 +395,10 @@ export async function applyBookCoverInWorker(payload: WorkerTaskPayloads["apply-
 
 export async function prepareCoverImageInWorker(sourcePath: string, outputPath: string) {
   return (await runProcessingTask("prepare-cover-image", { sourcePath, outputPath })).outputPath;
+}
+
+export async function runPdfToolInWorker(request: WorkerTaskPayloads["pdf-tool"], options?: RunOptions) {
+  return runProcessingTask("pdf-tool", request, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
 
 export async function validateAzw3InWorker(filePath: string) {

@@ -129,13 +129,14 @@
     }
   },
   "libraryPanel": {
-    "title": "Adicionar da biblioteca",
-    "description": "Mesmo filtro usado no Atlas.",
+    "title": "Adicionar livros",
+    "description": "Da biblioteca ou de arquivos do computador (PDF, EPUB, CBZ, TXT, HTML).",
     "open": "Buscar livros",
     "close": "Fechar busca",
     "desktopOnly": "A busca da biblioteca está disponível apenas no app desktop.",
     "loading": "Carregando livros...",
-    "empty": "Nenhum livro encontrado."
+    "empty": "Nenhum livro encontrado.",
+    "addFromComputer": "Do computador"
   },
   "selected": {
     "title_one": "Livros selecionados ({{count}})",
@@ -229,5 +230,90 @@
     "unchanged": "Sem alterações: esta página já está dentro das configurações.",
     "error": "Não foi possível gerar o preview",
     "alt": "Preview da página {{page}}"
+  },
+  "tools": {
+    "tabs": {
+      "convert": "Converter formatos",
+      "images": "Imagens → PDF/CBZ",
+      "merge": "Mesclar PDFs",
+      "organize": "Organizar PDF"
+    },
+    "common": {
+      "addFromComputer": "Adicionar do computador",
+      "addFromLibrary": "Adicionar da biblioteca",
+      "remove": "Remover",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo",
+      "dragHandle": "Arrastar para reordenar",
+      "clear": "Limpar lista",
+      "documentTitle": "Título do documento",
+      "documentAuthor": "Autor (opcional)",
+      "running": "Processando...",
+      "done": "Arquivo criado: {{name}}",
+      "pages_one": "{{count}} página",
+      "pages_other": "{{count}} páginas",
+      "showInFolder": "Mostrar na pasta",
+      "failed": "Falha: {{message}}",
+      "desktopOnly": "Estas ferramentas estão disponíveis apenas no app desktop.",
+      "output": "Saída",
+      "files_one": "{{count}} arquivo",
+      "files_other": "{{count}} arquivos",
+      "options": "Opções",
+      "dropHint": "Arraste os itens para mudar a ordem."
+    },
+    "images": {
+      "title": "Imagens para PDF ou CBZ",
+      "description": "Junte fotos, digitalizações ou páginas de quadrinhos em um único arquivo.",
+      "empty": "Adicione imagens (JPG, PNG, WEBP, TIFF...). A ordem da lista é a ordem das páginas.",
+      "outputFormat": "Formato de saída",
+      "pdfDescription": "Documento universal",
+      "cbzDescription": "Quadrinhos e mangás",
+      "pageSize": "Tamanho da página",
+      "pageSizes": {
+        "image": "Igual à imagem",
+        "A4": "A4",
+        "Letter": "Carta"
+      },
+      "margin": "Margem",
+      "sortByName": "Ordenar por nome",
+      "reverse": "Inverter ordem",
+      "run": "Gerar {{format}}"
+    },
+    "merge": {
+      "title": "Mesclar PDFs",
+      "description": "Combine vários PDFs em um só, na ordem da lista.",
+      "empty": "Adicione dois ou mais PDFs do computador ou da biblioteca.",
+      "needTwo": "Adicione pelo menos dois PDFs.",
+      "totalPages_one": "Total: {{count}} página",
+      "totalPages_other": "Total: {{count}} páginas",
+      "run": "Mesclar {{count}} PDFs",
+      "pickerTitle": "Adicionar PDF da biblioteca",
+      "pickerDescription": "Somente PDFs da biblioteca aparecem aqui.",
+      "unreadable": "Não foi possível ler"
+    },
+    "organize": {
+      "title": "Organizar páginas do PDF",
+      "description": "Reordene, gire, exclua ou extraia páginas para um novo PDF. O arquivo original não é alterado.",
+      "empty": "Escolha um PDF para ver as páginas.",
+      "choose": "Escolher PDF do computador",
+      "chooseLibrary": "Escolher da biblioteca",
+      "change": "Trocar PDF",
+      "rotateLeft": "Girar para a esquerda",
+      "rotateRight": "Girar para a direita",
+      "delete": "Excluir página",
+      "restore": "Restaurar página",
+      "page": "Página {{page}}",
+      "rangeLabel": "Extrair páginas",
+      "rangePlaceholder": "ex.: 1-3, 7, 10-",
+      "applyRange": "Manter só estas",
+      "rangeHint": "Intervalos separados por vírgula. \"10-\" vai até o fim; \"5-1\" inverte.",
+      "invalidRange": "Intervalo inválido: {{message}}",
+      "reset": "Desfazer alterações",
+      "reverse": "Inverter ordem",
+      "summary": "{{kept}} de {{total}} páginas no resultado",
+      "run": "Salvar novo PDF",
+      "loading": "Abrindo PDF...",
+      "noPages": "Mantenha pelo menos uma página."
+    }
   }
 }

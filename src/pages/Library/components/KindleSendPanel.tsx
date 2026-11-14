@@ -5,8 +5,9 @@ import {
   CheckCircle2,
   FileText,
   Folder,
-  HardDrive,
+  Mail,
   RefreshCw,
+  Usb,
   Send,
   Smartphone,
   X,
@@ -20,6 +21,7 @@ import {
   getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../utils";
+import { KindleEmailSettingsForm, KindleEmailSummary, type KindleEmailConfig } from "./KindleEmailSettings";
 
 interface KindleSendDevice {
   id: string;
@@ -91,6 +93,39 @@ interface KindleSendPanelProps {
 const CONVERTIBLE_TO_AZW3 = new Set(["pdf", "epub", "txt", "html", "cbz"]);
 const DIRECT_KINDLE_FORMATS = new Set(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
 const DEFAULT_DESTINATION = "documents/Downloads";
+const EMAIL_ACCEPTED_FORMATS = new Set(["epub", "pdf", "txt", "html"]);
+const EMAIL_CONVERTIBLE_FORMATS = new Set(["cbz"]);
+const EMAIL_MAX_BYTES = 50 * 1024 * 1024;
+const MODE_STORAGE_KEY = "lyceum-kindle-send-mode";
+
+type SendMode = "usb" | "email";
+
+function readStoredMode(): SendMode {
+  try {
+    return localStorage.getItem(MODE_STORAGE_KEY) === "email" ? "email" : "usb";
+  } catch {
+    return "usb";
+  }
+}
+
+function storeMode(mode: SendMode) {
+  try {
+    localStorage.setItem(MODE_STORAGE_KEY, mode);
+  } catch {
+    /* The choice simply is not remembered. */
+  }
+}
+
+type EmailBookPlan = { kind: "ready" | "convertPdf" | "convertEpub" | "unsupported" | "tooLarge" };
+
+function planEmailBook(book: BookWithThumbnail, convertPdfToEpub: boolean, maxBytes = EMAIL_MAX_BYTES): EmailBookPlan {
+  const format = getBookFormat(book);
+  if (EMAIL_CONVERTIBLE_FORMATS.has(format)) return { kind: "convertPdf" };
+  if (format === "pdf" && convertPdfToEpub) return { kind: "convertEpub" };
+  if (!EMAIL_ACCEPTED_FORMATS.has(format)) return { kind: "unsupported" };
+  if ((book.fileSize || 0) > maxBytes) return { kind: "tooLarge" };
+  return { kind: "ready" };
+}
 
 function getApi(): KindleSendApi {
   return window.api as unknown as KindleSendApi;
@@ -123,6 +158,24 @@ function Toggle({
         }`}
       />
     </button>
+  );
+}
+
+function OptionRow({ label, hint, checked, disabled, onChange }: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-foreground">{label}</p>
+        <p className="text-xs text-foreground-subtle">{hint}</p>
+      </div>
+      <Toggle checked={checked} disabled={disabled} onChange={onChange} />
+    </div>
   );
 }
 
@@ -169,6 +222,28 @@ function itemStatusLabel(result?: KindleSendResultItem, shouldConvert?: boolean)
   return result.error || translate("library:kindle.status.error");
 }
 
+function toSendPayload(book: BookWithThumbnail) {
+  return {
+    fileHash: book.fileHash,
+    filePath: book.filePath,
+    title: getTitleWithoutExtension(book.title, book.fileType),
+    author: book.author,
+    fileType: book.fileType,
+    fileName: book.fileName,
+    publisher: book.publisher,
+    description: book.description,
+    publishDate: book.publishDate,
+    language: book.language,
+    identifier: book.identifier,
+    asin: book.asin,
+    subject: book.subject,
+    series: book.series,
+    seriesIndex: book.seriesIndex,
+    authorSort: book.authorSort,
+    titleSort: book.titleSort,
+  };
+}
+
 export default function KindleSendPanel({
   books,
   onClose,
@@ -183,6 +258,34 @@ export default function KindleSendPanel({
   const [preserveMetadata, setPreserveMetadata] = useState(true);
   const [organizeByAuthor, setOrganizeByAuthor] = useState(false);
   const [results, setResults] = useState<Map<string, KindleSendResultItem>>(new Map());
+  const [mode, setModeState] = useState<SendMode>(readStoredMode);
+  const [emailConfig, setEmailConfig] = useState<KindleEmailConfig | null>(null);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [convertPdfToEpub, setConvertPdfToEpub] = useState(false);
+  const emailAvailable = Boolean(window.api?.getKindleEmailConfig);
+
+  const setMode = (next: SendMode) => {
+    setModeState(next);
+    setResults(new Map());
+    storeMode(next);
+  };
+
+  useEffect(() => {
+    if (!emailAvailable) return;
+    void window.api.getKindleEmailConfig().then((config) => {
+      setEmailConfig(config);
+      if (!config.configured) setEditingEmail(true);
+    }).catch((error) => console.error("Error loading Kindle email settings:", error));
+  }, [emailAvailable]);
+
+  const emailPlans = useMemo(
+    () => new Map(books.map((book) => [book.fileHash, planEmailBook(book, convertPdfToEpub, emailConfig?.maxAttachmentBytes)])),
+    [books, convertPdfToEpub, emailConfig?.maxAttachmentBytes],
+  );
+  const emailSendableCount = useMemo(
+    () => Array.from(emailPlans.values()).filter((plan) => plan.kind !== "unsupported" && plan.kind !== "tooLarge").length,
+    [emailPlans],
+  );
 
   const selectedDevice = useMemo(
     () => devices.find((device) => device.id === selectedDeviceId) || devices[0],
@@ -247,25 +350,7 @@ export default function KindleSendPanel({
     try {
       const response = await getApi().sendBooksToKindle({
         deviceId: selectedDevice.id,
-        books: books.map((book) => ({
-          fileHash: book.fileHash,
-          filePath: book.filePath,
-          title: getTitleWithoutExtension(book.title, book.fileType),
-          author: book.author,
-          fileType: book.fileType,
-          fileName: book.fileName,
-          publisher: book.publisher,
-          description: book.description,
-          publishDate: book.publishDate,
-          language: book.language,
-          identifier: book.identifier,
-          asin: book.asin,
-          subject: book.subject,
-          series: book.series,
-          seriesIndex: book.seriesIndex,
-          authorSort: book.authorSort,
-          titleSort: book.titleSort,
-        })),
+        books: books.map(toSendPayload),
         convertToAzw3,
         preserveMetadata,
         organizeByAuthor,
@@ -291,115 +376,171 @@ export default function KindleSendPanel({
     }
   };
 
+  const handleSendEmail = async () => {
+    const sendable = books.filter((book) => {
+      const plan = emailPlans.get(book.fileHash);
+      return plan && plan.kind !== "unsupported" && plan.kind !== "tooLarge";
+    });
+    if (sendable.length === 0 || !emailConfig?.configured) return;
+
+    setSending(true);
+    setResults(new Map());
+    try {
+      const response = await window.api.sendBooksToKindleEmail({
+        books: sendable.map(toSendPayload),
+        preserveMetadata,
+        convertPdfToEpub,
+      });
+      setResults(new Map(response.results.map((result) => [result.fileHash, result])));
+      if (response.sent > 0) {
+        toast.success(t("library:kindle.toasts.sent", { count: response.sent }));
+        onSent?.();
+      }
+      if (response.failed > 0) {
+        toast.error(response.results.find((result) => !result.success)?.error || t("library:kindle.toasts.failed", { count: response.failed }));
+      }
+    } catch (error) {
+      console.error("Error sending to Kindle by email:", error);
+      toast.error(t("library:kindle.toasts.sendFailed"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const emailReady = Boolean(emailConfig?.configured) && !editingEmail;
+
   return (
     <aside
       className="lyceum-kindle-send-panel flex h-full w-[390px] flex-shrink-0 flex-col border-l border-border bg-surface text-foreground"
       aria-label={t("library:kindle.aria")}
     >
-      <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold">{t("library:kindle.title")}</h2>
-          <p className="mt-0.5 truncate text-xs text-foreground-subtle">
-            {t("library:kindle.selectedBooks", { count: books.length })}
-          </p>
+      <header className="flex-shrink-0 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold">{t("library:kindle.title")}</h2>
+            <p className="mt-0.5 truncate text-xs text-foreground-subtle">
+              {t("library:kindle.selectedBooks", { count: books.length })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-sm p-1.5 text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
+            title={t("common:actions.close")}
+          >
+            <X size={17} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-sm p-1.5 text-foreground-subtle hover:bg-surface-muted hover:text-foreground"
-          title={t("common:actions.close")}
-        >
-          <X size={17} />
-        </button>
+        {emailAvailable && (
+          <div role="tablist" className="mt-3 grid grid-cols-2 gap-1 rounded-sm border border-border bg-background/60 p-1">
+            {(["usb", "email"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                disabled={sending}
+                onClick={() => setMode(value)}
+                className={`inline-flex h-7 items-center justify-center gap-1.5 rounded-sm text-xs font-medium transition-colors disabled:opacity-50 ${
+                  mode === value ? "bg-surface text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground"
+                }`}
+              >
+                {value === "usb" ? <Usb size={13} /> : <Mail size={13} />}
+                {t(value === "usb" ? "library:kindle.email.modeUsb" : "library:kindle.email.modeEmail")}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <Smartphone size={17} className="flex-shrink-0 text-primary" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {loadingDevices
-                    ? t("library:kindle.searching")
-                    : selectedDevice?.name || t("library:kindle.noDevice")}
-                </p>
-                <p className="truncate text-xs text-foreground-subtle">
-                  {selectedDevice?.isMtp
-                    ? t("library:kindle.mtp")
-                    : selectedDevice
-                      ? t("library:kindle.usb")
-                      : t("library:kindle.connectPaperwhite")}
-                </p>
+        {mode === "usb" ? (
+          <>
+            <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Smartphone size={17} className="flex-shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {loadingDevices
+                        ? t("library:kindle.searching")
+                        : selectedDevice?.name || t("library:kindle.noDevice")}
+                    </p>
+                    <p className="truncate text-xs text-foreground-subtle">
+                      {selectedDevice?.isMtp
+                        ? t("library:kindle.mtp")
+                        : selectedDevice
+                          ? t("library:kindle.usb")
+                          : t("library:kindle.connectPaperwhite")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshDevices()}
+                  disabled={loadingDevices || sending}
+                  className="rounded-sm p-2 text-foreground-subtle hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
+                  title={t("library:kindle.refreshDevices")}
+                >
+                  <RefreshCw size={15} className={loadingDevices ? "animate-spin" : ""} />
+                </button>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => void refreshDevices()}
-              disabled={loadingDevices || sending}
-              className="rounded-sm p-2 text-foreground-subtle hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
-              title={t("library:kindle.refreshDevices")}
-            >
-              <RefreshCw size={15} className={loadingDevices ? "animate-spin" : ""} />
-            </button>
-          </div>
 
-          {devices.length > 1 && (
-            <Select value={selectedDevice?.id || ""} onChange={setSelectedDeviceId} className="h-9 w-full text-sm" items={devices.map((device) => ({ value: device.id, label: device.name }))} />
-          )}
+              {devices.length > 1 && (
+                <Select value={selectedDevice?.id || ""} onChange={setSelectedDeviceId} className="h-9 w-full text-sm" items={devices.map((device) => ({ value: device.id, label: device.name }))} />
+              )}
 
-          <div className="mt-3 flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-xs text-foreground-muted">
-            <Folder size={14} className="flex-shrink-0 text-foreground-subtle" />
-            <span className="truncate">{destinationLabel}</span>
-          </div>
-        </section>
+              <div className="mt-3 flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2 text-xs text-foreground-muted">
+                <Folder size={14} className="flex-shrink-0 text-foreground-subtle" />
+                <span className="truncate">{destinationLabel}</span>
+              </div>
+            </section>
 
-        <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-foreground-subtle">
-            {t("library:kindle.transferOptions")}
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-foreground">{t("library:kindle.convertAzw3")}</p>
-                <p className="text-xs text-foreground-subtle">
-                  {t("library:kindle.convertAzw3Hint")}
-                </p>
+            <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-foreground-subtle">
+                {t("library:kindle.transferOptions")}
+              </h3>
+              <div className="space-y-3 text-sm">
+                <OptionRow label={t("library:kindle.convertAzw3")} hint={t("library:kindle.convertAzw3Hint")} checked={convertToAzw3} disabled={sending} onChange={() => setConvertToAzw3((value) => !value)} />
+                <OptionRow label={t("library:kindle.preserveMetadata")} hint={t("library:kindle.preserveMetadataHint")} checked={preserveMetadata} disabled={sending} onChange={() => setPreserveMetadata((value) => !value)} />
+                <OptionRow label={t("library:kindle.organizeByAuthor")} hint={t("library:kindle.organizeByAuthorHint")} checked={organizeByAuthor} disabled={sending} onChange={() => setOrganizeByAuthor((value) => !value)} />
               </div>
-              <Toggle
-                checked={convertToAzw3}
-                disabled={sending}
-                onChange={() => setConvertToAzw3((value) => !value)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-foreground">{t("library:kindle.preserveMetadata")}</p>
-                <p className="text-xs text-foreground-subtle">
-                  {t("library:kindle.preserveMetadataHint")}
-                </p>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+              {!emailConfig ? (
+                <p className="flex items-center gap-2 text-xs text-foreground-subtle"><RefreshCw size={13} className="animate-spin" />{t("library:kindle.searching")}</p>
+              ) : editingEmail || !emailConfig.configured ? (
+                <>
+                  <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-foreground-subtle">{t("library:kindle.email.configTitle")}</h3>
+                  <KindleEmailSettingsForm
+                    config={emailConfig}
+                    onSaved={(config) => {
+                      setEmailConfig(config);
+                      setEditingEmail(!config.configured);
+                    }}
+                    onCancel={emailConfig.configured ? () => setEditingEmail(false) : undefined}
+                  />
+                </>
+              ) : (
+                <KindleEmailSummary config={emailConfig} disabled={sending} onEdit={() => setEditingEmail(true)} />
+              )}
+            </section>
+
+            <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-foreground-subtle">
+                {t("library:kindle.transferOptions")}
+              </h3>
+              <div className="space-y-3 text-sm">
+                <OptionRow label={t("library:kindle.email.convertPdf")} hint={t("library:kindle.email.convertPdfHint")} checked={convertPdfToEpub} disabled={sending} onChange={() => setConvertPdfToEpub((value) => !value)} />
+                <OptionRow label={t("library:kindle.preserveMetadata")} hint={t("library:kindle.preserveMetadataHint")} checked={preserveMetadata} disabled={sending} onChange={() => setPreserveMetadata((value) => !value)} />
               </div>
-              <Toggle
-                checked={preserveMetadata}
-                disabled={sending}
-                onChange={() => setPreserveMetadata((value) => !value)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-foreground">{t("library:kindle.organizeByAuthor")}</p>
-                <p className="text-xs text-foreground-subtle">
-                  {t("library:kindle.organizeByAuthorHint")}
-                </p>
-              </div>
-              <Toggle
-                checked={organizeByAuthor}
-                disabled={sending}
-                onChange={() => setOrganizeByAuthor((value) => !value)}
-              />
-            </div>
-          </div>
-        </section>
+              <p className="mt-3 text-[11px] leading-4 text-foreground-subtle">{t("library:kindle.email.limitHint", { size: Math.round((emailConfig?.maxAttachmentBytes ?? EMAIL_MAX_BYTES) / 1024 / 1024) })}</p>
+            </section>
+          </>
+        )}
 
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -412,13 +553,29 @@ export default function KindleSendPanel({
             {books.map((book) => {
               const format = getBookFormat(book);
               const result = results.get(book.fileHash);
-              const shouldConvert = convertToAzw3 && format !== "azw3" && CONVERTIBLE_TO_AZW3.has(format);
-              const needsConversion = !convertToAzw3 && !DIRECT_KINDLE_FORMATS.has(format);
-              const hasError = needsConversion || (result && !result.success);
-              const isDone = result?.success;
-              const fallbackStatus = needsConversion
-                ? t("library:kindle.needsConversion")
-                : itemStatusLabel(result, shouldConvert);
+              let hasError: boolean;
+              let pending: boolean;
+              let status: string;
+              if (mode === "email") {
+                const plan = emailPlans.get(book.fileHash)?.kind ?? "ready";
+                const blocked = plan === "unsupported" || plan === "tooLarge";
+                hasError = blocked || Boolean(result && !result.success);
+                pending = !result && (plan === "convertPdf" || plan === "convertEpub");
+                status = result
+                  ? result.success ? t("library:kindle.email.emailed") : result.error || t("library:kindle.status.error")
+                  : plan === "unsupported" ? t("library:kindle.email.unsupported")
+                    : plan === "tooLarge" ? t("library:kindle.email.tooLarge", { size: Math.round((emailConfig?.maxAttachmentBytes ?? EMAIL_MAX_BYTES) / 1024 / 1024) })
+                      : plan === "convertPdf" ? t("library:kindle.email.willConvertPdf")
+                        : plan === "convertEpub" ? t("library:kindle.email.willConvertEpub")
+                          : t("library:kindle.status.ready");
+              } else {
+                const shouldConvert = convertToAzw3 && format !== "azw3" && CONVERTIBLE_TO_AZW3.has(format);
+                const needsConversion = !convertToAzw3 && !DIRECT_KINDLE_FORMATS.has(format);
+                hasError = needsConversion || Boolean(result && !result.success);
+                pending = shouldConvert && !result;
+                status = needsConversion ? t("library:kindle.needsConversion") : itemStatusLabel(result, shouldConvert);
+              }
+              const isDone = Boolean(result?.success);
 
               return (
                 <article
@@ -435,19 +592,19 @@ export default function KindleSendPanel({
                     </p>
                     <p
                       className={`mt-2 flex items-center gap-1.5 text-xs ${
-                        hasError ? "text-destructive" : isDone ? "text-primary" : shouldConvert ? "text-warning" : "text-foreground-muted"
+                        hasError ? "text-destructive" : isDone ? "text-primary" : pending ? "text-warning" : "text-foreground-muted"
                       }`}
                     >
                       {hasError ? (
-                        <AlertCircle size={13} />
+                        <AlertCircle size={13} className="flex-shrink-0" />
                       ) : isDone ? (
-                        <CheckCircle2 size={13} />
-                      ) : shouldConvert ? (
-                        <RefreshCw size={13} />
+                        <CheckCircle2 size={13} className="flex-shrink-0" />
+                      ) : pending ? (
+                        <RefreshCw size={13} className="flex-shrink-0" />
                       ) : (
-                        <BookOpen size={13} />
+                        <BookOpen size={13} className="flex-shrink-0" />
                       )}
-                      <span className="truncate">{fallbackStatus}</span>
+                      <span className={mode === "email" && hasError ? "break-words" : "truncate"}>{status}</span>
                     </p>
                     {result?.note && (
                       <p className="mt-1 text-[11px] leading-4 text-foreground-subtle">{result.note}</p>
@@ -465,17 +622,23 @@ export default function KindleSendPanel({
 
       <footer className="flex-shrink-0 border-t border-border bg-overlay p-4">
         <div className="mb-3 flex items-center justify-between text-xs text-foreground-subtle">
-          <span>{t("library:kindle.conversions", { count: convertibleCount })}</span>
-          <span>
-            {results.size > 0
-              ? inferredCount > 0
-                ? t("library:kindle.summaryInferred", {
-                    verified: verifiedCount,
-                    inferred: inferredCount,
-                  })
-                : t("library:kindle.summary", { verified: verifiedCount })
-              : t("library:kindle.summaryPending", { count: books.length })}
-          </span>
+          {mode === "email" ? (
+            <span>{emailReady ? t("library:kindle.summaryPending", { count: emailSendableCount }) : t("library:kindle.email.notConfigured")}</span>
+          ) : (
+            <>
+              <span>{t("library:kindle.conversions", { count: convertibleCount })}</span>
+              <span>
+                {results.size > 0
+                  ? inferredCount > 0
+                    ? t("library:kindle.summaryInferred", {
+                        verified: verifiedCount,
+                        inferred: inferredCount,
+                      })
+                    : t("library:kindle.summary", { verified: verifiedCount })
+                  : t("library:kindle.summaryPending", { count: books.length })}
+              </span>
+            </>
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -486,17 +649,29 @@ export default function KindleSendPanel({
           >
             {t("common:actions.cancel")}
           </button>
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={sending || books.length === 0 || !selectedDevice}
-            className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-            {sending
-              ? t("library:kindle.sending")
-              : t("library:kindle.send", { count: books.length })}
-          </button>
+          {mode === "email" ? (
+            <button
+              type="button"
+              onClick={() => void handleSendEmail()}
+              disabled={sending || emailSendableCount === 0 || !emailReady}
+              className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sending ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />}
+              {sending ? t("library:kindle.sending") : t("library:kindle.email.send", { count: emailSendableCount })}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={sending || books.length === 0 || !selectedDevice}
+              className="flex h-10 flex-[1.6] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
+              {sending
+                ? t("library:kindle.sending")
+                : t("library:kindle.send", { count: books.length })}
+            </button>
+          )}
         </div>
       </footer>
     </aside>

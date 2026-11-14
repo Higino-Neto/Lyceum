@@ -13,6 +13,7 @@ import { BookWithThumbnail } from "../types/LibraryTypes";
 import type { LyceumConversionOptions } from "../lib/lyceum/schema/types";
 import { DEFAULT_CUSTOM_IMAGE_SETTINGS, type ImagePresetId } from "../lib/lyceum/images/imagePresets";
 import { translate } from "../i18n";
+import { isPathBasedBook } from "../utils/localBooks";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
@@ -278,7 +279,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            outputDirectory: item.outputPath,
          };
          const result =
-           item.book.fileHash.startsWith("usb:") || item.book.fileHash.startsWith("mtp:")
+           isPathBasedBook(item.book)
              ? await (window.api as unknown as ConversionApi).convertBookFile(
                  item.book.filePath,
                  item.targetFormat,

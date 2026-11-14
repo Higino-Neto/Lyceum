@@ -13,6 +13,8 @@ import type {
 } from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
 import type { ConversionPreviewResult } from "./services/conversion-preview-types";
+import type { PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } from "./services/pdf-tools-types";
+import type { KindleEmailPublicConfig, KindleEmailSaveInput } from "./services/kindle-email-types";
 import type { BookCategory } from "../src/core/library/category";
 import type {
   Habit,
@@ -176,6 +178,94 @@ const api = {
     organizeByAuthor?: boolean;
     destination?: string;
   }) => ipcRenderer.invoke("kindle:send-books", options),
+
+  getKindleEmailConfig: () =>
+    invoke<KindleEmailPublicConfig>("kindle-email:get-config"),
+
+  saveKindleEmailConfig: (input: KindleEmailSaveInput) =>
+    invoke<{ success: boolean; config?: KindleEmailPublicConfig; error?: string }>("kindle-email:save-config", input),
+
+  connectKindleEmailGoogle: () =>
+    invoke<{ success: boolean; config?: KindleEmailPublicConfig; error?: string }>("kindle-email:connect-google"),
+
+  cancelKindleEmailGoogle: () =>
+    invoke<boolean>("kindle-email:cancel-google"),
+
+  disconnectKindleEmailGoogle: () =>
+    invoke<KindleEmailPublicConfig>("kindle-email:disconnect-google"),
+
+  verifyKindleEmail: () =>
+    invoke<{ success: boolean; error?: string }>("kindle-email:verify"),
+
+  sendBooksToKindleEmail: (options: {
+    books: Array<{
+      fileHash: string;
+      filePath: string;
+      title: string;
+      author?: string | null;
+      fileType?: BookFormat | null;
+      fileName?: string | null;
+      publisher?: string | null;
+      description?: string | null;
+      publishDate?: string | null;
+      language?: string | null;
+      identifier?: string | null;
+      asin?: string | null;
+      subject?: string | null;
+      series?: string | null;
+      seriesIndex?: string | null;
+      authorSort?: string | null;
+      titleSort?: string | null;
+    }>;
+    preserveMetadata?: boolean;
+    convertPdfToEpub?: boolean;
+  }) =>
+    invoke<{
+      success: boolean;
+      sent: number;
+      failed: number;
+      results: Array<{
+        fileHash: string;
+        title: string;
+        success: boolean;
+        status: "sent" | "converted" | "skipped" | "error";
+        outputName?: string;
+        bytes?: number;
+        verified?: boolean;
+        note?: string;
+        error?: string;
+      }>;
+    }>("kindle-email:send-books", options),
+
+  pickToolFiles: (kind: ToolFileKind) =>
+    invoke<ToolPickedFile[]>("tools:pick-files", kind),
+
+  describeToolFiles: (filePaths: string[]) =>
+    invoke<ToolPickedFile[]>("tools:describe-files", filePaths),
+
+  pickToolSavePath: (format: "pdf" | "cbz", suggestedName?: string, nearPath?: string) =>
+    invoke<string | null>("tools:pick-save-path", format, suggestedName, nearPath),
+
+  getToolImageThumbnail: (imagePath: string) =>
+    invoke<{ success: boolean; dataUrl?: string; width?: number; height?: number; error?: string }>("tools:image-thumbnail", imagePath),
+
+  getToolPdfInfo: (filePath: string) =>
+    invoke<{ success: boolean; pageCount?: number; title?: string; fileSize?: number; error?: string }>("tools:pdf-info", filePath),
+
+  getToolPdfThumbnails: (filePath: string, pages: number[]) =>
+    invoke<{ success: boolean; thumbnails: PdfToolThumbnail[]; error?: string }>("tools:pdf-thumbnails", filePath, pages),
+
+  runTool: (request: ToolRunRequest, jobId?: string) =>
+    invoke<{ success: boolean; outputPath?: string; fileSize?: number; pageCount?: number; error?: string }>("tools:run", request, jobId),
+
+  showToolOutputInFolder: (filePath: string) =>
+    invoke<boolean>("tools:show-in-folder", filePath),
+
+  onToolProgress: (callback: (data: { jobId: string; progress: number; message?: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, data: { jobId: string; progress: number; message?: string }) => callback(data);
+    ipcRenderer.on("tools:progress", listener);
+    return () => { ipcRenderer.removeListener("tools:progress", listener); };
+  },
 
   saveReadingState: (payload: ReadingState) =>
     ipcRenderer.invoke("reading:save", payload),

@@ -38,6 +38,7 @@ import {
 } from "./local-database";
 import {
   isPdfMagicBytesValid,
+  toStoredMetadata,
   THUMBNAIL_EXTENSIONS,
   extractEpubMetadata as extractEpubMetadataMainThread,
   extractPdfMetadata as extractMetadataMainThread,
@@ -59,8 +60,17 @@ import {
   hashFile,
   inspectBookFile,
   openAndProcess as openAndProcessInWorker,
+  runPdfToolInWorker,
   validateAzw3InWorker,
+  writeBookMetadataInWorker,
 } from "./workers/processingClient";
+import { registerPdfToolsHandlers } from "./handlers/pdf-tools.handler";
+import {
+  KINDLE_EMAIL_ACCEPTED_FORMATS,
+  KindleEmailService,
+  type KindleEmailSaveInput,
+} from "./services/kindle-email";
+import type { EditableBookMetadata } from "./services/book-file-metadata";
 import { registerBookHandlers, setWindow as setBooksWindow } from "./handlers/books.handler";
 import {
   registerLibraryHandlers,
@@ -98,6 +108,19 @@ const {
   protocol,
 } = electron;
 const require = createRequire(import.meta.url);
+
+// Chromium only picks the system keyring on GNOME/KDE. On other Linux sessions
+// (Hyprland, Sway, i3...) it falls back to "basic_text" and safeStorage reports
+// encryption as unavailable, even when a Secret Service (gnome-keyring,
+// KeePassXC) is running. Ask for libsecret explicitly; when no Secret Service
+// exists, safeStorage still reports unavailable and secrets stay in memory only.
+if (
+  process.platform === "linux" &&
+  !app.commandLine.hasSwitch("password-store") &&
+  !/kde|plasma/i.test(`${process.env.XDG_CURRENT_DESKTOP || ""} ${process.env.DESKTOP_SESSION || ""}`)
+) {
+  app.commandLine.appendSwitch("password-store", "gnome-libsecret");
+}
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const __filename = fileURLToPath(import.meta.url);
@@ -1297,6 +1320,85 @@ async function prepareKindleTransferFile(
   };
 }
 
+/**
+ * Prepares a book for Amazon's Send to Kindle e-mail service, which accepts
+ * EPUB and PDF but rejects AZW3/MOBI/KFX. CBZ is converted to PDF (keeps the
+ * page images intact). The library metadata is stamped into a temporary copy so
+ * the Kindle shows the edited title/author even if the original file could not
+ * be updated.
+ */
+async function prepareKindleEmailFile(
+  book: KindleSendBookInput,
+  options: { preserveMetadata?: boolean; convertPdfToEpub?: boolean },
+): Promise<{ success: boolean; filePath?: string; fileName?: string; converted?: boolean; error?: string }> {
+  const { inferBookFormatFromPath } = await loadLyceumConversionModule();
+  const localPath = book.filePath.startsWith("::") ? await copyWindowsMtpBookToTemp(book.filePath) : book.filePath;
+  if (!localPath || !fs.existsSync(localPath)) {
+    return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+  }
+  const sourceFormat = inferBookFormatFromPath(localPath) || book.fileType || null;
+  if (!sourceFormat) return { success: false, error: "Formato de origem nao suportado" };
+
+  const targetFormat: BookFormat | null =
+    sourceFormat === "cbz" ? "pdf"
+      : sourceFormat === "pdf" && options.convertPdfToEpub ? "epub"
+        : sourceFormat === "txt" || sourceFormat === "html" ? "epub"
+          : null;
+  if (!targetFormat && !KINDLE_EMAIL_ACCEPTED_FORMATS.has(sourceFormat)) {
+    return {
+      success: false,
+      error: `A Amazon nao aceita ${sourceFormat.toUpperCase()} por e-mail. Use o envio por USB.`,
+    };
+  }
+
+  const { fileHash: sourceHash } = await hashFile(localPath);
+  const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-email", sourceHash.slice(0, 16));
+  await fs.promises.mkdir(tempDir, { recursive: true });
+  const outputFormat = targetFormat || sourceFormat;
+  const fileName = createKindleOutputName(book, outputFormat);
+  const outputPath = path.join(tempDir, fileName);
+  const title = path.basename(book.title || book.fileName || localPath, path.extname(book.title || book.fileName || localPath));
+  const metadata: EditableBookMetadata = {
+    title,
+    author: book.author || undefined,
+    language: book.language || undefined,
+    publisher: book.publisher || undefined,
+    description: book.description || undefined,
+    publishDate: book.publishDate || undefined,
+    identifier: book.identifier || undefined,
+    asin: book.asin || undefined,
+    subject: book.subject || undefined,
+    series: book.series || undefined,
+    seriesIndex: book.seriesIndex || undefined,
+    authorSort: book.authorSort || undefined,
+    titleSort: book.titleSort || undefined,
+  };
+
+  if (targetFormat) {
+    await convertViaLyceumInWorker({
+      sourcePath: localPath,
+      sourceFormat,
+      targetFormat,
+      packageRoot: getLyceumPackageRoot(`kindle-email-${sourceHash}`),
+      outputPath,
+      metadata: options.preserveMetadata === false ? { title, language: "pt-BR" } : { ...metadata, language: metadata.language || "pt-BR" },
+      pdfImageTempDir: sourceFormat === "pdf"
+        ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-email-${sourceHash}`)
+        : undefined,
+    });
+    return { success: true, filePath: outputPath, fileName, converted: true };
+  }
+
+  await fs.promises.copyFile(localPath, outputPath);
+  if (options.preserveMetadata !== false && (sourceFormat === "epub" || sourceFormat === "pdf")) {
+    const stamped = await writeBookMetadataInWorker(outputPath, sourceFormat, metadata).catch(() => null);
+    if (stamped && !stamped.fileResult.success) {
+      console.warn("[kindle:email] Could not stamp metadata on the copy:", stamped.fileResult.error);
+    }
+  }
+  return { success: true, filePath: outputPath, fileName, converted: false };
+}
+
 async function copyFileToFilesystemKindle(
   sourcePath: string,
   device: KindleSendDevice,
@@ -1701,12 +1803,7 @@ async function processFile(filePath: string): Promise<void> {
       }
       updateFileSize(fileHash, stats.size);
       if (metadata) {
-        updateMetadata(fileHash, {
-          title: metadata.title,
-          author: metadata.author,
-          publisher: metadata.producer,
-          publishDate: metadata.creationDate,
-        });
+        updateMetadata(fileHash, toStoredMetadata(metadata));
       }
       updateProcessingStatus(fileHash, "completed");
     } else {
@@ -1725,12 +1822,7 @@ async function processFile(filePath: string): Promise<void> {
       if (newDoc) {
         updateFileSize(fileHash, stats.size);
         if (metadata) {
-          updateMetadata(fileHash, {
-            title: metadata.title,
-            author: metadata.author,
-            publisher: metadata.producer,
-            publishDate: metadata.creationDate,
-          });
+          updateMetadata(fileHash, toStoredMetadata(metadata));
         }
         updateDocumentSyncStatus(fileHash, true, category || undefined);
         updateProcessingStatus(fileHash, "completed");
@@ -2549,6 +2641,108 @@ ipcMain.handle("kindle:send-books", async (_, options: KindleSendOptions) => {
   });
 });
 
+let kindleEmailService: KindleEmailService | null = null;
+function getKindleEmailService() {
+  kindleEmailService ||= new KindleEmailService(
+    path.join(app.getPath("userData"), "kindle-email.json"),
+    electron.safeStorage,
+    {
+      // Desktop OAuth client from Google Cloud Console; a runtime env var overrides the build-time value.
+      googleClient: {
+        clientId: process.env.LYCEUM_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "",
+        clientSecret: process.env.LYCEUM_GOOGLE_CLIENT_SECRET || import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET || undefined,
+      },
+      openBrowser: (url) => electron.shell.openExternal(url),
+    },
+  );
+  return kindleEmailService;
+}
+
+ipcMain.handle("kindle-email:connect-google", async () => {
+  try {
+    return { success: true, config: await getKindleEmailService().connectGoogle() };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Falha no login com Google" };
+  } finally {
+    // Bring Lyceum back to the front after the browser round-trip.
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  }
+});
+
+ipcMain.handle("kindle-email:cancel-google", () => {
+  getKindleEmailService().cancelGoogleSignIn();
+  return true;
+});
+
+ipcMain.handle("kindle-email:disconnect-google", async () => {
+  return getKindleEmailService().disconnectGoogle();
+});
+
+ipcMain.handle("kindle-email:get-config", () => getKindleEmailService().getPublicConfig());
+
+ipcMain.handle("kindle-email:save-config", (_, input: KindleEmailSaveInput) => {
+  try {
+    return { success: true, config: getKindleEmailService().save(input || {}) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Configuracao invalida" };
+  }
+});
+
+ipcMain.handle("kindle-email:verify", async () => {
+  try {
+    await getKindleEmailService().verify();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Falha ao conectar" };
+  }
+});
+
+ipcMain.handle("kindle-email:send-books", async (_, options: {
+  books: KindleSendBookInput[];
+  preserveMetadata?: boolean;
+  convertPdfToEpub?: boolean;
+}) => {
+  const service = getKindleEmailService();
+  const books = Array.isArray(options?.books) ? options.books : [];
+  const results: KindleSendItemResult[] = [];
+  for (const book of books) {
+    try {
+      const prepared = await prepareKindleEmailFile(book, {
+        preserveMetadata: options?.preserveMetadata ?? true,
+        convertPdfToEpub: options?.convertPdfToEpub ?? false,
+      });
+      if (!prepared.success || !prepared.filePath || !prepared.fileName) {
+        results.push({ fileHash: book.fileHash, title: book.title, success: false, status: "error", error: prepared.error || "Nao foi possivel preparar o arquivo" });
+        continue;
+      }
+      const sent = await service.send({ filePath: prepared.filePath, fileName: prepared.fileName }, book.title);
+      results.push({
+        fileHash: book.fileHash,
+        title: book.title,
+        success: true,
+        status: prepared.converted ? "converted" : "sent",
+        outputName: prepared.fileName,
+        bytes: sent.bytes,
+        verified: false,
+        note: "E-mail aceito pelo servidor. A Amazon entrega no Kindle em alguns minutos se o remetente estiver aprovado.",
+      });
+    } catch (error) {
+      results.push({
+        fileHash: book.fileHash,
+        title: book.title,
+        success: false,
+        status: "error",
+        error: error instanceof Error ? error.message : "Erro ao enviar por e-mail",
+      });
+    }
+  }
+  const sent = results.filter((result) => result.success).length;
+  return { success: sent === results.length, sent, failed: results.length - sent, results };
+});
+
 ipcMain.handle("reading:save", (_, payload) => {
   const { fileHash, state } = payload ?? {};
   if (!fileHash || !state) return;
@@ -2840,6 +3034,9 @@ async function runGenericFileConversion(
 
     const { fileHash: sourceHash } = await hashFile(localPath);
     const sourceTitle = path.basename(localPath, path.extname(localPath));
+    // Files picked from disk are not in the library: carry the metadata embedded in the file itself.
+    const { readBookMetadataFromFile } = await import("./services/book-file-metadata");
+    const embedded = await readBookMetadataFromFile(localPath, sourceFormat);
     outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory);
     const conversionPayload = {
       sourcePath: localPath,
@@ -2848,8 +3045,9 @@ async function runGenericFileConversion(
       packageRoot: getLyceumPackageRoot(sourceHash),
       outputPath,
       metadata: {
-        title: sourceTitle,
-        language: "pt-BR",
+        ...embedded,
+        title: embedded.title || sourceTitle,
+        language: embedded.language || "pt-BR",
       },
       pdfImageTempDir: sourceFormat === "pdf"
         ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", sourceHash)
@@ -3269,6 +3467,14 @@ async function findFileByHash(fileHash: string, searchPaths: string[]): Promise<
 registerFileDialogHandlers(ipcMain, {
   showOpenDialog: showOpenDialogSafe,
   openReadableFile,
+});
+
+registerPdfToolsHandlers(ipcMain, {
+  showOpenDialog: showOpenDialogSafe,
+  showSaveDialog: (options) => (win ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options)),
+  runPdfTool: (request, onProgress) => runPdfToolInWorker(request, { onProgress }),
+  sendProgress: (payload) => win?.webContents.send("tools:progress", payload),
+  showInFolder: (filePath) => electron.shell.showItemInFolder(filePath),
 });
 
 registerWindowHandlers(ipcMain, {

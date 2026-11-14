@@ -5,27 +5,28 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import AdmZip from "adm-zip";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
+import {
+  buildXmpPacket,
+  clean,
+  compactMetadata,
+  readComicInfo,
+  readOpfMetadata,
+  readAttr,
+  readXmpMetadata,
+  sanitizePdfFields,
+  normalizeIsbn,
+  splitAuthors,
+  splitSubjects,
+  writeComicInfo,
+  writeOpfMetadata,
+  type BookFileMetadataFields,
+} from "./book-metadata-formats";
 
 const require = createRequire(import.meta.url);
 const execFileAsync = promisify(execFile);
 
-export interface EditableBookMetadata {
-  title?: string;
-  author?: string;
-  description?: string;
-  isbn?: string;
-  publisher?: string;
-  publishDate?: string;
-  language?: string;
-  identifier?: string;
-  asin?: string;
-  subject?: string;
-  series?: string;
-  seriesIndex?: string;
-  authorSort?: string;
-  titleSort?: string;
-}
+export type EditableBookMetadata = BookFileMetadataFields;
 
 export interface FileMetadataUpdateResult {
   success: boolean;
@@ -33,103 +34,125 @@ export interface FileMetadataUpdateResult {
   error?: string;
 }
 
-function cleanString(value: string | null | undefined) {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
-}
-
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function metadataValue(metadata: EditableBookMetadata, key: keyof EditableBookMetadata) {
-  return cleanString(metadata[key]);
+  return clean(metadata[key]);
 }
 
 async function atomicWrite(filePath: string, data: Buffer | Uint8Array) {
   const tempPath = `${filePath}.lyceum-tmp`;
-  await fs.promises.writeFile(tempPath, Buffer.from(data));
-  await fs.promises.rename(tempPath, filePath);
+  try {
+    await fs.promises.writeFile(tempPath, Buffer.from(data));
+    await fs.promises.rename(tempPath, filePath);
+  } catch (error) {
+    await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
 }
 
-async function updatePdfMetadata(filePath: string, metadata: EditableBookMetadata): Promise<FileMetadataUpdateResult> {
-  const pdfDoc = await PDFDocument.load(fs.readFileSync(filePath), { ignoreEncryption: true });
-  const title = metadataValue(metadata, "title");
-  const author = metadataValue(metadata, "author");
-  const subject = metadataValue(metadata, "subject") || metadataValue(metadata, "description");
-  const keywords = [
-    metadataValue(metadata, "isbn"),
-    metadataValue(metadata, "identifier"),
-    metadataValue(metadata, "asin"),
-    metadataValue(metadata, "series"),
-  ].filter(Boolean) as string[];
-
-  if (title) pdfDoc.setTitle(title);
-  if (author) pdfDoc.setAuthor(author);
-  if (subject) pdfDoc.setSubject(subject);
-  if (keywords.length > 0) pdfDoc.setKeywords(keywords);
-  if (metadataValue(metadata, "publisher")) pdfDoc.setProducer(metadataValue(metadata, "publisher") || "");
-  if (metadataValue(metadata, "publishDate")) {
-    const parsedDate = new Date(metadataValue(metadata, "publishDate") || "");
-    if (Number.isFinite(parsedDate.getTime())) pdfDoc.setCreationDate(parsedDate);
+function readPdfXmp(pdfDoc: PDFDocument): string | undefined {
+  try {
+    const metadata = pdfDoc.catalog.lookup(PDFName.of("Metadata"));
+    if (metadata instanceof PDFRawStream) return Buffer.from(decodePDFRawStream(metadata).decode()).toString("utf8");
+  } catch {
+    // A broken XMP stream is ignored: the Info dictionary is still usable.
   }
+  return undefined;
+}
 
-  await atomicWrite(filePath, Buffer.from(await pdfDoc.save()));
+function readPdfInfo(pdfDoc: PDFDocument) {
+  const safe = (read: () => string | undefined) => {
+    try {
+      return clean(read());
+    } catch {
+      return undefined;
+    }
+  };
   return {
-    success: true,
-    warnings: ["PDF nao possui campos nativos para todos os metadados; ISBN/ASIN/serie foram gravados como keywords quando presentes."],
+    title: safe(() => pdfDoc.getTitle()),
+    author: safe(() => pdfDoc.getAuthor()),
+    description: safe(() => pdfDoc.getSubject()),
+    subject: safe(() => pdfDoc.getKeywords()),
+    producer: safe(() => pdfDoc.getProducer()),
+    creator: safe(() => pdfDoc.getCreator()),
   };
 }
 
-function readAttr(source: string, attr: string) {
-  return source.match(new RegExp(`${attr}\\s*=\\s*["']([^"']+)["']`, "i"))?.[1];
+async function updatePdfMetadata(filePath: string, metadata: EditableBookMetadata): Promise<FileMetadataUpdateResult> {
+  const pdfDoc = await PDFDocument.load(await fs.promises.readFile(filePath), { ignoreEncryption: true, updateMetadata: false });
+  if (pdfDoc.isEncrypted) {
+    return { success: false, warnings: [], error: "PDF protegido por senha: os metadados nao podem ser gravados no arquivo." };
+  }
+
+  const title = metadataValue(metadata, "title");
+  const author = metadataValue(metadata, "author");
+  const description = metadataValue(metadata, "description");
+  const subjects = splitSubjects(metadata.subject);
+  const language = metadataValue(metadata, "language");
+  const previousXmp = readPdfXmp(pdfDoc);
+  const previous = previousXmp ? readXmpMetadata(previousXmp) : {};
+  const info = readPdfInfo(pdfDoc);
+
+  // Standard Info dictionary: read by every PDF viewer.
+  if (title) pdfDoc.setTitle(title, { showInWindowTitleBar: true });
+  if (author) pdfDoc.setAuthor(author);
+  if (description) pdfDoc.setSubject(description);
+  if (subjects.length > 0) pdfDoc.setKeywords(subjects);
+  if (language) pdfDoc.setLanguage(language);
+  pdfDoc.setModificationDate(new Date());
+
+  // XMP packet: carries the fields the Info dictionary has no slot for
+  // (publisher, ISBN, series, sort keys...).
+  const xmp = buildXmpPacket({
+    ...metadata,
+    producer: info.producer,
+    creatorTool: info.creator,
+    pdfaPart: previous.pdfaPart,
+    pdfaConformance: previous.pdfaConformance,
+  });
+  // XMP must be UTF-8: pdf-lib would encode a JS string as Latin-1.
+  const stream = pdfDoc.context.stream(new Uint8Array(Buffer.from(xmp, "utf8")), { Type: "Metadata", Subtype: "XML" });
+  pdfDoc.catalog.set(PDFName.of("Metadata"), pdfDoc.context.register(stream));
+
+  await atomicWrite(filePath, await pdfDoc.save({ useObjectStreams: false }));
+  return { success: true, warnings: [] };
 }
 
-function upsertDcTag(opf: string, tag: string, value: string | undefined) {
-  const pattern = new RegExp(`<dc:${tag}\\b[^>]*>[\\s\\S]*?<\\/dc:${tag}>`, "i");
-  if (!value) return opf.replace(pattern, "");
-  const node = `<dc:${tag}>${escapeXml(value)}</dc:${tag}>`;
-  if (pattern.test(opf)) return opf.replace(pattern, node);
-  return opf.replace(/<metadata\b[^>]*>/i, (match) => `${match}\n    ${node}`);
-}
-
-function upsertMetaName(opf: string, name: string, value: string | undefined) {
-  const pattern = new RegExp(`<meta\\b(?=[^>]*\\bname\\s*=\\s*["']${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'])[^>]*\\/?>`, "i");
-  if (!value) return opf.replace(pattern, "");
-  const node = `<meta name="${escapeXml(name)}" content="${escapeXml(value)}" />`;
-  if (pattern.test(opf)) return opf.replace(pattern, node);
-  return opf.replace(/<\/metadata>/i, `    ${node}\n  </metadata>`);
+function findOpfEntry(zip: AdmZip) {
+  const entries = zip.getEntries();
+  const container = entries.find((entry) => entry.entryName === "META-INF/container.xml");
+  const rootFile = container?.getData().toString("utf8").match(/full-path\s*=\s*["']([^"']+)["']/)?.[1];
+  return entries.find((entry) => entry.entryName === rootFile)
+    || entries.find((entry) => entry.entryName.toLowerCase().endsWith(".opf"));
 }
 
 async function updateEpubMetadata(filePath: string, metadata: EditableBookMetadata): Promise<FileMetadataUpdateResult> {
   const zip = new AdmZip(filePath);
-  const entries = zip.getEntries();
-  const container = entries.find((entry) => entry.entryName === "META-INF/container.xml");
-  const rootFile = container?.getData().toString("utf8").match(/full-path=["']([^"']+)["']/)?.[1];
-  const opfEntry = entries.find((entry) => entry.entryName === rootFile || entry.entryName.toLowerCase().endsWith(".opf"));
+  const opfEntry = findOpfEntry(zip);
   if (!opfEntry) return { success: false, warnings: [], error: "OPF do EPUB nao encontrado." };
 
-  let opf = opfEntry.getData().toString("utf8");
-  opf = upsertDcTag(opf, "title", metadataValue(metadata, "title"));
-  opf = upsertDcTag(opf, "creator", metadataValue(metadata, "author"));
-  opf = upsertDcTag(opf, "description", metadataValue(metadata, "description"));
-  opf = upsertDcTag(opf, "publisher", metadataValue(metadata, "publisher"));
-  opf = upsertDcTag(opf, "date", metadataValue(metadata, "publishDate"));
-  opf = upsertDcTag(opf, "language", metadataValue(metadata, "language"));
-  opf = upsertDcTag(opf, "subject", metadataValue(metadata, "subject") || metadataValue(metadata, "isbn"));
-  opf = upsertDcTag(opf, "identifier", metadataValue(metadata, "identifier") || metadataValue(metadata, "isbn"));
-  opf = upsertMetaName(opf, "amazon:asin", metadataValue(metadata, "asin"));
-  opf = upsertMetaName(opf, "calibre:series", metadataValue(metadata, "series"));
-  opf = upsertMetaName(opf, "calibre:series_index", metadataValue(metadata, "seriesIndex"));
-  opf = upsertMetaName(opf, "calibre:author_sort", metadataValue(metadata, "authorSort"));
-  opf = upsertMetaName(opf, "calibre:title_sort", metadataValue(metadata, "titleSort"));
+  const opf = writeOpfMetadata(opfEntry.getData().toString("utf8"), metadata);
   zip.updateFile(opfEntry.entryName, Buffer.from(opf, "utf8"));
-  await fs.promises.writeFile(filePath, zip.toBuffer());
+  await atomicWrite(filePath, zip.toBuffer());
   return { success: true, warnings: [] };
+}
+
+function findComicInfoEntry(zip: AdmZip) {
+  return zip.getEntries().find((entry) => !entry.entryName.endsWith("/") && entry.entryName.toLowerCase() === "comicinfo.xml")
+    || zip.getEntries().find((entry) => !entry.entryName.endsWith("/") && path.posix.basename(entry.entryName).toLowerCase() === "comicinfo.xml");
+}
+
+async function updateCbzMetadata(filePath: string, metadata: EditableBookMetadata): Promise<FileMetadataUpdateResult> {
+  const zip = new AdmZip(filePath);
+  const entry = findComicInfoEntry(zip);
+  const xml = writeComicInfo(entry?.getData().toString("utf8"), metadata);
+  if (entry) zip.updateFile(entry.entryName, Buffer.from(xml, "utf8"));
+  else zip.addFile("ComicInfo.xml", Buffer.from(xml, "utf8"));
+  await atomicWrite(filePath, zip.toBuffer());
+  const unsupported = [metadataValue(metadata, "identifier") && "identificador", metadataValue(metadata, "asin") && "ASIN"].filter(Boolean);
+  return {
+    success: true,
+    warnings: unsupported.length ? [`ComicInfo.xml nao possui campo para ${unsupported.join(" e ")}; mantido apenas na biblioteca.`] : [],
+  };
 }
 
 interface PalmDbData {
@@ -187,6 +210,41 @@ function parseExth(recordZero: Buffer) {
   return { mobiOffset, exthOffset, exthLength, records };
 }
 
+function readMobiFullName(recordZero: Buffer) {
+  try {
+    const offset = recordZero.readUInt32BE(16 + 68);
+    const length = recordZero.readUInt32BE(16 + 72);
+    if (!length || offset + length > recordZero.length) return undefined;
+    return clean(recordZero.subarray(offset, offset + length).toString("utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function readAzw3Metadata(filePath: string): EditableBookMetadata {
+  const recordZero = readPalmDb(filePath).records[0];
+  const { records } = parseExth(recordZero);
+  const strings = (type: number) => records
+    .filter((record) => record.type === type)
+    .map((record) => clean(record.payload.toString("utf8")))
+    .filter((value): value is string => Boolean(value));
+  const first = (type: number) => strings(type)[0];
+  const authors = strings(100);
+  const subjects = strings(105);
+  return {
+    title: first(503) || readMobiFullName(recordZero),
+    author: authors.length ? authors.join(" & ") : undefined,
+    publisher: first(101),
+    description: first(103),
+    isbn: normalizeIsbn(first(104)) || first(104),
+    subject: subjects.length ? subjects.join(", ") : undefined,
+    publishDate: first(106),
+    identifier: first(112),
+    asin: first(113) || first(504),
+    language: first(524),
+  };
+}
+
 function exthStringRecord(type: number, value: string | undefined) {
   return value ? { type, payload: Buffer.from(value, "utf8") } : null;
 }
@@ -216,31 +274,34 @@ function buildExth(records: Array<{ type: number; payload: Buffer }>) {
 
 function rebuildRecordZeroWithExth(recordZero: Buffer, metadata: EditableBookMetadata, coverOffset?: number, thumbnailOffset?: number) {
   const parsed = parseExth(recordZero);
-  const replaceTypes = new Set([100, 101, 103, 104, 105, 106, 112, 113, 114, 115, 118, 119, 201, 202, 503, 524]);
+  // EXTH record types (MobileRead wiki): 100 author, 101 publisher, 103 description,
+  // 104 ISBN, 105 subject (repeatable), 106 publishing date, 112 source identifier,
+  // 113/504 ASIN, 201/202 cover/thumbnail offsets, 503 updated title, 524 language.
+  const replaceTypes = new Set([100, 101, 103, 104, 105, 106, 112, 113, 201, 202, 503, 504, 524]);
   const kept = parsed.records.filter((record) => !replaceTypes.has(record.type));
-  const identifier = metadataValue(metadata, "identifier") || metadataValue(metadata, "isbn");
-  const asin = metadataValue(metadata, "asin") || identifier;
+  const previous = (type: number) => parsed.records.filter((record) => record.type === type);
+  const keepOffset = (type: number, value: number | undefined) =>
+    value !== undefined ? [exthUIntRecord(type, value)] : previous(type);
+  const asin = metadataValue(metadata, "asin");
+  const isbn = normalizeIsbn(metadata.isbn) || metadataValue(metadata, "isbn");
   const nextRecords = [
     ...kept,
-    exthStringRecord(100, metadataValue(metadata, "author")),
+    ...splitAuthors(metadata.author).map((author) => exthStringRecord(100, author)),
     exthStringRecord(101, metadataValue(metadata, "publisher")),
     exthStringRecord(103, metadataValue(metadata, "description")),
-    exthStringRecord(104, identifier),
-    exthStringRecord(105, metadataValue(metadata, "subject") || metadataValue(metadata, "isbn")),
+    exthStringRecord(104, isbn),
+    ...splitSubjects(metadata.subject).map((subject) => exthStringRecord(105, subject)),
     exthStringRecord(106, metadataValue(metadata, "publishDate")),
-    exthStringRecord(112, asin),
+    exthStringRecord(112, metadataValue(metadata, "identifier")),
     exthStringRecord(113, asin),
-    exthStringRecord(114, metadataValue(metadata, "series")),
-    exthStringRecord(115, metadataValue(metadata, "seriesIndex")),
-    exthStringRecord(118, metadataValue(metadata, "authorSort")),
-    exthStringRecord(119, metadataValue(metadata, "titleSort")),
-    exthUIntRecord(201, coverOffset),
-    exthUIntRecord(202, thumbnailOffset),
+    exthStringRecord(504, asin),
+    ...keepOffset(201, coverOffset),
+    ...keepOffset(202, thumbnailOffset),
     exthStringRecord(503, metadataValue(metadata, "title")),
     exthStringRecord(524, metadataValue(metadata, "language")),
   ].filter((record): record is { type: number; payload: Buffer } => Boolean(record));
   const exth = buildExth(nextRecords.sort((a, b) => a.type - b.type));
-  const fullName = Buffer.from(metadataValue(metadata, "title") || "Untitled", "utf8");
+  const fullName = Buffer.from(metadataValue(metadata, "title") || readMobiFullName(recordZero) || "Untitled", "utf8");
   const prefix = Buffer.from(recordZero.subarray(0, parsed.exthOffset));
   const rebuilt = Buffer.concat([prefix, exth, fullName, Buffer.from([0, 0])]);
   const padded = Buffer.concat([rebuilt, Buffer.alloc((4 - (rebuilt.length % 4)) % 4)]);
@@ -286,10 +347,7 @@ export async function writeCoverImageFile(imagePath: string, outputPath: string)
 
 async function setEpubCover(filePath: string, imagePath: string, metadata: EditableBookMetadata): Promise<FileMetadataUpdateResult> {
   const zip = new AdmZip(filePath);
-  const entries = zip.getEntries();
-  const container = entries.find((entry) => entry.entryName === "META-INF/container.xml");
-  const rootFile = container?.getData().toString("utf8").match(/full-path=["']([^"']+)["']/)?.[1];
-  const opfEntry = entries.find((entry) => entry.entryName === rootFile || entry.entryName.toLowerCase().endsWith(".opf"));
+  const opfEntry = findOpfEntry(zip);
   if (!opfEntry) return { success: false, warnings: [], error: "OPF do EPUB nao encontrado." };
   const opfDir = path.posix.dirname(opfEntry.entryName);
   const imageExt = path.extname(imagePath).toLowerCase() === ".png" ? ".png" : ".jpg";
@@ -307,9 +365,13 @@ async function setEpubCover(filePath: string, imagePath: string, metadata: Edita
     zip.addFile(coverPath, imageData);
     opf = opf.replace(/<\/manifest>/i, `    <item id="lyceum-cover-image" href="${coverHref}" media-type="${mediaType}" properties="cover-image" />\n  </manifest>`);
   }
-  opf = upsertMetaName(opf, "cover", "lyceum-cover-image");
+  if (!existing) {
+    const coverMeta = /<meta\b(?=[^>]*\bname\s*=\s*["']cover["'])[^>]*\/?>/i;
+    const node = `<meta name="cover" content="lyceum-cover-image"/>`;
+    opf = coverMeta.test(opf) ? opf.replace(coverMeta, node) : opf.replace(/<\/((?:opf:)?metadata)>/i, `  ${node}\n  </$1>`);
+  }
   zip.updateFile(opfEntry.entryName, Buffer.from(opf, "utf8"));
-  await fs.promises.writeFile(filePath, zip.toBuffer());
+  await atomicWrite(filePath, zip.toBuffer());
   await updateEpubMetadata(filePath, metadata);
   return { success: true, warnings: [] };
 }
@@ -427,8 +489,58 @@ export async function writeBookMetadataToFile(
   if (type === "pdf") return updatePdfMetadata(filePath, metadata);
   if (type === "epub") return updateEpubMetadata(filePath, metadata);
   if (type === "azw3") return updateAzw3Metadata(filePath, metadata);
+  if (type === "cbz") return updateCbzMetadata(filePath, metadata);
   if (type === "kfx") return runKfxBridge(filePath, metadata);
   return { success: false, warnings: [], error: `Edicao de metadados nao suportada para ${type.toUpperCase()}.` };
+}
+
+function epubFieldsFromFile(filePath: string): EditableBookMetadata {
+  const opfEntry = findOpfEntry(new AdmZip(filePath));
+  return opfEntry ? readOpfMetadata(opfEntry.getData().toString("utf8")) : {};
+}
+
+function cbzFieldsFromFile(filePath: string): EditableBookMetadata {
+  const entry = findComicInfoEntry(new AdmZip(filePath));
+  return entry ? readComicInfo(entry.getData().toString("utf8")) : {};
+}
+
+async function pdfFieldsFromFile(filePath: string): Promise<EditableBookMetadata> {
+  const pdfDoc = await PDFDocument.load(await fs.promises.readFile(filePath), { ignoreEncryption: true, updateMetadata: false });
+  const info = readPdfInfo(pdfDoc);
+  const xmp = readPdfXmp(pdfDoc);
+  const fromXmp = xmp ? compactMetadata(readXmpMetadata(xmp)) : {};
+  delete (fromXmp as { pdfaPart?: string }).pdfaPart;
+  delete (fromXmp as { pdfaConformance?: string }).pdfaConformance;
+  // The Info dictionary is what viewers edit most often, so it wins over XMP.
+  return sanitizePdfFields({
+    ...fromXmp,
+    ...compactMetadata({
+      title: info.title,
+      author: info.author,
+      description: info.description,
+      subject: info.subject,
+    }),
+  });
+}
+
+/**
+ * Reads every metadata field embedded in a book file. Missing fields are
+ * omitted (never blank) so callers can merge the result over stored values.
+ */
+export async function readBookMetadataFromFile(
+  filePath: string,
+  fileType: string | null | undefined,
+): Promise<EditableBookMetadata> {
+  const type = (fileType || path.extname(filePath).slice(1)).toLowerCase();
+  try {
+    if (type === "pdf") return compactMetadata(await pdfFieldsFromFile(filePath));
+    if (type === "epub") return compactMetadata(epubFieldsFromFile(filePath));
+    if (type === "cbz") return compactMetadata(cbzFieldsFromFile(filePath));
+    if (type === "azw3") return compactMetadata(readAzw3Metadata(filePath));
+  } catch (error) {
+    console.warn(`[BookFileMetadata] Could not read embedded metadata from ${path.basename(filePath)}:`, error);
+  }
+  return {};
 }
 
 export async function setBookCoverInFile(

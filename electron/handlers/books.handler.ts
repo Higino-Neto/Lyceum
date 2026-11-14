@@ -761,7 +761,7 @@ export function registerBookHandlers(documentMetadata: DocumentMetadataRepositor
         updateDocumentNumPages(nextHash, metadata.pageCount);
       }
       win?.webContents.send("library:updated");
-      return { success: true, fileHash: nextHash, warnings };
+      return { success: true, fileHash: nextHash, warnings, writtenToFile: fileResult.success };
     } catch (error) {
       documentMetadata.updateMetadata(fileHash, mergedMetadata);
       syncMergedBookMetadata(doc.bookId, fileHash, mergedMetadata);
@@ -772,6 +772,7 @@ export function registerBookHandlers(documentMetadata: DocumentMetadataRepositor
       return {
         success: true,
         fileHash,
+        writtenToFile: false,
         warnings: [error instanceof Error ? error.message : String(error)],
       };
     }

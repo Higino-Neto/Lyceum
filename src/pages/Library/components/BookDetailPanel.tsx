@@ -334,7 +334,16 @@ export default function BookDetailPanel({
             return;
           }
         }
-        toast.success(t("library:detail.toasts.metadataWritten"));
+        if (result.writtenToFile === false) {
+          toast(
+            t("library:metadata.toasts.savedLibraryOnly", {
+              reason: result.warnings?.[0] || t("library:metadata.toasts.unknownReason"),
+            }),
+            { icon: "⚠️", duration: 7000 },
+          );
+        } else {
+          toast.success(t("library:detail.toasts.metadataWritten"));
+        }
         setEditMode(null);
         setEditValue("");
         const nextHash = metadataHash;
