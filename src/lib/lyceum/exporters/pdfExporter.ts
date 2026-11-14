@@ -5,6 +5,7 @@ import { PDFDocument } from "pdf-lib";
 import type sharpType from "sharp";
 import { textualResourcePath } from "../package/paths";
 import type { ExportInput, ExportResult, LyceumExporter, LyceumTextualResource } from "../schema/types";
+import { resolveImageSettings } from "../images/imageOptimizer";
 
 type SharpFactory = typeof sharpType;
 const require = createRequire(import.meta.url);
@@ -21,7 +22,7 @@ function resourceData(resource: LyceumTextualResource, rootPath: string) {
   return fs.readFileSync(textualResourcePath(rootPath, resource.href));
 }
 
-async function imageBytesForPdf(resource: LyceumTextualResource, rootPath: string) {
+async function imageBytesForPdf(resource: LyceumTextualResource, rootPath: string, quality = 90) {
   const data = resourceData(resource, rootPath);
   const mediaType = resource.mediaType.toLowerCase();
   if (mediaType === "image/jpeg" || mediaType === "image/png") {
@@ -32,7 +33,7 @@ async function imageBytesForPdf(resource: LyceumTextualResource, rootPath: strin
   return {
     data: await sharp(data, { animated: mediaType === "image/gif" || mediaType === "image/webp" })
       .rotate()
-      .jpeg({ quality: 90 })
+      .jpeg({ quality })
       .toBuffer(),
     mediaType: "image/jpeg",
   };
@@ -44,6 +45,7 @@ async function buildComicPdf(input: ExportInput) {
     (input.package.textual?.resources || []).map((resource) => [resource.href.toLowerCase(), resource]),
   );
   let imageCount = 0;
+  const fallbackQuality = resolveImageSettings(input.conversionOptions)?.quality ?? 90;
 
   for (const comicPage of input.package.comic?.pages || []) {
     const resource = comicPage.resourceHref
@@ -51,7 +53,7 @@ async function buildComicPdf(input: ExportInput) {
       : undefined;
     if (!resource) continue;
 
-    const image = await imageBytesForPdf(resource, input.package.rootPath);
+    const image = await imageBytesForPdf(resource, input.package.rootPath, fallbackQuality);
     const embedded = image.mediaType === "image/png"
       ? await pdf.embedPng(image.data)
       : await pdf.embedJpg(image.data);

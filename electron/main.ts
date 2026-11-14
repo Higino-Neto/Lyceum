@@ -53,6 +53,7 @@ import {
   convertPdfToEpubInWorker,
   convertViaLyceumInWorker,
   disposeProcessingWorkers,
+  renderConversionPreviewInWorker,
   generateThumbnailInWorker,
   getProcessingWorkerDiagnostics,
   hashFile,
@@ -109,7 +110,8 @@ import fs from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { BookFormat, LyceumConversionOptions } from "../src/lib/lyceum";
 import type { DocumentRecord, LibraryListResult } from "../src/types/LibraryTypes";
-import type { ConversionRequestOptions } from "./workers/protocol";
+import type { ConversionPreviewRequest, ConversionRequestOptions } from "./workers/protocol";
+import { cleanupStaleConversionPreviews } from "./services/conversion-preview";
 import { DARK_TOKENS, LIGHT_TOKENS } from "../src/theme/tokens";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
@@ -2956,6 +2958,43 @@ ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: 
     runGenericFileConversion(filePath, targetFormat, requestOptions, signal, onProgress));
 });
 
+async function runConversionPreview(sourcePath: string, sourceFormat: BookFormat, request: ConversionPreviewRequest) {
+  try {
+    const value = await renderConversionPreviewInWorker({
+      sourcePath,
+      sourceFormat,
+      pageIndex: Math.max(0, Math.floor(Number(request?.pageIndex) || 0)),
+      conversionOptions: request?.conversionOptions,
+      tempRoot: app.getPath("temp"),
+    });
+    return { success: true, preview: value };
+  } catch (error) {
+    console.error("[conversion:preview] Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Erro ao gerar preview" };
+  }
+}
+
+ipcMain.handle("conversion:preview-page", async (_, fileHash: string, request: ConversionPreviewRequest) => {
+  const { inferBookFormatFromPath } = await loadLyceumConversionModule();
+  const doc = getDocumentByHash(fileHash);
+  if (!doc?.filePath || !fs.existsSync(doc.filePath)) {
+    return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+  }
+  const sourceFormat = inferBookFormatFromPath(doc.filePath) || doc.fileType;
+  return runConversionPreview(doc.filePath, sourceFormat, request);
+});
+
+ipcMain.handle("conversion:preview-page-file", async (_, filePath: string, request: ConversionPreviewRequest) => {
+  const { inferBookFormatFromPath } = await loadLyceumConversionModule();
+  const localPath = filePath.startsWith("::") ? await copyWindowsMtpBookToTemp(filePath) : filePath;
+  if (!localPath || !fs.existsSync(localPath)) {
+    return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+  }
+  const sourceFormat = inferBookFormatFromPath(localPath);
+  if (!sourceFormat) return { success: false, error: "Formato de origem nao suportado" };
+  return runConversionPreview(localPath, sourceFormat, request);
+});
+
 ipcMain.handle("conversion:cancel", (_, jobId: string) => {
   const controller = activeConversionControllers.get(jobId);
   if (controller) controller.abort();
@@ -3486,6 +3525,7 @@ app.whenReady().then(async () => {
   logStartupEnvironment();
 
   void registerLinuxRecommendedApp();
+  void cleanupStaleConversionPreviews(app.getPath("temp"));
 
   if (isPackagedSmokeTest) {
     await runPackagedSmokeTest();

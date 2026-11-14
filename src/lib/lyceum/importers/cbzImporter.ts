@@ -225,8 +225,28 @@ export async function extractFirstCbzImage(sourcePath: string): Promise<{
   };
 }
 
+export async function extractCbzPage(sourcePath: string, pageIndex: number): Promise<{
+  data: Uint8Array;
+  mediaType: string;
+  zipPath: string;
+  pageCount: number;
+} | null> {
+  const zip = await JSZip.loadAsync(await fs.promises.readFile(sourcePath));
+  const { pages } = collectPageEntries(zip);
+  if (pages.length === 0) return null;
+  const page = pages[Math.min(pages.length - 1, Math.max(0, Math.floor(pageIndex)))];
+  if (!page) return null;
+  return {
+    data: await page.entry.async("uint8array"),
+    mediaType: page.mediaType,
+    zipPath: page.zipPath,
+    pageCount: pages.length,
+  };
+}
+
 export async function parseCbzBuffer(
   cbzBuffer: Buffer | Uint8Array | ArrayBuffer,
+  onProgress?: (progress: number, message: string) => void,
 ): Promise<ParsedCbz> {
   let zip: JSZip;
   try {
@@ -308,6 +328,7 @@ export async function parseCbzBuffer(
       originalPath: page.zipPath,
     });
     totalBytes += bytes.byteLength;
+    onProgress?.(pageNumber / pages.length, `Lendo paginas (${pageNumber}/${pages.length})`);
   }
 
   return {
@@ -327,7 +348,7 @@ export class CbzImporter implements LyceumImporter {
 
   async import(input: ImportInput): Promise<ImportResult> {
     const stats = await fs.promises.stat(input.sourcePath);
-    const parsed = await parseCbzBuffer(await fs.promises.readFile(input.sourcePath));
+    const parsed = await parseCbzBuffer(await fs.promises.readFile(input.sourcePath), input.onProgress);
     const fallbackTitle = path.basename(input.sourcePath, path.extname(input.sourcePath));
     const metadata = mergeBookMetadata(fallbackTitle, {
       ...input.metadata,

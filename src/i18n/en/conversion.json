@@ -102,6 +102,30 @@
     "default": {
       "preserveCover": "Keep cover",
       "preserveMetadata": "Keep metadata"
+    },
+    "images": {
+      "title": "Images",
+      "description": "Shrink pages to what the device screen can actually show. Great for heavy CBZ files.",
+      "preset": "Quality preset",
+      "presets": {
+        "original": "Original (no changes)",
+        "kindle-basic": "Kindle Basic (1072×1448)",
+        "kindle-paperwhite-legacy": "Paperwhite up to 10th gen (1072×1448)",
+        "kindle-paperwhite": "Paperwhite 11th/12th gen (1264×1680)",
+        "kindle-oasis": "Kindle Oasis (1264×1680)",
+        "kindle-scribe": "Kindle Scribe (1860×2480)",
+        "kindle-colorsoft": "Kindle Colorsoft (1264×1680, color)",
+        "custom": "Custom"
+      },
+      "maxWidth": "Max width",
+      "maxHeight": "Max height",
+      "quality": "Quality",
+      "qualityHint": "Lower values make smaller files. 75–85 looks great on e-ink.",
+      "grayscale": "Convert to grayscale",
+      "grayscaleHint": "Black-and-white Kindles can't show color anyway, and grayscale pages are much smaller.",
+      "colorDeviceWarning": "The Colorsoft shows color. Grayscale will drop the colors of this book.",
+      "originalHint": "Images are kept exactly as they are in the source file.",
+      "textOptionsHidden": "Text layout options don't apply to image-based books and were hidden."
     }
   },
   "libraryPanel": {
@@ -188,5 +212,22 @@
   },
   "errors": {
     "providerMissing": "useConversionQueue must be used inside ConversionQueueProvider"
+  },
+  "preview": {
+    "title": "Page preview",
+    "description": "Processes a single page with the current settings so you can check the result before converting.",
+    "page": "Page",
+    "pageOf": "of {{count}}",
+    "generate": "Generate preview",
+    "refresh": "Refresh preview",
+    "generating": "Generating preview...",
+    "dimensions": "{{width}}×{{height}} px",
+    "pageSize": "Page size",
+    "originalSize": "was {{size}}",
+    "estimatedTotal": "Estimated file",
+    "estimateHint": "Estimate based on this page. The real size depends on the rest of the book.",
+    "unchanged": "No changes: this page already fits the settings.",
+    "error": "Could not generate the preview",
+    "alt": "Preview of page {{page}}"
   }
 }

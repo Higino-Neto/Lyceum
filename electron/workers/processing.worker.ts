@@ -375,6 +375,10 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
       const { validateAzw3File } = await import("../../src/lib/lyceum");
       return validateAzw3File(input.filePath) as unknown as WorkerTaskResults[K];
     }
+    case "conversion-preview": {
+      const { renderConversionPreview } = await import("../services/conversion-preview");
+      return await renderConversionPreview(payload as WorkerTaskPayloads["conversion-preview"]) as WorkerTaskResults[K];
+    }
     default: throw new Error(`Unknown worker task: ${String(kind)}`);
   }
 }

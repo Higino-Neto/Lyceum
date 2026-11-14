@@ -9,6 +9,7 @@ export interface RenderedPdfPage {
   data: Buffer;
   width: number;
   height: number;
+  pageCount: number;
 }
 
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null = null;
@@ -94,6 +95,7 @@ export async function renderPdfPageToPng(
         data: canvas.toBuffer("image/png"),
         width,
         height,
+        pageCount: document.numPages,
       };
     } finally {
       page.cleanup();

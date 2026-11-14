@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { BookWithThumbnail } from "../types/LibraryTypes";
 import type { LyceumConversionOptions } from "../lib/lyceum/schema/types";
+import { DEFAULT_CUSTOM_IMAGE_SETTINGS, type ImagePresetId } from "../lib/lyceum/images/imagePresets";
 import { translate } from "../i18n";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
@@ -48,8 +49,12 @@ export interface ConversionLogEntry {
 export interface ConversionOptions extends LyceumConversionOptions {
   preserveCover: boolean;
   preserveMetadata: boolean;
-  optimizeImages: boolean;
   generateIndex: boolean;
+  imagePreset: ImagePresetId;
+  imageMaxWidth: number;
+  imageMaxHeight: number;
+  imageQuality: number;
+  imageGrayscale: boolean;
   pdfPageSize: "A4" | "A5" | "Letter" | "Legal";
   pdfMarginTopMm: number;
   pdfMarginBottomMm: number;
@@ -73,8 +78,12 @@ export interface ConversionOptions extends LyceumConversionOptions {
 export const defaultConversionOptions: ConversionOptions = {
   preserveCover: true,
   preserveMetadata: true,
-  optimizeImages: true,
   generateIndex: true,
+  imagePreset: "original",
+  imageMaxWidth: DEFAULT_CUSTOM_IMAGE_SETTINGS.maxWidth,
+  imageMaxHeight: DEFAULT_CUSTOM_IMAGE_SETTINGS.maxHeight,
+  imageQuality: DEFAULT_CUSTOM_IMAGE_SETTINGS.quality,
+  imageGrayscale: false,
   pdfPageSize: "A4",
   pdfMarginTopMm: 16,
   pdfMarginBottomMm: 18,
@@ -99,10 +108,8 @@ export function getOptionsForProfile(profile: ConversionProfile): ConversionOpti
   const base = { ...defaultConversionOptions };
   if (profile === "light") {
     base.generateIndex = false;
-    base.optimizeImages = true;
     base.epubLayout = "reflow";
   } else if (profile === "compatible") {
-    base.optimizeImages = false;
     base.epubLayout = "fixed-layout";
   }
   return base;

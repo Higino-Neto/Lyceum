@@ -10,6 +10,7 @@ import type {
 } from "../schema/types";
 import { createDefaultConversionRegistry } from "./registry";
 import { validateLyceumPackage } from "../validation/packageValidator";
+import { optimizePackageImages, resolveImageSettings } from "../images/imageOptimizer";
 
 export interface ConvertViaLyceumOptions {
   sourcePath: string;
@@ -146,6 +147,9 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
   }
 
   fs.mkdirSync(options.packageRoot, { recursive: true });
+  const imageSettings = resolveImageSettings(options.conversionOptions);
+  // Keep progress monotonic: when images are optimized, import takes 60% and optimization 40%.
+  const importShare = imageSettings ? 0.6 : 1;
   const imported = await importer.import({
     sourcePath: options.sourcePath,
     sourceFormat: options.sourceFormat,
@@ -153,7 +157,9 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
     metadata: options.metadata,
     renderImageAsset: options.renderImageAsset,
     conversionOptions: options.conversionOptions,
-    onProgress: options.onProgress,
+    onProgress: options.onProgress
+      ? (progress, message) => options.onProgress?.(progress * importShare, message)
+      : undefined,
   });
   const pkg = imported.package;
   const packageValidation = validateLyceumPackage(pkg);
@@ -163,7 +169,17 @@ export async function convertViaLyceum(options: ConvertViaLyceumOptions): Promis
   imported.report.warnings.push(...packageValidation.warnings);
   imported.report.stats.validatedReferences = packageValidation.stats.checkedReferenceCount;
   imported.report.stats.packageValidated = true;
-  const exportPackage = preparePackageForExport(pkg, options.conversionOptions);
+  let exportPackage = preparePackageForExport(pkg, options.conversionOptions);
+  if (imageSettings) {
+    const optimized = await optimizePackageImages(exportPackage, imageSettings, (progress, message) => {
+      options.onProgress?.(importShare + progress * (1 - importShare), message);
+    });
+    exportPackage = optimized.pkg;
+    imported.report.warnings.push(...optimized.warnings);
+    imported.report.stats.optimizedImageCount = optimized.optimizedCount;
+    imported.report.stats.imageBytesBeforeOptimization = optimized.originalBytes;
+    imported.report.stats.imageBytesAfterOptimization = optimized.optimizedBytes;
+  }
   const capability = exporter.canExport(exportPackage);
 
   if (!capability.supported) {

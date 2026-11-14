@@ -45,9 +45,12 @@ import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnai
 import AnimatedModal from "../../components/ui/AnimatedModal";
 import Select from "../../components/ui/Select";
 import { AnimatePresence } from "motion/react";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "../../i18n/useTranslation";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
 import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
+import { NumberOption, ToggleOption } from "./components/OptionControls";
+import { ImageOptions } from "./components/ImageOptions";
+import { IMAGE_BEARING_SOURCE_FORMATS } from "../../lib/lyceum/images/imagePresets";
 
 const outputFormats: {
   value: ConversionOutputFormat;
@@ -113,85 +116,53 @@ function MiniCover({ book }: { book: BookWithThumbnail }) {
   );
 }
 
-interface ToggleProps {
-  checked: boolean;
-  onChange?: () => void;
+const IMAGE_AWARE_TARGETS = new Set<ConversionOutputFormat>(["epub", "pdf", "azw3", "kfx"]);
+
+function sourceFormatOf(book: BookWithThumbnail) {
+  return (book.fileType || book.filePath.split(".").pop() || "").toLowerCase();
 }
 
-function Toggle({ checked, onChange }: ToggleProps) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-        checked ? "bg-primary" : "bg-border-strong"
-      }`}
-      aria-pressed={checked}
-    >
-      <span
-        className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-          checked ? "translate-x-4" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
+function supportsImageOptions(book: BookWithThumbnail, target: ConversionOutputFormat) {
+  return IMAGE_BEARING_SOURCE_FORMATS.has(sourceFormatOf(book)) && IMAGE_AWARE_TARGETS.has(target);
 }
 
-function NumberOption({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="space-y-1 text-xs text-foreground-muted">
-      <span>{label}</span>
-      <span className="flex h-9 items-center rounded-sm border border-border bg-background px-2">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => onChange(Math.min(max, Math.max(min, Number(event.target.value))))}
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
-        />
-        {suffix && <span className="text-foreground-subtle">{suffix}</span>}
-      </span>
-    </label>
-  );
-}
-
-function ToggleOption({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <div className="flex min-h-8 items-center justify-between gap-3 text-sm text-foreground">
-      <span>{label}</span>
-      <Toggle checked={checked} onChange={onChange} />
-    </div>
-  );
+function TextOptionsHiddenNote() {
+  const { t } = useTranslation();
+  return <p className="text-[11px] leading-snug text-foreground-subtle">{t("conversion:options.images.textOptionsHidden")}</p>;
 }
 
 function FormatOptions({
   format,
+  sourceFormat,
   options,
   onChange,
 }: {
   format: ConversionOutputFormat;
+  sourceFormat: string;
   options: ConversionOptions;
   onChange: (updates: Partial<ConversionOptions>) => void;
 }) {
   const { t } = useTranslation();
+  // Comic sources become one image per page: text layout settings are ignored by the exporters.
+  const imageOnlySource = sourceFormat === "cbz";
+
+  if (format === "pdf" && imageOnlySource) {
+    return (
+      <div className="space-y-4">
+        <TextOptionsHiddenNote />
+        <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+      </div>
+    );
+  }
+
+  if (format === "epub" && imageOnlySource) {
+    return (
+      <div className="space-y-4">
+        <TextOptionsHiddenNote />
+        <ToggleOption label={t("conversion:options.epub.generateIndex")} checked={options.generateIndex} onChange={() => onChange({ generateIndex: !options.generateIndex })} />
+      </div>
+    );
+  }
 
   if (format === "pdf") {
     return (
@@ -937,10 +908,22 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      </h3>
                      <FormatOptions
                        format={cfg.targetFormat}
+                       sourceFormat={sourceFormatOf(selectedBook)}
                        options={cfg.options}
                        onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
                      />
                    </section>
+
+                   {supportsImageOptions(selectedBook, cfg.targetFormat) && (
+                     <section>
+                       <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:options.images.title")}</h3>
+                       <ImageOptions
+                         book={selectedBook}
+                         options={cfg.options}
+                         onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
+                       />
+                     </section>
+                   )}
 
                    <section>
                      <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:settings.destination")}</h3>

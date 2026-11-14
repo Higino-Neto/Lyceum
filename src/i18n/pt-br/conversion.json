@@ -102,6 +102,30 @@
     "default": {
       "preserveCover": "Preservar capa",
       "preserveMetadata": "Preservar metadados"
+    },
+    "images": {
+      "title": "Imagens",
+      "description": "Reduza as páginas ao que a tela do aparelho realmente mostra. Ideal para CBZs pesados.",
+      "preset": "Predefinição de qualidade",
+      "presets": {
+        "original": "Original (sem alterações)",
+        "kindle-basic": "Kindle Básico (1072×1448)",
+        "kindle-paperwhite-legacy": "Paperwhite até a 10ª geração (1072×1448)",
+        "kindle-paperwhite": "Paperwhite 11ª/12ª geração (1264×1680)",
+        "kindle-oasis": "Kindle Oasis (1264×1680)",
+        "kindle-scribe": "Kindle Scribe (1860×2480)",
+        "kindle-colorsoft": "Kindle Colorsoft (1264×1680, colorido)",
+        "custom": "Personalizado"
+      },
+      "maxWidth": "Largura máxima",
+      "maxHeight": "Altura máxima",
+      "quality": "Qualidade",
+      "qualityHint": "Valores menores geram arquivos menores. Entre 75 e 85 fica ótimo em e-ink.",
+      "grayscale": "Converter para tons de cinza",
+      "grayscaleHint": "Kindles preto e branco não mostram cor de qualquer jeito, e páginas em cinza ficam bem menores.",
+      "colorDeviceWarning": "O Colorsoft exibe cores. Com tons de cinza, este livro perde as cores.",
+      "originalHint": "As imagens são mantidas exatamente como estão no arquivo de origem.",
+      "textOptionsHidden": "As opções de layout de texto não se aplicam a livros de imagens e foram ocultadas."
     }
   },
   "libraryPanel": {
@@ -188,5 +212,22 @@
   },
   "errors": {
     "providerMissing": "useConversionQueue must be used inside ConversionQueueProvider"
+  },
+  "preview": {
+    "title": "Preview da página",
+    "description": "Processa uma única página com as configurações atuais para você conferir o resultado antes de converter.",
+    "page": "Página",
+    "pageOf": "de {{count}}",
+    "generate": "Gerar preview",
+    "refresh": "Atualizar preview",
+    "generating": "Gerando preview...",
+    "dimensions": "{{width}}×{{height}} px",
+    "pageSize": "Tamanho da página",
+    "originalSize": "antes {{size}}",
+    "estimatedTotal": "Arquivo estimado",
+    "estimateHint": "Estimativa baseada nesta página. O tamanho real depende do resto do livro.",
+    "unchanged": "Sem alterações: esta página já está dentro das configurações.",
+    "error": "Não foi possível gerar o preview",
+    "alt": "Preview da página {{page}}"
   }
 }

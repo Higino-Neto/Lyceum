@@ -1,3 +1,5 @@
+import type { ImagePresetId } from "../images/imagePresets";
+
 export type BookFormat =
   | "pdf"
   | "epub"
@@ -18,8 +20,14 @@ export type LyceumContentKind = "textual" | "pdf" | "comic" | "audio";
 export interface LyceumConversionOptions {
   preserveCover?: boolean;
   preserveMetadata?: boolean;
-  optimizeImages?: boolean;
   generateIndex?: boolean;
+  /** "original" (default) leaves images untouched. */
+  imagePreset?: ImagePresetId;
+  imageMaxWidth?: number;
+  imageMaxHeight?: number;
+  /** 1-100: JPEG quality, or palette quantisation quality for PNG with alpha. */
+  imageQuality?: number;
+  imageGrayscale?: boolean;
   pdfPageSize?: "A4" | "A5" | "Letter" | "Legal";
   pdfMarginTopMm?: number;
   pdfMarginBottomMm?: number;

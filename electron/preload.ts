@@ -12,6 +12,7 @@ import type {
   UpdateKeyConceptInput,
 } from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
+import type { ConversionPreviewResult } from "./services/conversion-preview-types";
 import type { BookCategory } from "../src/core/library/category";
 import type {
   Habit,
@@ -205,6 +206,18 @@ const api = {
 
   convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
     ipcRenderer.invoke("conversion:run-file", filePath, targetFormat, requestOptions),
+
+  previewConversionPage: (
+    fileHash: string,
+    request: { pageIndex: number; conversionOptions?: LyceumConversionOptions },
+  ): Promise<{ success: boolean; preview?: ConversionPreviewResult; error?: string }> =>
+    ipcRenderer.invoke("conversion:preview-page", fileHash, request),
+
+  previewConversionPageFile: (
+    filePath: string,
+    request: { pageIndex: number; conversionOptions?: LyceumConversionOptions },
+  ): Promise<{ success: boolean; preview?: ConversionPreviewResult; error?: string }> =>
+    ipcRenderer.invoke("conversion:preview-page-file", filePath, request),
 
   cancelConversion: (jobId: string) =>
     ipcRenderer.invoke("conversion:cancel", jobId),

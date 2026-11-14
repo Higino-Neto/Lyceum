@@ -370,6 +370,10 @@ export async function convertViaLyceumInWorker(payload: WorkerTaskPayloads["conv
   return runProcessingTask("convert-via-lyceum", payload, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
 
+export async function renderConversionPreviewInWorker(payload: WorkerTaskPayloads["conversion-preview"], options?: RunOptions) {
+  return runProcessingTask("conversion-preview", payload, { timeoutMs: 60_000, ...options });
+}
+
 export async function convertPdfToEpubInWorker(payload: WorkerTaskPayloads["convert-pdf-to-epub"], options?: RunOptions) {
   return runProcessingTask("convert-pdf-to-epub", payload, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
