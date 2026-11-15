@@ -104,7 +104,7 @@ export function listTargetsForSourceFormat(sourceFormat: BookFormat) {
     });
 }
 
-function preparePackageForExport(pkg: LyceumPackage, options?: LyceumConversionOptions): LyceumPackage {
+export function preparePackageForExport(pkg: LyceumPackage, options?: LyceumConversionOptions): LyceumPackage {
   if (!options || (
     options.preserveMetadata !== false
     && options.preserveCover !== false

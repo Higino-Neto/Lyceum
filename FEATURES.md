@@ -91,3 +91,16 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 - [x] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).
 
 - [ ] Adicionar uma aba nas configurações para plugins. Dentro dela é que ficará as abas que estão em beta e outras coisas que eu quero ter a possibilidade de habilitar ou desabilitar quando eu quiser. Tipo conseguir desabilitar o FolderGrid e o Continue Reading
+
+#### 3.0.0
+
+Eu quero criar um leitor do formato intermediário .lyceum.
+O objetivo é conseguir abrir qualquer formato de arquivo dentro do aplicativo convertendo esse arquivo em um formato lyceum.
+
+Como eu teria total controle sobre esse formato de arquivo, eu poderia implementar várias das minhas ideias tanto para mobilidade dentro do arquivo quanto para aprendizado de idiomas, como um ótimo meio termo entre um PDF e um EPUB.
+
+Por exemplo, eu poderia ter um modo de leitura que me permitisse, assim como eu tentei fazer no leitor de EPUB, fazer algo parecido com o que o LingQ faz, que é ter um leitor em que você consegue saber visualmente quais palavras você já sabe e quais não. Ao clicar na palavra com botão direito você já consegue ver a tradução dela, a quantidade de ocorrências dela no corpo de texto inteiro (Todos esses dados seriam pré-processados na criação do arquivo).
+
+Aí o usuário conseguiria ver o quanto daquele corpo de texto ele já domina as palavras, assim como o LingQ faz.
+
+O usuário também poderia fazer sua leitura normal sem nem olhar para isso, mas caso ele seja um learner de outro idioma, ele teria um ecossistema inteiro para ajudá-lo.

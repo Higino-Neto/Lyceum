@@ -24,6 +24,11 @@ const FILTERS: Record<ToolFileKind, Electron.FileFilter[]> = {
   images: [{ name: "Imagens", extensions: PDF_TOOL_IMAGE_EXTENSIONS }],
   pdf: [{ name: "PDF", extensions: ["pdf"] }],
   books: [{ name: "Livros", extensions: BOOK_EXTENSIONS }],
+  builder: [
+    { name: "PDF e imagens", extensions: ["pdf", ...PDF_TOOL_IMAGE_EXTENSIONS] },
+    { name: "PDF", extensions: ["pdf"] },
+    { name: "Imagens", extensions: PDF_TOOL_IMAGE_EXTENSIONS },
+  ],
 };
 
 const SAVE_FILTERS: Record<"pdf" | "cbz", Electron.FileFilter[]> = {
@@ -112,7 +117,7 @@ export function registerPdfToolsHandlers(ipcMain: IpcMain, dependencies: PdfTool
   ipcMain.handle("tools:pdf-thumbnails", async (_, filePath: string, pages: number[]) => {
     try {
       const safePages = (Array.isArray(pages) ? pages : []).filter((page) => Number.isInteger(page) && page > 0).slice(0, 48);
-      const response = await dependencies.runPdfTool({ operation: "thumbnails", input: { filePath, pages: safePages } });
+      const response = await dependencies.runPdfTool({ operation: "thumbnails", input: { filePath, pages: safePages, maxDimension: 420 } });
       return response.operation === "thumbnails" ? { success: true, thumbnails: response.thumbnails } : { success: false, thumbnails: [] };
     } catch (error) {
       return { success: false, thumbnails: [], error: errorMessage(error, "Falha ao gerar miniaturas") };
@@ -124,7 +129,7 @@ export function registerPdfToolsHandlers(ipcMain: IpcMain, dependencies: PdfTool
     if (!outputPath || !approvedOutputs.has(path.resolve(outputPath))) {
       return { success: false, error: "Escolha onde salvar o arquivo antes de continuar." };
     }
-    if (!["images-to-pdf", "images-to-cbz", "merge-pdfs", "organize-pdf"].includes(request.operation)) {
+    if (!["build-pdf", "images-to-cbz"].includes(request.operation)) {
       return { success: false, error: "Operacao desconhecida" };
     }
     try {

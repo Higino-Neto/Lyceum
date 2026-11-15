@@ -6,7 +6,8 @@
     "reader": "Ler",
     "atlas": "Atlas",
     "conversion": "Conversão",
-    "habits": "Hábitos"
+    "habits": "Hábitos",
+    "pdfBuilder": "PDF Builder"
   },
   "titleBar": {
     "menu": "Menu",

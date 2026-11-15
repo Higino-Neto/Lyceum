@@ -5,6 +5,7 @@ export type NavigationRouteId =
   | "reader"
   | "atlas"
   | "conversion"
+  | "pdfBuilder"
   | "habits";
 
 export interface NavigationRoute {
@@ -27,6 +28,7 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
   { id: "reader", labelKey: "navigation:routes.reader", path: "/reading" },
   { id: "atlas", labelKey: "navigation:routes.atlas", path: "/atlas" },
   { id: "conversion", labelKey: "navigation:routes.conversion", path: null },
+  { id: "pdfBuilder", labelKey: "navigation:routes.pdfBuilder", path: "/pdf-builder" },
   { id: "habits", labelKey: "navigation:routes.habits", path: "/habit_tracker" },
 ];
 
@@ -44,7 +46,8 @@ export function getEnabledNavigationRoutes(
 ): NavigationRoute[] {
   return NAVIGATION_ROUTES.filter((route) => {
     if (route.id === "atlas") return settings.betaAtlasEnabled;
-    if (route.id === "conversion") return settings.betaConversionEnabled;
+    // The PDF Builder belongs to the same beta as the conversion tools.
+    if (route.id === "conversion" || route.id === "pdfBuilder") return settings.betaConversionEnabled;
     if (route.id === "habits") return settings.betaHabitsEnabled;
     return true;
   });

@@ -12,7 +12,7 @@ import type {
   UpdateKeyConceptInput,
 } from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
-import type { ConversionPreviewResult } from "./services/conversion-preview-types";
+import type { OutputPreviewRequest, OutputPreviewResult } from "./services/output-preview-types";
 import type { PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } from "./services/pdf-tools-types";
 import type { KindleEmailPublicConfig, KindleEmailSaveInput } from "./services/kindle-email-types";
 import type { BookCategory } from "../src/core/library/category";
@@ -23,7 +23,7 @@ import type {
   NewHabit,
 } from "../src/core/habits/model";
 
-const { ipcRenderer, contextBridge } = electron;
+const { ipcRenderer, contextBridge, webUtils } = electron;
 
 function invoke<Result>(channel: string, ...args: unknown[]): Promise<Result> {
   return ipcRenderer.invoke(channel, ...args);
@@ -237,6 +237,9 @@ const api = {
       }>;
     }>("kindle-email:send-books", options),
 
+  /** Absolute path of a File dropped from the OS file manager (File.path is gone in modern Electron). */
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+
   pickToolFiles: (kind: ToolFileKind) =>
     invoke<ToolPickedFile[]>("tools:pick-files", kind),
 
@@ -297,17 +300,11 @@ const api = {
   convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
     ipcRenderer.invoke("conversion:run-file", filePath, targetFormat, requestOptions),
 
-  previewConversionPage: (
-    fileHash: string,
-    request: { pageIndex: number; conversionOptions?: LyceumConversionOptions },
-  ): Promise<{ success: boolean; preview?: ConversionPreviewResult; error?: string }> =>
-    ipcRenderer.invoke("conversion:preview-page", fileHash, request),
+  previewConversionOutput: (fileHash: string, request: OutputPreviewRequest) =>
+    invoke<{ success: boolean; preview?: OutputPreviewResult; error?: string }>("conversion:output-preview", fileHash, request),
 
-  previewConversionPageFile: (
-    filePath: string,
-    request: { pageIndex: number; conversionOptions?: LyceumConversionOptions },
-  ): Promise<{ success: boolean; preview?: ConversionPreviewResult; error?: string }> =>
-    ipcRenderer.invoke("conversion:preview-page-file", filePath, request),
+  previewConversionOutputFile: (filePath: string, request: OutputPreviewRequest) =>
+    invoke<{ success: boolean; preview?: OutputPreviewResult; error?: string }>("conversion:output-preview-file", filePath, request),
 
   cancelConversion: (jobId: string) =>
     ipcRenderer.invoke("conversion:cancel", jobId),

@@ -2,11 +2,22 @@
 
 export type ImagePageSize = "image" | "A4" | "Letter";
 
-export interface ImagesToPdfInput {
-  imagePaths: string[];
+export interface BuildPdfPage {
+  /** Absolute path of the PDF or image the page comes from. */
+  source: string;
+  kind: "pdf" | "image";
+  /** Zero-based page index inside a PDF source. */
+  pageIndex?: number;
+  /** Extra clockwise rotation applied on top of the page's own rotation. */
+  rotation: 0 | 90 | 180 | 270;
+}
+
+export interface BuildPdfInput {
+  pages: BuildPdfPage[];
   outputPath: string;
-  pageSize: ImagePageSize;
-  /** Margin in millimetres, used by the fixed page sizes. */
+  /** Page size used for image pages ("image" keeps the picture's own size). */
+  imagePageSize?: ImagePageSize;
+  /** Margin in millimetres around images on fixed page sizes. */
   marginMm?: number;
   title?: string;
   author?: string;
@@ -17,25 +28,6 @@ export interface ImagesToCbzInput {
   outputPath: string;
   title?: string;
   author?: string;
-}
-
-export interface MergePdfsInput {
-  inputPaths: string[];
-  outputPath: string;
-  title?: string;
-}
-
-export interface OrganizedPage {
-  /** Zero-based page index in the source PDF. */
-  index: number;
-  /** Extra clockwise rotation applied on top of the page's own rotation. */
-  rotation: 0 | 90 | 180 | 270;
-}
-
-export interface OrganizePdfInput {
-  inputPath: string;
-  outputPath: string;
-  pages: OrganizedPage[];
 }
 
 export interface PdfToolResult {
@@ -51,10 +43,8 @@ export interface PdfToolInfo {
 }
 
 export type PdfToolRequest =
-  | { operation: "images-to-pdf"; input: ImagesToPdfInput }
+  | { operation: "build-pdf"; input: BuildPdfInput }
   | { operation: "images-to-cbz"; input: ImagesToCbzInput }
-  | { operation: "merge-pdfs"; input: MergePdfsInput }
-  | { operation: "organize-pdf"; input: OrganizePdfInput }
   | { operation: "info"; input: { filePath: string } }
   | { operation: "thumbnails"; input: { filePath: string; pages: number[]; maxDimension?: number } };
 
@@ -68,7 +58,7 @@ export type PdfToolResponse =
 /** Requests the renderer may run (the read-only operations have their own channels). */
 export type ToolRunRequest = Exclude<PdfToolRequest, { operation: "info" } | { operation: "thumbnails" }>;
 
-export type ToolFileKind = "images" | "pdf" | "books";
+export type ToolFileKind = "images" | "pdf" | "books" | "builder";
 
 export interface ToolPickedFile {
   path: string;

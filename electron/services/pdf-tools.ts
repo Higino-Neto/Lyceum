@@ -5,11 +5,9 @@ import AdmZip from "adm-zip";
 import { PDFDocument, degrees } from "pdf-lib";
 import { escapeXml } from "./book-metadata-formats";
 import type {
+  BuildPdfInput,
   ImagePageSize,
   ImagesToCbzInput,
-  ImagesToPdfInput,
-  MergePdfsInput,
-  OrganizePdfInput,
   PdfToolInfo,
   PdfToolResult,
 } from "./pdf-tools-types";
@@ -92,48 +90,78 @@ async function normalizeImage(imagePath: string) {
   return { kind: "jpg" as const, data, width, height, density: meta.density };
 }
 
-export async function imagesToPdf(input: ImagesToPdfInput, onProgress?: PdfToolProgress): Promise<PdfToolResult> {
-  requireInputs(input.imagePaths, 1, "ao menos uma imagem");
-  const pdf = await PDFDocument.create();
-  stampMetadata(pdf, input.title, input.author);
+/**
+ * Assembles a PDF from an ordered list of pages, each taken from a PDF page or
+ * an image, with an optional extra rotation. This single operation covers
+ * merging, reordering, extracting, rotating and images-to-PDF.
+ */
+export async function buildPdf(input: BuildPdfInput, onProgress?: PdfToolProgress): Promise<PdfToolResult> {
+  if (!Array.isArray(input.pages) || input.pages.length === 0) {
+    throw new Error("O documento precisa ter pelo menos uma pagina.");
+  }
+  requireInputs(Array.from(new Set(input.pages.map((page) => page.source))), 1, "um arquivo");
+  for (const page of input.pages) {
+    if (![0, 90, 180, 270].includes(page.rotation)) throw new Error(`Rotacao invalida: ${page.rotation}`);
+  }
+
+  const output = await PDFDocument.create();
+  stampMetadata(output, input.title, input.author);
   const margin = Math.max(0, Math.min(50, input.marginMm ?? 0)) * MM_TO_PT;
+  const pdfSources = new Map<string, PDFDocument>();
+  const imageCache = new Map<string, { embedded: Awaited<ReturnType<PDFDocument["embedJpg"]>>; width: number; height: number; density?: number }>();
 
-  for (const [position, imagePath] of input.imagePaths.entries()) {
-    onProgress?.(position / input.imagePaths.length, path.basename(imagePath));
-    const image = await normalizeImage(imagePath);
-    const embedded = image.kind === "png" ? await pdf.embedPng(image.data) : await pdf.embedJpg(image.data);
+  for (const [position, entry] of input.pages.entries()) {
+    onProgress?.(position / input.pages.length, path.basename(entry.source));
 
-    if (input.pageSize === "image") {
+    if (entry.kind === "pdf") {
+      let source = pdfSources.get(entry.source);
+      if (!source) {
+        source = await loadPdf(entry.source);
+        pdfSources.set(entry.source, source);
+      }
+      const index = entry.pageIndex ?? 0;
+      if (!Number.isInteger(index) || index < 0 || index >= source.getPageCount()) {
+        throw new Error(`Pagina ${index + 1} nao existe em "${path.basename(entry.source)}".`);
+      }
+      const [page] = await output.copyPages(source, [index]);
+      if (entry.rotation) page!.setRotation(degrees((page!.getRotation().angle + entry.rotation) % 360));
+      output.addPage(page!);
+      continue;
+    }
+
+    let image = imageCache.get(entry.source);
+    if (!image) {
+      const normalized = await normalizeImage(entry.source);
+      const embedded = normalized.kind === "png" ? await output.embedPng(normalized.data) : await output.embedJpg(normalized.data);
+      image = { embedded, width: normalized.width, height: normalized.height, density: normalized.density };
+      imageCache.set(entry.source, image);
+    }
+
+    let page;
+    if (input.imagePageSize === "A4" || input.imagePageSize === "Letter") {
+      const [shortSide, longSide] = PAGE_SIZES[input.imagePageSize];
+      const landscape = image.width > image.height;
+      const pageWidth = landscape ? longSide : shortSide;
+      const pageHeight = landscape ? shortSide : longSide;
+      const scale = Math.min(Math.max(1, pageWidth - margin * 2) / image.width, Math.max(1, pageHeight - margin * 2) / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      page = output.addPage([pageWidth, pageHeight]);
+      page.drawImage(image.embedded, { x: (pageWidth - width) / 2, y: (pageHeight - height) / 2, width, height });
+    } else {
       // Keep the image's physical size when it declares a DPI; otherwise assume 150 DPI.
       const dpi = image.density && image.density >= 72 ? image.density : 150;
       const width = (image.width * 72) / dpi;
       const height = (image.height * 72) / dpi;
-      const page = pdf.addPage([width, height]);
-      page.drawImage(embedded, { x: 0, y: 0, width, height });
-      continue;
+      page = output.addPage([width, height]);
+      page.drawImage(image.embedded, { x: 0, y: 0, width, height });
     }
-
-    const [shortSide, longSide] = PAGE_SIZES[input.pageSize];
-    const landscape = image.width > image.height;
-    const pageWidth = landscape ? longSide : shortSide;
-    const pageHeight = landscape ? shortSide : longSide;
-    const boxWidth = Math.max(1, pageWidth - margin * 2);
-    const boxHeight = Math.max(1, pageHeight - margin * 2);
-    const scale = Math.min(boxWidth / image.width, boxHeight / image.height);
-    const width = image.width * scale;
-    const height = image.height * scale;
-    const page = pdf.addPage([pageWidth, pageHeight]);
-    page.drawImage(embedded, {
-      x: (pageWidth - width) / 2,
-      y: (pageHeight - height) / 2,
-      width,
-      height,
-    });
+    if (entry.rotation) page.setRotation(degrees(entry.rotation));
   }
 
   onProgress?.(0.95, "Gravando PDF");
-  const fileSize = await writeOutput(input.outputPath, await pdf.save());
-  return { outputPath: input.outputPath, fileSize, pageCount: pdf.getPageCount() };
+  const fileSize = await writeOutput(input.outputPath, await output.save());
+  return { outputPath: input.outputPath, fileSize, pageCount: output.getPageCount() };
 }
 
 export async function imagesToCbz(input: ImagesToCbzInput, onProgress?: PdfToolProgress): Promise<PdfToolResult> {
@@ -167,60 +195,6 @@ export async function imagesToCbz(input: ImagesToCbzInput, onProgress?: PdfToolP
   onProgress?.(0.95, "Gravando CBZ");
   const fileSize = await writeOutput(input.outputPath, zip.toBuffer());
   return { outputPath: input.outputPath, fileSize, pageCount: input.imagePaths.length };
-}
-
-export async function mergePdfs(input: MergePdfsInput, onProgress?: PdfToolProgress): Promise<PdfToolResult> {
-  requireInputs(input.inputPaths, 2, "PDFs");
-  const merged = await PDFDocument.create();
-  let firstTitle: string | undefined;
-  let firstAuthor: string | undefined;
-
-  for (const [position, inputPath] of input.inputPaths.entries()) {
-    onProgress?.(position / input.inputPaths.length, path.basename(inputPath));
-    const source = await loadPdf(inputPath);
-    if (position === 0) {
-      firstTitle = source.getTitle();
-      firstAuthor = source.getAuthor();
-    }
-    const pages = await merged.copyPages(source, source.getPageIndices());
-    pages.forEach((page) => merged.addPage(page));
-  }
-
-  stampMetadata(merged, input.title || firstTitle, firstAuthor);
-  onProgress?.(0.95, "Gravando PDF");
-  const fileSize = await writeOutput(input.outputPath, await merged.save());
-  return { outputPath: input.outputPath, fileSize, pageCount: merged.getPageCount() };
-}
-
-export async function organizePdf(input: OrganizePdfInput, onProgress?: PdfToolProgress): Promise<PdfToolResult> {
-  requireInputs([input.inputPath], 1, "um PDF");
-  if (!Array.isArray(input.pages) || input.pages.length === 0) {
-    throw new Error("O PDF resultante precisa ter pelo menos uma pagina.");
-  }
-  const source = await loadPdf(input.inputPath);
-  const total = source.getPageCount();
-  for (const page of input.pages) {
-    if (!Number.isInteger(page.index) || page.index < 0 || page.index >= total) {
-      throw new Error(`Pagina invalida: ${page.index + 1}`);
-    }
-    if (![0, 90, 180, 270].includes(page.rotation)) {
-      throw new Error(`Rotacao invalida: ${page.rotation}`);
-    }
-  }
-
-  onProgress?.(0.2, "Copiando paginas");
-  const output = await PDFDocument.create();
-  const copied = await output.copyPages(source, input.pages.map((page) => page.index));
-  copied.forEach((page, position) => {
-    const extra = input.pages[position].rotation;
-    if (extra) page.setRotation(degrees((page.getRotation().angle + extra) % 360));
-    output.addPage(page);
-  });
-  stampMetadata(output, source.getTitle(), source.getAuthor());
-
-  onProgress?.(0.9, "Gravando PDF");
-  const fileSize = await writeOutput(input.outputPath, await output.save());
-  return { outputPath: input.outputPath, fileSize, pageCount: output.getPageCount() };
 }
 
 export async function getPdfToolInfo(filePath: string): Promise<PdfToolInfo> {

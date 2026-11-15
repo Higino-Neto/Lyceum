@@ -1,8 +1,8 @@
 import type { BookFormat, LyceumBookMetadata, LyceumConversionOptions } from "../../src/lib/lyceum";
 import type { EditableBookMetadata, FileMetadataUpdateResult } from "../services/book-file-metadata";
 import type { BookFileType, EmbeddedBookMetadata } from "../services/document-processing";
-import type { ConversionPreviewInput, ConversionPreviewResult } from "../services/conversion-preview";
 import type { PdfToolRequest, PdfToolResponse } from "../services/pdf-tools-types";
+import type { OutputPreviewExportInput, OutputPreviewExportResult } from "../services/output-preview-export";
 
 export type { PdfToolRequest, PdfToolResponse, PdfToolThumbnail } from "../services/pdf-tools-types";
 
@@ -20,8 +20,8 @@ export type WorkerTaskKind =
   | "apply-book-cover"
   | "prepare-cover-image"
   | "validate-azw3"
-  | "conversion-preview"
-  | "pdf-tool";
+  | "pdf-tool"
+  | "output-preview-export";
 
 export interface WorkerRequest<T = unknown> {
   requestId: string;
@@ -64,11 +64,6 @@ export interface ConvertViaLyceumWorkerInput {
   metadata?: Partial<LyceumBookMetadata>;
   pdfImageTempDir?: string;
   thumbnailsDir?: string;
-  conversionOptions?: LyceumConversionOptions;
-}
-
-export interface ConversionPreviewRequest {
-  pageIndex: number;
   conversionOptions?: LyceumConversionOptions;
 }
 
@@ -139,8 +134,8 @@ export interface WorkerTaskPayloads {
   };
   "prepare-cover-image": { sourcePath: string; outputPath: string };
   "validate-azw3": { filePath: string };
-  "conversion-preview": ConversionPreviewInput;
   "pdf-tool": PdfToolRequest;
+  "output-preview-export": Omit<OutputPreviewExportInput, "renderImageAsset">;
 }
 
 export interface WorkerTaskResults {
@@ -157,6 +152,6 @@ export interface WorkerTaskResults {
   "apply-book-cover": MetadataMutationWorkerResult;
   "prepare-cover-image": { outputPath: string };
   "validate-azw3": { valid: boolean; errors: string[]; warnings: string[] };
-  "conversion-preview": ConversionPreviewResult;
   "pdf-tool": PdfToolResponse;
+  "output-preview-export": OutputPreviewExportResult;
 }

@@ -9,7 +9,7 @@ describe("navigation hotkeys", () => {
       betaHabitsEnabled: true,
     };
     expect(getEnabledNavigationRoutes(settings).map((route) => route.id)).toEqual([
-      "dashboard", "register", "library", "reader", "conversion", "habits",
+      "dashboard", "register", "library", "reader", "conversion", "pdfBuilder", "habits",
     ]);
     expect(getDefaultHotkeyBindings(settings)).toMatchObject({
       dashboard: "1",
@@ -17,7 +17,8 @@ describe("navigation hotkeys", () => {
       library: "3",
       reader: "4",
       conversion: "5",
-      habits: "6",
+      pdfBuilder: "6",
+      habits: "7",
     });
   });
 });

@@ -326,10 +326,8 @@ async function applyBookCover(payload: WorkerTaskPayloads["apply-book-cover"]): 
 async function runPdfTool(request: WorkerTaskPayloads["pdf-tool"], onProgress?: ConversionProgress): Promise<WorkerTaskResults["pdf-tool"]> {
   const tools = await import("../services/pdf-tools");
   switch (request.operation) {
-    case "images-to-pdf": return { operation: "result", result: await tools.imagesToPdf(request.input, onProgress) };
+    case "build-pdf": return { operation: "result", result: await tools.buildPdf(request.input, onProgress) };
     case "images-to-cbz": return { operation: "result", result: await tools.imagesToCbz(request.input, onProgress) };
-    case "merge-pdfs": return { operation: "result", result: await tools.mergePdfs(request.input, onProgress) };
-    case "organize-pdf": return { operation: "result", result: await tools.organizePdf(request.input, onProgress) };
     case "info": return { operation: "info", info: await tools.getPdfToolInfo(request.input.filePath) };
     case "thumbnails": return {
       operation: "thumbnails",
@@ -386,9 +384,15 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
       const { validateAzw3File } = await import("../../src/lib/lyceum");
       return validateAzw3File(input.filePath) as unknown as WorkerTaskResults[K];
     }
-    case "conversion-preview": {
-      const { renderConversionPreview } = await import("../services/conversion-preview");
-      return await renderConversionPreview(payload as WorkerTaskPayloads["conversion-preview"]) as WorkerTaskResults[K];
+    case "output-preview-export": {
+      const input = payload as WorkerTaskPayloads["output-preview-export"];
+      const { exportOutputPreview } = await import("../services/output-preview-export");
+      return await exportOutputPreview({
+        ...input,
+        renderImageAsset: input.sourceFormat === "pdf"
+          ? createPdfImageAssetRenderer(input.sourcePath, path.join(input.outputDir, "pdf-images"))
+          : undefined,
+      }) as WorkerTaskResults[K];
     }
     case "pdf-tool": return await runPdfTool(payload as WorkerTaskPayloads["pdf-tool"], onProgress) as WorkerTaskResults[K];
     default: throw new Error(`Unknown worker task: ${String(kind)}`);

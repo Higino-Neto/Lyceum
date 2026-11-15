@@ -2,6 +2,7 @@ import {
   BookOpenText,
   BookPlus,
   CheckSquare,
+  FileStack,
   Home,
   LibraryBig,
   LogIn,
@@ -139,6 +140,16 @@ export default function Sidebar({
             onClick={() => onOpenConversion?.()}
             collapsed={collapsed}
             routeId="conversion"
+          />
+        )}
+        {settings.betaConversionEnabled && (
+          <SidebarItem
+            Icon={FileStack}
+            label={routeLabel("pdfBuilder")}
+            active={pathname === "/pdf-builder"}
+            onClick={() => navigate("/pdf-builder")}
+            collapsed={collapsed}
+            routeId="pdfBuilder"
           />
         )}
         {settings.betaHabitsEnabled && (

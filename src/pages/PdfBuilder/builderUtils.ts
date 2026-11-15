@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import { KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
@@ -86,11 +86,85 @@ export function reorderById<T extends { id: string }>(items: T[], event: DragEnd
   return from < 0 || to < 0 ? items : arrayMove(items, from, to);
 }
 
-export function moveByOffset<T>(items: T[], index: number, offset: number) {
-  const target = index + offset;
-  return target < 0 || target >= items.length ? items : arrayMove(items, index, target);
-}
 
 export function toToolFiles(files: Array<{ path: string; name: string; size: number; extension: string }>, prefix: string): ToolFile[] {
   return files.map((file) => ({ ...file, id: createToolFileId(prefix) }));
+}
+
+type Rect = { top: number; left: number; width: number; height: number; bottom: number; right: number };
+type ModifierArgs = { transform: { x: number; y: number; scaleX: number; scaleY: number }; draggingNodeRect: Rect | null; containerNodeRect: Rect | null };
+
+function clampToRect(transform: ModifierArgs["transform"], rect: Rect, bounds: Rect) {
+  const next = { ...transform };
+  if (rect.top + next.y < bounds.top) next.y = bounds.top - rect.top;
+  else if (rect.bottom + next.y > bounds.bottom) next.y = bounds.bottom - rect.bottom;
+  if (rect.left + next.x < bounds.left) next.x = bounds.left - rect.left;
+  else if (rect.right + next.x > bounds.right) next.x = bounds.right - rect.right;
+  return next;
+}
+
+/** Keeps the dragged item inside its list/grid (same behaviour as @dnd-kit/modifiers' restrictToParentElement). */
+export function restrictToParent({ transform, draggingNodeRect, containerNodeRect }: ModifierArgs) {
+  return draggingNodeRect && containerNodeRect ? clampToRect(transform, draggingNodeRect, containerNodeRect) : transform;
+}
+
+
+function hasFiles(event: ReactDragEvent) {
+  return Array.from(event.dataTransfer?.types || []).includes("Files");
+}
+
+/**
+ * Accepts files dragged from the OS file manager. Only reacts to real file
+ * drags, so it never interferes with reordering (dnd-kit uses pointer events).
+ */
+export function useFileDrop(extensions: string[], onFiles: (files: ToolFile[]) => void, prefix: string) {
+  const [dragging, setDragging] = useState(false);
+  const depth = useRef(0);
+  const accepted = new Set(extensions);
+
+  const reset = () => {
+    depth.current = 0;
+    setDragging(false);
+  };
+
+  return {
+    dragging,
+    handlers: {
+      onDragEnter: (event: ReactDragEvent) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        depth.current += 1;
+        setDragging(true);
+      },
+      onDragOver: (event: ReactDragEvent) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      },
+      onDragLeave: (event: ReactDragEvent) => {
+        if (!hasFiles(event)) return;
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) setDragging(false);
+      },
+      onDrop: (event: ReactDragEvent) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        reset();
+        const paths = Array.from(event.dataTransfer.files)
+          .map((file) => {
+            try {
+              return window.api.getPathForFile(file);
+            } catch {
+              return "";
+            }
+          })
+          .filter(Boolean);
+        if (paths.length === 0) return;
+        void window.api.describeToolFiles(paths).then((files) => {
+          const usable = files.filter((file) => accepted.has(file.extension));
+          if (usable.length) onFiles(toToolFiles(usable, prefix));
+        });
+      },
+    },
+  };
 }

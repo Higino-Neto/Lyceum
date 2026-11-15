@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
@@ -12,6 +12,7 @@ import Library from "./pages/Library/Library";
 import AtlasPage from "./pages/Atlas/AtlasPage";
 import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import { ConversionDialog } from "./pages/Conversion/ConversionPage";
+import PdfBuilderPage from "./pages/PdfBuilder/PdfBuilderPage";
 import type { ConversionQueueItem } from "./contexts/ConversionQueueContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TitleBar from "./components/TitleBar";
@@ -581,6 +582,15 @@ function AppShell() {
                   //   />
                   // }
                   element={<Dashboard />}
+                />
+
+                <Route
+                  path="/pdf-builder"
+                  element={
+                    settings.betaConversionEnabled
+                      ? <PdfBuilderPage />
+                      : <Navigate to="/" replace />
+                  }
                 />
 
                 <Route

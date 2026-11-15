@@ -1,7 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import Select from "../../../components/ui/Select";
 import type { ConversionOptions } from "../../../contexts/ConversionQueueContext";
-import type { BookWithThumbnail } from "../../../types/LibraryTypes";
 import { useTranslation } from "../../../i18n/useTranslation";
 import {
   DEFAULT_CUSTOM_IMAGE_SETTINGS,
@@ -13,7 +12,6 @@ import {
   type ImagePresetId,
 } from "../../../lib/lyceum/images/imagePresets";
 import { NumberOption, RangeOption, ToggleOption } from "./OptionControls";
-import { ConversionPreview } from "./ConversionPreview";
 
 /** Fields that, when edited by hand, turn a named preset into "custom". */
 type ManualImageField = "imageMaxWidth" | "imageMaxHeight" | "imageQuality";
@@ -42,11 +40,9 @@ function presetUpdates(preset: ImagePresetId, current: ConversionOptions): Parti
 }
 
 export function ImageOptions({
-  book,
   options,
   onChange,
 }: {
-  book: BookWithThumbnail;
   options: ConversionOptions;
   onChange: (updates: Partial<ConversionOptions>) => void;
 }) {
@@ -118,7 +114,6 @@ export function ImageOptions({
         </p>
       )}
 
-      <ConversionPreview book={book} options={options} />
     </div>
   );
 }

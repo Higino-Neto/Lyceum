@@ -369,10 +369,6 @@ export async function convertViaLyceumInWorker(payload: WorkerTaskPayloads["conv
   return runProcessingTask("convert-via-lyceum", payload, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
 
-export async function renderConversionPreviewInWorker(payload: WorkerTaskPayloads["conversion-preview"], options?: RunOptions) {
-  return runProcessingTask("conversion-preview", payload, { timeoutMs: 60_000, ...options });
-}
-
 export async function convertPdfToEpubInWorker(payload: WorkerTaskPayloads["convert-pdf-to-epub"], options?: RunOptions) {
   return runProcessingTask("convert-pdf-to-epub", payload, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
@@ -395,6 +391,10 @@ export async function applyBookCoverInWorker(payload: WorkerTaskPayloads["apply-
 
 export async function prepareCoverImageInWorker(sourcePath: string, outputPath: string) {
   return (await runProcessingTask("prepare-cover-image", { sourcePath, outputPath })).outputPath;
+}
+
+export async function exportOutputPreviewInWorker(payload: WorkerTaskPayloads["output-preview-export"], options?: RunOptions) {
+  return runProcessingTask("output-preview-export", payload, { timeoutMs: CONVERSION_TIMEOUT_MS, ...options });
 }
 
 export async function runPdfToolInWorker(request: WorkerTaskPayloads["pdf-tool"], options?: RunOptions) {

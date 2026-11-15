@@ -54,12 +54,12 @@ import {
   convertPdfToEpubInWorker,
   convertViaLyceumInWorker,
   disposeProcessingWorkers,
-  renderConversionPreviewInWorker,
   generateThumbnailInWorker,
   getProcessingWorkerDiagnostics,
   hashFile,
   inspectBookFile,
   openAndProcess as openAndProcessInWorker,
+  exportOutputPreviewInWorker,
   runPdfToolInWorker,
   validateAzw3InWorker,
   writeBookMetadataInWorker,
@@ -133,8 +133,8 @@ import fs from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { BookFormat, LyceumConversionOptions } from "../src/lib/lyceum";
 import type { DocumentRecord, LibraryListResult } from "../src/types/LibraryTypes";
-import type { ConversionPreviewRequest, ConversionRequestOptions } from "./workers/protocol";
-import { cleanupStaleConversionPreviews } from "./services/conversion-preview";
+import type { ConversionRequestOptions } from "./workers/protocol";
+import { OutputPreviewService, cleanupStaleOutputPreviews, type OutputPreviewRequest } from "./services/output-preview";
 import { DARK_TOKENS, LIGHT_TOKENS } from "../src/theme/tokens";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
@@ -3156,33 +3156,60 @@ ipcMain.handle("conversion:run-file", async (_, filePath: string, targetFormat: 
     runGenericFileConversion(filePath, targetFormat, requestOptions, signal, onProgress));
 });
 
-async function runConversionPreview(sourcePath: string, sourceFormat: BookFormat, request: ConversionPreviewRequest) {
+let outputPreviewService: OutputPreviewService | null = null;
+let outputPreviewSessionReady = false;
+function getOutputPreviewService() {
+  outputPreviewService ||= new OutputPreviewService({
+    tempRoot: app.getPath("temp"),
+    exportSlice: (input) => exportOutputPreviewInWorker(input),
+    printHtmlToPdf: (htmlPath, outputPath, options) => printHtmlToPdf(htmlPath, outputPath, options),
+    renderPdfPage: async (pdfPath, pageNumber) => {
+      const response = await runPdfToolInWorker({ operation: "thumbnails", input: { filePath: pdfPath, pages: [pageNumber], maxDimension: 1600 } });
+      const thumb = response.operation === "thumbnails" ? response.thumbnails[0] : undefined;
+      return thumb ? { dataUrl: thumb.dataUrl, width: thumb.width, height: thumb.height } : null;
+    },
+    createWindow: (options) => new BrowserWindow(options),
+    previewSession: () => {
+      // Book content is rendered offline: anything that is not a local file is blocked.
+      const previewSession = electron.session.fromPartition("lyceum-output-preview");
+      if (!outputPreviewSessionReady) {
+        outputPreviewSessionReady = true;
+        previewSession.webRequest.onBeforeRequest((details, callback) => {
+          callback({ cancel: !/^(file|data|blob):/i.test(details.url) });
+        });
+      }
+      return previewSession;
+    },
+  });
+  return outputPreviewService;
+}
+
+async function runOutputPreview(sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest) {
   try {
-    const value = await renderConversionPreviewInWorker({
-      sourcePath,
-      sourceFormat,
-      pageIndex: Math.max(0, Math.floor(Number(request?.pageIndex) || 0)),
+    const safeRequest: OutputPreviewRequest = {
+      targetFormat: request?.targetFormat,
       conversionOptions: request?.conversionOptions,
-      tempRoot: app.getPath("temp"),
-    });
-    return { success: true, preview: value };
+      segmentIndex: Math.max(0, Math.floor(Number(request?.segmentIndex) || 0)),
+      page: Math.max(1, Math.floor(Number(request?.page) || 1)),
+    };
+    return { success: true, preview: await getOutputPreviewService().render(sourcePath, sourceFormat, safeRequest) };
   } catch (error) {
-    console.error("[conversion:preview] Error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Erro ao gerar preview" };
+    console.error("[conversion:output-preview] Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Erro ao gerar a pre-visualizacao" };
   }
 }
 
-ipcMain.handle("conversion:preview-page", async (_, fileHash: string, request: ConversionPreviewRequest) => {
+ipcMain.handle("conversion:output-preview", async (_, fileHash: string, request: OutputPreviewRequest) => {
   const { inferBookFormatFromPath } = await loadLyceumConversionModule();
   const doc = getDocumentByHash(fileHash);
   if (!doc?.filePath || !fs.existsSync(doc.filePath)) {
     return { success: false, error: "Arquivo de origem nao encontrado no disco" };
   }
   const sourceFormat = inferBookFormatFromPath(doc.filePath) || doc.fileType;
-  return runConversionPreview(doc.filePath, sourceFormat, request);
+  return runOutputPreview(doc.filePath, sourceFormat, request);
 });
 
-ipcMain.handle("conversion:preview-page-file", async (_, filePath: string, request: ConversionPreviewRequest) => {
+ipcMain.handle("conversion:output-preview-file", async (_, filePath: string, request: OutputPreviewRequest) => {
   const { inferBookFormatFromPath } = await loadLyceumConversionModule();
   const localPath = filePath.startsWith("::") ? await copyWindowsMtpBookToTemp(filePath) : filePath;
   if (!localPath || !fs.existsSync(localPath)) {
@@ -3190,7 +3217,7 @@ ipcMain.handle("conversion:preview-page-file", async (_, filePath: string, reque
   }
   const sourceFormat = inferBookFormatFromPath(localPath);
   if (!sourceFormat) return { success: false, error: "Formato de origem nao suportado" };
-  return runConversionPreview(localPath, sourceFormat, request);
+  return runOutputPreview(localPath, sourceFormat, request);
 });
 
 ipcMain.handle("conversion:cancel", (_, jobId: string) => {
@@ -3731,7 +3758,7 @@ app.whenReady().then(async () => {
   logStartupEnvironment();
 
   void registerLinuxRecommendedApp();
-  void cleanupStaleConversionPreviews(app.getPath("temp"));
+  void cleanupStaleOutputPreviews(app.getPath("temp"));
 
   if (isPackagedSmokeTest) {
     await runPackagedSmokeTest();

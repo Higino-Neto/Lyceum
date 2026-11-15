@@ -10,7 +10,6 @@ import { PDFDocument } from "pdf-lib";
 import { convertViaLyceum } from "../lib/lyceum";
 import { optimizeImageBytes, resolveImageSettings } from "../lib/lyceum/images/imageOptimizer";
 import { KINDLE_IMAGE_PRESETS } from "../lib/lyceum/images/imagePresets";
-import { renderConversionPreview, CONVERSION_PREVIEW_TEMP_PREFIX } from "../../electron/services/conversion-preview";
 
 const tempDirs: string[] = [];
 
@@ -180,37 +179,5 @@ describe("conversion with image optimization", () => {
     const zip = await JSZip.loadAsync(fs.readFileSync(outputPath));
     const imageName = Object.keys(zip.files).find((name) => name.endsWith(".jpg"))!;
     expect(Buffer.compare(await zip.file(imageName)!.async("nodebuffer"), page)).toBe(0);
-  });
-});
-
-describe("conversion preview", () => {
-  it("renders the requested page and removes its temporary folder", async () => {
-    const dir = makeTempDir();
-    const tempRoot = path.join(dir, "tmp");
-    const sourcePath = await writeCbz(dir, [await noiseImage(300, 400, "jpeg"), await noiseImage(2400, 3400, "png")], "png");
-
-    const preview = await renderConversionPreview({
-      sourcePath,
-      sourceFormat: "cbz",
-      pageIndex: 1,
-      tempRoot,
-      conversionOptions: { imagePreset: "kindle-paperwhite", imageMaxWidth: 1264, imageMaxHeight: 1680, imageQuality: 80, imageGrayscale: true },
-    });
-
-    expect(preview.pageIndex).toBe(1);
-    expect(preview.pageCount).toBe(2);
-    expect(preview.dataUrl.startsWith("data:image/jpeg;base64,")).toBe(true);
-    expect(preview.height).toBeLessThanOrEqual(1680);
-    expect(preview.bytes).toBeLessThan(preview.originalBytes);
-    expect(preview.estimatedTotalBytes).toBeGreaterThan(0);
-    expect(fs.readdirSync(tempRoot).filter((name) => name.startsWith(CONVERSION_PREVIEW_TEMP_PREFIX))).toEqual([]);
-  });
-
-  it("clamps an out-of-range page to the last one", async () => {
-    const dir = makeTempDir();
-    const sourcePath = await writeCbz(dir, [await noiseImage(100, 100, "jpeg")], "jpg");
-    const preview = await renderConversionPreview({ sourcePath, sourceFormat: "cbz", pageIndex: 50, tempRoot: path.join(dir, "tmp") });
-    expect(preview.pageIndex).toBe(0);
-    expect(preview.optimized).toBe(false);
   });
 });
