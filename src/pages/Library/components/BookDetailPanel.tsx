@@ -62,6 +62,7 @@ import SetThumbnailDialog from "../../../components/SetThumbnailDialog";
 import BookMetadataSearchDialog from "./BookMetadataSearchDialog";
 import AnimatedModal from "../../../components/ui/AnimatedModal";
 import Select from "../../../components/ui/Select";
+import { isReaderSupported } from "../../../features/library/model/readerFormats";
 import { getEffectiveReadingStatus, getGroupRating, getGroupReadingStatus, isMergedGroup, LIBRARY_STATUS_SELECT_OPTIONS } from "../../../lib/readingStatus";
 
 interface BookDetailPanelProps {
@@ -520,7 +521,7 @@ export default function BookDetailPanel({
   };
 
   const isLyceumPackage = selectedVariant.fileType === "lyceum";
-  const canOpenInReader = selectedVariant.fileType === "pdf" || selectedVariant.fileType === "epub" || isLyceumPackage;
+  const canOpenInReader = isLyceumPackage || isReaderSupported(selectedVariant.filePath, selectedVariant.fileType);
   const canOpenForLearning = ["epub", "pdf", "txt", "html", "lyceum"].includes(String(selectedVariant.fileType));
   const hasFormatVariants = formatVariants.length > 1;
 

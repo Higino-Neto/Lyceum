@@ -16,8 +16,11 @@
   color: var(--lx-fg);
 }
 
-.lx-surface[data-theme="light"] { --lx-bg: #fbfbf9; --lx-fg: #1c1c1e; --lx-muted: #6b6b70; --lx-unknown: #2563eb; --lx-learning: #b45309; --lx-known: #15803d; }
-.lx-surface[data-theme="dark"] { --lx-bg: #17171a; --lx-fg: #ececef; --lx-muted: #9a9aa3; --lx-unknown: #60a5fa; --lx-learning: #fbbf24; --lx-known: #4ade80; }
+/* The default reading surface uses the app's semantic tokens (light/dark and
+   accent follow the application theme). Sepia is the only fixed paper tone;
+   like the EPUB reader's sepia, it is a literal because it must not follow
+   the app theme. */
+.lx-swatch-sepia { background: #f4ecd8; }
 .lx-surface[data-theme="sepia"] { --lx-bg: #f4ecd8; --lx-fg: #3b2f22; --lx-muted: #7a6a55; --lx-unknown: #1d4ed8; --lx-learning: #a16207; --lx-known: #166534; }
 
 .lx-content {

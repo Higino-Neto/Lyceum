@@ -32,6 +32,7 @@ export interface LearningClient {
   setTranslation(language: string, key: string, label: string, translation: string | null): Promise<void>;
   listReviewItems(language?: string): Promise<ReviewItem[]>;
   upsertReviewItem(item: ReviewItem): Promise<void>;
+  upsertReviewItems(items: ReviewItem[]): Promise<number>;
   deleteReviewItem(id: string): Promise<void>;
   logReview(entry: ReviewLogEntry): Promise<void>;
   listReviewLog(itemId?: string): Promise<ReviewLogEntry[]>;
@@ -61,6 +62,7 @@ export function createDesktopLearningClient(userId: string): LearningClient {
     setTranslation: (language, key, label, translation) => api.languageLearningSetTranslation(userId, language, key, label, translation),
     listReviewItems: (language) => api.languageLearningListReviewItems(userId, language),
     upsertReviewItem: (item) => api.languageLearningUpsertReviewItem(userId, item),
+    upsertReviewItems: (items) => api.languageLearningUpsertReviewItems(userId, items),
     deleteReviewItem: (id) => api.languageLearningDeleteReviewItem(userId, id),
     logReview: (entry) => api.languageLearningLogReview(userId, entry),
     listReviewLog: (itemId) => api.languageLearningListReviewLog(userId, itemId),

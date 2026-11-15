@@ -272,13 +272,34 @@ function buildExth(records: Array<{ type: number; payload: Buffer }>) {
   return Buffer.concat([header, body, Buffer.alloc(padding)]);
 }
 
+/**
+ * Fixes MOBI header fields older Lyceum builds wrote wrongly: an orthographic
+ * index of 0 (makes the Kindle treat the book as a dictionary) and a DRM count
+ * of 0xFFFFFFFF.
+ */
+function repairOldLyceumHeader(header: Buffer, mobiOffset: number) {
+  const NULL_INDEX = 0xffffffff;
+  if (header.length >= mobiOffset + 28 && header.readUInt32BE(mobiOffset + 24) === 0) {
+    header.writeUInt32BE(NULL_INDEX, mobiOffset + 24);
+  }
+  if (header.length >= mobiOffset + 160 && header.readUInt32BE(mobiOffset + 156) === NULL_INDEX) {
+    header.writeUInt32BE(0, mobiOffset + 156);
+  }
+}
+
 function rebuildRecordZeroWithExth(recordZero: Buffer, metadata: EditableBookMetadata, coverOffset?: number, thumbnailOffset?: number) {
   const parsed = parseExth(recordZero);
   // EXTH record types (MobileRead wiki): 100 author, 101 publisher, 103 description,
   // 104 ISBN, 105 subject (repeatable), 106 publishing date, 112 source identifier,
   // 113/504 ASIN, 201/202 cover/thumbnail offsets, 503 updated title, 524 language.
   const replaceTypes = new Set([100, 101, 103, 104, 105, 106, 112, 113, 201, 202, 503, 504, 524]);
-  const kept = parsed.records.filter((record) => !replaceTypes.has(record.type));
+  // Older Lyceum builds wrote these types with the wrong meaning (115 = sample
+  // flag, 118/119 = price, 110/111/114 ...), which breaks opening on Kindle.
+  const writtenByOldLyceum = parsed.records.some((record) => record.type === 112 && record.payload.toString("utf8") === "lyceum");
+  const legacyMisusedTypes = new Set([102, 107, 110, 111, 114, 115, 118, 119, 121]);
+  const kept = parsed.records.filter((record) => (
+    !replaceTypes.has(record.type) && !(writtenByOldLyceum && legacyMisusedTypes.has(record.type))
+  ));
   const previous = (type: number) => parsed.records.filter((record) => record.type === type);
   const keepOffset = (type: number, value: number | undefined) =>
     value !== undefined ? [exthUIntRecord(type, value)] : previous(type);
@@ -303,6 +324,7 @@ function rebuildRecordZeroWithExth(recordZero: Buffer, metadata: EditableBookMet
   const exth = buildExth(nextRecords.sort((a, b) => a.type - b.type));
   const fullName = Buffer.from(metadataValue(metadata, "title") || readMobiFullName(recordZero) || "Untitled", "utf8");
   const prefix = Buffer.from(recordZero.subarray(0, parsed.exthOffset));
+  if (writtenByOldLyceum) repairOldLyceumHeader(prefix, parsed.mobiOffset);
   const rebuilt = Buffer.concat([prefix, exth, fullName, Buffer.from([0, 0])]);
   const padded = Buffer.concat([rebuilt, Buffer.alloc((4 - (rebuilt.length % 4)) % 4)]);
   padded.writeUInt32BE(parsed.exthOffset + exth.length, parsed.mobiOffset + 68);

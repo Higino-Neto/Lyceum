@@ -6,6 +6,7 @@ import type {
   LyceumManifest,
   LyceumMetadataEntry,
   LyceumPackage,
+  LyceumPageMap,
   LyceumTextualChapter,
   LyceumTextualContent,
   LyceumTextualResource,
@@ -16,6 +17,7 @@ import {
   metadataPath,
   textualChapterPath,
   textualFulltextPath,
+  textualPageMapPath,
   textualResourcesPath,
   textualSpinePath,
   textualTocPath,
@@ -198,6 +200,27 @@ function validateResources(value: unknown): LyceumTextualResource[] {
   });
 }
 
+const PAGE_MAP_SOURCES = new Set<LyceumPageMap["source"]>(["publisher", "pdf", "target-count", "estimate"]);
+
+/** pages.json is optional and advisory: a malformed one is dropped, never fatal. */
+function validatePageMap(value: unknown): LyceumPageMap | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const source = record.source as LyceumPageMap["source"];
+  if (!PAGE_MAP_SOURCES.has(source) || !Array.isArray(record.pages)) return undefined;
+  const pages = record.pages.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const page = item as Record<string, unknown>;
+    if (typeof page.label !== "string" || typeof page.href !== "string" || typeof page.anchorId !== "string") return [];
+    return [{ label: page.label, href: page.href, anchorId: page.anchorId }];
+  });
+  if (pages.length === 0) return undefined;
+  const printPageCount = typeof record.printPageCount === "number" && Number.isFinite(record.printPageCount)
+    ? record.printPageCount
+    : undefined;
+  return { source, pages, ...(printPageCount ? { printPageCount } : {}) };
+}
+
 function validateComicPage(value: unknown, index: number): LyceumComicPage {
   const page = assertRecord(value, `comic page ${index + 1}`);
   const byteLength = page.byteLength;
@@ -256,12 +279,23 @@ function readTextualContent(rootPath: string): LyceumTextualContent | undefined 
     properties: item.properties,
   }));
 
+  const pageMapPath = textualPageMapPath(rootPath);
+  let pageMap: LyceumPageMap | undefined;
+  if (fs.existsSync(pageMapPath)) {
+    try {
+      pageMap = validatePageMap(JSON.parse(fs.readFileSync(pageMapPath, "utf8")));
+    } catch {
+      pageMap = undefined;
+    }
+  }
+
   return {
     chapters,
     spine,
     toc,
     fulltext,
     resources,
+    ...(pageMap ? { pageMap } : {}),
   };
 }
 

@@ -7,6 +7,11 @@ type ReadableDocument = DocumentRecord & {
   title: string;
 };
 
+/** Formats the reader opens directly or through a cached EPUB/PDF copy. */
+const READABLE_BOOK_EXTENSIONS = [
+  "pdf", "epub", "mobi", "azw", "azw3", "azw4", "prc", "txt", "html", "htm", "docx", "fb2", "cbz", "cbr",
+];
+
 export interface FileDialogHandlerDependencies {
   showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
   openReadableFile(filePath: string): Promise<ReadableDocument | null>;
@@ -38,7 +43,7 @@ export function registerFileDialogHandlers(
   ipcMain.handle("dialog:open-readable-file", async () => {
     const result = await dependencies.showOpenDialog({
       properties: ["openFile"],
-      filters: [{ name: "PDF e EPUB", extensions: ["pdf", "epub"] }],
+      filters: [{ name: "Livros", extensions: READABLE_BOOK_EXTENSIONS }],
     });
     if (result.canceled || !result.filePaths[0]) return null;
     const document = await dependencies.openReadableFile(result.filePaths[0]);

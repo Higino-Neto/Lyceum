@@ -104,9 +104,19 @@ Lemmas guessed by rules are flagged `estimated` and shown as such in the UI.
 - Long chapters are rendered in segments of ~700 words; only segments near
   the viewport are in the DOM (IntersectionObserver), unmounted ones keep
   their measured height.
-- Clicking an unknown word in the text sets it to Learning and creates a
-  review item (setting "Clicking an unknown word marks it as Learning", with
-  Undo). Keyboard navigation and list clicks only inspect.
+- Learning is the vocabulary: setting a word (or expression) to Learning
+  creates its review card, and the review queue only contains words that are
+  currently Learning. There is no separate "add to vocabulary" action.
+- Clicking an unknown word in the text sets it to Learning (setting, on by
+  default, no toast). Ctrl/Cmd+click marks a word Known without opening the
+  panel. Keyboard navigation and list clicks only inspect.
+- Right-click menu: knowledge state, open in side panel, add note, copy.
+- Both side panels are resizable from their left edge (shared
+  `useResizablePanel` + `PanelResizeHandle`, also used by the PDF chapter
+  sidebar); widths are remembered.
+- The reading surface follows the app theme tokens; Sepia is the only fixed
+  paper tone. Save status lives in the panel footer; the toolbar only shows
+  a warning when a change could not be saved.
 - The Words tab lists every word of the chapter, the book, or all saved words
   of the language, sortable by relevance, frequency, A–Z or recent change,
   with per-row state buttons and bulk actions.

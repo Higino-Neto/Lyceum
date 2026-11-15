@@ -16,7 +16,8 @@ export function StateControl({
 }) {
   const { t } = useTranslation();
   return (
-    <div role="radiogroup" aria-label={t("learning:inspector.knowledge")} className="grid grid-cols-4 gap-1 rounded-sm border border-border bg-background p-0.5">
+    <div className="@container">
+    <div role="radiogroup" aria-label={t("learning:inspector.knowledge")} className="grid grid-cols-2 gap-1 rounded-sm border border-border bg-background p-0.5 @sm:grid-cols-4">
       {STATE_ORDER.map((state, index) => {
         const active = state === value;
         return (
@@ -36,6 +37,7 @@ export function StateControl({
           </button>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -58,7 +60,7 @@ export function Section({
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle hover:text-foreground cursor-pointer"
+          className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-foreground-muted hover:text-foreground cursor-pointer"
           aria-expanded={open}
         >
           {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

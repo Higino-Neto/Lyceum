@@ -33,7 +33,6 @@ import {
   updateFileSize,
   deleteDocument,
   getDocumentByPath,
-  getDocumentByFilePath,
   getSourceFolders,
 } from "./local-database";
 import {
@@ -46,7 +45,8 @@ import {
   validateCbzFile as validateCbzFileMainThread,
   type BookFileType,
 } from "./services/document-processing";
-import { deleteBook } from "./services/document-service";
+import { deleteBook, openReadableFile as openReadableDocument } from "./services/document-service";
+import { isReaderSupportedPath, ReaderOpenError } from "./services/reader-format-service";
 import { WATCHER_IGNORED_PATTERNS } from "./services/watcher-ignores";
 import { registerLinuxRecommendedApp } from "./services/linux-file-associations";
 import {
@@ -58,10 +58,11 @@ import {
   getProcessingWorkerDiagnostics,
   hashFile,
   inspectBookFile,
-  openAndProcess as openAndProcessInWorker,
   exportOutputPreviewInWorker,
   runPdfToolInWorker,
   validateAzw3InWorker,
+  buildApnxInWorker,
+  inspectKindleBookInWorker,
   writeBookMetadataInWorker,
 } from "./workers/processingClient";
 import { registerPdfToolsHandlers } from "./handlers/pdf-tools.handler";
@@ -88,6 +89,8 @@ import {
   setUpdateWindow,
 } from "./services/update-service";
 import { getCandidateVolumeRoots } from "./services/removable-volumes";
+import { copyFileToVolume, ensureLinuxMtpEreadersMounted } from "./services/linux-mtp";
+import { stripKindleFileNameSuffix, type KindleBookDetails } from "./services/kindle-book-inspector";
 import { installContentSecurityPolicy } from "./app/security-policy";
 import { resolvePdfjsAssetPath } from "./app/pdfjs-asset-path";
 import { registerHabitHandlers } from "./handlers/habits.handler";
@@ -360,17 +363,6 @@ function resolveLibraryRelativePath(targetPath: string | null | undefined): stri
   );
 }
 
-function inferFileTypeFromPath(
-  filePath?: string | null,
-  fallback: "pdf" | "epub" = "pdf"
-): "pdf" | "epub" {
-  if (!filePath) {
-    return fallback;
-  }
-
-  return filePath.toLowerCase().endsWith(".epub") ? "epub" : "pdf";
-}
-
 function moveFileAcrossDevices(sourcePath: string, targetPath: string): void {
   if (path.resolve(sourcePath) === path.resolve(targetPath)) {
     return;
@@ -411,37 +403,10 @@ function getUniqueFilePath(targetDir: string, fileName: string): string {
   return uniquePath;
 }
 
-async function openReadableFile(filePath: string): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string }) | null> {
-  const fileType = inferFileTypeFromPath(filePath);
-  const title = path.basename(filePath, path.extname(filePath));
-  const processed = await openAndProcessInWorker({
-    filePath,
-    fileType,
-    thumbnailsDir: THUMBNAILS_DIR(),
-  });
-  const { fileHash, buffer: fileBuffer, thumbnailPath, numPages } = processed;
-  if (fileType === "pdf") registerPdfSource(fileHash, filePath);
-
-  const existingByPath = getDocumentByFilePath(filePath);
-  if (existingByPath) {
-    updateLastOpened(existingByPath.fileHash);
-    return { ...existingByPath, fileHash, filePath, fileBuffer, fileType, title };
-  }
-
-  const existingByHash = getDocumentByHash(fileHash);
-  if (existingByHash) {
-    updateLastOpened(existingByHash.fileHash);
-    return { ...existingByHash, filePath, fileBuffer, fileType, title };
-  }
-
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages || 1, fileType);
-
-  const doc = getDocumentByHash(fileHash);
-  if (!doc) {
-    return null;
-  }
-
-  return { ...doc, filePath, fileBuffer, fileType, title };
+async function openReadableFile(filePath: string) {
+  const document = await openReadableDocument(filePath);
+  if (document?.fileType === "pdf") registerPdfSource(document.fileHash, document.readerPath);
+  return document;
 }
 
 function getAllPdfFiles(dir: string): string[] {
@@ -793,6 +758,7 @@ $rows | ConvertTo-Json -Depth 4
 }
 
 async function getUsbDeviceSignature(): Promise<string> {
+  await ensureLinuxMtpEreadersMounted();
   const filesystemDevices = scanUsbDevices()
     .map((device) => `${device.id}:${device.rootPath}`)
     .sort();
@@ -937,6 +903,83 @@ for ($i = 0; $i -lt 120; $i++) {
   }
 }
 
+interface UsbBookDetailsCacheEntry {
+  details: KindleBookDetails;
+  thumbnailPath?: string;
+}
+
+const USB_KINDLE_TYPES = new Set(["kfx", "azw3", "azw", "mobi", "prc"]);
+const USB_DETAILS_CACHE_FILE = () => path.join(app.getPath("userData"), "usb-book-details.json");
+let usbDetailsCache: Map<string, UsbBookDetailsCacheEntry> | null = null;
+let usbDetailsCacheSaveTimer: NodeJS.Timeout | null = null;
+
+function getUsbDetailsCache(): Map<string, UsbBookDetailsCacheEntry> {
+  if (usbDetailsCache) return usbDetailsCache;
+  try {
+    const raw = JSON.parse(fs.readFileSync(USB_DETAILS_CACHE_FILE(), "utf8")) as Record<string, UsbBookDetailsCacheEntry>;
+    usbDetailsCache = new Map(Object.entries(raw));
+  } catch {
+    usbDetailsCache = new Map();
+  }
+  return usbDetailsCache;
+}
+
+function scheduleUsbDetailsCacheSave() {
+  if (usbDetailsCacheSaveTimer) clearTimeout(usbDetailsCacheSaveTimer);
+  usbDetailsCacheSaveTimer = setTimeout(() => {
+    usbDetailsCacheSaveTimer = null;
+    try {
+      const entries = Array.from(getUsbDetailsCache().entries()).slice(-2000);
+      fs.writeFileSync(USB_DETAILS_CACHE_FILE(), JSON.stringify(Object.fromEntries(entries)));
+    } catch (error) {
+      console.warn("[usb] Nao foi possivel salvar o cache de metadados:", error);
+    }
+  }, 1000);
+}
+
+/**
+ * Title, author and cover of a book on a device. Keyed by path + mtime + size,
+ * so each book is read once (reading over MTP is slow) and re-read only when
+ * the file changes. Thumbnails live in THUMBNAILS_DIR to be served by thumb://.
+ */
+async function getUsbBookDetails(
+  filePath: string,
+  fileType: string,
+  stats: fs.Stats,
+  device: UsbDeviceInfo,
+): Promise<UsbBookDetailsCacheEntry> {
+  const key = crypto.createHash("sha256").update(`usb-book|${filePath}|${stats.mtimeMs}|${stats.size}`).digest("hex");
+  const cache = getUsbDetailsCache();
+  const cached = cache.get(key);
+  if (cached && (!cached.thumbnailPath || fs.existsSync(cached.thumbnailPath))) return cached;
+
+  let entry: UsbBookDetailsCacheEntry = { details: {} };
+  try {
+    if (USB_KINDLE_TYPES.has(fileType)) {
+      const result = await inspectKindleBookInWorker({
+        filePath,
+        fileType,
+        thumbnailPath: path.join(THUMBNAILS_DIR(), `${key}-thumb.webp`),
+        deviceRoot: device.rootPath,
+      });
+      if (result.error) console.warn(`[usb] ${path.basename(filePath)}: ${result.error}`);
+      entry = { details: result.details, thumbnailPath: result.thumbnailPath };
+    } else if (fileType === "pdf" || fileType === "epub" || fileType === "cbz") {
+      const thumbnailPath = await generateThumbnailInWorker(filePath, key, {
+        thumbnailsDir: THUMBNAILS_DIR(),
+        fileType: fileType as BookFileType,
+        logPrefix: "[usb]",
+      });
+      entry = { details: {}, thumbnailPath: thumbnailPath || undefined };
+    }
+  } catch (error) {
+    console.warn(`[usb] Falha ao ler ${path.basename(filePath)}:`, error);
+  }
+  cache.set(key, entry);
+  scheduleUsbDetailsCacheSave();
+  return entry;
+}
+
 async function buildUsbBookRecord(
   filePath: string,
   device: UsbDeviceInfo,
@@ -944,17 +987,21 @@ async function buildUsbBookRecord(
 ): Promise<DocumentRecord> {
   const stats = fs.statSync(filePath);
   const fileType = getUsbBookFileType(filePath) || "pdf";
-  const inferred = parseTitleAndAuthorFromFileName(filePath);
+  const inferred = parseTitleAndAuthorFromFileName(
+    path.join(path.dirname(filePath), stripKindleFileNameSuffix(path.basename(filePath, path.extname(filePath))) + path.extname(filePath)),
+  );
   const sidecar = getUsbBookSidecarMetadata(filePath);
+  const embedded = await getUsbBookDetails(filePath, fileType, stats, device);
   const fileHash = `usb:${crypto
     .createHash("sha1")
     .update(`${device.id}|${filePath}|${stats.mtimeMs}|${stats.size}`)
     .digest("hex")}`;
 
-  let title = sidecar.title || inferred.title;
-  let author = sidecar.author || inferred.author;
-  let publisher: string | null = null;
-  let publishDate: string | null = null;
+  const details = embedded.details;
+  let title = details.title || sidecar.title || inferred.title;
+  let author = details.author || sidecar.author || inferred.author;
+  let publisher: string | null = details.publisher || null;
+  let publishDate: string | null = details.publishDate || null;
   let numPages = 0;
 
   if (fileType === "pdf") {
@@ -989,7 +1036,7 @@ async function buildUsbBookRecord(
     currentZoom: null,
     currentScroll: null,
     annotations: null,
-    thumbnailPath: null,
+    thumbnailPath: embedded.thumbnailPath || null,
     numPages,
     createdAt: timestamp,
     lastOpenedAt: timestamp,
@@ -999,14 +1046,14 @@ async function buildUsbBookRecord(
     rating: 0,
     notes: null,
     author,
-    description: `Encontrado em ${device.name}`,
-    isbn: null,
+    description: details.description || `Encontrado em ${device.name}`,
+    isbn: details.isbn || null,
     publisher,
     publishDate,
-    language: null,
+    language: details.language || null,
     identifier: null,
-    asin: null,
-    subject: null,
+    asin: details.asin || null,
+    subject: details.subject || null,
     series: null,
     seriesIndex: null,
     authorSort: null,
@@ -1023,6 +1070,7 @@ async function buildUsbBookRecord(
 async function listUsbBooks(query: UsbBookListQuery = {}): Promise<LibraryListResult> {
   const limit = Math.min(Math.max(query.limit ?? 80, 1), 200);
   const offset = Math.max(query.offset ?? 0, 0);
+  await ensureLinuxMtpEreadersMounted();
   const devices = scanUsbDevices();
   const mtpEntries = await getWindowsMtpBooks();
   const files = devices.flatMap((device) =>
@@ -1119,6 +1167,7 @@ async function listUsbBooks(query: UsbBookListQuery = {}): Promise<LibraryListRe
 }
 
 async function listKindleSendDevices(): Promise<KindleSendDevice[]> {
+  await ensureLinuxMtpEreadersMounted();
   const fsDevices = scanUsbDevices().map((device) => ({
     id: `fs:${device.id}`,
     name: device.name,
@@ -1205,6 +1254,8 @@ function getUniquePathInDir(targetDir: string, fileName: string): string {
 async function prepareKindleTransferFile(
   book: KindleSendBookInput,
   options: KindleSendOptions,
+  onProgress?: KindleSendProgress,
+  signal?: AbortSignal,
 ): Promise<{
   success: boolean;
   filePath?: string;
@@ -1212,6 +1263,9 @@ async function prepareKindleTransferFile(
   converted?: boolean;
   sourceFormat?: BookFormat;
   error?: string;
+  /** APNX sidecar to copy into "<book>.sdr/" on the device. */
+  apnxPath?: string;
+  pageCount?: number;
 }> {
   const {
     inferBookFormatFromPath,
@@ -1261,12 +1315,15 @@ async function prepareKindleTransferFile(
       }
     }
 
+    onProgress?.(0.5, "Gerando numeros de pagina");
+    const apnx = await buildDirectCopyApnx(localPath, sourceFormat, book, options);
     return {
       success: true,
       filePath: localPath,
       fileName: createKindleOutputName(book, sourceFormat),
       converted: false,
       sourceFormat,
+      ...apnx,
     };
   }
 
@@ -1291,14 +1348,15 @@ async function prepareKindleTransferFile(
     metadata: options.preserveMetadata === false
       ? {
           title,
-          language: "pt-BR",
           identifier: kindleIdentity,
           asin: kindleIdentity,
         }
       : {
           title,
           author: book.author || undefined,
-          language: book.language || "pt-BR",
+          // Never default: the book's own language (from its OPF) must win
+          // over a guess, or a French book is tagged Portuguese on the Kindle.
+          language: book.language || undefined,
           publisher: book.publisher || undefined,
           description: book.description || undefined,
           publishDate: book.publishDate || undefined,
@@ -1313,7 +1371,22 @@ async function prepareKindleTransferFile(
     pdfImageTempDir: sourceFormat === "pdf"
       ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-${sourceHash}`)
       : undefined,
+    conversionOptions: {
+      ...options.conversionOptions,
+      pageNumbers: options.pageNumbers || options.conversionOptions?.pageNumbers || "auto",
+      printPageCount: book.printPageCount || undefined,
+      charsPerPage: options.charsPerPage ?? options.conversionOptions?.charsPerPage,
+    },
+  }, {
+    signal,
+    onProgress: onProgress
+      ? (progress, message) => onProgress(0.05 + Math.min(1, Math.max(0, progress)) * 0.75, message || "Convertendo para AZW3")
+      : undefined,
   });
+
+  // The AZW3 exporter writes "<name>.apnx" next to the book when it has pages.
+  const apnxPath = outputPath.replace(/\.[^./\\]+$/, "") + ".apnx";
+  const hasApnx = options.pageNumbers !== "off" && fs.existsSync(apnxPath);
 
   return {
     success: true,
@@ -1321,7 +1394,121 @@ async function prepareKindleTransferFile(
     fileName: outputName,
     converted: true,
     sourceFormat,
+    ...(hasApnx ? { apnxPath, pageCount: readApnxPageCount(apnxPath) } : {}),
   };
+}
+
+/** Page count stored in an APNX file (u16 right after the content header). */
+function readApnxPageCount(apnxPath: string): number | undefined {
+  try {
+    const data = fs.readFileSync(apnxPath);
+    const contentLength = data.readUInt32BE(8);
+    return data.readUInt16BE(12 + contentLength + 4);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * MOBI/AZW3 files copied as-is get an estimated APNX (or one spread over the
+ * print page count when known), generated off the main thread.
+ */
+async function buildDirectCopyApnx(
+  localPath: string,
+  sourceFormat: BookFormat,
+  book: KindleSendBookInput,
+  options: KindleSendOptions,
+): Promise<{ apnxPath?: string; pageCount?: number }> {
+  if (options.pageNumbers === "off") return {};
+  if (!["azw3", "azw", "mobi", "prc"].includes(sourceFormat)) return {};
+  // A book converted by Lyceum already has its real pages next to it.
+  const sidecar = localPath.replace(/\.[^./\\]+$/, "") + ".apnx";
+  if (fs.existsSync(sidecar)) return { apnxPath: sidecar, pageCount: readApnxPageCount(sidecar) };
+  const { fileHash } = await hashFile(localPath);
+  const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-apnx", fileHash);
+  fs.mkdirSync(tempDir, { recursive: true });
+  const result = await buildApnxInWorker({
+    filePath: localPath,
+    outputPath: path.join(tempDir, "book.apnx"),
+    pageNumbers: options.pageNumbers || "auto",
+    printPageCount: book.printPageCount || undefined,
+    charsPerPage: options.charsPerPage,
+  });
+  if (!result.written || !result.apnxPath) {
+    if (result.reason && result.reason !== "disabled") console.warn("[kindle] APNX nao gerado:", result.reason);
+    return {};
+  }
+  return { apnxPath: result.apnxPath, pageCount: result.pageCount };
+}
+
+const KINDLE_LIBRARY_THUMB_TYPES = new Set(["azw3", "azw", "mobi", "prc"]);
+
+/**
+ * Sideloaded books typed EBOK get a blank 60x40 placeholder in the Kindle
+ * library: the device expects to download the cover from Amazon. Writing our
+ * own system/thumbnails/thumbnail_<ASIN>_<TYPE>_portrait.jpg shows the real
+ * cover (the book's embedded cover, falling back to the Lyceum cover).
+ */
+async function copyKindleLibraryThumbnail(
+  bookPath: string,
+  fileHash: string,
+  device: KindleSendDevice,
+): Promise<boolean> {
+  if (device.kind !== "kindle") return false;
+  const fileType = path.extname(bookPath).slice(1).toLowerCase();
+  if (!KINDLE_LIBRARY_THUMB_TYPES.has(fileType)) return false;
+  const lyceumCover = getDocumentByHash(fileHash)?.thumbnailPath || undefined;
+  const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-thumbs");
+  fs.mkdirSync(tempDir, { recursive: true });
+  const result = await inspectKindleBookInWorker({
+    filePath: bookPath,
+    fileType,
+    thumbnailPath: path.join(tempDir, `${crypto.randomUUID()}.jpg`),
+    thumbnailFormat: "kindle-jpeg",
+    fallbackImagePath: lyceumCover,
+  });
+  const asin = result.details.asin;
+  if (!result.thumbnailPath || !asin) return false;
+  try {
+    const name = `thumbnail_${asin}_${result.details.cdeType || "EBOK"}_portrait.jpg`;
+    if (device.isMtp) {
+      return (await copyFileToMtpKindle(result.thumbnailPath, device, ["system", "thumbnails"], name)).success;
+    }
+    if (!device.rootPath) return false;
+    const dir = path.join(device.rootPath, "system", "thumbnails");
+    if (!fs.existsSync(dir)) return false;
+    const target = path.join(dir, name);
+    // The Kindle may already have written its placeholder: replace it.
+    if (fs.existsSync(target)) fs.rmSync(target, { force: true });
+    await copyFileToVolume(result.thumbnailPath, target);
+    return true;
+  } finally {
+    fs.rmSync(result.thumbnailPath, { force: true });
+  }
+}
+
+/**
+ * Copies an APNX sidecar to "<dir>/<book>.sdr/<book>.apnx", next to the book
+ * that was just copied (using its final, possibly de-duplicated, name).
+ */
+async function copyApnxToKindle(
+  apnxPath: string,
+  device: KindleSendDevice,
+  destinationParts: string[],
+  bookOutputName: string,
+): Promise<boolean> {
+  const baseName = bookOutputName.replace(/\.[^.]+$/, "");
+  const sdrParts = [...destinationParts, `${baseName}.sdr`];
+  if (device.isMtp) {
+    const copied = await copyFileToMtpKindle(apnxPath, device, sdrParts, `${baseName}.apnx`);
+    return copied.success;
+  }
+  if (!device.rootPath) return false;
+  const sdrDir = path.join(device.rootPath, ...sdrParts);
+  fs.mkdirSync(sdrDir, { recursive: true });
+  const target = path.join(sdrDir, `${baseName}.apnx`);
+  await copyFileToVolume(apnxPath, target);
+  return fs.statSync(target).size === fs.statSync(apnxPath).size;
 }
 
 /**
@@ -1385,7 +1572,8 @@ async function prepareKindleEmailFile(
       targetFormat,
       packageRoot: getLyceumPackageRoot(`kindle-email-${sourceHash}`),
       outputPath,
-      metadata: options.preserveMetadata === false ? { title, language: "pt-BR" } : { ...metadata, language: metadata.language || "pt-BR" },
+      // The source's own language wins when the library has none.
+      metadata: options.preserveMetadata === false ? { title } : metadata,
       pdfImageTempDir: sourceFormat === "pdf"
         ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-email-${sourceHash}`)
         : undefined,
@@ -1419,7 +1607,20 @@ async function copyFileToFilesystemKindle(
   const sourceBytes = fs.statSync(sourcePath).size;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
-    fs.copyFileSync(sourcePath, targetPath);
+    try {
+      // gvfs MTP mounts (newer Kindles on Linux) need `gio copy`.
+      await copyFileToVolume(sourcePath, targetPath);
+    } catch (error) {
+      if (attempt === 2) {
+        return {
+          success: false,
+          verified: false,
+          bytes: sourceBytes,
+          error: error instanceof Error ? error.message : "Falha ao copiar para o dispositivo",
+        };
+      }
+      continue;
+    }
     const copiedBytes = fs.existsSync(targetPath) ? fs.statSync(targetPath).size : -1;
     if (copiedBytes === sourceBytes) {
       return {
@@ -1633,6 +1834,92 @@ for ($i = 0; $i -lt 240; $i++) {
   }
 }
 
+/**
+ * Converts (when needed) and copies one book to the Kindle with its page
+ * numbers (APNX) and library cover, reporting each step.
+ */
+async function sendOneBookToKindle(
+  book: KindleSendBookInput,
+  device: KindleSendDevice,
+  options: KindleSendOptions,
+  onProgress?: KindleSendProgress,
+  signal?: AbortSignal,
+): Promise<KindleSendItemResult> {
+  try {
+    onProgress?.(0.02, "Preparando");
+    const prepared = await prepareKindleTransferFile(book, options, onProgress, signal);
+    if (!prepared.success || !prepared.filePath || !prepared.fileName) {
+      return {
+        fileHash: book.fileHash,
+        title: book.title,
+        success: false,
+        status: "error",
+        error: prepared.error || "Nao foi possivel preparar o arquivo",
+      };
+    }
+
+    onProgress?.(0.84, "Copiando para o Kindle");
+    const destinationParts = getKindleDestinationParts(options, book.author);
+    const copied = device.isMtp
+      ? await copyFileToMtpKindle(prepared.filePath, device, destinationParts, prepared.fileName)
+      : await copyFileToFilesystemKindle(prepared.filePath, device, destinationParts, prepared.fileName);
+
+    if (copied.success) {
+      onProgress?.(0.92, "Gravando capa na biblioteca do Kindle");
+      try {
+        await copyKindleLibraryThumbnail(prepared.filePath, book.fileHash, device);
+      } catch (error) {
+        console.warn("[kindle] Falha ao gravar a capa na biblioteca do Kindle:", error);
+      }
+    }
+
+    let pageCount: number | undefined;
+    if (copied.success && prepared.apnxPath) {
+      onProgress?.(0.96, "Gravando numeros de pagina");
+      try {
+        const apnxCopied = await copyApnxToKindle(
+          prepared.apnxPath,
+          device,
+          destinationParts,
+          copied.outputName || prepared.fileName,
+        );
+        if (apnxCopied) pageCount = prepared.pageCount;
+      } catch (error) {
+        console.warn("[kindle] Falha ao copiar APNX:", error);
+      }
+    }
+
+    onProgress?.(1, copied.success ? "Enviado" : copied.error || "Falha ao copiar");
+    return {
+      fileHash: book.fileHash,
+      title: book.title,
+      success: copied.success,
+      status: copied.success
+        ? prepared.converted ? "converted" : "sent"
+        : "error",
+      sourcePath: prepared.filePath,
+      outputName: copied.outputName,
+      outputPath: copied.outputPath,
+      verified: copied.verified,
+      bytes: copied.bytes,
+      note: copied.note,
+      error: copied.error,
+      pageCount,
+    };
+  } catch (error) {
+    if (signal?.aborted) {
+      return { fileHash: book.fileHash, title: book.title, success: false, status: "error", error: "Envio cancelado" };
+    }
+    return {
+      fileHash: book.fileHash,
+      title: book.title,
+      success: false,
+      status: "error",
+      error: error instanceof Error ? error.message : "Erro ao enviar para o Kindle",
+    };
+  }
+}
+
 async function sendBooksToKindle(options: KindleSendOptions): Promise<{
   success: boolean;
   device?: KindleSendDevice;
@@ -1659,48 +1946,9 @@ async function sendBooksToKindle(options: KindleSendOptions): Promise<{
   const results: KindleSendItemResult[] = [];
 
   for (const book of options.books) {
-    try {
-      const prepared = await prepareKindleTransferFile(book, options);
-      if (!prepared.success || !prepared.filePath || !prepared.fileName) {
-        results.push({
-          fileHash: book.fileHash,
-          title: book.title,
-          success: false,
-          status: "error",
-          error: prepared.error || "Nao foi possivel preparar o arquivo",
-        });
-        continue;
-      }
-
-      const destinationParts = getKindleDestinationParts(options, book.author);
-      const copied = device.isMtp
-        ? await copyFileToMtpKindle(prepared.filePath, device, destinationParts, prepared.fileName)
-        : await copyFileToFilesystemKindle(prepared.filePath, device, destinationParts, prepared.fileName);
-
-      results.push({
-        fileHash: book.fileHash,
-        title: book.title,
-        success: copied.success,
-        status: copied.success
-          ? prepared.converted ? "converted" : "sent"
-          : "error",
-        sourcePath: prepared.filePath,
-        outputName: copied.outputName,
-        outputPath: copied.outputPath,
-        verified: copied.verified,
-        bytes: copied.bytes,
-        note: copied.note,
-        error: copied.error,
-      });
-    } catch (error) {
-      results.push({
-        fileHash: book.fileHash,
-        title: book.title,
-        success: false,
-        status: "error",
-        error: error instanceof Error ? error.message : "Erro ao enviar para o Kindle",
-      });
-    }
+    results.push(await sendOneBookToKindle(book, device, options, (progress, message) => {
+      win?.webContents.send("kindle:send-progress", { fileHash: book.fileHash, progress, message });
+    }));
   }
 
   const sent = results.filter((result) => result.success).length;
@@ -2000,7 +2248,11 @@ interface KindleSendBookInput {
   seriesIndex?: string | null;
   authorSort?: string | null;
   titleSort?: string | null;
+  /** Page count of the printed edition, used to spread real page numbers. */
+  printPageCount?: number | null;
 }
+
+type KindlePageNumbersMode = "auto" | "off" | "target-count" | "estimate";
 
 interface KindleSendOptions {
   deviceId?: string;
@@ -2009,7 +2261,14 @@ interface KindleSendOptions {
   preserveMetadata?: boolean;
   organizeByAuthor?: boolean;
   destination?: string;
+  /** Real page numbers via an APNX sidecar (USB only). Defaults to "auto". */
+  pageNumbers?: KindlePageNumbersMode;
+  charsPerPage?: number;
+  /** Conversion settings (layout, images, fonts, Kindle profile...) for AZW3 output. */
+  conversionOptions?: LyceumConversionOptions;
 }
+
+type KindleSendProgress = (progress: number, message: string) => void;
 
 interface KindleSendItemResult {
   fileHash: string;
@@ -2023,6 +2282,8 @@ interface KindleSendItemResult {
   bytes?: number;
   note?: string;
   error?: string;
+  /** Number of real pages written to the APNX sidecar, when one was copied. */
+  pageCount?: number;
 }
 
 interface KindleCopyResult {
@@ -2589,7 +2850,8 @@ ipcMain.handle("get-documents", () => {
 
 
 
-ipcMain.handle("usb:get-devices", () => {
+ipcMain.handle("usb:get-devices", async () => {
+  await ensureLinuxMtpEreadersMounted();
   return scanUsbDevices();
 });
 
@@ -2613,10 +2875,8 @@ ipcMain.handle("usb:open-book", async (_, filePath: string) => {
       return { success: false, error: "NÃ£o foi possÃ­vel acessar o arquivo no dispositivo" };
     }
 
-    const isEpub = localPath.toLowerCase().endsWith(".epub");
-    const isPdf = localPath.toLowerCase().endsWith(".pdf");
-    if (!isEpub && !isPdf) {
-      return { success: false, error: "Formato nÃ£o suportado no leitor" };
+    if (!isReaderSupportedPath(localPath)) {
+      return { success: false, error: "Invalid file type" };
     }
 
     const document = await openReadableFile(localPath);
@@ -2624,11 +2884,14 @@ ipcMain.handle("usb:open-book", async (_, filePath: string) => {
       return { success: false, error: "NÃ£o foi possÃ­vel abrir o livro" };
     }
 
-    return isPdf
+    return document.fileType === "pdf"
       ? { success: true, ...document, fileBuffer: undefined }
       : { success: true, ...document };
   } catch (error) {
     console.error("[usb:open-book] Error:", error);
+    if (error instanceof ReaderOpenError) {
+      return { success: false, error: error.message, readerErrorCode: error.code };
+    }
     return { success: false, error: String(error) };
   }
 });
@@ -2637,14 +2900,49 @@ ipcMain.handle("kindle:list-devices", async () => {
   return listKindleSendDevices();
 });
 
-ipcMain.handle("kindle:send-books", async (_, options: KindleSendOptions) => {
-  return sendBooksToKindle({
+/** Sanitizes renderer-provided Kindle send options. */
+function normalizeKindleSendOptions(options: KindleSendOptions): KindleSendOptions {
+  return {
     ...options,
     books: Array.isArray(options?.books) ? options.books : [],
     convertToAzw3: options?.convertToAzw3 ?? true,
     preserveMetadata: options?.preserveMetadata ?? true,
     organizeByAuthor: options?.organizeByAuthor ?? false,
     destination: options?.destination || "documents/Downloads",
+    pageNumbers: (["auto", "off", "target-count", "estimate"] as const).includes(options?.pageNumbers as KindlePageNumbersMode)
+      ? options.pageNumbers
+      : "auto",
+    charsPerPage: Number.isFinite(options?.charsPerPage) && Number(options.charsPerPage) >= 200
+      ? Math.min(20000, Math.floor(Number(options.charsPerPage)))
+      : undefined,
+    conversionOptions: options?.conversionOptions && typeof options.conversionOptions === "object"
+      ? options.conversionOptions
+      : undefined,
+  };
+}
+
+ipcMain.handle("kindle:send-books", async (_, options: KindleSendOptions) => {
+  return sendBooksToKindle(normalizeKindleSendOptions(options));
+});
+
+/**
+ * Sends one book from the conversion queue: progress goes to the same
+ * "conversion:progress" channel (by jobId) and "conversion:cancel" stops it.
+ */
+ipcMain.handle("kindle:send-book", async (_, input: KindleSendOptions & { book: KindleSendBookInput; jobId?: string }) => {
+  const options = normalizeKindleSendOptions({ ...input, books: input?.book ? [input.book] : [] });
+  const book = options.books[0];
+  if (!book) return { success: false, error: "Livro invalido" };
+  const devices = await listKindleSendDevices();
+  const device = options.deviceId ? devices.find((candidate) => candidate.id === options.deviceId) : devices[0];
+  if (!device) return { success: false, error: "Nenhum Kindle conectado foi encontrado" };
+  const onProgress: KindleSendProgress | undefined = input.jobId
+    ? (progress, message) => win?.webContents.send("conversion:progress", { jobId: input.jobId, progress, message })
+    : undefined;
+  return runTrackedConversion(input.jobId, async (signal) => {
+    const result = await sendOneBookToKindle(book, device, options, onProgress, signal);
+    win?.webContents.send("usb:devices-updated");
+    return { ...result, deviceName: device.name };
   });
 });
 
@@ -2941,7 +3239,7 @@ async function runGenericDocumentConversion(
       metadata: {
         title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, path.extname(doc.filePath)),
         author: doc.author || undefined,
-        language: doc.language || "pt-BR",
+        language: doc.language || undefined, // the source file's own language wins
         publisher: doc.publisher || undefined,
         description: doc.description || undefined,
         publishDate: doc.publishDate || undefined,
@@ -3054,7 +3352,7 @@ async function runGenericFileConversion(
       metadata: {
         ...embedded,
         title: embedded.title || sourceTitle,
-        language: embedded.language || "pt-BR",
+        language: embedded.language || undefined,
       },
       pdfImageTempDir: sourceFormat === "pdf"
         ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", sourceHash)
@@ -3279,7 +3577,7 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
       metadata: {
         title: doc.title ? path.basename(doc.title, path.extname(doc.title)) : path.basename(doc.filePath, ".pdf"),
         author: doc.author || undefined,
-        language: doc.language || "pt-BR",
+        language: doc.language || undefined, // the source file's own language wins
         publisher: doc.publisher || undefined,
         description: doc.description || undefined,
       },
@@ -3562,8 +3860,8 @@ if (!gotTheLock) {
       win.focus();
     }
 
-    const filePath = commandLine.find(
-      (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
+    const filePath = commandLine.slice(1).find(
+      (arg) => !arg.startsWith("-") && isReaderSupportedPath(arg)
     );
     
     console.log("[Main] File path found from commandLine:", filePath);
@@ -3604,14 +3902,12 @@ async function handleFileArg(filePath: string) {
     return;
   }
 
-  const isEpub = filePath.toLowerCase().endsWith(".epub");
-  const isPdf = filePath.toLowerCase().endsWith(".pdf");
-  if (!isEpub && !isPdf) {
+  if (!isReaderSupportedPath(filePath)) {
     console.error("[Main] Invalid file type:", filePath);
     return;
   }
 
-  console.log("[Main] Opening file:", { filePath, isEpub, isPdf });
+  console.log("[Main] Opening file:", { filePath });
 
   try {
     const document = await openReadableFile(filePath);
@@ -3631,7 +3927,7 @@ async function handleFileArg(filePath: string) {
 const startArgs = process.argv.slice(1);
 const startupAuthDeepLink = startArgs.find(isAuthDeepLink);
 const startupFile = startArgs.find(
-  (arg) => arg.toLowerCase().endsWith(".pdf") || arg.toLowerCase().endsWith(".epub")
+  (arg) => !arg.startsWith("-") && isReaderSupportedPath(arg)
 );
 
 protocol.registerSchemesAsPrivileged([

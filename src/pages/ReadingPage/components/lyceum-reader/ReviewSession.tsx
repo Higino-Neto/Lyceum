@@ -38,7 +38,7 @@ const GRADE_NAMES: GradeName[] = ["again", "hard", "good", "easy"];
 export function ReviewSession({ session, speechAvailable, onSpeak, onDone }: ReviewSessionProps) {
   const { t } = useTranslation();
   const [queue, setQueue] = useState<QueueEntry[]>(() =>
-    dueItems(session.reviewItems).map((item) => ({ item, exercise: chooseExercise(item, { speech: speechAvailable }) })));
+    dueItems(session.activeReviewItems).map((item) => ({ item, exercise: chooseExercise(item, { speech: speechAvailable }) })));
   const [revealed, setRevealed] = useState(false);
   const [answer, setAnswer] = useState("");
   const [verdict, setVerdict] = useState<AnswerVerdict | null>(null);

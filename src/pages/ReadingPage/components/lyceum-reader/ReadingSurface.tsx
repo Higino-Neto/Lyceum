@@ -34,7 +34,7 @@ interface ReadingSurfaceProps {
   decorations: SurfaceDecorations;
   scrollTarget: ScrollTarget | null;
   initialBlockId: string | null;
-  onWordClick(ordinal: number, modifiers: { alt: boolean }): void;
+  onWordClick(ordinal: number, modifiers: { alt: boolean; ctrl: boolean }): void;
   onWordContextMenu(ordinal: number, x: number, y: number): void;
   onSentenceClick(sentenceId: string): void;
   onRangeSelect(startOrdinal: number, endOrdinal: number, x: number, y: number): void;
@@ -319,7 +319,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
         if (sentence?.dataset.s) props.onSentenceClick(sentence.dataset.s);
         return;
       }
-      props.onWordClick(ordinal, { alt: event.altKey });
+      props.onWordClick(ordinal, { alt: event.altKey, ctrl: event.ctrlKey || event.metaKey });
       return;
     }
     const sentence = target.closest<HTMLElement>(".lx-s");

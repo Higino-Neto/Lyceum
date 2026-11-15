@@ -11,6 +11,8 @@ export type BookFileType =
   | "kfx"
   | "prc"
   | "txt"
+  | "fb2"
+  | "cbr"
   | "lyceum";
 
 export type LibraryBookFileType = BookFileType;
@@ -203,7 +205,17 @@ export type LibrarySortOption =
   | "pages_desc"
   | "pages_asc"
   | "size_desc"
-  | "size_asc";
+  | "size_asc"
+  | "author_asc"
+  | "author_desc"
+  | "series_asc"
+  | "series_desc"
+  | "rating_desc"
+  | "rating_asc"
+  | "type_asc"
+  | "type_desc"
+  | "added_desc"
+  | "added_asc";
 export type LibraryFileTypeFilter = "all" | LibraryBookFileType;
 
 export interface LibraryListQuery {

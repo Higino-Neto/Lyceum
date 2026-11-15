@@ -39,6 +39,14 @@ export class PdfImporter implements LyceumImporter {
       },
     );
     const parsed = await parseEpubBufferToTextual(converted.epub);
+    if (parsed.textual.pageMap) {
+      // The page-list written by pdf-to-epub mirrors the real PDF pages.
+      parsed.textual.pageMap = {
+        ...parsed.textual.pageMap,
+        source: "pdf",
+        printPageCount: converted.report.pageCount,
+      };
+    }
     const metadata = mergeBookMetadata(fallbackTitle, {
       ...parsed.metadata,
       ...input.metadata,

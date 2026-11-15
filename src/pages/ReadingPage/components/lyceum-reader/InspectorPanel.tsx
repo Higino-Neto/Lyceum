@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookmarkPlus, ChevronLeft, ChevronRight, Eye, Layers, Plus, StickyNote, Volume2, X, Check, ScanText,
+  ChevronLeft, ChevronRight, Eye, Layers, StickyNote, Volume2, X, ScanText,
 } from "lucide-react";
 import {
   analyzeSentenceStructure,
@@ -74,7 +74,7 @@ function TranslationBlock({ state, progressive, offerDictionary }: { state: Look
       {revealed && state.result.alternatives.length > 0 && (
         <p className="text-xs text-foreground-muted">{state.result.alternatives.join(", ")}</p>
       )}
-      <p className="text-[10px] uppercase tracking-wider text-foreground-subtle">
+      <p className="text-[11px] uppercase tracking-wide text-foreground-subtle">
         {dynamicT(t, `learning:providers.${state.result.providerId}`, undefined, state.result.providerId)}
         {state.result.language ? ` · ${state.result.language}` : ""}
       </p>
@@ -159,7 +159,7 @@ function WordInspector({ session, selection, settings, translationService, trans
   const currentState: KnowledgeState = onlyForm || formOverride ? effectiveState(snapshot, entry.key, form.form) : lemmaState(snapshot, entry.key);
   const estimated = (resolved.tuple[4] & TOKEN_FLAG_LEMMA_ESTIMATED) !== 0 || entry.estimated;
   const properNoun = (resolved.tuple[4] & TOKEN_FLAG_PROPER_NOUN_CANDIDATE) !== 0;
-  const inReview = session.reviewItems.some((item) => item.key === entry.key);
+  const inReview = currentState === "learning";
   const features = { ...(entry.features ?? {}), ...(form.features ?? {}) };
   const go = (ordinal: number) => {
     const target = index.resolve(ordinal);
@@ -169,8 +169,9 @@ function WordInspector({ session, selection, settings, translationService, trans
   };
 
   const changeState = (state: KnowledgeState) => {
-    if (onlyForm || formOverride) void session.setKnowledge(entry.key, entry.lemma, state, form.form);
-    else void session.setKnowledge(entry.key, entry.lemma, state);
+    const context = { sentenceId: resolved.sentence.id, contextForm: surface };
+    if (onlyForm || formOverride) void session.setKnowledge(entry.key, entry.lemma, state, form.form, context);
+    else void session.setKnowledge(entry.key, entry.lemma, state, undefined, context);
   };
 
   return (
@@ -204,23 +205,17 @@ function WordInspector({ session, selection, settings, translationService, trans
           <StateControl value={currentState} onChange={changeState} />
           {forms.length > 1 && (
             <label className="flex items-center gap-2 text-xs text-foreground-muted cursor-pointer">
-              <input type="checkbox" checked={onlyForm || Boolean(formOverride)} onChange={(event) => {
+              <input type="checkbox" className="accent-primary" checked={onlyForm || Boolean(formOverride)} onChange={(event) => {
                 if (!event.target.checked && formOverride) void session.clearFormOverride(entry.key, form.form);
                 setOnlyForm(event.target.checked);
               }} />
               {t("learning:inspector.onlyThisForm", { form: form.form })}
             </label>
           )}
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              disabled={inReview}
-              onClick={() => void session.addToVocabulary({ key: entry.key, label: entry.lemma, itemType: "lexeme", sentenceId: resolved.sentence.id, contextForm: surface })}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 py-1.5 text-xs text-foreground hover:bg-border-strong disabled:cursor-default disabled:opacity-60 cursor-pointer"
-            >
-              {inReview ? <Check size={13} /> : <Plus size={13} />}
-              {inReview ? t("learning:inspector.inVocabulary") : t("learning:inspector.addToVocabulary")}
-            </button>
+          <div className="flex items-center gap-1.5">
+            <p className="min-w-0 flex-1 text-xs text-foreground-subtle">
+              {inReview ? t("learning:inspector.inReviewHint") : t("learning:inspector.learningHint")}
+            </p>
             <IconButton label={t("learning:annotations.add")} onClick={() => onAnnotate({ targetType: "token", targetId: resolved.tokenId, quote: surface, chapterId: resolved.chapterId })}>
               <StickyNote size={14} />
             </IconButton>
@@ -236,7 +231,7 @@ function WordInspector({ session, selection, settings, translationService, trans
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <p className="text-sm text-foreground">{record.translation}</p>
-              <p className="text-[10px] uppercase tracking-wider text-foreground-subtle">{t("learning:translation.yours")}</p>
+              <p className="text-[11px] uppercase tracking-wide text-foreground-subtle">{t("learning:translation.yours")}</p>
             </div>
             <button type="button" className="text-xs text-foreground-muted hover:text-foreground cursor-pointer" onClick={() => { setDraft(record.translation ?? ""); setEditingTranslation(true); }}>
               {t("learning:actions.edit")}
@@ -295,33 +290,62 @@ function WordInspector({ session, selection, settings, translationService, trans
       )}
 
       <Section title={t("learning:inspector.frequency")}>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <Stat value={entry.count} label={t("learning:inspector.allForms")} />
-          <Stat value={form.count} label={t("learning:inspector.exactForm")} />
-          <Stat value={chapterCount} label={t("learning:inspector.thisChapter")} />
-        </div>
+        <dl className="space-y-1 text-xs">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-foreground-muted">
+              {forms.length > 1
+                ? t("learning:inspector.countLemma", { lemma: entry.lemma })
+                : t("learning:inspector.countBook")}
+            </dt>
+            <dd className="font-semibold tabular-nums text-foreground">{entry.count}×</dd>
+          </div>
+          {forms.length > 1 && (
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-foreground-muted">{t("learning:inspector.countForm", { form: surface })}</dt>
+              <dd className="font-semibold tabular-nums text-foreground">{form.count}×</dd>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-foreground-muted">{t("learning:inspector.countChapter")}</dt>
+            <dd className="font-semibold tabular-nums text-foreground">{chapterCount}×</dd>
+          </div>
+        </dl>
         {forms.length > 1 && (
-          <div className="mt-3 flex flex-wrap gap-1">
-            {forms.slice(0, 16).map((formId) => {
-              const item = document.forms[formId];
-              if (!item) return null;
-              return (
-                <span key={formId} className={`rounded-sm border px-1.5 py-0.5 text-[11px] ${formId === formIndex ? "border-primary text-foreground" : "border-border text-foreground-muted"}`} lang={document.language}>
-                  {item.form} <span className="text-foreground-subtle">{item.count}</span>
-                </span>
-              );
-            })}
+          <div className="mt-3">
+            <p className="mb-1 text-xs text-foreground-subtle">{t("learning:inspector.formsInBook", { lemma: entry.lemma })}</p>
+            <div className="flex flex-wrap gap-1">
+              {forms.slice(0, 16).map((formId) => {
+                const item = document.forms[formId];
+                if (!item) return null;
+                return (
+                  <span key={formId} className={`rounded-sm border px-1.5 py-0.5 text-xs ${formId === formIndex ? "border-primary text-foreground" : "border-border text-foreground-muted"}`} lang={document.language}>
+                    {item.form} <span className="text-foreground-subtle">{item.count}</span>
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
         <div className="mt-3 flex items-center justify-between gap-2">
-          <div className="flex rounded-sm border border-border p-0.5 text-[11px]">
-            {(["lemma", "form"] as const).map((value) => (
-              <button key={value} type="button" onClick={() => setScope(value)} className={`rounded-[3px] px-2 py-0.5 cursor-pointer ${scope === value ? "bg-surface-muted text-foreground" : "text-foreground-muted"}`}>
-                {value === "lemma" ? t("learning:inspector.allForms") : t("learning:inspector.exactForm")}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1 text-xs text-foreground-muted">
+          {forms.length > 1 ? (
+            <div className="flex min-w-0 rounded-sm border border-border p-0.5 text-xs" role="radiogroup" aria-label={t("learning:inspector.browse")}>
+              {(["lemma", "form"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={scope === value}
+                  onClick={() => setScope(value)}
+                  className={`truncate rounded-[3px] px-2 py-0.5 cursor-pointer ${scope === value ? "bg-surface-muted text-foreground" : "text-foreground-muted hover:text-foreground"}`}
+                >
+                  {value === "lemma" ? t("learning:inspector.browseLemma", { lemma: entry.lemma }) : t("learning:inspector.browseForm", { form: surface })}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-foreground-subtle">{t("learning:inspector.browse")}</span>
+          )}
+          <div className="flex flex-shrink-0 items-center gap-1 text-xs text-foreground-muted">
             <IconButton label={t("learning:inspector.previousOccurrence")} disabled={occurrences.length < 2} onClick={() => go(occurrences[(position - 1 + occurrences.length) % occurrences.length] ?? selection.ordinal)}>
               <ChevronLeft size={14} />
             </IconButton>
@@ -350,15 +374,6 @@ function WordInspector({ session, selection, settings, translationService, trans
   );
 }
 
-function Stat({ value, label }: { value: number | string; label: string }) {
-  return (
-    <div className="rounded-sm bg-background px-2 py-2">
-      <div className="text-base font-semibold tabular-nums text-foreground">{value}</div>
-      <div className="text-[10px] text-foreground-subtle">{label}</div>
-    </div>
-  );
-}
-
 function ExpressionInspector({ session, selection, settings, translationService, translationRevision, onNavigate, onSelect }: InspectorProps & { selection: { type: "expression"; expression: number; sentenceId: string } }) {
   const { t } = useTranslation();
   const { document, index, snapshot } = session;
@@ -370,7 +385,6 @@ function ExpressionInspector({ session, selection, settings, translationService,
   );
   if (!document || !index || !expression) return null;
   const reference = expression.glosses?.[settings.nativeLanguage] ?? expression.glosses?.en;
-  const inReview = session.reviewItems.some((item) => item.key === expression.key);
   const state = lemmaState(snapshot, expression.key);
 
   return (
@@ -379,23 +393,17 @@ function ExpressionInspector({ session, selection, settings, translationService,
         <p className="text-[11px] uppercase tracking-wider text-foreground-subtle">{dynamicT(t, `learning:expressionKinds.${expression.kind}`, undefined, expression.kind)}</p>
         <h2 className="font-serif text-2xl text-foreground" lang={document.language}>{expression.label}</h2>
         <div className="mt-3 space-y-2">
-          <StateControl value={state} onChange={(next) => void session.setKnowledge(expression.key, expression.label, next)} />
-          <button
-            type="button"
-            disabled={inReview}
-            onClick={() => void session.addToVocabulary({ key: expression.key, label: expression.label, itemType: "expression", sentenceId: selection.sentenceId })}
-            className="flex w-full items-center justify-center gap-1.5 rounded-sm bg-surface-muted px-2 py-1.5 text-xs text-foreground hover:bg-border-strong disabled:opacity-60 cursor-pointer"
-          >
-            {inReview ? <Check size={13} /> : <BookmarkPlus size={13} />}
-            {inReview ? t("learning:inspector.inVocabulary") : t("learning:inspector.saveExpression")}
-          </button>
+          <StateControl value={state} onChange={(next) => void session.setKnowledge(expression.key, expression.label, next, undefined, { sentenceId: selection.sentenceId, itemType: "expression" })} />
+          <p className="text-xs text-foreground-subtle">
+            {state === "learning" ? t("learning:inspector.inReviewHint") : t("learning:inspector.learningHint")}
+          </p>
         </div>
       </header>
       <Section title={t("learning:inspector.translation")}>
         {reference && (
           <div className="mb-2">
             <p className="text-sm text-foreground">{reference}</p>
-            <p className="text-[10px] uppercase tracking-wider text-foreground-subtle">{t("learning:translation.reference")}</p>
+            <p className="text-[11px] uppercase tracking-wide text-foreground-subtle">{t("learning:translation.reference")}</p>
           </div>
         )}
         <TranslationBlock state={lookup} />
@@ -481,14 +489,14 @@ function SentenceInspector({ session, selection, settings, translationService, t
         title={t("learning:inspector.translation")}
         aside={(
           <label className="flex items-center gap-1 text-[11px] text-foreground-muted cursor-pointer" title={t("learning:translation.progressiveHint")}>
-            <input type="checkbox" checked={progressive} onChange={(event) => setProgressive(event.target.checked)} />
+            <input type="checkbox" className="accent-primary" checked={progressive} onChange={(event) => setProgressive(event.target.checked)} />
             <Eye size={11} /> {t("learning:translation.progressive")}
           </label>
         )}
       >
         <TranslationBlock state={lookup} progressive={progressive} />
         <div className="mt-3">
-          <p className="mb-1 text-[10px] uppercase tracking-wider text-foreground-subtle">{t("learning:translation.literal")}</p>
+          <p className="mb-1 text-[11px] uppercase tracking-wide text-foreground-subtle">{t("learning:translation.literal")}</p>
           <p className="text-xs leading-relaxed">
             {views.map((view, i) => {
               const tuple = located.sentence.tokens[i];
@@ -511,7 +519,7 @@ function SentenceInspector({ session, selection, settings, translationService, t
             </button>
           ) : (
             <>
-              <p className="mb-1 text-[10px] uppercase tracking-wider text-foreground-subtle">{t("learning:translation.paragraph")}</p>
+              <p className="mb-1 text-[11px] uppercase tracking-wide text-foreground-subtle">{t("learning:translation.paragraph")}</p>
               <TranslationBlock state={paragraphLookup} progressive={progressive} />
             </>
           )}
@@ -522,7 +530,7 @@ function SentenceInspector({ session, selection, settings, translationService, t
         title={t("learning:grammar.title")}
         aside={analysis && (
           <label className="flex items-center gap-1 text-[11px] text-foreground-muted cursor-pointer">
-            <input type="checkbox" checked={grammarHighlight} onChange={(event) => onGrammarHighlight(event.target.checked ? analysis : null, event.target.checked ? selection.sentenceId : null)} />
+            <input type="checkbox" className="accent-primary" checked={grammarHighlight} onChange={(event) => onGrammarHighlight(event.target.checked ? analysis : null, event.target.checked ? selection.sentenceId : null)} />
             {t("learning:grammar.highlight")}
           </label>
         )}

@@ -2,7 +2,8 @@
  * Per-viewer reader preferences for the language-learning reader. These are
  * display conveniences; learning data itself lives in SQLite.
  */
-export type LearningTheme = "app" | "light" | "dark" | "sepia";
+/** "app" follows the application theme tokens; "sepia" is a paper tone for long reading. */
+export type LearningTheme = "app" | "sepia";
 
 export interface LearningReaderSettings {
   /** Language-learning mode (vocabulary indicators) vs traditional reading. */
@@ -22,8 +23,6 @@ export interface LearningReaderSettings {
   progressPanelOpen: boolean;
   /** Clicking an unknown word in the text moves it to "learning" and adds it to the vocabulary. */
   autoLearnOnClick: boolean;
-  /** Wider side panel (word list). */
-  panelWide: boolean;
 }
 
 export const DEFAULT_LEARNING_SETTINGS: LearningReaderSettings = {
@@ -40,7 +39,6 @@ export const DEFAULT_LEARNING_SETTINGS: LearningReaderSettings = {
   inspectorOpen: true,
   progressPanelOpen: false,
   autoLearnOnClick: true,
-  panelWide: false,
 };
 
 const SETTINGS_KEY = "lyceum-learning-reader:settings";
@@ -54,7 +52,8 @@ export function sanitizeSettings(raw: unknown, fallbackNative: string): Learning
   const value = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof LearningReaderSettings, unknown>>;
   const defaults = { ...DEFAULT_LEARNING_SETTINGS, nativeLanguage: fallbackNative };
   const bool = (key: keyof LearningReaderSettings) => (typeof value[key] === "boolean" ? value[key] as boolean : defaults[key] as boolean);
-  const theme = value.theme === "light" || value.theme === "dark" || value.theme === "sepia" || value.theme === "app" ? value.theme : defaults.theme;
+  // Older "light"/"dark" reader themes duplicated the app theme; they now follow it.
+  const theme = value.theme === "sepia" ? "sepia" : "app";
   return {
     learningMode: bool("learningMode"),
     showHighlights: bool("showHighlights"),
@@ -69,7 +68,6 @@ export function sanitizeSettings(raw: unknown, fallbackNative: string): Learning
     inspectorOpen: bool("inspectorOpen"),
     progressPanelOpen: bool("progressPanelOpen"),
     autoLearnOnClick: bool("autoLearnOnClick"),
-    panelWide: bool("panelWide"),
   };
 }
 

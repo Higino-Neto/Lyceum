@@ -23,10 +23,55 @@ function renderContainerXml() {
 </container>`;
 }
 
-function renderToc(chapters: EpubChapterFile[]) {
-  const items = chapters
-    .map((chapter) => `    <li><a href="${escapeXml(chapter.href)}">${escapeXml(chapter.title)}</a></li>`)
+export interface EpubPageListEntry {
+  label: string;
+  /** Path relative to the nav document, with fragment. */
+  href: string;
+}
+
+function renderPageListNav(pageList: EpubPageListEntry[]) {
+  if (pageList.length === 0) return "";
+  const items = pageList
+    .map((page) => `      <li><a href="${escapeXml(page.href)}">${escapeXml(page.label)}</a></li>`)
     .join("\n");
+  return `
+  <nav epub:type="page-list" id="page-list" hidden="hidden">
+    <h2>Paginas</h2>
+    <ol>
+${items}
+    </ol>
+  </nav>`;
+}
+
+export interface EpubTocEntry {
+  href: string;
+  title: string;
+  /** 1 = top level. */
+  level: number;
+}
+
+/** Nested <ol> for a flat list of entries with levels. */
+function renderTocItems(entries: EpubTocEntry[]): string {
+  let html = "";
+  let depth = 0;
+  for (const entry of entries) {
+    const level = Math.max(1, Math.min(entry.level, depth + 1));
+    if (level > depth) {
+      html += "<ol>".repeat(level - depth);
+    } else {
+      html += "</li>";
+      html += "</ol></li>".repeat(depth - level);
+    }
+    depth = level;
+    html += `<li><a href="${escapeXml(entry.href)}">${escapeXml(entry.title)}</a>`;
+  }
+  if (depth > 0) html += "</li>" + "</ol></li>".repeat(depth - 1) + "</ol>";
+  return html;
+}
+
+function renderToc(chapters: EpubChapterFile[], pageList: EpubPageListEntry[] = [], toc?: EpubTocEntry[]) {
+  const entries = toc?.length ? toc : chapters.map((chapter) => ({ href: chapter.href, title: chapter.title, level: 1 }));
+  const items = renderTocItems(entries);
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
@@ -38,10 +83,8 @@ function renderToc(chapters: EpubChapterFile[]) {
 <body>
   <nav epub:type="toc" id="toc">
     <h1>Sumario</h1>
-    <ol>
-${items}
-    </ol>
-  </nav>
+    ${items}
+  </nav>${renderPageListNav(pageList)}
 </body>
 </html>`;
 }
@@ -58,9 +101,12 @@ function renderOpf(metadata: EpubMetadata, chapters: EpubChapterFile[], assets: 
   const manifestAssets = assets
     .map((asset, index) => {
       const id = `asset-${index + 1}`;
-      return `    <item id="${id}" href="${escapeXml(asset.href)}" media-type="${escapeXml(asset.mediaType)}" />`;
+      const properties = asset.properties ? ` properties="${escapeXml(asset.properties)}"` : "";
+      return `    <item id="${id}" href="${escapeXml(asset.href)}" media-type="${escapeXml(asset.mediaType)}"${properties} />`;
     })
     .join("\n");
+  const coverIndex = assets.findIndex((asset) => asset.properties?.split(/\s+/).includes("cover-image"));
+  const coverMeta = coverIndex >= 0 ? `<meta name="cover" content="asset-${coverIndex + 1}" />` : "";
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
@@ -75,6 +121,7 @@ function renderOpf(metadata: EpubMetadata, chapters: EpubChapterFile[], assets: 
     <meta property="rendition:layout">${layout}</meta>
     ${layout === "pre-paginated" ? '<meta property="rendition:spread">none</meta>' : ""}
     <meta name="generator" content="Lyceum PDF to EPUB" />
+    ${coverMeta}
   </metadata>
   <manifest>
     <item id="nav" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav" />
@@ -103,6 +150,8 @@ export async function packageEpub(args: {
   css: string;
   assets?: EpubAsset[];
   layout?: "reflowable" | "pre-paginated";
+  pageList?: EpubPageListEntry[];
+  toc?: EpubTocEntry[];
 }) {
   const zip = new JSZip();
 
@@ -111,7 +160,7 @@ export async function packageEpub(args: {
   });
   zip.file("META-INF/container.xml", renderContainerXml());
   zip.file("OEBPS/content.opf", renderOpf(args.metadata, args.chapters, args.assets, args.layout));
-  zip.file("OEBPS/toc.xhtml", renderToc(args.chapters));
+  zip.file("OEBPS/toc.xhtml", renderToc(args.chapters, args.pageList, args.toc));
   zip.file("OEBPS/styles/book.css", args.css);
 
   for (const chapter of args.chapters) {

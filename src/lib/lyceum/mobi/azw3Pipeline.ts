@@ -368,7 +368,10 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
         }
         cursor += length;
       }
-      if (metadata.kf8Boundary !== 0) errors.push(`EXTH 121 precisa ser 0 em AZW3 KF8-only; encontrado ${metadata.kf8Boundary ?? "ausente"}.`);
+      // EXTH 121 (KF8 boundary) only exists in joint MOBI/KF8 files.
+      if (metadata.kf8Boundary !== undefined && metadata.kf8Boundary !== 0 && metadata.kf8Boundary !== NULL_INDEX) {
+        errors.push(`EXTH 121 indica arquivo MOBI/KF8 combinado (${metadata.kf8Boundary}); esperado AZW3 KF8-only.`);
+      }
     }
   } else {
     errors.push("Flag EXTH esta ativa, mas o registro EXTH nao foi encontrado apos o MOBI header.");
@@ -444,8 +447,9 @@ export function validateAzw3Buffer(input: Buffer | Uint8Array | ArrayBuffer): Az
   metadata.kindlePositionLinkCount = (
     decompressedTextString.match(/\bhref\s*=\s*["']kindle:pos:fid:/gi) || []
   ).length;
-  const embedIndices = [...decompressedTextString.matchAll(/kindle:embed:(\d+)/gi)]
-    .map((match) => Number.parseInt(match[1], 10))
+  // kindle:embed indices are base-32 (0-9, A-V), 1-based.
+  const embedIndices = [...decompressedTextString.matchAll(/kindle:embed:([0-9A-V]+)/gi)]
+    .map((match) => Number.parseInt(match[1], 32))
     .filter(Number.isFinite);
   metadata.kindleEmbedReferenceCount = embedIndices.length;
 
@@ -504,4 +508,107 @@ export function assertValidAzw3File(filePath: string): Azw3ValidationResult {
     throw new Error(`AZW3 invalido: ${validation.errors.join("; ")}`);
   }
   return validation;
+}
+
+export interface MobiBookText {
+  /** Uncompressed text stream (the space APNX offsets live in). */
+  text: Buffer;
+  /** Length of the HTML flow; text after it (KF8 CSS flows) is not readable content. */
+  htmlLength: number;
+  pdbName: string;
+  mobiVersion: number;
+  asin?: string;
+  cdeType?: string;
+}
+
+/**
+ * Reads the uncompressed text of a MOBI 6 or KF8 (AZW3) book, plus the ids the
+ * Kindle uses to pair an APNX sidecar. For joint MOBI/KF8 files the KF8 half is
+ * used, since that is what current Kindles render. DRM-protected books throw.
+ */
+export function readMobiBookText(input: Buffer | Uint8Array | ArrayBuffer): MobiBookText {
+  const buffer = asBuffer(input);
+  if (readAscii(buffer, 60, 8) !== "BOOKMOBI") throw new Error("Arquivo nao e um livro MOBI/AZW3.");
+  const pdbName = readAscii(buffer, 0, 32).replace(/\0[\s\S]*$/, "").trim();
+  const recordCount = readUInt16BE(buffer, 76);
+  const offsets: number[] = [];
+  for (let index = 0; index < recordCount; index += 1) {
+    offsets.push(readUInt32BE(buffer, PDB_HEADER_LENGTH + index * PDB_RECORD_ENTRY_LENGTH));
+  }
+
+  const parseHeader = (recordIndex: number) => {
+    const recordZero = offsets[recordIndex] ?? 0;
+    const recordEnd = offsets[recordIndex + 1] ?? buffer.length;
+    const mobiOffset = recordZero + MOBI_HEADER_OFFSET;
+    if (readAscii(buffer, mobiOffset, 4) !== "MOBI") throw new Error("Cabecalho MOBI ausente.");
+    const headerLength = readUInt32BE(buffer, mobiOffset + 4);
+    const exth = new Map<number, Buffer>();
+    const exthStart = mobiOffset + headerLength;
+    if ((readUInt32BE(buffer, recordZero + 128) & EXTH_PRESENT_FLAG) && readAscii(buffer, exthStart, 4) === "EXTH") {
+      const exthLength = readUInt32BE(buffer, exthStart + 4);
+      const count = readUInt32BE(buffer, exthStart + 8);
+      let cursor = exthStart + 12;
+      for (let index = 0; index < count; index += 1) {
+        const type = readUInt32BE(buffer, cursor);
+        const length = readUInt32BE(buffer, cursor + 4);
+        if (length < 8 || cursor + length > Math.min(exthStart + exthLength, recordEnd)) break;
+        if (!exth.has(type)) exth.set(type, buffer.subarray(cursor + 8, cursor + length));
+        cursor += length;
+      }
+    }
+    return {
+      recordZero,
+      compression: readUInt16BE(buffer, recordZero),
+      textLength: readUInt32BE(buffer, recordZero + 4),
+      textRecordCount: readUInt16BE(buffer, recordZero + 8),
+      encryption: readUInt16BE(buffer, recordZero + 12),
+      mobiVersion: readUInt32BE(buffer, mobiOffset + 20),
+      extraDataFlags: headerLength >= 228 ? readUInt32BE(buffer, mobiOffset + 224) : 0,
+      fdstRecord: headerLength >= 184 ? readUInt32BE(buffer, mobiOffset + 176) : NULL_INDEX,
+      exth,
+    };
+  };
+
+  let base = 0;
+  let header = parseHeader(0);
+  const boundary = header.exth.get(121);
+  if (boundary && boundary.length >= 4) {
+    const kf8Index = boundary.readUInt32BE(0);
+    if (kf8Index !== NULL_INDEX && kf8Index > 0 && kf8Index < recordCount) {
+      base = kf8Index;
+      header = parseHeader(kf8Index);
+    }
+  }
+  if (header.encryption !== 0) throw new Error("Livro protegido por DRM.");
+  if (header.compression !== 1 && header.compression !== 2) {
+    throw new Error(`Compressao nao suportada (${header.compression}).`);
+  }
+
+  const relativeOffsets = offsets.slice(base);
+  const text = decodeTextRecords(
+    buffer,
+    relativeOffsets,
+    header.textRecordCount,
+    header.compression,
+    header.extraDataFlags,
+  ).subarray(0, header.textLength || undefined);
+
+  let htmlLength = text.length;
+  if (header.mobiVersion >= 8 && header.fdstRecord !== NULL_INDEX) {
+    const fdst = recordSlice(buffer, relativeOffsets, header.fdstRecord);
+    if (startsWith(fdst, "FDST") && readUInt32BE(fdst, 8) >= 1) {
+      const firstEnd = readUInt32BE(fdst, 16);
+      if (firstEnd > 0 && firstEnd <= text.length) htmlLength = firstEnd;
+    }
+  }
+
+  const exthString = (type: number) => header.exth.get(type)?.toString("utf8").replace(/\0+$/, "").trim() || undefined;
+  return {
+    text,
+    htmlLength,
+    pdbName,
+    mobiVersion: header.mobiVersion,
+    asin: exthString(113) || exthString(504),
+    cdeType: exthString(501),
+  };
 }

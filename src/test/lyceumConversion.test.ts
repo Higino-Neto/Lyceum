@@ -64,8 +64,9 @@ describe("Lyceum package validation", () => {
 
     const validation = validateLyceumPackage(pkg);
 
-    expect(validation.valid).toBe(false);
-    expect(validation.errors.join("\n")).toContain("Anchor ausente");
+    // A dangling anchor is common in real books: reported, but not fatal.
+    expect(validation.valid).toBe(true);
+    expect(validation.warnings.join("\n")).toContain("Anchor ausente");
   });
 });
 
@@ -580,9 +581,15 @@ describe("lyceum conversion core", () => {
     expect(view.getUint32(recordZeroOffset + 128, false) & 0x40).toBe(0x40);
     expect(view.getUint32(mobiOffset + 224, false)).toBe(3);
     expect(view.getUint32(mobiOffset + 176, false)).toBe(result.exportReport.stats.fdstRecord);
-    expect(view.getUint32(mobiOffset + 180, false)).toBe(1);
+    // FDST count matches the two flows (HTML + CSS) in the FDST record.
+    expect(view.getUint32(mobiOffset + 180, false)).toBe(2);
     expect(validation.metadata.fdstRecord).toBe(result.exportReport.stats.fdstRecord);
-    expect(validation.metadata.fdstCount).toBe(1);
+    expect(validation.metadata.fdstCount).toBe(2);
+    // Orthographic index must be NULL: 0 makes the Kindle treat the book as a
+    // dictionary and fail with "Application Error".
+    expect(view.getUint32(mobiOffset + 24, false)).toBe(0xffffffff);
+    // No DRM: count 0.
+    expect(view.getUint32(mobiOffset + 156, false)).toBe(0);
     expect(validation.metadata.fcisRecord).toBe(result.exportReport.stats.fcisRecord);
     expect(validation.metadata.flisRecord).toBe(result.exportReport.stats.flisRecord);
     expect(validation.metadata.decompressedTextLength).toBe(validation.metadata.textLength);
@@ -590,21 +597,23 @@ describe("lyceum conversion core", () => {
     expect(recordView(validation.metadata.flisRecord!).getUint32(4, false)).toBe(8);
     expect(recordView(validation.metadata.fcisRecord!).getUint32(4, false)).toBe(20);
     expect(recordView(validation.metadata.fcisRecord!).getUint32(12, false)).toBe(2);
-    // EXTH 121 (KF8 boundary) should be 0 for KF8-only output
+    // EXTH: string records with their spec meaning; no KF8 boundary (121) in
+    // KF8-only output and none of the misused types older builds wrote.
     const exthOffset = mobiOffset + view.getUint32(mobiOffset + 4, false);
     const exthRecordCount = view.getUint32(exthOffset + 8, false);
-    let foundExth121 = false;
+    const exth = new Map<number, Buffer>();
     let exthCursor = exthOffset + 12;
     for (let recordIndex = 0; recordIndex < exthRecordCount; recordIndex += 1) {
       const exthType = view.getUint32(exthCursor, false);
       const exthSize = view.getUint32(exthCursor + 4, false);
-      if (exthType === 121) {
-        expect(view.getUint32(exthCursor + 8, false)).toBe(0);
-        foundExth121 = true;
-      }
+      exth.set(exthType, azw3Buffer.subarray(exthCursor + 8, exthCursor + exthSize));
       exthCursor += exthSize;
     }
-    expect(foundExth121).toBe(true);
+    expect(exth.get(503)?.toString("utf8")).toBeTruthy();
+    expect(exth.get(503)?.includes(0)).toBe(false);
+    expect(exth.get(524)?.toString("utf8")).toMatch(/^[a-z]{2,3}$/);
+    expect(exth.get(501)?.toString("utf8")).toBe("EBOK");
+    for (const misused of [102, 107, 110, 111, 114, 115, 118, 119, 121]) expect(exth.has(misused)).toBe(false);
     expect(result.exportReport.stats.chapterCount).toBe(2);
     expect(result.exportReport.stats.fragmentCount).toBe(2);
     expect(result.exportReport.stats.backend).toBe("lyceum-manual");
@@ -696,7 +705,7 @@ describe("lyceum conversion core", () => {
     expect(validation.metadata.invalidImageResourceCount).toBe(0);
     expect(validation.metadata.kindleEmbedReferenceCount).toBeGreaterThan(0);
     expect(validation.metadata.coverImageOffset).toBe(0);
-    expect(validation.metadata.kf8Boundary).toBe(0);
+    expect(validation.metadata.kf8Boundary).toBeUndefined();
   });
 
   it("rewrites EPUB internal links to Kindle position links before AZW3 export", async () => {

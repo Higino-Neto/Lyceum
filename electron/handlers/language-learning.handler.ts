@@ -257,6 +257,12 @@ export function registerLanguageLearningHandlers(ipcMain: IpcMain, dependencies:
     return track(rawUser, (user) => repository.upsertReviewItem(user, item));
   });
 
+  ipcMain.handle("language-learning:upsert-review-items", (_, rawUser: unknown, rawItems: unknown) => {
+    if (!Array.isArray(rawItems) || rawItems.length > 50_000) throw new Error("items must be an array of at most 50000 items");
+    const items = rawItems.map(validReviewItem);
+    return track(rawUser, (user) => repository.upsertReviewItems(user, items));
+  });
+
   ipcMain.handle("language-learning:delete-review-item", (_, rawUser: unknown, rawId: unknown) =>
     track(rawUser, (user) => repository.deleteReviewItem(user, nonEmptyString(rawId, "id", 400))));
 

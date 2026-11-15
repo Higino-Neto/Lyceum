@@ -130,8 +130,20 @@ const XHTML_ENTITY_MAP: Record<string, string> = {
   ),
 };
 
+/**
+ * Characters XML 1.0 forbids (C0 controls except tab/LF/CR, U+FFFE/U+FFFF and
+ * unpaired surrogates). HTML parsers accept them and PDF text extraction can
+ * produce them (math fonts), but any XHTML/OPF containing one fails to parse.
+ */
+// eslint-disable-next-line no-control-regex
+const XML_DISALLOWED = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+export function stripXmlDisallowedCharacters(value: string): string {
+  return value.replace(XML_DISALLOWED, "");
+}
+
 export function escapeXml(value: string) {
-  return value
+  return stripXmlDisallowedCharacters(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -154,7 +166,7 @@ export function normalizeHtmlEntitiesForXhtml(value: string) {
 }
 
 export function stripHtml(value: string) {
-  return decodeHtmlEntities(value)
+  return stripXmlDisallowedCharacters(decodeHtmlEntities(value))
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")

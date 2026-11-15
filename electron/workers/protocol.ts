@@ -21,6 +21,8 @@ export type WorkerTaskKind =
   | "apply-book-cover"
   | "prepare-cover-image"
   | "validate-azw3"
+  | "build-apnx"
+  | "inspect-kindle-book"
   | "pdf-tool"
   | "output-preview-export"
   | "prepare-learning-document";
@@ -136,6 +138,14 @@ export interface WorkerTaskPayloads {
   };
   "prepare-cover-image": { sourcePath: string; outputPath: string };
   "validate-azw3": { filePath: string };
+  "build-apnx": {
+    filePath: string;
+    outputPath?: string;
+    pageNumbers?: LyceumConversionOptions["pageNumbers"];
+    printPageCount?: number;
+    charsPerPage?: number;
+  };
+  "inspect-kindle-book": import("../services/kindle-book-inspector").InspectKindleBookInput;
   "pdf-tool": PdfToolRequest;
   "output-preview-export": Omit<OutputPreviewExportInput, "renderImageAsset">;
   "prepare-learning-document": Omit<PrepareLearningInput, "onProgress">;
@@ -155,6 +165,8 @@ export interface WorkerTaskResults {
   "apply-book-cover": MetadataMutationWorkerResult;
   "prepare-cover-image": { outputPath: string };
   "validate-azw3": { valid: boolean; errors: string[]; warnings: string[] };
+  "build-apnx": { written: boolean; apnxPath?: string; pageCount: number; reason?: string };
+  "inspect-kindle-book": import("../services/kindle-book-inspector").InspectKindleBookResult;
   "pdf-tool": PdfToolResponse;
   "output-preview-export": OutputPreviewExportResult;
   "prepare-learning-document": PrepareLearningResult;

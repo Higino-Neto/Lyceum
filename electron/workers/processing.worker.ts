@@ -379,6 +379,16 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
       await writeCoverImageFile(input.sourcePath, input.outputPath);
       return { outputPath: input.outputPath } as WorkerTaskResults[K];
     }
+    case "inspect-kindle-book": {
+      const input = payload as WorkerTaskPayloads["inspect-kindle-book"];
+      const { inspectKindleBook } = await import("../services/kindle-book-inspector");
+      return await inspectKindleBook(input) as WorkerTaskResults[K];
+    }
+    case "build-apnx": {
+      const input = payload as WorkerTaskPayloads["build-apnx"];
+      const { writeApnxForMobiFile } = await import("../../src/lib/lyceum");
+      return writeApnxForMobiFile(input.filePath, input) as WorkerTaskResults[K];
+    }
     case "validate-azw3": {
       const input = payload as WorkerTaskPayloads["validate-azw3"];
       const { validateAzw3File } = await import("../../src/lib/lyceum");

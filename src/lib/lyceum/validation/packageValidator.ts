@@ -71,6 +71,9 @@ function dataExists(pkg: LyceumPackage, href: string, data: Uint8Array | ArrayBu
   return Boolean(data) || fs.existsSync(textualResourcePath(pkg.rootPath, href));
 }
 
+// Broken links, missing anchors and missing CSS assets are common in real
+// EPUBs and do not stop a reader from opening the book: exporters resolve
+// them to the chapter start or drop them. They are warnings, never fatal.
 export function validateLyceumPackage(pkg: LyceumPackage): LyceumPackageValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -107,6 +110,18 @@ export function validateLyceumPackage(pkg: LyceumPackage): LyceumPackageValidati
     if (!dataExists(pkg, resource.href, resource.data)) errors.push(`Dados do recurso ausentes: ${resource.href}`);
   }
 
+  // ids per chapter, parsed once (books with many footnote links would
+  // otherwise re-parse the target chapter for every link).
+  const idsByChapter = new Map<string, Set<string>>();
+  const idsOf = (xhtml: string, key: string) => {
+    let ids = idsByChapter.get(key);
+    if (!ids) {
+      const parsed = new JSDOM(xhtml, { contentType: "application/xhtml+xml" }).window.document;
+      ids = new Set(Array.from(parsed.querySelectorAll("[id]")).map((element) => element.getAttribute("id") || ""));
+      idsByChapter.set(key, ids);
+    }
+    return ids;
+  };
   for (const chapter of textual.chapters) {
     const validation = validateXhtmlDocument(chapter.xhtml, chapter.href);
     if (!validation.valid) {
@@ -120,18 +135,17 @@ export function validateLyceumPackage(pkg: LyceumPackage): LyceumPackageValidati
       if (!reference || isExternal(reference)) continue;
       if (reference.startsWith("#")) {
         const fragment = decodeFragment(reference.slice(1));
-        if (fragment && !ids.has(fragment)) errors.push(`Anchor ausente em ${chapter.href}: ${reference}`);
+        if (fragment && !ids.has(fragment)) warnings.push(`Anchor ausente em ${chapter.href}: ${reference}`);
         continue;
       }
       const [pathname, fragment] = reference.split("#", 2);
       const targetPath = resolveHref(chapter.href, pathname);
       if (!allTargets.has(targetPath.toLowerCase())) {
-        errors.push(`Referencia quebrada em ${chapter.href}: ${reference}`);
+        warnings.push(`Referencia quebrada em ${chapter.href}: ${reference}`);
       } else if (fragment) {
         const targetChapter = chapters.get(targetPath.toLowerCase());
         if (targetChapter) {
-          const targetDocument = new JSDOM(targetChapter.xhtml, { contentType: "application/xhtml+xml" }).window.document;
-          if (!targetDocument.getElementById(decodeFragment(fragment))) errors.push(`Anchor de destino ausente em ${chapter.href}: ${reference}`);
+          if (!idsOf(targetChapter.xhtml, targetPath.toLowerCase()).has(decodeFragment(fragment))) warnings.push(`Anchor de destino ausente em ${chapter.href}: ${reference}`);
         }
       }
     }
@@ -145,7 +159,7 @@ export function validateLyceumPackage(pkg: LyceumPackage): LyceumPackageValidati
       checkedReferenceCount += 1;
       if (isExternal(reference) || reference.startsWith("data:")) continue;
       const target = resolveHref(resource.href, reference);
-      if (!allTargets.has(target.toLowerCase())) errors.push(`Referencia CSS quebrada em ${resource.href}: ${reference}`);
+      if (!allTargets.has(target.toLowerCase())) warnings.push(`Referencia CSS quebrada em ${resource.href}: ${reference}`);
     }
   }
 

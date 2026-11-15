@@ -316,7 +316,7 @@ function AppShell() {
           fileHash: result.fileHash,
           fileName: result.fileName,
           filePath: result.foundAt || result.filePath || item.outputPath,
-          fileType: item.targetFormat,
+          fileType: result.fileType ?? (item.targetFormat === "pdf" ? "pdf" : "epub"),
           source: "library",
           navigationId: crypto.randomUUID(),
         },

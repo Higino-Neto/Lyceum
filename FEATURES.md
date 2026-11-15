@@ -94,21 +94,21 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 #### 3.0.0
 
-- [ ] Nessa nova feature do lyceum reader, eu quero que você use os design tokens que eu adotei na aplicação e olhe para como as outras features são visualmente para manter a consistência visual, que está faltando nessa nova janela.
+- [x] Nessa nova feature do lyceum reader, eu quero que você use os design tokens que eu adotei na aplicação e olhe para como as outras features são visualmente para manter a consistência visual, que está faltando nessa nova janela.
 
-- [ ] Ao invés de um botão narrower panel, coloque aquela borda que dá para redimensionar, assim como vários outros componentes do aplicativo. Reaproveite essa lógica.
+- [x] Ao invés de um botão narrower panel, coloque aquela borda que dá para redimensionar, assim como vários outros componentes do aplicativo. Reaproveite essa lógica.
 
-- [ ] Não precisa ter um botão separado para adicionar palavras no vocabulário. Se a palavra for marcada como Learning, ela já tem que ir direto para lá e essa deve ser a forma do usuário conseguir colocar palavras para revisar.
+- [x] Não precisa ter um botão separado para adicionar palavras no vocabulário. Se a palavra for marcada como Learning, ela já tem que ir direto para lá e essa deve ser a forma do usuário conseguir colocar palavras para revisar.
 
-- [ ] Esses toasts do tipo: “énorme” → Learning, added to your vocabulary não devem aparecer mais. Pq o usuário vai clicar em várias dessas palavras e esse feedback não é necessário.
+- [x] Esses toasts do tipo: “énorme” → Learning, added to your vocabulary não devem aparecer mais. Pq o usuário vai clicar em várias dessas palavras e esse feedback não é necessário.
 
-- [ ] Botão direito em uma palavra abre um painel com várias funcionalidades inúteis. As únicas úteis ali são as de trocar o status da palavra, de adicionar nova nota, de abrir o painel lateral e de copiar a palavra.
+- [x] Botão direito em uma palavra abre um painel com várias funcionalidades inúteis. As únicas úteis ali são as de trocar o status da palavra, de adicionar nova nota, de abrir o painel lateral e de copiar a palavra.
 
-- [ ] Não é necessário um ícone no topo para mostrar que All changes saved. Isso deveria estar em um lugar que chame menos atenção.
+- [x] Não é necessário um ícone no topo para mostrar que All changes saved. Isso deveria estar em um lugar que chame menos atenção.
 
-- [ ] As descrições do tipo (All forms, This form) são descrições ruins. Eu bato o olho e não sei o que significam. 
+- [x] As descrições do tipo (All forms, This form) são descrições ruins. Eu bato o olho e não sei o que significam. 
 
-- [ ] Essa parte da aba que fala:
+- [x] Essa parte da aba que fala:
 READING
 Chapter
 1 / 4
@@ -122,6 +122,6 @@ Reading progress is tracked separately from vocabulary knowledge.
 
 Pode ser apagada. Esse não é o escopo correto para essas funcionalidades.
 
-- [ ] Eu quero que Ctrl + click em uma palavra marque ela como Known automaticamente, sem precisar do fluxo de entrar na aba e trocar.
+- [x] Eu quero que Ctrl + click em uma palavra marque ela como Known automaticamente, sem precisar do fluxo de entrar na aba e trocar.
 
-
+- [x] A tabela de words está travando, provavelmente porque ela não tem paginação como deveria (ou lazy loading).

@@ -7,12 +7,16 @@ import {
   extractImageCandidatesFromPdfJsPage,
   extractTokensFromPdfJsPage,
 } from "./geometry";
-import { renderDefaultCss, renderSectionToXhtml } from "./html";
+import { repairPrivateUseGlyphs } from "./glyphRepair";
+import { PdfPageMarkerTracker, renderDefaultCss, renderSectionToXhtml } from "./html";
+import { pageAnchorHtml, pageAnchorId } from "../lyceum/pagination/pageAnchors";
 import { escapeXml } from "./text";
 import { applyReadingOrder } from "./layout";
 import { removeNoiseLines } from "./noise";
 import { buildParagraphs } from "./paragraphs";
-import { buildSections, groupListItems, paragraphToBlock } from "./semantics";
+import { groupListItems, paragraphToBlock } from "./semantics";
+import { buildOutlineSections, mergeHeadingRuns, type OutlineSection } from "./structure";
+import type { EpubTocEntry } from "./epub";
 import type {
   Block,
   ConversionReport,
@@ -82,7 +86,7 @@ function createIdentifier(data: ArrayBuffer) {
 }
 
 function inferTitle(sections: Section[], fallback = "Documento convertido") {
-  const firstMeaningful = sections.find((section) => section.title && section.title !== "Inicio");
+  const firstMeaningful = sections.find((section) => section.title && !(section as OutlineSection).front);
   return firstMeaningful?.title || fallback;
 }
 
@@ -155,7 +159,7 @@ function renderFixedLayoutChapter(page: PageModel, asset: import("./types").Epub
     title,
     xhtml: `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-BR">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=${Math.round(page.width)},height=${Math.round(page.height)}" />
@@ -163,11 +167,29 @@ function renderFixedLayoutChapter(page: PageModel, asset: import("./types").Epub
   <link rel="stylesheet" type="text/css" href="../styles/book.css" />
 </head>
 <body class="fixed-page">
+  ${pageAnchorHtml(String(page.pageNumber))}
   <img class="page-image" src="../${asset.href}" alt="${title}" />
   <div class="page-text" aria-label="Texto extraido da pagina">${escapeXml(text).replace(/\n/g, "<br />")}</div>
 </body>
 </html>`,
   };
+}
+
+function renderCoverPage(title: string, imageHref: string, markers: string, language = "pt-BR") {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(language)}">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeXml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="../styles/book.css" />
+</head>
+<body class="cover-page">
+<section epub:type="cover">
+${markers}<img class="cover-image" src="${escapeXml(imageHref)}" alt="${escapeXml(title)}" />
+</section>
+</body>
+</html>`;
 }
 
 function fixedLayoutCss() {
@@ -193,7 +215,7 @@ function buildImageBlocks(assets: import("./types").EpubAsset[], candidates: imp
         start: candidate.pageNumber,
         end: candidate.pageNumber,
       },
-      text: `Imagem da pagina ${candidate.pageNumber}`,
+      text: "",
       bbox: candidate.bbox,
       confidence: candidate.confidence,
       attrs: {
@@ -295,8 +317,8 @@ export function reconstructStructureFromPages(
   const orderedLines = orderedPages.flatMap((page) => page.orderedLines);
   const paragraphs = buildParagraphs(orderedLines, stats);
   const textBlocks = paragraphs.map((paragraph) => paragraphToBlock(paragraph, stats));
-  const blocks = groupListItems(sortBlocksByPageGeometry([...textBlocks, ...imageBlocks]));
-  const sections = buildSections(blocks);
+  const blocks = mergeHeadingRuns(groupListItems(sortBlocksByPageGeometry([...textBlocks, ...imageBlocks])));
+  const sections = buildOutlineSections(blocks);
 
   return {
     stats,
@@ -324,6 +346,21 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+/**
+ * "auto" keeps text PDFs reflowable (adjustable font, real page markers) and
+ * only preserves pages as images when the PDF is mostly scanned/drawn pages
+ * (comics, scans) and a page renderer is available.
+ */
+export function choosePdfEpubMode(
+  pages: Array<Pick<PageModel, "requiresOcr">>,
+  options: Pick<ConvertPdfToEpubOptions, "mode" | "renderImageAsset">,
+): "reflow" | "fixed-layout" {
+  if (options.mode === "fixed-layout") return "fixed-layout";
+  if (options.mode === "reflow" || !options.renderImageAsset || pages.length === 0) return "reflow";
+  const imagePages = pages.filter((page) => page.requiresOcr).length;
+  return imagePages / pages.length >= 0.5 ? "fixed-layout" : "reflow";
+}
+
 export async function convertPdfToEpub(
   pdfData: ArrayBuffer,
   options: ConvertPdfToEpubOptions = {},
@@ -331,14 +368,15 @@ export async function convertPdfToEpub(
   // PDF.js may transfer and detach the supplied ArrayBuffer. Keep the original
   // available for deterministic identifiers and later integrity reporting.
   const pages = await parsePdfToPages(pdfData.slice(0), options);
+  const repairedGlyphs = repairPrivateUseGlyphs(pages);
   options.onProgress?.(0.12, `${pages.length} paginas analisadas`);
-  const mode: "reflow" | "fixed-layout" = options.mode === "fixed-layout"
-    || (options.mode !== "reflow" && Boolean(options.renderImageAsset))
-    ? "fixed-layout"
-    : "reflow";
+  const mode = choosePdfEpubMode(pages, options);
   const warnings = pages
     .filter((page) => page.requiresOcr)
     .map((page) => `Pagina ${page.pageNumber} tem pouco texto extraido e pode precisar de OCR.`);
+  if (repairedGlyphs.size > 0) {
+    warnings.push(`Ligaduras sem Unicode reconstruidas: ${Array.from(repairedGlyphs.values()).join(", ")}.`);
+  }
   if (mode === "fixed-layout") {
     if (!options.renderImageAsset) throw new Error("O modo fixed-layout exige um renderizador de paginas PDF.");
     let renderedPageCount = 0;
@@ -354,6 +392,7 @@ export async function convertPdfToEpub(
     const missingPages = renderedPages.filter((item) => !item.asset).map((item) => item.page.pageNumber);
     if (missingPages.length) throw new Error(`Falha ao preservar as paginas PDF: ${missingPages.join(", ")}.`);
     const completePages = renderedPages as Array<{ page: PageModel; asset: import("./types").EpubAsset }>;
+    if (completePages[0]) completePages[0].asset.properties = "cover-image";
     const metadata = buildMetadata(pdfData, [], options);
     const chapters = completePages.map(({ page, asset }) => renderFixedLayoutChapter(page, asset));
     const epub = await packageEpub({
@@ -362,6 +401,10 @@ export async function convertPdfToEpub(
       css: fixedLayoutCss(),
       assets: completePages.map((item) => item.asset),
       layout: "pre-paginated",
+      pageList: completePages.map(({ page }, index) => ({
+        label: String(page.pageNumber),
+        href: `${chapters[index].href}#${pageAnchorId(String(page.pageNumber))}`,
+      })),
     });
     options.onProgress?.(0.96, "Validando pacote EPUB");
     return {
@@ -403,21 +446,79 @@ export async function convertPdfToEpub(
         Boolean(pair.asset),
       )
     : [];
+  // Cover: the Lyceum cover of a PDF is its first page, so page 1 is rendered
+  // at full resolution and opens the book on its own page (no invented text).
+  const firstPage = pages[0];
+  const coverAsset = options.renderImageAsset && firstPage
+    ? await options.renderImageAsset(fixedLayoutCandidate(firstPage)).catch(() => null)
+    : null;
+  if (coverAsset) {
+    coverAsset.href = coverAsset.href.replace(/[^/]+$/, (name) => `cover-${name}`);
+    coverAsset.properties = "cover-image";
+  }
+  // Page 1 art already shown by the cover page is not repeated in the text.
+  const pageArea = firstPage ? firstPage.width * firstPage.height : 1;
+  const firstPageArt = coverAsset
+    ? renderedImagePairs.filter((pair) => pair.candidate.pageNumber === 1
+      && (pair.candidate.bbox.width * pair.candidate.bbox.height) / Math.max(1, pageArea) >= 0.5)
+    : [];
+  const contentImagePairs = renderedImagePairs.filter((pair) => !firstPageArt.includes(pair));
+  const coverIsArtOnly = firstPageArt.length > 0;
   const imageBlocks = buildImageBlocks(
-    renderedImagePairs.map((pair) => pair.asset),
-    renderedImagePairs.map((pair) => pair.candidate),
+    contentImagePairs.map((pair) => pair.asset),
+    contentImagePairs.map((pair) => pair.candidate),
   );
-  const structure = reconstructStructureFromPages(pages, imageBlocks);
+  const pagesForText = coverIsArtOnly
+    ? pages.map((page) => (page.pageNumber === 1 ? { ...page, lines: [], orderedLines: [], tokens: [] } : page))
+    : pages;
+  const structure = reconstructStructureFromPages(pagesForText, imageBlocks);
   const metadata = buildMetadata(pdfData, structure.sections, options);
-  const chapters = buildChapterFiles(structure.sections, renderSectionToXhtml);
+  const pageTracker = new PdfPageMarkerTracker(pages.length);
+  let coverChapter: { id: string; href: string; title: string; xhtml: string } | null = null;
+  if (coverAsset) {
+    pageTracker.setChapter(-1);
+    coverChapter = {
+      id: "cover",
+      href: "text/cover.xhtml",
+      title: metadata.title,
+      xhtml: renderCoverPage(metadata.title, `../${coverAsset.href}`, pageTracker.emitThrough(1), metadata.language),
+    };
+  }
+  const chapters = buildChapterFiles(
+    structure.sections,
+    (section, index) => renderSectionToXhtml(section, index, pageTracker, metadata.title),
+  ).map((chapter, index) => ({
+    ...chapter,
+    title: structure.sections[index].title || metadata.title,
+  }));
+  const trailingMarkers = pageTracker.flush();
+  if (trailingMarkers && chapters.length > 0) {
+    const last = chapters[chapters.length - 1];
+    last.xhtml = last.xhtml.replace(/<\/section>\s*<\/body>/, `${trailingMarkers}\n</section>\n</body>`);
+  }
+  const markerHref = (chapterIndex: number) => (chapterIndex < 0 ? coverChapter?.href : chapters[chapterIndex]?.href);
+  const pageList = pageTracker.markers
+    .filter((marker) => markerHref(marker.chapterIndex))
+    .map((marker) => ({
+      label: String(marker.page),
+      href: `${markerHref(marker.chapterIndex)}#${marker.anchorId}`,
+    }));
+  const toc: EpubTocEntry[] = structure.sections.flatMap((section, index) => (
+    (section as OutlineSection).front || !section.title
+      ? []
+      : [{ href: chapters[index].href, title: section.title, level: section.level }]
+  ));
+  const allChapters = coverChapter ? [coverChapter, ...chapters] : chapters;
   const epub = await packageEpub({
     metadata,
-    chapters,
+    chapters: allChapters,
+    pageList,
+    toc: coverChapter ? [{ href: coverChapter.href, title: metadata.title, level: 1 }, ...toc] : toc,
     css: renderDefaultCss({
       lineHeight: options.lineHeight,
       paragraphSpacing: options.paragraphSpacing,
     }),
-    assets: renderedImagePairs.map((pair) => pair.asset),
+    assets: [...(coverAsset ? [coverAsset] : []), ...contentImagePairs.map((pair) => pair.asset)],
   });
   options.onProgress?.(0.96, "Validando pacote EPUB");
 

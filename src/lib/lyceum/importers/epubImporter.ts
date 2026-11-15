@@ -8,6 +8,7 @@ import type {
   ImportResult,
   LyceumBookMetadata,
   LyceumImporter,
+  LyceumPageTarget,
   LyceumTextualChapter,
   LyceumTextualContent,
   LyceumTextualResource,
@@ -41,6 +42,26 @@ interface ParsedNavigation {
   titlesByPath: Map<string, string>;
   toc: LyceumTocItem[];
   coverPageHref?: string;
+  pages?: LyceumPageTarget[];
+}
+
+function pageTargetFromHref(label: string, href: string, navDirectory: string, baseDirectory: string): LyceumPageTarget | null {
+  const cleanLabel = stripHtml(label).trim();
+  if (!href || !cleanLabel) return null;
+  const { suffix } = splitHref(href);
+  const fragment = suffix.startsWith("#") ? suffix.slice(1) : "";
+  let anchorId = fragment;
+  try {
+    anchorId = decodeURIComponent(fragment);
+  } catch {
+    anchorId = fragment;
+  }
+  const targetPath = resolveZipPath(navDirectory, href);
+  return {
+    label: cleanLabel,
+    href: packageHrefForZipPath(baseDirectory, targetPath, "page-target.xhtml"),
+    anchorId,
+  };
 }
 
 interface ParsedEpub {
@@ -162,7 +183,14 @@ function parseNavigationItems(nav: string, navDirectory: string, baseDirectory: 
     coverPageHref = packageHrefForZipPath(baseDirectory, targetPath, "cover.xhtml", suffix);
   }
 
-  return { titlesByPath, toc, coverPageHref };
+  const pageListNav = navElements.find((navElement) => /\bpage-list\b/i.test(navType(navElement)));
+  const pages = pageListNav
+    ? Array.from(pageListNav.querySelectorAll("a"))
+      .map((link) => pageTargetFromHref(link.textContent || "", attr(link, "href"), navDirectory, baseDirectory))
+      .filter((page): page is LyceumPageTarget => Boolean(page))
+    : [];
+
+  return { titlesByPath, toc, coverPageHref, pages };
 }
 
 function parseNcxNavPoint(args: {
@@ -197,20 +225,34 @@ function parseNcxNavMap(ncx: string, ncxDirectory: string, baseDirectory: string
   const titlesByPath = new Map<string, string>();
   const toc: LyceumTocItem[] = [];
   const document = parseXmlDocument(ncx, "NCX");
-  const navMap = Array.from(document.getElementsByTagName("*")).find((element) => element.localName === "navMap");
-  if (!navMap) return { titlesByPath, toc };
+  const allElements = Array.from(document.getElementsByTagName("*"));
+  const pageList = allElements.find((element) => element.localName === "pageList");
+  const pages = pageList
+    ? Array.from(pageList.getElementsByTagName("*"))
+      .filter((element) => element.localName === "pageTarget")
+      .map((target) => {
+        const label = Array.from(target.getElementsByTagName("*")).find((element) => element.localName === "text")?.textContent
+          || attr(target, "value");
+        const src = Array.from(target.getElementsByTagName("*")).find((element) => element.localName === "content")?.getAttribute("src") || "";
+        return pageTargetFromHref(label || "", src, ncxDirectory, baseDirectory);
+      })
+      .filter((page): page is LyceumPageTarget => Boolean(page))
+    : [];
+  const navMap = allElements.find((element) => element.localName === "navMap");
+  if (!navMap) return { titlesByPath, toc, pages };
 
   for (const navPoint of directElementChildren(navMap, "navPoint")) {
     parseNcxNavPoint({ navPoint, level: 1, ncxDirectory, baseDirectory, titlesByPath, toc });
   }
 
-  return { titlesByPath, toc };
+  return { titlesByPath, toc, pages };
 }
 
 async function parseNavigation(zip: JSZip, baseDirectory: string, graphItems: EpubResourceGraphItem[]) {
   const titlesByPath = new Map<string, string>();
   const toc: LyceumTocItem[] = [];
   let coverPageHref: string | undefined;
+  let pages: LyceumPageTarget[] = [];
 
   for (const item of graphItems.filter(isNavigationDocument)) {
     const nav = await getEntryText(zip, item.zipPath);
@@ -219,8 +261,12 @@ async function parseNavigation(zip: JSZip, baseDirectory: string, graphItems: Ep
     for (const [targetPath, title] of parsed.titlesByPath) titlesByPath.set(targetPath, title);
     toc.push(...parsed.toc);
     coverPageHref ||= parsed.coverPageHref;
+    if (pages.length === 0 && parsed.pages?.length) pages = parsed.pages;
   }
 
+  // EPUB 3 books often ship both the nav document and a legacy toc.ncx with
+  // the same entries; the NCX only fills in when the nav had no TOC.
+  const navHadToc = toc.length > 0;
   for (const item of graphItems.filter(isNcxDocument)) {
     const ncx = await getEntryText(zip, item.zipPath);
     if (!ncx) continue;
@@ -228,10 +274,11 @@ async function parseNavigation(zip: JSZip, baseDirectory: string, graphItems: Ep
     for (const [targetPath, title] of parsed.titlesByPath) {
       if (!titlesByPath.has(targetPath.toLowerCase())) titlesByPath.set(targetPath.toLowerCase(), title);
     }
-    toc.push(...parsed.toc);
+    if (!navHadToc) toc.push(...parsed.toc);
+    if (pages.length === 0 && parsed.pages?.length) pages = parsed.pages;
   }
 
-  return { titlesByPath, toc, coverPageHref };
+  return { titlesByPath, toc, coverPageHref, pages };
 }
 
 function tocWithChapterIds(toc: LyceumTocItem[], chaptersByHref: Map<string, LyceumTextualChapter>) {
@@ -388,6 +435,22 @@ export async function parseEpubBufferToTextual(epubBuffer: Buffer | Uint8Array |
     chaptersByHref.has(item.href.split("#")[0].toLowerCase())
   ));
   const coverResource = resources.find((resource) => resource.properties?.split(/\s+/).includes("cover-image"));
+  const textual = buildTextualContent(chapters, {
+    toc: toc.length ? toc : undefined,
+    resources,
+  });
+  const pageTargets = navigation.pages
+    .map((page) => {
+      const chapter = chaptersByHref.get(page.href.toLowerCase());
+      return chapter ? { ...page, href: chapter.href } : null;
+    })
+    .filter((page): page is LyceumPageTarget => Boolean(page));
+  if (pageTargets.length > 0) {
+    textual.pageMap = { source: "publisher", pages: pageTargets };
+  }
+  if (navigation.pages.length > pageTargets.length) {
+    warnings.push(`${navigation.pages.length - pageTargets.length} pagina(s) da page-list apontam para documentos fora do spine e foram ignoradas.`);
+  }
 
   return {
     metadata: {
@@ -396,10 +459,7 @@ export async function parseEpubBufferToTextual(epubBuffer: Buffer | Uint8Array |
       coverHref: coverResource?.href,
       coverPageHref: navigation.coverPageHref || graph.coverPageHref,
     },
-    textual: buildTextualContent(chapters, {
-      toc: toc.length ? toc : undefined,
-      resources,
-    }),
+    textual,
     warnings,
   };
 }

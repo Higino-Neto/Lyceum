@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { Archive, Maximize2, Minimize2, Trash2, X } from "lucide-react";
+import { AlertTriangle, Archive, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   computeCoverage,
@@ -29,7 +29,6 @@ interface LearningPanelProps {
   speechAvailable: boolean;
   onTab(tab: LearningTab): void;
   onWord(word: Pick<DifficultWord, "lexeme">): void;
-  onWide(wide: boolean): void;
   onChapter(chapterIndex: number): void;
   onAnnotation(id: string): void;
   onSpeak(text: string): void;
@@ -46,15 +45,10 @@ function CoverageBar({ known, learning, unknown }: { known: number; learning: nu
   );
 }
 
-function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-}
 
 function ProgressTab({ session, chapterIndex, onWord, onTab }: LearningPanelProps) {
   const { t } = useTranslation();
-  const { document, lookups, lapses, readingState } = session;
+  const { document, lookups, lapses } = session;
   const snapshot = useDeferredValue(session.snapshot);
   const formStates = useDeferredValue(session.formStates);
   const coverage = useMemo(() => (document ? computeCoverage(document, snapshot, formStates) : null), [document, formStates, snapshot]);
@@ -67,12 +61,11 @@ function ProgressTab({ session, chapterIndex, onWord, onTab }: LearningPanelProp
     [chapterIndex, document, formStates, lapses, lookups, snapshot],
   );
   if (!document || !coverage) return null;
-  const chaptersDone = readingState?.completedChapters.length ?? 0;
 
   return (
     <div className="space-y-5">
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("learning:progress.coverage")}</h3>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground-muted">{t("learning:progress.coverage")}</h3>
         <div className="space-y-3">
           <div>
             <div className="mb-1 flex justify-between text-xs"><span className="text-foreground-muted">{t("learning:progress.occurrenceCoverage")}</span><span className="tabular-nums text-foreground">{percent(coverage.occurrenceCoverage.known)}</span></div>
@@ -109,20 +102,10 @@ function ProgressTab({ session, chapterIndex, onWord, onTab }: LearningPanelProp
         </table>
       </section>
 
-      <section>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("learning:progress.reading")}</h3>
-        <dl className="grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-sm bg-background p-2"><dt className="text-foreground-subtle">{t("learning:progress.chapter")}</dt><dd className="text-foreground tabular-nums">{chapterIndex + 1} / {document.chapters.length}</dd></div>
-          <div className="rounded-sm bg-background p-2"><dt className="text-foreground-subtle">{t("learning:progress.chaptersDone")}</dt><dd className="text-foreground tabular-nums">{chaptersDone}</dd></div>
-          <div className="rounded-sm bg-background p-2"><dt className="text-foreground-subtle">{t("learning:progress.time")}</dt><dd className="text-foreground tabular-nums">{formatDuration(readingState?.secondsRead ?? 0)}</dd></div>
-          <div className="rounded-sm bg-background p-2"><dt className="text-foreground-subtle">{t("learning:progress.sessions")}</dt><dd className="text-foreground tabular-nums">{readingState?.sessions ?? 0}</dd></div>
-        </dl>
-        <p className="mt-2 text-[11px] text-foreground-subtle">{t("learning:progress.separateHint")}</p>
-      </section>
 
       {recommendation && recommendation.words.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("learning:progress.recommendation")}</h3>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground-muted">{t("learning:progress.recommendation")}</h3>
           <p className="mb-2 text-xs text-foreground-muted">
             {t("learning:progress.recommendationText", {
               count: recommendation.words.length,
@@ -141,7 +124,7 @@ function ProgressTab({ session, chapterIndex, onWord, onTab }: LearningPanelProp
       )}
 
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("learning:progress.difficult")}</h3>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground-muted">{t("learning:progress.difficult")}</h3>
         {difficult.length === 0 ? (
           <p className="text-xs text-foreground-subtle">{t("learning:progress.noDifficult")}</p>
         ) : (
@@ -217,12 +200,12 @@ function ReviewTab(props: LearningPanelProps) {
   const { t } = useTranslation();
   const { session } = props;
   const [reviewing, setReviewing] = useState(false);
-  const due = useMemo(() => dueItems(session.reviewItems), [session.reviewItems]);
+  const due = useMemo(() => dueItems(session.activeReviewItems), [session.activeReviewItems]);
   const counts = useMemo(() => {
     const result = { new: 0, learning: 0, young: 0, mature: 0 };
-    for (const item of session.reviewItems) result[retentionState(item)] += 1;
+    for (const item of session.activeReviewItems) result[retentionState(item)] += 1;
     return result;
-  }, [session.reviewItems]);
+  }, [session.activeReviewItems]);
 
   if (reviewing) {
     return <ReviewSession session={session} speechAvailable={props.speechAvailable} nativeLanguage={props.settings.nativeLanguage} onSpeak={props.onSpeak} onDone={() => setReviewing(false)} />;
@@ -252,7 +235,10 @@ function ReviewTab(props: LearningPanelProps) {
         ))}
       </dl>
       <ul className="divide-y divide-border">
-        {session.reviewItems.slice().sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt)).map((item) => (
+        {session.activeReviewItems.length === 0 && (
+          <li className="py-3 text-xs text-foreground-subtle">{t("learning:review.emptyQueue")}</li>
+        )}
+        {session.activeReviewItems.slice().sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt)).map((item) => (
           <li key={item.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
             <div className="min-w-0">
               <p className="truncate text-foreground">{item.label}</p>
@@ -352,8 +338,13 @@ function BackupFooter({ session }: { session: LearningSession }) {
   };
   return (
     <div className="flex flex-shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-foreground-subtle">
-      <Archive size={12} />
-      <span className="mr-auto">{t("learning:backup.auto")}</span>
+      {session.saveStatus === "error" ? <AlertTriangle size={12} className="text-destructive" /> : <Archive size={12} />}
+      <span className={`mr-auto ${session.saveStatus === "error" ? "text-destructive" : ""}`} role="status">
+        {session.saveStatus === "saving" ? t("learning:save.saving")
+          : session.saveStatus === "error" ? t("learning:save.error")
+          : session.saveStatus === "saved" ? t("learning:save.saved")
+          : t("learning:backup.auto")}
+      </span>
       <button type="button" onClick={() => void exportBackup()} className="hover:text-foreground cursor-pointer">{t("learning:backup.export")}</button>
       <button type="button" onClick={() => void importBackup()} className="hover:text-foreground cursor-pointer">{t("learning:backup.import")}</button>
       <button type="button" onClick={() => void session.client.openBackupsFolder()} className="hover:text-foreground cursor-pointer">{t("learning:backup.folder")}</button>
@@ -363,9 +354,8 @@ function BackupFooter({ session }: { session: LearningSession }) {
 
 export function LearningPanel(props: LearningPanelProps) {
   const { t } = useTranslation();
-  const dueCount = useMemo(() => dueItems(props.session.reviewItems).length, [props.session.reviewItems]);
+  const dueCount = useMemo(() => dueItems(props.session.activeReviewItems).length, [props.session.activeReviewItems]);
   const tabs: LearningTab[] = ["words", "progress", "chapters", "review", "notes"];
-  const wide = props.settings.panelWide;
   return (
     <aside className="flex h-full w-full flex-col border-l border-border bg-surface" aria-label={t("learning:panel.title")}>
       <div className="flex h-10 flex-shrink-0 items-center justify-between border-b border-border pl-1 pr-2">
@@ -385,9 +375,6 @@ export function LearningPanel(props: LearningPanelProps) {
           ))}
         </div>
         <div className="flex flex-shrink-0 items-center">
-          <IconButton label={wide ? t("learning:panel.narrow") : t("learning:panel.wide")} onClick={() => props.onWide(!wide)}>
-            {wide ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </IconButton>
           <IconButton label={t("learning:actions.close")} onClick={props.onClose}><X size={14} /></IconButton>
         </div>
       </div>

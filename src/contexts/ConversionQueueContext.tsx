@@ -14,6 +14,7 @@ import type { LyceumConversionOptions } from "../lib/lyceum/schema/types";
 import { DEFAULT_CUSTOM_IMAGE_SETTINGS, type ImagePresetId } from "../lib/lyceum/images/imagePresets";
 import { translate } from "../i18n";
 import { isPathBasedBook } from "../utils/localBooks";
+import { canSendToKindle, toKindleSendPayload, type KindleDelivery } from "../features/kindle/kindleConversion";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
@@ -36,6 +37,8 @@ export interface ConversionQueueItem {
   progress: number;
   startedAt?: number;
   finishedAt?: number;
+  /** When set, the book is converted and sent to this Kindle instead of saved to the library. */
+  delivery?: KindleDelivery;
 }
 
 export interface ConversionLogEntry {
@@ -122,6 +125,7 @@ export interface BookConversionConfig {
   profile: ConversionProfile;
   options: ConversionOptions;
   outputPath?: string;
+  delivery?: KindleDelivery;
 }
 
 interface ConversionRunOptions {
@@ -139,6 +143,9 @@ interface ConversionQueueContextValue {
   addDraftBooks: (books: BookWithThumbnail[]) => void;
   removeDraftBook: (fileHash: string) => void;
   clearDraft: () => void;
+  /** Kindle the draft books will be sent to (conversion window in Kindle mode). */
+  kindleDelivery: KindleDelivery | null;
+  prepareKindleSend: (books: BookWithThumbnail[], delivery: KindleDelivery) => void;
   startConversion: (options: ConversionRunOptions) => void;
   startConversionWithConfigs: (configs: BookConversionConfig[]) => void;
   cancelConversion: (itemId: string) => Promise<void>;
@@ -146,7 +153,27 @@ interface ConversionQueueContextValue {
   clearLogs: () => void;
 }
 
+interface KindleSendBookResult {
+  success: boolean;
+  canceled?: boolean;
+  error?: string;
+  outputPath?: string;
+  outputName?: string;
+  pageCount?: number;
+  deviceName?: string;
+  status?: string;
+}
+
 interface ConversionApi {
+  sendBookToKindle: (input: {
+    jobId?: string;
+    deviceId?: string;
+    book: ReturnType<typeof toKindleSendPayload>;
+    convertToAzw3?: boolean;
+    preserveMetadata?: boolean;
+    pageNumbers?: "auto" | "off" | "target-count" | "estimate";
+    conversionOptions?: LyceumConversionOptions;
+  }) => Promise<KindleSendBookResult>;
   convertBookFile: (
     filePath: string,
     targetFormat: ConversionOutputFormat,
@@ -194,6 +221,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<ConversionQueueItem[]>([]);
   const [logs, setLogs] = useState<ConversionLogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [kindleDelivery, setKindleDelivery] = useState<KindleDelivery | null>(null);
   const pendingRef = useRef<ConversionQueueItem[]>([]);
   const processingRef = useRef(false);
   const canceledRef = useRef(new Set<string>());
@@ -278,6 +306,43 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            conversionOptions: item.options,
            outputDirectory: item.outputPath,
          };
+         if (item.delivery) {
+           const sent = await (window.api as unknown as ConversionApi).sendBookToKindle({
+             jobId: item.id,
+             deviceId: item.delivery.deviceId,
+             book: toKindleSendPayload(item.book),
+             convertToAzw3: true,
+             preserveMetadata: item.options.preserveMetadata,
+             pageNumbers: item.options.pageNumbers === "target-count" ? "auto" : item.options.pageNumbers,
+             conversionOptions: item.options,
+           });
+           if (canceledRef.current.has(item.id) || sent?.canceled) {
+             canceledRef.current.delete(item.id);
+             setQueue((current) => current.map((candidate) => candidate.id === item.id
+               ? { ...candidate, status: "canceled", message: translate("conversion:queue.messages.canceled"), progress: 0, finishedAt: Date.now() }
+               : candidate));
+             continue;
+           }
+           const doneMessage = sent?.pageCount
+             ? translate("conversion:kindle.sentWithPages", { device: sent.deviceName || item.delivery.deviceName, count: sent.pageCount })
+             : translate("conversion:kindle.sent", { device: sent?.deviceName || item.delivery.deviceName });
+           setQueue((current) => current.map((candidate) => candidate.id === item.id
+             ? {
+                 ...candidate,
+                 status: sent?.success ? "done" : "error",
+                 message: sent?.success ? doneMessage : sent?.error || translate("conversion:queue.messages.failed"),
+                 progress: sent?.success ? 100 : 0,
+                 finishedAt: Date.now(),
+               }
+             : candidate));
+           addLog({
+             itemId: item.id,
+             level: sent?.success ? "success" : "error",
+             message: sent?.success ? `${item.book.title}: ${doneMessage}` : `${item.book.title}: ${sent?.error || translate("conversion:queue.messages.failed")}`,
+             detail: sent?.outputPath,
+           });
+           continue;
+         }
          const result =
            isPathBasedBook(item.book)
              ? await (window.api as unknown as ConversionApi).convertBookFile(
@@ -368,6 +433,12 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
    }, [addLog, updateProgress]);
 
   const prepareBooks = useCallback((books: BookWithThumbnail[]) => {
+    setKindleDelivery(null);
+    setDraftBooks(books);
+  }, []);
+
+  const prepareKindleSend = useCallback((books: BookWithThumbnail[], delivery: KindleDelivery) => {
+    setKindleDelivery(delivery);
     setDraftBooks(books);
   }, []);
 
@@ -385,6 +456,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
 
   const clearDraft = useCallback(() => {
     setDraftBooks([]);
+    setKindleDelivery(null);
   }, []);
 
   const clearLogs = useCallback(() => setLogs([]), []);
@@ -439,9 +511,10 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
   }, [addLog, queue]);
 
   const createQueueItem = useCallback(
-    ({ book, targetFormat, profile, options, outputPath }: BookConversionConfig): ConversionQueueItem => {
+    ({ book, targetFormat, profile, options, outputPath, delivery }: BookConversionConfig): ConversionQueueItem => {
       const sourceFormat = getBookSourceFormat(book);
-      const convertible = canConvertBook(book, targetFormat);
+      // Kindle delivery also accepts books the Kindle reads as-is (AZW3, MOBI...).
+      const convertible = delivery ? canSendToKindle(book) : canConvertBook(book, targetFormat);
 
        return {
          id: createQueueId(book, targetFormat),
@@ -451,6 +524,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
          profile,
          options,
          outputPath,
+         delivery,
          status: convertible ? "pending" : "error",
          message: convertible
            ? translate("conversion:queue.messages.pending")
@@ -511,12 +585,16 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
       removeDraftBook,
       clearDraft,
       clearLogs,
+      kindleDelivery,
+      prepareKindleSend,
       startConversion,
       startConversionWithConfigs,
       cancelConversion,
       deleteConversion,
     }),
     [
+      kindleDelivery,
+      prepareKindleSend,
       addDraftBooks,
       clearDraft,
       clearLogs,

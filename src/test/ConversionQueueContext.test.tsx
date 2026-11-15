@@ -181,3 +181,85 @@ describe("conversion workspace", () => {
     expect(screen.getByAltText("Livro de teste.epub")).toHaveAttribute("src", book.thumbnail);
   });
 });
+
+describe("Kindle delivery from the conversion queue", () => {
+  function KindleHarness({ book }: { book: BookWithThumbnail }) {
+    const { queue, startConversionWithConfigs } = useConversionQueue();
+    return (
+      <>
+        <button type="button" onClick={() => startConversionWithConfigs([{
+          book,
+          targetFormat: "azw3",
+          profile: "ereader",
+          options: { ...defaultConversionOptions, kindleFontSizes: "kindle", pageNumbers: "auto" },
+          delivery: { deviceId: "fs:kindle", deviceName: "Kindle Paperwhite" },
+        }])}>Enviar</button>
+        <output data-testid="kstatus">{queue[0]?.status || "empty"}</output>
+        <output data-testid="kmessage">{queue[0]?.message || ""}</output>
+      </>
+    );
+  }
+
+  it("converts and sends through the Kindle pipeline, also for AZW3 books", async () => {
+    const sendBookToKindle = vi.fn().mockResolvedValue({ success: true, pageCount: 412, deviceName: "Kindle Paperwhite" });
+    const convertBook = vi.fn();
+    Object.defineProperty(window, "api", {
+      value: { onConversionProgress: vi.fn(() => () => undefined), sendBookToKindle, convertBook },
+      configurable: true,
+      writable: true,
+    });
+    const azw3 = { ...createBook(), fileType: "azw3" as const, filePath: "C:\\livros\\teste.azw3", title: "Livro.azw3" };
+    render(<ConversionQueueProvider><KindleHarness book={azw3} /></ConversionQueueProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(screen.getByTestId("kstatus")).toHaveTextContent("done"));
+    expect(screen.getByTestId("kmessage")).toHaveTextContent("Kindle Paperwhite");
+    expect(screen.getByTestId("kmessage")).toHaveTextContent("412");
+    expect(convertBook).not.toHaveBeenCalled();
+    expect(sendBookToKindle).toHaveBeenCalledWith(expect.objectContaining({
+      deviceId: "fs:kindle",
+      jobId: expect.any(String),
+      conversionOptions: expect.objectContaining({ kindleFontSizes: "kindle" }),
+      book: expect.objectContaining({ fileHash: "book-hash" }),
+    }));
+  });
+});
+
+describe("Conversion window in Kindle mode", () => {
+  function SeededKindleDialog({ book }: { book: BookWithThumbnail }) {
+    const { prepareKindleSend } = useConversionQueue();
+    useEffect(() => prepareKindleSend([book], { deviceId: "fs:kindle", deviceName: "Kindle Paperwhite" }), [book, prepareKindleSend]);
+    return <ConversionDialog isOpen onClose={vi.fn()} />;
+  }
+
+  it("shows the Kindle destination, Kindle options and saves them as defaults", async () => {
+    localStorage.clear();
+    Object.defineProperty(window, "api", {
+      value: {
+        onConversionProgress: vi.fn(() => () => undefined),
+        getThumbnail: vi.fn().mockResolvedValue(null),
+        listConversionTargets: vi.fn().mockResolvedValue([]),
+        previewConversionOutput: vi.fn().mockResolvedValue({ success: false }),
+      },
+      configurable: true,
+      writable: true,
+    });
+    const pdf = { ...createBook(), fileType: "pdf" as const, filePath: "C:\\livros\\teste.pdf", title: "Livro.pdf" };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ConversionQueueProvider><SeededKindleDialog book={pdf} /></ConversionQueueProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Enviar para Kindle Paperwhite")).toBeInTheDocument();
+    expect(screen.getByText("AZW3 para Kindle")).toBeInTheDocument();
+    expect(screen.getByText("Layout do PDF")).toBeInTheDocument();
+    expect(screen.getByText("Tamanho da fonte")).toBeInTheDocument();
+    expect(screen.queryByText("Escolher pasta")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Converter e enviar 1 livro/ })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar como padrão do Kindle" }));
+    const saved = JSON.parse(localStorage.getItem("lyceum-kindle-conversion-defaults") || "{}");
+    expect(saved).toMatchObject({ kindleFontSizes: "kindle", pageNumbers: "auto", epubLayout: "auto" });
+  });
+});

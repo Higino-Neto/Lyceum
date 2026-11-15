@@ -42,6 +42,7 @@ import {
   getManualCoverSrc,
   getNavigationId,
 } from "./atlasUtils";
+import { readerErrorKey } from "../../features/library/model/readerFormats";
 
 export default function AtlasPage() {
   const { t } = useTranslation();
@@ -120,7 +121,8 @@ export default function AtlasPage() {
         return;
       }
       if ("error" in result) {
-        toast.error(result.message || t("atlas:errors.openFailed"));
+        const readerError = readerErrorKey(result.readerErrorCode);
+        toast.error(readerError ? t(readerError) : result.message || t("atlas:errors.openFailed"));
         return;
       }
 

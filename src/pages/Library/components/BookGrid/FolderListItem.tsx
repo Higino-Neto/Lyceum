@@ -11,7 +11,6 @@ import type {
   MouseEvent,
 } from "react";
 import type { FolderInfo } from "../../../../types/LibraryTypes";
-import type { ListLayoutMode } from "./BookListItem";
 import {
   translate,
   useTranslation,
@@ -24,7 +23,8 @@ interface FolderListItemProps {
   folderCount: number;
   detail?: string;
   gridTemplateColumns: string;
-  listLayout: ListLayoutMode;
+  /** Narrow table: title cell only, details on a second line. */
+  compact: boolean;
   isSelected?: boolean;
   isDropTarget?: boolean;
   onOpen?: (folderPath: string) => void;
@@ -48,7 +48,7 @@ export default function FolderListItem({
   folderCount,
   detail,
   gridTemplateColumns,
-  listLayout,
+  compact,
   isSelected = false,
   isDropTarget = false,
   onOpen,
@@ -101,10 +101,10 @@ export default function FolderListItem({
           <p className="truncate text-sm font-medium text-foreground">
             {folder.name}
           </p>
-          {(listLayout === "compact" || listLayout === "narrow") && (
+          {compact && (
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-foreground-subtle">
               <span className="rounded-sm bg-primary-muted px-1.5 py-0.5 uppercase text-primary">
-                Pasta
+                {t("library:list.folderFallback")}
               </span>
               <span className="min-w-0 truncate">{metadata}</span>
             </div>
@@ -112,17 +112,10 @@ export default function FolderListItem({
         </div>
       </div>
 
-      {(listLayout === "full" || listLayout === "medium") && (
-        <div className="truncate px-3 py-2 text-xs text-foreground-subtle">
-          {detail || t("library:list.folderFallback")}
-        </div>
-      )}
-      {(listLayout === "full" || listLayout === "medium") && (
-        <div className="px-3 py-2 text-xs text-primary">Pasta</div>
-      )}
-      {listLayout !== "narrow" && (
-        <div className="px-3 py-2 text-xs text-foreground-muted">
-          <span className="inline-flex items-center gap-1">
+      {!compact && (
+        // Folder rows have no per-column data: one cell spans the book columns.
+        <div className="flex min-w-0 items-center gap-4 px-3 py-2 text-xs" style={{ gridColumn: "2 / -2" }}>
+          <span className="inline-flex shrink-0 items-center gap-1 text-foreground-muted">
             <BookOpen size={12} className={bookCount > 0 ? "text-warning" : "text-foreground-subtle"} />
             {formatCount(
               bookCount,
@@ -130,11 +123,7 @@ export default function FolderListItem({
               "library:counts.book_other",
             )}
           </span>
-        </div>
-      )}
-      {(listLayout === "full" || listLayout === "medium") && (
-        <div className="px-3 py-2 text-xs text-foreground-muted">
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex shrink-0 items-center gap-1 text-foreground-muted">
             <Boxes size={12} className={folderCount > 0 ? "text-primary" : "text-foreground-subtle"} />
             {formatCount(
               folderCount,
@@ -142,10 +131,8 @@ export default function FolderListItem({
               "library:counts.subfolder_other",
             )}
           </span>
+          {detail && <span className="min-w-0 truncate text-foreground-subtle">{detail}</span>}
         </div>
-      )}
-      {listLayout === "full" && (
-        <div className="px-3 py-2 text-xs text-foreground-subtle">-</div>
       )}
 
       <div className="flex justify-end gap-1 px-2">

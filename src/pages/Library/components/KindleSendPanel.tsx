@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Usb,
   Send,
+  SlidersHorizontal,
   Smartphone,
   X,
 } from "lucide-react";
@@ -22,6 +23,9 @@ import {
   getTitleWithoutExtension,
 } from "../utils";
 import { KindleEmailSettingsForm, KindleEmailSummary, type KindleEmailConfig } from "./KindleEmailSettings";
+import { useConversionQueue } from "../../../contexts/ConversionQueueContext";
+import { loadKindleConversionOptions, toKindleSendPayload } from "../../../features/kindle/kindleConversion";
+import type { LyceumConversionOptions } from "../../../lib/lyceum/schema/types";
 
 interface KindleSendDevice {
   id: string;
@@ -45,10 +49,14 @@ interface KindleSendResultItem {
   bytes?: number;
   note?: string;
   error?: string;
+  pageCount?: number;
 }
+
+type PageNumbersMode = "auto" | "off" | "estimate";
 
 interface KindleSendApi {
   listKindleDevices: () => Promise<KindleSendDevice[]>;
+  onKindleSendProgress?: (callback: (payload: { fileHash: string; progress: number; message: string }) => void) => () => void;
   sendBooksToKindle: (options: {
     deviceId?: string;
     books: Array<{
@@ -74,6 +82,8 @@ interface KindleSendApi {
     preserveMetadata?: boolean;
     organizeByAuthor?: boolean;
     destination?: string;
+    pageNumbers?: PageNumbersMode;
+    conversionOptions?: LyceumConversionOptions;
   }) => Promise<{
     success: boolean;
     sent: number;
@@ -97,6 +107,24 @@ const EMAIL_ACCEPTED_FORMATS = new Set(["epub", "pdf", "txt", "html"]);
 const EMAIL_CONVERTIBLE_FORMATS = new Set(["cbz"]);
 const EMAIL_MAX_BYTES = 50 * 1024 * 1024;
 const MODE_STORAGE_KEY = "lyceum-kindle-send-mode";
+const PAGE_NUMBERS_STORAGE_KEY = "lyceum-kindle-page-numbers";
+
+function readStoredPageNumbers(): PageNumbersMode {
+  try {
+    const value = localStorage.getItem(PAGE_NUMBERS_STORAGE_KEY);
+    return value === "off" || value === "estimate" ? value : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+function storePageNumbers(value: PageNumbersMode) {
+  try {
+    localStorage.setItem(PAGE_NUMBERS_STORAGE_KEY, value);
+  } catch {
+    /* The choice simply is not remembered. */
+  }
+}
 
 type SendMode = "usb" | "email";
 
@@ -222,27 +250,7 @@ function itemStatusLabel(result?: KindleSendResultItem, shouldConvert?: boolean)
   return result.error || translate("library:kindle.status.error");
 }
 
-function toSendPayload(book: BookWithThumbnail) {
-  return {
-    fileHash: book.fileHash,
-    filePath: book.filePath,
-    title: getTitleWithoutExtension(book.title, book.fileType),
-    author: book.author,
-    fileType: book.fileType,
-    fileName: book.fileName,
-    publisher: book.publisher,
-    description: book.description,
-    publishDate: book.publishDate,
-    language: book.language,
-    identifier: book.identifier,
-    asin: book.asin,
-    subject: book.subject,
-    series: book.series,
-    seriesIndex: book.seriesIndex,
-    authorSort: book.authorSort,
-    titleSort: book.titleSort,
-  };
-}
+const toSendPayload = toKindleSendPayload;
 
 export default function KindleSendPanel({
   books,
@@ -250,6 +258,9 @@ export default function KindleSendPanel({
   onSent,
 }: KindleSendPanelProps) {
   const { t } = useTranslation();
+  const { prepareKindleSend } = useConversionQueue();
+  const [conversionOptions] = useState(loadKindleConversionOptions);
+  const [progress, setProgress] = useState<Map<string, { progress: number; message: string }>>(new Map());
   const [devices, setDevices] = useState<KindleSendDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [loadingDevices, setLoadingDevices] = useState(true);
@@ -257,6 +268,11 @@ export default function KindleSendPanel({
   const [convertToAzw3, setConvertToAzw3] = useState(true);
   const [preserveMetadata, setPreserveMetadata] = useState(true);
   const [organizeByAuthor, setOrganizeByAuthor] = useState(false);
+  const [pageNumbers, setPageNumbersState] = useState<PageNumbersMode>(readStoredPageNumbers);
+  const setPageNumbers = (next: PageNumbersMode) => {
+    setPageNumbersState(next);
+    storePageNumbers(next);
+  };
   const [results, setResults] = useState<Map<string, KindleSendResultItem>>(new Map());
   const [mode, setModeState] = useState<SendMode>(readStoredMode);
   const [emailConfig, setEmailConfig] = useState<KindleEmailConfig | null>(null);
@@ -341,11 +357,28 @@ export default function KindleSendPanel({
     void refreshDevices();
   }, []);
 
+  useEffect(() => {
+    const subscribe = getApi().onKindleSendProgress;
+    if (!subscribe) return;
+    return subscribe(({ fileHash, progress: value, message }) => {
+      setProgress((current) => new Map(current).set(fileHash, { progress: value, message }));
+    });
+  }, []);
+
+  /** Opens the conversion window in Kindle mode with these books and the favourite settings. */
+  const openConversionWindow = () => {
+    if (!selectedDevice) return;
+    prepareKindleSend(books, { deviceId: selectedDevice.id, deviceName: selectedDevice.name });
+    window.dispatchEvent(new CustomEvent("lyceum:open-conversion"));
+    onClose();
+  };
+
   const handleSend = async () => {
     if (!selectedDevice || books.length === 0) return;
 
     setSending(true);
     setResults(new Map());
+    setProgress(new Map());
 
     try {
       const response = await getApi().sendBooksToKindle({
@@ -355,6 +388,8 @@ export default function KindleSendPanel({
         preserveMetadata,
         organizeByAuthor,
         destination: DEFAULT_DESTINATION,
+        pageNumbers,
+        conversionOptions,
       });
 
       setResults(new Map(response.results.map((result) => [result.fileHash, result])));
@@ -504,7 +539,49 @@ export default function KindleSendPanel({
                 <OptionRow label={t("library:kindle.convertAzw3")} hint={t("library:kindle.convertAzw3Hint")} checked={convertToAzw3} disabled={sending} onChange={() => setConvertToAzw3((value) => !value)} />
                 <OptionRow label={t("library:kindle.preserveMetadata")} hint={t("library:kindle.preserveMetadataHint")} checked={preserveMetadata} disabled={sending} onChange={() => setPreserveMetadata((value) => !value)} />
                 <OptionRow label={t("library:kindle.organizeByAuthor")} hint={t("library:kindle.organizeByAuthorHint")} checked={organizeByAuthor} disabled={sending} onChange={() => setOrganizeByAuthor((value) => !value)} />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-foreground">{t("library:kindle.pageNumbers.label")}</p>
+                    <p className="text-xs text-foreground-subtle">{t(`library:kindle.pageNumbers.hint.${pageNumbers}`)}</p>
+                  </div>
+                  <div className="w-36 flex-shrink-0">
+                    <Select
+                      value={pageNumbers}
+                      onChange={(value) => setPageNumbers(value as PageNumbersMode)}
+                      disabled={sending}
+                      ariaLabel={t("library:kindle.pageNumbers.label")}
+                      items={[
+                        { value: "auto", label: t("library:kindle.pageNumbers.auto") },
+                        { value: "estimate", label: t("library:kindle.pageNumbers.estimate") },
+                        { value: "off", label: t("library:kindle.pageNumbers.off") },
+                      ]}
+                    />
+                  </div>
+                </div>
               </div>
+            </section>
+
+            <section className="mb-4 rounded-sm border border-border bg-background/60 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
+                  {t("library:kindle.conversion.title")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={openConversionWindow}
+                  disabled={sending || !selectedDevice}
+                  className="flex items-center gap-1.5 rounded-sm border border-border-strong bg-surface px-2.5 py-1 text-xs text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <SlidersHorizontal size={13} />
+                  {t("library:kindle.conversion.configure")}
+                </button>
+              </div>
+              <ul className="space-y-1 text-xs text-foreground-muted">
+                <li>{t("library:kindle.conversion.summary.layout", { value: t(`library:kindle.conversion.layouts.${conversionOptions.epubLayout || "auto"}`) })}</li>
+                <li>{t("library:kindle.conversion.summary.fonts", { value: t(`library:kindle.conversion.fonts.${conversionOptions.kindleFontSizes === "original" ? "original" : "kindle"}`) })}</li>
+                <li>{t("library:kindle.conversion.summary.profile", { value: t(`library:kindle.conversion.profiles.${conversionOptions.kindleProfile || "kindle-compatible"}`) })}</li>
+              </ul>
+              <p className="mt-2 text-[11px] text-foreground-subtle">{t("library:kindle.conversion.hint")}</p>
             </section>
           </>
         ) : (
@@ -606,9 +683,25 @@ export default function KindleSendPanel({
                       )}
                       <span className={mode === "email" && hasError ? "break-words" : "truncate"}>{status}</span>
                     </p>
+                    {mode === "usb" && sending && !result && progress.get(book.fileHash) && (
+                      <div className="mt-1.5">
+                        <div className="h-1 overflow-hidden rounded-full bg-border">
+                          <div
+                            className="h-full bg-primary transition-[width] duration-300"
+                            style={{ width: `${Math.round((progress.get(book.fileHash)?.progress || 0) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 truncate text-[11px] text-foreground-subtle">
+                          {progress.get(book.fileHash)?.message} · {Math.round((progress.get(book.fileHash)?.progress || 0) * 100)}%
+                        </p>
+                      </div>
+                    )}
                     {result?.note && (
                       <p className="mt-1 text-[11px] leading-4 text-foreground-subtle">{result.note}</p>
                     )}
+                    {result?.success && result.pageCount ? (
+                      <p className="mt-1 text-[11px] leading-4 text-primary">{t("library:kindle.pageNumbers.added", { count: result.pageCount })}</p>
+                    ) : null}
                     {result?.outputPath && (
                       <p className="mt-1 truncate text-[11px] text-foreground-subtle" title={result.outputPath}>{result.outputPath}</p>
                     )}

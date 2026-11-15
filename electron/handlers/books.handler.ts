@@ -985,8 +985,8 @@ export function registerBookHandlers(documentMetadata: DocumentMetadataRepositor
 
   ipcMain.handle("pdf:reopen", async (_, filePath?: string, fileHash?: string, metadataOnly = false) => {
     const result = await reopenDocument(filePath, fileHash, metadataOnly);
-    if (result?.fileType === "pdf" && result.fileHash && result.filePath) {
-      registerPdfSource(result.fileHash, result.filePath);
+    if (result?.fileType === "pdf" && result.fileHash && (result.readerPath || result.filePath)) {
+      registerPdfSource(result.fileHash, result.readerPath || result.filePath!);
     }
     if (result?.fileBuffer && result.fileHash && !result.filePath) {
       cachePdfBuffer(result.fileHash, result.fileBuffer);

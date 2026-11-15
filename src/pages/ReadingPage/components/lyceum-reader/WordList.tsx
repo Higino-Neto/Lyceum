@@ -3,6 +3,7 @@ import { Check, Circle, EyeOff, Search, Sprout } from "lucide-react";
 import type { KnowledgeState } from "../../../../core/language-learning";
 import { buildWordRows, fold, sortWordRows, type WordRow, type WordScope, type WordSort } from "./wordRows";
 import { useTranslation } from "../../../../i18n";
+import Select from "../../../../components/ui/Select";
 import type { LearningSession } from "./useLearningSession";
 import { dynamicT, STATE_DOT, STATE_ORDER, stateLabelKey } from "./uiHelpers";
 
@@ -116,18 +117,6 @@ export function WordList({ session, chapterIndex, onOpenWord }: WordListProps) {
   const slice = visible.slice(first, last);
 
   const setState = (row: WordRow, state: KnowledgeState) => {
-    if (state === "learning" && row.state !== "learning" && row.lexeme !== null) {
-      const ordinal = session.index?.lexemeOccurrences(row.lexeme)[0];
-      const resolved = ordinal === undefined ? null : session.index?.resolve(ordinal);
-      void session.addToVocabulary({
-        key: row.key,
-        label: row.label,
-        itemType: "lexeme",
-        sentenceId: resolved?.sentence.id,
-        contextForm: resolved ? resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]) : undefined,
-      });
-      return;
-    }
     void session.setKnowledge(row.key, row.label, state);
   };
 
@@ -163,7 +152,7 @@ export function WordList({ session, chapterIndex, onOpenWord }: WordListProps) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm border border-border bg-background px-2 focus-within:border-primary">
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm border border-input-border bg-input px-2 focus-within:border-primary">
             <Search size={12} className="flex-shrink-0 text-foreground-subtle" />
             <input
               type="search"
@@ -173,14 +162,13 @@ export function WordList({ session, chapterIndex, onOpenWord }: WordListProps) {
               className="h-7 min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none"
             />
           </label>
-          <select
+          <Select
             value={sort}
-            onChange={(event) => setSort(event.target.value as WordSort)}
-            aria-label={t("learning:words.sortLabel")}
-            className="h-7 rounded-sm border border-border bg-background px-1.5 text-[11px] text-foreground"
-          >
-            {sorts.map((value) => <option key={value} value={value}>{dynamicT(t, `learning:words.sort.${value}`, undefined, value)}</option>)}
-          </select>
+            onChange={(value) => setSort(value as WordSort)}
+            ariaLabel={t("learning:words.sortLabel")}
+            className="h-8 min-w-[132px]"
+            items={sorts.map((value) => ({ value, label: dynamicT(t, `learning:words.sort.${value}`, undefined, value) }))}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
@@ -200,7 +188,7 @@ export function WordList({ session, chapterIndex, onOpenWord }: WordListProps) {
             </button>
           ))}
           <label className="ml-auto flex items-center gap-1 text-[11px] text-foreground-muted cursor-pointer">
-            <input type="checkbox" checked={hideNames} onChange={(event) => setHideNames(event.target.checked)} className="accent-primary" />
+            <input type="checkbox" className="accent-primary" checked={hideNames} onChange={(event) => setHideNames(event.target.checked)} />
             {t("learning:words.hideNames")}
           </label>
         </div>

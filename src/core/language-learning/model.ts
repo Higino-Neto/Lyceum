@@ -317,6 +317,8 @@ export interface LanguageLearningRepository {
 
   listReviewItems(userId: string, language?: string): ReviewItem[];
   upsertReviewItem(userId: string, item: ReviewItem): void;
+  /** Upserts many review items in one transaction. */
+  upsertReviewItems(userId: string, items: ReviewItem[]): number;
   deleteReviewItem(userId: string, id: string): void;
   logReview(userId: string, entry: ReviewLogEntry): void;
   listReviewLog(userId: string, itemId?: string): ReviewLogEntry[];

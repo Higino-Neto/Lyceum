@@ -87,7 +87,28 @@
       },
       "preserveCover": "Keep cover",
       "preserveMetadata": "Keep metadata",
-      "generateIndex": "Generate table of contents"
+      "generateIndex": "Generate table of contents",
+      "pdfLayout": "PDF layout",
+      "pdfLayouts": {
+        "auto": "Automatic (text when there is text)",
+        "reflow": "Reflowable text",
+        "fixed-layout": "Pages as images (comics, manga)"
+      },
+      "fontSizes": "Font size",
+      "fontSizeModes": {
+        "kindle": "Follow the Kindle (recommended)",
+        "original": "Keep the book's sizes"
+      },
+      "fontSizeHints": {
+        "kindle": "The size chosen on the Kindle applies to the whole book",
+        "original": "Fixed sizes from the book may look tiny on the Kindle"
+      },
+      "pageNumbers": "Page numbers",
+      "pageNumberModes": {
+        "auto": "Real pages (PDF/publisher) or estimated",
+        "estimate": "Always estimated",
+        "off": "Off"
+      }
     },
     "html": {
       "preserveMetadata": "Keep metadata"
@@ -306,5 +327,19 @@
     "pageLabel": "Position {{position}}: file {{letter}}, page {{page}}",
     "pickerTitle": "Add PDF from library",
     "pickerDescription": "Only library PDFs are listed here."
+  },
+  "kindle": {
+    "banner": "Send to {{device}}",
+    "bannerHint": "Books are converted to AZW3 and copied with their cover and page numbers. Nothing is added to your library.",
+    "nativeFormat": "The Kindle reads this format: the file is sent as-is.",
+    "outputFormat": "AZW3 for Kindle",
+    "saveDefaults": "Save as Kindle defaults",
+    "defaultsSaved": "Settings saved as Kindle defaults",
+    "applyToAll": "Apply to all books",
+    "appliedToAll": "Settings applied to {{count}} books",
+    "start_one": "Convert and send {{count}} book",
+    "start_other": "Convert and send {{count}} books",
+    "sent": "Sent to {{device}}",
+    "sentWithPages": "Sent to {{device}} with {{count}} pages"
   }
 }

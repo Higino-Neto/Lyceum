@@ -30,6 +30,7 @@ import {
 } from "../../api/database";
 import Skeleton from "../Skeleton";
 import { useDictionary } from "../../hooks/useDictionary";
+import Select from "../ui/Select";
 import { supabase } from "../../lib/supabase";
 import {
   MIN_PASSWORD_LENGTH,
@@ -50,7 +51,6 @@ import {
 } from "../../navigation/routes";
 import { LanguageSwitcher, translate, useLanguage, useTranslation } from "../../i18n";
 import type { TranslationKey } from "../../i18n";
-import Select from "../ui/Select";
 
 type DesktopUpdateStatus =
   | "idle"
@@ -1277,30 +1277,28 @@ export function DictionarySettingsPanel() {
             value={dictionaryQuery}
             onChange={(event) => setDictionaryQuery(event.target.value)}
             placeholder={t("settings:dictionaries.search")}
-            className="h-8 min-w-[160px] flex-1 rounded border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary"
+            className="h-8 min-w-[160px] flex-1 rounded-md border border-input-border bg-input px-3 text-xs text-foreground outline-none placeholder:text-input-placeholder focus:border-primary"
           />
-          <select
+          <Select
             value={dictionarySource}
-            onChange={(event) => setDictionarySource(event.target.value)}
-            aria-label={t("settings:dictionaries.from")}
-            className="h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
-          >
-            <option value="">{t("settings:dictionaries.anyFrom")}</option>
-            {dictionaryLanguages.sources.map((language) => (
-              <option key={language.code} value={language.code}>{language.name}</option>
-            ))}
-          </select>
-          <select
+            onChange={setDictionarySource}
+            ariaLabel={t("settings:dictionaries.from")}
+            className="h-8"
+            items={[
+              { value: "", label: t("settings:dictionaries.anyFrom") },
+              ...dictionaryLanguages.sources.map((language) => ({ value: language.code, label: language.name })),
+            ]}
+          />
+          <Select
             value={dictionaryTarget}
-            onChange={(event) => setDictionaryTarget(event.target.value)}
-            aria-label={t("settings:dictionaries.to")}
-            className="h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
-          >
-            <option value="">{t("settings:dictionaries.anyTo")}</option>
-            {dictionaryLanguages.targets.map((language) => (
-              <option key={language.code} value={language.code}>{language.name}</option>
-            ))}
-          </select>
+            onChange={setDictionaryTarget}
+            ariaLabel={t("settings:dictionaries.to")}
+            className="h-8"
+            items={[
+              { value: "", label: t("settings:dictionaries.anyTo") },
+              ...dictionaryLanguages.targets.map((language) => ({ value: language.code, label: language.name })),
+            ]}
+          />
         </div>
 
         {!isDictsLoaded ? (

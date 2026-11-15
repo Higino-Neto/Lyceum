@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
   type DragEvent as ReactDragEvent,
   type ReactNode,
 } from "react";
@@ -29,10 +28,21 @@ import FolderCard from "../FolderCard";
 import FolderContextMenu from "../FolderContextMenu";
 import DropActionMenu from "../DropActionMenu";
 import BookCard from "./BookCard";
-import BookListItem, { ExplorerColumns, type ListLayoutMode } from "./BookListItem";
+import BookListItem from "./BookListItem";
+import BookListHeader from "./BookListHeader";
 import FolderListItem from "./FolderListItem";
 import { thumbnailCache } from "./thumbnailCache";
-import { useTranslation, type TranslationKey } from "../../../../i18n";
+import { useTranslation } from "../../../../i18n";
+import { useLocalStorage } from "../../../../hooks/useLocalStorage";
+import type { LibrarySortOption } from "../../../../types/LibraryTypes";
+import {
+  columnWidth,
+  normalizeListColumnsState,
+  visibleListColumns,
+  DEFAULT_LIST_COLUMNS_STATE,
+  type ListColumnId,
+  type ListColumnsState,
+} from "../../../../features/library/model/listColumns";
 
 export type GridDensity = "compact" | "comfortable" | "large";
 
@@ -40,6 +50,9 @@ interface BookGridProps {
   books: BookWithThumbnail[];
   viewMode: "grid" | "list";
   gridDensity?: GridDensity;
+  /** Active sort, so list-view headers can show and toggle it. */
+  sort?: LibrarySortOption;
+  onSortChange?: (sort: LibrarySortOption) => void;
   onOpen: (filePath: string, fileHash?: string) => void;
   onSync?: (fileHash: string, action: "move" | "copy") => void;
   onDelete?: (fileHash: string) => void;
@@ -90,35 +103,6 @@ interface FolderContextMenuState {
   folder: FolderInfo | null;
 }
 
-const DEFAULT_COLUMNS: ExplorerColumns = {
-  name: 360,
-  folder: 220,
-  type: 86,
-  pages: 110,
-  modified: 120,
-  size: 96,
-};
-
-const LIST_HEADERS: {
-  key: keyof ExplorerColumns;
-  labelKey: TranslationKey;
-  min: number;
-}[] = [
-  { key: "name", labelKey: "library:list.columns.name", min: 220 },
-  { key: "folder", labelKey: "library:list.columns.folder", min: 140 },
-  { key: "type", labelKey: "library:list.columns.type", min: 70 },
-  { key: "pages", labelKey: "library:list.columns.pages", min: 86 },
-  { key: "modified", labelKey: "library:list.columns.modified", min: 98 },
-  { key: "size", labelKey: "library:list.columns.size", min: 82 },
-];
-
-const LIST_HEADERS_BY_LAYOUT: Record<ListLayoutMode, (keyof ExplorerColumns)[]> = {
-  full: ["name", "folder", "type", "pages", "modified", "size"],
-  medium: ["name", "folder", "type", "pages", "modified"],
-  compact: ["name", "pages"],
-  narrow: ["name"],
-};
-
 const GRID_DENSITY: Record<GridDensity, { minWidth: number; rowHeight: number; gap: number }> = {
   compact: { minWidth: 144, rowHeight: 238, gap: 16 },
   comfortable: { minWidth: 178, rowHeight: 292, gap: 16 },
@@ -132,28 +116,9 @@ function isAbsoluteFolderPath(folderPath: string) {
   return /^[a-zA-Z]:[\\/]/.test(folderPath) || folderPath.startsWith("/") || folderPath.startsWith("\\\\");
 }
 
-function getListLayout(width: number): ListLayoutMode {
-  if (width >= 1000) return "full";
-  if (width >= 700) return "medium";
-  if (width >= 500) return "compact";
-  return "narrow";
-}
-
-function getListTemplate(layout: ListLayoutMode, columns: ExplorerColumns) {
-  if (layout === "full") {
-    return `${columns.name}px ${columns.folder}px ${columns.type}px ${columns.pages}px ${columns.modified}px ${columns.size}px 76px`;
-  }
-
-  if (layout === "medium") {
-    return "minmax(240px, 2fr) minmax(130px, 1fr) 72px 90px 98px 76px";
-  }
-
-  if (layout === "compact") {
-    return "minmax(0, 1fr) 88px 76px";
-  }
-
-  return "minmax(0, 1fr) 76px";
-}
+/** Below this width the table collapses to the title column only. */
+const COMPACT_LIST_WIDTH = 560;
+const ACTIONS_COLUMN_WIDTH = 76;
 
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
@@ -190,6 +155,8 @@ export default function BookGrid({
   books,
   viewMode,
   gridDensity = "comfortable",
+  sort,
+  onSortChange,
   onOpen,
   onSync,
   onDelete,
@@ -223,7 +190,11 @@ export default function BookGrid({
   onDropBooksOnBook,
 }: BookGridProps) {
   const { t } = useTranslation();
-  const [columns, setColumns] = useState<ExplorerColumns>(DEFAULT_COLUMNS);
+  const [storedListColumns, setStoredListColumns] = useLocalStorage<ListColumnsState>(
+    "library_listColumns",
+    DEFAULT_LIST_COLUMNS_STATE,
+  );
+  const [resizePreview, setResizePreview] = useState<{ id: ListColumnId; width: number } | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<FolderContextMenuState>({
     visible: false,
@@ -241,15 +212,37 @@ export default function BookGrid({
   const staticContentRef = useRef<HTMLDivElement | null>(null);
   const [scrollRef, scrollWidth] = useElementWidth<HTMLDivElement>();
   const density = GRID_DENSITY[gridDensity];
-  const listLayout = getListLayout(scrollWidth);
-  const listGridTemplate = getListTemplate(listLayout, columns);
+  const listColumnsState = useMemo(
+    () => normalizeListColumnsState(storedListColumns),
+    [storedListColumns],
+  );
+  const listColumns = useMemo(() => visibleListColumns(listColumnsState), [listColumnsState]);
+  const compactList = scrollWidth > 0 && scrollWidth < COMPACT_LIST_WIDTH;
+  const { listGridTemplate, listMinWidth } = useMemo(() => {
+    if (compactList) {
+      return { listGridTemplate: `minmax(0, 1fr) ${ACTIONS_COLUMN_WIDTH}px`, listMinWidth: 0 };
+    }
+    const widthOf = (id: ListColumnId) => (
+      resizePreview?.id === id
+        ? resizePreview.width
+        : columnWidth(listColumnsState, listColumns.find((column) => column.id === id)!)
+    );
+    const tracks = listColumns.map((column) => (
+      column.id === "title" ? `minmax(${widthOf(column.id)}px, 1fr)` : `${widthOf(column.id)}px`
+    ));
+    const total = listColumns.reduce((sum, column) => sum + widthOf(column.id), 0) + ACTIONS_COLUMN_WIDTH + 2;
+    return {
+      listGridTemplate: `${tracks.join(" ")} ${ACTIONS_COLUMN_WIDTH}px`,
+      listMinWidth: total,
+    };
+  }, [compactList, listColumns, listColumnsState, resizePreview]);
+  const handleResizePreview = useCallback((id: ListColumnId, width: number | null) => {
+    setResizePreview(width === null ? null : { id, width });
+  }, []);
   const hasBooks = books.length > 0;
   const hasFolders = folders.length > 0;
   const draggingBooks = draggingBookHashes.length > 0;
   const folderBookIndex = useBooksInFolder(books, folders);
-  const visibleListHeaders = LIST_HEADERS.filter((header) =>
-    LIST_HEADERS_BY_LAYOUT[listLayout].includes(header.key),
-  );
   const { gridColumns, gridColumnWidth, gridRowHeight, rowCount } = useMemo(() => {
     const cols = Math.max(
       1,
@@ -273,7 +266,7 @@ export default function BookGrid({
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => viewMode === "grid" ? gridRowHeight : listLayout === "narrow" ? 66 : 58,
+    estimateSize: () => viewMode === "grid" ? gridRowHeight : compactList ? 66 : 58,
     overscan: 3,
     scrollMargin: virtualizerOffset,
   });
@@ -347,7 +340,7 @@ export default function BookGrid({
 
   useEffect(() => {
     virtualizer.measure();
-  }, [gridColumns, gridDensity, gridRowHeight, listLayout, viewMode, virtualizer, virtualizerOffset]);
+  }, [gridColumns, gridDensity, gridRowHeight, compactList, viewMode, virtualizer, virtualizerOffset]);
 
   useEffect(() => {
     thumbnailCache.prefetch(virtualThumbnailPaths);
@@ -404,7 +397,7 @@ export default function BookGrid({
     folders.length,
     gridColumns,
     gridDensity,
-    listLayout,
+    compactList,
     measureStaticContent,
     topContent,
     viewMode,
@@ -501,29 +494,6 @@ export default function BookGrid({
     });
   }, [canDropOnBook, draggingBookHashes]);
 
-  const startResize = (
-    key: keyof ExplorerColumns,
-    min: number,
-    event: ReactPointerEvent,
-  ) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = columns[key];
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      const nextWidth = Math.max(min, startWidth + moveEvent.clientX - startX);
-      setColumns((current) => ({ ...current, [key]: nextWidth }));
-    };
-
-    const handleUp = () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-  };
-
   const renderGridFolders = () => {
     if (folders.length === 0) return null;
 
@@ -600,7 +570,7 @@ export default function BookGrid({
               folderCount={displayInfo.folderCount}
               detail={displayInfo.detail}
               gridTemplateColumns={listGridTemplate}
-              listLayout={listLayout}
+              compact={compactList}
               isSelected={folderPathsEqual(folder.path, selectedFolder)}
               isDropTarget={displayInfo.isDropTarget}
               onOpen={handleOpenFolder}
@@ -778,30 +748,19 @@ export default function BookGrid({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto" style={{ scrollbarGutter: "stable" }}>
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 space-y-1" style={listMinWidth ? { minWidth: listMinWidth } : undefined}>
           <div ref={staticContentRef} className="space-y-1">
             {topContent}
-            <div
-              className="sticky top-0 z-10 grid rounded-sm border border-border bg-overlay text-xs uppercase tracking-wide text-foreground-subtle"
-              style={{ gridTemplateColumns: listGridTemplate }}
-            >
-              {visibleListHeaders.map((header) => (
-                <div key={header.key} className="relative flex items-center px-3 py-2">
-                  <span>{t(header.labelKey)}</span>
-                  {listLayout === "full" && (
-                  <button
-                    type="button"
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize border-r border-border hover:border-primary"
-                    onPointerDown={(event) => startResize(header.key, header.min, event)}
-                    aria-label={t("library:list.resizeColumn", {
-                      column: t(header.labelKey),
-                    })}
-                  />
-                  )}
-                </div>
-              ))}
-              <div />
-            </div>
+            <BookListHeader
+              columns={listColumns}
+              state={listColumnsState}
+              gridTemplateColumns={listGridTemplate}
+              compact={compactList}
+              sort={sort}
+              onSortChange={onSortChange}
+              onStateChange={setStoredListColumns}
+              onResizePreview={handleResizePreview}
+            />
             {renderListFolders()}
             {folderBookSeparator}
           </div>
@@ -835,9 +794,9 @@ export default function BookGrid({
                     onContextSelect={onContextSelect ? handleContextSelect : undefined}
                     canDropOnBook={canDropOnBook}
                     onDropOnBook={openDropMenu}
-                    columns={columns}
+                    columns={listColumns}
                     gridTemplateColumns={listGridTemplate}
-                    listLayout={listLayout}
+                    compact={compactList}
                   />
                 </div>
               );
