@@ -59,6 +59,21 @@ describe("SQLite document query repository", () => {
     expect(repository.list({ limit: 999 }).limit).toBe(200);
   });
 
+  it("sorts by author, series and rating with missing values last", () => {
+    const repository = createSqliteDocumentQueryRepository(db, libraryPath);
+    db.prepare("UPDATE documents SET author = 'Zélia', series = 'Saga', seriesIndex = '2', rating = 7 WHERE fileHash = 'a'").run();
+    db.prepare("UPDATE documents SET author = 'Ana', series = 'Saga', seriesIndex = '10', rating = 9 WHERE fileHash = 'b'").run();
+    const order = (sort: Parameters<typeof repository.list>[0]) => repository.list(sort).items.map((item) => item.fileHash);
+
+    expect(order({ sort: "author_asc" })).toEqual(["b", "a", "c"]);
+    expect(order({ sort: "author_desc" })).toEqual(["a", "b", "c"]);
+    expect(order({ sort: "series_asc" })).toEqual(["a", "b", "c"]);
+    expect(order({ sort: "series_desc" })).toEqual(["b", "a", "c"]);
+    expect(order({ sort: "rating_desc" })).toEqual(["b", "a", "c"]);
+    expect(order({ sort: "type_asc" })[0]).toBe("b");
+    expect(order({ sort: "type_desc" })[2]).toBe("b");
+  });
+
   it("combines sync, format, folder and FTS filters", () => {
     const repository = createSqliteDocumentQueryRepository(db, libraryPath);
     expect(repository.list({ section: "synced", fileType: "pdf" }).items.map((item) => item.fileHash))

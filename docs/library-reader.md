@@ -41,9 +41,46 @@ Folder actions:
 - Drop books into folder
 - Import books directly into folder
 
+## List View
+
+The list view is a table whose columns are configurable from the header's
+Columns menu (show/hide, reorder, reset); widths are resized by dragging the
+header edge. The choice is stored per device in `lyceum_library_listColumns`.
+Clicking a sortable header switches the library sort (shared with the sort
+dropdown); author, series, rating, format and date-added sorts run in SQL
+(`electron/infrastructure/sqlite-document-query.ts`) and again client-side
+(`sortBooksForLibraryView`).
+
+- Column model: `src/features/library/model/listColumns.ts`
+- UI: `src/pages/Library/components/BookGrid/BookListHeader.tsx`, `BookListItem.tsx`
+
+## Duplicate Finder
+
+The copy-check button in the library toolbar opens
+`DuplicateFinderDialog`. Files are exact-deduplicated by SHA-256 already, so
+it looks for the same book under different files: same ISBN (ISBN-10 is
+normalized to 13), same normalized title with compatible authors, or a very
+similar title by the same author (`src/features/library/model/duplicates.ts`).
+Each group can be merged as formats of one book (`book:merge`, no file moves),
+have selected copies removed (optionally deleting the files), or be dismissed;
+dismissed groups come back if their members change.
+
 ## Reader
 
-The reader supports PDF and EPUB tabs.
+The reader renders PDF and EPUB. Every other library format is opened through
+a cached copy built by `electron/services/reader-format-service.ts`:
+
+- MOBI, AZW, AZW3, PRC, DOCX, FB2, TXT, HTML, CBZ and CBR are converted to EPUB
+  with the Lyceum pipeline (the same importers the Conversion screen uses) and
+  cached in `<userData>/reader-cache/<hash>-v<N>.epub` (most recent 40 kept).
+- AZW4 (Print Replica) opens the PDF embedded in the book.
+- KFX and DRM-protected books are refused with a translated message.
+- CBR needs a system RAR extractor (7-Zip, unrar, unar or bsdtar); CBR files
+  that are really ZIPs open without one.
+
+The tab keeps the original file's hash and path, so progress and library
+records stay attached to the real book. Bump `READER_CACHE_VERSION` when the
+importers change enough that cached copies should be rebuilt.
 
 Main files:
 

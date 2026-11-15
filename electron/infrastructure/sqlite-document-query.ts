@@ -7,6 +7,12 @@ import type {
   LibrarySortOption,
 } from "../../src/types/LibraryTypes";
 
+const TITLE_ORDER = "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath))";
+const AUTHOR_ORDER = "LOWER(COALESCE(NULLIF(d.authorSort, ''), NULLIF(d.author, '')))";
+const ADDED_ORDER = "datetime(COALESCE(d.importedAt, d.createdAt))";
+// Books without the field always sort last, whatever the direction.
+const missing = (expression: string) => `CASE WHEN ${expression} IS NULL OR ${expression} = '' THEN 1 ELSE 0 END`;
+
 const ORDER_BY: Record<LibrarySortOption, string> = {
   title: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
   recent: "datetime(COALESCE(d.lastOpenedAt, d.updatedAt, d.importedAt, d.createdAt)) DESC, d.id DESC",
@@ -20,6 +26,16 @@ const ORDER_BY: Record<LibrarySortOption, string> = {
   pages_asc: "COALESCE(d.numPages, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
   size_desc: "COALESCE(d.fileSize, 0) DESC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
   size_asc: "COALESCE(d.fileSize, 0) ASC, LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC",
+  author_asc: `${missing(AUTHOR_ORDER)}, ${AUTHOR_ORDER} ASC, ${TITLE_ORDER} ASC, d.id ASC`,
+  author_desc: `${missing(AUTHOR_ORDER)}, ${AUTHOR_ORDER} DESC, ${TITLE_ORDER} ASC, d.id DESC`,
+  series_asc: `${missing("d.series")}, LOWER(d.series) ASC, CAST(d.seriesIndex AS REAL) ASC, ${TITLE_ORDER} ASC, d.id ASC`,
+  series_desc: `${missing("d.series")}, LOWER(d.series) DESC, CAST(d.seriesIndex AS REAL) DESC, ${TITLE_ORDER} ASC, d.id DESC`,
+  rating_desc: `COALESCE(d.rating, 0) DESC, ${TITLE_ORDER} ASC, d.id ASC`,
+  rating_asc: `COALESCE(d.rating, 0) ASC, ${TITLE_ORDER} ASC, d.id ASC`,
+  type_asc: `LOWER(COALESCE(d.fileType, '')) ASC, ${TITLE_ORDER} ASC, d.id ASC`,
+  type_desc: `LOWER(COALESCE(d.fileType, '')) DESC, ${TITLE_ORDER} ASC, d.id DESC`,
+  added_desc: `${ADDED_ORDER} DESC, d.id DESC`,
+  added_asc: `${ADDED_ORDER} ASC, d.id ASC`,
 };
 
 export function tokenizeDocumentSearch(query: string): string {

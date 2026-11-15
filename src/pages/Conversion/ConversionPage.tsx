@@ -54,6 +54,14 @@ import { ImageOptions } from "./components/ImageOptions";
 import { ConversionPreview } from "./components/ConversionPreview";
 import { IMAGE_BEARING_SOURCE_FORMATS } from "../../lib/lyceum/images/imagePresets";
 import { createLocalBook } from "../../utils/localBooks";
+import toast from "react-hot-toast";
+import {
+  KINDLE_NATIVE_FORMATS,
+  canSendToKindle,
+  getKindleBookFormat,
+  loadKindleConversionOptions,
+  saveKindleConversionOptions,
+} from "../../features/kindle/kindleConversion";
 
 const outputFormats: {
   value: ConversionOutputFormat;
@@ -208,6 +216,25 @@ function FormatOptions({
   if (format === "azw3" || format === "kfx") {
     return (
       <div className="space-y-4">
+        {sourceFormat === "pdf" && (
+          <label className="block space-y-1 text-xs text-foreground-muted">
+            <span>{t("conversion:options.kindle.pdfLayout")}</span>
+            <Select value={options.epubLayout} onChange={(value) => onChange({ epubLayout: value as ConversionOptions["epubLayout"] })} className="h-9 w-full text-sm" items={[{ value: "auto", label: t("conversion:options.kindle.pdfLayouts.auto") }, { value: "reflow", label: t("conversion:options.kindle.pdfLayouts.reflow") }, { value: "fixed-layout", label: t("conversion:options.kindle.pdfLayouts.fixed-layout") }]} />
+          </label>
+        )}
+        {format === "azw3" && !imageOnlySource && (
+          <label className="block space-y-1 text-xs text-foreground-muted">
+            <span>{t("conversion:options.kindle.fontSizes")}</span>
+            <Select value={options.kindleFontSizes || "kindle"} onChange={(value) => onChange({ kindleFontSizes: value as ConversionOptions["kindleFontSizes"] })} className="h-9 w-full text-sm" items={[{ value: "kindle", label: t("conversion:options.kindle.fontSizeModes.kindle") }, { value: "original", label: t("conversion:options.kindle.fontSizeModes.original") }]} />
+            <span className="block text-[11px] text-foreground-subtle">{t(`conversion:options.kindle.fontSizeHints.${options.kindleFontSizes === "original" ? "original" : "kindle"}`)}</span>
+          </label>
+        )}
+        {format === "azw3" && (
+          <label className="block space-y-1 text-xs text-foreground-muted">
+            <span>{t("conversion:options.kindle.pageNumbers")}</span>
+            <Select value={options.pageNumbers === "estimate" || options.pageNumbers === "off" ? options.pageNumbers : "auto"} onChange={(value) => onChange({ pageNumbers: value as ConversionOptions["pageNumbers"] })} className="h-9 w-full text-sm" items={[{ value: "auto", label: t("conversion:options.kindle.pageNumberModes.auto") }, { value: "estimate", label: t("conversion:options.kindle.pageNumberModes.estimate") }, { value: "off", label: t("conversion:options.kindle.pageNumberModes.off") }]} />
+          </label>
+        )}
         <label className="block space-y-1 text-xs text-foreground-muted">
           <span>{t("conversion:options.kindle.profile")}</span>
           <Select value={options.kindleProfile} onChange={(value) => onChange({ kindleProfile: value as ConversionOptions["kindleProfile"] })} className="h-9 w-full text-sm" items={[{ value: "legacy-paperwhite", label: t("conversion:options.kindle.profiles.legacy-paperwhite") }, { value: "kindle-compatible", label: t("conversion:options.kindle.profiles.kindle-compatible") }, { value: "modern-kindle", label: t("conversion:options.kindle.profiles.modern-kindle") }, { value: "scribe", label: t("conversion:options.kindle.profiles.scribe") }]} />
@@ -341,8 +368,10 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
     startConversionWithConfigs,
     cancelConversion,
     deleteConversion,
+    kindleDelivery,
   } = useConversionQueue();
   const { t, i18n } = useTranslation();
+  const kindleMode = Boolean(kindleDelivery);
   const [selectedBookHash, setSelectedBookHash] = useState<string | null>(null);
   const [bookConfigs, setBookConfigs] = useState<Map<string, {
     targetFormat: ConversionOutputFormat;
@@ -354,11 +383,18 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
   );
   const [search, setSearch] = useState("");
 
-  const defaultConfigFor = useCallback((book: BookWithThumbnail) => ({
-    targetFormat: (outputFormats.find((format) => canConvertBook(book, format.value))?.value || "epub") as ConversionOutputFormat,
-    profile: "ereader" as ConversionProfile,
-    options: { ...defaultConversionOptions },
-  }), []);
+  const defaultConfigFor = useCallback((book: BookWithThumbnail) => (kindleDelivery
+    ? {
+        // Kindle mode: AZW3 with the favourite Kindle settings.
+        targetFormat: "azw3" as ConversionOutputFormat,
+        profile: "ereader" as ConversionProfile,
+        options: loadKindleConversionOptions(),
+      }
+    : {
+        targetFormat: (outputFormats.find((format) => canConvertBook(book, format.value))?.value || "epub") as ConversionOutputFormat,
+        profile: "ereader" as ConversionProfile,
+        options: { ...defaultConversionOptions },
+      }), [kindleDelivery]);
 
   const getBookConfig = useCallback(
     (book: BookWithThumbnail): {
@@ -454,10 +490,11 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
   const convertibleCount = useMemo(
     () =>
       draftBooks.filter((book) => {
+        if (kindleMode) return canSendToKindle(book);
         const cfg = getBookConfig(book);
         return canConvertBook(book, cfg.targetFormat);
       }).length,
-    [draftBooks, getBookConfig],
+    [draftBooks, getBookConfig, kindleMode],
   );
   const estimatedSize = useMemo(() => {
     const totalEstimated = draftBooks.reduce((sum, book) => {
@@ -482,6 +519,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
     const configs: BookConversionConfig[] = draftBooks.map((book) => ({
       book,
       ...getBookConfig(book),
+      ...(kindleDelivery ? { delivery: kindleDelivery, targetFormat: "azw3" as ConversionOutputFormat } : {}),
     }));
     startConversionWithConfigs(configs);
     clearDraft();
@@ -499,6 +537,23 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
       return;
     }
     await deleteConversion(item.id);
+  };
+
+  const handleSaveKindleDefaults = (book: BookWithThumbnail) => {
+    if (saveKindleConversionOptions(getBookConfig(book).options)) toast.success(t("conversion:kindle.defaultsSaved"));
+  };
+
+  const handleApplyToAll = (book: BookWithThumbnail) => {
+    const options = getBookConfig(book).options;
+    setBookConfigs((current) => {
+      const next = new Map(current);
+      for (const candidate of draftBooks) {
+        const existing = next.get(candidate.fileHash) || defaultConfigFor(candidate);
+        next.set(candidate.fileHash, { ...existing, options: { ...options } });
+      }
+      return next;
+    });
+    toast.success(t("conversion:kindle.appliedToAll", { count: draftBooks.length }));
   };
 
   const handleRemoveBook = (book: BookWithThumbnail) => {
@@ -888,6 +943,21 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
 
                return (
                  <div className="space-y-6 p-5">
+                   {kindleMode && kindleDelivery && (
+                     <section className="rounded-sm border border-primary/40 bg-primary/5 p-3">
+                       <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                         <Send size={15} className="text-primary" />
+                         {t("conversion:kindle.banner", { device: kindleDelivery.deviceName })}
+                       </p>
+                       <p className="mt-1 text-xs text-foreground-subtle">{t("conversion:kindle.bannerHint")}</p>
+                       <p className="mt-2 text-xs font-medium text-foreground">
+                         {KINDLE_NATIVE_FORMATS.has(getKindleBookFormat(selectedBook))
+                           ? t("conversion:kindle.nativeFormat")
+                           : t("conversion:kindle.outputFormat")}
+                       </p>
+                     </section>
+                   )}
+                   {!kindleMode && (
                    <section>
                      <div className="mb-2 flex items-center gap-2">
                        <h3 className="text-sm font-semibold text-foreground">{t("conversion:settings.outputFormat")}</h3>
@@ -922,7 +992,9 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                        })}
                      </div>
                    </section>
+                   )}
 
+                   {!(kindleMode && KINDLE_NATIVE_FORMATS.has(getKindleBookFormat(selectedBook))) && (
                    <section>
                      <h3 className="mb-3 text-sm font-semibold text-foreground">
                        {t("conversion:settings.formatOptions", {
@@ -936,6 +1008,29 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                        onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
                      />
                    </section>
+                   )}
+
+                   {kindleMode && (
+                     <section className="flex flex-col gap-2">
+                       <button
+                         type="button"
+                         onClick={() => handleSaveKindleDefaults(selectedBook)}
+                         className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-border-strong bg-surface text-sm text-foreground hover:bg-surface-muted"
+                       >
+                         <Check size={14} />
+                         {t("conversion:kindle.saveDefaults")}
+                       </button>
+                       {draftBooks.length > 1 && (
+                         <button
+                           type="button"
+                           onClick={() => handleApplyToAll(selectedBook)}
+                           className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-border bg-background text-sm text-foreground hover:bg-surface-muted"
+                         >
+                           {t("conversion:kindle.applyToAll")}
+                         </button>
+                       )}
+                     </section>
+                   )}
 
                    {supportsImageOptions(selectedBook, cfg.targetFormat) && (
                      <section>
@@ -947,8 +1042,9 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      </section>
                    )}
 
-                   <ConversionPreview book={selectedBook} targetFormat={cfg.targetFormat} options={cfg.options} />
+                   {!kindleMode && <ConversionPreview book={selectedBook} targetFormat={cfg.targetFormat} options={cfg.options} />}
 
+                   {!kindleMode && (
                    <section>
                      <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:settings.destination")}</h3>
                      <div className="space-y-2">
@@ -987,6 +1083,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                        </button>
                      </div>
                    </section>
+                   )}
                  </div>
                );
              })()
@@ -1007,7 +1104,9 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
               className="flex h-11 flex-[1.8] items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
-              {t("conversion:settings.convert", { count: convertibleCount })}
+              {kindleMode
+                ? t("conversion:kindle.start", { count: convertibleCount })
+                : t("conversion:settings.convert", { count: convertibleCount })}
             </button>
           </div>
         </aside>

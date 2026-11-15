@@ -133,7 +133,17 @@
       "pages_desc": "Mais páginas",
       "pages_asc": "Menos páginas",
       "size_desc": "Maior arquivo",
-      "size_asc": "Menor arquivo"
+      "size_asc": "Menor arquivo",
+      "author_asc": "Autor A-Z",
+      "author_desc": "Autor Z-A",
+      "series_asc": "Série A-Z",
+      "series_desc": "Série Z-A",
+      "rating_desc": "Melhor avaliados",
+      "rating_asc": "Pior avaliados",
+      "type_asc": "Formato A-Z",
+      "type_desc": "Formato Z-A",
+      "added_desc": "Adicionados recentemente",
+      "added_asc": "Adicionados primeiro"
     },
     "fileTypes": {
       "all": "Todos",
@@ -169,7 +179,17 @@
       "type": "Tipo",
       "pages": "Páginas",
       "modified": "Aberto em",
-      "size": "Tamanho"
+      "size": "Tamanho",
+      "author": "Autor",
+      "series": "Série",
+      "progress": "Progresso",
+      "status": "Status",
+      "rating": "Nota",
+      "added": "Adicionado em",
+      "publisher": "Editora",
+      "language": "Idioma",
+      "published": "Publicação",
+      "isbn": "ISBN"
     },
     "resizeColumn": "Redimensionar coluna {{column}}",
     "collection": "Coleção",
@@ -178,7 +198,18 @@
     "remove": "Remover",
     "loadingMore": "Carregando mais livros...",
     "empty": "Nenhum livro nesta seção.",
-    "folderFallback": "Pasta"
+    "folderFallback": "Pasta",
+    "columnsMenu": {
+      "button": "Colunas",
+      "title": "Colunas visíveis",
+      "moveUp": "Mover {{column}} para cima",
+      "moveDown": "Mover {{column}} para baixo",
+      "reset": "Restaurar colunas",
+      "alwaysVisible": "Sempre visível"
+    },
+    "sortBy": "Ordenar por {{column}}",
+    "booksInCollection_one": "{{count}} livro",
+    "booksInCollection_other": "{{count}} livros"
   },
   "books": {
     "loading": "Carregando livros...",
@@ -453,6 +484,44 @@
       "useAppPassword": "Usar senha de app em vez disso",
       "useGoogle": "Entrar com a conta Google em vez de senha",
       "fromGoogle": "De {{address}} (conta Google)"
+    },
+    "pageNumbers": {
+      "label": "Números de página",
+      "auto": "Páginas reais",
+      "estimate": "Estimadas",
+      "off": "Desligado",
+      "hint": {
+        "auto": "Usa as páginas do PDF ou da editora; senão, estima",
+        "estimate": "Cerca de uma página impressa a cada 1.800 caracteres",
+        "off": "O Kindle mostra só a posição (Loc)"
+      },
+      "added_one": "{{count}} página numerada no Kindle",
+      "added_other": "{{count}} páginas numeradas no Kindle"
+    },
+    "conversion": {
+      "title": "Conversão",
+      "configure": "Configurar conversão…",
+      "summary": {
+        "layout": "PDF: {{value}}",
+        "fonts": "Fonte: {{value}}",
+        "profile": "Perfil: {{value}}"
+      },
+      "layouts": {
+        "auto": "automático",
+        "reflow": "texto fluido",
+        "fixed-layout": "páginas como imagem"
+      },
+      "fonts": {
+        "kindle": "ajustada ao Kindle",
+        "original": "tamanho do livro"
+      },
+      "profiles": {
+        "legacy-paperwhite": "Paperwhite antigo",
+        "kindle-compatible": "compatibilidade ampla",
+        "modern-kindle": "Kindle moderno",
+        "scribe": "Kindle Scribe"
+      },
+      "hint": "Abre a janela de conversão com estes livros para ajustar cada um e acompanhar o progresso."
     }
   },
   "page": {
@@ -590,5 +659,45 @@
     "itemsNotRemoved_one": "{{count}} item não removido",
     "itemsNotRemoved_other": "{{count}} itens não removidos",
     "corruptedFile": "Arquivo corrompido ou não suportado"
+  },
+  "reader": {
+    "preparing": "Preparando {{format}} para leitura…",
+    "errors": {
+      "drm": "Este livro tem DRM e não pode ser aberto.",
+      "kfx": "Livros KFX não podem ser lidos no Lyceum. Abra o EPUB ou AZW3 original.",
+      "unsupported": "Este formato ainda não pode ser aberto no leitor.",
+      "rarExtractorMissing": "Para abrir quadrinhos CBR é preciso um extrator RAR. Instale o 7-Zip, unrar ou unar e tente novamente.",
+      "corrupt": "O arquivo parece danificado e não pôde ser lido.",
+      "conversionFailed": "Não foi possível preparar este livro para leitura."
+    }
+  },
+  "duplicates": {
+    "open": "Encontrar duplicados",
+    "title": "Possíveis duplicados",
+    "scanning": "Analisando sua biblioteca…",
+    "summary_one": "{{count}} grupo · {{books}} livros",
+    "summary_other": "{{count}} grupos · {{books}} livros",
+    "hint": "Selecione as cópias que não precisa e remova-as, ou mescle os arquivos como formatos do mesmo livro.",
+    "empty": "Nenhum duplicado encontrado.",
+    "emptyHint": "Os livros são comparados por ISBN, título e autor, ignorando formato do arquivo, acentos e subtítulos.",
+    "groupCount_one": "{{count}} arquivo",
+    "groupCount_other": "{{count}} arquivos",
+    "reasons": {
+      "isbn": "Mesmo ISBN",
+      "sameTitle": "Mesmo título",
+      "similarTitle": "Título parecido"
+    },
+    "merge": "Mesclar todos",
+    "mergeSelected_one": "Mesclar {{count}} selecionado",
+    "mergeSelected_other": "Mesclar {{count}} selecionados",
+    "mergeHint": "Manter os arquivos juntos como formatos de um mesmo livro",
+    "removeSelected_one": "Remover {{count}}",
+    "removeSelected_other": "Remover {{count}}",
+    "dismiss": "Não são duplicados",
+    "dismissHint": "Ocultar este grupo até que seus livros mudem",
+    "showHidden_one": "Mostrar {{count}} grupo oculto",
+    "showHidden_other": "Mostrar {{count}} grupos ocultos",
+    "selectBook": "Selecionar {{title}}",
+    "unknownAuthor": "Autor desconhecido"
   }
 }

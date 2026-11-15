@@ -186,12 +186,35 @@ const api = {
       seriesIndex?: string | null;
       authorSort?: string | null;
       titleSort?: string | null;
+      printPageCount?: number | null;
     }>;
     convertToAzw3?: boolean;
     preserveMetadata?: boolean;
     organizeByAuthor?: boolean;
     destination?: string;
+    pageNumbers?: "auto" | "off" | "target-count" | "estimate";
+    charsPerPage?: number;
+    conversionOptions?: LyceumConversionOptions;
   }) => ipcRenderer.invoke("kindle:send-books", options),
+
+  /** Sends one book (conversion queue): progress arrives on onConversionProgress(jobId). */
+  sendBookToKindle: (input: {
+    jobId?: string;
+    deviceId?: string;
+    book: { fileHash: string; filePath: string; title: string; author?: string | null; fileType?: BookFormat | null; [key: string]: unknown };
+    convertToAzw3?: boolean;
+    preserveMetadata?: boolean;
+    organizeByAuthor?: boolean;
+    destination?: string;
+    pageNumbers?: "auto" | "off" | "target-count" | "estimate";
+    conversionOptions?: LyceumConversionOptions;
+  }) => ipcRenderer.invoke("kindle:send-book", input),
+
+  onKindleSendProgress: (callback: (payload: { fileHash: string; progress: number; message: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, payload: { fileHash: string; progress: number; message: string }) => callback(payload);
+    ipcRenderer.on("kindle:send-progress", listener);
+    return () => { ipcRenderer.removeListener("kindle:send-progress", listener); };
+  },
 
   getKindleEmailConfig: () =>
     invoke<KindleEmailPublicConfig>("kindle-email:get-config"),
@@ -788,6 +811,9 @@ openInNewWindow: (data: {
 
   languageLearningUpsertReviewItem: (userId: string, item: ReviewItem) =>
     invoke<void>("language-learning:upsert-review-item", userId, item),
+
+  languageLearningUpsertReviewItems: (userId: string, items: ReviewItem[]) =>
+    invoke<number>("language-learning:upsert-review-items", userId, items),
 
   languageLearningDeleteReviewItem: (userId: string, id: string) =>
     invoke<void>("language-learning:delete-review-item", userId, id),

@@ -30,7 +30,33 @@ const sortLabelKeys: Record<SortOption, TranslationKey> = {
   pages_asc: "library:filters.sort.pages_asc",
   size_desc: "library:filters.sort.size_desc",
   size_asc: "library:filters.sort.size_asc",
+  author_asc: "library:filters.sort.author_asc",
+  author_desc: "library:filters.sort.author_desc",
+  series_asc: "library:filters.sort.series_asc",
+  series_desc: "library:filters.sort.series_desc",
+  rating_desc: "library:filters.sort.rating_desc",
+  rating_asc: "library:filters.sort.rating_asc",
+  type_asc: "library:filters.sort.type_asc",
+  type_desc: "library:filters.sort.type_desc",
+  added_desc: "library:filters.sort.added_desc",
+  added_asc: "library:filters.sort.added_asc",
 };
+
+/** Sorts offered in the dropdown; the rest are reachable from list-view column headers. */
+const sortMenuOptions: SortOption[] = [
+  "recent_desc",
+  "recent_asc",
+  "added_desc",
+  "title_asc",
+  "title_desc",
+  "author_asc",
+  "series_asc",
+  "rating_desc",
+  "pages_desc",
+  "pages_asc",
+  "size_desc",
+  "size_asc",
+];
 
 const fileTypeLabels: Record<Exclude<FileTypeFilter, "all">, string> = {
   pdf: "PDF",
@@ -45,6 +71,8 @@ const fileTypeLabels: Record<Exclude<FileTypeFilter, "all">, string> = {
   kfx: "KFX",
   prc: "PRC",
   txt: "TXT",
+  fb2: "FB2",
+  cbr: "CBR",
   lyceum: "LYCEUM",
 };
 
@@ -128,7 +156,7 @@ function SortSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const options = Object.keys(sortLabelKeys) as SortOption[];
+  const options = sortMenuOptions.includes(value) ? sortMenuOptions : [value, ...sortMenuOptions];
 
   return (
     <div ref={ref} className="relative min-w-0 flex-[1_1_140px] sm:ml-auto sm:flex-none">

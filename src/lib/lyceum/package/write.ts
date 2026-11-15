@@ -14,6 +14,7 @@ import {
   originalSourcePath,
   textualChapterPath,
   textualFulltextPath,
+  textualPageMapPath,
   textualResourcePath,
   textualResourcesPath,
   textualSpinePath,
@@ -160,6 +161,8 @@ export function writeTextualContent(rootPath: string, textual: LyceumTextualCont
   writeJson(textualSpinePath(rootPath), textual.spine);
   writeJson(textualTocPath(rootPath), textual.toc);
   writeJson(textualResourcesPath(rootPath), resourceManifest(textual));
+  if (textual.pageMap) writeJson(textualPageMapPath(rootPath), textual.pageMap);
+  else fs.rmSync(textualPageMapPath(rootPath), { force: true });
   fs.writeFileSync(textualFulltextPath(rootPath), textual.fulltext, "utf8");
 }
 
@@ -186,6 +189,8 @@ export async function writeTextualContentAsync(rootPath: string, textual: Lyceum
   await writeJsonAsync(textualSpinePath(rootPath), textual.spine);
   await writeJsonAsync(textualTocPath(rootPath), textual.toc);
   await writeJsonAsync(textualResourcesPath(rootPath), resourceManifest(textual));
+  if (textual.pageMap) await writeJsonAsync(textualPageMapPath(rootPath), textual.pageMap);
+  else await fs.promises.rm(textualPageMapPath(rootPath), { force: true });
   await fs.promises.writeFile(textualFulltextPath(rootPath), textual.fulltext, "utf8");
 }
 

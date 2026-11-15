@@ -64,6 +64,7 @@ function createApi() {
     languageLearningSetTranslation: vi.fn(async () => undefined),
     languageLearningListReviewItems: vi.fn(async () => reviews),
     languageLearningUpsertReviewItem: vi.fn(async (_user: string, item: ReviewItem) => { reviews.push(item); }),
+    languageLearningUpsertReviewItems: vi.fn(async (_user: string, items: ReviewItem[]) => { reviews.push(...items); return items.length; }),
     languageLearningDeleteReviewItem: vi.fn(async () => undefined),
     languageLearningLogReview: vi.fn(async () => undefined),
     languageLearningListReviewLog: vi.fn(async () => []),
@@ -150,11 +151,13 @@ describe("Language-learning reader", () => {
     expect(word(surface, "gehe")).toBe(gehe);
   });
 
-  it("opens the right-click menu and ignores a word", async () => {
+  it("opens a short right-click menu (states, side panel, note, copy) and ignores a word", async () => {
     const { surface } = await renderViewer();
     fireEvent.contextMenu(word(surface, "Frau"), { clientX: 100, clientY: 100 });
     const menu = await screen.findByRole("menu", { name: "Frau" });
-    fireEvent.click(within(menu).getByRole("menuitem", { name: /Ignorar esta palavra/ }));
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Abrir no painel lateral", "Adicionar nota", "Copiar palavra"]);
+    expect(within(menu).getAllByRole("menuitemradio")).toHaveLength(4);
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Ignorada/ }));
     await waitFor(() => expect(api.languageLearningSetLemmaState).toHaveBeenCalledWith("local", expect.objectContaining({ key: "Frau", state: "ignored" })));
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 
@@ -229,6 +232,33 @@ describe("Language-learning reader", () => {
     expect(api.languageLearningSetLemmaState).toHaveBeenCalledWith("local", expect.objectContaining({ key: "gehen", state: "learning" }));
   });
 
+  it("Ctrl+click marks a word Known without opening the panel", async () => {
+    const { surface } = await renderViewer();
+    await act(async () => {
+      fireEvent.click(word(surface, "Kino"), { ctrlKey: true });
+    });
+    expect(api.languageLearningSetLemmaState).toHaveBeenCalledWith("local", expect.objectContaining({ key: "Kino", state: "known" }));
+    await waitFor(() => expect(word(surface, "Kino")).toHaveClass("s-k"));
+    expect(screen.queryByRole("complementary", { name: "Contexto" })).not.toBeInTheDocument();
+    expect(api.languageLearningUpsertReviewItem).not.toHaveBeenCalled();
+  });
+
+  it("marking a word as Learning is what puts it in the reviews (no separate add button)", async () => {
+    localStorage.setItem("lyceum-learning-reader:settings", JSON.stringify({ autoLearnOnClick: false }));
+    const { surface } = await renderViewer();
+    fireEvent.click(word(surface, "Frau"));
+    const inspector = await screen.findByRole("complementary", { name: "Contexto" });
+    expect(within(inspector).queryByRole("button", { name: /vocabulário/i })).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(within(inspector).getByRole("radio", { name: /Aprendendo/ }));
+    });
+    expect(api.languageLearningUpsertReviewItem).toHaveBeenCalledWith("local", expect.objectContaining({
+      key: "Frau",
+      context: "Die Frau geht schnell, weil es regnet.",
+      contextForm: "Frau",
+    }));
+  });
+
   it("does not auto-add when the setting is off, and never on keyboard navigation", async () => {
     localStorage.setItem("lyceum-learning-reader:settings", JSON.stringify({ autoLearnOnClick: false }));
     const { surface } = await renderViewer();
@@ -240,13 +270,13 @@ describe("Language-learning reader", () => {
     expect(api.languageLearningSetLemmaState).not.toHaveBeenCalled();
   });
 
-  it("lists every word of the book with state buttons, sorted by frequency on request", async () => {
+  it("lists every word of the book with state buttons, most relevant first", async () => {
     localStorage.setItem("lyceum-learning-reader:settings", JSON.stringify({ progressPanelOpen: true }));
     await renderViewer();
     const list = await screen.findByRole("list", { name: "Palavras" });
-    fireEvent.change(screen.getByRole("combobox", { name: "Ordenar por" }), { target: { value: "frequency" } });
     await waitFor(() => {
       const first = within(list).getAllByRole("listitem")[0]!;
+      // Most relevant unknown word: the most frequent one here.
       expect(first).toHaveTextContent("gehen");
       expect(first).toHaveTextContent("×4");
     });
@@ -257,6 +287,24 @@ describe("Language-learning reader", () => {
     expect(api.languageLearningSetLemmaState).toHaveBeenCalledWith("local", expect.objectContaining({ key: "gehen", state: "known" }));
     fireEvent.click(screen.getByRole("button", { name: /^Conhecida/, pressed: false }));
     await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(1));
+  });
+
+  it("only words currently in Learning are in the review queue", async () => {
+    const { createReviewItem } = await import("../../core/language-learning");
+    const base = { itemType: "lexeme" as const, translation: null, context: null, contextForm: null, documentId: null, sentenceId: null, language: "de" };
+    (await api.languageLearningListReviewItems()).push(
+      createReviewItem({ ...base, key: "gehen", label: "gehen" }),
+      createReviewItem({ ...base, key: "Frau", label: "Frau" }),
+    );
+    api.snapshot.lemmas.gehen = { language: "de", key: "gehen", label: "gehen", state: "learning", translation: null, note: null, lookupCount: 0, updatedAt: "t" };
+    api.snapshot.lemmas.Frau = { language: "de", key: "Frau", label: "Frau", state: "known", translation: null, note: null, lookupCount: 0, updatedAt: "t" };
+    localStorage.setItem("lyceum-learning-reader:settings", JSON.stringify({ progressPanelOpen: true }));
+    await renderViewer();
+    fireEvent.click(await screen.findByRole("tab", { name: /Revisão/ }));
+    expect(await screen.findByText("1", { selector: "p" })).toBeInTheDocument();
+    const panel = screen.getByRole("complementary", { name: /Aprendizado/ });
+    expect(within(panel).getByText("gehen")).toBeInTheDocument();
+    expect(within(panel).queryByText("Frau")).not.toBeInTheDocument();
   });
 
   it("offers to recover vocabulary saved under another language label", async () => {

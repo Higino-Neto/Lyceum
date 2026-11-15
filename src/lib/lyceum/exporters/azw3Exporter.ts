@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { validateAzw3Buffer } from "../mobi/azw3Pipeline";
 import { buildAzw3Async } from "../mobi/azw3Writer";
+import { apnxSidecarPath, buildApnx, groupsFromLabels } from "../kindle/apnxWriter";
+import { resolvePageMap } from "../pagination/paginate";
 import { hydrateTextualResources, prepareKindleImages } from "../mobi/records/resources";
 import { mergeDefinedBookMetadata } from "../schema/manifest";
 import type { ExportInput, ExportResult, LyceumExporter } from "../schema/types";
@@ -31,10 +33,12 @@ export class Azw3Exporter implements LyceumExporter {
       throw new Error("O pacote .lyceum nao possui conteudo textual exportavel para AZW3.");
     }
 
+    const textual = resolvePageMap(prepared.pkg.textual, input.conversionOptions);
     const azw3 = await buildAzw3Async({
       metadata,
-      textual: prepared.pkg.textual,
+      textual,
       embedSource: false,
+      fontSizes: input.conversionOptions?.kindleFontSizes || "kindle",
     });
     const buffer = Buffer.from(azw3.buffer);
     const validation = validateAzw3Buffer(buffer);
@@ -45,6 +49,27 @@ export class Azw3Exporter implements LyceumExporter {
 
     await fs.promises.writeFile(input.outputPath, buffer);
 
+    // Real page numbers: APNX sidecar next to the book. The Kindle transfer
+    // step moves it into "<book>.sdr/". A stale sidecar is always removed.
+    const apnxPath = apnxSidecarPath(input.outputPath);
+    await fs.promises.rm(apnxPath, { force: true });
+    const pageWarnings: string[] = [];
+    if (textual.pageMap && azw3.pageOffsets.length > 0) {
+      try {
+        const apnx = buildApnx({
+          asin: metadata.asin || metadata.identifier || "",
+          acr: azw3.pdbName,
+          cdeType: "EBOK",
+          format: "MOBI_8",
+          pageOffsets: azw3.pageOffsets,
+          groups: groupsFromLabels(textual.pageMap.pages.map((page) => page.label)),
+        });
+        await fs.promises.writeFile(apnxPath, apnx);
+      } catch (error) {
+        pageWarnings.push(`Numeros de pagina nao gerados: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
     return {
       outputPath: input.outputPath,
       outputFormat: "azw3",
@@ -53,6 +78,7 @@ export class Azw3Exporter implements LyceumExporter {
         warnings: [
           ...prepared.warnings,
           ...validation.warnings,
+          ...pageWarnings,
         ],
         stats: {
           backend: "lyceum-manual",
@@ -101,6 +127,9 @@ export class Azw3Exporter implements LyceumExporter {
           thumbnailGenerated: prepared.thumbnailGenerated,
           firmwareProfile: prepared.firmwareProfile,
           unresolvedInternalLinkCount: azw3.stats.unresolvedInternalLinkCount,
+          pageCount: azw3.pageOffsets.length,
+          pageMapSource: textual.pageMap?.source || "none",
+          unresolvedPageCount: azw3.stats.unresolvedPageCount ?? 0,
         },
       },
     };

@@ -26,6 +26,8 @@ import {
   toReadableFileType,
 } from "./file-service";
 import { findFileByHashInWorker, hashFile, readAndHash, openAndProcess } from "../workers/processingClient";
+import { prepareReaderCopy, readerStrategyForPath, ReaderOpenError, type ReaderErrorCode } from "./reader-format-service";
+import type { BookFileType } from "../../src/types/LibraryTypes";
 
 const { app } = electron;
 
@@ -36,41 +38,129 @@ type ReopenedDocumentResult = {
   fileType?: "pdf" | "epub";
   fileName?: string;
   foundAt?: string;
+  /** File actually rendered when the book was converted for the reader. */
+  readerPath?: string;
+  converted?: boolean;
   error?: string;
   message?: string;
+  readerErrorCode?: ReaderErrorCode;
 };
+
+interface ReadableFile {
+  fileBuffer?: ArrayBuffer;
+  fileHash: string;
+  fileType: "pdf" | "epub";
+  readerPath: string;
+  converted: boolean;
+}
+
+function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
+
+/**
+ * Reads what the reader renders for `filePath`: the file itself for PDF/EPUB,
+ * otherwise a cached EPUB/PDF copy. The hash is always the original file's,
+ * so progress and library records stay attached to the real book.
+ */
+async function loadReadableFile(filePath: string, metadataOnly: boolean, knownHash?: string): Promise<ReadableFile> {
+  const strategy = readerStrategyForPath(filePath);
+  if (strategy.kind === "pdf" || strategy.kind === "epub") {
+    const file = metadataOnly && strategy.kind === "pdf" ? await hashFile(filePath) : await readAndHash(filePath);
+    return {
+      fileBuffer: "buffer" in file ? file.buffer : undefined,
+      fileHash: file.fileHash,
+      fileType: strategy.kind,
+      readerPath: filePath,
+      converted: false,
+    };
+  }
+  const fileHash = knownHash || (await hashFile(filePath)).fileHash;
+  const copy = await prepareReaderCopy(filePath, fileHash);
+  const fileBuffer = metadataOnly && copy.fileType === "pdf"
+    ? undefined
+    : toArrayBuffer(await fs.promises.readFile(copy.readPath));
+  return { fileBuffer, fileHash, fileType: copy.fileType, readerPath: copy.readPath, converted: true };
+}
+
+function readerErrorResult(error: unknown): ReopenedDocumentResult | null {
+  if (!(error instanceof ReaderOpenError)) return null;
+  return { error: "UNSUPPORTED_FORMAT", message: error.message, readerErrorCode: error.code };
+}
+
+function storedFileType(filePath: string, fallback?: string | null): BookFileType {
+  const extension = path.extname(filePath).toLowerCase().replace(/^\./, "");
+  return (extension || fallback || "pdf") as BookFileType;
+}
 
 export async function openReadableFile(
   filePath: string
-): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string }) | null> {
-  const fileType = inferFileTypeFromPath(filePath);
+): Promise<(DocumentRecord & { fileBuffer: ArrayBuffer; fileType: "pdf" | "epub"; title: string; readerPath: string; converted: boolean }) | null> {
   const title = path.basename(filePath, path.extname(filePath));
   const thumbnailsDir = path.join(app.getPath("userData"), "thumbnails");
+  const strategy = readerStrategyForPath(filePath);
+  const isNative = strategy.kind === "pdf" || strategy.kind === "epub";
 
   const existingByPath = getDocumentByFilePath(filePath);
   if (existingByPath) {
-    const { buffer, fileHash } = await readAndHash(filePath);
+    const readable = await loadReadableFile(filePath, false);
     updateLastOpened(existingByPath.fileHash);
-    return { ...existingByPath, fileHash, filePath, fileBuffer: buffer, fileType, title };
+    return {
+      ...existingByPath,
+      fileHash: readable.fileHash,
+      filePath,
+      fileBuffer: readable.fileBuffer!,
+      fileType: readable.fileType,
+      readerPath: readable.readerPath,
+      converted: readable.converted,
+      title,
+    };
   }
 
-  const { buffer, fileHash, thumbnailPath, numPages } = await openAndProcess({
-    filePath,
-    thumbnailsDir,
-    fileType,
-  });
+  const bookFileType = storedFileType(filePath);
+  // Thumbnails/page counts for converted formats are filled in later by the
+  // library's thumbnail queue; inspection here only understands PDF/EPUB.
+  const processed = isNative
+    ? await openAndProcess({ filePath, thumbnailsDir, fileType: inferFileTypeFromPath(filePath) })
+    : { ...(await hashFile(filePath)), thumbnailPath: undefined, numPages: 1, buffer: undefined };
+  const readable = isNative && processed.buffer
+    ? { fileBuffer: processed.buffer, fileHash: processed.fileHash, fileType: inferFileTypeFromPath(filePath), readerPath: filePath, converted: false }
+    : await loadReadableFile(filePath, false, processed.fileHash);
 
-  const existingByHash = getDocumentByHash(fileHash);
+  const existingByHash = getDocumentByHash(processed.fileHash);
   if (existingByHash) {
     updateLastOpened(existingByHash.fileHash);
-    return { ...existingByHash, filePath, fileBuffer: buffer, fileType, title };
+    return {
+      ...existingByHash,
+      filePath,
+      fileBuffer: readable.fileBuffer!,
+      fileType: readable.fileType,
+      readerPath: readable.readerPath,
+      converted: readable.converted,
+      title,
+    };
   }
 
-  addDocument(title, filePath, fileHash, thumbnailPath || undefined, numPages ?? 1, fileType);
+  addDocument(
+    title,
+    filePath,
+    processed.fileHash,
+    processed.thumbnailPath || undefined,
+    processed.numPages ?? 1,
+    isNative ? readable.fileType : bookFileType,
+  );
 
-  const doc = getDocumentByHash(fileHash);
+  const doc = getDocumentByHash(processed.fileHash);
   if (!doc) return null;
-  return { ...doc, filePath, fileBuffer: buffer, fileType, title };
+  return {
+    ...doc,
+    filePath,
+    fileBuffer: readable.fileBuffer!,
+    fileType: readable.fileType,
+    readerPath: readable.readerPath,
+    converted: readable.converted,
+    title,
+  };
 }
 
 function getReopenSearchPaths(): string[] {
@@ -87,6 +177,8 @@ function formatOpenedDocumentResult(
     fileBuffer: ArrayBuffer;
     fileType: "pdf" | "epub";
     title: string;
+    readerPath: string;
+    converted: boolean;
   },
   foundAt?: string,
 ): ReopenedDocumentResult {
@@ -97,6 +189,8 @@ function formatOpenedDocumentResult(
     fileType: document.fileType,
     fileName: document.title || document.fileName || path.basename(document.filePath || ""),
     foundAt,
+    readerPath: document.readerPath,
+    converted: document.converted,
   };
 }
 
@@ -134,32 +228,35 @@ export async function reopenDocument(
         return result;
       }
 
-      const inferredFileType = inferFileTypeFromPath(
-        existingCandidatePath,
-        toReadableFileType(knownDocument.fileType),
-      );
-      const file = metadataOnly && inferredFileType === "pdf"
-        ? await hashFile(existingCandidatePath)
-        : await readAndHash(existingCandidatePath);
-      const hash = file.fileHash;
+      const readable = await loadReadableFile(existingCandidatePath, metadataOnly);
+      const hash = readable.fileHash;
 
       if (existingCandidatePath !== knownDocument.filePath && hash === knownDocument.fileHash) {
         updateDocumentPath(knownDocument.fileHash, existingCandidatePath);
       }
 
-      if (inferredFileType !== knownDocument.fileType) {
-        updateDocumentFileType(knownDocument.fileHash, inferredFileType);
+      // Converted formats keep their real type (mobi, docx...) in the library.
+      if (!readable.converted) {
+        const inferredFileType = inferFileTypeFromPath(
+          existingCandidatePath,
+          toReadableFileType(knownDocument.fileType),
+        );
+        if (inferredFileType !== knownDocument.fileType) {
+          updateDocumentFileType(knownDocument.fileHash, inferredFileType);
+        }
       }
 
       updateLastOpened(knownDocument.fileHash);
 
       return {
-        fileBuffer: "buffer" in file ? file.buffer : undefined,
+        fileBuffer: readable.fileBuffer,
         fileHash: hash,
         filePath: existingCandidatePath,
-        fileType: inferredFileType,
+        fileType: readable.fileType,
         fileName: knownDocument.title,
         foundAt: existingCandidatePath !== knownDocument.filePath ? existingCandidatePath : undefined,
+        readerPath: readable.readerPath,
+        converted: readable.converted,
       };
     }
 
@@ -185,23 +282,27 @@ export async function reopenDocument(
 
     updateDocumentPath(fileHash, foundPath);
     updateLastOpened(fileHash);
-    const inferredFileType = inferFileTypeFromPath(foundPath, toReadableFileType(knownDocument.fileType));
-    if (inferredFileType !== knownDocument.fileType) {
-      updateDocumentFileType(fileHash, inferredFileType);
+    const readable = await loadReadableFile(foundPath, metadataOnly);
+    if (!readable.converted) {
+      const inferredFileType = inferFileTypeFromPath(foundPath, toReadableFileType(knownDocument.fileType));
+      if (inferredFileType !== knownDocument.fileType) {
+        updateDocumentFileType(fileHash, inferredFileType);
+      }
     }
 
-    const file = metadataOnly && inferredFileType === "pdf"
-      ? await hashFile(foundPath)
-      : await readAndHash(foundPath);
     return {
-      fileBuffer: "buffer" in file ? file.buffer : undefined,
-      fileHash: file.fileHash,
+      fileBuffer: readable.fileBuffer,
+      fileHash: readable.fileHash,
       filePath: foundPath,
-      fileType: inferredFileType,
+      fileType: readable.fileType,
       fileName: knownDocument.title,
       foundAt: foundPath,
+      readerPath: readable.readerPath,
+      converted: readable.converted,
     };
   } catch (error) {
+    const readerError = readerErrorResult(error);
+    if (readerError) return readerError;
     console.error("[DocumentService] reopen error:", error);
     return { error: "READ_ERROR", message: "Erro ao ler o arquivo" };
   }

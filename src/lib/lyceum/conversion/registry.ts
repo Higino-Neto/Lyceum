@@ -10,6 +10,10 @@ import { PdfImporter } from "../importers/pdfImporter";
 import { TxtImporter } from "../importers/txtImporter";
 import { HtmlImporter } from "../importers/htmlImporter";
 import { CbzImporter } from "../importers/cbzImporter";
+import { MobiImporter } from "../importers/mobiImporter";
+import { DocxImporter } from "../importers/docxImporter";
+import { Fb2Importer } from "../importers/fb2Importer";
+import { CbrImporter } from "../importers/cbrImporter";
 import { EpubExporter } from "../exporters/epubExporter";
 import { PdfExporter } from "../exporters/pdfExporter";
 import { TxtExporter } from "../exporters/txtExporter";
@@ -70,6 +74,12 @@ export function createDefaultConversionRegistry() {
   registry.registerImporter(new TxtImporter());
   registry.registerImporter(new HtmlImporter());
   registry.registerImporter(new CbzImporter());
+  for (const format of ["mobi", "azw", "azw3", "prc"] as const) {
+    registry.registerImporter(new MobiImporter(format));
+  }
+  registry.registerImporter(new DocxImporter());
+  registry.registerImporter(new Fb2Importer());
+  registry.registerImporter(new CbrImporter());
   registry.registerExporter(new EpubExporter());
   registry.registerExporter(new PdfExporter());
   registry.registerExporter(new TxtExporter());

@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import {
   dueItems,
   effectiveState,
+  TOKEN_FLAG_NUMBER,
   type DifficultWord,
   type GrammarAnalysis,
   type KnowledgeState,
@@ -26,6 +27,8 @@ import { WordMenu, type WordMenuAction } from "./WordMenu";
 import { AnnotationComposer, type AnnotationDraftTarget } from "./AnnotationComposer";
 import { useNarration } from "./useNarration";
 import { DictionaryOfferContext, dynamicT, type DictionaryOfferValue } from "./uiHelpers";
+import { useResizablePanel } from "../../../../hooks/useResizablePanel";
+import PanelResizeHandle from "../../../../components/ui/PanelResizeHandle";
 import "./lyceumReader.css";
 
 interface LyceumLearningViewerProps {
@@ -65,6 +68,8 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
   const [grammar, setGrammar] = useState<{ analysis: GrammarAnalysis; sentenceId: string } | null>(null);
   const [learningTab, setLearningTab] = useState<LearningTab>("words");
   const [narrow, setNarrow] = useState(false);
+  const inspectorResize = useResizablePanel({ storageKey: "lyceum-learning-reader:inspector-width", defaultWidth: 340, minWidth: 280, maxWidth: 640, edge: "left" });
+  const panelResize = useResizablePanel({ storageKey: "lyceum-learning-reader:panel-width", defaultWidth: 360, minWidth: 300, maxWidth: 760, edge: "left" });
   const rootRef = useRef<HTMLDivElement>(null);
   const lookedUp = useRef(new Set<string>());
 
@@ -175,10 +180,25 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
   const snapshotRef = useRef(session.snapshot);
   snapshotRef.current = session.snapshot;
 
+  const contextOf = useCallback((ordinal: number) => {
+    const resolved = index?.resolve(ordinal);
+    return resolved ? { sentenceId: resolved.sentence.id, contextForm: resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]) } : undefined;
+  }, [index]);
+
+  const setWordState = useCallback((ordinal: number, state: KnowledgeState) => {
+    const resolved = index?.resolve(ordinal);
+    const entry = resolved ? document?.lexicon[resolved.tuple[2]] : undefined;
+    const form = resolved ? document?.forms[resolved.tuple[3]] : undefined;
+    if (!entry || !form) return;
+    const hasOverride = Boolean(snapshotRef.current.forms[`${entry.key}\u0000${form.form}`]);
+    void session.setKnowledge(entry.key, entry.lemma, state, hasOverride ? form.form : undefined, contextOf(ordinal));
+  }, [contextOf, document, index, session]);
+
   /**
    * Opens a word in the inspector. A click in the text (`fromText`) on an
-   * unknown word also moves it to Learning and into the vocabulary, when
-   * that setting is on; keyboard navigation and list clicks only inspect.
+   * unknown word also moves it to Learning (which puts it in the review
+   * queue) when that setting is on; keyboard navigation and list clicks only
+   * inspect.
    */
   const selectWord = useCallback((ordinal: number, options: { fromText?: boolean } = {}) => {
     setSelection({ type: "word", ordinal });
@@ -187,48 +207,25 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
     const entry = resolved ? document?.lexicon[resolved.tuple[2]] : undefined;
     const form = resolved ? document?.forms[resolved.tuple[3]] : undefined;
     if (!resolved || !entry || !form) return;
-    const isNumber = (resolved.tuple[4] & 2) !== 0;
-    if (options.fromText && settingsRef.current.autoLearnOnClick && settingsRef.current.learningMode && !isNumber
-      && effectiveState(snapshotRef.current, entry.key, form.form) === "unknown") {
-      lookedUp.current.add(entry.key);
-      session.recordLookup(entry.key, entry.lemma);
-      void session.addToVocabulary({
-        key: entry.key,
-        label: entry.lemma,
-        itemType: "lexeme",
-        sentenceId: resolved.sentence.id,
-        contextForm: resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]),
-        automatic: true,
-      });
-      return;
-    }
     if (!lookedUp.current.has(entry.key)) {
       lookedUp.current.add(entry.key);
       session.recordLookup(entry.key, entry.lemma);
     }
-  }, [document, index, session, updateSettings]);
+    const isNumber = (resolved.tuple[4] & TOKEN_FLAG_NUMBER) !== 0;
+    if (options.fromText && settingsRef.current.autoLearnOnClick && settingsRef.current.learningMode && !isNumber
+      && effectiveState(snapshotRef.current, entry.key, form.form) === "unknown") {
+      setWordState(ordinal, "learning");
+    }
+  }, [document, index, session, setWordState, updateSettings]);
 
-  const setWordState = useCallback((ordinal: number, state: KnowledgeState) => {
-    const resolved = index?.resolve(ordinal);
-    const entry = resolved ? document?.lexicon[resolved.tuple[2]] : undefined;
-    const form = resolved ? document?.forms[resolved.tuple[3]] : undefined;
-    if (!entry || !form) return;
-    const hasOverride = Boolean(session.snapshot.forms[`${entry.key}\u0000${form.form}`]);
-    void session.setKnowledge(entry.key, entry.lemma, state, hasOverride ? form.form : undefined);
-  }, [document, index, session]);
-
-  const addWordToVocabulary = useCallback((ordinal: number) => {
-    const resolved = index?.resolve(ordinal);
-    const entry = resolved ? document?.lexicon[resolved.tuple[2]] : undefined;
-    if (!resolved || !entry) return;
-    void session.addToVocabulary({
-      key: entry.key,
-      label: entry.lemma,
-      itemType: "lexeme",
-      sentenceId: resolved.sentence.id,
-      contextForm: resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]),
-    });
-  }, [document, index, session]);
+  /** Click in the text: Ctrl/Cmd+click marks the word Known without opening anything. */
+  const handleWordClick = useCallback((ordinal: number, modifiers: { alt: boolean; ctrl: boolean }) => {
+    if (modifiers.ctrl) {
+      setWordState(ordinal, "known");
+      return;
+    }
+    selectWord(ordinal, { fromText: true });
+  }, [selectWord, setWordState]);
 
   const handleMenuAction = useCallback((action: WordMenuAction) => {
     if (!menu || !index) return;
@@ -236,23 +233,8 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
     if (!resolved) return;
     const surface = resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]);
     switch (action) {
-      case "translate":
-      case "grammar":
-      case "occurrences":
+      case "details":
         selectWord(menu.ordinal);
-        break;
-      case "sentence":
-        setSelection({ type: "sentence", sentenceId: resolved.sentence.id });
-        updateSettings({ inspectorOpen: true });
-        break;
-      case "pronounce":
-        void narration.speakText(surface);
-        break;
-      case "add":
-        addWordToVocabulary(menu.ordinal);
-        break;
-      case "ignore":
-        setWordState(menu.ordinal, "ignored");
         break;
       case "copy":
         void navigator.clipboard?.writeText(surface);
@@ -261,9 +243,9 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
         setAnnotationDraft({ targetType: "token", targetId: resolved.tokenId, quote: surface, chapterId: resolved.chapterId });
         break;
     }
-  }, [addWordToVocabulary, index, menu, narration, selectWord, setWordState, updateSettings]);
+  }, [index, menu, selectWord]);
 
-  // Keyboard: 1-4 knowledge state, arrows move between words, A adds, Esc clears.
+  // Keyboard: 1-4 knowledge state, arrows move between words, Esc clears.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || isEditable(event.target) || annotationDraft) return;
@@ -279,11 +261,6 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
         setWordState(selection.ordinal, state);
         return;
       }
-      if (event.key === "a" || event.key === "A") {
-        event.preventDefault();
-        addWordToVocabulary(selection.ordinal);
-        return;
-      }
       if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
         const range = index.chapterRange(chapterIndex);
         if (!range) return;
@@ -296,7 +273,7 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [addWordToVocabulary, annotationDraft, chapterIndex, index, selectWord, selection, setWordState]);
+  }, [annotationDraft, chapterIndex, index, selectWord, selection, setWordState]);
 
   const decorations: SurfaceDecorations = useMemo(() => {
     const result: SurfaceDecorations = {
@@ -413,10 +390,7 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
 
   const inspectorVisible = settings.inspectorOpen && selection !== null;
   const progressVisible = settings.progressPanelOpen;
-  const panelClass = narrow ? "absolute inset-y-0 right-0 z-30 w-[min(360px,92%)] shadow-2xl" : "w-[340px] flex-shrink-0";
-  const learningPanelClass = narrow
-    ? `absolute inset-y-0 right-0 z-30 shadow-2xl ${settings.panelWide ? "w-[min(560px,96%)]" : "w-[min(360px,92%)]"}`
-    : `${settings.panelWide ? "w-[540px]" : "w-[340px]"} flex-shrink-0`;
+  const panelClass = `relative flex-shrink-0 ${narrow ? "absolute inset-y-0 right-0 z-30 max-w-[92%] shadow-2xl" : ""}`;
   const menuResolved = menu ? index.resolve(menu.ordinal) : null;
   const menuEntry = menuResolved ? document.lexicon[menuResolved.tuple[2]] : undefined;
   const menuForm = menuResolved ? document.forms[menuResolved.tuple[3]] : undefined;
@@ -453,7 +427,7 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
         }}
         inspectorOpen={settings.inspectorOpen}
         progressOpen={settings.progressPanelOpen}
-        dueCount={dueItems(session.reviewItems).length}
+        dueCount={dueItems(session.activeReviewItems).length}
         saveStatus={session.saveStatus}
         onToggleInspector={() => updateSettings({ inspectorOpen: !settings.inspectorOpen })}
         onToggleProgress={() => updateSettings({ progressPanelOpen: !settings.progressPanelOpen })}
@@ -479,7 +453,7 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
             decorations={decorations}
             scrollTarget={scrollTarget}
             initialBlockId={initialBlockId}
-            onWordClick={(ordinal) => selectWord(ordinal, { fromText: true })}
+            onWordClick={handleWordClick}
             onWordContextMenu={(ordinal, x, y) => setMenu({ ordinal, x, y })}
             onSentenceClick={(sentenceId) => {
               setSelection({ type: "sentence", sentenceId });
@@ -494,7 +468,17 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
           />
         </div>
         {inspectorVisible && selection && (
-          <div className={panelClass}>
+          <div className={panelClass} style={{ width: inspectorResize.width }}>
+            <PanelResizeHandle
+              edge="left"
+              label={t("learning:panel.resize")}
+              width={inspectorResize.width}
+              minWidth={280}
+              maxWidth={640}
+              isResizing={inspectorResize.isResizing}
+              onPointerDown={inspectorResize.startResize}
+              onKeyDown={inspectorResize.handleKeyDown}
+            />
             <InspectorPanel
               session={session}
               selection={selection}
@@ -513,7 +497,17 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
           </div>
         )}
         {progressVisible && (!narrow || !inspectorVisible) && (
-          <div className={learningPanelClass}>
+          <div className={panelClass} style={{ width: panelResize.width }}>
+            <PanelResizeHandle
+              edge="left"
+              label={t("learning:panel.resize")}
+              width={panelResize.width}
+              minWidth={300}
+              maxWidth={760}
+              isResizing={panelResize.isResizing}
+              onPointerDown={panelResize.startResize}
+              onKeyDown={panelResize.handleKeyDown}
+            />
             <LearningPanel
               session={session}
               settings={settings}
@@ -525,7 +519,6 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
               onChapter={(next) => goToChapter(next)}
               onAnnotation={handleAnnotationJump}
               onSpeak={(text) => void narration.speakText(text)}
-              onWide={(panelWide) => updateSettings({ panelWide })}
               onClose={() => updateSettings({ progressPanelOpen: false })}
             />
           </div>
@@ -537,8 +530,6 @@ export default function LyceumLearningViewer({ fileHash, fileName, filePath }: L
           y={menu.y}
           word={menuResolved.block.text.slice(menuResolved.tuple[0], menuResolved.tuple[1])}
           state={effectiveState(session.snapshot, menuEntry.key, menuForm.form)}
-          speechAvailable={narration.available}
-          inVocabulary={session.reviewItems.some((item) => item.key === menuEntry.key)}
           onState={(state) => setWordState(menu.ordinal, state)}
           onAction={handleMenuAction}
           onClose={() => setMenu(null)}

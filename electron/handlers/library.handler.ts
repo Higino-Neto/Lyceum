@@ -42,6 +42,8 @@ import {
 import { type BookFileType } from "../services/document-processing";
 import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
 import { openReadableFile } from "../services/document-service";
+import { isReaderSupportedPath, ReaderOpenError } from "../services/reader-format-service";
+import { registerPdfSource } from "../services/pdfSourceRegistry";
 import {
   addManagedSourceFolder,
   addManagedWatchFolder,
@@ -299,13 +301,17 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("file:open-external", async (_, filePath: string) => {
     try {
-      if (!filePath.toLowerCase().endsWith(".epub") && !filePath.toLowerCase().endsWith(".pdf")) {
+      if (!isReaderSupportedPath(filePath)) {
         return { success: false, error: "Invalid file type" };
       }
       const document = await openReadableFile(filePath);
       if (!document) return { success: false, error: "Failed to add document" };
+      if (document.fileType === "pdf") registerPdfSource(document.fileHash, document.readerPath);
       return { success: true, ...document };
     } catch (error) {
+      if (error instanceof ReaderOpenError) {
+        return { success: false, error: error.message, readerErrorCode: error.code };
+      }
       return { success: false, error: String(error) };
     }
   });

@@ -8,7 +8,6 @@ import {
   formKey,
   getLanguageModule,
   sentenceText,
-  stateAfterAddingToVocabulary,
   type KnowledgeBucket,
   type KnowledgeSnapshot,
   type KnowledgeState,
@@ -20,7 +19,13 @@ import {
 import { createDesktopLearningClient, LOCAL_USER_ID, type LearningClient } from "../../../../features/language-learning/learningClient";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { translate } from "../../../../i18n";
-import { createElement } from "react";
+
+/** Where a word was met, for the context sentence of its review card. */
+export interface ReviewContext {
+  sentenceId?: string;
+  contextForm?: string;
+  itemType?: "lexeme" | "expression";
+}
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -184,11 +189,83 @@ export function useLearningSession({ fileHash, filePath, language }: LearningSes
     toast.error(translate("learning:errors.saveFailed"));
   }, []);
 
-  /** Sets the lemma state, or a per-form override when `form` is given. */
-  const setKnowledge = useCallback(async (key: string, label: string, state: KnowledgeState, form?: string) => {
+  const reviewItemsRef = useRef(reviewItems);
+  reviewItemsRef.current = reviewItems;
+  const lexemeByKey = useMemo(() => {
+    const result = new Map<string, number>();
+    document?.lexicon.forEach((entry, position) => result.set(entry.key, position));
+    return result;
+  }, [document]);
+
+  /**
+   * Builds a review item for a lexeme or expression with a context sentence
+   * from this document (the given one, or the first occurrence).
+   */
+  const buildReviewItem = useCallback((key: string, label: string, context?: ReviewContext): ReviewItem | null => {
+    if (!document || !index) return null;
+    let sentenceId = context?.sentenceId;
+    let contextForm = context?.contextForm;
+    let itemType: ReviewItem["itemType"] = context?.itemType ?? "lexeme";
+    if (!sentenceId) {
+      const lexeme = lexemeByKey.get(key);
+      const ordinal = lexeme === undefined ? undefined : index.lexemeOccurrences(lexeme)[0];
+      const resolved = ordinal === undefined ? null : index.resolve(ordinal);
+      if (resolved) {
+        sentenceId = resolved.sentence.id;
+        contextForm = resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]);
+      } else {
+        const expression = document.expressions.findIndex((entry) => entry.key === key);
+        const occurrence = expression >= 0 ? document.expressionOccurrences.find((item) => item.expression === expression) : undefined;
+        if (occurrence) {
+          sentenceId = occurrence.sentenceId;
+          itemType = "expression";
+        }
+      }
+    }
+    const located = sentenceId ? index.sentence(sentenceId) : null;
+    return createReviewItem({
+      language: document.language,
+      key,
+      itemType,
+      label,
+      translation: snapshotRef.current.lemmas[key]?.translation ?? null,
+      context: located ? sentenceText(located.block, located.sentence) : null,
+      contextForm: contextForm ?? null,
+      documentId: document.documentId,
+      sentenceId: sentenceId ?? null,
+    });
+  }, [document, index, lexemeByKey]);
+
+  /** Learning words are the review queue: make sure each one has a review item. */
+  const ensureReviewItems = useCallback(async (entries: Array<{ key: string; label: string; context?: ReviewContext }>) => {
+    const existing = new Set(reviewItemsRef.current.map((item) => item.key));
+    const created = entries
+      .filter((entry) => !existing.has(entry.key))
+      .map((entry) => buildReviewItem(entry.key, entry.label, entry.context))
+      .filter((item): item is ReviewItem => item !== null);
+    if (created.length === 0) return;
+    setReviewItems((items) => [...items, ...created]);
+    try {
+      await persist(async () => {
+        if (created.length === 1) await client.upsertReviewItem(created[0]!);
+        else await client.upsertReviewItems(created);
+      });
+    } catch (cause) {
+      const ids = new Set(created.map((item) => item.id));
+      setReviewItems((items) => items.filter((item) => !ids.has(item.id)));
+      fail(cause);
+    }
+  }, [buildReviewItem, client, fail, persist]);
+
+  /**
+   * Sets the lemma state, or a per-form override when `form` is given.
+   * Marking something as Learning also puts it in the review queue.
+   */
+  const setKnowledge = useCallback(async (key: string, label: string, state: KnowledgeState, form?: string, context?: ReviewContext) => {
     if (!document) return;
     const previous = snapshotRef.current;
     const now = new Date().toISOString();
+    if (state === "learning") void ensureReviewItems([{ key, label, context }]);
     if (form !== undefined) {
       const next: KnowledgeSnapshot = {
         ...previous,
@@ -218,7 +295,7 @@ export function useLearningSession({ fileHash, filePath, language }: LearningSes
       setSnapshot(previous);
       fail(cause);
     }
-  }, [client, document, fail, persist]);
+  }, [client, document, ensureReviewItems, fail, persist]);
 
   const clearFormOverride = useCallback(async (key: string, form: string) => {
     if (!document) return;
@@ -268,84 +345,12 @@ export function useLearningSession({ fileHash, filePath, language }: LearningSes
     try {
       await persist(() => client.setTranslation(document.language, key, label, translation));
       setReviewItems((items) => items.map((item) => (item.key === key ? { ...item, translation } : item)));
-      const item = reviewItems.find((candidate) => candidate.key === key);
+      const item = reviewItemsRef.current.find((candidate) => candidate.key === key);
       if (item) await persist(() => client.upsertReviewItem({ ...item, translation }));
     } catch (cause) {
       fail(cause);
     }
-  }, [client, document, fail, persist, reviewItems]);
-
-  const reviewItemsRef = useRef(reviewItems);
-  reviewItemsRef.current = reviewItems;
-
-  /** Undo for an automatic or manual add: restores the previous state and drops the new review item. */
-  const undoAdd = useCallback(async (key: string, label: string, previousState: KnowledgeState, createdItemId: string | null) => {
-    await setKnowledge(key, label, previousState);
-    if (!createdItemId) return;
-    setReviewItems((items) => items.filter((item) => item.id !== createdItemId));
-    try {
-      await persist(() => client.deleteReviewItem(createdItemId));
-    } catch (cause) {
-      fail(cause);
-    }
-  }, [client, fail, persist, setKnowledge]);
-
-  /**
-   * Adds a lexeme or expression to the vocabulary: starts learning and
-   * creates a review item with its context sentence from this document.
-   */
-  const addToVocabulary = useCallback(async (args: {
-    key: string;
-    label: string;
-    itemType: "lexeme" | "expression";
-    sentenceId?: string;
-    contextForm?: string;
-    /** Automatic add (clicking an unknown word): quieter toast with undo. */
-    automatic?: boolean;
-  }) => {
-    if (!document || !index) return;
-    const existing = reviewItemsRef.current.find((item) => item.key === args.key);
-    const located = args.sentenceId ? index.sentence(args.sentenceId) : null;
-    const item = existing ?? createReviewItem({
-      language: document.language,
-      key: args.key,
-      itemType: args.itemType,
-      label: args.label,
-      translation: snapshotRef.current.lemmas[args.key]?.translation ?? null,
-      context: located ? sentenceText(located.block, located.sentence) : null,
-      contextForm: args.contextForm ?? null,
-      documentId: document.documentId,
-      sentenceId: args.sentenceId ?? null,
-    });
-    const currentState = snapshotRef.current.lemmas[args.key]?.state ?? "unknown";
-    const nextState = stateAfterAddingToVocabulary(currentState);
-    await setKnowledge(args.key, args.label, nextState);
-    if (!existing) {
-      setReviewItems((items) => [...items, item]);
-      try {
-        await persist(() => client.upsertReviewItem(item));
-      } catch (cause) {
-        setReviewItems((items) => items.filter((candidate) => candidate.id !== item.id));
-        fail(cause);
-        return;
-      }
-    }
-    if (existing && currentState === nextState) return;
-    const createdId = existing ? null : item.id;
-    toast((toastItem) => createElement(
-      "span",
-      { className: "flex items-center gap-3 text-sm" },
-      translate(args.automatic ? "learning:toasts.autoLearning" : "learning:toasts.added", { word: args.label }),
-      createElement("button", {
-        type: "button",
-        className: "rounded-sm px-2 py-0.5 text-xs font-semibold text-primary hover:bg-surface-muted cursor-pointer",
-        onClick: () => {
-          toast.dismiss(toastItem.id);
-          void undoAdd(args.key, args.label, currentState, createdId);
-        },
-      }, translate("learning:actions.undo")),
-    ), { id: `ll-add-${args.key}`, duration: args.automatic ? 2500 : 4000 });
-  }, [client, document, fail, index, persist, setKnowledge, undoAdd]);
+  }, [client, document, fail, persist]);
 
   /** Sets one state for many lemmas at once (word list bulk actions). */
   const setManyStates = useCallback(async (entries: Array<{ key: string; label: string }>, state: KnowledgeState) => {
@@ -360,13 +365,20 @@ export function useLearningSession({ fileHash, filePath, language }: LearningSes
         : { language: document.language, key, label, state, translation: null, note: null, lookupCount: 0, updatedAt: now };
     }
     setSnapshot({ ...previous, lemmas });
+    if (state === "learning") void ensureReviewItems(entries);
     try {
       await persist(() => client.setLemmaStates(entries.map(({ key, label }) => ({ language: document.language, key, label, state }))));
     } catch (cause) {
       setSnapshot(previous);
       fail(cause);
     }
-  }, [client, document, fail, persist]);
+  }, [client, document, ensureReviewItems, fail, persist]);
+
+  /** Review items whose word is currently in Learning: the review queue. */
+  const activeReviewItems = useMemo(
+    () => reviewItems.filter((item) => (snapshot.lemmas[item.key]?.state ?? "unknown") === "learning"),
+    [reviewItems, snapshot],
+  );
 
   const saveAnnotation = useCallback(async (annotation: LearningAnnotation) => {
     setAnnotations((items) => [...items.filter((item) => item.id !== annotation.id), annotation]);
@@ -415,8 +427,8 @@ export function useLearningSession({ fileHash, filePath, language }: LearningSes
     clearFormOverride,
     recordLookup,
     saveTranslation,
-    addToVocabulary,
     setManyStates,
+    activeReviewItems,
     saveStatus,
     persist,
     strayBuckets,

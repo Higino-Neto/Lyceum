@@ -405,6 +405,14 @@ export async function validateAzw3InWorker(filePath: string) {
   return runProcessingTask("validate-azw3", { filePath });
 }
 
+export async function inspectKindleBookInWorker(payload: WorkerTaskPayloads["inspect-kindle-book"]) {
+  return runProcessingTask("inspect-kindle-book", payload);
+}
+
+export async function buildApnxInWorker(payload: WorkerTaskPayloads["build-apnx"]) {
+  return runProcessingTask("build-apnx", payload);
+}
+
 export type { BookFileType, PdfMetadata, EpubMetadata, FileConversionWorkerResult };
 
 export async function prepareLearningDocumentInWorker(

@@ -13,6 +13,8 @@ export type BookFormat =
   | "kfx"
   | "prc"
   | "txt"
+  | "fb2"
+  | "cbr"
   | "lyceum";
 
 export type LyceumContentKind = "textual" | "pdf" | "comic" | "audio";
@@ -46,6 +48,21 @@ export interface LyceumConversionOptions {
   txtChapterHeadings?: boolean;
   txtLineEnding?: "lf" | "crlf";
   htmlIncludeToc?: boolean;
+  /**
+   * Real page numbers for Kindle (APNX sidecar) and EPUB page-list.
+   * "auto" keeps publisher/PDF pages and falls back to the print page count,
+   * then to an estimate. "off" disables page numbers.
+   */
+  pageNumbers?: "auto" | "off" | "target-count" | "estimate";
+  /** Print page count used by "target-count" (and by "auto" when no real pages exist). */
+  printPageCount?: number;
+  /** Visible characters per page used by "estimate". */
+  charsPerPage?: number;
+  /**
+   * Kindle font sizes: "kindle" (default) makes the book's absolute sizes
+   * relative so the reader's font setting applies; "original" keeps them.
+   */
+  kindleFontSizes?: "kindle" | "original";
 }
 
 export interface LyceumManifest {
@@ -139,12 +156,38 @@ export interface LyceumTextualResource {
   data?: Uint8Array | ArrayBuffer;
 }
 
+/**
+ * Where the page boundaries of a {@link LyceumPageMap} came from, from most to
+ * least faithful to a printed edition.
+ * - publisher: the source EPUB shipped a page-list / NCX pageList.
+ * - pdf: real page boundaries of the source PDF.
+ * - target-count: a known print page count spread over the text.
+ * - estimate: a fixed number of visible characters per page.
+ */
+export type LyceumPageMapSource = "publisher" | "pdf" | "target-count" | "estimate";
+
+export interface LyceumPageTarget {
+  /** Label shown by the reader ("1", "xii", ...). */
+  label: string;
+  /** Chapter href (same space as {@link LyceumTextualChapter.href}). */
+  href: string;
+  /** id of the element that marks the start of the page inside the chapter. */
+  anchorId: string;
+}
+
+export interface LyceumPageMap {
+  source: LyceumPageMapSource;
+  pages: LyceumPageTarget[];
+  printPageCount?: number;
+}
+
 export interface LyceumTextualContent {
   chapters: LyceumTextualChapter[];
   spine: LyceumSpineItem[];
   toc: LyceumTocItem[];
   fulltext: string;
   resources?: LyceumTextualResource[];
+  pageMap?: LyceumPageMap;
 }
 
 export interface LyceumComicPage {

@@ -3,6 +3,7 @@ import {
   extractBodyHtml,
   isPlaceholderTitle,
   stripHtml,
+  stripXmlDisallowedCharacters,
   wrapTextAsXhtml,
 } from "../textual";
 import { decodeTextBytes } from "./containerParser";
@@ -78,9 +79,11 @@ function normalizeTitle(document: Document, title: string, replaceExisting: bool
   if (heading && isPlaceholderTitle(stripHtml(heading.textContent || ""))) heading.textContent = title;
 }
 
+export { stripXmlDisallowedCharacters };
+
 function serializeXhtml(dom: JSDOM) {
   const serializer = new dom.window.XMLSerializer();
-  const serialized = serializer.serializeToString(dom.window.document.documentElement);
+  const serialized = stripXmlDisallowedCharacters(serializer.serializeToString(dom.window.document.documentElement));
   return `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n${serialized}`;
 }
 

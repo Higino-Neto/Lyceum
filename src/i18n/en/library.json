@@ -133,7 +133,17 @@
       "pages_desc": "Most pages",
       "pages_asc": "Fewest pages",
       "size_desc": "Largest file",
-      "size_asc": "Smallest file"
+      "size_asc": "Smallest file",
+      "author_asc": "Author A-Z",
+      "author_desc": "Author Z-A",
+      "series_asc": "Series A-Z",
+      "series_desc": "Series Z-A",
+      "rating_desc": "Highest rated",
+      "rating_asc": "Lowest rated",
+      "type_asc": "Format A-Z",
+      "type_desc": "Format Z-A",
+      "added_desc": "Recently added",
+      "added_asc": "First added"
     },
     "fileTypes": {
       "all": "All",
@@ -169,7 +179,17 @@
       "type": "Type",
       "pages": "Pages",
       "modified": "Opened on",
-      "size": "Size"
+      "size": "Size",
+      "author": "Author",
+      "series": "Series",
+      "progress": "Progress",
+      "status": "Status",
+      "rating": "Rating",
+      "added": "Added on",
+      "publisher": "Publisher",
+      "language": "Language",
+      "published": "Published",
+      "isbn": "ISBN"
     },
     "resizeColumn": "Resize column {{column}}",
     "collection": "Collection",
@@ -178,7 +198,18 @@
     "remove": "Remove",
     "loadingMore": "Loading more books...",
     "empty": "No books in this section.",
-    "folderFallback": "Folder"
+    "folderFallback": "Folder",
+    "columnsMenu": {
+      "button": "Columns",
+      "title": "Visible columns",
+      "moveUp": "Move {{column}} up",
+      "moveDown": "Move {{column}} down",
+      "reset": "Reset columns",
+      "alwaysVisible": "Always visible"
+    },
+    "sortBy": "Sort by {{column}}",
+    "booksInCollection_one": "{{count}} book",
+    "booksInCollection_other": "{{count}} books"
   },
   "books": {
     "loading": "Loading books...",
@@ -453,6 +484,44 @@
       "useAppPassword": "Use an app password instead",
       "useGoogle": "Sign in with your Google account instead",
       "fromGoogle": "From {{address}} (Google account)"
+    },
+    "pageNumbers": {
+      "label": "Page numbers",
+      "auto": "Real pages",
+      "estimate": "Estimated",
+      "off": "Off",
+      "hint": {
+        "auto": "Uses the PDF's or the publisher's pages; otherwise estimates",
+        "estimate": "About one printed page every 1,800 characters",
+        "off": "The Kindle only shows locations"
+      },
+      "added_one": "{{count}} page numbered on the Kindle",
+      "added_other": "{{count}} pages numbered on the Kindle"
+    },
+    "conversion": {
+      "title": "Conversion",
+      "configure": "Configure conversion…",
+      "summary": {
+        "layout": "PDF: {{value}}",
+        "fonts": "Font: {{value}}",
+        "profile": "Profile: {{value}}"
+      },
+      "layouts": {
+        "auto": "automatic",
+        "reflow": "reflowable text",
+        "fixed-layout": "pages as images"
+      },
+      "fonts": {
+        "kindle": "follows the Kindle",
+        "original": "book's sizes"
+      },
+      "profiles": {
+        "legacy-paperwhite": "older Paperwhite",
+        "kindle-compatible": "broad compatibility",
+        "modern-kindle": "modern Kindle",
+        "scribe": "Kindle Scribe"
+      },
+      "hint": "Opens the conversion window with these books to tweak each one and follow the progress."
     }
   },
   "page": {
@@ -590,5 +659,45 @@
     "itemsNotRemoved_one": "{{count}} item not removed",
     "itemsNotRemoved_other": "{{count}} items not removed",
     "corruptedFile": "Corrupted or unsupported file"
+  },
+  "reader": {
+    "preparing": "Preparing {{format}} for reading…",
+    "errors": {
+      "drm": "This book is DRM-protected and can't be opened.",
+      "kfx": "KFX books can't be read in Lyceum. Open the original EPUB or AZW3 instead.",
+      "unsupported": "This format can't be opened in the reader yet.",
+      "rarExtractorMissing": "Opening CBR comics needs an RAR extractor. Install 7-Zip, unrar or unar and try again.",
+      "corrupt": "The file looks damaged and couldn't be read.",
+      "conversionFailed": "Couldn't prepare this book for reading."
+    }
+  },
+  "duplicates": {
+    "open": "Find duplicates",
+    "title": "Possible duplicates",
+    "scanning": "Scanning your library…",
+    "summary_one": "{{count}} group · {{books}} books",
+    "summary_other": "{{count}} groups · {{books}} books",
+    "hint": "Select the copies you don't need and remove them, or merge the files as formats of the same book.",
+    "empty": "No duplicates found.",
+    "emptyHint": "Books are compared by ISBN, by title and by author, ignoring file format, accents and subtitles.",
+    "groupCount_one": "{{count}} file",
+    "groupCount_other": "{{count}} files",
+    "reasons": {
+      "isbn": "Same ISBN",
+      "sameTitle": "Same title",
+      "similarTitle": "Similar title"
+    },
+    "merge": "Merge all",
+    "mergeSelected_one": "Merge {{count}} selected",
+    "mergeSelected_other": "Merge {{count}} selected",
+    "mergeHint": "Keep the files together as formats of one book",
+    "removeSelected_one": "Remove {{count}}",
+    "removeSelected_other": "Remove {{count}}",
+    "dismiss": "Not duplicates",
+    "dismissHint": "Hide this group until its books change",
+    "showHidden_one": "Show {{count}} hidden group",
+    "showHidden_other": "Show {{count}} hidden groups",
+    "selectBook": "Select {{title}}",
+    "unknownAuthor": "Unknown author"
   }
 }

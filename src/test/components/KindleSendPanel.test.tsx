@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import KindleSendPanel from "../../pages/Library/components/KindleSendPanel";
+import { ConversionQueueProvider, useConversionQueue } from "../../contexts/ConversionQueueContext";
+import { KINDLE_CONVERSION_DEFAULTS_KEY } from "../../features/kindle/kindleConversion";
 import type { BookWithThumbnail } from "../../types/LibraryTypes";
 
 const book: BookWithThumbnail = {
@@ -33,8 +35,11 @@ const book: BookWithThumbnail = {
 
 describe("KindleSendPanel", () => {
   beforeEach(() => {
+    localStorage.clear();
     Object.defineProperty(window, "api", {
       value: {
+        onConversionProgress: vi.fn(() => () => undefined),
+        onKindleSendProgress: vi.fn(() => () => undefined),
         listKindleDevices: vi.fn().mockResolvedValue([{
           id: "fs:kindle",
           name: "Kindle",
@@ -65,7 +70,7 @@ describe("KindleSendPanel", () => {
   });
 
   it("shows whether a Kindle transfer was structurally verified", async () => {
-    render(<KindleSendPanel books={[book]} onClose={vi.fn()} />);
+    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
 
     await screen.findByText("Kindle");
     fireEvent.click(screen.getByRole("button", { name: "Enviar 1" }));
@@ -75,5 +80,43 @@ describe("KindleSendPanel", () => {
       expect(screen.getByText("Copia verificada por tamanho")).toBeInTheDocument();
       expect(screen.getByText("1 verificado")).toBeInTheDocument();
     });
+  });
+
+  it("sends with the saved Kindle conversion settings", async () => {
+    localStorage.setItem(KINDLE_CONVERSION_DEFAULTS_KEY, JSON.stringify({ kindleFontSizes: "original", epubLayout: "reflow" }));
+    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
+
+    await screen.findByText("Kindle");
+    expect(screen.getByText("Fonte: tamanho do livro")).toBeInTheDocument();
+    expect(screen.getByText("PDF: texto fluido")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar 1" }));
+
+    await waitFor(() => expect(window.api.sendBooksToKindle).toHaveBeenCalled());
+    const call = (window.api.sendBooksToKindle as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.conversionOptions).toMatchObject({ kindleFontSizes: "original", epubLayout: "reflow", kindleProfile: "kindle-compatible" });
+  });
+
+  it("opens the conversion window in Kindle mode with the selected books", async () => {
+    const onClose = vi.fn();
+    const opened = vi.fn();
+    window.addEventListener("lyceum:open-conversion", opened);
+    let delivery: unknown = null;
+    let draft: string[] = [];
+    function Probe() {
+      const queue = useConversionQueue();
+      delivery = queue.kindleDelivery;
+      draft = queue.draftBooks.map((item) => item.fileHash);
+      return null;
+    }
+    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={onClose} /><Probe /></ConversionQueueProvider>);
+
+    await screen.findByText("Kindle");
+    fireEvent.click(screen.getByRole("button", { name: "Configurar conversão…" }));
+
+    await waitFor(() => expect(opened).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+    expect(delivery).toEqual({ deviceId: "fs:kindle", deviceName: "Kindle" });
+    expect(draft).toEqual([book.fileHash]);
+    window.removeEventListener("lyceum:open-conversion", opened);
   });
 });

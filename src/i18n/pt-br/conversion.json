@@ -87,7 +87,28 @@
       },
       "preserveCover": "Preservar capa",
       "preserveMetadata": "Preservar metadados",
-      "generateIndex": "Gerar sumário"
+      "generateIndex": "Gerar sumário",
+      "pdfLayout": "Layout do PDF",
+      "pdfLayouts": {
+        "auto": "Automático (texto quando houver texto)",
+        "reflow": "Texto fluido",
+        "fixed-layout": "Páginas como imagem (HQ, mangá)"
+      },
+      "fontSizes": "Tamanho da fonte",
+      "fontSizeModes": {
+        "kindle": "Ajustar ao Kindle (recomendado)",
+        "original": "Manter o do livro"
+      },
+      "fontSizeHints": {
+        "kindle": "O tamanho escolhido no Kindle vale para o livro todo",
+        "original": "Tamanhos fixos do livro podem ficar pequenos no Kindle"
+      },
+      "pageNumbers": "Números de página",
+      "pageNumberModes": {
+        "auto": "Páginas reais (PDF/editora) ou estimadas",
+        "estimate": "Sempre estimadas",
+        "off": "Desligado"
+      }
     },
     "html": {
       "preserveMetadata": "Preservar metadados"
@@ -306,5 +327,19 @@
     "pageLabel": "Posição {{position}}: arquivo {{letter}}, página {{page}}",
     "pickerTitle": "Adicionar PDF da biblioteca",
     "pickerDescription": "Somente PDFs da biblioteca aparecem aqui."
+  },
+  "kindle": {
+    "banner": "Enviar para {{device}}",
+    "bannerHint": "Os livros são convertidos para AZW3 e copiados com capa e números de página. Nada é adicionado à sua biblioteca.",
+    "nativeFormat": "O Kindle lê este formato: o arquivo é enviado como está.",
+    "outputFormat": "AZW3 para Kindle",
+    "saveDefaults": "Salvar como padrão do Kindle",
+    "defaultsSaved": "Configurações salvas como padrão do Kindle",
+    "applyToAll": "Aplicar a todos os livros",
+    "appliedToAll": "Configurações aplicadas a {{count}} livros",
+    "start_one": "Converter e enviar {{count}} livro",
+    "start_other": "Converter e enviar {{count}} livros",
+    "sent": "Enviado para {{device}}",
+    "sentWithPages": "Enviado para {{device}} com {{count}} páginas"
   }
 }

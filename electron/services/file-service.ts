@@ -11,7 +11,7 @@ export const THUMBNAILS_DIR = () => path.join(app.getPath("userData"), "thumbnai
 export const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 export const ALL_BOOK_EXTENSIONS = new Set([
   ".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4",
-  ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum",
+  ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".cbr", ".fb2", ".lyceum",
 ]);
 
 export function ensureLibraryFolder(): string {
@@ -181,7 +181,7 @@ export function getAllBookFiles(dir: string): string[] {
   const results: string[] = [];
   const bookExtensions = new Set([
     ".pdf", ".epub", ".mobi", ".azw", ".azw3", ".azw4",
-    ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".lyceum",
+    ".kfx", ".prc", ".txt", ".docx", ".html", ".cbz", ".cbr", ".fb2", ".lyceum",
   ]);
   const list = fs.readdirSync(dir);
   for (const item of list) {

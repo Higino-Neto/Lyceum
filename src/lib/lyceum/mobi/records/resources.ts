@@ -84,15 +84,20 @@ async function convertImageForKindle(resource: LyceumTextualResource, profile: K
   const image = sharp(Buffer.from(data), { animated: normalizedType === "image/gif" });
   const metadata = await image.metadata();
   const longestEdge = Math.max(metadata.width || 0, metadata.height || 0);
-  const shouldResize = longestEdge > profile.maxImageEdge || data.length > profile.maxImageBytes;
-  const shouldConvert = !profile.safeImageTypes.has(normalizedType);
+  // An alpha channel that is fully opaque (e.g. rendered PDF pages) is dead
+  // weight: multi-MB RGBA PNGs stall the Kindle renderer. Those become JPEG.
+  const hasAlpha = Boolean(metadata.hasAlpha);
+  const needsTransparency = hasAlpha && !(await sharp(Buffer.from(data), { animated: false }).stats()).isOpaque;
+  const opaqueAlpha = hasAlpha && !needsTransparency;
+  const tooLarge = longestEdge > profile.maxImageEdge || data.length > profile.maxImageBytes;
+  const shouldConvert = !profile.safeImageTypes.has(normalizedType) || opaqueAlpha;
 
-  if (!shouldResize && !shouldConvert) {
+  if (!tooLarge && !shouldConvert) {
     return { resource, converted: false, resized: false };
   }
 
   const base = sharp(Buffer.from(data), { animated: false }).rotate();
-  const pipeline = shouldResize
+  const resized = longestEdge > profile.maxImageEdge
     ? base.resize({
       width: profile.maxImageEdge,
       height: profile.maxImageEdge,
@@ -100,19 +105,29 @@ async function convertImageForKindle(resource: LyceumTextualResource, profile: K
       withoutEnlargement: true,
     })
     : base;
-  const hasAlpha = Boolean(metadata.hasAlpha);
-  const output = hasAlpha
-    ? await pipeline.png({ compressionLevel: 9 }).toBuffer()
-    : await pipeline.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+  let output: Buffer;
+  let mediaType: string;
+  if (needsTransparency) {
+    output = await resized.png({ compressionLevel: 9, palette: data.length > profile.maxImageBytes }).toBuffer();
+    mediaType = "image/png";
+  } else {
+    output = await resized.flatten({ background: "#ffffff" }).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+    mediaType = "image/jpeg";
+    // Still above the budget: step quality down rather than ship a huge record.
+    for (const quality of [75, 65, 55]) {
+      if (output.length <= profile.maxImageBytes) break;
+      output = await sharp(output).jpeg({ quality, mozjpeg: true }).toBuffer();
+    }
+  }
 
   return {
     resource: {
       ...resource,
-      mediaType: hasAlpha ? "image/png" : "image/jpeg",
+      mediaType,
       data: Uint8Array.from(output),
     },
-    converted: shouldConvert,
-    resized: shouldResize,
+    converted: shouldConvert || mediaType !== normalizedType,
+    resized: longestEdge > profile.maxImageEdge,
   };
 }
 

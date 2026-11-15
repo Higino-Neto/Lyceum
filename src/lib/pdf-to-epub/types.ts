@@ -204,6 +204,8 @@ export interface EpubAsset {
   href: string;
   mediaType: string;
   data: ArrayBuffer | Uint8Array;
+  /** OPF manifest properties, e.g. "cover-image". */
+  properties?: string;
   width?: number;
   height?: number;
 }

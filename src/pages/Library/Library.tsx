@@ -28,6 +28,7 @@ import {
   Unlink,
   X,
   Shuffle,
+  CopyCheck,
 } from "lucide-react";
 import {
   BookDetailPanel,
@@ -42,6 +43,7 @@ import {
 } from "./components";
 import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
+import DuplicateFinderDialog from "./components/DuplicateFinderDialog";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
 import { BookWithThumbnail, FolderInfo, LibrarySection, ReadingStatus } from "../../types/LibraryTypes";
@@ -78,6 +80,11 @@ import {
   type MergedBookCacheEntry,
 } from "../../features/library/model/libraryView";
 import { useLibraryEvents } from "../../features/library/ui/useLibraryEvents";
+import {
+  needsReaderConversion,
+  readerErrorKey,
+  readerFormatLabel,
+} from "../../features/library/model/readerFormats";
 import Select from "../../components/ui/Select";
 import { LIBRARY_STATUS_SELECT_OPTIONS } from "../../lib/readingStatus";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -97,6 +104,7 @@ interface OpenBookResult {
   fileName?: string;
   filePath?: string;
   fileType?: string;
+  readerErrorCode?: string;
 }
 
 function RecentBookCard({ book, onClick }: { book: BookWithThumbnail; onClick: () => void }) {
@@ -206,6 +214,7 @@ function LibraryContent() {
   );
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [confirmMergeBooks, setConfirmMergeBooks] = useState(false);
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [collectionDialog, setCollectionDialog] = useState({
     open: false,
     name: "",
@@ -468,15 +477,27 @@ function LibraryContent() {
     pdfRenderer?: PdfRenderer,
   ): Promise<ReadingLaunchState | null> => {
     const isUsbBook = activeSection === "usb";
-    const result: OpenBookResult | null = isUsbBook
-      ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
-      : await window.api.reopenPdf(filePath, fileHash, filePath.toLowerCase().endsWith(".pdf"));
+    // First open of a MOBI/DOCX/CBZ... builds a cached EPUB; say so instead of looking stuck.
+    const preparingToast = needsReaderConversion(filePath)
+      ? toast.loading(t("library:reader.preparing", { format: readerFormatLabel(filePath) }))
+      : null;
+    let result: OpenBookResult | null;
+    try {
+      result = isUsbBook
+        ? await (window.api as unknown as UsbLibraryApi).openUsbBook(filePath)
+        : await window.api.reopenPdf(filePath, fileHash, filePath.toLowerCase().endsWith(".pdf"));
+    } finally {
+      if (preparingToast) toast.dismiss(preparingToast);
+    }
+    const readerError = readerErrorKey(result?.readerErrorCode);
 
     if (isUsbBook && result && "success" in result && !result.success) {
       toast.error(
-        result.error === "Invalid file type"
-          ? t("library:toasts.formatNotOpenable")
-          : result.error || t("library:toasts.openFileFailed"),
+        readerError
+          ? t(readerError)
+          : result.error === "Invalid file type"
+            ? t("library:toasts.formatNotOpenable")
+            : result.error || t("library:toasts.openFileFailed"),
       );
       return null;
     }
@@ -487,7 +508,7 @@ function LibraryContent() {
     }
 
     if ("error" in result) {
-      toast.error(result.message || t("library:toasts.openFileFailed"));
+      toast.error(readerError ? t(readerError) : result.message || t("library:toasts.openFileFailed"));
       return null;
     }
 
@@ -1887,6 +1908,18 @@ function LibraryContent() {
               </div>
               )}
 
+              {activeSection !== "usb" && (
+                <button
+                  type="button"
+                  onClick={() => setDuplicatesOpen(true)}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-border bg-surface text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+                  title={t("library:duplicates.open")}
+                  aria-label={t("library:duplicates.open")}
+                >
+                  <CopyCheck size={14} />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={runRegenerateAllThumbnails}
@@ -2026,6 +2059,8 @@ function LibraryContent() {
                 books={bookGridBooks}
                 viewMode={viewMode}
                 gridDensity={gridDensity}
+                sort={activeSection === "usb" ? undefined : sort}
+                onSortChange={activeSection === "usb" ? undefined : (nextSort) => setSort(nextSort as SortOption)}
                 onOpen={handleOpen}
                 onSync={activeSection === "unsynced" ? openSyncDialog : undefined}
                 onDelete={activeSection === "unsynced" ? handleDeleteBook : undefined}
@@ -2415,6 +2450,12 @@ function LibraryContent() {
             targetFolderName: "",
           })
         }
+      />
+
+      <DuplicateFinderDialog
+        open={duplicatesOpen}
+        onClose={() => setDuplicatesOpen(false)}
+        onLibraryChanged={refreshLibraryState}
       />
 
       {confirmBulkDelete && (

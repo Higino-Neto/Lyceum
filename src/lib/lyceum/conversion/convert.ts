@@ -34,6 +34,8 @@ export interface ConvertViaLyceumResult {
 export function inferBookFormatFromPath(filePath: string): BookFormat | null {
   const lowerPath = filePath.toLowerCase();
   if (lowerPath.endsWith(".kepub.epub")) return "epub";
+  if (lowerPath.endsWith(".fb2.zip")) return "fb2";
+  if (lowerPath.endsWith(".htm")) return "html";
   const extension = path.extname(lowerPath).replace(/^\./, "");
   const known: BookFormat[] = [
     "pdf",
@@ -48,6 +50,8 @@ export function inferBookFormatFromPath(filePath: string): BookFormat | null {
     "kfx",
     "prc",
     "txt",
+    "fb2",
+    "cbr",
     "lyceum",
   ];
 

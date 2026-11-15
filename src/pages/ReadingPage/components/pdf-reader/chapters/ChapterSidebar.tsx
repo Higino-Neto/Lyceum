@@ -1,36 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import type { ChapterNode, ChapterTracker } from "./useChapterTracker";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "../../../../../i18n";
+import { useResizablePanel } from "../../../../../hooks/useResizablePanel";
+import PanelResizeHandle from "../../../../../components/ui/PanelResizeHandle";
 
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 640;
 const DEFAULT_SIDEBAR_WIDTH = 288;
 const SIDEBAR_WIDTH_KEY = "lyceum:pdf-chapters-width";
-
-function loadSidebarWidth(): number {
-  try {
-    const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-    if (!raw) {
-      return DEFAULT_SIDEBAR_WIDTH;
-    }
-    const parsed = Number(JSON.parse(raw));
-    if (!Number.isFinite(parsed)) {
-      return DEFAULT_SIDEBAR_WIDTH;
-    }
-    return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, parsed));
-  } catch {
-    return DEFAULT_SIDEBAR_WIDTH;
-  }
-}
-
-function saveSidebarWidth(width: number): void {
-  try {
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, JSON.stringify(width));
-  } catch {
-    // Best-effort persistence.
-  }
-}
 
 interface ChapterSidebarProps {
   tracker: ChapterTracker;
@@ -182,61 +160,30 @@ export default function ChapterSidebar({
     progress,
   } = tracker;
 
-  const [width, setWidth] = useState<number>(loadSidebarWidth);
-  const [isResizing, setIsResizing] = useState(false);
-  const widthRef = useRef(width);
-  widthRef.current = width;
-
-  useEffect(() => {
-    saveSidebarWidth(width);
-  }, [width]);
-
-  const handleResizeStart = useCallback((event: React.PointerEvent) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = widthRef.current;
-    setIsResizing(true);
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      const next = Math.min(
-        MAX_SIDEBAR_WIDTH,
-        Math.max(MIN_SIDEBAR_WIDTH, startWidth + delta),
-      );
-      setWidth(next);
-    };
-
-    const handleUp = () => {
-      setIsResizing(false);
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-      window.removeEventListener("pointercancel", handleUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-    window.addEventListener("pointercancel", handleUp);
-  }, []);
+  const resize = useResizablePanel({
+    storageKey: SIDEBAR_WIDTH_KEY,
+    defaultWidth: DEFAULT_SIDEBAR_WIDTH,
+    minWidth: MIN_SIDEBAR_WIDTH,
+    maxWidth: MAX_SIDEBAR_WIDTH,
+    edge: "right",
+  });
+  const width = resize.width;
 
   return (
     <aside
       className="relative flex h-full flex-shrink-0 flex-col border-r border-border bg-surface"
       style={{ width: `${width}px` }}
     >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t("pdf:chapters.resizeAriaLabel")}
-        onPointerDown={handleResizeStart}
-        className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize bg-transparent transition-colors"
+      <PanelResizeHandle
+        edge="right"
+        label={t("pdf:chapters.resizeAriaLabel")}
+        width={width}
+        minWidth={MIN_SIDEBAR_WIDTH}
+        maxWidth={MAX_SIDEBAR_WIDTH}
+        isResizing={resize.isResizing}
+        onPointerDown={resize.startResize}
+        onKeyDown={resize.handleKeyDown}
       />
-      {isResizing && (
-        <div className="fixed inset-0 z-50 cursor-col-resize" />
-      )}
       {/* <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-foreground">
           Capítulos

@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { renderDefaultCss } from "../../pdf-to-epub/html";
 import type { LyceumBookMetadata, LyceumTextualContent, LyceumTextualResource } from "../schema/types";
 import { renderKindleDefaultCss, sanitizeCss } from "../epub/cssSanitizer";
+import { normalizeKindleFontSizes } from "../kindle/fontSizes";
 import { escapeXml, extractBodyHtml, isPlaceholderTitle, normalizeHtmlEntitiesForXhtml, stripHtml } from "../textual";
 
 interface PdbRecord {
@@ -67,6 +68,8 @@ interface Kf8BuildResult {
   tbsByteCount: number;
   unsupportedResourceCount: number;
   unresolvedInternalLinkCount: number;
+  pageOffsets: number[];
+  unresolvedPageCount: number;
 }
 
 interface ImageResourceRecord {
@@ -112,10 +115,22 @@ export interface Azw3BuildOptions {
    * For very large books with many images this can make the AZW3 much bigger.
    */
   embedSource?: boolean;
+  /**
+   * "kindle" (default): publisher font sizes become relative so the Kindle's
+   * font-size setting works. "original": keep the book's CSS sizes as-is.
+   */
+  fontSizes?: "kindle" | "original";
 }
 
 export interface Azw3BuildResult {
   buffer: ArrayBuffer;
+  /** PalmDB name written to the file (the APNX "acr"). */
+  pdbName: string;
+  /**
+   * Byte offset in the uncompressed text stream of each page in
+   * `textual.pageMap`, in page order. Empty when the book has no page map.
+   */
+  pageOffsets: number[];
   stats: {
     chapterCount: number;
     textRecordCount: number;
@@ -258,6 +273,15 @@ function metadataString(value: string | string[] | number | undefined): string |
   return value?.trim() || undefined;
 }
 
+function splitAuthors(value: string | undefined): string[] {
+  return (value || "").split(/\s*(?:&|;)\s*/).map((item) => item.trim()).filter(Boolean);
+}
+
+/** "pt-BR" -> "pt": the EXTH language is an ISO 639 code. */
+function primaryLanguage(language?: string): string {
+  return normalizeLanguage(language).split(/[-_]/)[0].toLowerCase() || "en";
+}
+
 function metadataSubjects(value: LyceumBookMetadata["subject"]): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean);
@@ -287,6 +311,11 @@ function sanitizeXmlId(value: string, fallback: string): string {
 
 function buildChapterId(index: number): string {
   return `chapter-${String(index + 1).padStart(4, "0")}`;
+}
+
+/** KF8 resource reference; the index is 1-based and base-32 encoded (0010 = 32). */
+function kindleEmbedHref(index: number): string {
+  return `kindle:embed:${encodeBase32(index, 4)}?mime=image`;
 }
 
 function encodeBase32(value: number, minDigits = 0): string {
@@ -322,8 +351,73 @@ function chapterTitle(chapter: LyceumTextualContent["chapters"][number], index: 
   return isPlaceholderTitle(heading) ? `Capitulo ${index + 1}` : heading!;
 }
 
-function removeDuplicateLeadingHeading(bodyHtml: string, _title: string): string {
-  return bodyHtml.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i, "");
+const KNOWN_NAMESPACES: Record<string, string> = {
+  epub: "http://www.idpf.org/2007/ops",
+  xlink: "http://www.w3.org/1999/xlink",
+  m: "http://www.w3.org/1998/Math/MathML",
+  mml: "http://www.w3.org/1998/Math/MathML",
+  svg: "http://www.w3.org/2000/svg",
+  ibooks: "http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0",
+  opf: "http://www.idpf.org/2007/opf",
+  dc: "http://purl.org/dc/elements/1.1/",
+  xsi: "http://www.w3.org/2001/XMLSchema-instance",
+};
+const PREFIXED_NAME = /<\/?([A-Za-z][\w.-]*):[\w.-]+|\s([A-Za-z][\w.-]*):[\w.-]+\s*=/g;
+
+function usedPrefixes(html: string): Set<string> {
+  const prefixes = new Set<string>();
+  for (const match of html.matchAll(PREFIXED_NAME)) {
+    const prefix = (match[1] || match[2] || "").toLowerCase();
+    if (prefix && prefix !== "xml" && prefix !== "xmlns") prefixes.add(prefix);
+  }
+  return prefixes;
+}
+
+/**
+ * xmlns declarations for every known prefix a body fragment uses. Bodies are
+ * cut out of their source documents, so declarations made on the source root
+ * or on an ancestor (e.g. xmlns:xlink on <svg>) must be repeated here, or the
+ * XML parse fails ("unbound namespace prefix").
+ */
+function namespaceDeclarations(html: string, always: string[] = ["epub"]): string {
+  const prefixes = new Set([...always, ...usedPrefixes(html)]);
+  return Array.from(prefixes)
+    .filter((prefix) => KNOWN_NAMESPACES[prefix])
+    .map((prefix) => ` xmlns:${prefix}="${KNOWN_NAMESPACES[prefix]}"`)
+    .join("");
+}
+
+/** Drops attributes whose prefix is unknown (and would be unbound). */
+function stripUnknownPrefixedAttributes(html: string): string {
+  return html.replace(/\s([A-Za-z][\w.-]*):([\w.-]+)\s*=\s*("[^"]*"|'[^']*')/g, (match, prefix: string) => {
+    const lower = prefix.toLowerCase();
+    return lower === "xml" || lower === "xmlns" || KNOWN_NAMESPACES[lower] ? match : "";
+  });
+}
+
+/**
+ * The cover wrapper Gutenberg and calibre emit, <svg><image xlink:href/></svg>,
+ * becomes a plain <img>: KF8 renders it reliably and it fits the screen.
+ */
+function unwrapSvgImages(html: string): string {
+  return html.replace(/<svg\b[^>]*>\s*(?:<title>[^<]*<\/title>\s*)?<image\b([^>]*?)\/?>\s*(?:<\/image>\s*)?<\/svg>/gi, (match, attrs: string) => {
+    const href = /(?:xlink:href|href)\s*=\s*("([^"]*)"|'([^']*)')/i.exec(attrs);
+    const src = href?.[2] ?? href?.[3];
+    return src ? `<img class="svg-image" src="${src}" alt="" />` : match;
+  });
+}
+
+function isPreservedPageBody(bodyHtml: string): boolean {
+  return /<img\b[^>]*\bclass\s*=\s*["'][^"']*\bpage-image\b/i.test(bodyHtml);
+}
+
+/**
+ * Drops the invisible text layer pdf-to-epub adds under preserved page images
+ * (for EPUB search/accessibility). Kindle's KF8 renderer ignores the tricks
+ * that hide it and lays it out as a 1px-wide column, one word per line.
+ */
+export function stripPdfTextLayer(bodyHtml: string): string {
+  return bodyHtml.replace(/<div\b[^>]*\bclass\s*=\s*["'][^"']*\bpage-text\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "");
 }
 
 function hrefPath(value: string): string {
@@ -406,7 +500,7 @@ function imageEmbedMap(images: ImageResourceRecord[]): Map<string, number> {
   return map;
 }
 
-function buildKf8Css(textual: LyceumTextualContent): string {
+function buildKf8Css(textual: LyceumTextualContent, fontSizes: "kindle" | "original" = "kindle"): string {
   const resources = textual.resources || [];
   const cssResources = new Map<string, string>();
   const embeds = imageEmbedMap(buildImageResources(textual));
@@ -427,13 +521,23 @@ function buildKf8Css(textual: LyceumTextualContent): string {
       resolveImport: (href) => cssResources.get(resolveContentHref(resource.href, href).toLowerCase()),
       rewriteUrl: (href) => {
         const embed = embeds.get(resolveContentHref(resource.href, href).toLowerCase());
-        return embed ? `kindle:embed:${String(embed).padStart(4, "0")}?mime=image` : undefined;
+        return embed ? kindleEmbedHref(embed) : undefined;
       },
     });
     if (sanitized.css) parts.push(sanitized.css);
   }
 
-  return parts.join("\n");
+  // Preserved PDF pages: one image per screen, scaled to fit, last so it wins
+  // over the fixed-layout EPUB rules (height:100%, absolute positioning).
+  if (textual.chapters.some((chapter) => isPreservedPageBody(chapter.xhtml))) {
+    parts.push([
+      "section.page { margin: 0; padding: 0; text-align: center; page-break-after: always; }",
+      "img.page-image { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; margin: 0 auto; }",
+    ].join("\n"));
+  }
+
+  const css = parts.join("\n");
+  return fontSizes === "kindle" ? normalizeKindleFontSizes(css) : css;
 }
 
 function rewriteResourceReferences(
@@ -444,7 +548,12 @@ function rewriteResourceReferences(
   internalLinks: InternalLinkReference[],
 ): { html: string; unresolved: number } {
   let unresolved = 0;
-  const dom = new JSDOM(`<root xmlns="http://www.w3.org/1999/xhtml">${html}</root>`, { contentType: "application/xhtml+xml" });
+  // Declare the prefixes EPUB bodies commonly use (epub:type on footnotes and
+  // page breaks, xlink:href on SVG); without them the XML parse fails.
+  const dom = new JSDOM(
+    `<root xmlns="http://www.w3.org/1999/xhtml"${namespaceDeclarations(html, ["epub", "xlink"])}>${html}</root>`,
+    { contentType: "application/xhtml+xml" },
+  );
   const document = dom.window.document;
   const rewrite = (value: string) => {
     if (!value || /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("#")) return value;
@@ -454,7 +563,7 @@ function rewriteResourceReferences(
       unresolved += 1;
       return value;
     }
-    return `kindle:embed:${String(embed).padStart(4, "0")}?mime=image`;
+    return kindleEmbedHref(embed);
   };
 
   for (const anchor of Array.from(document.querySelectorAll("a[href]"))) {
@@ -496,8 +605,18 @@ function rewriteResourceReferences(
   const serializer = new dom.window.XMLSerializer();
   const root = document.documentElement;
 
+  // Serialize the wrapper as a whole so children inherit its namespace
+  // declarations (per-node serialization renames epub:type to ns1:type),
+  // then strip the wrapper tags.
+  const serializedRoot = serializer.serializeToString(root);
+  const innerStart = serializedRoot.indexOf(">") + 1;
+  const innerEnd = serializedRoot.lastIndexOf("</root>");
+  const rewrittenHtml = innerEnd >= innerStart && !serializedRoot.slice(0, innerStart).endsWith("/>")
+    ? serializedRoot.slice(innerStart, innerEnd)
+    : "";
+
   return {
-    html: Array.from(root.childNodes).map((node) => serializer.serializeToString(node)).join(""),
+    html: rewrittenHtml,
     unresolved,
   };
 }
@@ -512,20 +631,21 @@ function buildChapterDocument(
   const id = buildChapterId(index);
   const sourceId = sanitizeXmlId(chapter.id || "", id);
   const title = chapterTitle(chapter, index);
-  const bodyHtml = removeDuplicateLeadingHeading(
-    bodyHtmlOverride ?? normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml)),
-    title,
-  );
+  // The body is kept as the source wrote it: no heading is injected (the
+  // chapter's own heading, if any, is what the reader sees), so placeholder
+  // titles like "Capitulo 3" or "Pagina 12" never show up in the book.
+  const bodyHtml = bodyHtmlOverride ?? normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
+  const isPageImage = isPreservedPageBody(bodyHtml);
 
   return `<?xml version="1.0" encoding="utf-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
+<html xmlns="http://www.w3.org/1999/xhtml"${namespaceDeclarations(bodyHtml)} lang="${escapeXml(language)}" xml:lang="${escapeXml(language)}">
 <head>
 <meta charset="utf-8" />
 <title>${escapeXml(title)}</title>
+<link rel="stylesheet" type="text/css" href="kindle:flow:0001?mime=text/css" />
 </head>
 <body>
-<section id="${id}" data-lyceum-id="${escapeXml(sourceId)}" class="chapter">
-<h1>${escapeXml(title)}</h1>
+<section id="${id}" data-lyceum-id="${escapeXml(sourceId)}" class="chapter${isPageImage ? " page" : ""}">
 ${bodyHtml}
 </section>
 </body>
@@ -668,12 +788,59 @@ function resolveInternalLinksInText(
   return { text: encodeUtf8(html), unresolved };
 }
 
+/**
+ * Records the raw text-stream byte offset of every id in a chapter body. The
+ * body is stored right after its skeleton, so offsets do not depend on how the
+ * body is later cut into fragments.
+ */
+function collectRawIdOffsets(chapterPath: string, bodyInner: string, bodyRawStart: number, rawTargets: Map<string, number>) {
+  rawTargets.set(internalTargetKey(chapterPath, ""), bodyRawStart);
+  const tagPattern = /<[a-z][a-z0-9:-]*(?:\s[^<>]*?)?\sid\s*=\s*(["'])(.*?)\1[^<>]*>/gi;
+  let byteCursor = 0;
+  let charCursor = 0;
+  for (const match of bodyInner.matchAll(tagPattern)) {
+    const index = match.index || 0;
+    byteCursor += encodeUtf8(bodyInner.slice(charCursor, index)).length;
+    charCursor = index;
+    const key = internalTargetKey(chapterPath, match[2]);
+    if (!rawTargets.has(key)) rawTargets.set(key, bodyRawStart + byteCursor);
+  }
+}
+
+/**
+ * Maps every page of `textual.pageMap` to a raw text-stream offset. A page whose
+ * anchor did not survive (e.g. it was inside a removed heading) falls back to
+ * the start of its chapter. Offsets are forced to be non-decreasing.
+ */
+function resolvePageOffsets(
+  textual: LyceumTextualContent,
+  rawTargets: Map<string, number>,
+): { offsets: number[]; unresolved: number } {
+  const pages = textual.pageMap?.pages || [];
+  const offsets: number[] = [];
+  let unresolved = 0;
+  let previous = 0;
+  for (const page of pages) {
+    const chapterPath = normalizeContentPath(page.href).toLowerCase();
+    let offset = page.anchorId ? rawTargets.get(internalTargetKey(chapterPath, page.anchorId)) : undefined;
+    if (offset === undefined) {
+      if (page.anchorId) unresolved += 1;
+      offset = rawTargets.get(internalTargetKey(chapterPath, "")) ?? previous;
+    }
+    previous = Math.max(previous, offset);
+    offsets.push(previous);
+  }
+  return { offsets, unresolved };
+}
+
 function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualContent): {
   combinedHtml: Uint8Array;
   skeletons: SkeletonEntry[];
   fragments: FragmentEntry[];
   maxFragmentLength: number;
   unresolvedInternalLinkCount: number;
+  pageOffsets: number[];
+  unresolvedPageCount: number;
 } {
   const skeletons: SkeletonEntry[] = [];
   const fragments: FragmentEntry[] = [];
@@ -685,11 +852,15 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   const chapterPaths = new Set(textual.chapters.map((chapter) => normalizeContentPath(chapter.href).toLowerCase()));
   const internalLinks: InternalLinkReference[] = [];
   const internalTargets = new Map<string, KindlePosition>();
+  // Raw text-stream byte offsets (skeleton + fragments as stored), used by APNX.
+  const rawTargets = new Map<string, number>();
   let unresolvedInternalLinkCount = 0;
   let maxFragmentLength = 0;
 
   textual.chapters.forEach((chapter, index) => {
-    const body = normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml));
+    const body = stripUnknownPrefixedAttributes(unwrapSvgImages(
+      stripPdfTextLayer(normalizeHtmlEntitiesForXhtml(extractBodyHtml(chapter.xhtml))),
+    ));
     const chapterPath = normalizeContentPath(chapter.href).toLowerCase();
     const rewritten = rewriteResourceReferences(body, chapter.href, embeds, chapterPaths, internalLinks);
     unresolvedInternalLinkCount += rewritten.unresolved;
@@ -699,6 +870,9 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
     const fragBytes = encodeUtf8(split.bodyInner);
     const fragChunks = splitKf8Chunks(fragBytes);
     const skelStart = absoluteOffset;
+    if (textual.pageMap?.pages.length) {
+      collectRawIdOffsets(chapterPath, split.bodyInner, skelStart + skelBytes.length, rawTargets);
+    }
 
     parts.push(skelBytes);
     absoluteOffset += skelBytes.length;
@@ -740,6 +914,7 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
   });
   const resolvedText = resolveInternalLinksInText(concatBytes(parts), internalLinks, internalTargets);
   unresolvedInternalLinkCount += resolvedText.unresolved;
+  const pages = resolvePageOffsets(textual, rawTargets);
 
   return {
     combinedHtml: resolvedText.text,
@@ -747,6 +922,8 @@ function buildKf8HtmlParts(metadata: LyceumBookMetadata, textual: LyceumTextualC
     fragments,
     maxFragmentLength,
     unresolvedInternalLinkCount,
+    pageOffsets: pages.offsets,
+    unresolvedPageCount: pages.unresolved,
   };
 }
 
@@ -1172,8 +1349,10 @@ function buildTbsForTextRecords(entries: NcxTbsEntry[], textRecordLengths: numbe
   }
 }
 
+const FDST_FLOW_COUNT = 2;
+
 function buildFdstRecord(htmlLength: number, totalLength: number): Uint8Array {
-  const flowCount = 2;
+  const flowCount = FDST_FLOW_COUNT;
   const record = new Uint8Array(12 + flowCount * 8);
   const view = new DataView(record.buffer);
 
@@ -1676,6 +1855,7 @@ function buildExth(
     coverImageOffset?: number | null;
     thumbnailImageOffset?: number | null;
     kf8Boundary?: number;
+    resourceCount?: number;
   } = {},
 ): Uint8Array {
   const records: Uint8Array[] = [];
@@ -1694,35 +1874,40 @@ function buildExth(
   const identifier = metadata.identifier || metadata.isbn || stableIdentifier;
   const asin = metadata.asin || stableIdentifier;
 
-  pushString(100, metadata.author);
+  // EXTH record types follow the MOBI/KF8 spec as written by kindlegen and
+  // calibre. Wrong types are not harmless: 115 marks a book as a sample, 503
+  // and 524 must be strings (title, language) or the Kindle cannot open it.
+  for (const author of splitAuthors(metadata.author)) pushString(100, author); // creator
   pushString(101, metadata.publisher);
-  pushString(102, metadata.description);
   pushString(103, metadata.description);
-  pushString(104, metadata.isbn || metadata.identifier || stableIdentifier);
+  if (metadata.isbn) pushString(104, metadata.isbn);
   for (const subject of metadataSubjects(metadata.subject)) pushString(105, subject);
   pushString(106, metadata.publishDate);
-  pushString(107, metadata.description);
-  pushString(108, metadata.contributor);
+  pushString(108, metadata.contributor || "Lyceum");
   pushString(109, metadata.rights);
-  pushString(110, metadata.title || "Untitled");
-  pushString(111, "EBOK");
-  pushString(112, "lyceum");
-  pushString(113, asin || identifier);
-  pushString(114, normalizeLanguage(metadata.language));
-  pushString(115, metadata.authorSort);
-  pushString(118, metadata.titleSort);
-  pushString(119, metadata.series);
-  pushString(501, "EBOK");
-  pushUInt32(503, 0);
-  pushUInt32(524, 1);
+  pushString(112, `lyceum:${identifier}`); // source
+  pushString(113, asin || identifier); // ASIN (paired with the APNX sidecar)
+  pushUInt32(125, options.resourceCount ?? 0); // KF8 count of resources (fonts, images)
   if (typeof options.coverImageOffset === "number" && options.coverImageOffset >= 0) {
     pushUInt32(201, options.coverImageOffset);
+    pushString(129, `kindle:embed:${encodeBase32(options.coverImageOffset + 1, 4)}`); // KF8 cover URI
   }
   if (typeof options.thumbnailImageOffset === "number" && options.thumbnailImageOffset >= 0) {
     pushUInt32(202, options.thumbnailImageOffset);
   }
-
-  pushUInt32(121, options.kf8Boundary ?? 0);
+  // Creator software/version as kindlegen 2.9 reports it; some firmwares
+  // gate KF8 features on these.
+  pushUInt32(204, 201);
+  pushUInt32(205, 2);
+  pushUInt32(206, 9);
+  pushUInt32(207, 0);
+  pushString(501, "EBOK"); // cdeType
+  pushString(503, metadata.title || "Untitled"); // updated title
+  pushString(524, primaryLanguage(metadata.language)); // language
+  pushString(535, "0730-890adc2"); // kindlegen build-rev
+  if (typeof options.kf8Boundary === "number" && options.kf8Boundary > 0) {
+    pushUInt32(121, options.kf8Boundary); // only for joint MOBI/KF8 files
+  }
 
   const recordsPayload = concatBytes(records);
   const header = new Uint8Array(12);
@@ -1752,13 +1937,14 @@ function buildRecordZero(args: {
   fragmentIndexRecord: number;
   skeletonIndexRecord: number;
   datpRecord: number;
+  resourceCount?: number;
 }): Uint8Array {
   const title = args.metadata.title || "Untitled";
   const fullName = encodeUtf8(title);
   const exth = buildExth(args.metadata, {
     coverImageOffset: args.coverImageOffset,
     thumbnailImageOffset: args.thumbnailImageOffset,
-    kf8Boundary: 0,
+    resourceCount: args.resourceCount,
   });
   const fullNameOffset = PALMDOC_HEADER_LENGTH + MOBI_HEADER_LENGTH + exth.length;
   const recordLength = fullNameOffset + fullName.length + 2;
@@ -1781,10 +1967,13 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 16, deterministicId(`${title}:${args.metadata.author || ""}:kf8`), false);
   view.setUint32(MOBI_HEADER_OFFSET + 20, 8, false);     // version 8 = KF8/AZW3
 
-  for (const offset of [28, 32, 36, 40, 44, 48, 52, 56, 60]) {
+  // Orthographic/inflection/secondary indices and reserved words. These MUST
+  // be NULL_INDEX: an orthographic index of 0 points at record 0 and makes the
+  // Kindle open the book as a dictionary ("Application Error"). For KF8 the
+  // orth index may only be NULL or equal to the fragment (section) index.
+  for (const offset of [24, 28, 32, 36, 40, 44, 48, 52, 56, 60]) {
     view.setUint32(MOBI_HEADER_OFFSET + offset, NULL_INDEX, false);
   }
-  view.setUint32(MOBI_HEADER_OFFSET + 24, 0, false); // orthographic_index = 0 (none)
 
   view.setUint32(MOBI_HEADER_OFFSET + 64, args.firstNonTextRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 68, fullNameOffset, false);
@@ -1800,26 +1989,28 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 104, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 108, 0, false);
 
-  view.setUint32(MOBI_HEADER_OFFSET + 112, MOBI_EXTH_FLAGS, false); // EXTH header follows the MOBI header.
+  view.setUint32(MOBI_HEADER_OFFSET + 112, MOBI_EXTH_FLAGS | 0x10, false); // EXTH present (0x40), KF8 flag 0x10 as kindlegen/calibre.
 
   view.setUint32(MOBI_HEADER_OFFSET + 148, NULL_INDEX, false);
+  // DRM: offset NULL, count/size/flags 0 (no DRM).
   view.setUint32(MOBI_HEADER_OFFSET + 152, NULL_INDEX, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 156, NULL_INDEX, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 156, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 160, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 164, 0, false);
 
+  // FDST: the count must match the flows in the FDST record (HTML + CSS).
   view.setUint32(MOBI_HEADER_OFFSET + 176, args.fdstRecord, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 180, 1, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 180, FDST_FLOW_COUNT, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 184, args.fcisRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 188, 1, false);
   view.setUint32(MOBI_HEADER_OFFSET + 192, args.flisRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 196, 1, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 200, NULL_INDEX, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 204, NULL_INDEX, false);
 
   view.setUint32(MOBI_HEADER_OFFSET + 208, args.srcsRecord ?? NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 212, args.srcsRecord === null ? 0 : 1, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 200, 0, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 204, 0, false);
   view.setUint32(MOBI_HEADER_OFFSET + 216, NULL_INDEX, false);
   view.setUint32(MOBI_HEADER_OFFSET + 220, NULL_INDEX, false);
 
@@ -1828,8 +2019,12 @@ function buildRecordZero(args: {
   view.setUint32(MOBI_HEADER_OFFSET + 228, args.ncxIndexRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 232, args.fragmentIndexRecord, false);
   view.setUint32(MOBI_HEADER_OFFSET + 236, args.skeletonIndexRecord, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 240, args.datpRecord, false);
-  view.setUint32(MOBI_HEADER_OFFSET + 244, NULL_INDEX, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 240, NULL_INDEX, false); // DATP index unused (calibre writes NULL)
+  view.setUint32(MOBI_HEADER_OFFSET + 244, NULL_INDEX, false); // guide index
+  view.setUint32(MOBI_HEADER_OFFSET + 248, NULL_INDEX, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 252, 0, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 256, NULL_INDEX, false);
+  view.setUint32(MOBI_HEADER_OFFSET + 260, 0, false);
 
   record.set(exth, PALMDOC_HEADER_LENGTH + MOBI_HEADER_LENGTH);
   record.set(fullName, fullNameOffset);
@@ -1950,9 +2145,18 @@ function buildKf8Section(
   metadata: LyceumBookMetadata,
   textual: LyceumTextualContent,
   sourceEpub: Uint8Array = new Uint8Array(),
+  fontSizes: "kindle" | "original" = "kindle",
 ): Kf8BuildResult {
-  const { combinedHtml, skeletons, fragments, maxFragmentLength, unresolvedInternalLinkCount } = buildKf8HtmlParts(metadata, textual);
-  const cssBytes = encodeUtf8(buildKf8Css(textual));
+  const {
+    combinedHtml,
+    skeletons,
+    fragments,
+    maxFragmentLength,
+    unresolvedInternalLinkCount,
+    pageOffsets,
+    unresolvedPageCount,
+  } = buildKf8HtmlParts(metadata, textual);
+  const cssBytes = encodeUtf8(buildKf8Css(textual, fontSizes));
   const htmlLength = combinedHtml.length;
   const combinedText = concatBytes([combinedHtml, cssBytes]);
   const textRecordPayloads = splitTextRecordPayloads(combinedText);
@@ -1985,6 +2189,8 @@ function buildKf8Section(
     tbsByteCount: Array.from(tbsByRecord.values()).reduce((sum, bytes) => sum + bytes.length, 0),
     unsupportedResourceCount: 0,
     unresolvedInternalLinkCount,
+    pageOffsets,
+    unresolvedPageCount,
   };
 }
 
@@ -2110,6 +2316,7 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     fragmentIndexRecord,
     skeletonIndexRecord,
     datpRecord,
+    resourceCount: imageResourceCount,
   });
 
   const records: PdbRecord[] = [
@@ -2133,8 +2340,11 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
     throw new Error(`Record ${eofRecord} should be the MOBI EOF marker.`);
   }
 
+  const pdbName = clampPdbName(options.metadata.title || "Lyceum Book");
   return {
     buffer: buildPdb(options.metadata.title || "Lyceum Book", records),
+    pdbName,
+    pageOffsets: kf8.pageOffsets,
     stats: {
       chapterCount: options.textual.chapters.length,
       textRecordCount,
@@ -2162,6 +2372,8 @@ function buildAzw3FromKf8(options: Azw3BuildOptions, kf8: Kf8BuildResult, embedS
       thumbnailImageOffset: thumbnailImageOffset >= 0 ? thumbnailImageOffset : null,
       unsupportedResourceCount: kf8.unsupportedResourceCount,
       unresolvedInternalLinkCount: kf8.unresolvedInternalLinkCount,
+      pageCount: kf8.pageOffsets.length,
+      unresolvedPageCount: kf8.unresolvedPageCount,
       fdstRecord,
       fragmentIndexRecord,
       skeletonIndexRecord,
@@ -2181,7 +2393,7 @@ export function buildAzw3(options: Azw3BuildOptions): Azw3BuildResult {
 
   return buildAzw3FromKf8(
     options,
-    buildKf8Section(options.metadata, options.textual),
+    buildKf8Section(options.metadata, options.textual, new Uint8Array(), options.fontSizes),
     false,
   );
 }
@@ -2194,7 +2406,7 @@ export async function buildAzw3Async(options: Azw3BuildOptions): Promise<Azw3Bui
 
   return buildAzw3FromKf8(
     options,
-    buildKf8Section(options.metadata, options.textual, sourceEpub),
+    buildKf8Section(options.metadata, options.textual, sourceEpub, options.fontSizes),
     embedSource,
   );
 }

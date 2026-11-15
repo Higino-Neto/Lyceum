@@ -353,6 +353,14 @@ export function createSqliteLanguageLearningRepository(
       `).run({ userId, ...item });
     },
 
+    upsertReviewItems(userId, items) {
+      const run = db.transaction(() => {
+        for (const item of items) repository.upsertReviewItem(userId, item);
+      });
+      run();
+      return items.length;
+    },
+
     deleteReviewItem(userId, id) {
       db.prepare("DELETE FROM ll_review_items WHERE userId = ? AND id = ?").run(userId, id);
       db.prepare("DELETE FROM ll_review_log WHERE userId = ? AND itemId = ?").run(userId, id);

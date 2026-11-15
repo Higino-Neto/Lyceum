@@ -8,6 +8,11 @@ import {
   compareText,
   normalizeCase,
 } from "../../i18n";
+import { sortBooksForLibraryView } from "../../features/library/model/libraryView";
+
+const PICKER_SORTS = new Set<SortOption>([
+  "title_asc", "title_desc", "recent_desc", "recent_asc", "pages_desc", "pages_asc", "size_desc", "size_asc",
+]);
 
 export function matchesLibraryBookSearch(book: BookWithThumbnail, query: string): boolean {
   const trimmed = query.trim();
@@ -49,6 +54,7 @@ export function sortLibraryBooks(
   books: BookWithThumbnail[],
   sort: SortOption,
 ): BookWithThumbnail[] {
+  if (!PICKER_SORTS.has(sort)) return sortBooksForLibraryView(books, sort);
   return [...books].sort((left, right) => {
     switch (sort) {
       case "title_desc":
