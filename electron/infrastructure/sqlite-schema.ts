@@ -253,4 +253,96 @@ export function ensurePostMigrationSchema(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_habit_completions_habit ON habit_completions(habitId);
   `);
+  ensureLanguageLearningSchema(db);
+}
+
+/**
+ * User learning data for the language-learning reader. Document data lives in
+ * the `.lyceum` package; nothing here is written into packages.
+ */
+export function ensureLanguageLearningSchema(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ll_knowledge (
+      userId TEXT NOT NULL,
+      language TEXT NOT NULL,
+      key TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'unknown',
+      label TEXT NOT NULL,
+      translation TEXT,
+      note TEXT,
+      lookupCount INTEGER NOT NULL DEFAULT 0,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (userId, language, key)
+    );
+    CREATE TABLE IF NOT EXISTS ll_form_knowledge (
+      userId TEXT NOT NULL,
+      language TEXT NOT NULL,
+      key TEXT NOT NULL,
+      form TEXT NOT NULL,
+      state TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (userId, language, key, form)
+    );
+    CREATE TABLE IF NOT EXISTS ll_review_items (
+      userId TEXT NOT NULL,
+      id TEXT NOT NULL,
+      language TEXT NOT NULL,
+      key TEXT NOT NULL,
+      itemType TEXT NOT NULL,
+      label TEXT NOT NULL,
+      translation TEXT,
+      context TEXT,
+      contextForm TEXT,
+      documentId TEXT,
+      sentenceId TEXT,
+      easeFactor REAL NOT NULL,
+      intervalDays REAL NOT NULL,
+      repetitions INTEGER NOT NULL,
+      lapses INTEGER NOT NULL,
+      dueAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      lastReviewedAt TEXT,
+      PRIMARY KEY (userId, id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ll_review_due ON ll_review_items(userId, dueAt);
+    CREATE TABLE IF NOT EXISTS ll_review_log (
+      rowId INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId TEXT NOT NULL,
+      itemId TEXT NOT NULL,
+      reviewedAt TEXT NOT NULL,
+      grade INTEGER NOT NULL,
+      exercise TEXT NOT NULL,
+      correct INTEGER NOT NULL,
+      intervalBefore REAL NOT NULL,
+      intervalAfter REAL NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ll_review_log_item ON ll_review_log(userId, itemId);
+    CREATE TABLE IF NOT EXISTS ll_annotations (
+      userId TEXT NOT NULL,
+      id TEXT NOT NULL,
+      documentId TEXT NOT NULL,
+      targetType TEXT NOT NULL,
+      targetId TEXT NOT NULL,
+      chapterId TEXT NOT NULL,
+      quote TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (userId, id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ll_annotations_doc ON ll_annotations(userId, documentId);
+    CREATE TABLE IF NOT EXISTS ll_reading_state (
+      userId TEXT NOT NULL,
+      documentId TEXT NOT NULL,
+      chapterId TEXT NOT NULL,
+      blockId TEXT,
+      progress REAL NOT NULL DEFAULT 0,
+      completedChapters TEXT NOT NULL DEFAULT '[]',
+      secondsRead INTEGER NOT NULL DEFAULT 0,
+      sessions INTEGER NOT NULL DEFAULT 0,
+      updatedAt TEXT NOT NULL,
+      PRIMARY KEY (userId, documentId)
+    );
+  `);
 }

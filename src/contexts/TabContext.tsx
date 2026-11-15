@@ -194,8 +194,8 @@ function createTab(
     position: options?.position ?? 0,
     isActive: options?.isActive ?? false,
     source: data.source ?? "local",
-    isLoading: options?.isLoading ?? false,
-    isResolved: options?.isResolved ?? Boolean(options?.buffer),
+    isLoading: data.fileType === "lyceum" ? false : options?.isLoading ?? false,
+    isResolved: data.fileType === "lyceum" ? true : options?.isResolved ?? Boolean(options?.buffer),
     loadError: options?.loadError,
   };
 }
@@ -239,7 +239,7 @@ function normalizePersistedTab(rawTab: unknown, index: number): PersistedDocumen
     typeof tab.id !== "string" ||
     typeof tab.fileHash !== "string" ||
     typeof tab.fileName !== "string" ||
-    (tab.fileType !== "pdf" && tab.fileType !== "epub")
+    (tab.fileType !== "pdf" && tab.fileType !== "epub" && tab.fileType !== "lyceum")
   ) {
     return null;
   }

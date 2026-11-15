@@ -4,6 +4,13 @@ import electron from "electron";
 import AdmZip from "adm-zip";
 import { extractNestedTarArchives } from "./services/dictionary-archive";
 import { downloadHttpBuffer } from "./services/http-download";
+import crypto from "node:crypto";
+import {
+  FREEDICT_DATABASE_URL,
+  freeDictCatalog,
+  parseFreeDictDatabase,
+} from "./services/freedict-catalog";
+import type { FreeDictRow } from "./services/freedict-snapshot";
 
 const { app } = electron;
 
@@ -18,6 +25,10 @@ export interface DictionaryInfo {
   hash: string;
   downloadedAt?: string;
   isDownloaded?: boolean;
+  /** Archive format of `url`; zip when omitted. */
+  format?: "zip" | "tar.xz";
+  headwords?: number;
+  provider?: "lyceum" | "freedict";
 }
 
 export interface DictionaryIndex {
@@ -159,23 +170,58 @@ export class DictionaryManager {
     return hydrated;
   }
 
+  private freeDictCachePath() {
+    return path.join(this.dictionariesPath, "freedict-catalog.json");
+  }
+
+  private cachedFreeDictRows(): FreeDictRow[] | undefined {
+    try {
+      const cached = JSON.parse(fs.readFileSync(this.freeDictCachePath(), "utf-8")) as unknown;
+      return Array.isArray(cached) && cached.length > 0 ? (cached as FreeDictRow[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Curated Lyceum dictionaries first, then every FreeDict StarDict release
+   * (bundled snapshot, or the copy refreshed from freedict.org).
+   */
+  private catalog(): DictionaryIndex {
+    const curated = DEFAULT_INDEX.dictionaries.map((dict) => ({ ...dict, provider: "lyceum" as const }));
+    const ids = new Set(curated.map((dict) => dict.id));
+    const freeDict = freeDictCatalog(this.cachedFreeDictRows()).filter((dict) => !ids.has(dict.id));
+    return { dictionaries: [...curated, ...freeDict] };
+  }
+
   async fetchIndex(): Promise<DictionaryIndex> {
-    this.index = this.hydrateDownloadState(DEFAULT_INDEX);
+    try {
+      const buffer = await downloadHttpBuffer(FREEDICT_DATABASE_URL, { maxBytes: 20 * 1024 * 1024 });
+      const rows = parseFreeDictDatabase(JSON.parse(buffer.toString("utf-8")));
+      if (rows.length > 0) fs.writeFileSync(this.freeDictCachePath(), JSON.stringify(rows));
+    } catch (error) {
+      console.warn("[DictionaryManager] FreeDict catalog refresh failed; using the bundled list:", error);
+    }
+    this.index = this.hydrateDownloadState(this.catalog());
     await this.saveLocalIndex();
     return this.index;
   }
 
   async loadLocalIndex(): Promise<DictionaryIndex> {
     try {
+      // The catalog is code-defined; the saved index only matters for download state,
+      // which is re-derived from disk. Downloaded entries no longer in the catalog stay listed.
+      const catalog = this.catalog();
       if (fs.existsSync(this.indexPath)) {
-        const data = fs.readFileSync(this.indexPath, "utf-8");
-        const localIndex = JSON.parse(data) as DictionaryIndex;
-        this.index = this.hydrateDownloadState(localIndex);
-      } else {
-        this.index = this.hydrateDownloadState(DEFAULT_INDEX);
+        const saved = JSON.parse(fs.readFileSync(this.indexPath, "utf-8")) as DictionaryIndex;
+        const ids = new Set(catalog.dictionaries.map((dict) => dict.id));
+        for (const dict of saved.dictionaries ?? []) {
+          if (!ids.has(dict.id) && fs.existsSync(this.getDictionaryPath(dict.id))) catalog.dictionaries.push(dict);
+        }
       }
+      this.index = this.hydrateDownloadState(catalog);
     } catch {
-      this.index = { dictionaries: [] };
+      this.index = this.hydrateDownloadState(this.catalog());
     }
     return this.index;
   }
@@ -227,20 +273,30 @@ export class DictionaryManager {
       const dictPath = this.getDictionaryPath(dictId);
       this.ensureDirectory();
 
-      const tempPath = path.join(this.dictionariesPath, `${dictId}.zip`);
-
       const buffer = await downloadHttpBuffer(dict.url, {
+        maxBytes: 200 * 1024 * 1024,
         onProgress: (progress) => {
           this.downloadProgress.set(dictId, progress);
           onProgress?.(progress);
         },
       });
-      fs.writeFileSync(tempPath, buffer);
+      if (/^[0-9a-f]{128}$/i.test(dict.hash)) {
+        const actual = crypto.createHash("sha512").update(buffer).digest("hex");
+        if (actual.toLowerCase() !== dict.hash.toLowerCase()) throw new Error(`Checksum mismatch for ${dictId}`);
+      }
 
-      // Extract ZIP (works cross-platform with adm-zip)
-      const zip = new AdmZip(tempPath);
-      zip.extractAllTo(dictPath, true);
-      fs.unlinkSync(tempPath);
+      if (dict.format === "tar.xz") {
+        fs.rmSync(dictPath, { recursive: true, force: true });
+        fs.mkdirSync(dictPath, { recursive: true });
+        fs.writeFileSync(path.join(dictPath, `${dictId}.tar.xz`), buffer);
+      } else {
+        const tempPath = path.join(this.dictionariesPath, `${dictId}.zip`);
+        fs.writeFileSync(tempPath, buffer);
+        // Extract ZIP (works cross-platform with adm-zip)
+        const zip = new AdmZip(tempPath);
+        zip.extractAllTo(dictPath, true);
+        fs.unlinkSync(tempPath);
+      }
 
       // Some dictionary ZIPs contain a TAR/TAR.XZ payload. Extract it in-process
       // so downloads work on Linux and do not depend on a system 7-Zip install.

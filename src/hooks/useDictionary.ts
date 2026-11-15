@@ -13,6 +13,9 @@ export interface DictionaryInfo {
   hash: string;
   downloadedAt?: string;
   isDownloaded?: boolean;
+  format?: "zip" | "tar.xz";
+  headwords?: number;
+  provider?: "lyceum" | "freedict";
 }
 
 export interface LookupResult {

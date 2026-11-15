@@ -271,6 +271,14 @@
   },
 
   "dictionaries": {
+    "search": "Search dictionaries…",
+    "from": "From language",
+    "to": "To language",
+    "anyFrom": "Any source language",
+    "anyTo": "Any target language",
+    "noMatch": "No dictionary matches these filters.",
+    "headwords_one": "{{count}} entry",
+    "headwords_other": "{{count}} entries",
     "title": "Offline dictionaries",
     "description": "Download local dictionaries for lookups and translation without depending on the network.",
     "available_one": "{{count}} dictionary available",

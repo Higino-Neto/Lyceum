@@ -1,0 +1,110 @@
+/* Language-learning reader surface. Vocabulary states use the app's semantic
+   status tokens at low opacity so text contrast is preserved. */
+
+.lx-surface {
+  --lx-bg: var(--surface);
+  --lx-fg: var(--foreground);
+  --lx-muted: var(--foreground-muted);
+  --lx-unknown: var(--info);
+  --lx-learning: var(--warning);
+  --lx-known: var(--success);
+  --lx-accent: var(--primary);
+  --lx-font-size: 19px;
+  --lx-line-height: 1.7;
+  --lx-width: 680px;
+  background: var(--lx-bg);
+  color: var(--lx-fg);
+}
+
+.lx-surface[data-theme="light"] { --lx-bg: #fbfbf9; --lx-fg: #1c1c1e; --lx-muted: #6b6b70; --lx-unknown: #2563eb; --lx-learning: #b45309; --lx-known: #15803d; }
+.lx-surface[data-theme="dark"] { --lx-bg: #17171a; --lx-fg: #ececef; --lx-muted: #9a9aa3; --lx-unknown: #60a5fa; --lx-learning: #fbbf24; --lx-known: #4ade80; }
+.lx-surface[data-theme="sepia"] { --lx-bg: #f4ecd8; --lx-fg: #3b2f22; --lx-muted: #7a6a55; --lx-unknown: #1d4ed8; --lx-learning: #a16207; --lx-known: #166534; }
+
+.lx-content {
+  max-width: var(--lx-width);
+  margin: 0 auto;
+  padding: 48px 32px 30vh;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: var(--lx-font-size);
+  line-height: var(--lx-line-height);
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.lx-content .lx-block { margin: 0 0 0.9em; }
+/* Virtualized chapter segments: flow-root keeps block margins inside, so a
+   measured height can stand in for the segment while it is not rendered. */
+.lx-seg { display: flow-root; }
+.lx-content h2, .lx-content h3, .lx-content h4, .lx-content h5, .lx-content h6 {
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.6em 0 0.7em;
+}
+.lx-content h2 { font-size: 1.45em; }
+.lx-content h3 { font-size: 1.25em; }
+.lx-content h4, .lx-content h5, .lx-content h6 { font-size: 1.1em; }
+.lx-content blockquote { margin-left: 0; padding-left: 1em; border-left: 2px solid color-mix(in srgb, var(--lx-muted) 40%, transparent); color: var(--lx-muted); }
+.lx-content .lx-li { padding-left: 1.2em; text-indent: -0.8em; }
+.lx-content .lx-li::before { content: "•"; display: inline-block; width: 0.8em; text-indent: 0; color: var(--lx-muted); }
+
+.lx-chapter-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lx-muted);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  margin-bottom: 2rem;
+}
+
+/* Words: plain text by default; interactive in both modes. */
+.lx-w { border-radius: 2px; cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; }
+.lx-w:hover { box-shadow: 0 1px 0 0 color-mix(in srgb, var(--lx-fg) 45%, transparent); }
+
+.lx-surface[data-mode="learning"][data-highlights="on"] .lx-w.s-u {
+  background: color-mix(in srgb, var(--lx-unknown) 13%, transparent);
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--lx-unknown) 45%, transparent);
+}
+.lx-surface[data-mode="learning"][data-highlights="on"] .lx-w.s-l {
+  background: color-mix(in srgb, var(--lx-learning) 18%, transparent);
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--lx-learning) 55%, transparent);
+}
+.lx-surface[data-mode="learning"][data-highlights="on"][data-known="on"] .lx-w.s-k {
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--lx-known) 50%, transparent);
+}
+.lx-surface[data-mode="learning"][data-highlights="on"] .lx-w.s-u.pn {
+  background: transparent;
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--lx-unknown) 30%, transparent);
+}
+
+.lx-w.is-related { box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--lx-accent) 55%, transparent) !important; }
+.lx-w.is-selected { outline: 1.5px solid var(--lx-accent); outline-offset: 1px; }
+.lx-w.is-expression { box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--lx-learning) 80%, transparent) !important; }
+.lx-s.is-selected { background: color-mix(in srgb, var(--lx-accent) 9%, transparent); border-radius: 3px; }
+.lx-s.is-speaking { background: color-mix(in srgb, var(--lx-known) 16%, transparent); border-radius: 3px; }
+.lx-w.is-speaking-word { outline: 1px solid color-mix(in srgb, var(--lx-known) 70%, transparent); }
+.lx-flash { animation: lx-flash 1.4s ease-out; }
+@keyframes lx-flash {
+  0%, 30% { background: color-mix(in srgb, var(--lx-accent) 35%, transparent); }
+  100% { background: transparent; }
+}
+
+/* Annotations (kept separate from text; only a visual marker). */
+.lx-note-mark { text-decoration: underline dotted color-mix(in srgb, var(--lx-accent) 70%, transparent); text-underline-offset: 4px; }
+.lx-block.lx-note-mark { text-decoration: none; box-shadow: -10px 0 0 -8px var(--lx-accent); }
+
+/* Grammar structure highlighting. */
+.lx-w.g-subject { box-shadow: inset 0 -2px 0 0 var(--lx-unknown) !important; }
+.lx-w.g-finite-verb { box-shadow: inset 0 -2px 0 0 var(--lx-learning) !important; font-weight: 600; }
+.lx-w.g-verb-complement, .lx-w.g-separable-particle { box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--lx-learning) 60%, transparent) !important; }
+.lx-w.g-direct-object { box-shadow: inset 0 -2px 0 0 var(--lx-known) !important; }
+.lx-w.g-indirect-object { box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--lx-known) 55%, transparent) !important; }
+.lx-w.g-prepositional-phrase { box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--lx-muted) 70%, transparent) !important; }
+.lx-w.g-subordinator { font-style: italic; }
+
+.lx-progressive-mask { filter: blur(4px); user-select: none; cursor: pointer; transition: filter 160ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-flash { animation: none; outline: 2px solid var(--lx-accent); }
+  .lx-w { transition: none; }
+}

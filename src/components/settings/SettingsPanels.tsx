@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1220,6 +1220,31 @@ export function DictionarySettingsPanel() {
     refreshIndex,
   } = useDictionary();
   const { t } = useTranslation();
+  const [dictionaryQuery, setDictionaryQuery] = useState("");
+  const [dictionarySource, setDictionarySource] = useState("");
+  const [dictionaryTarget, setDictionaryTarget] = useState("");
+  const dictionaryLanguages = useMemo(() => {
+    const names = (code: string) => {
+      try {
+        return new Intl.DisplayNames([navigator.language || "en"], { type: "language" }).of(code) ?? code;
+      } catch {
+        return code;
+      }
+    };
+    const collect = (pick: (dict: (typeof dictionaries)[number]) => string) =>
+      Array.from(new Set(dictionaries.map(pick)))
+        .map((code) => ({ code, name: names(code) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    return { sources: collect((dict) => dict.sourceLang), targets: collect((dict) => dict.targetLang) };
+  }, [dictionaries]);
+  const visibleDictionaries = useMemo(() => {
+    const query = dictionaryQuery.trim().toLowerCase();
+    return dictionaries
+      .filter((dict) => !dictionarySource || dict.sourceLang === dictionarySource)
+      .filter((dict) => !dictionaryTarget || dict.targetLang === dictionaryTarget)
+      .filter((dict) => !query || `${dict.name} ${dict.id} ${dict.sourceLang} ${dict.targetLang}`.toLowerCase().includes(query))
+      .sort((a, b) => Number(Boolean(b.isDownloaded)) - Number(Boolean(a.isDownloaded)));
+  }, [dictionaries, dictionaryQuery, dictionarySource, dictionaryTarget]);
 
   return (
     <div>
@@ -1246,6 +1271,38 @@ export function DictionarySettingsPanel() {
           </button>
         </div>
 
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={dictionaryQuery}
+            onChange={(event) => setDictionaryQuery(event.target.value)}
+            placeholder={t("settings:dictionaries.search")}
+            className="h-8 min-w-[160px] flex-1 rounded border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary"
+          />
+          <select
+            value={dictionarySource}
+            onChange={(event) => setDictionarySource(event.target.value)}
+            aria-label={t("settings:dictionaries.from")}
+            className="h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
+          >
+            <option value="">{t("settings:dictionaries.anyFrom")}</option>
+            {dictionaryLanguages.sources.map((language) => (
+              <option key={language.code} value={language.code}>{language.name}</option>
+            ))}
+          </select>
+          <select
+            value={dictionaryTarget}
+            onChange={(event) => setDictionaryTarget(event.target.value)}
+            aria-label={t("settings:dictionaries.to")}
+            className="h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
+          >
+            <option value="">{t("settings:dictionaries.anyTo")}</option>
+            {dictionaryLanguages.targets.map((language) => (
+              <option key={language.code} value={language.code}>{language.name}</option>
+            ))}
+          </select>
+        </div>
+
         {!isDictsLoaded ? (
           <div className="space-y-2">
             <Skeleton className="h-14 w-full" />
@@ -1256,8 +1313,11 @@ export function DictionarySettingsPanel() {
             {t("settings:dictionaries.empty")}
           </div>
         ) : (
-          <div className="overflow-hidden rounded border border-border">
-            {dictionaries.map((dict) => {
+          <div className="max-h-[480px] overflow-y-auto rounded border border-border">
+            {visibleDictionaries.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-foreground-subtle">{t("settings:dictionaries.noMatch")}</p>
+            )}
+            {visibleDictionaries.map((dict) => {
               const progress = downloadProgress[dict.id] || 0;
               const isDownloadingThis =
                 isDownloading && progress > 0 && progress < 100;
@@ -1280,8 +1340,10 @@ export function DictionarySettingsPanel() {
                         source: dict.sourceLang.toUpperCase(),
                         target: dict.targetLang.toUpperCase(),
                       })}
-                      {dict.size &&
+                      {dict.size > 0 &&
                         ` - ${(dict.size / (1024 * 1024)).toFixed(1)}MB`}
+                      {dict.headwords ? ` - ${t("settings:dictionaries.headwords", { count: dict.headwords })}` : ""}
+                      {dict.provider === "freedict" ? " - FreeDict" : ""}
                     </p>
                   </div>
 

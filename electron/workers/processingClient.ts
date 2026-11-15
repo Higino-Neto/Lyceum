@@ -406,3 +406,10 @@ export async function validateAzw3InWorker(filePath: string) {
 }
 
 export type { BookFileType, PdfMetadata, EpubMetadata, FileConversionWorkerResult };
+
+export async function prepareLearningDocumentInWorker(
+  payload: WorkerTaskPayloads["prepare-learning-document"],
+  options?: RunOptions,
+) {
+  return runProcessingTask("prepare-learning-document", payload, { timeoutMs: 10 * 60 * 1000, ...options });
+}

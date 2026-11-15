@@ -17,6 +17,20 @@ import type { PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } f
 import type { KindleEmailPublicConfig, KindleEmailSaveInput } from "./services/kindle-email-types";
 import type { BookCategory } from "../src/core/library/category";
 import type {
+  FormKnowledgeRecord,
+  KnowledgeRecord,
+  KnowledgeSnapshot,
+  KnowledgeState,
+  LearningAnnotation,
+  LearningReadingState,
+  LinguisticDocument,
+  ReviewItem,
+  ReviewLogEntry,
+  KnowledgeBucket,
+  KnowledgeMergeResult,
+  LearningImportResult,
+} from "../src/core/language-learning/model";
+import type {
   Habit,
   HabitCompletion,
   HabitUpdate,
@@ -697,7 +711,7 @@ backupAllCategories: () =>
 openInNewWindow: (data: {
     fileHash: string;
     fileName: string;
-    fileType: "pdf" | "epub";
+    fileType: "pdf" | "epub" | "lyceum";
     filePath?: string;
     libraryDocumentId?: string;
     pdfRenderer?: "pdfjs";
@@ -717,6 +731,87 @@ openInNewWindow: (data: {
     ipcRenderer.invoke("dictionary:lookup", word, dictId),
 
   dictionaryGetInfo: (dictId: string) => ipcRenderer.invoke("dictionary:get-info", dictId),
+
+  languageLearningOpen: (input: { filePath: string; fileHash: string; language?: string; force?: boolean }) =>
+    invoke<
+      | { success: true; document: LinguisticDocument; packageRoot: string; language: string; metadataLanguage: string | null; detectedLanguage?: string | null; reused: boolean }
+      | { success: false; error: string }
+    >("language-learning:open", input),
+
+  onLanguageLearningProgress: (callback: (data: { fileHash: string; progress: number; stage: string }) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, data: { fileHash: string; progress: number; stage: string }) => callback(data);
+    ipcRenderer.on("language-learning:progress", listener);
+    return () => { ipcRenderer.removeListener("language-learning:progress", listener); };
+  },
+
+  languageLearningTranslateOnline: (text: string, source: string, target: string) =>
+    invoke<{ success: true; translation: string } | { success: false; error: string }>("language-learning:translate-online", text, source, target),
+
+  languageLearningLoadKnowledge: (userId: string, language: string) =>
+    invoke<KnowledgeSnapshot>("language-learning:load-knowledge", userId, language),
+
+  languageLearningSetLemmaState: (userId: string, record: { language: string; key: string; state: KnowledgeState; label: string; translation?: string | null; note?: string | null }) =>
+    invoke<KnowledgeRecord>("language-learning:set-lemma-state", userId, record),
+
+  languageLearningSetLemmaStates: (userId: string, records: Array<{ language: string; key: string; state: KnowledgeState; label: string }>) =>
+    invoke<number>("language-learning:set-lemma-states", userId, records),
+
+  languageLearningKnowledgeBuckets: (userIds: string[]) =>
+    invoke<KnowledgeBucket[]>("language-learning:knowledge-buckets", userIds),
+
+  languageLearningMergeKnowledge: (userId: string, fromUserId: string, fromLanguage: string, toLanguage: string) =>
+    invoke<KnowledgeMergeResult>("language-learning:merge-knowledge", userId, fromUserId, fromLanguage, toLanguage),
+
+  languageLearningExportBackup: (userId: string) =>
+    invoke<{ success: true; path: string } | { success: false; error: string }>("language-learning:export-backup", userId),
+
+  languageLearningImportBackup: (userId: string) =>
+    invoke<({ success: true } & LearningImportResult) | { success: false; error: string }>("language-learning:import-backup", userId),
+
+  languageLearningOpenBackupsFolder: (userId: string) =>
+    invoke<{ success: boolean; error?: string }>("language-learning:open-backups-folder", userId),
+
+  languageLearningSetFormState: (userId: string, record: { language: string; key: string; form: string; state: KnowledgeState }) =>
+    invoke<FormKnowledgeRecord>("language-learning:set-form-state", userId, record),
+
+  languageLearningClearFormState: (userId: string, language: string, key: string, form: string) =>
+    invoke<void>("language-learning:clear-form-state", userId, language, key, form),
+
+  languageLearningRecordLookup: (userId: string, language: string, key: string, label: string) =>
+    invoke<void>("language-learning:record-lookup", userId, language, key, label),
+
+  languageLearningSetTranslation: (userId: string, language: string, key: string, label: string, translation: string | null) =>
+    invoke<void>("language-learning:set-translation", userId, language, key, label, translation),
+
+  languageLearningListReviewItems: (userId: string, language?: string) =>
+    invoke<ReviewItem[]>("language-learning:list-review-items", userId, language),
+
+  languageLearningUpsertReviewItem: (userId: string, item: ReviewItem) =>
+    invoke<void>("language-learning:upsert-review-item", userId, item),
+
+  languageLearningDeleteReviewItem: (userId: string, id: string) =>
+    invoke<void>("language-learning:delete-review-item", userId, id),
+
+  languageLearningLogReview: (userId: string, entry: ReviewLogEntry) =>
+    invoke<void>("language-learning:log-review", userId, entry),
+
+  languageLearningListReviewLog: (userId: string, itemId?: string) =>
+    invoke<ReviewLogEntry[]>("language-learning:list-review-log", userId, itemId),
+
+  languageLearningListAnnotations: (userId: string, documentId?: string) =>
+    invoke<LearningAnnotation[]>("language-learning:list-annotations", userId, documentId),
+
+  languageLearningSaveAnnotation: (userId: string, annotation: LearningAnnotation) =>
+    invoke<void>("language-learning:save-annotation", userId, annotation),
+
+  languageLearningDeleteAnnotation: (userId: string, id: string) =>
+    invoke<void>("language-learning:delete-annotation", userId, id),
+
+  languageLearningGetReadingState: (userId: string, documentId: string) =>
+    invoke<LearningReadingState | null>("language-learning:get-reading-state", userId, documentId),
+
+  languageLearningSaveReadingState: (userId: string, state: LearningReadingState) =>
+    invoke<void>("language-learning:save-reading-state", userId, state),
 
   onDictionaryDownloadProgress: (callback: (data: { dictId: string; progress: number }) => void) => {
     const listener = (_: Electron.IpcRendererEvent, data: { dictId: string; progress: number }) => callback(data);

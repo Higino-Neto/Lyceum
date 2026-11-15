@@ -16,6 +16,7 @@ import enHabits from "./en/habits.json";
 import enNavigation from "./en/navigation.json";
 import enSettings from "./en/settings.json";
 import enTabs from "./en/tabs.json";
+import enLearning from "./en/learning.json";
 
 import ptBrAtlas from "./pt-br/atlas.json";
 import ptBrAuth from "./pt-br/auth.json";
@@ -33,6 +34,7 @@ import ptBrHabits from "./pt-br/habits.json";
 import ptBrNavigation from "./pt-br/navigation.json";
 import ptBrSettings from "./pt-br/settings.json";
 import ptBrTabs from "./pt-br/tabs.json";
+import ptBrLearning from "./pt-br/learning.json";
 
 /**
  * One entry per namespace (one JSON file per feature area).
@@ -56,6 +58,7 @@ const en = {
   settings: enSettings,
   friends: enFriends,
   habits: enHabits,
+  learning: enLearning,
 };
 
 const ptBR = {
@@ -75,6 +78,7 @@ const ptBR = {
   settings: ptBrSettings,
   friends: ptBrFriends,
   habits: ptBrHabits,
+  learning: ptBrLearning,
 };
 
 /** Flat `namespace -> keys` map used for type checking `t()` calls. */

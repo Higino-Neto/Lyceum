@@ -3,6 +3,7 @@ import type { EditableBookMetadata, FileMetadataUpdateResult } from "../services
 import type { BookFileType, EmbeddedBookMetadata } from "../services/document-processing";
 import type { PdfToolRequest, PdfToolResponse } from "../services/pdf-tools-types";
 import type { OutputPreviewExportInput, OutputPreviewExportResult } from "../services/output-preview-export";
+import type { PrepareLearningInput, PrepareLearningResult } from "../../src/lib/lyceum/linguistic/prepare";
 
 export type { PdfToolRequest, PdfToolResponse, PdfToolThumbnail } from "../services/pdf-tools-types";
 
@@ -21,7 +22,8 @@ export type WorkerTaskKind =
   | "prepare-cover-image"
   | "validate-azw3"
   | "pdf-tool"
-  | "output-preview-export";
+  | "output-preview-export"
+  | "prepare-learning-document";
 
 export interface WorkerRequest<T = unknown> {
   requestId: string;
@@ -136,6 +138,7 @@ export interface WorkerTaskPayloads {
   "validate-azw3": { filePath: string };
   "pdf-tool": PdfToolRequest;
   "output-preview-export": Omit<OutputPreviewExportInput, "renderImageAsset">;
+  "prepare-learning-document": Omit<PrepareLearningInput, "onProgress">;
 }
 
 export interface WorkerTaskResults {
@@ -154,4 +157,5 @@ export interface WorkerTaskResults {
   "validate-azw3": { valid: boolean; errors: string[]; warnings: string[] };
   "pdf-tool": PdfToolResponse;
   "output-preview-export": OutputPreviewExportResult;
+  "prepare-learning-document": PrepareLearningResult;
 }

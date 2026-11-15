@@ -95,6 +95,10 @@ import { createSqliteHabitRepository } from "./infrastructure/sqlite-habit-repos
 import { registerBackupHandlers } from "./handlers/backup.handler";
 import { registerCategoryHandlers } from "./handlers/categories.handler";
 import { registerDictionaryHandlers } from "./handlers/dictionary.handler";
+import { registerLanguageLearningHandlers } from "./handlers/language-learning.handler";
+import { createSqliteLanguageLearningRepository } from "./infrastructure/sqlite-language-learning-repository";
+import { createLanguageLearningService, translateWithMyMemory } from "./services/language-learning-service";
+import { createLearningBackupService, isLearningBackup, type LearningBackupService } from "./services/language-learning-backup";
 import { registerPlatformHandlers } from "./handlers/platform.handler";
 import { registerWindowHandlers } from "./handlers/windows.handler";
 import { registerFileDialogHandlers } from "./handlers/file-dialogs.handler";
@@ -2557,7 +2561,10 @@ app.on("window-all-closed", () => {
   }
 });
 
+let languageLearningBackups: LearningBackupService | null = null;
+
 app.on("before-quit", () => {
+  languageLearningBackups?.flush();
   disposeProcessingWorkers();
 });
 
@@ -3817,6 +3824,53 @@ app.whenReady().then(async () => {
   });
   registerCategoryHandlers(ipcMain, categories);
   registerDictionaryHandlers(ipcMain, () => win);
+  const languageLearning = createLanguageLearningService({
+    cacheRoot: path.join(app.getPath("userData"), "language-learning"),
+    emitProgress: (payload) => win?.webContents.send("language-learning:progress", payload),
+  });
+  const languageLearningRepository = createSqliteLanguageLearningRepository(database);
+  const learningBackups = createLearningBackupService({
+    repository: languageLearningRepository,
+    directory: path.join(app.getPath("userData"), "language-learning", "backups"),
+  });
+  languageLearningBackups = learningBackups;
+  registerLanguageLearningHandlers(ipcMain, {
+    repository: languageLearningRepository,
+    openDocument: (input) => languageLearning.openDocument(input),
+    translateOnline: (text, source, target) => translateWithMyMemory(text, source, target),
+    onUserDataChanged: (userId) => learningBackups.schedule(userId),
+    backups: {
+      async exportToFile(userId) {
+        const options = {
+          defaultPath: `lyceum-vocabulary-${new Date().toISOString().slice(0, 10)}.json`,
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        };
+        const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+        if (result.canceled || !result.filePath) return null;
+        await fs.promises.writeFile(result.filePath, JSON.stringify(languageLearningRepository.exportUserData(userId), null, 2), "utf8");
+        return result.filePath;
+      },
+      async importFromFile(userId) {
+        const options = {
+          properties: ["openFile" as const],
+          defaultPath: learningBackups.directoryFor(userId),
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        };
+        const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+        const file = result.filePaths[0];
+        if (result.canceled || !file) return null;
+        const parsed: unknown = JSON.parse(await fs.promises.readFile(file, "utf8"));
+        if (!isLearningBackup(parsed)) throw new Error("INVALID_BACKUP");
+        learningBackups.writeBackup(userId);
+        return languageLearningRepository.importUserData(userId, parsed);
+      },
+      async openFolder(userId) {
+        const directory = learningBackups.directoryFor(userId);
+        await fs.promises.mkdir(directory, { recursive: true });
+        await electron.shell.openPath(directory);
+      },
+    },
+  });
   registerPlatformHandlers(ipcMain);
 
   // Keep native window backgrounds aligned when the OS theme changes while a

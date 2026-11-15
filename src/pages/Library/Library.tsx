@@ -526,6 +526,23 @@ function LibraryContent() {
     navigate("/reading", { state: launchState });
   }, [navigate, openBookForReading]);
 
+  /** Opens the book as a `.lyceum` language-learning edition in /reading. */
+  const handleOpenForLearning = useCallback((book: BookWithThumbnail) => {
+    if (!book.filePath || !book.fileHash) {
+      toast.error(t("library:toasts.filePathNotFound"));
+      return;
+    }
+    const launchState: ReadingLaunchState = {
+      fileHash: book.fileHash,
+      fileName: book.title || book.filePath.split(/[/\\]/).pop(),
+      filePath: book.filePath,
+      fileType: "lyceum",
+      source: "library",
+      navigationId: crypto.randomUUID(),
+    };
+    navigate("/reading", { state: launchState });
+  }, [navigate, t]);
+
   const handleOpenPreview = useCallback(async (book: BookWithThumbnail) => {
     if (readingPreviewOpen) {
       setReadingPreviewOpen(false);
@@ -2105,6 +2122,9 @@ function LibraryContent() {
               }}
               onOpenPreview={(bookToOpen = selectedBook) => {
                 void handleOpenPreview(bookToOpen);
+              }}
+              onOpenLearning={activeSection === "usb" ? undefined : (bookToOpen = selectedBook) => {
+                handleOpenForLearning(bookToOpen);
               }}
               onConvert={(bookToConvert) => {
                 prepareBooks([bookToConvert]);

@@ -94,13 +94,34 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 #### 3.0.0
 
-Eu quero criar um leitor do formato intermediário .lyceum.
-O objetivo é conseguir abrir qualquer formato de arquivo dentro do aplicativo convertendo esse arquivo em um formato lyceum.
+- [ ] Nessa nova feature do lyceum reader, eu quero que você use os design tokens que eu adotei na aplicação e olhe para como as outras features são visualmente para manter a consistência visual, que está faltando nessa nova janela.
 
-Como eu teria total controle sobre esse formato de arquivo, eu poderia implementar várias das minhas ideias tanto para mobilidade dentro do arquivo quanto para aprendizado de idiomas, como um ótimo meio termo entre um PDF e um EPUB.
+- [ ] Ao invés de um botão narrower panel, coloque aquela borda que dá para redimensionar, assim como vários outros componentes do aplicativo. Reaproveite essa lógica.
 
-Por exemplo, eu poderia ter um modo de leitura que me permitisse, assim como eu tentei fazer no leitor de EPUB, fazer algo parecido com o que o LingQ faz, que é ter um leitor em que você consegue saber visualmente quais palavras você já sabe e quais não. Ao clicar na palavra com botão direito você já consegue ver a tradução dela, a quantidade de ocorrências dela no corpo de texto inteiro (Todos esses dados seriam pré-processados na criação do arquivo).
+- [ ] Não precisa ter um botão separado para adicionar palavras no vocabulário. Se a palavra for marcada como Learning, ela já tem que ir direto para lá e essa deve ser a forma do usuário conseguir colocar palavras para revisar.
 
-Aí o usuário conseguiria ver o quanto daquele corpo de texto ele já domina as palavras, assim como o LingQ faz.
+- [ ] Esses toasts do tipo: “énorme” → Learning, added to your vocabulary não devem aparecer mais. Pq o usuário vai clicar em várias dessas palavras e esse feedback não é necessário.
 
-O usuário também poderia fazer sua leitura normal sem nem olhar para isso, mas caso ele seja um learner de outro idioma, ele teria um ecossistema inteiro para ajudá-lo.
+- [ ] Botão direito em uma palavra abre um painel com várias funcionalidades inúteis. As únicas úteis ali são as de trocar o status da palavra, de adicionar nova nota, de abrir o painel lateral e de copiar a palavra.
+
+- [ ] Não é necessário um ícone no topo para mostrar que All changes saved. Isso deveria estar em um lugar que chame menos atenção.
+
+- [ ] As descrições do tipo (All forms, This form) são descrições ruins. Eu bato o olho e não sei o que significam. 
+
+- [ ] Essa parte da aba que fala:
+READING
+Chapter
+1 / 4
+Chapters finished
+0
+Reading time
+30m
+Sessions
+4
+Reading progress is tracked separately from vocabulary knowledge.
+
+Pode ser apagada. Esse não é o escopo correto para essas funcionalidades.
+
+- [ ] Eu quero que Ctrl + click em uma palavra marque ela como Known automaticamente, sem precisar do fluxo de entrar na aba e trocar.
+
+

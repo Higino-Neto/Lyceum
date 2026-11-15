@@ -271,6 +271,14 @@
   },
 
   "dictionaries": {
+    "search": "Buscar dicionários…",
+    "from": "Idioma de origem",
+    "to": "Idioma de destino",
+    "anyFrom": "Qualquer idioma de origem",
+    "anyTo": "Qualquer idioma de destino",
+    "noMatch": "Nenhum dicionário corresponde a esses filtros.",
+    "headwords_one": "{{count}} verbete",
+    "headwords_other": "{{count}} verbetes",
     "title": "Dicionários offline",
     "description": "Baixe dicionários locais para consultas e tradução sem depender da rede.",
     "available_one": "{{count}} dicionário disponível",

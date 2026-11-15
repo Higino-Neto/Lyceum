@@ -39,23 +39,30 @@ export class DictionaryStorage {
 
   importFromStarDict(): number {
     const dictPath = dictionaryManager.getDictionaryPath(this.dictId);
-    
-    let searchPath = dictPath;
-    const entries = fs.readdirSync(dictPath);
-    const subDirs = entries.filter(f => {
-      const p = path.join(dictPath, f);
-      return fs.statSync(p).isDirectory();
-    });
-    
-    if (subDirs.length > 0) {
-      searchPath = path.join(dictPath, subDirs[0]!);
+    const files: string[] = [];
+    const visit = (directory: string, depth: number) => {
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const full = path.join(directory, entry.name);
+        if (entry.isDirectory() && depth < 3) visit(full, depth + 1);
+        else if (entry.isFile()) files.push(full);
+      }
+    };
+    visit(dictPath, 0);
+    // Prefer files named after the dictionary id; accept any StarDict pair otherwise.
+    const pick = (pattern: RegExp) =>
+      files.find((file) => pattern.test(path.basename(file)) && path.basename(file).startsWith(this.dictId))
+      ?? files.find((file) => pattern.test(path.basename(file)));
+    const idxPath = pick(/\.idx(\.gz)?$/i);
+    const dictFilePath = pick(/\.dict(\.dz)?$/i);
+    if (!idxPath || !dictFilePath) {
+      throw new Error(`StarDict files not found for ${this.dictId}`);
     }
-    
-    const idxGzPath = path.join(searchPath, `${this.dictId}.idx.gz`);
-    const dictDzPath = path.join(searchPath, `${this.dictId}.dict.dz`);
-    
-    const idxContent = zlib.gunzipSync(fs.readFileSync(idxGzPath));
-    const dictContent = zlib.gunzipSync(fs.readFileSync(dictDzPath));
+    const readMaybeGzip = (file: string) => {
+      const raw = fs.readFileSync(file);
+      return /\.(gz|dz)$/i.test(file) ? zlib.gunzipSync(raw) : raw;
+    };
+    const idxContent = readMaybeGzip(idxPath);
+    const dictContent = readMaybeGzip(dictFilePath);
     
     console.log(`[DictionaryStorage] Parsing ${idxContent.length} bytes of index, ${dictContent.length} bytes of dict`);
     

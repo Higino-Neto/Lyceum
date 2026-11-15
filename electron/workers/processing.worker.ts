@@ -394,6 +394,11 @@ async function execute<K extends WorkerTaskKind>(kind: K, payload: WorkerTaskPay
           : undefined,
       }) as WorkerTaskResults[K];
     }
+    case "prepare-learning-document": {
+      const input = payload as WorkerTaskPayloads["prepare-learning-document"];
+      const { prepareLearningDocument } = await import("../../src/lib/lyceum/linguistic/prepare");
+      return await prepareLearningDocument({ ...input, onProgress }) as WorkerTaskResults[K];
+    }
     case "pdf-tool": return await runPdfTool(payload as WorkerTaskPayloads["pdf-tool"], onProgress) as WorkerTaskResults[K];
     default: throw new Error(`Unknown worker task: ${String(kind)}`);
   }

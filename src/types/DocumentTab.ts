@@ -1,4 +1,9 @@
-export type FileType = "pdf" | "epub";
+/**
+ * "lyceum" opens the language-learning reader. Its tabs carry the source
+ * book path/hash; the reader prepares the `.lyceum` package itself, so no
+ * file buffer is held in tab state.
+ */
+export type FileType = "pdf" | "epub" | "lyceum";
 export type PdfRenderer = "pdfjs";
 
 export interface DocumentTab {

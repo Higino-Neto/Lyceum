@@ -304,6 +304,7 @@
     "updateStatusFailed": "Falha ao atualizar o status de leitura",
     "updateRatingFailed": "Falha ao atualizar a nota",
     "openPreview": "Abrir prévia lateral",
+    "openForLearning": "Abrir para aprender idiomas (.lyceum)",
     "closePreview": "Fechar prévia lateral",
     "convert": "Converter",
     "vocabulary": "Vocabulário",

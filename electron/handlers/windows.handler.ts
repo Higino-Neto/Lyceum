@@ -3,7 +3,7 @@ import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 export interface DetachedReadingWindowData {
   fileHash: string;
   fileName: string;
-  fileType: "pdf" | "epub";
+  fileType: "pdf" | "epub" | "lyceum";
   filePath?: string;
   libraryDocumentId?: string;
   pdfRenderer?: "pdfjs";

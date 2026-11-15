@@ -22,6 +22,7 @@ import {
   PanelRightOpen,
   Unlink,
   Shuffle,
+  Languages,
 } from "lucide-react";
 import {
   formatDate as formatLocalizedDate,
@@ -68,6 +69,8 @@ interface BookDetailPanelProps {
   onClose: () => void;
   onOpenReader: (book?: BookWithThumbnail) => void;
   onOpenPreview?: (book?: BookWithThumbnail) => void;
+  /** Opens the book in the language-learning reader (.lyceum). */
+  onOpenLearning?: (book?: BookWithThumbnail) => void;
   onConvert?: (book: BookWithThumbnail) => void;
   onDelete?: (deletedFileHash: string) => void | Promise<void>;
   onDissolve?: (book: BookWithThumbnail) => void | Promise<void>;
@@ -114,6 +117,7 @@ export default function BookDetailPanel({
   onClose,
   onOpenReader,
   onOpenPreview,
+  onOpenLearning,
   onConvert,
   onDelete,
   onDissolve,
@@ -515,7 +519,9 @@ export default function BookDetailPanel({
     return bookPath.split(/[/\\]/).filter(Boolean);
   };
 
-  const canOpenInReader = selectedVariant.fileType === "pdf" || selectedVariant.fileType === "epub";
+  const isLyceumPackage = selectedVariant.fileType === "lyceum";
+  const canOpenInReader = selectedVariant.fileType === "pdf" || selectedVariant.fileType === "epub" || isLyceumPackage;
+  const canOpenForLearning = ["epub", "pdf", "txt", "html", "lyceum"].includes(String(selectedVariant.fileType));
   const hasFormatVariants = formatVariants.length > 1;
 
   return (
@@ -883,7 +889,7 @@ export default function BookDetailPanel({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => onOpenReader(selectedVariant)}
+            onClick={() => (isLyceumPackage && onOpenLearning ? onOpenLearning(selectedVariant) : onOpenReader(selectedVariant))}
             disabled={!canOpenInReader}
             className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary px-2 py-2.5 text-sm font-bold transition-colors  hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-primary-foreground"
           >
@@ -895,7 +901,18 @@ export default function BookDetailPanel({
               : t("library:detail.unsupportedFormat")}
           </button>
 
-        {onOpenPreview && (
+        {onOpenLearning && canOpenForLearning && !isLyceumPackage && (
+          <button
+            type="button"
+            onClick={() => onOpenLearning(selectedVariant)}
+            className="bg-surface-muted text-foreground hover:bg-border-strong hover:text-primary flex h-10 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm transition-colors"
+            title={t("library:detail.openForLearning")}
+            aria-label={t("library:detail.openForLearning")}
+          >
+            <Languages size={16} />
+          </button>
+        )}
+        {onOpenPreview && !isLyceumPackage && (
           <button
             type="button"
             onClick={() => onOpenPreview(selectedVariant)}

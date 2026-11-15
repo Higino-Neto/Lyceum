@@ -1,0 +1,494 @@
+{
+  "states": {
+    "unknown": "Unknown",
+    "learning": "Learning",
+    "known": "Known",
+    "ignored": "Ignored"
+  },
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "retry": "Try again",
+    "save": "Save",
+    "undo": "Undo"
+  },
+  "toolbar": {
+    "contents": "Contents",
+    "previousChapter": "Previous chapter",
+    "nextChapter": "Next chapter",
+    "mode": "Reading mode",
+    "traditional": "Read",
+    "learning": "Learn",
+    "highlights": "Vocabulary highlights",
+    "settings": "Reader settings",
+    "inspector": "Context panel",
+    "progress": "Learning and progress"
+  },
+  "settings": {
+    "fontSize": "Font size",
+    "lineHeight": "Line height",
+    "width": "Content width",
+    "theme": "Theme",
+    "themes": {
+      "app": "App",
+      "light": "Light",
+      "sepia": "Sepia",
+      "dark": "Dark"
+    },
+    "highlightKnown": "Mark known words",
+    "documentLanguage": "Document language",
+    "nativeLanguage": "Translate into",
+    "onlineTranslation": "Online translation",
+    "onlineTranslationHint": "Sends the selected text to the MyMemory translation service. Offline dictionaries are always tried first.",
+    "autoLearnOnClick": "Clicking an unknown word marks it as Learning",
+    "autoLearnOnClickHint": "It is also added to your vocabulary for review. Use Undo in the notice to revert."
+  },
+  "loading": {
+    "preparing": "Preparing the language-learning edition…",
+    "import": "Importing the book into a .lyceum package…",
+    "analyze": "Analyzing sentences, words and expressions…",
+    "ready": "Opening…",
+    "firstTimeHint": "“{{name}}” is processed once; later openings reuse the analysis."
+  },
+  "errors": {
+    "openTitle": "This book could not be opened for language learning.",
+    "NO_TEXTUAL_CONTENT": "The book has no extractable text (for example, a scanned PDF or a comic).",
+    "UNSUPPORTED_FORMAT": "This format is not supported yet. Use EPUB, TXT, HTML, PDF with text, or .lyceum.",
+    "FILE_NOT_FOUND": "The book file could not be found.",
+    "saveFailed": "Could not save your learning data."
+  },
+  "banners": {
+    "languageOverride": "Reading as “{{language}}” (the book declares “{{metadata}}”). Change it in reader settings.",
+    "limitedAnalysis": "Only tokenization is available for this language: words are grouped by exact form."
+  },
+  "toasts": {
+    "added": "“{{word}}” added to your vocabulary",
+    "autoLearning": "“{{word}}” → Learning, added to your vocabulary"
+  },
+  "menu": {
+    "translate": "Translation",
+    "grammar": "Grammar",
+    "occurrences": "Occurrences in the book",
+    "ignore": "Ignore this word",
+    "copy": "Copy word"
+  },
+  "inspector": {
+    "title": "Context",
+    "knowledge": "Knowledge",
+    "lemma": "from",
+    "estimated": "estimated",
+    "estimatedHint": "The base form was derived by rules and other forms in this book, not from a dictionary.",
+    "posUnknown": "Word",
+    "properNounHint": "This looks like a proper noun. You can mark it as ignored.",
+    "onlyThisForm": "Apply only to “{{form}}”",
+    "addToVocabulary": "Add to vocabulary",
+    "inVocabulary": "In your vocabulary",
+    "saveExpression": "Save expression",
+    "analyzeSentence": "Analyze sentence",
+    "translation": "Translation",
+    "expressions": "Expressions",
+    "grammar": "Grammar",
+    "inferredFromDocument": "inferred from this book",
+    "frequency": "In this book",
+    "allForms": "All forms",
+    "exactForm": "This form",
+    "thisChapter": "This chapter",
+    "previousOccurrence": "Previous occurrence",
+    "nextOccurrence": "Next occurrence",
+    "examples": "Other sentences",
+    "usage": "Usage",
+    "occurrencesCount": "Occurrences ({{count}})",
+    "sentence": "Sentence",
+    "phrase": "Selection"
+  },
+  "translation": {
+    "loading": "Translating…",
+    "unavailable": "No translation source is available. Download an offline dictionary in Settings or enable online translation in the reader settings.",
+    "failed": "No translation was found.",
+    "reveal": "Click to reveal",
+    "yours": "Your translation",
+    "addYours": "Add your translation",
+    "placeholder": "Meaning in your language",
+    "reference": "Reference gloss",
+    "progressive": "Hide",
+    "progressiveHint": "Keep translations blurred until you click them",
+    "literal": "Word by word",
+    "literalHint": "Uses the translations you saved. Click a word to inspect it.",
+    "translateParagraph": "Translate the whole paragraph",
+    "paragraph": "Paragraph",
+    "downloadDictionary": "Download {{name}} dictionary",
+    "downloadingDictionary": "Downloading dictionary… {{progress}}%",
+    "dictionaryReady": "Dictionary installed",
+    "noDictionaryForPair": "No offline dictionary exists for this language pair.",
+    "dictionaryFailed": "Dictionary download failed"
+  },
+  "providers": {
+    "offline-dictionary": "Offline dictionary",
+    "online-mymemory": "MyMemory (online)"
+  },
+  "audio": {
+    "pronounce": "Pronounce",
+    "playSentence": "Play sentence",
+    "play": "Read aloud from here",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "repeat": "Repeat sentence",
+    "previousSentence": "Previous sentence",
+    "nextSentence": "Next sentence",
+    "speed": "Speed",
+    "noVoice": "No voice",
+    "noVoiceHint": "Your system has no speech voice for this language. Install one in the operating system to enable audio."
+  },
+  "grammar": {
+    "title": "Structure",
+    "highlight": "Show in text",
+    "unavailable": "Structural analysis is not available for this language yet.",
+    "disclaimer": "Rule-based analysis. Roles marked with ? are uncertain.",
+    "possibleHint": "Possible, not certain",
+    "clauses": {
+      "main": "Main clause",
+      "subordinate": "Subordinate clause",
+      "relative": "Relative clause",
+      "infinitive": "Infinitive clause"
+    },
+    "roles": {
+      "subject": "Subject",
+      "finite-verb": "Finite verb",
+      "verb-complement": "Verb complement",
+      "separable-particle": "Separable particle",
+      "direct-object": "Direct object",
+      "indirect-object": "Indirect object",
+      "prepositional-phrase": "Prepositional phrase",
+      "subordinator": "Conjunction"
+    }
+  },
+  "grammarNotes": {
+    "verbSecond": {
+      "title": "Verb in second position",
+      "body": "In German main clauses the conjugated verb occupies the second position; the first position can hold the subject, an adverb or an object."
+    },
+    "verbFinal": {
+      "title": "Verb at the end after “{{subordinator}}”",
+      "body": "Subordinating conjunctions send the conjugated verb to the end of their clause."
+    },
+    "relativeClause": {
+      "title": "Relative clause",
+      "body": "The relative pronoun takes gender and number from the noun it refers to, and its case from its role inside the relative clause. The verb goes to the end."
+    },
+    "passive": {
+      "title": "Passive voice (werden + participle)",
+      "body": "“werden” with a past participle forms the passive: the action is in focus, not who performs it."
+    },
+    "perfect": {
+      "title": "Perfect tense with “{{auxiliary}}”",
+      "body": "The auxiliary is conjugated in second position and the participle closes the clause (verbal bracket). Verbs of movement or change of state use “sein”."
+    },
+    "future": {
+      "title": "Future with “werden”",
+      "body": "“werden” plus an infinitive at the end of the clause expresses the future or a supposition."
+    },
+    "modal": {
+      "title": "Modal verb “{{modal}}”",
+      "body": "Modal verbs are conjugated in second position and send the main verb, as an infinitive, to the end of the clause."
+    },
+    "twoWayPreposition": {
+      "title": "Two-way preposition “{{preposition}}”",
+      "body": "Accusative for movement towards a destination (where to?), dative for location (where?)."
+    },
+    "prepositionCase": {
+      "title": "“{{preposition}}” takes the {{case}}",
+      "body": "This preposition always governs the same case, which determines the article ending."
+    },
+    "adjectiveDeclension": {
+      "title": "Adjective declension: {{declension}} ({{ending}})",
+      "body": "After definite articles adjectives take weak endings; after ein-words mixed endings; without an article strong endings that show the case."
+    },
+    "case_nom": {
+      "title": "Nominative (“{{article}}”)",
+      "body": "The nominative marks the subject: who or what performs the action."
+    },
+    "case_acc": {
+      "title": "Accusative (“{{article}}”)",
+      "body": "The accusative usually marks the direct object, and follows prepositions such as für, durch, ohne."
+    },
+    "case_dat": {
+      "title": "Dative (“{{article}}”)",
+      "body": "The dative usually marks the indirect object (to whom?) and follows prepositions such as mit, nach, bei, von."
+    },
+    "case_gen": {
+      "title": "Genitive (“{{article}}”)",
+      "body": "The genitive expresses possession or follows prepositions such as wegen and während."
+    },
+    "caseAmbiguous": {
+      "title": "“{{article}}” could be {{cases}}",
+      "body": "Without knowing the noun's gender and number with certainty, the article alone does not determine the case."
+    },
+    "konjunktiv2": {
+      "title": "Konjunktiv II: “{{form}}”",
+      "body": "Used for unreal or hypothetical situations, wishes and polite requests."
+    },
+    "konjunktiv1": {
+      "title": "Konjunktiv I: “{{form}}”",
+      "body": "Mostly used in reported speech, typical of news and formal writing."
+    },
+    "modalParticle": {
+      "title": "Possible modal particle: “{{particle}}”",
+      "body": "Modal particles add tone (surprise, emphasis, softening) rather than lexical meaning. Their translation depends on context."
+    },
+    "verbAfterClause": {
+      "title": "Verb first after the subordinate clause",
+      "body": "The fronted subordinate clause occupies the first position of the sentence, so the conjugated verb of the main clause comes right after it, still in second position overall."
+    }
+  },
+  "expressionKinds": {
+    "idiom": "Idiom",
+    "phrasal": "Phrasal verb",
+    "reflexive": "Reflexive verb",
+    "separable": "Separable verb",
+    "collocation": "Collocation",
+    "fixed": "Fixed expression"
+  },
+  "expressionNotes": {
+    "separable": "A separable verb: in main clauses the prefix goes to the end of the clause, while the conjugated stem stays in second position.",
+    "reflexive": "Used with a reflexive pronoun that agrees with the subject (mich, dich, sich, uns, euch).",
+    "prepositionalObject": "The object is introduced by a fixed preposition, which determines its case."
+  },
+  "pos": {
+    "NOUN": "Noun",
+    "PROPN": "Proper noun",
+    "VERB": "Verb",
+    "AUX": "Auxiliary / modal verb",
+    "ADJ": "Adjective",
+    "ADV": "Adverb",
+    "DET": "Article / determiner",
+    "PRON": "Pronoun",
+    "ADP": "Preposition",
+    "SCONJ": "Subordinating conjunction",
+    "CCONJ": "Coordinating conjunction",
+    "PTKVZ": "Separable verb particle"
+  },
+  "features": {
+    "gender": "Gender",
+    "number": "Number",
+    "case": "Case",
+    "readings": "Possible readings",
+    "tense": "Tense",
+    "mood": "Mood",
+    "person": "Person",
+    "form": "Form",
+    "declension": "Declension",
+    "ending": "Ending",
+    "determiner": "Type",
+    "governs": "Governs",
+    "contraction": "Contraction",
+    "separable": "Separable prefix",
+    "separableOf": "Particle of",
+    "compound": "Compound",
+    "degree": "Degree",
+    "usage": "Usage",
+    "relative": "Relative pronoun",
+    "modalParticle": "Modal particle",
+    "reflexive": "Reflexive"
+  },
+  "values": {
+    "nom": "nominative",
+    "acc": "accusative",
+    "dat": "dative",
+    "gen": "genitive",
+    "m": "masculine",
+    "f": "feminine",
+    "n": "neuter",
+    "pl": "plural",
+    "sg": "singular",
+    "inflected": "inflected",
+    "pres": "present",
+    "pret": "simple past",
+    "past": "past",
+    "subj1": "Konjunktiv I",
+    "subj2": "Konjunktiv II",
+    "subjunctive-i": "Konjunktiv I",
+    "subjunctive-ii": "Konjunktiv II",
+    "finite": "conjugated",
+    "infinitive": "infinitive",
+    "participle": "participle",
+    "zu-infinitive": "infinitive with zu",
+    "gerund": "gerund",
+    "weak": "weak",
+    "strong": "strong",
+    "mixed": "mixed",
+    "definite": "definite article",
+    "indefinite": "indefinite article",
+    "negative": "negation",
+    "possessive": "possessive",
+    "demonstrative": "demonstrative",
+    "passive": "passive",
+    "comparative": "comparative",
+    "superlative": "superlative",
+    "likely": "likely",
+    "possible": "possible",
+    "yes": "yes",
+    "1sg": "1st singular",
+    "2sg": "2nd singular",
+    "3sg": "3rd singular",
+    "1pl": "1st plural",
+    "2pl": "2nd plural",
+    "3pl": "3rd plural",
+    "1": "1st",
+    "2": "2nd",
+    "3": "3rd"
+  },
+  "panel": {
+    "title": "Learning",
+    "tabs": {
+      "progress": "Progress",
+      "chapters": "Chapters",
+      "review": "Review",
+      "notes": "Notes",
+      "words": "Words"
+    },
+    "wide": "Wider panel",
+    "narrow": "Narrower panel"
+  },
+  "progress": {
+    "coverage": "Vocabulary coverage",
+    "occurrenceCoverage": "Running text you know",
+    "uniqueCoverage": "Distinct words you know",
+    "coverageHint": "Running-text coverage weights each word by how often it appears; distinct coverage counts each word once. Ignored words are excluded.",
+    "entries": "Words",
+    "occurrences": "Occurrences",
+    "total": "Total",
+    "reading": "Reading",
+    "chapter": "Chapter",
+    "chaptersDone": "Chapters finished",
+    "time": "Reading time",
+    "sessions": "Sessions",
+    "separateHint": "Reading progress is tracked separately from vocabulary knowledge.",
+    "recommendation": "Next words to learn",
+    "recommendationText": "Learning these {{count}} words would raise this chapter's coverage from {{from}} to {{to}}.",
+    "difficult": "Most relevant unknown words",
+    "noDifficult": "No unknown words left. Well done!",
+    "difficultHint": "Ranked by frequency, sentences they alone block (+), your lookups and review mistakes.",
+    "difficultReason": "{{frequency}} occurrences · blocks {{unlocks}} sentences · looked up {{lookups}}×"
+  },
+  "chapters": {
+    "unknownShare": "Unknown: {{value}}",
+    "hardest": "Hardest"
+  },
+  "review": {
+    "due": "words due for review",
+    "start": "Start review",
+    "positionKept": "Your reading position is kept while you review.",
+    "retention": {
+      "new": "New",
+      "learning": "Learning",
+      "young": "Young",
+      "mature": "Mature"
+    },
+    "noTranslation": "No saved translation",
+    "remaining": "{{count}} left",
+    "exercises": {
+      "recognition": "Recognition",
+      "recall": "Active recall",
+      "cloze": "Complete the sentence",
+      "listening": "Listening",
+      "production": "Write a sentence"
+    },
+    "productionPrompt": "Write your own sentence using this word, then rate yourself.",
+    "writeSentence": "Your sentence…",
+    "typeAnswer": "Type the word",
+    "check": "Check",
+    "showAnswer": "Show answer",
+    "verdicts": {
+      "correct": "Correct",
+      "accent": "Almost: check the accents",
+      "typo": "Almost: one letter off",
+      "wrong": "Not quite"
+    },
+    "grades": {
+      "again": "Again",
+      "hard": "Hard",
+      "good": "Good",
+      "easy": "Easy"
+    },
+    "finished": "Review complete",
+    "summary": "{{correct}} of {{total}} answers correct",
+    "stop": "Stop reviewing"
+  },
+  "annotations": {
+    "add": "Add note",
+    "addParagraph": "Note on paragraph",
+    "empty": "No notes yet. Right-click a word or select a sentence to add one.",
+    "all": "All",
+    "notePlaceholder": "Your note (optional)",
+    "categoryPlaceholder": "Category (e.g. grammar, difficult passage)",
+    "targets": {
+      "token": "Word",
+      "expression": "Expression",
+      "sentence": "Sentence",
+      "block": "Paragraph"
+    },
+    "categories": {
+      "expression": "Interesting expression",
+      "grammar": "Grammar",
+      "difficult": "Difficult passage",
+      "interesting": "Interesting"
+    }
+  },
+  "words": {
+    "title": "Words",
+    "seeAll": "See all words →",
+    "search": "Search word or translation",
+    "sortLabel": "Sort by",
+    "all": "All",
+    "hideNames": "Hide names",
+    "empty": "No words match these filters.",
+    "emptyAll": "Nothing saved for this language yet. Click words while reading, or use the buttons here.",
+    "openInText": "Show in the text",
+    "notInBook": "Not in this book",
+    "bulkLabel_one": "Set the {{count}} word shown to:",
+    "bulkLabel_other": "Set all {{count}} words shown to:",
+    "bulkConfirm_one": "Mark {{count}} word as {{state}}?",
+    "bulkConfirm_other": "Mark {{count}} words as {{state}}?",
+    "bulkApply": "Confirm",
+    "scopes": {
+      "chapter": "This chapter",
+      "book": "This book",
+      "all": "All my words"
+    },
+    "sort": {
+      "relevance": "Relevance",
+      "frequency": "Frequency",
+      "alphabetical": "A–Z",
+      "recent": "Recently changed"
+    }
+  },
+  "recovery": {
+    "title_one": "{{count}} saved word is filed under “{{from}}”",
+    "title_other": "{{count}} saved words are filed under “{{from}}”",
+    "merge": "Move them to “{{to}}”",
+    "dismiss": "Not now",
+    "signedOut": "{{language}}, signed out",
+    "merged_one": "{{count}} word recovered",
+    "merged_other": "{{count}} words recovered",
+    "body": "{{overlap}} of them appear in this book, which is read as “{{to}}”. They were probably saved while a book had the wrong language."
+  },
+  "backup": {
+    "auto": "Saved instantly · daily backup copies",
+    "export": "Export",
+    "import": "Import",
+    "folder": "Backups",
+    "exported": "Vocabulary exported",
+    "imported_one": "Imported {{count}} word",
+    "imported_other": "Imported {{count}} words",
+    "failed": "Backup operation failed"
+  },
+  "save": {
+    "saving": "Saving…",
+    "saved": "All changes saved",
+    "error": "Not saved — check the error and try again"
+  }
+}

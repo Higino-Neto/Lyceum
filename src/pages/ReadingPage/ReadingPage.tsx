@@ -8,6 +8,7 @@ import {
   type PdfRenderer,
 } from "./components/pdf-reader/pdfRenderer";
 import EpubViewer from "./components/epub-reader/Viewer";
+import LyceumLearningViewer from "./components/lyceum-reader/Viewer";
 import { TabProvider, useTabContext } from "../../contexts/TabContext";
 import TabBar from "../../components/tabs/TabBar";
 import { FileType } from "../../types/DocumentTab";
@@ -43,6 +44,7 @@ function inferFileType(fileName?: string, fileType?: FileType): FileType {
   }
 
   const extension = fileName?.toLowerCase().split(".").pop();
+  if (extension === "lyceum") return "lyceum";
   return extension === "epub" ? "epub" : "pdf";
 }
 
@@ -52,7 +54,7 @@ function ReadingContent() {
   const reduceMotion = useReducedMotion();
   const session = useReadingSession();
   const { activeTab } = useTabContext();
-  const [activeType, setActiveType] = useState<"pdf" | "epub" | null>(null);
+  const [activeType, setActiveType] = useState<FileType | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [totalBookPages, setTotalBookPages] = useState(0);
 
@@ -97,6 +99,17 @@ function ReadingContent() {
         <div className="flex h-full items-center justify-center text-foreground-subtle">
           Carregando {activeTab.fileType.toUpperCase()}...
         </div>
+      );
+    }
+
+    if (activeTab.fileType === "lyceum") {
+      return (
+        <LyceumLearningViewer
+          key={activeTab.id}
+          fileHash={activeTab.fileHash}
+          fileName={activeTab.fileName}
+          filePath={activeTab.filePath}
+        />
       );
     }
 
@@ -430,11 +443,11 @@ export default function ReadingPage() {
   const pdfRenderer = normalizePdfRenderer(searchParams.get("pdfRenderer"));
 
   const initialTab = useMemo(() => {
-    if (!detached || !fileHash || (fileType !== "pdf" && fileType !== "epub")) {
+    if (!detached || !fileHash || (fileType !== "pdf" && fileType !== "epub" && fileType !== "lyceum")) {
       return null;
     }
 
-    const detachedFileType: FileType = fileType === "epub" ? "epub" : "pdf";
+    const detachedFileType: FileType = fileType;
     const detachedSource: "library" | "local" =
       searchParams.get("source") === "library" ? "library" : "local";
 

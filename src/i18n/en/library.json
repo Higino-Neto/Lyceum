@@ -304,6 +304,7 @@
     "updateStatusFailed": "Failed to update the reading status",
     "updateRatingFailed": "Failed to update the score",
     "openPreview": "Open side preview",
+    "openForLearning": "Open for language learning (.lyceum)",
     "closePreview": "Close side preview",
     "convert": "Convert",
     "vocabulary": "Vocabulary",

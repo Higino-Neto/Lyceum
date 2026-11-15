@@ -1,0 +1,494 @@
+{
+  "states": {
+    "unknown": "Desconhecida",
+    "learning": "Aprendendo",
+    "known": "Conhecida",
+    "ignored": "Ignorada"
+  },
+  "actions": {
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "undo": "Desfazer"
+  },
+  "toolbar": {
+    "contents": "Sumário",
+    "previousChapter": "Capítulo anterior",
+    "nextChapter": "Próximo capítulo",
+    "mode": "Modo de leitura",
+    "traditional": "Ler",
+    "learning": "Aprender",
+    "highlights": "Destaques de vocabulário",
+    "settings": "Configurações do leitor",
+    "inspector": "Painel de contexto",
+    "progress": "Aprendizado e progresso"
+  },
+  "settings": {
+    "fontSize": "Tamanho da fonte",
+    "lineHeight": "Altura da linha",
+    "width": "Largura do texto",
+    "theme": "Tema",
+    "themes": {
+      "app": "App",
+      "light": "Claro",
+      "sepia": "Sépia",
+      "dark": "Escuro"
+    },
+    "highlightKnown": "Marcar palavras conhecidas",
+    "documentLanguage": "Idioma do documento",
+    "nativeLanguage": "Traduzir para",
+    "onlineTranslation": "Tradução online",
+    "onlineTranslationHint": "Envia o texto selecionado ao serviço de tradução MyMemory. Os dicionários offline são sempre consultados primeiro.",
+    "autoLearnOnClick": "Clicar numa palavra desconhecida a marca como Aprendendo",
+    "autoLearnOnClickHint": "Ela também entra no seu vocabulário para revisão. Use Desfazer no aviso para reverter."
+  },
+  "loading": {
+    "preparing": "Preparando a edição para aprendizado de idiomas…",
+    "import": "Importando o livro para um pacote .lyceum…",
+    "analyze": "Analisando frases, palavras e expressões…",
+    "ready": "Abrindo…",
+    "firstTimeHint": "“{{name}}” é processado uma única vez; as próximas aberturas reutilizam a análise."
+  },
+  "errors": {
+    "openTitle": "Não foi possível abrir este livro para aprendizado de idiomas.",
+    "NO_TEXTUAL_CONTENT": "O livro não tem texto extraível (por exemplo, um PDF escaneado ou um quadrinho).",
+    "UNSUPPORTED_FORMAT": "Este formato ainda não é suportado. Use EPUB, TXT, HTML, PDF com texto ou .lyceum.",
+    "FILE_NOT_FOUND": "O arquivo do livro não foi encontrado.",
+    "saveFailed": "Não foi possível salvar seus dados de aprendizado."
+  },
+  "banners": {
+    "languageOverride": "Lendo como “{{language}}” (o livro declara “{{metadata}}”). Altere nas configurações do leitor.",
+    "limitedAnalysis": "Para este idioma há apenas tokenização: as palavras são agrupadas pela forma exata."
+  },
+  "toasts": {
+    "added": "“{{word}}” adicionada ao seu vocabulário",
+    "autoLearning": "“{{word}}” → Aprendendo, adicionada ao seu vocabulário"
+  },
+  "menu": {
+    "translate": "Tradução",
+    "grammar": "Gramática",
+    "occurrences": "Ocorrências no livro",
+    "ignore": "Ignorar esta palavra",
+    "copy": "Copiar palavra"
+  },
+  "inspector": {
+    "title": "Contexto",
+    "knowledge": "Conhecimento",
+    "lemma": "de",
+    "estimated": "estimado",
+    "estimatedHint": "A forma base foi deduzida por regras e por outras formas deste livro, não por um dicionário.",
+    "posUnknown": "Palavra",
+    "properNounHint": "Parece um nome próprio. Você pode marcá-lo como ignorado.",
+    "onlyThisForm": "Aplicar só a “{{form}}”",
+    "addToVocabulary": "Adicionar ao vocabulário",
+    "inVocabulary": "No seu vocabulário",
+    "saveExpression": "Salvar expressão",
+    "analyzeSentence": "Analisar frase",
+    "translation": "Tradução",
+    "expressions": "Expressões",
+    "grammar": "Gramática",
+    "inferredFromDocument": "deduzido deste livro",
+    "frequency": "Neste livro",
+    "allForms": "Todas as formas",
+    "exactForm": "Esta forma",
+    "thisChapter": "Este capítulo",
+    "previousOccurrence": "Ocorrência anterior",
+    "nextOccurrence": "Próxima ocorrência",
+    "examples": "Outras frases",
+    "usage": "Uso",
+    "occurrencesCount": "Ocorrências ({{count}})",
+    "sentence": "Frase",
+    "phrase": "Seleção"
+  },
+  "translation": {
+    "loading": "Traduzindo…",
+    "unavailable": "Nenhuma fonte de tradução disponível. Baixe um dicionário offline nas Configurações ou ative a tradução online nas configurações do leitor.",
+    "failed": "Nenhuma tradução encontrada.",
+    "reveal": "Clique para revelar",
+    "yours": "Sua tradução",
+    "addYours": "Adicionar sua tradução",
+    "placeholder": "Significado no seu idioma",
+    "reference": "Glosa de referência",
+    "progressive": "Ocultar",
+    "progressiveHint": "Mantém as traduções desfocadas até você clicar",
+    "literal": "Palavra por palavra",
+    "literalHint": "Usa as traduções que você salvou. Clique numa palavra para inspecioná-la.",
+    "translateParagraph": "Traduzir o parágrafo inteiro",
+    "paragraph": "Parágrafo",
+    "downloadDictionary": "Baixar dicionário {{name}}",
+    "downloadingDictionary": "Baixando dicionário… {{progress}}%",
+    "dictionaryReady": "Dicionário instalado",
+    "noDictionaryForPair": "Não existe dicionário offline para este par de idiomas.",
+    "dictionaryFailed": "Falha ao baixar o dicionário"
+  },
+  "providers": {
+    "offline-dictionary": "Dicionário offline",
+    "online-mymemory": "MyMemory (online)"
+  },
+  "audio": {
+    "pronounce": "Pronunciar",
+    "playSentence": "Ouvir frase",
+    "play": "Ler em voz alta a partir daqui",
+    "pause": "Pausar",
+    "resume": "Continuar",
+    "stop": "Parar",
+    "repeat": "Repetir frase",
+    "previousSentence": "Frase anterior",
+    "nextSentence": "Próxima frase",
+    "speed": "Velocidade",
+    "noVoice": "Sem voz",
+    "noVoiceHint": "Seu sistema não tem voz de síntese para este idioma. Instale uma no sistema operacional para ativar o áudio."
+  },
+  "grammar": {
+    "title": "Estrutura",
+    "highlight": "Mostrar no texto",
+    "unavailable": "A análise estrutural ainda não está disponível para este idioma.",
+    "disclaimer": "Análise baseada em regras. Funções marcadas com ? são incertas.",
+    "possibleHint": "Possível, não certo",
+    "clauses": {
+      "main": "Oração principal",
+      "subordinate": "Oração subordinada",
+      "relative": "Oração relativa",
+      "infinitive": "Oração infinitiva"
+    },
+    "roles": {
+      "subject": "Sujeito",
+      "finite-verb": "Verbo conjugado",
+      "verb-complement": "Complemento verbal",
+      "separable-particle": "Partícula separável",
+      "direct-object": "Objeto direto",
+      "indirect-object": "Objeto indireto",
+      "prepositional-phrase": "Locução preposicional",
+      "subordinator": "Conjunção"
+    }
+  },
+  "grammarNotes": {
+    "verbSecond": {
+      "title": "Verbo na segunda posição",
+      "body": "Nas orações principais alemãs o verbo conjugado ocupa a segunda posição; a primeira pode ser o sujeito, um advérbio ou um objeto."
+    },
+    "verbFinal": {
+      "title": "Verbo no final depois de “{{subordinator}}”",
+      "body": "Conjunções subordinativas mandam o verbo conjugado para o final da oração."
+    },
+    "relativeClause": {
+      "title": "Oração relativa",
+      "body": "O pronome relativo concorda em gênero e número com o substantivo a que se refere; o caso depende da sua função na oração relativa. O verbo vai para o final."
+    },
+    "passive": {
+      "title": "Voz passiva (werden + particípio)",
+      "body": "“werden” com particípio forma a passiva: o foco está na ação, não em quem a pratica."
+    },
+    "perfect": {
+      "title": "Perfeito com “{{auxiliary}}”",
+      "body": "O auxiliar fica conjugado na segunda posição e o particípio fecha a oração (moldura verbal). Verbos de movimento ou mudança de estado usam “sein”."
+    },
+    "future": {
+      "title": "Futuro com “werden”",
+      "body": "“werden” mais infinitivo no final da oração expressa futuro ou suposição."
+    },
+    "modal": {
+      "title": "Verbo modal “{{modal}}”",
+      "body": "Os verbos modais são conjugados na segunda posição e enviam o verbo principal, no infinitivo, para o final da oração."
+    },
+    "twoWayPreposition": {
+      "title": "Preposição de dois casos “{{preposition}}”",
+      "body": "Acusativo para movimento em direção a um destino (para onde?), dativo para localização (onde?)."
+    },
+    "prepositionCase": {
+      "title": "“{{preposition}}” rege o {{case}}",
+      "body": "Esta preposição sempre rege o mesmo caso, que determina a terminação do artigo."
+    },
+    "adjectiveDeclension": {
+      "title": "Declinação do adjetivo: {{declension}} ({{ending}})",
+      "body": "Depois de artigo definido o adjetivo recebe terminação fraca; depois de ein-palavras, mista; sem artigo, forte, mostrando o caso."
+    },
+    "case_nom": {
+      "title": "Nominativo (“{{article}}”)",
+      "body": "O nominativo marca o sujeito: quem ou o que pratica a ação."
+    },
+    "case_acc": {
+      "title": "Acusativo (“{{article}}”)",
+      "body": "O acusativo geralmente marca o objeto direto e aparece depois de preposições como für, durch, ohne."
+    },
+    "case_dat": {
+      "title": "Dativo (“{{article}}”)",
+      "body": "O dativo geralmente marca o objeto indireto (a quem?) e aparece depois de preposições como mit, nach, bei, von."
+    },
+    "case_gen": {
+      "title": "Genitivo (“{{article}}”)",
+      "body": "O genitivo expressa posse ou aparece depois de preposições como wegen e während."
+    },
+    "caseAmbiguous": {
+      "title": "“{{article}}” pode ser {{cases}}",
+      "body": "Sem conhecer com certeza o gênero e o número do substantivo, só o artigo não determina o caso."
+    },
+    "konjunktiv2": {
+      "title": "Konjunktiv II: “{{form}}”",
+      "body": "Usado para situações irreais ou hipotéticas, desejos e pedidos educados."
+    },
+    "konjunktiv1": {
+      "title": "Konjunktiv I: “{{form}}”",
+      "body": "Usado principalmente no discurso indireto, típico de notícias e textos formais."
+    },
+    "modalParticle": {
+      "title": "Possível partícula modal: “{{particle}}”",
+      "body": "Partículas modais acrescentam tom (surpresa, ênfase, suavização) e não significado lexical. A tradução depende do contexto."
+    },
+    "verbAfterClause": {
+      "title": "Verbo logo após a oração subordinada",
+      "body": "A oração subordinada anteposta ocupa a primeira posição da frase; por isso o verbo conjugado da principal vem logo em seguida, ainda na segunda posição."
+    }
+  },
+  "expressionKinds": {
+    "idiom": "Expressão idiomática",
+    "phrasal": "Phrasal verb",
+    "reflexive": "Verbo reflexivo",
+    "separable": "Verbo separável",
+    "collocation": "Colocação",
+    "fixed": "Expressão fixa"
+  },
+  "expressionNotes": {
+    "separable": "Verbo separável: na oração principal o prefixo vai para o final, enquanto o radical conjugado fica na segunda posição.",
+    "reflexive": "Usado com um pronome reflexivo que concorda com o sujeito (mich, dich, sich, uns, euch).",
+    "prepositionalObject": "O objeto é introduzido por uma preposição fixa, que determina o seu caso."
+  },
+  "pos": {
+    "NOUN": "Substantivo",
+    "PROPN": "Nome próprio",
+    "VERB": "Verbo",
+    "AUX": "Verbo auxiliar / modal",
+    "ADJ": "Adjetivo",
+    "ADV": "Advérbio",
+    "DET": "Artigo / determinante",
+    "PRON": "Pronome",
+    "ADP": "Preposição",
+    "SCONJ": "Conjunção subordinativa",
+    "CCONJ": "Conjunção coordenativa",
+    "PTKVZ": "Partícula de verbo separável"
+  },
+  "features": {
+    "gender": "Gênero",
+    "number": "Número",
+    "case": "Caso",
+    "readings": "Leituras possíveis",
+    "tense": "Tempo",
+    "mood": "Modo",
+    "person": "Pessoa",
+    "form": "Forma",
+    "declension": "Declinação",
+    "ending": "Terminação",
+    "determiner": "Tipo",
+    "governs": "Rege",
+    "contraction": "Contração",
+    "separable": "Prefixo separável",
+    "separableOf": "Partícula de",
+    "compound": "Composto",
+    "degree": "Grau",
+    "usage": "Uso",
+    "relative": "Pronome relativo",
+    "modalParticle": "Partícula modal",
+    "reflexive": "Reflexivo"
+  },
+  "values": {
+    "nom": "nominativo",
+    "acc": "acusativo",
+    "dat": "dativo",
+    "gen": "genitivo",
+    "m": "masculino",
+    "f": "feminino",
+    "n": "neutro",
+    "pl": "plural",
+    "sg": "singular",
+    "inflected": "flexionado",
+    "pres": "presente",
+    "pret": "pretérito",
+    "past": "passado",
+    "subj1": "Konjunktiv I",
+    "subj2": "Konjunktiv II",
+    "subjunctive-i": "Konjunktiv I",
+    "subjunctive-ii": "Konjunktiv II",
+    "finite": "conjugado",
+    "infinitive": "infinitivo",
+    "participle": "particípio",
+    "zu-infinitive": "infinitivo com zu",
+    "gerund": "gerúndio",
+    "weak": "fraca",
+    "strong": "forte",
+    "mixed": "mista",
+    "definite": "artigo definido",
+    "indefinite": "artigo indefinido",
+    "negative": "negação",
+    "possessive": "possessivo",
+    "demonstrative": "demonstrativo",
+    "passive": "passiva",
+    "comparative": "comparativo",
+    "superlative": "superlativo",
+    "likely": "provável",
+    "possible": "possível",
+    "yes": "sim",
+    "1sg": "1ª singular",
+    "2sg": "2ª singular",
+    "3sg": "3ª singular",
+    "1pl": "1ª plural",
+    "2pl": "2ª plural",
+    "3pl": "3ª plural",
+    "1": "1ª",
+    "2": "2ª",
+    "3": "3ª"
+  },
+  "panel": {
+    "title": "Aprendizado",
+    "tabs": {
+      "progress": "Progresso",
+      "chapters": "Capítulos",
+      "review": "Revisão",
+      "notes": "Notas",
+      "words": "Palavras"
+    },
+    "wide": "Painel mais largo",
+    "narrow": "Painel mais estreito"
+  },
+  "progress": {
+    "coverage": "Cobertura de vocabulário",
+    "occurrenceCoverage": "Texto corrido que você conhece",
+    "uniqueCoverage": "Palavras distintas que você conhece",
+    "coverageHint": "A cobertura do texto corrido pondera cada palavra pela frequência; a de palavras distintas conta cada uma uma vez. Palavras ignoradas ficam de fora.",
+    "entries": "Palavras",
+    "occurrences": "Ocorrências",
+    "total": "Total",
+    "reading": "Leitura",
+    "chapter": "Capítulo",
+    "chaptersDone": "Capítulos concluídos",
+    "time": "Tempo de leitura",
+    "sessions": "Sessões",
+    "separateHint": "O progresso de leitura é acompanhado separadamente do conhecimento de vocabulário.",
+    "recommendation": "Próximas palavras para aprender",
+    "recommendationText": "Aprender estas {{count}} palavras elevaria a cobertura deste capítulo de {{from}} para {{to}}.",
+    "difficult": "Palavras desconhecidas mais relevantes",
+    "noDifficult": "Nenhuma palavra desconhecida restante. Muito bem!",
+    "difficultHint": "Ordenadas por frequência, frases que só elas bloqueiam (+), suas consultas e erros na revisão.",
+    "difficultReason": "{{frequency}} ocorrências · bloqueia {{unlocks}} frases · consultada {{lookups}}×"
+  },
+  "chapters": {
+    "unknownShare": "Desconhecidas: {{value}}",
+    "hardest": "Mais difícil"
+  },
+  "review": {
+    "due": "palavras para revisar",
+    "start": "Iniciar revisão",
+    "positionKept": "Sua posição de leitura é mantida durante a revisão.",
+    "retention": {
+      "new": "Nova",
+      "learning": "Aprendendo",
+      "young": "Recente",
+      "mature": "Madura"
+    },
+    "noTranslation": "Sem tradução salva",
+    "remaining": "Faltam {{count}}",
+    "exercises": {
+      "recognition": "Reconhecimento",
+      "recall": "Recordação ativa",
+      "cloze": "Complete a frase",
+      "listening": "Compreensão auditiva",
+      "production": "Escreva uma frase"
+    },
+    "productionPrompt": "Escreva sua própria frase usando esta palavra e depois avalie-se.",
+    "writeSentence": "Sua frase…",
+    "typeAnswer": "Digite a palavra",
+    "check": "Verificar",
+    "showAnswer": "Mostrar resposta",
+    "verdicts": {
+      "correct": "Correto",
+      "accent": "Quase: confira os acentos",
+      "typo": "Quase: uma letra diferente",
+      "wrong": "Não foi desta vez"
+    },
+    "grades": {
+      "again": "De novo",
+      "hard": "Difícil",
+      "good": "Bom",
+      "easy": "Fácil"
+    },
+    "finished": "Revisão concluída",
+    "summary": "{{correct}} de {{total}} respostas corretas",
+    "stop": "Parar revisão"
+  },
+  "annotations": {
+    "add": "Adicionar nota",
+    "addParagraph": "Nota no parágrafo",
+    "empty": "Nenhuma nota ainda. Clique com o botão direito numa palavra ou selecione uma frase para adicionar.",
+    "all": "Todas",
+    "notePlaceholder": "Sua nota (opcional)",
+    "categoryPlaceholder": "Categoria (ex.: gramática, trecho difícil)",
+    "targets": {
+      "token": "Palavra",
+      "expression": "Expressão",
+      "sentence": "Frase",
+      "block": "Parágrafo"
+    },
+    "categories": {
+      "expression": "Expressão interessante",
+      "grammar": "Gramática",
+      "difficult": "Trecho difícil",
+      "interesting": "Interessante"
+    }
+  },
+  "words": {
+    "title": "Palavras",
+    "seeAll": "Ver todas as palavras →",
+    "search": "Buscar palavra ou tradução",
+    "sortLabel": "Ordenar por",
+    "all": "Todas",
+    "hideNames": "Ocultar nomes",
+    "empty": "Nenhuma palavra corresponde a esses filtros.",
+    "emptyAll": "Nada salvo para este idioma ainda. Clique em palavras durante a leitura ou use os botões aqui.",
+    "openInText": "Mostrar no texto",
+    "notInBook": "Não aparece neste livro",
+    "bulkLabel_one": "Definir a {{count}} palavra exibida como:",
+    "bulkLabel_other": "Definir as {{count}} palavras exibidas como:",
+    "bulkConfirm_one": "Marcar {{count}} palavra como {{state}}?",
+    "bulkConfirm_other": "Marcar {{count}} palavras como {{state}}?",
+    "bulkApply": "Confirmar",
+    "scopes": {
+      "chapter": "Este capítulo",
+      "book": "Este livro",
+      "all": "Todas as minhas"
+    },
+    "sort": {
+      "relevance": "Relevância",
+      "frequency": "Frequência",
+      "alphabetical": "A–Z",
+      "recent": "Alteradas recentemente"
+    }
+  },
+  "recovery": {
+    "title_one": "{{count}} palavra salva está registrada como “{{from}}”",
+    "title_other": "{{count}} palavras salvas estão registradas como “{{from}}”",
+    "merge": "Mover para “{{to}}”",
+    "dismiss": "Agora não",
+    "signedOut": "{{language}}, sem login",
+    "merged_one": "{{count}} palavra recuperada",
+    "merged_other": "{{count}} palavras recuperadas",
+    "body": "{{overlap}} delas aparecem neste livro, que está sendo lido como “{{to}}”. Provavelmente foram salvas quando um livro estava com o idioma errado."
+  },
+  "backup": {
+    "auto": "Salvo na hora · cópias de backup diárias",
+    "export": "Exportar",
+    "import": "Importar",
+    "folder": "Backups",
+    "exported": "Vocabulário exportado",
+    "imported_one": "{{count}} palavra importada",
+    "imported_other": "{{count}} palavras importadas",
+    "failed": "A operação de backup falhou"
+  },
+  "save": {
+    "saving": "Salvando…",
+    "saved": "Todas as alterações salvas",
+    "error": "Não salvo — verifique o erro e tente de novo"
+  }
+}
