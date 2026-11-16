@@ -11,7 +11,6 @@ import {
   Clock,
 } from "lucide-react";
 import type { TimerState, SessionTimerData } from "../../../types/ReadingTypes";
-import { supabase } from "../../../lib/supabase";
 import { getCategories } from "../../../api/database";
 import { useTranslation, type TranslationKey } from "../../../i18n";
 import Select from "../../../components/ui/Select";
@@ -25,15 +24,6 @@ const PRESETS = [
   { label: "1h30", minutes: 90 },
 ];
 
-const CATEGORIES: { value: string; labelKey: TranslationKey; multiplier: string }[] = [
-  { value: "fiction", labelKey: "reading:session.categories.fiction", multiplier: "1x" },
-  { value: "math", labelKey: "reading:session.categories.math", multiplier: "2.5x" },
-  { value: "science", labelKey: "reading:session.categories.science", multiplier: "2.5x" },
-  { value: "philosophy", labelKey: "reading:session.categories.philosophy", multiplier: "1.5x" },
-  { value: "computer_science", labelKey: "reading:session.categories.computer_science", multiplier: "2x" },
-  { value: "languages", labelKey: "reading:session.categories.languages", multiplier: "3x" },
-  { value: "other", labelKey: "reading:session.categories.other", multiplier: "1x" },
-];
 
 const STATE_LABEL_KEYS = {
   idle: "reading:session.states.ready",

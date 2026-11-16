@@ -154,8 +154,8 @@ function loadSettings(): AppSettings {
       backupDocuments: parsed.backupDocuments ?? DEFAULT_SETTINGS.backupDocuments,
       backupHabits: parsed.backupHabits ?? DEFAULT_SETTINGS.backupHabits,
       backupCategories: parsed.backupCategories ?? DEFAULT_SETTINGS.backupCategories,
-      folderGridEnabled: (parsed as any).folderGridEnabled ?? DEFAULT_SETTINGS.folderGridEnabled,
-      continueReadingEnabled: (parsed as any).continueReadingEnabled ?? DEFAULT_SETTINGS.continueReadingEnabled,
+      folderGridEnabled: (parsed as Partial<typeof DEFAULT_SETTINGS>).folderGridEnabled ?? DEFAULT_SETTINGS.folderGridEnabled,
+      continueReadingEnabled: (parsed as Partial<typeof DEFAULT_SETTINGS>).continueReadingEnabled ?? DEFAULT_SETTINGS.continueReadingEnabled,
     };
   } catch {
     return DEFAULT_SETTINGS;

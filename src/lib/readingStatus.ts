@@ -148,12 +148,7 @@ export function getGroupRating(book: GroupReadingStatusSource): number {
   );
 }
 
-/** True when the book is a merged group whose variants share one status and
- * score. Collections are excluded: they group independent books. */
-export function isMergedGroup(book: {
-  bookId?: string | null;
-  syntheticFolderType?: string | null;
-}): boolean {
-  if (book.syntheticFolderType === "collection") return false;
-  return Boolean(book.bookId) || book.syntheticFolderType === "merged";
+/** True when the book is a merged group whose formats share one status and score. */
+export function isMergedGroup(book: { bookId?: string | null }): boolean {
+  return Boolean(book.bookId);
 }

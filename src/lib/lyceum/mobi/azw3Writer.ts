@@ -978,7 +978,7 @@ function encodeBackwardVwi(value: number): Uint8Array {
 function encodeTrailingData(raw: Uint8Array): Uint8Array {
   let sizeByteLength = 1;
 
-  while (true) {
+  for (;;) {
     const encodedSize = encodeBackwardVwi(raw.length + sizeByteLength);
     if (encodedSize.length === sizeByteLength) {
       return concatBytes([raw, encodedSize]);
@@ -1269,15 +1269,10 @@ function encodeTbsStrandsAsSequences(strands: FilledTbsEntry[][][], tbsType: 8 |
       const lastEntry = entries[entries.length - 1];
       const firstLayerEntry = entries[0];
 
+      // Only "spans" carries the extra length flag; the "completes" variant
+      // was disabled on purpose (it broke location counts on device).
       if (lastEntry.action === "spans") {
         extra[0b1] = 0;
-      } else if (
-        false
-        && lastEntry.lengthOffset < lastEntry.textRecordLength
-        && lastEntry.action === "completes"
-        && lastEntry.lengthOffset !== maxLengthOffset
-      ) {
-        extra[0b1] = lastEntry.lengthOffset;
       }
 
       if (firstLayerEntry === firstEntry) {
@@ -2059,7 +2054,7 @@ ${bodyHtml}
     return { path: `OEBPS/text/${id}.xhtml`, data: encodeUtf8(content) };
   });
 
-  const navItems = (textual.toc.length > 0 ? textual.toc : textual.chapters).map((item: any, index: number) => {
+  const navItems = (textual.toc.length > 0 ? textual.toc : textual.chapters).map((item: { title: string }, index: number) => {
     const id = buildChapterId(index);
     const chapter = textual.chapters[index];
     const title = isPlaceholderTitle(item.title) && chapter ? chapterTitle(chapter, index) : item.title || `Capitulo ${index + 1}`;

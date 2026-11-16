@@ -28,7 +28,7 @@ export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {}
 ) {
-  const { initialRouterEntries = ["/"], ...renderOptions } = options;
+  const { initialRouterEntries: _initialRouterEntries = ["/"], ...renderOptions } = options;
 
   const queryClient = createTestQueryClient();
 

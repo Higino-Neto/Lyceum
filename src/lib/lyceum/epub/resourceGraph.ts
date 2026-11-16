@@ -1,6 +1,5 @@
 import path from "node:path";
 import { JSDOM } from "jsdom";
-import type JSZip from "jszip";
 import type { LyceumTextualResource } from "../schema/types";
 import { textualRelativePath } from "../package/paths";
 import type { ParsedOpf, ParsedOpfManifestItem } from "./opfParser";

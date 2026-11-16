@@ -4,7 +4,7 @@ export const DEFAULT_PDF_RENDERER: PdfRenderer = "pdfjs";
 
 const PDF_HASH_PATTERN = /^[a-f0-9]{64}$/i;
 
-export function normalizePdfRenderer(value?: string | null): PdfRenderer {
+export function normalizePdfRenderer(_value?: string | null): PdfRenderer {
   return "pdfjs";
 }
 

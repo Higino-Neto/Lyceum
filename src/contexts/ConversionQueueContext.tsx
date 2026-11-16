@@ -362,7 +362,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
 
          updateProgress(item.id, 92, translate("conversion:queue.messages.validating"));
          const report = result?.report;
-         const warnings = Array.isArray(report?.warnings) ? report.warnings : [];
+         const warnings: string[] = Array.isArray(report?.warnings) ? report.warnings : [];
 
          setQueue((current) =>
            current.map((candidate) =>

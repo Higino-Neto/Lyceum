@@ -4,7 +4,7 @@ import { DocumentRecord } from "../../../types/ReadingTypes";
 import { AlertTriangle, Check, FileText, BookOpen, GitMerge } from "lucide-react";
 import toast from "react-hot-toast";
 import { updateBook, mergeBooks } from "../../../api/database";
-import { LOCAL_BOOK_PREFIX, calculateSimilarity, normalizeText } from "../utils";
+import { LOCAL_BOOK_PREFIX, calculateSimilarity } from "../utils";
 import { useTranslation } from "../../../i18n";
 
 interface BooksSectionProps {
@@ -39,8 +39,8 @@ export default function BooksSection({
   const [merging, setMerging] = useState(false);
   const [editingBook, setEditingBook] = useState<SupabaseBook | null>(null);
   const [editForm, setEditForm] = useState({ title: "", author: "" });
-  const [bookReadings, setBookReadings] = useState<BookReading[]>([]);
-  const [loadingReadings, setLoadingReadings] = useState(false);
+  const [, setBookReadings] = useState<BookReading[]>([]);
+  const [, setLoadingReadings] = useState(false);
 
   useEffect(() => {
     if (externalEditingBook) {
@@ -199,9 +199,6 @@ export default function BooksSection({
     }
   };
 
-  const totalPages = useMemo(() => {
-    return bookReadings.reduce((sum, r) => sum + r.pages, 0);
-  }, [bookReadings]);
 
   const duplicatedGroups = useMemo(() => {
     const groups: DuplicatedGroup[] = [];
@@ -231,28 +228,12 @@ export default function BooksSection({
       })
     : [];
 
-  const unlinkedDocuments = useMemo(() => {
-    return localDocuments.filter(doc => !doc.bookId);
-  }, [localDocuments]);
 
-  const filteredUnlinkedDocs = search
-    ? unlinkedDocuments.filter(doc =>
-        doc.title.toLowerCase().includes(search.toLowerCase()) ||
-        (doc.author?.toLowerCase().includes(search.toLowerCase()))
-      )
-    : unlinkedDocuments;
 
   const getLinkedDocuments = (bookId: string) => {
     return localDocuments.filter(doc => doc.bookId === bookId);
   };
 
-  const getUnlinkedDocuments = (bookTitle: string) => {
-    const normalized = bookTitle.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-    return localDocuments.filter(doc => {
-      const docNormalized = doc.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-      return docNormalized.includes(normalized) || normalized.includes(docNormalized);
-    });
-  };
 
   const handleMerge = async () => {
     if (!selectedGroup || !selectedBook) return;
@@ -298,38 +279,8 @@ export default function BooksSection({
     }
   };
 
-  const handleLinkDocument = async (book: SupabaseBook, doc: DocumentRecord) => {
-    try {
-      await window.api.updateBookId(doc.fileHash, book.id);
-      await onRefresh();
-      toast.success(
-          t("library:books.toasts.linked", { doc: doc.title, book: book.title }),
-        );
-    } catch (error) {
-      console.error("Error linking document:", error);
-      toast.error(t("library:books.toasts.linkFailed"));
-    }
-  };
 
-  const handleLinkDocumentToLocal = async (doc: DocumentRecord, bookId: string) => {
-    try {
-      const book = books.find(b => b.id === bookId);
-      if (!book) return;
-      await window.api.updateBookId(doc.fileHash, bookId);
-      await onRefresh();
-      toast.success(
-          t("library:books.toasts.linked", { doc: doc.title, book: book.title }),
-        );
-    } catch (error) {
-      console.error("Error linking document:", error);
-      toast.error(t("library:books.toasts.linkFailed"));
-    }
-  };
 
-  const startEdit = (book: SupabaseBook) => {
-    setEditingBook(book);
-    setEditForm({ title: book.title, author: book.author || "" });
-  };
 
   if (loading) {
     return (
@@ -490,7 +441,6 @@ export default function BooksSection({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         {filteredBooks.map((book) => {
           const linkedDocs = getLinkedDocuments(book.id);
-          const unlinkedDocs = getUnlinkedDocuments(book.title);
           const isSelectedForMerge = selectedForMerge.has(book.id);
           
           return (

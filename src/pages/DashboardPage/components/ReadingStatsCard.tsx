@@ -583,7 +583,6 @@ export default function ReadingStatsCard() {
           };
           const tabStart = index * 4 + 1;
           const phase = feedbackPhase[book.key] ?? "idle";
-          const isSubmitting = phase === "sending";
           const canSubmit = Boolean(book.categoryId) && phase === "idle";
 
           return (

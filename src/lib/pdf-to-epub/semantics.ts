@@ -65,18 +65,12 @@ export function isChapterText(text: string) {
 }
 
 function isListText(text: string) {
-  return /^\s*(?:[-*•]|\d+[\.)]|[A-Za-z][\.)]|[ivxlcdm]+[\.)])\s+/.test(text);
+  return /^\s*(?:[-*•]|\d+[.)]|[A-Za-z][.)]|[ivxlcdm]+[.)])\s+/.test(text);
 }
 
-const TOC_ENTRY_PATTERN = /(?:^|\s)\d+(\.\d+)+\s+[^\d]+[\s·.]+\d+\s*$/;
 const TOC_PAGE_NUM_PATTERN = /[\s·.]{2,}\d{1,4}\s*$/;
 const TOC_LEADER_DOTS = /[\s·.]{4,}\d+\s*$/;
 
-function isTocEntry(text: string) {
-  if (TOC_PAGE_NUM_PATTERN.test(text) && TOC_LEADER_DOTS.test(text)) return true;
-  if (TOC_ENTRY_PATTERN.test(text)) return true;
-  return false;
-}
 
 export function scoreTocEntry(paragraph: Paragraph, stats: DocumentStats) {
   let score = 0;

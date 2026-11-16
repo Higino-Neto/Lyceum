@@ -408,7 +408,7 @@ function StatusBookRow({
 
 function DetailPanel({
   item,
-  readings,
+  readings: _readings,
   externalPages,
   onOpen,
   onCoverChange,

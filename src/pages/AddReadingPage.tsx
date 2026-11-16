@@ -103,7 +103,7 @@ function BookSearch({ value, onChange, onBookSelect }: BookSearchProps) {
     }
 
     if (localResults && localResults.length > 0) {
-      const localBooks = localResults.map((doc: any) => ({
+      const localBooks = localResults.map((doc) => ({
         id: doc.fileHash || `local-${doc.id}`,
         title: doc.title,
         fileHash: doc.fileHash,
@@ -214,7 +214,7 @@ export default function AddReadingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { saveState, loadState, clearState } = useRouteState();
-  const [categories, setCategories] = useState<any>();
+  const [categories, setCategories] = useState<Awaited<ReturnType<typeof getCategories>>>();
   const [libraryBooks, setLibraryBooks] = useState<SupabaseBook[]>([]);
   const [localDocuments, setLocalDocuments] = useState<DocumentRecord[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
@@ -457,7 +457,7 @@ export default function AddReadingPage() {
               </div>
 
               <div className="space-y-2 mb-6">
-                {entries.map((entry, index) => (
+                {entries.map((entry) => (
                   <div
                     key={entry.id}
                     className="lyceum-add-entry-row grid grid-cols-12 gap-3 items-center bg-surface/30 border border-border rounded-sm p-2 hover:border-border-strong transition"
@@ -501,7 +501,7 @@ export default function AddReadingPage() {
                     </div>
 
                     <div className="col-span-2 relative">
-                      <Select value={entry.category_id || ""} onChange={(value) => updateEntry(entry.id, "category_id", value)} placeholder={t("reading:add.selectCategory")} className="h-10 w-full text-sm" items={(categories ?? []).map((cat: any) => ({ value: cat.id, label: `${cat.name} (${cat.points_per_page}x)` }))} />
+                      <Select value={entry.category_id || ""} onChange={(value) => updateEntry(entry.id, "category_id", value)} placeholder={t("reading:add.selectCategory")} className="h-10 w-full text-sm" items={(categories ?? []).map((cat) => ({ value: cat.id, label: `${cat.name} (${cat.points_per_page}x)` }))} />
                       {/* {entry.category_id && (
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
                           <span className="text-primary text-xs">✓</span>

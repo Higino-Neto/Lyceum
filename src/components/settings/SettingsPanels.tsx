@@ -44,6 +44,7 @@ import {
 } from "../../contexts/AppSettingsContext";
 import type { AppTheme } from "../../contexts/AppSettingsContext";
 import ConfirmDialog from "../ConfirmDialog";
+import { VocabularyBackupSection } from "../../features/language-learning/VocabularyBackupSection";
 import {
   getDefaultHotkeyBindings,
   getEnabledNavigationRoutes,
@@ -772,6 +773,20 @@ export function GeneralSettingsPanel() {
           </button>
         </div>
       </SettingsSection>
+      {(window.api as unknown as { openLogs?: () => Promise<unknown> } | undefined)?.openLogs && (
+        <SettingsSection
+          title={t("settings:diagnostics.title")}
+          description={t("settings:diagnostics.description")}
+        >
+          <button
+            type="button"
+            onClick={() => void (window.api as unknown as { openLogs: () => Promise<unknown> }).openLogs()}
+            className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-sm text-foreground hover:bg-surface-muted"
+          >
+            {t("settings:diagnostics.openLogs")}
+          </button>
+        </SettingsSection>
+      )}
     </div>
   );
 }
@@ -930,6 +945,12 @@ export function BackupSettingsPanel() {
             </button>
           </div>
         </div>
+      </SettingsSection>
+      <SettingsSection
+        title={t("settings:backups.vocabulary.title")}
+        description={t("settings:backups.vocabulary.description")}
+      >
+        <VocabularyBackupSection />
       </SettingsSection>
     </div>
   );

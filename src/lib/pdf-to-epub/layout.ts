@@ -215,7 +215,6 @@ export function orderLinesForPage(page: PageModel, layout = page.layout ?? detec
 
   for (const column of baselineSortedColumns) {
     const columnLinesOrdered = [...column.lines];
-    const interleaved: Line[] = [];
 
     for (const fw of betweenFullWidth) {
       const insertIndex = columnLinesOrdered.findIndex(

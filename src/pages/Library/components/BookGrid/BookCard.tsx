@@ -1,12 +1,13 @@
-import { AlertTriangle, Check, Copy, FileText, Folder, Move, MoreVertical, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, FileText, Minus, Move, MoreVertical, Trash2 } from "lucide-react";
 import { memo, useState, type DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
   getBookFolderLabel,
-  getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import FormatChips from "./FormatChips";
+import { getFileSelectionState } from "./bookFiles";
 import { areBooksEqual } from "./BookListItem";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
@@ -26,62 +27,14 @@ interface BookCardProps {
   onDragMove?: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
-  isChecked?: boolean;
+  /** Comma-joined hashes of this book's selected files (see getSelectedFilesKey). */
+  selectedFilesKey?: string;
   selectedCount?: number;
   onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
+  onToggleFile?: (file: BookWithThumbnail) => void;
   canDropOnBook?: (book: BookWithThumbnail) => boolean;
   onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
-}
-
-function CollectionThumbnailTile({ book }: { book: BookWithThumbnail }) {
-  const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
-
-  return (
-    <div ref={thumbnailRef} className="min-h-0 min-w-0 overflow-hidden bg-background">
-      {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt={book.title}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <FileText size={18} className="text-foreground" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CollectionThumbnailGrid({
-  books,
-}: {
-  books: BookWithThumbnail[];
-}) {
-  const previewBooks = books.slice(0, 4);
-
-  if (previewBooks.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <FileText size={28} className="text-foreground-subtle" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-surface-muted">
-      {previewBooks.map((previewBook) => (
-        <CollectionThumbnailTile
-          key={previewBook.fileHash}
-          book={previewBook}
-        />
-      ))}
-      {Array.from({ length: Math.max(0, 4 - previewBooks.length) }).map((_, index) => (
-        <div key={`empty-${index}`} className="bg-background" />
-      ))}
-    </div>
-  );
 }
 
 function BookCard({
@@ -96,24 +49,20 @@ function BookCard({
   onDragMove,
   onDragEnd,
   selectionMode = false,
-  isChecked = false,
+  selectedFilesKey = "",
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
+  onToggleFile,
   canDropOnBook,
   onDropOnBook,
 }: BookCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
   const { t } = useTranslation();
-  const formatCount = book.mergedBooks?.length || 1;
-  const isCollection = book.syntheticFolderType === "collection";
-  const showCollectionGrid =
-    isCollection && (book.mergedBooks?.length || 0) > 1;
-  const formatLabel =
-    formatCount > 1
-      ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
-      : getFileTypeLabel(book.fileType, book.filePath);
+  const selectionState = getFileSelectionState(book, selectedFilesKey);
+  const isChecked = selectionState === "all";
+  const isPartial = selectionState === "partial";
 
   const effectiveStatus = getDisplayReadingStatus(book);
   const bookScore = getDisplayRating(book);
@@ -137,17 +86,15 @@ function BookCard({
     <div
       className={`lyceum-interactive-card bg-surface group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
           isSelected ? "ring-2 ring-border-strong ring-offset-2 ring-offset-surface rounded-sm" : ""
-        } ${isChecked ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface rounded-sm" : ""} ${
-          isCollection ? "border border-dashed border-border-strong/40 hover:border-primary/40" : ""
-        }`}
+        } ${isChecked || isPartial ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface rounded-sm" : ""}`}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
         onContextSelect?.(book);
       }}
-      draggable={!selectionMode || isChecked}
+      draggable={!selectionMode || isChecked || isPartial}
       onDragStartCapture={(e) => {
-        if (selectionMode && !isChecked) {
+        if (selectionMode && !isChecked && !isPartial) {
           e.preventDefault();
           return;
         }
@@ -170,29 +117,20 @@ function BookCard({
         onDropOnBook?.(book, event);
       }}
     >
-      {(selectionMode || isChecked) && (
+      {(selectionMode || isChecked || isPartial) && (
         <div
           className={`lyceum-selection-mark absolute left-2 top-2 z-30 flex h-6 w-6 items-center justify-center rounded-sm border ${
-            isChecked
+            isChecked || isPartial
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border-strong bg-background/80 text-transparent"
           }`}
         >
-          <Check size={15} />
+          {isPartial ? <Minus size={15} /> : <Check size={15} />}
         </div>
       )}
 
-      <div ref={thumbnailRef} className={`relative aspect-[2/3] overflow-hidden rounded-sm border bg-surface ${
-          showCollectionGrid ? "border-dashed border-border-strong/60" : "border-border"
-        }`}>
-        {showCollectionGrid ? (
-          <div className="relative h-full w-full">
-            <CollectionThumbnailGrid books={book.mergedBooks || []} />
-            <div className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-sm bg-overlay border border-border-strong/60 shadow-sm">
-              <Folder size={13} className="text-primary" />
-            </div>
-          </div>
-        ) : thumbnail ? (
+      <div ref={thumbnailRef} className="relative aspect-[2/3] overflow-hidden rounded-sm border border-border bg-surface">
+        {thumbnail ? (
           <img
             src={thumbnail}
             alt={book.title}
@@ -203,7 +141,7 @@ function BookCard({
             <FileText size={28} className="text-foreground-subtle" />
           </div>
         )}
-        
+
         {book.processingStatus === "processing" && (
           <div className="absolute inset-0 bg-backdrop flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-border border-t-transparent rounded-full animate-spin" />
@@ -279,33 +217,25 @@ function BookCard({
       </div>
 
       <div className="flex h-[72px] flex-col">
-        <p className={`text-xs leading-4 ${isCollection ? "font-medium text-foreground" : "text-foreground"} line-clamp-2`}>
+        <p className="text-xs leading-4 text-foreground line-clamp-2">
           {getTitleWithoutExtension(book.title, book.fileType)}
         </p>
         <p className="mt-1 truncate text-xs text-foreground-subtle">
           {getBookFolderLabel(book.filePath)}
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[11px] text-foreground-subtle">
-          {isCollection ? (
-            <>
-              <span>{book.mergedBooks?.length || 0} livros</span>
-              <span className="bg-surface-muted rounded-sm px-1.5 py-0.5 text-foreground ">
-                Coleção
-              </span>
-            </>
-          ) : (
-            <>
-              <span>{formatPageCount(book.numPages, book.fileType)}</span>
-              {showScore && (
-                <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
-                  {Number(bookScore).toFixed(1)}/10
-                </span>
-              )}
-              <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
-                {formatLabel}
-              </span>
-            </>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2 text-[11px] text-foreground-subtle">
+          <span className="shrink-0">{formatPageCount(book.numPages, book.fileType)}</span>
+          {showScore && (
+            <span className="shrink-0 rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
+              {Number(bookScore).toFixed(1)}/10
+            </span>
           )}
+          <FormatChips
+            book={book}
+            selectedFilesKey={selectedFilesKey}
+            onToggleFile={onToggleFile}
+            className="justify-end"
+          />
         </div>
       </div>
     </div>
@@ -317,7 +247,8 @@ export default memo(BookCard, (previous, next) => (
   previous.showSyncActions === next.showSyncActions &&
   previous.isSelected === next.isSelected &&
   previous.selectionMode === next.selectionMode &&
-  previous.isChecked === next.isChecked &&
+  previous.selectedFilesKey === next.selectedFilesKey &&
+  previous.onToggleFile === next.onToggleFile &&
   previous.selectedCount === next.selectedCount &&
   previous.canDropOnBook === next.canDropOnBook &&
   previous.onDropOnBook === next.onDropOnBook

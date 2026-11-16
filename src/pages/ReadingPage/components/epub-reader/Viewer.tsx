@@ -6,14 +6,14 @@ import {
   useState,
 } from "react";
 import {
-  Bookmark,
+  
   LoaderCircle,
-  Play,
+  
   Sparkles,
   Languages,
   X,
   Focus,
-  Download,
+  
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ViewerCore from "./ViewerCore";
@@ -24,17 +24,15 @@ import { useReaderSettings } from "./useReaderSettings";
 import type { NavItem } from "./types";
 import {
   DictionaryLookupResult,
-  lookupWord,
   lookupWithTranslation,
-  simplifySelectedText,
   translateText,
 } from "./languageServices";
 import {
   LearningOverlayAnchor,
   TextSelectionPayload,
-  VocabularyStatus,
+  
   WordInteractionPayload,
-  getVocabularyStatusClasses,
+  
 } from "./languageLearning";
 import useBookVocabulary from "./useBookVocabulary";
 import { formatNumber, useTranslation } from "../../../../i18n";
@@ -472,7 +470,7 @@ export default function Viewer({ epubData, fileHash, fileName }: ViewerProps) {
     const cachedTranslation =
       wordTranslationCacheRef.current.get(normalizedWord) || null;
 
-    const wordCountResult = await (window.api as any).getWordCount(fileHash, normalizedWord).catch(() => null);
+    const wordCountResult = await window.api.getWordCount(fileHash, normalizedWord).catch(() => null);
 
     setActiveWordLookup({
       anchor,
@@ -627,101 +625,7 @@ if (controller.signal.aborted) return;
     }
   };
 
-  const runSelectionAction = async (action: "translate" | "simplify", text: string) => {
-    if (!activeSelectionLookup) {
-      return;
-    }
 
-    selectionLookupAbortRef.current?.abort();
-    const controller = new AbortController();
-    selectionLookupAbortRef.current = controller;
-
-    try {
-      if (action === "translate") {
-        try {
-          const result = await translateText(
-            text,
-            settings.sourceLanguage,
-            settings.targetLanguage,
-            controller.signal,
-          );
-
-          if (controller.signal.aborted) return;
-
-          setActiveSelectionLookup((current) =>
-            current
-              ? {
-                  ...current,
-                  activeAction: action,
-                  isLoading: false,
-                  translation: result.translatedText,
-                }
-              : current,
-          );
-        } catch (err) {
-          if (controller.signal.aborted) return;
-          setActiveSelectionLookup((current) =>
-            current
-              ? {
-                  ...current,
-                  isLoading: false,
-                  error:
-                    err instanceof Error ? err.message : t("epub:viewer.errors.translate"),
-                }
-              : current,
-          );
-        }
-
-        return;
-      }
-
-      const simplifiedText = await simplifySelectedText(
-        text,
-        controller.signal,
-        settings.sourceLanguage,
-        settings.targetLanguage,
-      );
-
-      if (controller.signal.aborted) return;
-
-      setActiveSelectionLookup((current) =>
-        current
-          ? {
-              ...current,
-              activeAction: action,
-              isLoading: false,
-              simplifiedText,
-            }
-          : current,
-      );
-    } catch (error) {
-      if (controller.signal.aborted) return;
-
-      setActiveSelectionLookup((current) =>
-        current
-          ? {
-              ...current,
-              isLoading: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : t("epub:viewer.errors.processSelection"),
-            }
-          : current,
-      );
-    }
-  };
-
-  const handlePlayPronunciation = async (audioUrl?: string) => {
-    if (!audioUrl) return;
-
-    try {
-      const audio = new Audio(audioUrl);
-      await audio.play();
-    } catch {
-      toast.error(t("epub:viewer.toasts.audioFailed"));
-    }
-  };
 
   const handleExportCsv = () => {
     if (!trackedEntries.length) {
@@ -742,9 +646,6 @@ if (controller.signal.aborted) return;
     toast.success(t("epub:viewer.toasts.csvExported"));
   };
 
-  const activeWordEntry = activeWordLookup
-    ? entries[activeWordLookup.normalizedWord]
-    : null;
 
   const visibleVocabularyEntries = useMemo(
     () =>

@@ -41,7 +41,6 @@ interface FolderGridProps {
   onImportBook?: (targetFolder: string | null) => void;
   onRenameFolder?: (folder: FolderInfo) => void;
   onDeleteFolder?: (folder: FolderInfo) => void;
-  onDissolveFolder?: (folder: FolderInfo) => void;
   isFolderReadOnly?: (folder: FolderInfo) => boolean;
   onMoveBook?: (
     fileHash: string,
@@ -164,7 +163,6 @@ export function FolderGrid({
   onImportBook,
   onRenameFolder,
   onDeleteFolder,
-  onDissolveFolder,
   isFolderReadOnly,
   onMoveBook,
   onMoveBooks,
@@ -326,10 +324,6 @@ export function FolderGrid({
             closeContextMenu();
             onDeleteFolder?.(folder);
           }}
-          onDissolveFolder={onDissolveFolder ? (folder) => {
-            closeContextMenu();
-            onDissolveFolder(folder);
-          } : undefined}
         />
       )}
     </section>

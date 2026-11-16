@@ -62,3 +62,21 @@ export function dateKey(value: unknown, field: string): string {
   }
   return normalized;
 }
+
+/** An absolute or relative filesystem path coming from the renderer. */
+export function filePathString(value: unknown, field: string, maxLength = 4096): string {
+  const path = nonEmptyString(value, field, maxLength);
+  if (path.includes("\0")) throw new IpcValidationError(field, "must not contain NUL characters");
+  return path;
+}
+
+/**
+ * Reduces an identifier (e.g. a file hash) to a safe single path segment, so
+ * it can never escape the directory it is joined to ("../", separators, NUL).
+ */
+export function safePathSegment(value: unknown, field: string, maxLength = 160): string {
+  const raw = nonEmptyString(value, field, 4096);
+  const safe = raw.replace(/[^A-Za-z0-9._-]/g, "_").replace(/^\.+/, "_").slice(0, maxLength);
+  if (!safe) throw new IpcValidationError(field, "must contain safe characters");
+  return safe;
+}

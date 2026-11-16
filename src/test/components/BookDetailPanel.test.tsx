@@ -111,9 +111,7 @@ describe("BookDetailPanel", () => {
       <BookDetailPanel
         book={{
           ...epubVariant,
-          fileHash: "merged-folder:preview",
-          syntheticFolderPath: "_Preview Book",
-          syntheticFolderType: "merged",
+          bookId: "preview",
           mergedBooks: [epubVariant, pdfVariant],
         }}
         onClose={vi.fn()}
@@ -134,7 +132,7 @@ describe("BookDetailPanel", () => {
     });
   });
 
-  it("offers a non-destructive unmerge action for a merged folder", async () => {
+  it("offers a non-destructive ungroup action for a merged book", async () => {
     const epubVariant = createBook();
     const pdfVariant = createBook({
       id: 2,
@@ -144,9 +142,7 @@ describe("BookDetailPanel", () => {
     });
     const mergedBook = {
       ...epubVariant,
-      fileHash: "merged-folder:preview",
-      syntheticFolderPath: "_Preview Book",
-      syntheticFolderType: "merged" as const,
+      bookId: "preview",
       mergedBooks: [epubVariant, pdfVariant],
     };
     const onDissolve = vi.fn();
@@ -161,7 +157,7 @@ describe("BookDetailPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Desmesclar e manter arquivos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desagrupar todos os formatos" }));
     expect(screen.getByText(/continuarão na biblioteca como livros independentes/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Desmesclar" }));
 
@@ -187,9 +183,9 @@ describe("BookDetailPanel", () => {
     });
   });
 
-  it("removes one variant from a group without deleting its file", async () => {
-    const first = createBook();
-    const second = createBook({ id: 2, fileHash: "hash-pdf", fileType: "pdf", title: "Preview Book.pdf" });
+  it("separates one format from a merged book without deleting its file", async () => {
+    const first = createBook({ bookId: "group" });
+    const second = createBook({ id: 2, fileHash: "hash-pdf", fileType: "pdf", title: "Preview Book.pdf", bookId: "group" });
     const onRemoveVariant = vi.fn().mockResolvedValue(true);
     const onDelete = vi.fn();
     render(
@@ -202,35 +198,33 @@ describe("BookDetailPanel", () => {
         onRemoveVariant={onRemoveVariant}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
-    expect(
-      screen.getByText(/arquivo será mantido na biblioteca/i),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Remover" }).at(-1)!);
+
+    fireEvent.click(screen.getByRole("button", { name: "Separar EPUB deste livro" }));
     await waitFor(() => expect(onRemoveVariant).toHaveBeenCalledWith(first));
-    expect(window.api.deleteBook).toBeUndefined();
     expect(onDelete).toHaveBeenCalledWith("hash-epub");
   });
 
-  it("removes a single book from a collection folder without deleting it", async () => {
-    const book = createBook();
-    const onRemoveVariant = vi.fn().mockResolvedValue(true);
+  it("removing a format of a merged book really removes that file, never silently ungroups it", async () => {
+    const first = createBook({ bookId: "group" });
+    const second = createBook({ id: 2, fileHash: "hash-pdf", fileType: "pdf", title: "Preview Book.pdf", bookId: "group" });
+    const onRemoveVariant = vi.fn();
+    window.api.deleteBook = vi.fn().mockResolvedValue({ success: true });
     render(
       <BookDetailPanel
-        book={book}
+        book={{ ...first, mergedBooks: [first, second] }}
         onClose={vi.fn()}
         onOpenReader={vi.fn()}
         onRefresh={vi.fn()}
+        onDelete={vi.fn()}
         onRemoveVariant={onRemoveVariant}
-        removeFromGroup
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
-    expect(screen.getByText(/remover .* deste agrupamento/i)).toBeInTheDocument();
-    expect(screen.queryByText(/também excluir arquivo do disco/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Remover" }).at(-1)!);
+    fireEvent.click(screen.getByRole("button", { name: "Remover EPUB" }));
+    expect(screen.getByText(/também excluir arquivo do disco/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
 
-    await waitFor(() => expect(onRemoveVariant).toHaveBeenCalledWith(book));
+    await waitFor(() => expect(window.api.deleteBook).toHaveBeenCalledWith("hash-epub", false));
+    expect(onRemoveVariant).not.toHaveBeenCalled();
   });
 });

@@ -58,8 +58,6 @@ import { reopenDocument, renameBook, deleteBook } from "../services/document-ser
 import { cachePdfBuffer } from "../services/pdfCache";
 import { registerPdfSource } from "../services/pdfSourceRegistry";
 import { downloadHttpBuffer } from "../services/http-download";
-import { mergeBooksIntoManagedFolder } from "../services/folder-service";
-import { notifyFolderChanged } from "../services/library-service";
 import { renderPdfPageToPng } from "../services/pdf-page-renderer";
 import { generateThumbnailInWorker as generateThumbnail } from "../workers/processingClient";
 import { USER_DATA_PATH, THUMBNAILS_DIR, generateFileHash, inferFileTypeFromPath, toReadableFileType } from "../services/file-service";
@@ -917,15 +915,6 @@ export function registerBookHandlers(documentMetadata: DocumentMetadataRepositor
     const bookId = existingBookId || `local-${randomUUID()}`;
     const result = mergeDocuments(docs.map((doc) => doc.fileHash), bookId);
     if (result.success) {
-      win?.webContents.send("library:updated");
-    }
-    return result;
-  });
-
-  ipcMain.handle("book:merge-into-folder", (_, fileHashes: string[], parentPath: string | null = null) => {
-    const result = mergeBooksIntoManagedFolder(fileHashes, parentPath);
-    if (result.success) {
-      notifyFolderChanged();
       win?.webContents.send("library:updated");
     }
     return result;

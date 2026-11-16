@@ -3,7 +3,6 @@
   "selectTab": "Select tab",
   "close": "Close",
   "closeLabel": "Close settings",
-
   "tabs": {
     "general": {
       "label": "General",
@@ -58,13 +57,11 @@
       "description": "Enable or disable optional features and experimental modules."
     }
   },
-
   "language": {
     "title": "Language",
     "description": "Choose the language of the application",
     "label": "Application language"
   },
-
   "general": {
     "interface": {
       "title": "Interface",
@@ -87,7 +84,6 @@
       "description": "The \"Daily readings\" button will copy the readings from the previous day instead of today."
     }
   },
-
   "hotkeys": {
     "title": "Keyboard navigation",
     "description": "Esc focuses the current route in the sidebar; the arrow keys browse and open routes. Numbers open a route directly.",
@@ -101,7 +97,6 @@
     "resetAutomaticOrder": "Reset to automatic order",
     "automaticOrderNote": "In automatic order, enabling or disabling Beta routes renumbers the shortcuts. After a manual change, your configuration is preserved."
   },
-
   "backups": {
     "title": "Weekly backup",
     "description": "Lyceum checks once a week and only sends the selected groups. Opening the app does not trigger a new backup while the period has not expired.",
@@ -119,9 +114,27 @@
     "completedWithFailures_one": "Backup finished with {{count}} failure",
     "completedWithFailures_other": "Backup finished with {{count}} failures",
     "completed": "Backup finished",
-    "failed": "Could not run the backup"
+    "failed": "Could not run the backup",
+    "vocabulary": {
+      "title": "Vocabulary",
+      "description": "The words you learn are saved automatically after every change (latest state + one copy per day, 30 days). Choose an extra folder — synced to the cloud or on an external drive — so a computer failure cannot erase your vocabulary.",
+      "lastBackup": "Last backup: {{date}} · {{count}} daily copies",
+      "noBackupYet": "No backup yet: it is created when you mark your first word.",
+      "mirrorAt": "Extra copy in {{path}}",
+      "mirrorUpdated": "updated {{date}}",
+      "noMirror": "No extra folder: backups only live on this computer.",
+      "mirrorError": "The last copy to the extra folder failed: {{error}}",
+      "chooseMirror": "Choose extra folder",
+      "changeMirror": "Change extra folder",
+      "removeMirror": "Remove extra folder",
+      "openFolder": "Open backups folder",
+      "restore": "Restore from a file",
+      "mirrorSaved": "Extra folder set; your vocabulary was copied to it",
+      "mirrorFailed": "That folder cannot be used",
+      "restored": "{{count}} words restored",
+      "restoreFailed": "That file could not be restored"
+    }
   },
-
   "library": {
     "folders": {
       "title": "Folders",
@@ -138,7 +151,6 @@
       "toggleLabel": "Toggle unified view"
     }
   },
-
   "updates": {
     "title": "Updates",
     "description": "Look for new versions, follow the download and install without closing and reopening Lyceum by hand.",
@@ -168,7 +180,6 @@
     "downloadFailed": "Could not download the update",
     "nothingToInstall": "No update ready to install"
   },
-
   "account": {
     "personal": {
       "title": "Personal information",
@@ -210,7 +221,6 @@
       "updateFailed": "Error while updating the user"
     }
   },
-
   "appearance": {
     "theme": {
       "title": "Theme",
@@ -250,7 +260,6 @@
       }
     }
   },
-
   "performance": {
     "title": "Visual effects",
     "description": "On slower computers, blur, heavy shadows and animations can make the interface sluggish or freeze it.",
@@ -260,7 +269,6 @@
       "toggleLabel": "Toggle reduced effects"
     }
   },
-
   "zoom": {
     "title": "Zoom",
     "description": "Adjust the interface zoom level.",
@@ -269,7 +277,6 @@
     "reset": "Reset",
     "shortcutsHint": "Shortcuts: Ctrl + / Ctrl - to adjust the zoom. Ctrl 0 to reset."
   },
-
   "dictionaries": {
     "search": "Search dictionaries…",
     "from": "From language",
@@ -297,7 +304,6 @@
       "removeFailed": "Could not remove the dictionary"
     }
   },
-
   "beta": {
     "title": "Sidebar tabs in development",
     "description": "Enable or disable each experimental feature in the sidebar.",
@@ -334,5 +340,10 @@
       "description": "Show the continue reading section in the library.",
       "toggleLabel": "Toggle continue reading"
     }
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "description": "Lyceum errors and warnings are written to a log file. Open the folder to attach the log when reporting a problem.",
+    "openLogs": "Open logs"
   }
 }

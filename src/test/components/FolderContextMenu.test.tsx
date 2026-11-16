@@ -14,9 +14,9 @@ function createFolder(name: string): FolderInfo {
 }
 
 describe("FolderContextMenu", () => {
-  it("offers non-destructive collection removal for special collection folders", () => {
-    const folder = createFolder("__Classicos");
-    const onDissolveFolder = vi.fn();
+  it.each(["Ficcao", "_Dune", "__Classicos"])("treats %s as an ordinary folder", (name) => {
+    const folder = createFolder(name);
+    const onDeleteFolder = vi.fn();
 
     render(
       <FolderContextMenu
@@ -25,28 +25,12 @@ describe("FolderContextMenu", () => {
         y={20}
         onCreateFolder={vi.fn()}
         onRenameFolder={vi.fn()}
-        onDeleteFolder={vi.fn()}
-        onDissolveFolder={onDissolveFolder}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Remover colecao" }));
-    expect(onDissolveFolder).toHaveBeenCalledWith(folder);
-  });
-
-  it("does not offer dissolve for a regular folder", () => {
-    render(
-      <FolderContextMenu
-        folder={createFolder("Ficcao")}
-        x={10}
-        y={20}
-        onCreateFolder={vi.fn()}
-        onRenameFolder={vi.fn()}
-        onDeleteFolder={vi.fn()}
-        onDissolveFolder={vi.fn()}
+        onDeleteFolder={onDeleteFolder}
       />,
     );
 
     expect(screen.queryByRole("button", { name: /Remover colecao|Desmesclar/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button").at(-1)!);
+    expect(onDeleteFolder).toHaveBeenCalledWith(folder);
   });
 });

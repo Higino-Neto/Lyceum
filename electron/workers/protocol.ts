@@ -1,4 +1,4 @@
-import type { BookFormat, LyceumBookMetadata, LyceumConversionOptions } from "../../src/lib/lyceum";
+import type { BookFormat, ExportReport, ImportReport, LyceumBookMetadata, LyceumConversionOptions } from "../../src/lib/lyceum";
 import type { EditableBookMetadata, FileMetadataUpdateResult } from "../services/book-file-metadata";
 import type { BookFileType, EmbeddedBookMetadata } from "../services/document-processing";
 import type { PdfToolRequest, PdfToolResponse } from "../services/pdf-tools-types";
@@ -77,16 +77,28 @@ export interface ConversionRequestOptions {
   outputDirectory?: string;
 }
 
+/**
+ * Report fields the main process reads. Each task returns its own report
+ * (flattened Lyceum stats, pdf-to-epub or epub-to-pdf report); extra fields are
+ * passed through to the renderer.
+ */
+export interface WorkerConversionReport {
+  warnings?: string[];
+  pageCount?: number;
+  sectionCount?: number;
+}
+
 export interface FileConversionWorkerResult {
   outputPath: string;
   fileHash: string;
   fileSize: number;
   thumbnailPath?: string;
   numPages?: number;
-  report: any;
+  /** Flattened stats + warnings, or a pdf-to-epub ConversionReport, depending on the task. */
+  report: WorkerConversionReport;
   packageRoot?: string;
-  importReport?: any;
-  exportReport?: any;
+  importReport?: ImportReport;
+  exportReport?: ExportReport;
 }
 
 export interface MetadataMutationWorkerResult {

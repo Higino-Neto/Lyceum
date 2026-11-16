@@ -188,8 +188,6 @@ export interface BookWithThumbnail
   updatedAt?: string | null;
   thumbnail?: string;
   mergedBooks?: BookWithThumbnail[];
-  syntheticFolderPath?: string | null;
-  syntheticFolderType?: "merged" | "collection";
 }
 
 export type LibrarySection = "all" | "synced" | "unsynced" | "usb";

@@ -69,7 +69,7 @@ export default function PdfJsViewer({
   onToggleChapters,
   onCloseChapters,
 }: PdfJsViewerProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { effectiveTheme, settings } = useAppSettings();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastStateRef = useRef<PdfViewState | null>(null);

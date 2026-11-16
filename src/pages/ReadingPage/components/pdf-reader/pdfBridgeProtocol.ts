@@ -26,8 +26,6 @@ import {
   type OutlineNode,
   type PdfSelectionPayload,
   type PdfViewState,
-  type PdfViewerStrings,
-  type PdfViewerTheme,
 } from "../../../../core/pdf-reader-core/contract";
 
 export {

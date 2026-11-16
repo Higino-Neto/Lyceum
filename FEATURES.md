@@ -125,3 +125,30 @@ Pode ser apagada. Esse não é o escopo correto para essas funcionalidades.
 - [x] Eu quero que Ctrl + click em uma palavra marque ela como Known automaticamente, sem precisar do fluxo de entrar na aba e trocar.
 
 - [x] A tabela de words está travando, provavelmente porque ela não tem paginação como deveria (ou lazy loading).
+
+- [ ] No linux, quando eu clico no botão para abrir a pasta partindo da library, o aplicativo para de responder e crasha.
+
+- [ ] O folder tree atual é muito amadar, eu não consigo fazer alterações em lote com várias pastas, quando eu clico para deletar uma pasta, o dialog fica mais tempo na tela do que deveria, se eu tento apagar uma pasta que tem pastas dentro, ou não funciona direito, ou quando funciona o folder tree demora para atualizar, então o usuário não tem o feedback rápido que deveria.
+
+- [ ] Quando eu clico com botão direito na library para selecioanr um livro, eu não consigo ir com Ctrl ou Shift para selecionar vários de uma vez, o que é ruim para usuários que querem processar informações em lote.
+
+- [ ] O Folder tree na parte de source folders deveria ter opções menos invasivas, pq atualmente eu consigo apagar uma source folder, deletando ela do computador, mas não consigo desvincular ela. E mesmo que tivesse os dois botões, ainda não ficaria claro para o usuário qual seria o certo para tirar a pasta de dentro da library do lyceum e para realmente apagar a pasta do computador.
+
+- [ ] O source folder poderia perguntar para o usuário se ele deseja habilitar a busca inteligente. Que consistiria em recomendar pastas para serem novas pastas fonte, e o parâmetro para a escolha seria ter vários livros dentro da pasta. (Mas claro, só se o usuário permitir essa busca no computador dele). Porque algo que eu gostaria muito seria que o lyceum conseguisse ser inteligente o suficiente para saber aonde estão os livros no computador do usuário, porque muitas vezes eu acabo perdendo esses arquivos em pastas obscuras.
+
+- [ ] Os dicionários novos que você colocou do freeDict não estão funcionando no leitor de .lyceum pelo menos, porque quando eu tento usar, ele sempre pega a tradução da web.
+
+- [ ] O modo claro atual do lyceum é muito ruim. Eu sinto que parte disso é por causa da falta de contraste. No modo claro parece que tudo está muito claro na tela, inclusive a fonte e os componentes, o que deixa muito difícil de ver o que é o quê. Devem ter outras questões de design que deixam modos claros mais bonitos que você pode ficar à vontade para implementar. (E existem certos botões, tipo o start reading, que o fundo do botão e a fonte nunca combinam uns com os outros.
+
+- [ ] Ao clicar com o botão direito na aba Add PDF from library eu deveria ser capaz de selecionar vários livros de uma vez, com a mesma função que deve ser implementada na library de conseguir usar o Ctrl e o shift para pegar vários de uma vez.
+Nessa aba também deve haver uma forma de selecionar e navegar pelas pastas, talvez pegar uma pasta inteira, além de outros filtros, como o status de leitura, para o usuário conseguir por exemplo selecionar rapidamente coisas como (Not a book) para facilitar a pesquisa.
+
+- [ ] O output preview do Convertion page está funcionando bem no caso EPUB -> PDF, contudo, a user Experience está muito ruim. O espaço é pequeno, é difícil clicar nos botões, a forma como as informações estão organizadas é contra-intuitiva e é difícil usar sem um manual. Esse sistema de dividir por capítulos com uma paginação em cima e outra em baixo, com um sendo um subcomponente da outra é confuso e difícil de usar. Um sistema mais simples, baseado no número de páginas final do PDF seria mais intuitivo. Com opção de escolher a página que o usuário quer ver, no viewer fullscreen ainda ter a opção de ir uma página adiante ou uma página antes. 
+
+- [ ] Na tela de conversão de EPUB -> PDF, é possível selecionar todas as margens, alturas de linha e espaçamentos, eu acho isso bom, mas em uma aba de configurações avançadas. Na parte inicial deveriam ter pressets desses espaçamentos baseados nas normas padrão de livros digitais, para facilitar a vida do usuário mais leigo.
+
+- [ ] Os logs de conversão não estão sendo traduzidos (E várias outras partes da aplicação estão esm tradução, só estando em português).
+
+- [ ] O sistema de pesquisa em todo o aplicativo ainda é meio amador. Coloque um sistema de pesquisa profissinal e inteligente.
+
+- [ ] O folder grid é uma boa ideia, mas atualmente ele ocupa muito espaço na tela e consegue ficar em várias linhas. O ideal seria se ele fosse mais compacto sem ocupar toda essa importância visual.

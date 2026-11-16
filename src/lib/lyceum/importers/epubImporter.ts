@@ -116,9 +116,6 @@ function directElementChildren(element: Element, localName?: string) {
   return Array.from(element.children).filter((child) => !localName || child.localName === localName) as Element[];
 }
 
-function directFirst(element: Element, localName: string) {
-  return directElementChildren(element, localName)[0] || null;
-}
 
 function navType(element: Element) {
   return attr(element, "epub:type") || attr(element, "type");

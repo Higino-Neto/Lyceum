@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "private": true,
-  "version": "1.8.32",
+  "version": "1.9.0",
   "author": {
     "name": "Higino-Neto",
     "email": "higino.dev@gmail.com"
@@ -29,6 +29,7 @@
     "release:checksums": "node scripts/release/generate-checksums.mjs",
     "release:verify-legacy": "node scripts/release/verify-legacy-build.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:ci": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc --noEmit -p tsconfig.strict.json",
     "lint:boundaries": "eslint src/core src/features electron/app electron/infrastructure electron/ipc electron/handlers electron/main.ts electron/preload.ts --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

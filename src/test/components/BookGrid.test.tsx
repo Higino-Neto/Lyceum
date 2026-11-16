@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import BookGrid from "../../pages/Library/components/BookGrid";
+import BookCard from "../../pages/Library/components/BookGrid/BookCard";
 import type {
   BookWithThumbnail,
   FolderInfo,
@@ -98,40 +99,33 @@ describe("BookGrid unified folders", () => {
     expect(onRenameFolder).toHaveBeenCalledWith(folders[0]);
   });
 
-  it("treats special folder cards as regular books in grid mode", () => {
+  it("shows one chip per format and toggles a single file of a merged book", () => {
+    const epub = createBook({ id: 21, fileHash: "dune-epub", fileType: "epub", bookId: "dune" });
+    const pdf = createBook({ id: 22, fileHash: "dune-pdf", fileType: "pdf", bookId: "dune" });
+    const onToggleFile = vi.fn();
+    const onToggleSelection = vi.fn();
+
+    const onClick = vi.fn();
     render(
-      <BookGrid
-        books={[
-          createBook({
-            id: 20,
-            title: "Dune",
-            fileHash: "merged-dune",
-            folderPath: "C:\\library\\_Dune",
-            syntheticFolderPath: "_Dune",
-            syntheticFolderType: "merged",
-            mergedBooks: [
-              createBook({ id: 21, fileHash: "dune-epub", fileType: "epub" }),
-              createBook({ id: 22, fileHash: "dune-pdf", fileType: "pdf" }),
-            ],
-          }),
-          createBook({
-            id: 30,
-            title: "Sci-Fi",
-            fileHash: "collection-sci-fi",
-            folderPath: "C:\\library\\__Sci-Fi",
-            syntheticFolderPath: "__Sci-Fi",
-            syntheticFolderType: "collection",
-          }),
-          createBook({ id: 10, fileHash: "regular-book" }),
-        ]}
-        folders={folders}
-        viewMode="grid"
+      <BookCard
+        book={createBook({ ...epub, title: "Dune", mergedBooks: [epub, pdf] })}
         onOpen={vi.fn()}
-        onFolderSelect={vi.fn()}
+        onClick={onClick}
+        showSyncActions={false}
+        selectionMode
+        selectedFilesKey="dune-pdf"
+        onToggleFile={onToggleFile}
+        onToggleSelection={onToggleSelection}
       />,
     );
 
-    expect(screen.queryByText("Colecoes")).not.toBeInTheDocument();
-    expect(screen.queryByText("Livros mesclados")).not.toBeInTheDocument();
+    const pdfChip = screen.getByRole("button", { name: "PDF" });
+    expect(pdfChip).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "EPUB" })).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(pdfChip);
+    expect(onToggleFile).toHaveBeenCalledWith(pdf);
+    expect(onToggleSelection).not.toHaveBeenCalled();
+    expect(onClick).not.toHaveBeenCalled();
   });
 });

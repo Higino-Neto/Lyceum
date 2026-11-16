@@ -76,7 +76,6 @@ interface BookDetailPanelProps {
   onDelete?: (deletedFileHash: string) => void | Promise<void>;
   onDissolve?: (book: BookWithThumbnail) => void | Promise<void>;
   onRemoveVariant?: (book: BookWithThumbnail) => Promise<boolean>;
-  removeFromGroup?: boolean;
   onRefresh: (preferredFileHash?: string) => void | Promise<void>;
   readOnly?: boolean;
   previewOpen?: boolean;
@@ -123,16 +122,13 @@ export default function BookDetailPanel({
   onDelete,
   onDissolve,
   onRemoveVariant,
-  removeFromGroup = false,
   onRefresh,
   readOnly = false,
   previewOpen = false,
 }: BookDetailPanelProps) {
   const { t } = useTranslation();
   const formatVariants = book.mergedBooks?.length ? book.mergedBooks : [book];
-  const canRemoveFromGroup = Boolean(
-    onRemoveVariant && (removeFromGroup || formatVariants.length > 1),
-  );
+  const canSeparateVariant = Boolean(onRemoveVariant && formatVariants.length > 1);
   const initialVariantHash = formatVariants[0]?.fileHash || book.fileHash;
   const [selectedVariantHash, setSelectedVariantHash] = useState(initialVariantHash);
   const selectedVariant =
@@ -376,15 +372,6 @@ export default function BookDetailPanel({
     }
 
     const deletedHash = selectedVariant.fileHash;
-    if (canRemoveFromGroup && onRemoveVariant && !deleteFileAlso) {
-      const removed = await onRemoveVariant(selectedVariant);
-      if (removed) {
-        toast.success(t("library:detail.toasts.removedFromGroup"));
-        setShowDeleteDialog(false);
-        await onDelete?.(deletedHash);
-      }
-      return;
-    }
     const result = await window.api.deleteBook(deletedHash, deleteFileAlso);
     if (result.success) {
       toast.success(
@@ -403,6 +390,15 @@ export default function BookDetailPanel({
   const cancelDelete = () => {
     setShowDeleteDialog(false);
     setDeleteFileAlso(false);
+  };
+
+  const handleSeparateVariant = async () => {
+    if (!onRemoveVariant) return;
+    const separatedHash = selectedVariant.fileHash;
+    if (await onRemoveVariant(selectedVariant)) {
+      toast.success(t("library:detail.toasts.removedFromGroup"));
+      await onDelete?.(separatedHash);
+    }
   };
 
   const handleDissolve = async () => {
@@ -1000,7 +996,19 @@ export default function BookDetailPanel({
         {!readOnly && (
         <>
         <div className="pt-1">
-        {hasFormatVariants && onDissolve && ((book.syntheticFolderType === "merged" && book.syntheticFolderPath) || book.bookId) && (
+        {canSeparateVariant && (
+          <button
+            onClick={() => void handleSeparateVariant()}
+            title={t("library:detail.separateVariantHint")}
+            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-sm bg-surface-muted py-2 text-xs text-foreground-muted transition-colors hover:bg-border-strong hover:text-foreground"
+          >
+            <Unlink size={12} />
+            {t("library:detail.separateVariant", {
+              format: getFileTypeLabel(selectedVariant.fileType, selectedVariant.filePath),
+            })}
+          </button>
+        )}
+        {hasFormatVariants && onDissolve && book.bookId && (
           <button
             onClick={handleDissolve}
             disabled={showDissolveDialog}
@@ -1016,7 +1024,11 @@ export default function BookDetailPanel({
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-sm text-xs transition-colors cursor-pointer bg-surface-muted hover:bg-destructive-muted text-foreground-muted hover:text-destructive disabled:opacity-50"
         >
           <Trash2 size={12} />
-          {t('common:actions.remove')}
+          {hasFormatVariants
+            ? t("library:detail.removeVariant", {
+                format: getFileTypeLabel(selectedVariant.fileType, selectedVariant.filePath),
+              })
+            : t("common:actions.remove")}
         </button>
 
         <AnimatedModal
@@ -1030,15 +1042,11 @@ export default function BookDetailPanel({
                 {t("library:detail.removeTitle")}
               </h3>
               <p className="text-sm text-foreground-muted mb-4">
-                {canRemoveFromGroup
-                  ? t("library:detail.removeFromGroupConfirm", {
-                      title: selectedVariant.title,
-                    })
-                  : t("library:detail.removeVariantConfirm", {
-                      title: selectedVariant.title,
-                    })}
+                {t("library:detail.removeVariantConfirm", {
+                  title: selectedVariant.title,
+                })}
               </p>
-              {!canRemoveFromGroup && <label className="flex items-center gap-2 mb-4 text-sm text-foreground cursor-pointer">
+              <label className="flex items-center gap-2 mb-4 text-sm text-foreground cursor-pointer">
                 <input
                   type="checkbox"
                   checked={deleteFileAlso}
@@ -1046,7 +1054,7 @@ export default function BookDetailPanel({
                   className="w-4 h-4 accent-primary cursor-pointer"
                 />
                 {t("library:detail.deleteFileAlso")}
-              </label>}
+              </label>
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={cancelDelete}
@@ -1058,9 +1066,7 @@ export default function BookDetailPanel({
                   onClick={handleDelete}
                   className="cursor-pointer px-4 py-2 rounded-sm bg-destructive hover:bg-destructive-hover text-destructive-foreground text-sm font-medium transition-colors"
                 >
-                  {canRemoveFromGroup
-                    ? t("common:actions.remove")
-                    : t("common:actions.delete")}
+                  {t("common:actions.delete")}
                 </button>
               </div>
         </AnimatedModal>

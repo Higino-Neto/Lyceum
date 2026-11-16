@@ -60,17 +60,6 @@ export function useFolderOperations(options: UseFolderOperationsOptions = {}) {
     [onChanged],
   );
 
-  const dissolveFolder = useCallback(
-    async (folderPath: string) => {
-      const result = await window.api.dissolveFolder(folderPath);
-      // A failed dissolve may have emitted transient filesystem events before
-      // its rollback. Always reload so the tree mirrors the final disk state.
-      await onChanged?.();
-      return result;
-    },
-    [onChanged],
-  );
-
   const moveBook = useCallback(
     (fileHash: string, targetFolder: string | null) =>
       runWithRefresh(
@@ -84,7 +73,6 @@ export function useFolderOperations(options: UseFolderOperationsOptions = {}) {
     createFolder,
     renameFolder,
     deleteFolder,
-    dissolveFolder,
     moveFolder,
     moveBook,
   };

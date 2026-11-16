@@ -128,6 +128,7 @@ function ChapterRow({
           >
             {node.title
               .replace(/\uFFFD/g, "")
+              // eslint-disable-next-line no-control-regex -- strips control characters from PDF outline titles
               .replace(/[\u0000-\u001F\u007F]/g, "")}
           </button>
           <div className="flex justify-end">{node.page}</div>

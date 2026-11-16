@@ -383,8 +383,8 @@ function findPeaks(bins: { center: number; totalWeight: number }[], minWeightRat
 function assignClusterLabel(
   clusterSize: number,
   bodySize: number,
-  clusterWeight: number,
-  allPeaks: { center: number; totalWeight: number }[],
+  _clusterWeight: number,
+  _allPeaks: { center: number; totalWeight: number }[],
 ): FontSizeCluster["label"] {
   const ratio = clusterSize / bodySize;
 

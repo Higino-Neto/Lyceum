@@ -14,11 +14,11 @@ import {
   FolderOpen,
   Info,
   ListTree,
-  RefreshCw,
+  
   Search,
   Send,
   Square,
-  Sparkles,
+  
   Trash2,
   X,
 } from "lucide-react";
@@ -43,9 +43,7 @@ import {
   getTitleWithoutExtension,
 } from "../Library/utils";
 import { useLazyThumbnail } from "../Library/components/BookGrid/useLazyThumbnail";
-import AnimatedModal from "../../components/ui/AnimatedModal";
 import Select from "../../components/ui/Select";
-import { AnimatePresence } from "motion/react";
 import { useTranslation } from "../../i18n/useTranslation";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
 import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
@@ -496,24 +494,6 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
       }).length,
     [draftBooks, getBookConfig, kindleMode],
   );
-  const estimatedSize = useMemo(() => {
-    const totalEstimated = draftBooks.reduce((sum, book) => {
-      const cfg = getBookConfig(book);
-      const multiplier =
-        cfg.targetFormat === "txt"
-          ? 0.22
-          : cfg.targetFormat === "html"
-            ? 0.7
-            : cfg.targetFormat === "kfx"
-              ? 1.18
-              : cfg.targetFormat === "lyceum"
-                ? 1.05
-                : 1.05;
-      return sum + (book.fileSize || 0) * multiplier;
-    }, 0);
-    if (!totalEstimated) return "-";
-    return formatFileSize(Math.max(1, Math.round(totalEstimated)));
-  }, [draftBooks, getBookConfig]);
 
   const handleStart = () => {
     const configs: BookConversionConfig[] = draftBooks.map((book) => ({

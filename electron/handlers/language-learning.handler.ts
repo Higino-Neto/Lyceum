@@ -40,7 +40,21 @@ export interface LanguageLearningHandlerDependencies {
     exportToFile(userId: string): Promise<string | null>;
     importFromFile(userId: string): Promise<LearningImportResult | null>;
     openFolder(userId: string): Promise<void>;
+    /** Where backups live, when they were last written and the extra mirror folder. */
+    status?(userId: string): LearningBackupStatusView;
+    /** Lets the user pick an extra folder (e.g. synced cloud folder) mirroring the backups. */
+    chooseMirror?(userId: string): Promise<LearningBackupStatusView | null>;
+    clearMirror?(userId: string): LearningBackupStatusView;
   };
+}
+
+export interface LearningBackupStatusView {
+  directory: string;
+  mirrorDirectory: string | null;
+  lastBackupAt: number | null;
+  lastMirrorAt: number | null;
+  mirrorError: string | null;
+  dailyCopies: number;
 }
 
 export const MAX_ONLINE_TRANSLATION_LENGTH = 500;
@@ -320,5 +334,25 @@ export function registerLanguageLearningHandlers(ipcMain: IpcMain, dependencies:
     if (!dependencies.backups) return { success: false as const, error: "UNAVAILABLE" };
     await dependencies.backups.openFolder(userId(rawUser));
     return { success: true as const };
+  });
+
+  ipcMain.handle("language-learning:backup-status", (_, rawUser: unknown) => {
+    if (!dependencies.backups?.status) return { success: false as const, error: "UNAVAILABLE" };
+    return { success: true as const, status: dependencies.backups.status(userId(rawUser)) };
+  });
+
+  ipcMain.handle("language-learning:choose-backup-mirror", async (_, rawUser: unknown) => {
+    if (!dependencies.backups?.chooseMirror) return { success: false as const, error: "UNAVAILABLE" };
+    try {
+      const status = await dependencies.backups.chooseMirror(userId(rawUser));
+      return status ? { success: true as const, status } : { success: false as const, error: "CANCELLED" };
+    } catch (error) {
+      return { success: false as const, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("language-learning:clear-backup-mirror", (_, rawUser: unknown) => {
+    if (!dependencies.backups?.clearMirror) return { success: false as const, error: "UNAVAILABLE" };
+    return { success: true as const, status: dependencies.backups.clearMirror(userId(rawUser)) };
   });
 }

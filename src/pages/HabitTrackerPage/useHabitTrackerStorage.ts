@@ -305,7 +305,7 @@ function useSQLiteHabits(): [
         const completions = normalizeCompletions(completionsByHabit);
 
         setState({
-          habits: habits.map((h: any) => ({
+          habits: habits.map((h) => ({
             id: h.id,
             name: h.name,
             createdAt: h.createdAt,

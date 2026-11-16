@@ -41,6 +41,31 @@ Folder actions:
 - Drop books into folder
 - Import books directly into folder
 
+## Book Formats
+
+One book can have several files (EPUB, PDF, AZW3, .lyceum...). They are grouped
+only in the database, by a shared `documents.bookId`; files are never moved or
+renamed by grouping, and folder names have no special meaning (the old `_Name`
+merge folders and `__Name` collection folders are ordinary folders now).
+
+- The card shows one chip per file. Clicking a chip selects only that file.
+- Selection always holds concrete files (`selectedFileMap` in `Library.tsx`):
+  clicking a card selects all of its files, and every bulk action, Ctrl+C/X/V
+  and drag reads the same file list, so no action treats grouped books
+  differently.
+- Group: select two or more files and choose "Group formats", drop a book onto
+  another, or use the Duplicate Finder (`book:merge`).
+- Separate one file: the detail panel's "Separate <format>" or the bulk
+  "Separate" action (`book:remove-from-group`). "Ungroup all formats" clears
+  the whole group (`book:unmerge`). A group left with one file is dissolved.
+- Converting a library book attaches the output to the source book
+  (`attachConversionOutput` in `electron/main.ts`).
+- Reading status and score are shared by the group (`updateReadingStatus`).
+
+Main files: `src/pages/Library/components/BookGrid/FormatChips.tsx`,
+`BookGrid/bookFiles.ts`, `src/features/library/model/libraryView.ts`
+(`buildDisplayBooks`), `electron/local-database.ts` (`mergeDocuments`).
+
 ## List View
 
 The list view is a table whose columns are configurable from the header's

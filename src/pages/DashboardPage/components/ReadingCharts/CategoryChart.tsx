@@ -60,28 +60,6 @@ export default function CategoryChart({ usersData, categories }: CategoryChartPr
       .slice(0, 8);
   }, [usersData, categories]);
 
-  const singleUserData = useMemo(() => {
-    if (usersData.length !== 1) return null;
-    const grouped: Record<string, number> = {};
-    usersData[0].readings.forEach((item) => {
-      const categoryId = item.category_id || "other";
-      grouped[categoryId] = (grouped[categoryId] || 0) + item.pages;
-    });
-
-    const total = Object.values(grouped).reduce((sum, val) => sum + val, 0);
-
-    return Object.entries(grouped)
-      .map(([categoryId, pages]) => {
-        const category = categories.find((c) => c.id === categoryId);
-        return {
-          name: category?.name || categoryId,
-          value: pages,
-          percentage: total > 0 ? Math.round((pages / total) * 100) : 0,
-        };
-      })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-  }, [usersData, categories]);
 
   if (categoryData.length === 0 || usersData.every((u) => u.readings.length === 0)) {
     return (

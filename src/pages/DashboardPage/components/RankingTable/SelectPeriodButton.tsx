@@ -1,5 +1,4 @@
 import { Trophy } from "lucide-react";
-import { useState } from "react";
 import { useLocalStorage } from "../../../../hooks/useLocalStorage";
 import { useTranslation } from "../../../../i18n";
 import type { TranslationKey } from "../../../../i18n";

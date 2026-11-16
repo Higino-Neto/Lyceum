@@ -164,7 +164,6 @@ function FolderTreeContainer({
   draggingBookHash,
   draggingBookHashes = [],
   onImportBook,
-  onDissolveFolder,
   visibleStatuses = [],
   onToggleStatus,
   data,
@@ -618,10 +617,6 @@ function FolderTreeContainer({
               setDeleteDialog({ open: true, folder });
               closeContextMenu();
             }}
-            onDissolveFolder={onDissolveFolder ? (folder) => {
-              onDissolveFolder(folder);
-              closeContextMenu();
-            } : undefined}
           />
         )}
 

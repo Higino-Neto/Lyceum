@@ -25,6 +25,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run typecheck:strict
       - run: npm run lint:boundaries
+      # Whole project: errors fail the build, warnings are reported only.
+      - run: npm run lint:ci
       - run: npm run check:architecture
+      - run: npm run check:tokens
       - run: npm run test:run
       - run: npm run build:mobile
+      # Desktop renderer + main build (tsc, vite, import/worker checks).
+      - run: npm run build

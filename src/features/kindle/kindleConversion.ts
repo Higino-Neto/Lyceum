@@ -1,7 +1,7 @@
 import type { BookWithThumbnail } from "../../types/LibraryTypes";
 import type { ConversionOptions } from "../../contexts/ConversionQueueContext";
 import { defaultConversionOptions } from "../../contexts/ConversionQueueContext";
-import { getTitleWithoutExtension } from "../../pages/Library/utils";
+import { getTitleWithoutExtension } from "../library/model/folders";
 
 /**
  * Favourite conversion settings for sending books to a Kindle. Shared by the
