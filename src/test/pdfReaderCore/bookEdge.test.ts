@@ -37,7 +37,7 @@ describe("Riffle exploration", () => {
     const { handle, navigate } = await setup();
     handle.open(70);
     await settle();
-    document.querySelector<HTMLButtonElement>('[aria-label="Inspecionar página 71"]')!.click();
+    document.querySelector<HTMLButtonElement>('[aria-label="Inspect page 71"]')!.click();
     document.querySelector("dialog")!.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }));
     await settle();
     const globalShortcut = vi.fn();

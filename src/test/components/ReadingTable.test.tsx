@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/renderWithProviders";
 import ReadingTable from "../../pages/DashboardPage/components/ReadingTable/ReadingTable";
 
 const mockDelete = vi.fn();
 const mockInvalidate = vi.fn();
-const mockGetCategories = vi.fn().mockResolvedValue([]);
 
 vi.mock("../../hooks/useGetReadings", () => ({
   __esModule: true,

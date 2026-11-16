@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { BookWithThumbnail, FolderInfo } from "../../../types/LibraryTypes";
+import type { BookWithThumbnail } from "../../../types/LibraryTypes";
 import {
   buildDisplayBooks,
-  buildSpecialFolderBook,
-  collectSpecialFoldersForDisplay,
   getPathLeaf,
   isAbsoluteFolderPath,
   matchesLibraryFileTypes,
@@ -44,10 +42,6 @@ function book(overrides: Partial<BookWithThumbnail> = {}): BookWithThumbnail {
     fileType: "pdf",
     ...overrides,
   };
-}
-
-function folder(name: string, path: string, subfolders: FolderInfo[] = []): FolderInfo {
-  return { name, path, fullPath: `/library/${path}`, bookCount: 0, subfolders };
 }
 
 describe("library view model", () => {
@@ -128,71 +122,38 @@ describe("library view model", () => {
     expect(getGroupReadingStatus(merged)).toBe("reading");
   });
 
-  it("hides collections from status filters when no contained book matches", () => {
-    const reading = book({
-      fileHash: "collection-folder:/library/_clube",
-      syntheticFolderType: "collection",
-      syntheticFolderPath: "_clube",
-      mergedBooks: [book({ fileHash: "inside", readingStatus: "reading" })],
-    });
-
-    expect(matchesLibraryReadingStatus(reading, ["reading"])).toBe(true);
-    expect(matchesLibraryReadingStatus(reading, ["read"])).toBe(false);
-  });
-
-  it("discovers nested special folders only when requested", () => {
-    const nested = folder("_Unidas", "normal/_Unidas");
-    const roots = [folder("normal", "normal", [nested]), folder("__Coleção", "__Coleção")];
-
-    expect(collectSpecialFoldersForDisplay(roots, false).map(({ folder: item }) => item.name))
-      .toEqual(["__Coleção"]);
-    expect(collectSpecialFoldersForDisplay(roots, true).map(({ folder: item }) => item.name))
-      .toEqual(["_Unidas", "__Coleção"]);
-  });
-
-  it("builds a stable synthetic book, deduplicating variants and preferring a covered PDF", () => {
-    const epub = book({ id: 1, fileHash: "same", fileType: "epub", thumbnailPath: null });
+  it("prefers a covered EPUB or PDF as the representative format", () => {
+    const epub = book({ id: 1, fileHash: "epub", fileType: "epub", thumbnailPath: null });
     const pdf = book({ id: 2, fileHash: "pdf", fileType: "pdf", thumbnailPath: "/cover.jpg" });
-    const synthetic = buildSpecialFolderBook(folder("_Clássicos", "_Clássicos"), [epub, epub, pdf], "merged");
 
     expect(pickRepresentativeBook([epub, pdf])).toBe(pdf);
-    expect(synthetic.title).toBe("Clássicos");
-    expect(synthetic.fileHash).toBe("merged-folder:/library/_clássicos");
-    expect(synthetic.mergedBooks).toEqual([epub, pdf]);
-    expect(synthetic.id).toBeLessThan(0);
   });
 
-  it("groups variants, collapses special-folder descendants, and reuses unchanged projections", () => {
+  it("groups formats by bookId, keeps folders named with _ as ordinary books, and reuses unchanged projections", () => {
     const pdf = book({ id: 1, fileHash: "pdf", bookId: "merged", title: "A", folderPath: "/library" });
     const epub = book({ id: 2, fileHash: "epub", bookId: "merged", title: "A", fileType: "epub", folderPath: "/library" });
-    const nested = book({ id: 3, fileHash: "nested", folderPath: "/library/_special/nested" });
-    const special = book({ id: -1, fileHash: "merged-folder:/library/_special", syntheticFolderType: "merged" });
+    const legacy = book({ id: 3, title: "B", fileHash: "legacy", folderPath: "/library/_Old merge" });
     const input = {
       section: "synced" as const,
-      books: [pdf, epub, nested],
-      specialFolderBooks: [special],
-      specialFolderPaths: ["/library/_special"],
-      collapseSpecialFolders: true,
+      books: [pdf, epub, legacy],
       search: "",
       fileTypes: ["all" as const],
       sort: "title_asc" as const,
       previousCache: new Map(),
     };
     const first = buildDisplayBooks(input);
-    expect(first.books.map(({ fileHash }) => fileHash)).toEqual(["pdf", special.fileHash]);
+    expect(first.books.map(({ fileHash }) => fileHash)).toEqual(["pdf", "legacy"]);
     expect(first.books[0].mergedBooks).toEqual([pdf, epub]);
+    expect(first.books[1].mergedBooks).toBeUndefined();
     const second = buildDisplayBooks({ ...input, previousCache: first.cache });
     expect(second.books[0]).toBe(first.books[0]);
   });
 
-  it("leaves USB books untouched and does not include special folders outside the synced section", () => {
+  it("leaves USB books untouched", () => {
     const original = [book()];
     const input = {
       section: "usb" as const,
       books: original,
-      specialFolderBooks: [book({ fileHash: "special" })],
-      specialFolderPaths: [],
-      collapseSpecialFolders: false,
       search: "",
       fileTypes: ["all" as const],
       sort: "title_asc" as const,
@@ -202,29 +163,17 @@ describe("library view model", () => {
     expect(buildDisplayBooks({ ...input, section: "unsynced" }).books).toEqual(original);
   });
 
-  it("excludes collections and merged folders that do not match the reading status filter", () => {
-    const collection = book({
-      id: -1,
-      fileHash: "collection-folder:/library/_clube",
-      syntheticFolderType: "collection",
-      mergedBooks: [book({ fileHash: "inside", readingStatus: "reading" })],
+  it("matches merged books against the status filter by their shared group status", () => {
+    const merged = book({
+      bookId: "g",
+      mergedBooks: [
+        book({ fileHash: "epub", fileType: "epub", readingStatus: "reading" }),
+        book({ fileHash: "pdf", readingStatus: "reading" }),
+      ],
     });
-    const input = {
-      section: "synced" as const,
-      books: [],
-      specialFolderBooks: [collection],
-      specialFolderPaths: [],
-      collapseSpecialFolders: false,
-      search: "",
-      fileTypes: ["all" as const],
-      readingStatuses: ["reading"] as string[] | null,
-      sort: "title_asc" as const,
-      previousCache: new Map(),
-    };
 
-    expect(buildDisplayBooks(input).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
-    expect(buildDisplayBooks({ ...input, readingStatuses: ["read"] }).books).toEqual([]);
-    expect(buildDisplayBooks({ ...input, readingStatuses: null }).books.map(({ fileHash }) => fileHash)).toEqual([collection.fileHash]);
-    expect(buildDisplayBooks({ ...input, readingStatuses: [] }).books).toEqual([]);
+    expect(matchesLibraryReadingStatus(merged, ["reading"])).toBe(true);
+    expect(matchesLibraryReadingStatus(merged, ["read"])).toBe(false);
+    expect(matchesLibraryReadingStatus(merged, null)).toBe(true);
   });
 });

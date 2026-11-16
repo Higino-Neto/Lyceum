@@ -99,7 +99,42 @@ function buildOpenLibraryUrl(query: string, field: MetadataSearchField, limit: n
   return `https://openlibrary.org/search.json?${params.toString()}`;
 }
 
-function mapOpenLibraryBook(book: any): BookMetadataCandidate | null {
+/** Fields read from an OpenLibrary search "doc" (all optional, validated on use). */
+interface OpenLibraryDoc {
+  key?: string;
+  title?: unknown;
+  subtitle?: unknown;
+  isbn?: unknown;
+  cover_i?: unknown;
+  publish_date?: unknown[];
+  first_publish_year?: number;
+  author_name?: unknown;
+  publisher?: unknown[];
+  language?: unknown;
+  number_of_pages_median?: unknown;
+  subject?: unknown;
+}
+
+/** Fields read from a Google Books volume. */
+interface GoogleBooksVolume {
+  id?: string;
+  volumeInfo?: {
+    title?: unknown;
+    subtitle?: unknown;
+    authors?: unknown;
+    publisher?: unknown;
+    publishedDate?: unknown;
+    language?: unknown;
+    industryIdentifiers?: Array<{ identifier?: unknown }>;
+    pageCount?: unknown;
+    categories?: unknown;
+    description?: unknown;
+    imageLinks?: Record<string, unknown>;
+    infoLink?: unknown;
+  };
+}
+
+function mapOpenLibraryBook(book: OpenLibraryDoc): BookMetadataCandidate | null {
   const title = cleanText(book.title);
   if (!title) return null;
   const isbns = normalizeIsbn(book.isbn);
@@ -142,15 +177,15 @@ function buildGoogleBooksUrl(query: string, field: MetadataSearchField, limit: n
   return `https://www.googleapis.com/books/v1/volumes?${params.toString()}`;
 }
 
-function mapGoogleBook(item: any): BookMetadataCandidate | null {
-  const info = item.volumeInfo || {};
+function mapGoogleBook(item: GoogleBooksVolume): BookMetadataCandidate | null {
+  const info: NonNullable<GoogleBooksVolume["volumeInfo"]> = item.volumeInfo || {};
   const title = cleanText(info.title);
   if (!title) return null;
   const identifiers = Array.isArray(info.industryIdentifiers)
-    ? info.industryIdentifiers.map((entry: any) => entry?.identifier)
+    ? info.industryIdentifiers.map((entry) => entry?.identifier)
     : [];
   const isbns = normalizeIsbn(identifiers);
-  const imageLinks = info.imageLinks || {};
+  const imageLinks: Record<string, unknown> = info.imageLinks || {};
   return {
     id: `google:${item.id || title}`,
     source: "google",

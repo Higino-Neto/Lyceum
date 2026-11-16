@@ -30,7 +30,7 @@ function extensionOf(filePath: string) {
   const lower = filePath.toLowerCase();
   if (lower.endsWith(".fb2.zip")) return "fb2";
   const match = /\.([a-z0-9]+)$/.exec(lower);
-  return match ? match[1] : "";
+  return match?.[1] ?? "";
 }
 
 /** True for files the reader can show, directly or after conversion. */

@@ -40,7 +40,9 @@ function getSelectedDictId(): string {
 function setSelectedDictId(dictId: string): void {
   try {
     localStorage.setItem(DICTIONARY_STORAGE_KEY, dictId);
-  } catch {}
+  } catch {
+    // Unreadable cache entry: fall back to an empty dictionary state.
+  }
 }
 
 export function useDictionary() {
@@ -52,7 +54,7 @@ export function useDictionary() {
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
 
   const loadDictionaries = async () => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.dictionaryGetIndex) return;
     try {
       const dicts = await api.dictionaryGetIndex();
@@ -63,7 +65,7 @@ export function useDictionary() {
   };
 
   const refreshIndex = async () => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.dictionaryFetchIndex) return;
     try {
       const dicts = await api.dictionaryFetchIndex();
@@ -79,7 +81,7 @@ export function useDictionary() {
   };
 
   const downloadDictionary = async (dictId: string) => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.dictionaryDownload) return false;
     setIsDownloading(true);
     setDownloadProgress((prev) => ({ ...prev, [dictId]: 0 }));
@@ -101,7 +103,7 @@ export function useDictionary() {
   };
 
   const deleteDictionary = async (dictId: string) => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.dictionaryDelete) return false;
     try {
       const result = await api.dictionaryDelete(dictId);
@@ -118,7 +120,7 @@ export function useDictionary() {
   };
 
   const lookup = async (word: string, dictId?: string): Promise<LookupResult | null> => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.dictionaryLookup) return null;
     try {
       const result = await api.dictionaryLookup(word, dictId || selectedDict);
@@ -138,7 +140,7 @@ export function useDictionary() {
   }, []);
 
   useEffect(() => {
-    const api = window.api as Record<string, any> | undefined;
+    const api = window.api as typeof window.api | undefined;
     if (!api?.onDictionaryDownloadProgress) return;
     const unsubscribe = api.onDictionaryDownloadProgress(({ dictId, progress }) => {
       setDownloadProgress((prev) => ({ ...prev, [dictId]: progress }));

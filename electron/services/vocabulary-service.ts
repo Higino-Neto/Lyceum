@@ -1,5 +1,4 @@
 import AdmZip from "adm-zip";
-import fs from "node:fs";
 
 const STOPWORDS = new Set([
   "a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "be", "been", "being",
@@ -49,7 +48,7 @@ export function extractVocabularyFromEpub(filePath: string): { word: string; cou
   const entries = zip.getEntries();
 
   const textParts: string[] = [];
-  const htmlEntries = entries.filter((entry: any) => {
+  const htmlEntries = entries.filter((entry) => {
     const name = entry.entryName.toLowerCase();
     return name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm");
   });

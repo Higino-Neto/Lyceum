@@ -33,7 +33,7 @@ export default function SignIn() {
       toast.success(t("auth:signIn.success"));
       const redirectTo = (location.state as LocationState | null)?.from || "/";
       navigate(redirectTo, { replace: true });
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || t("auth:signIn.error"));
     } finally {
       setLoading(false);

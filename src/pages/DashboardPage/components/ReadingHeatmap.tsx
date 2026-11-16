@@ -90,10 +90,6 @@ export function ReadingHeatMap() {
       };
     }
 
-    const counts = value.map(d => d.count);
-    const min = Math.min(...counts);
-    const max = Math.max(...counts);
-    const range = max - min || 1;
 
     const colors = [
       "var(--surface-muted)",

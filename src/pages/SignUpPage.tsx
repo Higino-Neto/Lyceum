@@ -55,7 +55,7 @@ export default function SignUp() {
         toast.success(t("auth:signUp.created"));
         navigate("/");
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || t("auth:signUp.error"));
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export default function SignUp() {
     try {
       await resendSignupConfirmation(confirmationEmail);
       toast.success(t("auth:signUp.confirmation.resent"));
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || t("auth:signUp.confirmation.resendError"));
     } finally {
       setResending(false);

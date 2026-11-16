@@ -22,14 +22,14 @@ function isAllCapsLine(text: string) {
 }
 
 function isListStart(text: string) {
-  return /^\s*(?:[-*\u2022]|\d+[\.)]|[A-Za-z][\.)]|[ivxlcdm]+[\.)])\s+/i.test(text);
+  return /^\s*(?:[-*\u2022]|\d+[.)]|[A-Za-z][.)]|[ivxlcdm]+[.)])\s+/i.test(text);
 }
 
 function endsStrongly(text: string) {
   return /[.!?]["')\]]?$/.test(text.trim());
 }
 
-const TOC_LEADER_PATTERN = /[\s·]{3,}|\.{3,}|\-{3,}/;
+const TOC_LEADER_PATTERN = /[\s·]{3,}|\.{3,}|-{3,}/;
 const TOC_PAGE_NUMBER_PATTERN = /[\s·.]{2,}\d{1,4}\s*$/;
 const TOC_NUMBERED_ENTRY_PATTERN = /^\s*\d+(\.\d+)+\s+.+/;
 const TOC_ROMAN_NUMERAL_PATTERN = /^\s*[ivxlcdmIVXLCDM]+\s+[\s·]+\d/;

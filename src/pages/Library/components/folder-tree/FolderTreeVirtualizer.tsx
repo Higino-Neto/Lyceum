@@ -72,6 +72,7 @@ function itemKey(item: FolderTreeListItem, index: number) {
   if (item.kind === "watch") return `watch:${item.folder.id}`;
   if (item.kind === "create") return `create:${item.parentPath ?? "root"}`;
   if (item.kind === "section") return `section:${item.id}`;
-  if ((item as any).kind === "filter") return `filter:${(item as any).id}`;
+  const loose = item as { kind: string; id?: string };
+  if (loose.kind === "filter") return `filter:${loose.id}`;
   return `root:${index}`;
 }

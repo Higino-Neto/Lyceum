@@ -1,4 +1,4 @@
-import { Check, Copy, FileText, Folder, Move, Trash2 } from "lucide-react";
+import { Check, Copy, FileText, Minus, Move, Trash2 } from "lucide-react";
 import { memo, type ReactNode } from "react";
 import type { DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
@@ -7,9 +7,10 @@ import {
   formatPageCount,
   formatShortDate,
   getBookFolderLabel,
-  getFileTypeLabel,
   getTitleWithoutExtension,
 } from "../../utils";
+import FormatChips from "./FormatChips";
+import { getFileSelectionState } from "./bookFiles";
 import { useLazyThumbnail } from "./useLazyThumbnail";
 import { setBookDragImage } from "../../utils/bookDragPreview";
 import { useTranslation } from "../../../../i18n";
@@ -30,10 +31,12 @@ interface BookListItemProps {
   onDragMove?: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   selectionMode?: boolean;
-  isChecked?: boolean;
+  /** Comma-joined hashes of this book's selected files (see getSelectedFilesKey). */
+  selectedFilesKey?: string;
   selectedCount?: number;
   onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
+  onToggleFile?: (file: BookWithThumbnail) => void;
   canDropOnBook?: (book: BookWithThumbnail) => boolean;
   onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
   /** Visible columns, in display order (memoized by the grid). */
@@ -65,10 +68,11 @@ function BookListItem({
   onDragMove,
   onDragEnd,
   selectionMode = false,
-  isChecked = false,
+  selectedFilesKey = "",
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
+  onToggleFile,
   canDropOnBook,
   onDropOnBook,
   columns,
@@ -77,12 +81,9 @@ function BookListItem({
 }: BookListItemProps) {
   const { t } = useTranslation();
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
-  const isCollection = book.syntheticFolderType === "collection";
-  const formatCount = book.mergedBooks?.length || 1;
-  const formatLabel =
-    formatCount > 1
-      ? Array.from(new Set(book.mergedBooks?.map((variant) => getFileTypeLabel(variant.fileType, variant.filePath)))).join(" / ")
-      : getFileTypeLabel(book.fileType, book.filePath);
+  const selectionState = getFileSelectionState(book, selectedFilesKey);
+  const isChecked = selectionState === "all";
+  const isPartial = selectionState === "partial";
 
   const handleClick = () => {
     if (selectionMode) {
@@ -97,40 +98,32 @@ function BookListItem({
     }
   };
 
-  const formatBadge = isCollection ? (
-    <span className="rounded-sm bg-primary-muted px-1.5 py-0.5 text-primary">{t("library:list.collection")}</span>
-  ) : (
-    <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 uppercase text-foreground-subtle">{formatLabel}</span>
+  const formatBadge = (
+    <FormatChips book={book} selectedFilesKey={selectedFilesKey} onToggleFile={onToggleFile} />
   );
 
   const renderTitleCell = () => (
     <div className="flex min-w-0 items-center gap-3 px-3 py-2.5">
       <div
         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm border transition-colors ${
-          isChecked
+          isChecked || isPartial
             ? "border-primary bg-primary text-primary-foreground"
             : selectionMode
               ? "border-border-strong bg-background text-transparent"
               : "border-transparent text-transparent group-hover:border-border-strong"
         }`}
       >
-        <Check size={13} />
+        {isPartial ? <Minus size={13} /> : <Check size={13} />}
       </div>
-      {isCollection ? (
-        <div className="flex h-12 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-muted">
-          <Folder size={18} className="text-primary" />
-        </div>
-      ) : (
-        <div ref={thumbnailRef} className="h-12 w-9 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted shadow-sm">
-          {thumbnail ? (
-            <img src={thumbnail} alt={book.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <FileText size={16} className="text-foreground-subtle" />
-            </div>
-          )}
-        </div>
-      )}
+      <div ref={thumbnailRef} className="h-12 w-9 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted shadow-sm">
+        {thumbnail ? (
+          <img src={thumbnail} alt={book.title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <FileText size={16} className="text-foreground-subtle" />
+          </div>
+        )}
+      </div>
       <div className="min-w-0">
         <p className="min-w-0 truncate text-sm font-medium text-foreground">
           {getTitleWithoutExtension(book.title, book.fileType)}
@@ -162,13 +155,11 @@ function BookListItem({
       case "pages":
         return (
           <MutedText align="end">
-            {isCollection
-              ? t("library:list.booksInCollection", { count: book.mergedBooks?.length || 0 })
-              : formatPageCount(book.numPages, book.fileType)}
+            {formatPageCount(book.numPages, book.fileType)}
           </MutedText>
         );
       case "progress": {
-        if (isCollection || book.numPages <= 0) return <MutedText>{EMPTY}</MutedText>;
+        if (book.numPages <= 0) return <MutedText>{EMPTY}</MutedText>;
         const progress = Math.round(calculateProgress(book));
         return (
           <div className="flex min-w-0 items-center gap-2 px-3 py-2">
@@ -225,11 +216,11 @@ function BookListItem({
         isSelected
           ? "border-primary/60 ring-1 ring-primary/20"
           : "border-border hover:border-border-strong hover:bg-surface-muted/40"
-      } ${isChecked ? "border-primary bg-primary-muted" : ""}`}
+      } ${isChecked || isPartial ? "border-primary bg-primary-muted" : ""}`}
       style={{ gridTemplateColumns }}
-      draggable={!selectionMode || isChecked}
+      draggable={!selectionMode || isChecked || isPartial}
       onDragStartCapture={(e) => {
-        if (selectionMode && !isChecked) {
+        if (selectionMode && !isChecked && !isPartial) {
           e.preventDefault();
           return;
         }
@@ -329,8 +320,6 @@ export function areBooksEqual(previous: BookWithThumbnail, next: BookWithThumbna
     previous.importedAt === next.importedAt &&
     previous.createdAt === next.createdAt &&
     previous.processingStatus === next.processingStatus &&
-    previous.syntheticFolderPath === next.syntheticFolderPath &&
-    previous.syntheticFolderType === next.syntheticFolderType &&
     previous.readingStatus === next.readingStatus &&
     previous.currentPage === next.currentPage &&
     previous.rating === next.rating &&
@@ -343,7 +332,8 @@ export default memo(BookListItem, (previous, next) => (
   previous.showSyncActions === next.showSyncActions &&
   previous.isSelected === next.isSelected &&
   previous.selectionMode === next.selectionMode &&
-  previous.isChecked === next.isChecked &&
+  previous.selectedFilesKey === next.selectedFilesKey &&
+  previous.onToggleFile === next.onToggleFile &&
   previous.selectedCount === next.selectedCount &&
   previous.gridTemplateColumns === next.gridTemplateColumns &&
   previous.columns === next.columns &&

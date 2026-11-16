@@ -11,8 +11,8 @@ interface LibraryHeaderProps {
 }
 
 export default function LibraryHeader({
-  syncedCount,
-  unsyncedCount,
+  syncedCount: _syncedCount,
+  unsyncedCount: _unsyncedCount,
   viewMode,
   onViewModeChange,
   showSidebar = true,

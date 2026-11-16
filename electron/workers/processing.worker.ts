@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import type { ImageCandidate } from "../../src/lib/pdf-to-epub/types";
 import type {
   FileConversionWorkerResult,
   HashFileResult,
@@ -142,7 +143,7 @@ function createPdfImageAssetRenderer(pdfPath: string, tempDir: string) {
     return renderedPages.get(pageNumber)!;
   };
 
-  return async (candidate: any) => {
+  return async (candidate: ImageCandidate) => {
     const rendered = await renderPage(candidate.pageNumber);
     if (!rendered) return null;
     const sharp = require("sharp");

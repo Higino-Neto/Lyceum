@@ -8,8 +8,8 @@ import {
   updateLastOpened,
   updateDocumentPath,
   updateDocumentFileType,
-  updateDocumentSyncStatus,
-  updateThumbnailPath,
+  
+  
   updateTitle,
   updateAuthor,
   addDocument,
@@ -21,7 +21,7 @@ import {
   LIBRARY_PATH,
   USER_DATA_PATH,
   getUniqueFilePath,
-  moveFileAcrossDevices,
+  
   inferFileTypeFromPath,
   toReadableFileType,
 } from "./file-service";
@@ -314,7 +314,7 @@ export async function renameBook(
   newAuthor: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    let doc = getDocumentByHash(fileHash);
+    const doc = getDocumentByHash(fileHash);
     if (!doc) {
       return { success: false, error: "Documento não encontrado" };
     }

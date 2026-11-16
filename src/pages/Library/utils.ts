@@ -1,10 +1,7 @@
 import { FolderInfo } from "../../types/LibraryTypes";
 
 export {
-  classifyFolder,
-  classifyFolders,
   getTitleWithoutExtension,
-  type FolderType,
 } from "../../features/library/model/folders";
 export {
   calculateSimilarity,

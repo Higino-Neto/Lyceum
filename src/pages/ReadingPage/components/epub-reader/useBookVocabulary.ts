@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   VocabularyEntry,
-  VocabularyStats,
+  
   VocabularyStatus,
   PersistedVocabularyState,
   DEFAULT_VOCABULARY_STATE,
-  VOCABULARY_STORAGE_PREFIX,
+  
   normalizeVocabularyWord,
-  extractUniqueWords,
+  
   cycleVocabularyStatus,
   cycleVocabularyStatusInverse,
   buildVocabularyStorageKey,

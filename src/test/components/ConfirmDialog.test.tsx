@@ -72,7 +72,7 @@ describe("ConfirmDialog", () => {
   });
 
   it("shows danger styling when isDanger is true", () => {
-    const { container } = render(
+    render(
       <ConfirmDialog {...defaultProps} isDanger />
     );
     const confirmButton = screen.getByText("Confirmar");

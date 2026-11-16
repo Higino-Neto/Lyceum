@@ -78,7 +78,7 @@ const MAX_TRANSLATION_CHARACTERS = 280;
 
 async function getDownloadedDictionaries() {
   try {
-    const windowApi = window.api as any;
+    const windowApi = window.api as typeof window.api | undefined;
     if (!windowApi?.dictionaryGetIndex) return [];
     const dicts = await windowApi.dictionaryGetIndex();
     return dicts.filter((d: { isDownloaded?: boolean }) => d.isDownloaded);
@@ -108,7 +108,7 @@ async function translateWithLocalDictionary(
   }
 
   try {
-    const windowApi = window.api as any;
+    const windowApi = window.api as typeof window.api | undefined;
     if (!windowApi?.dictionaryLookup) return null;
 
     console.log(`[Translation] Looking up "${word}" in ${dict.id}...`);
@@ -487,7 +487,9 @@ export async function lookupWithTranslation(
                 if (result) {
                   translatedDef = result;
                 }
-              } catch { }
+              } catch {
+                // Malformed optional field: skip it.
+              }
             }
 
             if (def.example) {
@@ -496,7 +498,9 @@ export async function lookupWithTranslation(
                 if (result) {
                   translatedExample = result;
                 }
-              } catch { }
+              } catch {
+                // Malformed optional field: skip it.
+              }
             }
 
             return {

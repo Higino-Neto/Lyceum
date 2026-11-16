@@ -531,9 +531,6 @@ const api = {
   unmergeBooks: (bookId: string) =>
     ipcRenderer.invoke("book:unmerge", bookId),
 
-  mergeBooksIntoFolder: (fileHashes: string[], parentPath?: string | null) =>
-    ipcRenderer.invoke("book:merge-into-folder", fileHashes, parentPath ?? null),
-
   getDocumentByTitle: (title: string) =>
     ipcRenderer.invoke("book:get-by-title", title),
 
@@ -629,17 +626,11 @@ const api = {
    createFolder: (folderName: string, parentPath: string | null = null) =>
      ipcRenderer.invoke("library:create-folder", folderName, parentPath),
 
-  createCollection: (name: string, fileHashes: string[], parentPath?: string | null) =>
-    ipcRenderer.invoke("library:create-collection", name, fileHashes, parentPath ?? null),
-
   renameFolder: (oldPath: string, newName: string) =>
     ipcRenderer.invoke("library:rename-folder", oldPath, newName),
 
   deleteFolder: (folderPath: string, force = false) =>
     ipcRenderer.invoke("library:delete-folder", folderPath, force),
-
-  dissolveFolder: (folderPath: string) =>
-    ipcRenderer.invoke("library:dissolve-folder", folderPath),
 
   moveFolder: (sourcePath: string, targetPath: string | null) =>
     ipcRenderer.invoke("library:move-folder", sourcePath, targetPath),
@@ -649,9 +640,6 @@ const api = {
 
   copyBooks: (fileHashes: string[], targetFolderPath: string | null) =>
     ipcRenderer.invoke("library:copy-books", fileHashes, targetFolderPath),
-
-  moveMergedBook: (bookId: string, targetFolderPath: string | null) =>
-    ipcRenderer.invoke("library:move-merged-book", bookId, targetFolderPath),
 
   getWatchFolders: () =>
     ipcRenderer.invoke("library:get-watch-folders"),
@@ -791,6 +779,15 @@ openInNewWindow: (data: {
   languageLearningImportBackup: (userId: string) =>
     invoke<({ success: true } & LearningImportResult) | { success: false; error: string }>("language-learning:import-backup", userId),
 
+  reportRendererError: (input: { message: string; stack?: string | null; componentStack?: string | null; source?: string | null; route?: string | null }) =>
+    ipcRenderer.invoke("diagnostics:report-renderer-error", input),
+  openLogs: () => ipcRenderer.invoke("diagnostics:open-logs") as Promise<{ success: boolean; error?: string }>,
+  languageLearningBackupStatus: (userId: string) =>
+    ipcRenderer.invoke("language-learning:backup-status", userId),
+  languageLearningChooseBackupMirror: (userId: string) =>
+    ipcRenderer.invoke("language-learning:choose-backup-mirror", userId),
+  languageLearningClearBackupMirror: (userId: string) =>
+    ipcRenderer.invoke("language-learning:clear-backup-mirror", userId),
   languageLearningOpenBackupsFolder: (userId: string) =>
     invoke<{ success: boolean; error?: string }>("language-learning:open-backups-folder", userId),
 

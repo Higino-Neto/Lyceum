@@ -6,15 +6,12 @@ import {
   deleteDocumentsUnderPath,
   getAllDocuments,
   getDocumentByHash,
-  getDocumentsByBookId,
   getSourceFolders,
   getUnsyncedBookCount,
   getWatchFolderBooks,
   getWatchFolders,
-  mergeDocuments,
   removeSourceFolder,
   removeWatchFolder,
-  updateDocumentBookId,
   updateDocumentPath,
   updateDocumentSyncStatus,
 } from "../local-database";
@@ -35,23 +32,6 @@ import { isSameOrNestedPath, relocatePathWithinFolder } from "./managed-folder-p
 interface FolderOperationResult {
   success: boolean;
   error?: string;
-}
-
-interface MoveDocumentsToFolderResult extends FolderOperationResult {
-  moved?: number;
-}
-
-interface FolderBooksResult extends FolderOperationResult {
-  folderPath?: string;
-  fullPath?: string;
-  moved?: number;
-  mergedCount?: number;
-}
-
-interface DissolveFolderResult extends FolderOperationResult {
-  moved?: number;
-  movedFolders?: number;
-  targetPath?: string;
 }
 
 export interface CopyBooksResult extends FolderOperationResult {
@@ -109,124 +89,11 @@ function folderOperationError(defaultMessage: string, error: unknown) {
   return permissionError(defaultMessage, error);
 }
 
-async function retryTransientFileOperation(operation: () => void, attempts = 5) {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      operation();
-      return;
-    } catch (error) {
-      lastError = error;
-      const code = (error as NodeJS.ErrnoException).code;
-      if (!["EBUSY", "EPERM", "EACCES", "ENOTEMPTY"].includes(code || "") || attempt === attempts - 1) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
-    }
-  }
-  throw lastError;
-}
-
-function dissolveDegenerateLogicalGroup(bookId: string | null | undefined) {
-  if (!bookId) return;
-  const remaining = getDocumentsByBookId(bookId);
-  if (remaining.length <= 1) {
-    for (const document of remaining) {
-      updateDocumentBookId(document.fileHash, null);
-    }
-  }
-}
-
 function findExactSourceFolder(folderPath: string) {
   const resolvedPath = path.resolve(folderPath);
   return getSourceFolders().find(
     (folder) => path.resolve(folder.path) === resolvedPath,
   );
-}
-
-function collectDocumentsForHashes(fileHashes: string[]) {
-  const docsByHash = new Map<string, ReturnType<typeof getDocumentByHash>>();
-  const uniqueHashes = Array.from(new Set(fileHashes.filter(Boolean)));
-
-  for (const fileHash of uniqueHashes) {
-    const doc = getDocumentByHash(fileHash);
-    if (!doc) continue;
-    docsByHash.set(doc.fileHash, doc);
-
-    if (doc.bookId) {
-      for (const groupedDoc of getDocumentsByBookId(doc.bookId)) {
-        docsByHash.set(groupedDoc.fileHash, groupedDoc);
-      }
-    }
-  }
-
-  return Array.from(docsByHash.values()).filter(
-    (doc): doc is NonNullable<ReturnType<typeof getDocumentByHash>> => Boolean(doc),
-  );
-}
-
-function getCanonicalFolderTitle(docs: Array<NonNullable<ReturnType<typeof getDocumentByHash>>>) {
-  const doc = docs.find((candidate) => candidate.title?.trim()) || docs[0];
-  const title = doc?.title?.trim() || doc?.fileName || "Livro";
-  return title.replace(/\.[a-z0-9]+$/i, "").trim() || "Livro";
-}
-
-function createPrefixedFolder(
-  prefix: "_" | "__",
-  title: string,
-  parentPath: string | null = null,
-) {
-  const cleanTitle = title
-    .replace(/[\\/:*?"<>|]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim() || "Livro";
-  const safeFolderName = sanitizeFolderName(`${prefix}${cleanTitle}`);
-  const target = resolveManagedFolderPath(parentPath);
-  const targetDir = getUniqueDirPath(target.targetDir, safeFolderName);
-  fs.mkdirSync(targetDir, { recursive: true });
-  return targetDir;
-}
-
-function moveDocumentsToFolder(
-  docs: Array<NonNullable<ReturnType<typeof getDocumentByHash>>>,
-  targetDir: string,
-): MoveDocumentsToFolderResult {
-  const moved: { fileHash: string; from: string; to: string }[] = [];
-
-  try {
-    for (const doc of docs) {
-      if (!doc.filePath || !fs.existsSync(doc.filePath)) {
-        throw new Error("Arquivo nao encontrado");
-      }
-
-      const currentDir = path.dirname(doc.filePath);
-      if (path.resolve(currentDir) === path.resolve(targetDir)) continue;
-
-      const newFilePath = getUniqueFilePath(targetDir, path.basename(doc.filePath));
-      moveFileAcrossDevices(doc.filePath, newFilePath);
-      moved.push({ fileHash: doc.fileHash, from: doc.filePath, to: newFilePath });
-    }
-
-    for (const item of moved) {
-      updateDocumentPath(item.fileHash, item.to);
-      updateDocumentSyncStatus(item.fileHash, true);
-      updateDocumentBookId(item.fileHash, null);
-    }
-
-    return { success: true, moved: moved.length };
-  } catch (error: unknown) {
-    for (const item of [...moved].reverse()) {
-      try {
-        if (fs.existsSync(item.to) && !fs.existsSync(item.from)) {
-          moveFileAcrossDevices(item.to, item.from);
-        }
-      } catch (rollbackError) {
-        console.error("[FolderService] Error rolling back folder book move:", rollbackError);
-      }
-    }
-
-    return { success: false, error: bookMoveError("Erro ao mover livros", error) };
-  }
 }
 
 export function createManagedFolder(
@@ -332,111 +199,6 @@ export function deleteManagedFolder(
   }
 }
 
-/**
- * Removes the special merge/collection container while keeping every book.
- * Entries are moved to the container's parent with collision-safe names. The
- * filesystem is changed first and rolled back if any move fails; database
- * paths are only updated after all entries have been moved successfully.
- */
-export async function dissolveManagedFolder(folderPath: string): Promise<DissolveFolderResult> {
-  const moved: Array<{
-    from: string;
-    to: string;
-    isDirectory: boolean;
-  }> = [];
-
-  try {
-    const target = resolveManagedFolderPath(folderPath);
-    const sourceDir = target.targetDir;
-    const folderName = path.basename(sourceDir);
-
-    if (!folderName.startsWith("_") || sourceDir === LIBRARY_PATH()) {
-      return { success: false, error: "Apenas mesclagens e colecoes podem ser dissolvidas" };
-    }
-    if (!fs.existsSync(sourceDir) || !fs.statSync(sourceDir).isDirectory()) {
-      return { success: false, error: "Mesclagem ou colecao nao encontrada" };
-    }
-
-    const parentDir = path.dirname(sourceDir);
-    const documents = getAllDocuments().filter((doc) =>
-      Boolean(doc.filePath && (path.resolve(doc.filePath) === sourceDir || isPathWithin(sourceDir, doc.filePath))),
-    );
-
-    for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
-      const sourcePath = path.join(sourceDir, entry.name);
-      const destinationPath = entry.isDirectory()
-        ? getUniqueDirPath(parentDir, entry.name)
-        : getUniqueFilePath(parentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        await retryTransientFileOperation(() => fs.renameSync(sourcePath, destinationPath));
-      } else {
-        await retryTransientFileOperation(() => moveFileAcrossDevices(sourcePath, destinationPath));
-      }
-      moved.push({ from: sourcePath, to: destinationPath, isDirectory: entry.isDirectory() });
-    }
-
-    await retryTransientFileOperation(
-      () => fs.rmSync(sourceDir, {
-        recursive: true,
-        force: false,
-        maxRetries: 8,
-        retryDelay: 150,
-      }),
-      8,
-    );
-
-    for (const doc of documents) {
-      if (!doc.filePath) continue;
-      const mapping = moved.find((item) => {
-        const resolvedDocumentPath = path.resolve(doc.filePath);
-        return resolvedDocumentPath === path.resolve(item.from) ||
-          (item.isDirectory && isPathWithin(item.from, doc.filePath));
-      });
-      if (!mapping) continue;
-
-      const nextPath = mapping.isDirectory
-        ? path.join(mapping.to, path.relative(mapping.from, doc.filePath))
-        : mapping.to;
-      updateDocumentPath(doc.fileHash, nextPath);
-      updateDocumentBookId(doc.fileHash, null);
-      updateDocumentSyncStatus(doc.fileHash, true);
-    }
-
-    return {
-      success: true,
-      moved: documents.length,
-      movedFolders: moved.filter((item) => item.isDirectory).length,
-      targetPath: parentDir,
-    };
-  } catch (error: unknown) {
-    if (moved.length > 0) {
-      try {
-        fs.mkdirSync(path.dirname(moved[0].from), { recursive: true });
-      } catch (restoreDirectoryError) {
-        console.error("[FolderService] Error restoring dissolved folder:", restoreDirectoryError);
-      }
-    }
-    for (const item of [...moved].reverse()) {
-      try {
-        if (!fs.existsSync(item.to) || fs.existsSync(item.from)) continue;
-        if (item.isDirectory) {
-          await retryTransientFileOperation(() => fs.renameSync(item.to, item.from));
-        } else {
-          await retryTransientFileOperation(() => moveFileAcrossDevices(item.to, item.from));
-        }
-      } catch (rollbackError) {
-        console.error("[FolderService] Error rolling back dissolve operation:", rollbackError);
-      }
-    }
-
-    return {
-      success: false,
-      error: folderOperationError("Nao foi possivel desfazer a mesclagem ou colecao", error),
-    };
-  }
-}
-
 export function moveManagedFolder(
   sourcePath: string,
   targetPath: string | null,
@@ -509,11 +271,6 @@ export function moveManagedBook(
     moveFileAcrossDevices(doc.filePath, newFilePath);
     updateDocumentPath(fileHash, newFilePath);
     updateDocumentSyncStatus(fileHash, true, target.category);
-    if (path.basename(currentDir).startsWith("_") && path.resolve(currentDir) !== path.resolve(target.targetDir)) {
-      const previousBookId = doc.bookId;
-      updateDocumentBookId(fileHash, null);
-      dissolveDegenerateLogicalGroup(previousBookId);
-    }
 
     return { success: true };
   } catch (error: unknown) {
@@ -565,133 +322,6 @@ export async function copyManagedBooks(
     errors,
     error: failed > 0 ? errors.join("; ") : undefined,
   };
-}
-
-export function moveMergedManagedBook(
-  bookId: string,
-  targetFolderPath: string | null,
-): FolderOperationResult & { moved?: number } {
-  const docs = getDocumentsByBookId(bookId).filter((doc) => doc.filePath);
-  if (docs.length === 0) {
-    return { success: false, error: "Livro mesclado nao encontrado" };
-  }
-
-  const moved: { fileHash: string; from: string; to: string }[] = [];
-
-  try {
-    const target = resolveManagedFolderPath(targetFolderPath);
-    if (!fs.existsSync(target.targetDir)) {
-      return { success: false, error: "Pasta de destino nao existe" };
-    }
-
-    for (const doc of docs) {
-      const currentPath = doc.filePath;
-      const currentDir = path.dirname(currentPath);
-      if (path.resolve(currentDir) === path.resolve(target.targetDir)) continue;
-
-      const newFilePath = getUniqueFilePath(target.targetDir, path.basename(currentPath));
-      moveFileAcrossDevices(currentPath, newFilePath);
-      moved.push({ fileHash: doc.fileHash, from: currentPath, to: newFilePath });
-    }
-
-    for (const item of moved) {
-      updateDocumentPath(item.fileHash, item.to);
-      updateDocumentSyncStatus(item.fileHash, true, target.category);
-    }
-
-    return { success: true, moved: moved.length };
-  } catch (error: unknown) {
-    for (const item of [...moved].reverse()) {
-      try {
-        if (fs.existsSync(item.to) && !fs.existsSync(item.from)) {
-          moveFileAcrossDevices(item.to, item.from);
-        }
-      } catch (rollbackError) {
-        console.error("[FolderService] Error rolling back merged move:", rollbackError);
-      }
-    }
-
-    return { success: false, error: bookMoveError("Erro ao mover livro mesclado", error) };
-  }
-}
-
-export function mergeBooksIntoManagedFolder(
-  fileHashes: string[],
-  parentPath: string | null = null,
-): FolderBooksResult {
-  const docs = collectDocumentsForHashes(fileHashes);
-  if (docs.length < 2) {
-    return { success: false, error: "Selecione pelo menos dois livros" };
-  }
-
-  let targetDir: string | null = null;
-
-  try {
-    targetDir = createPrefixedFolder("_", getCanonicalFolderTitle(docs), parentPath);
-    const moveResult = moveDocumentsToFolder(docs, targetDir);
-    if (!moveResult.success) {
-      fs.rmSync(targetDir, { recursive: true, force: true });
-      return moveResult;
-    }
-
-    const movedHashes = docs.map((doc) => doc.fileHash);
-    const mergeResult = mergeDocuments(movedHashes, `folder-${Date.now()}`);
-    if (mergeResult.success) {
-      for (const doc of mergeResult.documents) {
-        updateDocumentBookId(doc.fileHash, null);
-      }
-    } else {
-      for (const doc of docs) {
-        updateDocumentBookId(doc.fileHash, null);
-      }
-    }
-
-    return {
-      success: true,
-      folderPath: path.relative(LIBRARY_PATH(), targetDir),
-      fullPath: targetDir,
-      moved: moveResult.moved,
-      mergedCount: docs.length,
-    };
-  } catch (error: unknown) {
-    if (targetDir && fs.existsSync(targetDir) && fs.readdirSync(targetDir).length === 0) {
-      fs.rmSync(targetDir, { recursive: true, force: true });
-    }
-    return { success: false, error: bookMoveError("Erro ao mesclar livros", error) };
-  }
-}
-
-export function createManagedCollection(
-  name: string,
-  fileHashes: string[],
-  parentPath: string | null = null,
-): FolderBooksResult {
-  const docs = collectDocumentsForHashes(fileHashes);
-  let targetDir: string | null = null;
-
-  try {
-    targetDir = createPrefixedFolder("__", name, parentPath);
-
-    if (docs.length > 0) {
-      const moveResult = moveDocumentsToFolder(docs, targetDir);
-      if (!moveResult.success) {
-        fs.rmSync(targetDir, { recursive: true, force: true });
-        return moveResult;
-      }
-    }
-
-    return {
-      success: true,
-      folderPath: path.relative(LIBRARY_PATH(), targetDir),
-      fullPath: targetDir,
-      moved: docs.length,
-    };
-  } catch (error: unknown) {
-    if (targetDir && fs.existsSync(targetDir) && fs.readdirSync(targetDir).length === 0) {
-      fs.rmSync(targetDir, { recursive: true, force: true });
-    }
-    return { success: false, error: folderOperationError("Erro ao criar colecao", error) };
-  }
 }
 
 export function listManagedWatchFolders() {

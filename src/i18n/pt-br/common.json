@@ -120,5 +120,13 @@
     "unknownError": "Erro desconhecido",
     "openLibrarySearchFailed": "Falha ao buscar no Open Library",
     "userNotFound": "Usuário não encontrado"
+  },
+  "errorBoundary": {
+    "title": "Algo deu errado",
+    "appBody": "O Lyceum encontrou um erro inesperado. O erro foi registrado nos logs. Recarregar costuma resolver.",
+    "pageBody": "Esta tela encontrou um erro e foi interrompida; o resto do app continua funcionando. O erro foi registrado nos logs.",
+    "retry": "Tentar de novo",
+    "reload": "Recarregar",
+    "openLogs": "Abrir logs"
   }
 }

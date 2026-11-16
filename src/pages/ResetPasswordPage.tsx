@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
       await updateAccountPassword(password);
       toast.success(t("auth:resetPassword.success"));
       navigate("/signin", { replace: true });
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || t("auth:resetPassword.error"));
     } finally {
       setLoading(false);

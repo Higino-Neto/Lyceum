@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { DocumentTab } from "../../types/DocumentTab";
 import { useTranslation } from "react-i18next";
 import { springFast } from "../../utils/motionPresets";
+import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 
 interface BaseTabProps {
   tab: DocumentTab;
@@ -34,8 +35,8 @@ function TabVisual({
   onClose?: () => void;
   onDetach?: () => void;
   dragStyle?: CSSProperties;
-  dragAttributes?: Record<string, any>;
-  dragListeners?: Record<string, any>;
+  dragAttributes?: DraggableAttributes;
+  dragListeners?: DraggableSyntheticListeners;
   isDragging?: boolean;
 }) {
   const { t } = useTranslation();

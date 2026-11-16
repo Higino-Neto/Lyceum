@@ -19,6 +19,7 @@ import {
   getCategoryRepository,
   getDocumentMetadataRepository,
   getDocumentByHash,
+  mergeDocuments,
   getLastDocument,
   getDocumentsForBackup,
   initDatabase,
@@ -103,6 +104,9 @@ import { createSqliteLanguageLearningRepository } from "./infrastructure/sqlite-
 import { createLanguageLearningService, translateWithMyMemory } from "./services/language-learning-service";
 import { createLearningBackupService, isLearningBackup, type LearningBackupService } from "./services/language-learning-backup";
 import { registerPlatformHandlers } from "./handlers/platform.handler";
+import { installProcessErrorLogging, registerDiagnosticsHandlers } from "./handlers/diagnostics.handler";
+import { createAppLogger } from "./services/app-logger";
+import { filePathString, nonEmptyString, safePathSegment } from "./ipc/validation";
 import { registerWindowHandlers } from "./handlers/windows.handler";
 import { registerFileDialogHandlers } from "./handlers/file-dialogs.handler";
 
@@ -2865,8 +2869,9 @@ ipcMain.handle("usb:scan-books", async () => {
   return listUsbBooks();
 });
 
-ipcMain.handle("usb:open-book", async (_, filePath: string) => {
+ipcMain.handle("usb:open-book", async (_, rawPath: unknown) => {
   try {
+    const filePath = filePathString(rawPath, "filePath");
     const localPath = filePath.startsWith("::")
       ? await copyWindowsMtpBookToTemp(filePath)
       : filePath;
@@ -3068,12 +3073,15 @@ ipcMain.handle("reading:get", (_, fileHash) => {
   return getDocumentByHash(fileHash);
 });
 
-ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: ArrayBuffer, fileHash: string) => {
-  const tempDir = app.getPath("temp");
-  const tempFilePath = path.join(tempDir, `${fileHash}.pdf`);
-  
+ipcMain.handle("temp:get-pdf-file", async (_, fileBuffer: unknown, rawHash: unknown) => {
   try {
-    await fs.promises.writeFile(tempFilePath, Buffer.from(fileBuffer));
+    if (!(fileBuffer instanceof ArrayBuffer) && !ArrayBuffer.isView(fileBuffer)) return null;
+    // The hash becomes a file name: keep it to one safe segment inside temp.
+    const tempFilePath = path.join(app.getPath("temp"), `${safePathSegment(rawHash, "fileHash")}.pdf`);
+    await fs.promises.writeFile(
+      tempFilePath,
+      fileBuffer instanceof ArrayBuffer ? Buffer.from(fileBuffer) : Buffer.from(fileBuffer.buffer, fileBuffer.byteOffset, fileBuffer.byteLength),
+    );
     return tempFilePath;
   } catch (error) {
     console.error("[temp:get-pdf-file] Error:", error);
@@ -3203,6 +3211,20 @@ function shouldUseChromiumPdf(sourceFormat: BookFormat, targetFormat: BookFormat
   return targetFormat === "pdf" && (["epub", "html", "txt"] as BookFormat[]).includes(sourceFormat);
 }
 
+/**
+ * A converted file is another format of the book it came from: attach it to
+ * that book so the library shows one book with every format instead of a
+ * loose duplicate. Outputs already grouped elsewhere are left alone.
+ */
+function attachConversionOutput(
+  source: { fileHash: string; bookId?: string | null },
+  outputHash: string,
+) {
+  const output = getDocumentByHash(outputHash);
+  if (!output || output.fileHash === source.fileHash || output.bookId) return;
+  mergeDocuments([source.fileHash, outputHash], source.bookId || `local-${crypto.randomUUID()}`);
+}
+
 async function runGenericDocumentConversion(
   fileHash: string,
   targetFormat: BookFormat,
@@ -3279,6 +3301,8 @@ async function runGenericDocumentConversion(
         doc.isSynced ? 1 : 0,
       );
     }
+
+    attachConversionOutput(doc, outputHash);
 
     win?.webContents.send("library:updated");
     knownConversionOutputs.set(path.resolve(outputPath), outputHash);
@@ -3531,8 +3555,10 @@ ipcMain.handle("conversion:cancel", (_, jobId: string) => {
   return { success: true, active: Boolean(controller) };
 });
 
-ipcMain.handle("conversion:delete-output", async (_, outputPath: string, outputHash: string) => {
+ipcMain.handle("conversion:delete-output", async (_, rawOutputPath: unknown, rawOutputHash: unknown) => {
   try {
+    const outputPath = filePathString(rawOutputPath, "outputPath");
+    const outputHash = nonEmptyString(rawOutputHash, "outputHash");
     const resolvedPath = path.resolve(outputPath);
     if (knownConversionOutputs.get(resolvedPath) !== outputHash) {
       return { success: false, error: "O arquivo nao pertence a uma conversao desta sessao" };
@@ -3599,6 +3625,8 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
       );
     }
 
+    attachConversionOutput(doc, epubHash);
+
     win?.webContents.send("library:updated");
 
     return {
@@ -3661,6 +3689,8 @@ ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
       );
     }
 
+    attachConversionOutput(doc, pdfHash);
+
     win?.webContents.send("library:updated");
 
     return {
@@ -3678,12 +3708,27 @@ ipcMain.handle("epub:convert-to-pdf", async (_, fileHash: string) => {
   }
 });
 
-ipcMain.handle("read-image-data-url", async (_, filePath: string) => {
+const IMAGE_DATA_URL_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".avif": "image/avif",
+};
+const MAX_IMAGE_DATA_URL_BYTES = 25 * 1024 * 1024;
+
+ipcMain.handle("read-image-data-url", async (_, rawPath: unknown) => {
   try {
+    // Only images: this handler must not be a way to read arbitrary files.
+    const filePath = filePathString(rawPath, "filePath");
+    const mimeType = IMAGE_DATA_URL_TYPES[path.extname(filePath).toLowerCase()];
+    if (!mimeType) return { success: false, error: "Unsupported image type" };
+    const stats = await fs.promises.stat(filePath);
+    if (!stats.isFile() || stats.size > MAX_IMAGE_DATA_URL_BYTES) return { success: false, error: "Invalid image file" };
     const buffer = await fs.promises.readFile(filePath);
     if (!buffer || buffer.length === 0) return { success: false, error: "Empty file" };
-    const ext = path.extname(filePath).toLowerCase();
-    const mimeType = ext === ".png" ? "image/png" : ext === ".gif" ? "image/gif" : "image/jpeg";
     return { success: true, data: `data:${mimeType};base64,${buffer.toString("base64")}` };
   } catch (error) {
     return { success: false, error: String(error) };
@@ -3938,6 +3983,12 @@ protocol.registerSchemesAsPrivileged([
   { scheme: "pdf-resource", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
+// File log for errors and warnings (userData/logs/lyceum.log, rotated), so
+// failures on a user's machine leave a trace that "Abrir logs" can show.
+const appLogger = createAppLogger(path.join(app.getPath("userData"), "logs"));
+appLogger.captureConsole();
+installProcessErrorLogging(app, appLogger);
+
 app.on("child-process-gone", (_, details) => {
   const level = details.reason === "clean-exit" ? "info" : "warn";
   console[level]("[Main] Electron child process exited", {
@@ -4125,9 +4176,25 @@ app.whenReady().then(async () => {
     emitProgress: (payload) => win?.webContents.send("language-learning:progress", payload),
   });
   const languageLearningRepository = createSqliteLanguageLearningRepository(database);
+  // Extra backup folder chosen by the user (a synced/cloud or external folder),
+  // persisted next to the backups so it survives app restarts.
+  const learningBackupSettingsPath = path.join(app.getPath("userData"), "language-learning", "backup-settings.json");
+  const readLearningMirror = (): string | null => {
+    try {
+      const value = JSON.parse(fs.readFileSync(learningBackupSettingsPath, "utf8"))?.mirrorDirectory;
+      return typeof value === "string" && value.trim() ? value : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeLearningMirror = (mirrorDirectory: string | null) => {
+    fs.mkdirSync(path.dirname(learningBackupSettingsPath), { recursive: true });
+    fs.writeFileSync(learningBackupSettingsPath, JSON.stringify({ mirrorDirectory }, null, 2), "utf8");
+  };
   const learningBackups = createLearningBackupService({
     repository: languageLearningRepository,
     directory: path.join(app.getPath("userData"), "language-learning", "backups"),
+    mirrorDirectory: readLearningMirror,
   });
   languageLearningBackups = learningBackups;
   registerLanguageLearningHandlers(ipcMain, {
@@ -4165,9 +4232,29 @@ app.whenReady().then(async () => {
         await fs.promises.mkdir(directory, { recursive: true });
         await electron.shell.openPath(directory);
       },
+      status: (userId) => learningBackups.status(userId),
+      async chooseMirror(userId) {
+        const options = {
+          title: "Pasta extra para o backup do vocabulário",
+          properties: ["openDirectory" as const, "createDirectory" as const],
+          defaultPath: readLearningMirror() || app.getPath("documents"),
+        };
+        const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+        const folder = result.filePaths[0];
+        if (result.canceled || !folder) return null;
+        writeLearningMirror(folder);
+        // Copy right away so the new folder is never empty.
+        learningBackups.writeBackup(userId);
+        return learningBackups.status(userId);
+      },
+      clearMirror(userId) {
+        writeLearningMirror(null);
+        return learningBackups.status(userId);
+      },
     },
   });
   registerPlatformHandlers(ipcMain);
+  registerDiagnosticsHandlers(ipcMain, appLogger);
 
   // Keep native window backgrounds aligned when the OS theme changes while a
   // window is open. The renderer owns explicit light/dark preferences.

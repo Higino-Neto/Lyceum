@@ -31,6 +31,7 @@ import BookCard from "./BookCard";
 import BookListItem from "./BookListItem";
 import BookListHeader from "./BookListHeader";
 import FolderListItem from "./FolderListItem";
+import { getSelectedFilesKey } from "./bookFiles";
 import { thumbnailCache } from "./thumbnailCache";
 import { useTranslation } from "../../../../i18n";
 import { useLocalStorage } from "../../../../hooks/useLocalStorage";
@@ -67,6 +68,8 @@ interface BookGridProps {
   selectedCount?: number;
   onToggleSelection?: (book: BookWithThumbnail) => void;
   onContextSelect?: (book: BookWithThumbnail) => void;
+  /** Toggles a single file of a merged book in the selection. */
+  onToggleFile?: (file: BookWithThumbnail) => void;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -79,7 +82,6 @@ interface BookGridProps {
   onImportBook?: (targetFolder: string | null) => void;
   onRenameFolder?: (folder: FolderInfo) => void;
   onDeleteFolder?: (folder: FolderInfo) => void;
-  onDissolveFolder?: (folder: FolderInfo) => void;
   isFolderReadOnly?: (folder: FolderInfo) => boolean;
   onMoveBook?: (
     fileHash: string,
@@ -92,7 +94,6 @@ interface BookGridProps {
   onDropBooksOnBook?: (
     targetBook: BookWithThumbnail,
     sourceFileHashes: string[],
-    action: "merge" | "collection",
   ) => void | Promise<void>;
 }
 
@@ -171,6 +172,7 @@ export default function BookGrid({
   selectedCount = 0,
   onToggleSelection,
   onContextSelect,
+  onToggleFile,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
@@ -183,7 +185,6 @@ export default function BookGrid({
   onImportBook,
   onRenameFolder,
   onDeleteFolder,
-  onDissolveFolder,
   isFolderReadOnly,
   onMoveBook,
   onMoveBooks,
@@ -626,10 +627,6 @@ export default function BookGrid({
         closeContextMenu();
         onDeleteFolder?.(folder);
       }}
-      onDissolveFolder={onDissolveFolder ? (folder) => {
-        closeContextMenu();
-        onDissolveFolder(folder);
-      } : undefined}
     />
   ) : null;
 
@@ -639,19 +636,7 @@ export default function BookGrid({
       y={dropMenu.y}
       onClose={() => setDropMenu(null)}
       onMerge={() => {
-        void onDropBooksOnBook?.(
-          dropMenu.targetBook,
-          dropMenu.sourceFileHashes,
-          "merge",
-        );
-        setDropMenu(null);
-      }}
-      onCreateCollection={() => {
-        void onDropBooksOnBook?.(
-          dropMenu.targetBook,
-          dropMenu.sourceFileHashes,
-          "collection",
-        );
+        void onDropBooksOnBook?.(dropMenu.targetBook, dropMenu.sourceFileHashes);
         setDropMenu(null);
       }}
     />
@@ -725,10 +710,11 @@ export default function BookGrid({
                       onDragMove={onDragMove}
                       onDragEnd={onDragEnd}
                       selectionMode={selectionMode}
-                      isChecked={selectedHashes.has(book.fileHash)}
+                      selectedFilesKey={getSelectedFilesKey(book, selectedHashes)}
                       selectedCount={selectedCount}
                       onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                       onContextSelect={onContextSelect ? handleContextSelect : undefined}
+                    onToggleFile={onToggleFile}
                       canDropOnBook={canDropOnBook}
                       onDropOnBook={openDropMenu}
                     />
@@ -788,10 +774,11 @@ export default function BookGrid({
                     onDragMove={onDragMove}
                     onDragEnd={onDragEnd}
                     selectionMode={selectionMode}
-                    isChecked={selectedHashes.has(book.fileHash)}
+                    selectedFilesKey={getSelectedFilesKey(book, selectedHashes)}
                     selectedCount={selectedCount}
                     onToggleSelection={onToggleSelection ? handleToggleSelection : undefined}
                     onContextSelect={onContextSelect ? handleContextSelect : undefined}
+                    onToggleFile={onToggleFile}
                     canDropOnBook={canDropOnBook}
                     onDropOnBook={openDropMenu}
                     columns={listColumns}

@@ -22,7 +22,6 @@ export interface FolderTreeProps {
   draggingBookHash?: string | null;
   draggingBookHashes?: string[];
   onImportBook?: (targetFolder: string | null) => Promise<void>;
-  onDissolveFolder?: (folder: FolderInfo) => void;
   visibleStatuses?: ReadingStatus[];
   onToggleStatus?: (status: ReadingStatus) => void;
 }

@@ -120,5 +120,13 @@
     "unknownError": "Unknown error",
     "openLibrarySearchFailed": "Failed to search Open Library",
     "userNotFound": "User not found"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "appBody": "Lyceum hit an unexpected error. It was written to the logs. Reloading usually fixes it.",
+    "pageBody": "This screen hit an error and stopped; the rest of the app keeps working. The error was written to the logs.",
+    "retry": "Try again",
+    "reload": "Reload",
+    "openLogs": "Open logs"
   }
 }

@@ -40,12 +40,12 @@ export function normalizeDuplicateTitle(title: string, fileType?: string | null)
   const withoutExtension = getTitleWithoutExtension(title || "", fileType ?? undefined);
   const mainTitle = withoutExtension
     .replace(/[([{][^)\]}]*[)\]}]/g, " ")
-    .split(/\s[:–—]\s|:\s|\s-\s/)[0];
+    .split(/\s[:–—]\s|:\s|\s-\s/)[0] ?? "";
   const tokens = normalizeText(mainTitle)
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((token) => token && !NOISE_TOKENS.has(token));
-  while (tokens.length > 1 && LEADING_ARTICLES.has(tokens[0])) tokens.shift();
+  while (tokens.length > 1 && LEADING_ARTICLES.has(tokens[0] ?? "")) tokens.shift();
   return tokens.join(" ");
 }
 
@@ -116,10 +116,11 @@ class UnionFind {
 
   find(index: number): number {
     let root = index;
-    while (this.parent[root] !== root) root = this.parent[root];
+    // parent[] holds a valid index for every element: lookups always hit.
+    while (this.parent[root] !== root) root = this.parent[root]!;
     let cursor = index;
     while (this.parent[cursor] !== root) {
-      const next = this.parent[cursor];
+      const next = this.parent[cursor]!;
       this.parent[cursor] = root;
       cursor = next;
     }
@@ -151,6 +152,7 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
   const link = (left: number, right: number, reason: DuplicateReason) => {
     const leftBook = books[left];
     const rightBook = books[right];
+    if (!leftBook || !rightBook) return;
     // Files already merged as formats of one book are not duplicates of each other.
     if (leftBook.bookId && leftBook.bookId === rightBook.bookId) return;
     unions.union(left, right);
@@ -166,24 +168,27 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
   books.forEach((book, index) => {
     const isbn = isbnOf(book);
     if (isbn) byIsbn.set(isbn, [...(byIsbn.get(isbn) || []), index]);
-    const title = normalizedTitles[index];
+    const title = normalizedTitles[index] ?? "";
     if (title.length >= 2) byTitle.set(title, [...(byTitle.get(title) || []), index]);
   });
 
   for (const indexes of byIsbn.values()) {
-    for (let index = 1; index < indexes.length; index += 1) link(indexes[0], indexes[index], "isbn");
+    for (let index = 1; index < indexes.length; index += 1) link(indexes[0]!, indexes[index]!, "isbn");
   }
 
   for (const indexes of byTitle.values()) {
     for (let left = 0; left < indexes.length; left += 1) {
       for (let right = left + 1; right < indexes.length; right += 1) {
-        const leftBook = books[indexes[left]];
-        const rightBook = books[indexes[right]];
+        const leftIndex = indexes[left]!;
+        const rightIndex = indexes[right]!;
+        const leftBook = books[leftIndex];
+        const rightBook = books[rightIndex];
+        if (!leftBook || !rightBook) continue;
         const leftIsbn = isbnOf(leftBook);
         const rightIsbn = isbnOf(rightBook);
         // Two different ISBNs mean two editions: keep them apart.
         if (leftIsbn && rightIsbn && leftIsbn !== rightIsbn) continue;
-        if (authorsCompatible(leftBook.author, rightBook.author)) link(indexes[left], indexes[right], "sameTitle");
+        if (authorsCompatible(leftBook.author, rightBook.author)) link(leftIndex, rightIndex, "sameTitle");
       }
     }
   }
@@ -191,7 +196,7 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
   // Fuzzy pass, blocked by the first title word to stay near-linear on big libraries.
   const blocks = new Map<string, string[]>();
   for (const title of byTitle.keys()) {
-    const firstWord = title.split(" ")[0];
+    const firstWord = title.split(" ")[0] ?? "";
     if (firstWord.length < 3) continue;
     blocks.set(firstWord, [...(blocks.get(firstWord) || []), title]);
   }
@@ -199,8 +204,8 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
     if (titles.length < 2 || titles.length > MAX_FUZZY_BLOCK) continue;
     for (let left = 0; left < titles.length; left += 1) {
       for (let right = left + 1; right < titles.length; right += 1) {
-        const leftTitle = titles[left];
-        const rightTitle = titles[right];
+        const leftTitle = titles[left]!;
+        const rightTitle = titles[right]!;
         if (Math.min(leftTitle.length, rightTitle.length) < 6) continue;
         if (titleSimilarity(leftTitle, rightTitle) < FUZZY_THRESHOLD) continue;
         for (const leftIndex of byTitle.get(leftTitle)!) {
@@ -208,7 +213,7 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
             const leftBook = books[leftIndex];
             const rightBook = books[rightIndex];
             // A fuzzy match needs positive author evidence, not just "unknown".
-            if (!leftBook.author || !rightBook.author) continue;
+            if (!leftBook?.author || !rightBook?.author) continue;
             const leftIsbn = isbnOf(leftBook);
             const rightIsbn = isbnOf(rightBook);
             if (leftIsbn && rightIsbn && leftIsbn !== rightIsbn) continue;
@@ -228,7 +233,7 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
   const groups: DuplicateGroup<T>[] = [];
   for (const indexes of grouped.values()) {
     if (indexes.length < 2) continue;
-    const members = indexes.map((index) => books[index]);
+    const members = indexes.map((index) => books[index]).filter((book): book is T => Boolean(book));
     const distinctBooks = new Set(members.map((book) => book.bookId || book.fileHash));
     if (distinctBooks.size < 2) continue;
     const key = duplicateGroupKey(members);
@@ -236,7 +241,7 @@ export function findDuplicateGroups<T extends DuplicateCandidate>(
     const groupReasons = new Set<DuplicateReason>();
     for (let left = 0; left < members.length; left += 1) {
       for (let right = left + 1; right < members.length; right += 1) {
-        const pair = reasons.get([members[left].fileHash, members[right].fileHash].sort().join("|"));
+        const pair = reasons.get([members[left]!.fileHash, members[right]!.fileHash].sort().join("|"));
         pair?.forEach((reason) => groupReasons.add(reason));
       }
     }

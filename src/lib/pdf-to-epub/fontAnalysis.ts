@@ -169,7 +169,7 @@ export function classifyTokenStyle(token: Token, profile: FontProfile): StyleCla
     };
   }
 
-  let boldConfidence = group.boldCandidate ? Math.max(0.5, group.widthConfidence) : 0;
+  const boldConfidence = group.boldCandidate ? Math.max(0.5, group.widthConfidence) : 0;
   let italicConfidence = group.italicCandidate ? Math.max(0.5, group.skewConfidence) : 0;
 
   if (token.rawTransform) {

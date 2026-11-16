@@ -157,7 +157,7 @@ export async function getEpubChapterCount(
   try {
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
-    const htmlEntries = entries.filter((entry: any) => {
+    const htmlEntries = entries.filter((entry) => {
       const name = entry.entryName.toLowerCase();
       return name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm");
     });
@@ -204,7 +204,7 @@ export async function extractEpubMetadata(
     const zip = new AdmZip(filePath);
     const entries = zip.getEntries();
 
-    const containerEntry = entries.find((entry: any) => entry.entryName === "META-INF/container.xml");
+    const containerEntry = entries.find((entry) => entry.entryName === "META-INF/container.xml");
     if (!containerEntry) return null;
 
     const containerXml = containerEntry.getData().toString("utf8");
@@ -212,7 +212,7 @@ export async function extractEpubMetadata(
     if (!rootFileMatch) return null;
 
     const opfPath = rootFileMatch[1];
-    const opfEntry = entries.find((entry: any) => entry.entryName === opfPath || entry.entryName.endsWith(".opf"));
+    const opfEntry = entries.find((entry) => entry.entryName === opfPath || entry.entryName.endsWith(".opf"));
     if (!opfEntry) return null;
 
     const opfXml = opfEntry.getData().toString("utf8");
@@ -493,12 +493,12 @@ async function generateEpubThumbnail(
     const entries = zip.getEntries();
 
     const getEntry = (entryPath: string) =>
-      entries.find((entry: any) => entry.entryName === entryPath);
+      entries.find((entry) => entry.entryName === entryPath);
     const normalizeZipPath = (entryPath: string) => entryPath.replace(/\\/g, "/");
     const joinZipPath = (basePath: string, relativePath: string) =>
       normalizeZipPath(path.posix.normalize(path.posix.join(basePath, relativePath)));
 
-    let coverImage: any = null;
+    let coverImage: ReturnType<AdmZip["getEntries"]>[number] | null | undefined = null;
 
     const containerEntry = getEntry("META-INF/container.xml");
     if (containerEntry) {
@@ -537,7 +537,7 @@ async function generateEpubThumbnail(
 
     const coverNames = ["cover.jpg", "cover.jpeg", "cover.png", "cover.webp"];
     for (const name of coverNames) {
-      const found = entries.find((entry: any) =>
+      const found = entries.find((entry) =>
         entry.entryName.toLowerCase().endsWith(name),
       );
       if (found) {
@@ -547,7 +547,7 @@ async function generateEpubThumbnail(
     }
 
     if (!coverImage) {
-      const imageEntries = entries.filter((entry: any) => {
+      const imageEntries = entries.filter((entry) => {
         const name = entry.entryName.toLowerCase();
         return THUMBNAIL_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
           (name.includes("cover") || name.includes("front"));
@@ -558,7 +558,7 @@ async function generateEpubThumbnail(
     }
 
     if (!coverImage) {
-      const anyImage = entries.find((entry: any) => {
+      const anyImage = entries.find((entry) => {
         const name = entry.entryName.toLowerCase();
         return THUMBNAIL_EXTENSIONS.some((ext) => name.endsWith(ext));
       });

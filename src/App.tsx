@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
 import AddReadingPage from "./pages/AddReadingPage";
@@ -520,97 +521,99 @@ function AppShell() {
               className="flex-1 overflow-y-auto"
               onMouseEnter={() => settings.autoHideEnabled && hidePanels(250)}
             >
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute
-                      isLoggedIn={isLoggedIn}
-                      children={<Dashboard />}
-                    />
-                  }
-                />
+              <ErrorBoundary variant="page" resetKey={location.pathname}>
+                <Routes>
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute
+                        isLoggedIn={isLoggedIn}
+                        children={<Dashboard />}
+                      />
+                    }
+                  />
 
-                <Route
-                  path="/add_reading"
-                  element={
-                    <ProtectedRoute
-                      isLoggedIn={isLoggedIn}
-                      children={<AddReadingPage />}
-                    />
-                  }
-                />
+                  <Route
+                    path="/add_reading"
+                    element={
+                      <ProtectedRoute
+                        isLoggedIn={isLoggedIn}
+                        children={<AddReadingPage />}
+                      />
+                    }
+                  />
 
-                <Route
-                  path="/reading"
-                  // element={
-                  //   <ProtectedRoute
-                  //     isLoggedIn={isLoggedIn}
-                  //     children={<ReadingPage />}
-                  //   />
-                  // }
-                element={<ReadingPage />}
-                />
+                  <Route
+                    path="/reading"
+                    // element={
+                    //   <ProtectedRoute
+                    //     isLoggedIn={isLoggedIn}
+                    //     children={<ReadingPage />}
+                    //   />
+                    // }
+                  element={<ReadingPage />}
+                  />
 
-                <Route
-                  path="/library"
-                  // element={
-                  //   <ProtectedRoute
-                  //     isLoggedIn={isLoggedIn}
-                  //     children={<Library />}
-                  //   />
-                  // }
-                  element={<Library />}
-                />
+                  <Route
+                    path="/library"
+                    // element={
+                    //   <ProtectedRoute
+                    //     isLoggedIn={isLoggedIn}
+                    //     children={<Library />}
+                    //   />
+                    // }
+                    element={<Library />}
+                  />
 
-                <Route
-                  path="/atlas"
-                  element={
-                    <ProtectedRoute
-                      isLoggedIn={isLoggedIn}
-                      children={<AtlasPage />}
-                    />
-                  }
-                />
+                  <Route
+                    path="/atlas"
+                    element={
+                      <ProtectedRoute
+                        isLoggedIn={isLoggedIn}
+                        children={<AtlasPage />}
+                      />
+                    }
+                  />
 
-                <Route
-                  path="/conversion"
-                  // element={
-                  //   <ProtectedRoute
-                  //     isLoggedIn={isLoggedIn}
-                  //     children={<Dashboard />}
-                  //   />
-                  // }
-                  element={<Dashboard />}
-                />
+                  <Route
+                    path="/conversion"
+                    // element={
+                    //   <ProtectedRoute
+                    //     isLoggedIn={isLoggedIn}
+                    //     children={<Dashboard />}
+                    //   />
+                    // }
+                    element={<Dashboard />}
+                  />
 
-                <Route
-                  path="/pdf-builder"
-                  element={
-                    settings.betaConversionEnabled
-                      ? <PdfBuilderPage />
-                      : <Navigate to="/" replace />
-                  }
-                />
+                  <Route
+                    path="/pdf-builder"
+                    element={
+                      settings.betaConversionEnabled
+                        ? <PdfBuilderPage />
+                        : <Navigate to="/" replace />
+                    }
+                  />
 
-                <Route
-                  path="/habit_tracker"
-                  element={
-                    <ProtectedRoute
-                      isLoggedIn={isLoggedIn}
-                      children={<HabitTrackerPage />}
-                    />
-                  }
-                />
+                  <Route
+                    path="/habit_tracker"
+                    element={
+                      <ProtectedRoute
+                        isLoggedIn={isLoggedIn}
+                        children={<HabitTrackerPage />}
+                      />
+                    }
+                  />
 
-                <Route path="/signin" element={<SignIn />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route
-                  path="/forgot-password"
-                  element={<ForgotPasswordPage />}
-                />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-              </Routes>
+                  <Route path="/signin" element={<SignIn />} />
+                  <Route path="/signup" element={<SignUp />} />
+                  <Route
+                    path="/forgot-password"
+                    element={<ForgotPasswordPage />}
+                  />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                </Routes>
+              </ErrorBoundary>
             </main>
             {/* {showAppNavigation && ( */}
               {/* <> */}

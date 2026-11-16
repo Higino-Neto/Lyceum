@@ -125,7 +125,8 @@ export function moveListColumn(state: ListColumnsState, id: ListColumnId, direct
   const target = index + direction;
   if (index <= 0 || target <= 0 || target >= state.order.length) return state;
   const order = [...state.order];
-  [order[index], order[target]] = [order[target], order[index]];
+  // Both indexes are in range (checked above).
+  [order[index], order[target]] = [order[target]!, order[index]!];
   return { ...state, order };
 }
 

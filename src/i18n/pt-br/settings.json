@@ -3,7 +3,6 @@
   "selectTab": "Selecionar aba",
   "close": "Fechar",
   "closeLabel": "Fechar configurações",
-
   "tabs": {
     "general": {
       "label": "Geral",
@@ -58,13 +57,11 @@
       "description": "Ative ou desative recursos opcionais e módulos experimentais."
     }
   },
-
   "language": {
     "title": "Linguagem",
     "description": "Escolha o idioma do aplicativo",
     "label": "Idioma do aplicativo"
   },
-
   "general": {
     "interface": {
       "title": "Interface",
@@ -87,7 +84,6 @@
       "description": "O botão \"Leituras diárias\" copiará as leituras do dia anterior ao invés de hoje."
     }
   },
-
   "hotkeys": {
     "title": "Navegação por teclado",
     "description": "Esc foca a rota atual na sidebar; as setas percorrem e abrem as rotas. Os números abrem uma rota diretamente.",
@@ -101,7 +97,6 @@
     "resetAutomaticOrder": "Restaurar ordem automática",
     "automaticOrderNote": "Na ordem automática, ativar ou desativar rotas Beta reorganiza os números. Depois de uma alteração manual, sua configuração é preservada."
   },
-
   "backups": {
     "title": "Backup semanal",
     "description": "O Lyceum verifica uma vez por semana e envia somente os grupos selecionados. Abrir o app não dispara um novo backup se o período ainda não venceu.",
@@ -119,9 +114,27 @@
     "completedWithFailures_one": "Backup concluído com {{count}} falha",
     "completedWithFailures_other": "Backup concluído com {{count}} falhas",
     "completed": "Backup concluído",
-    "failed": "Falha ao executar backup"
+    "failed": "Falha ao executar backup",
+    "vocabulary": {
+      "title": "Vocabulário",
+      "description": "As palavras que você aprende são salvas automaticamente a cada mudança (último estado + uma cópia por dia, 30 dias). Escolha uma pasta extra — sincronizada na nuvem ou num disco externo — para que uma falha no computador não apague o seu vocabulário.",
+      "lastBackup": "Último backup: {{date}} · {{count}} cópias diárias",
+      "noBackupYet": "Ainda não há backup: ele é criado quando você marca a primeira palavra.",
+      "mirrorAt": "Cópia extra em {{path}}",
+      "mirrorUpdated": "atualizada em {{date}}",
+      "noMirror": "Sem pasta extra: os backups ficam só neste computador.",
+      "mirrorError": "A última cópia na pasta extra falhou: {{error}}",
+      "chooseMirror": "Escolher pasta extra",
+      "changeMirror": "Trocar pasta extra",
+      "removeMirror": "Remover pasta extra",
+      "openFolder": "Abrir pasta de backups",
+      "restore": "Restaurar de um arquivo",
+      "mirrorSaved": "Pasta extra definida; o vocabulário já foi copiado para ela",
+      "mirrorFailed": "Não foi possível usar essa pasta",
+      "restored": "{{count}} palavras restauradas",
+      "restoreFailed": "Não foi possível restaurar esse arquivo"
+    }
   },
-
   "library": {
     "folders": {
       "title": "Pastas",
@@ -138,7 +151,6 @@
       "toggleLabel": "Alternar exibição unificada"
     }
   },
-
   "updates": {
     "title": "Atualizações",
     "description": "Busque novas versões, acompanhe o download e instale sem fechar e abrir o Lyceum manualmente.",
@@ -168,7 +180,6 @@
     "downloadFailed": "Falha ao baixar atualização",
     "nothingToInstall": "Nenhuma atualização pronta para instalar"
   },
-
   "account": {
     "personal": {
       "title": "Informações pessoais",
@@ -210,7 +221,6 @@
       "updateFailed": "Erro ao atualizar usuário"
     }
   },
-
   "appearance": {
     "theme": {
       "title": "Tema",
@@ -250,7 +260,6 @@
       }
     }
   },
-
   "performance": {
     "title": "Efeitos visuais",
     "description": "Em computadores mais fracos, desfoque, sombras pesadas e animações podem deixar a interface lenta ou travar.",
@@ -260,7 +269,6 @@
       "toggleLabel": "Alternar redução de efeitos"
     }
   },
-
   "zoom": {
     "title": "Zoom",
     "description": "Ajuste o nível de zoom da interface.",
@@ -269,7 +277,6 @@
     "reset": "Resetar",
     "shortcutsHint": "Atalhos: Ctrl + / Ctrl - para ajustar o zoom. Ctrl 0 para resetar."
   },
-
   "dictionaries": {
     "search": "Buscar dicionários…",
     "from": "Idioma de origem",
@@ -297,7 +304,6 @@
       "removeFailed": "Erro ao remover dicionário"
     }
   },
-
   "beta": {
     "title": "Abas laterais em desenvolvimento",
     "description": "Ative ou desative individualmente as funcionalidades experimentais na barra lateral.",
@@ -334,5 +340,10 @@
       "description": "Mostrar a seção Continuar lendo na biblioteca.",
       "toggleLabel": "Alternar continuar lendo"
     }
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "description": "Erros e avisos do Lyceum ficam registrados num arquivo de log. Abra a pasta para enviar o log ao relatar um problema.",
+    "openLogs": "Abrir logs"
   }
 }

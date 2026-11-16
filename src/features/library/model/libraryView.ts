@@ -1,16 +1,13 @@
 import type {
   BookWithThumbnail,
-  FolderInfo,
   LibraryFileTypeFilter,
   LibrarySection,
   LibrarySortOption,
 } from "../../../types/LibraryTypes";
-import { classifyFolder, getTitleWithoutExtension } from "./folders";
+import { getTitleWithoutExtension } from "./folders";
 import { calculateSimilarity } from "./search";
 import { getActiveLocale, normalizeCase } from "../../../i18n";
-import { getEffectiveReadingStatus, getGroupReadingStatus } from "../../../lib/readingStatus";
-
-export type SpecialFolderType = "merged" | "collection";
+import { getGroupReadingStatus } from "../../../lib/readingStatus";
 
 export function isAbsoluteFolderPath(folderPath: string | null): boolean {
   return Boolean(
@@ -27,18 +24,6 @@ export function normalizeAbsoluteFolderPath(folderPath?: string | null): string 
   return (folderPath || "").replace(/\\/g, "/").replace(/\/+$/g, "").toLowerCase();
 }
 
-function stripSpecialFolderPrefix(name: string): string {
-  return name.replace(/^_+/, "") || name;
-}
-
-function getSyntheticFolderId(folderPath: string): number {
-  let hash = 0;
-  for (let index = 0; index < folderPath.length; index++) {
-    hash = ((hash << 5) - hash + folderPath.charCodeAt(index)) | 0;
-  }
-  return -Math.max(1, Math.abs(hash));
-}
-
 export function pickRepresentativeBook(books: BookWithThumbnail[]): BookWithThumbnail | undefined {
   return (
     books.find((book) => book.thumbnailPath && (book.fileType === "epub" || book.fileType === "pdf"))
@@ -47,73 +32,6 @@ export function pickRepresentativeBook(books: BookWithThumbnail[]): BookWithThum
     || books.find((book) => book.fileType === "epub")
     || books[0]
   );
-}
-
-export function buildSpecialFolderBook(
-  folder: FolderInfo,
-  documents: BookWithThumbnail[],
-  folderType: SpecialFolderType,
-): BookWithThumbnail {
-  const variants = Array.from(
-    new Map(documents.map((document) => [document.fileHash, document])).values(),
-  );
-  const representative = pickRepresentativeBook(variants);
-  const folderPath = folder.fullPath || folder.path;
-  const title = stripSpecialFolderPrefix(folder.name) || representative?.title || folder.name;
-
-  return {
-    ...(representative || {
-      filePath: folderPath,
-      currentPage: 0,
-      currentZoom: null,
-      currentScroll: null,
-      annotations: null,
-      thumbnailPath: null,
-      numPages: 0,
-      createdAt: new Date(0).toISOString(),
-      lastOpenedAt: new Date(0).toISOString(),
-      isSynced: 1,
-      category: null,
-      isFavorite: 0,
-      rating: 0,
-      notes: null,
-      author: null,
-      description: null,
-      isbn: null,
-      publisher: null,
-      publishDate: null,
-      fileSize: 0,
-      processingStatus: "completed" as const,
-      fileType: "lyceum" as const,
-    }),
-    id: getSyntheticFolderId(folderPath),
-    title,
-    fileHash: `${folderType}-folder:${normalizeAbsoluteFolderPath(folderPath)}`,
-    folderPath,
-    mergedBooks: variants,
-    syntheticFolderPath: folder.path,
-    syntheticFolderType: folderType,
-  };
-}
-
-export function collectSpecialFoldersForDisplay(
-  folders: FolderInfo[],
-  includeNested: boolean,
-): Array<{ folder: FolderInfo; type: SpecialFolderType }> {
-  const result: Array<{ folder: FolderInfo; type: SpecialFolderType }> = [];
-
-  const visit = (items: FolderInfo[]) => {
-    for (const folder of items) {
-      const folderType = classifyFolder(folder.name);
-      if (folderType === "merged" || folderType === "collection") {
-        result.push({ folder, type: folderType });
-      }
-      if (includeNested && folder.subfolders.length > 0) visit(folder.subfolders);
-    }
-  };
-
-  visit(folders);
-  return result;
 }
 
 function getBookSortTitle(book: BookWithThumbnail): string {
@@ -227,19 +145,12 @@ export function matchesLibraryFileTypes(
 }
 
 /** A book matches the reading-status filter with the same single status the
- * grid displays for it: merged groups use their group status, collections
- * (independent books under one folder) match when any contained book does. */
+ * grid displays for it (merged formats share one group status). */
 export function matchesLibraryReadingStatus(
   book: BookWithThumbnail,
   readingStatuses: string[] | null | undefined,
 ): boolean {
   if (!readingStatuses) return true;
-  if (book.syntheticFolderType === "collection") {
-    const candidates = book.mergedBooks?.length ? book.mergedBooks : [book];
-    return candidates.some(
-      (candidate) => readingStatuses.includes(getEffectiveReadingStatus(candidate)),
-    );
-  }
   return readingStatuses.includes(getGroupReadingStatus(book));
 }
 
@@ -270,9 +181,6 @@ export interface MergedBookCacheEntry {
 export interface DisplayBooksInput {
   section: LibrarySection;
   books: BookWithThumbnail[];
-  specialFolderBooks: BookWithThumbnail[];
-  specialFolderPaths: string[];
-  collapseSpecialFolders: boolean;
   search: string;
   fileTypes: LibraryFileTypeFilter[];
   readingStatuses?: string[] | null;
@@ -287,29 +195,10 @@ export function buildDisplayBooks(input: DisplayBooksInput): {
 } {
   if (input.section === "usb") return { books: input.books, cache: input.previousCache };
 
-  const filteredSpecialFolderBooks = input.section === "synced"
-    ? input.specialFolderBooks.filter((book) =>
-      matchesLibrarySearch(book, input.search)
-      && matchesLibraryFileTypes(book, input.fileTypes)
-      && matchesLibraryReadingStatus(book, input.readingStatuses))
-    : [];
-  const collapsedPaths = input.collapseSpecialFolders
-    ? input.specialFolderPaths.map(normalizeAbsoluteFolderPath)
-    : [];
-  const booksForDisplay = collapsedPaths.length === 0
-    ? input.books
-    : input.books.filter((book) => {
-      const folderPath = normalizeAbsoluteFolderPath(book.folderPath);
-      return !collapsedPaths.some((collapsedPath) =>
-        folderPath === collapsedPath || folderPath.startsWith(`${collapsedPath}/`));
-    });
-  const booksForGrouping = sortBooksForLibraryView(
-    [...booksForDisplay, ...filteredSpecialFolderBooks],
-    input.sort,
-  );
+  const booksForGrouping = sortBooksForLibraryView(input.books, input.sort);
   const grouped = new Map<string, BookWithThumbnail[]>();
   for (const book of booksForGrouping) {
-    const groupKey = book.syntheticFolderType ? book.fileHash : book.bookId || book.fileHash;
+    const groupKey = book.bookId || book.fileHash;
     const group = grouped.get(groupKey) || [];
     group.push(book);
     grouped.set(groupKey, group);
@@ -318,7 +207,7 @@ export function buildDisplayBooks(input: DisplayBooksInput): {
   const cache = new Map<string, MergedBookCacheEntry>();
   const books = Array.from(grouped, ([groupKey, group]) => {
     const representative = pickRepresentativeBook(group)!;
-    if (group.length <= 1 || representative.syntheticFolderType) return representative;
+    if (group.length <= 1) return representative;
 
     const signature = getMergedBookSignature(group);
     const cached = input.previousCache.get(groupKey);

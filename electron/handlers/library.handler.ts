@@ -47,8 +47,6 @@ import { registerPdfSource } from "../services/pdfSourceRegistry";
 import {
   addManagedSourceFolder,
   addManagedWatchFolder,
-  createManagedCollection,
-  dissolveManagedFolder,
   copyManagedBooks,
   createManagedFolder,
   deleteManagedFolder,
@@ -57,7 +55,6 @@ import {
   listManagedWatchFolders,
   moveManagedBook,
   moveManagedFolder,
-  moveMergedManagedBook,
   renameManagedFolder,
   removeManagedSourceFolder,
   removeManagedWatchFolder,
@@ -250,12 +247,6 @@ export function registerLibraryHandlers() {
     return result;
   });
 
-  ipcMain.handle("library:create-collection", async (_, name: string, fileHashes: string[] = [], parentPath: string | null = null) => {
-    const result = createManagedCollection(name, fileHashes, parentPath);
-    emitLibraryUpdated(result);
-    return result;
-  });
-
   ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
     const result = renameManagedFolder(oldPath, newName);
     emitLibraryUpdated(result);
@@ -265,13 +256,6 @@ export function registerLibraryHandlers() {
   ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
     const result = deleteManagedFolder(folderPath, force);
     emitLibraryUpdated(result);
-    return result;
-  });
-
-  ipcMain.handle("library:dissolve-folder", async (_, folderPath: string) => {
-    const result = await dissolveManagedFolder(folderPath);
-    emitLibraryUpdated(result);
-    if (!result.success) notifyFolderChanged();
     return result;
   });
 
@@ -289,12 +273,6 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:copy-books", async (_, fileHashes: string[], targetFolderPath: string | null) => {
     const result = await copyManagedBooks(fileHashes, targetFolderPath);
-    emitLibraryUpdated(result);
-    return result;
-  });
-
-  ipcMain.handle("library:move-merged-book", async (_, bookId: string, targetFolderPath: string | null) => {
-    const result = moveMergedManagedBook(bookId, targetFolderPath);
     emitLibraryUpdated(result);
     return result;
   });

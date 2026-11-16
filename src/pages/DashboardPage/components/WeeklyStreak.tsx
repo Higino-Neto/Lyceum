@@ -10,7 +10,6 @@ import {
   getWeekdayInitials,
   i18next,
   useTranslation,
-  type Translate,
 } from "../../../i18n";
 
 const ICON_SIZE = 16;
@@ -130,11 +129,6 @@ function getWeeklyPages(
   );
 }
 
-function getDeltaLabel(delta: number, t: Translate): string {
-  if (delta === 0) return t("dashboard:streak.tie");
-  const value = t("common:units.pageShort", { count: Math.abs(delta) });
-  return delta > 0 ? `+${value}` : `-${value}`;
-}
 
 function DayIcon({
   day,
@@ -298,8 +292,8 @@ function WeeklyStreakPanel({
   dailyGoal,
   todayStr,
   index,
-  comparisonDelta,
-  comparisonActive,
+  comparisonDelta: _comparisonDelta,
+  comparisonActive: _comparisonActive,
   winningDates,
   goalControls,
 }: {
@@ -345,13 +339,6 @@ function WeeklyStreakPanel({
   const currentStreak = computeCurrentStreak(person.readings, dailyGoal);
   const todayPages = weekDays[currentDayIndex]?.pagesRead ?? 0;
   const todayComplete = weekDays[currentDayIndex]?.goalComplete ?? false;
-  const deltaText = getDeltaLabel(comparisonDelta, t);
-  const deltaClass =
-    comparisonDelta > 0
-      ? "text-primary"
-      : comparisonDelta < 0
-        ? "text-destructive"
-        : "text-foreground-muted";
 
   return (
     <section className={index === 0 ? "space-y-12" : "space-y-3 border-t border-border pt-3"}>

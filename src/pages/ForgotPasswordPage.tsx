@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
       await requestPasswordReset(email);
       setSentTo(email.trim());
       toast.success(t("auth:forgotPassword.sent"));
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || t("auth:forgotPassword.error"));
     } finally {
       setLoading(false);

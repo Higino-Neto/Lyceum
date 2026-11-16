@@ -19,10 +19,8 @@ function createDisabledQueryResult(data: unknown = null) {
   return { data, error: missingConfigError };
 }
 
-function createDisabledQueryBuilder(): any {
-  let builder: any;
-
-  builder = new Proxy(
+function createDisabledQueryBuilder(): unknown {
+  const builder: unknown = new Proxy(
     {},
     {
       get(_target, property) {
