@@ -30,11 +30,7 @@ import {
   useTranslation,
 } from "../../../i18n";
 import { BookWithThumbnail, ReadingStatus } from "../../../types/LibraryTypes";
-import {
-  formatPageCount,
-  getBookFolderLabel,
-  getFileTypeLabel,
-} from "../utils";
+import { getFileTypeLabel } from "../utils";
 
 const getTitleWithoutExtension = (title: string, fileType?: string) => {
   if (fileType) {
@@ -261,7 +257,7 @@ export default function BookDetailPanel({
 
   useEffect(() => {
     if (selectedVariant.fileType === "epub") {
-      (window.api as any).getVocabularyStats(selectedVariant.fileHash).then(setVocabularyStats);
+      window.api.getVocabularyStats(selectedVariant.fileHash).then(setVocabularyStats);
     } else {
       setVocabularyStats(null);
     }
@@ -274,7 +270,7 @@ export default function BookDetailPanel({
     }
     setIsExtractingVocabulary(true);
     try {
-      const result = await (window.api as any).extractVocabulary(selectedVariant.fileHash);
+      const result = await window.api.extractVocabulary(selectedVariant.fileHash);
       if (result.success) {
         toast.success(
           t("library:detail.toasts.vocabularyExtracted", {

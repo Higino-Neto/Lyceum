@@ -246,7 +246,7 @@ export default function BookGrid({
   const hasFolders = folders.length > 0;
   const draggingBooks = draggingBookHashes.length > 0;
   const folderBookIndex = useBooksInFolder(books, folders);
-  const { gridColumns, gridColumnWidth, gridRowHeight, rowCount } = useMemo(() => {
+  const { gridColumns, gridRowHeight, rowCount } = useMemo(() => {
     const cols = Math.max(
       1,
       Math.floor((scrollWidth + density.gap) / (density.minWidth + density.gap)),
