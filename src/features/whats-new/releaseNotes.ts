@@ -24,13 +24,21 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "1.10.0",
-    date: "2026-11-16",
+    version: "1.9.2",
+    date: "2026-11-17",
     title: {
-      en: "Smarter library, cleaner settings",
-      "pt-BR": "Biblioteca mais inteligente, configurações mais limpas",
+      en: "Language learning on mobile, smarter library",
+      "pt-BR": "Aprendizado de idiomas no celular, biblioteca mais inteligente",
     },
     items: [
+      { kind: "new", text: { en: "Mobile: the language-learning reader comes to the phone for EPUB and TXT books, with tappable words, translation, offline dictionaries and vocabulary shared by language.", "pt-BR": "Celular: o leitor de aprendizado de idiomas chega ao celular para livros EPUB e TXT, com palavras tocáveis, tradução, dicionários offline e vocabulário por idioma." } },
+      { kind: "new", text: { en: "Mobile: double-tap marks a word as known, and the end of each chapter can mark the words you did not tap as known (with undo).", "pt-BR": "Celular: toque duplo marca a palavra como conhecida, e o fim de cada capítulo pode marcar como conhecidas as palavras que você não tocou (com desfazer)." } },
+      { kind: "new", text: { en: "Mobile: vocabulary is backed up automatically to Documents/Lyceum/Vocabulario and can be exported/imported in the same format as the desktop app.", "pt-BR": "Celular: o vocabulário é copiado automaticamente para Documentos/Lyceum/Vocabulario e pode ser exportado/importado no mesmo formato do app de computador." } },
+      { kind: "new", text: { en: "Mobile: \"Continue reading\" on the Today screen, even when signed out.", "pt-BR": "Celular: \"Continuar lendo\" na tela Hoje, mesmo sem conta conectada." } },
+      { kind: "improved", text: { en: "Mobile EPUB reader: swipe or tap the edges to turn pages, tap the center for controls, position slider and chapter jumps; scrolling flows across chapters.", "pt-BR": "Leitor EPUB no celular: deslize ou toque nas bordas para virar a página, toque no centro para os controles, barra de posição e salto de capítulos; a rolagem passa de um capítulo para o outro." } },
+      { kind: "improved", text: { en: "Mobile: books open faster and large PDFs no longer exhaust memory.", "pt-BR": "Celular: os livros abrem mais rápido e PDFs grandes não esgotam mais a memória." } },
+      { kind: "fixed", text: { en: "Mobile: the Android back gesture closes the open panel or reader instead of leaving the app (new APK).", "pt-BR": "Celular: o gesto de voltar do Android fecha o painel ou leitor aberto em vez de sair do app (novo APK)." } },
+      { kind: "fixed", text: { en: "Books whose metadata says \"fre\" or \"French\" are filed under the same language as \"fr\".", "pt-BR": "Livros cujos metadados dizem \"fre\" ou \"French\" são guardados no mesmo idioma que \"fr\"." } },
       { kind: "new", text: { en: "Global search (Ctrl+K): books, folders, pages, settings and actions, tolerant to accents and typos.", "pt-BR": "Pesquisa global (Ctrl+K): livros, pastas, páginas, configurações e ações, tolerante a acentos e erros de digitação." } },
       { kind: "new", text: { en: "This \"What's new\" dialog, with the history of every release.", "pt-BR": "Este diálogo de novidades, com o histórico de todas as versões." } },
       { kind: "new", text: { en: "Plugins tab in Settings to turn beta routes, the folder grid and Continue reading on or off.", "pt-BR": "Aba Plugins nas configurações para ligar ou desligar rotas beta, a grade de pastas e o Continuar lendo." } },
