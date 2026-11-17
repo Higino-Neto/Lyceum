@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { MobileLibraryState, MobileTab } from "./types";
-import { resolveMobileBookDataUrl } from "./bookFileStorage";
+import { resolveMobileBookUrl } from "./bookFileStorage";
 export function useMobileReaderState(state: MobileLibraryState, setState: React.Dispatch<React.SetStateAction<MobileLibraryState>>, setActiveTab: (tab: MobileTab) => void) {
   const [readerDataUrls, setReaderDataUrls] = useState<Record<string, string | undefined>>({});
   const [readerFileLoading, setReaderFileLoading] = useState(false);
@@ -28,7 +28,8 @@ export function useMobileReaderState(state: MobileLibraryState, setState: React.
     }
 
     setReaderFileLoading(Boolean(book.storagePath));
-    resolveMobileBookDataUrl(book)
+    // A small local URL (not the file contents), so cached entries cost nothing.
+    resolveMobileBookUrl(book)
       .then((dataUrl) => {
         if (cancelled) return;
         if (dataUrl) {
@@ -46,7 +47,7 @@ export function useMobileReaderState(state: MobileLibraryState, setState: React.
   }, [readerDataUrls, selectedBook]);
 
   const selectBook = useCallback((bookId: string) => {
-    setState((current) => ({ ...current, selectedBookId: bookId, books: current.books.map(book => book.id === bookId ? { ...book, lastOpenedAt: new Date().toISOString() } : book) }));
+    setState((current) => ({ ...current, selectedBookId: bookId, books: current.books.map(book => book.id === bookId ? { ...book, lastOpenedAt: new Date().toISOString(), lastReaderMode: "reader" as const } : book) }));
     setActiveTab("reader");
   }, [setActiveTab, setState]);
 

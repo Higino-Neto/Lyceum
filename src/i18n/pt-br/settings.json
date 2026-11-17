@@ -103,7 +103,6 @@
     "enable": "Ativar backup periódico",
     "items": {
       "libraryAndProgress": "Biblioteca e progresso",
-      "habitsAndHighlights": "Hábitos e marcações",
       "categories": "Categorias"
     },
     "lastBackup": "Último backup: {{date}}",
@@ -309,17 +308,9 @@
     "description": "Ative ou desative individualmente as funcionalidades experimentais na barra lateral.",
     "toggleLabel": "Alternar aba {{feature}}",
     "features": {
-      "atlas": {
-        "label": "Atlas",
-        "hint": "Mapas de leitura e progresso."
-      },
       "conversion": {
         "label": "Conversão",
         "hint": "Conversão entre formatos de documento."
-      },
-      "habits": {
-        "label": "Hábitos",
-        "hint": "Rastreador de hábitos diários."
       }
     }
   },

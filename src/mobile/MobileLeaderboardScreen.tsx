@@ -21,23 +21,23 @@ import MobileQueryError from "./MobileQueryError";
 import { MobileCard, MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
 import { formatNumber, translate, useTranslation, type TranslationKey } from "../i18n";
 import {
-  acceptMobileFriendRequest,
-  cancelMobileFriendRequest,
-  declineMobileFriendRequest,
-  findMobileUserByNickname,
-  getMobileCategories,
-  getMobileFriendRequests,
-  getMobileFriends,
-  getMobileRanking,
-  getMobileReadingQueryEnabled,
-  getMobileUserProfile,
-  removeMobileFriend,
-  sendMobileFriendRequest,
-  updateMobileProfileNickname,
-  type MobileFriendRequest,
-  type MobileFriendSummary,
-  type MobileRankingUser,
-} from "./readingApi";
+  acceptFriendRequest,
+  cancelFriendRequest,
+  declineFriendRequest,
+  findUserByNickname,
+  getCategories,
+  getFriendRequests,
+  getFriends,
+  getRanking,
+  isAccountQueryEnabled,
+  getUserProfile,
+  removeFriend,
+  sendFriendRequest,
+  updateProfileNickname,
+  type FriendRequest,
+  type FriendSummary,
+  type RankingUser,
+} from "../api/database";
 
 interface MobileLeaderboardScreenProps {
   sessionEmail: string | null;
@@ -105,7 +105,7 @@ function RequestRow({
   onDecline,
   onCancel,
 }: {
-  request: MobileFriendRequest;
+  request: FriendRequest;
   busy: boolean;
   onAccept: (id: string) => void;
   onDecline: (id: string) => void;
@@ -162,7 +162,7 @@ function FriendRow({
   busy,
   onRemove,
 }: {
-  friend: MobileFriendSummary;
+  friend: FriendSummary;
   busy: boolean;
   onRemove: (id: string) => void;
 }) {
@@ -200,19 +200,19 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
 
   const { data: profile } = useQuery({
     queryKey: ["mobile-user-profile"],
-    queryFn: getMobileUserProfile,
+    queryFn: getUserProfile,
     enabled,
   });
 
   const { data: requests = [], isLoading: requestsLoading } = useQuery({
     queryKey: ["mobile-friend-requests"],
-    queryFn: getMobileFriendRequests,
+    queryFn: getFriendRequests,
     enabled,
   });
 
   const { data: friends = [], isLoading: friendsLoading } = useQuery({
     queryKey: ["mobile-friends"],
-    queryFn: getMobileFriends,
+    queryFn: getFriends,
     enabled,
   });
 
@@ -221,7 +221,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
   }, [profile?.nickname]);
 
   const nicknameMutation = useMutation({
-    mutationFn: () => updateMobileProfileNickname(nickname.trim()),
+    mutationFn: () => updateProfileNickname(nickname.trim()),
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
       toast.success(t("mobile:leaderboard.nicknameSaved"));
@@ -230,7 +230,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
   });
 
   const searchMutation = useMutation({
-    mutationFn: () => findMobileUserByNickname(friendNickname.trim()),
+    mutationFn: () => findUserByNickname(friendNickname.trim()),
     onSuccess: (result) => {
       if (!result) {
         setSearchResult(t("mobile:leaderboard.userNotFound"));
@@ -242,7 +242,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
   });
 
   const sendMutation = useMutation({
-    mutationFn: () => sendMobileFriendRequest(friendNickname.trim()),
+    mutationFn: () => sendFriendRequest(friendNickname.trim()),
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
       setSearchResult(t("mobile:leaderboard.inviteSentBody"));
@@ -253,9 +253,9 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
 
   const requestMutation = useMutation({
     mutationFn: async ({ action, id }: { action: "accept" | "decline" | "cancel"; id: string }) => {
-      if (action === "accept") return acceptMobileFriendRequest(id);
-      if (action === "decline") return declineMobileFriendRequest(id);
-      return cancelMobileFriendRequest(id);
+      if (action === "accept") return acceptFriendRequest(id);
+      if (action === "decline") return declineFriendRequest(id);
+      return cancelFriendRequest(id);
     },
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
@@ -265,7 +265,7 @@ function MobileFriendsPanel({ enabled }: { enabled: boolean }) {
   });
 
   const removeMutation = useMutation({
-    mutationFn: removeMobileFriend,
+    mutationFn: removeFriend,
     onSuccess: () => {
       invalidateSocialQueries(queryClient);
       toast.success(t("mobile:leaderboard.friendRemoved"));
@@ -421,7 +421,7 @@ function RankingRow({
   index,
   pages,
 }: {
-  user: MobileRankingUser;
+  user: RankingUser;
   index: number;
   pages: number;
 }) {
@@ -470,20 +470,20 @@ export default function MobileLeaderboardScreen({
   onOpenProfile,
 }: MobileLeaderboardScreenProps) {
   const { t } = useTranslation();
-  const enabled = getMobileReadingQueryEnabled(sessionEmail);
+  const enabled = isAccountQueryEnabled(sessionEmail);
   const [period, setPeriod] = useState<RankingPeriod>("this_week");
   const [categoryId, setCategoryId] = useState<string>("");
   const [showFriends, setShowFriends] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["mobile-categories"],
-    queryFn: getMobileCategories,
+    queryFn: getCategories,
     enabled,
   });
 
   const { data: ranking = [], isLoading, error: rankingError, refetch: refetchRanking } = useQuery({
     queryKey: ["mobile-ranking", categoryId || "all", period],
-    queryFn: () => getMobileRanking(categoryId || null, period),
+    queryFn: () => getRanking(categoryId || null, period),
     enabled,
   });
 

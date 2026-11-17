@@ -23,14 +23,15 @@ import {
   YAxis,
 } from "recharts";
 import MobileAccountGate from "./MobileAccountGate";
+import ContinueReadingRow from "./ContinueReadingRow";
 import { formatNumber, getActiveLocale, translate, useTranslation } from "../i18n";
 import MobileQueryError from "./MobileQueryError";
 import {
-  getMobileCategories,
-  getMobileReadingQueryEnabled,
-  getMobileReadingStats,
-  getMobileUserReadings,
-} from "./readingApi";
+  getCategories,
+  isAccountQueryEnabled,
+  getReadingStats,
+  getUserReadings,
+} from "../api/database";
 import {
   buildCategoryTotals,
   buildDailyReadingData,
@@ -116,24 +117,24 @@ export default function MobileDashboardScreen({
 }: MobileDashboardScreenProps) {
   const { t, i18n } = useTranslation();
   const number = (value: number) => formatNumber(value, i18n.language);
-  const enabled = getMobileReadingQueryEnabled(sessionEmail);
+  const enabled = isAccountQueryEnabled(sessionEmail);
   const [chartMode, setChartMode] = useState<ChartMode>("daily");
 
   const { data: readings = [], isLoading: readingsLoading, error: readingsError, refetch: refetchReadings } = useQuery({
     queryKey: ["mobile-readings"],
-    queryFn: getMobileUserReadings,
+    queryFn: getUserReadings,
     enabled,
   });
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["mobile-reading-stats"],
-    queryFn: getMobileReadingStats,
+    queryFn: getReadingStats,
     enabled,
   });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["mobile-categories"],
-    queryFn: getMobileCategories,
+    queryFn: getCategories,
     enabled,
   });
 
@@ -151,16 +152,18 @@ export default function MobileDashboardScreen({
   const monthPages = stats?.readingStats.month_pages ?? summary.monthPages;
   const currentStreak = stats?.userStreak ?? summary.currentStreak;
   const hasAnyReading = readings.length > 0;
-  const recentBook = useMemo(() => [...books].filter((book) => book.lastOpenedAt).sort((a, b) => String(b.lastOpenedAt).localeCompare(String(a.lastOpenedAt)))[0], [books]);
   const heatmapMax = Math.max(1, ...heatmapData.map((day) => day.pages));
 
   if (!enabled) {
     return (
-      <MobileAccountGate
-        title={t("mobile:dashboard.gateTitle")}
-        body={t("mobile:dashboard.gateBody")}
-        onOpenProfile={onOpenProfile}
-      />
+      <div className="space-y-2 pt-4">
+        <div className="px-4"><ContinueReadingRow books={books} onOpenBook={onOpenBook} /></div>
+        <MobileAccountGate
+          title={t("mobile:dashboard.gateTitle")}
+          body={t("mobile:dashboard.gateBody")}
+          onOpenProfile={onOpenProfile}
+        />
+      </div>
     );
   }
 
@@ -180,6 +183,7 @@ export default function MobileDashboardScreen({
 
   return (
     <section className="space-y-4 p-4">
+      <ContinueReadingRow books={books} onOpenBook={onOpenBook} />
       <MobileQueryError
         error={readingsError || statsError}
         onRetry={() => { void Promise.all([refetchReadings(), refetchStats()]); }}
@@ -346,11 +350,6 @@ export default function MobileDashboardScreen({
         <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-foreground-subtle"><span>{t("mobile:dashboard.less")}</span>{["bg-surface-muted", "bg-primary-muted", "bg-primary-muted", "bg-primary", "bg-primary"].map((tone) => <span key={tone} className={`h-2.5 w-2.5 rounded-[3px] ${tone}`} />)}<span>{t("mobile:dashboard.more")}</span></div>
       </div>
 
-      {recentBook && <button className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary-muted p-4 text-left" onClick={() => onOpenBook(recentBook.id)} type="button"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-muted text-primary"><BookOpen size={22} /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              {t("mobile:dashboard.keepReading")}
-            </p><p className="mt-1 truncate text-sm font-semibold text-foreground">{recentBook.title}</p><p className="mt-0.5 text-xs text-foreground-muted">
-              {t("mobile:dashboard.completed", { count: Math.round(recentBook.progressPercent || 0) })}
-            </p></div></button>}
 
       <div className="grid grid-cols-2 gap-3">
         <StatTile

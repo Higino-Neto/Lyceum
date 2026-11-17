@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Folder, FolderPlus, RefreshCw, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -14,7 +14,7 @@ import {
 } from "../../../../hooks/useFolderTreeQuery";
 import FolderContextMenu from "../FolderContextMenu";
 import FolderInlineCreate from "./FolderInlineCreate";
-import FolderTreeDeleteDialog from "./FolderTreeDeleteDialog";
+import FolderTreeDeleteDialog, { type FolderDeleteMode } from "./FolderTreeDeleteDialog";
 import { FolderTreeDragProvider } from "./FolderTreeDragContext";
 import FolderTreeEmpty from "./FolderTreeEmpty";
 import FolderTreeFooter from "./FolderTreeFooter";
@@ -23,12 +23,16 @@ import FolderTreeSearch from "./FolderTreeSearch";
 import FolderTreeSection from "./FolderTreeSection";
 import FolderTreeToolbar from "./FolderTreeToolbar";
 import FolderTreeVirtualizer from "./FolderTreeVirtualizer";
+import SourceFolderSuggestionsDialog from "./SourceFolderSuggestionsDialog";
+import { readSmartSearchConsent } from "./smartSearchConsent";
 import {
   collectExpandablePaths,
   buildFolderBookCountIndex,
   countBooksFromIndex,
   filterFolders,
   flattenTree,
+  folderRange,
+  removeFolderPaths,
   normalizeAbsolutePath,
   updateFolderChildren,
   mergeFolderTrees,
@@ -187,7 +191,12 @@ function FolderTreeContainer({
   const [draggingFolder, setDraggingFolder] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [libraryPath, setLibraryPath] = useState("");
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; folder: FolderInfo | null }>({ open: false, folder: null });
+  const [deleteDialog, setDeleteDialog] = useState<{ folders: FolderInfo[]; mode: FolderDeleteMode }>({ folders: [], mode: "delete" });
+  // Ctrl/Shift multi-selection used for batch actions (keyed by folder.path).
+  const [multiSelection, setMultiSelection] = useState<Set<string>>(() => new Set());
+  const selectionAnchorRef = useRef<string | null>(null);
+  const loadingPathsRef = useRef<Set<string>>(new Set());
+  const [smartSearchOpen, setSmartSearchOpen] = useState(false);
   const draggingBooks = draggingBookHashes.length > 0 ? draggingBookHashes : draggingBookHash ? [draggingBookHash] : [];
   const sourceRoots = useMemo(() => data.libraryRoots.filter((root) => root.type === "source"), [data.libraryRoots]);
   const sourceRootPaths = useMemo(
@@ -222,7 +231,12 @@ function FolderTreeContainer({
       const toLoad: string[] = [];
       const findUnloaded = (items: FolderInfo[]) => {
         for (const folder of items) {
-          if (expandedPaths.has(folder.path) && folder.hasChildren && !folder.isLoaded) {
+          if (
+            expandedPaths.has(folder.path)
+            && folder.hasChildren
+            && !folder.isLoaded
+            && !loadingPathsRef.current.has(folder.path)
+          ) {
             toLoad.push(folder.path);
           }
           if (folder.subfolders.length > 0) {
@@ -231,14 +245,18 @@ function FolderTreeContainer({
         }
       };
       findUnloaded(folders);
-      for (const path of toLoad) {
+      await Promise.all(toLoad.map(async (path) => {
+        loadingPathsRef.current.add(path);
         try {
           const children = await loadChildren(path);
           setFolders((current) => updateFolderChildren(current, path, children));
         } catch {
-          // ignore
+          // Mark unreadable folders as loaded so they are not retried forever.
+          setFolders((current) => updateFolderChildren(current, path, []));
+        } finally {
+          loadingPathsRef.current.delete(path);
         }
-      }
+      }));
     };
     void loadUnloaded();
   }, [expandedPaths, folders, loadChildren]);
@@ -390,7 +408,7 @@ function FolderTreeContainer({
       kind: "section" as const,
       id: "status",
       labelKey: "library:sections.readingStatus",
-    } as any);
+    });
     LIBRARY_STATUS_FILTER_VALUES.forEach((status) => {
       items.push({
         kind: "filter" as const,
@@ -448,6 +466,8 @@ function FolderTreeContainer({
     if (addResult.success) {
       await refreshFolders();
       toast.success(t("library:folderTree.toasts.sourceAdded"));
+      // Offer the smart search once, right after the first manual source folder.
+      if (readSmartSearchConsent() === null && window.api?.suggestSourceFolders) setSmartSearchOpen(true);
     } else {
       toast.error(
         addResult.error || t("library:folderTree.toasts.sourceFailed"),
@@ -455,20 +475,111 @@ function FolderTreeContainer({
     }
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteDialog.folder) return;
-    const result = libraryContext
-      ? await libraryContext.deleteFolder(deleteDialog.folder.fullPath, true)
-      : await window.api.deleteFolder(deleteDialog.folder.fullPath, true);
-    if (result.success) {
-      toast.success(t("library:folderTree.toasts.deleted"));
-      await refreshFolders();
-      if (selectedFolder === deleteDialog.folder.path) onFolderSelect(null);
-    } else {
-      toast.error(result.error || t("library:folderTree.toasts.deleteFailed"));
+  const sourceRootByPath = useMemo(
+    () => new Map(sourceRoots.map((root) => [normalizeAbsolutePath(root.path), root] as const)),
+    [sourceRoots],
+  );
+  const getSourceRoot = (folder: FolderInfo) => sourceRootByPath.get(normalizeAbsolutePath(folder.fullPath));
+
+  const visibleFolderNodes = useMemo(
+    () => listItems.flatMap((item) => (item.kind === "folder" ? [item.node.folder] : [])),
+    [listItems],
+  );
+
+  const clearMultiSelection = useCallback(() => {
+    setMultiSelection((current) => (current.size === 0 ? current : new Set()));
+  }, []);
+
+  const handleNodeSelect = (folder: FolderInfo, event: MouseEvent) => {
+    const orderedPaths = visibleFolderNodes.map((node) => node.path);
+    if (event.shiftKey) {
+      const anchor = selectionAnchorRef.current ?? selectedFolder ?? folder.path;
+      setMultiSelection(new Set(folderRange(orderedPaths, anchor, folder.path)));
+      return;
     }
-    setDeleteDialog({ open: false, folder: null });
+    if (event.ctrlKey || event.metaKey) {
+      setMultiSelection((current) => {
+        const next = new Set(current);
+        if (next.size === 0 && selectedFolder && selectedFolder !== folder.path) next.add(selectedFolder);
+        if (next.has(folder.path)) next.delete(folder.path);
+        else next.add(folder.path);
+        return next;
+      });
+      selectionAnchorRef.current = folder.path;
+      return;
+    }
+    selectionAnchorRef.current = folder.path;
+    clearMultiSelection();
+    onFolderSelect(folder.path);
+  };
+
+  const selectedFolderInfos = () =>
+    visibleFolderNodes.filter((node) => multiSelection.has(node.path));
+
+  const requestDelete = (folder: FolderInfo) => {
+    const batch = multiSelection.size > 1 && multiSelection.has(folder.path)
+      ? selectedFolderInfos()
+      : [folder];
+    setDeleteDialog({ folders: batch, mode: "delete" });
+    closeContextMenu();
+  };
+
+  async function handleDeleteConfirm() {
+    const { folders: targets, mode } = deleteDialog;
+    if (targets.length === 0) return;
+    // Close right away and update the tree optimistically; the disk work runs
+    // in the background so the dialog never lingers on large folders.
+    setDeleteDialog({ folders: [], mode: "delete" });
+    clearMultiSelection();
+    const removedPaths = new Set(targets.map((folder) => folder.path));
+    setFolders((current) => removeFolderPaths(current, removedPaths));
+    if (selectedFolder && targets.some((folder) => (
+      selectedFolder === folder.path || selectedFolder.startsWith(`${folder.path}/`) || selectedFolder.startsWith(`${folder.path}\\`)
+    ))) {
+      onFolderSelect(null);
+    }
+
+    if (mode === "unlink") {
+      const root = getSourceRoot(targets[0]);
+      const result = root?.id != null && window.api?.removeSourceFolder
+        ? await window.api.removeSourceFolder(root.id)
+        : { success: false };
+      if (result.success) toast.success(t("library:folderTree.toasts.unlinked"));
+      else toast.error(t("library:folderTree.toasts.unlinkFailed"));
+      await refreshFolders();
+      return;
+    }
+
+    if (targets.length > 1 && window.api?.deleteFolders) {
+      const result = await window.api.deleteFolders(targets.map((folder) => folder.fullPath));
+      if (result.deleted > 0) toast.success(t("library:folderTree.toasts.deletedMany", { count: result.deleted }));
+      if (result.failed > 0) toast.error(result.error || t("library:folderTree.toasts.deleteFailed"));
+    } else {
+      const [folder] = targets;
+      const result = libraryContext
+        ? await libraryContext.deleteFolder(folder.fullPath, true)
+        : await window.api.deleteFolder(folder.fullPath, true);
+      if (result.success) toast.success(t("library:folderTree.toasts.deleted"));
+      else toast.error(result.error || t("library:folderTree.toasts.deleteFailed"));
+    }
+    await refreshFolders();
   }
+
+  useEffect(() => {
+    if (multiSelection.size === 0) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (event.key === "Escape") {
+        clearMultiSelection();
+      } else if (event.key === "Delete") {
+        const targets = visibleFolderNodes.filter((node) => multiSelection.has(node.path));
+        if (targets.length > 0) setDeleteDialog({ folders: targets, mode: "delete" });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [clearMultiSelection, multiSelection, visibleFolderNodes]);
 
   const renderItem = (item: FolderTreeListItem) => {
     if (item.kind === "root") return renderRootItem(item);
@@ -513,14 +624,15 @@ function FolderTreeContainer({
     return (
       <FolderTreeNode
         node={item.node}
-        selectedPath={selectedFolder}
+        selectedPath={multiSelection.size > 0 ? null : selectedFolder}
+        isMultiSelected={multiSelection.has(item.node.folder.path)}
         searchTerm={searchTerm}
         isRenaming={renamingFolder === item.node.folder.fullPath}
         renameValue={renameValue}
         folderBookCount={folderBookCount}
         totalBooks={itemTotalBooks}
         subfoldersBooks={Math.max(0, itemTotalBooks - folderBookCount)}
-        onSelect={onFolderSelect}
+        onSelect={handleNodeSelect}
         onToggleExpand={toggleExpand}
         onContextMenu={(event, folder) => {
           event.preventDefault();
@@ -557,7 +669,7 @@ function FolderTreeContainer({
     return (
       <div className="flex cursor-wait items-center gap-2 p-3 text-xs text-foreground-subtle">
         <RefreshCw size={12} className="animate-spin" />
-        Carregando...
+        {t("common:status.loading")}
       </div>
     );
   }
@@ -579,6 +691,7 @@ function FolderTreeContainer({
             onAddSource={handleAddSourceFolder}
             onToggleExpandAll={toggleExpandAll}
             onResync={handleResync}
+            onSmartSearch={window.api?.suggestSourceFolders ? () => setSmartSearchOpen(true) : undefined}
           />
           <FolderTreeSearch value={searchTerm} onChange={setSearchTerm} />
         </div>
@@ -601,6 +714,16 @@ function FolderTreeContainer({
             folder={contextMenu.folder}
             x={contextMenu.x}
             y={contextMenu.y}
+            selectionCount={
+              multiSelection.size > 1 && multiSelection.has(contextMenu.folder.path)
+                ? multiSelection.size
+                : 1
+            }
+            isSourceRoot={Boolean(getSourceRoot(contextMenu.folder))}
+            onClearSelection={() => {
+              clearMultiSelection();
+              closeContextMenu();
+            }}
             onCreateFolder={(folder) => {
               closeContextMenu();
               setNewFolderName("");
@@ -613,20 +736,26 @@ function FolderTreeContainer({
               setRenameValue(folder.name);
               closeContextMenu();
             }}
-            onDeleteFolder={(folder) => {
-              setDeleteDialog({ open: true, folder });
+            onDeleteFolder={requestDelete}
+            onUnlinkSource={(folder) => {
+              setDeleteDialog({ folders: [folder], mode: "unlink" });
               closeContextMenu();
             }}
           />
         )}
 
-        {deleteDialog.open && deleteDialog.folder && (
-          <FolderTreeDeleteDialog
-            folder={deleteDialog.folder}
-            onCancel={() => setDeleteDialog({ open: false, folder: null })}
-            onConfirm={handleDeleteConfirm}
-          />
-        )}
+        <SourceFolderSuggestionsDialog
+          open={smartSearchOpen}
+          onClose={() => setSmartSearchOpen(false)}
+          onAdded={refreshFolders}
+        />
+
+        <FolderTreeDeleteDialog
+          folders={deleteDialog.folders}
+          mode={deleteDialog.mode}
+          onCancel={() => setDeleteDialog({ folders: [], mode: "delete" })}
+          onConfirm={() => void handleDeleteConfirm()}
+        />
       </div>
     </FolderTreeDragProvider>
   );
@@ -652,7 +781,7 @@ function FolderTreeContainer({
         }}
       >
         <Folder size={16} className="text-foreground-subtle" />
-        <span className="flex-1 text-left">Raiz</span>
+        <span className="flex-1 text-left">{t("library:folders.root")}</span>
         <span className={`mr-5 rounded-sm px-1.5 py-0.5 text-xs ${selectedFolder === null ? "bg-border-strong text-foreground" : "bg-surface-muted text-foreground-subtle"}`}>
           {item.totalBooks}
         </span>

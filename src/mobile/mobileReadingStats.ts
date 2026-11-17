@@ -1,4 +1,4 @@
-import type { MobileCategory, MobileReadingEntry } from "./readingApi";
+import type { Category, ReadingEntry } from "../api/database";
 import { normalizeCase, translate } from "../i18n";
 
 export interface MobileDailyPoint {
@@ -68,7 +68,7 @@ function addDays(date: Date, days: number) {
   return copy;
 }
 
-function sumPagesByDate(readings: MobileReadingEntry[]) {
+function sumPagesByDate(readings: ReadingEntry[]) {
   const pagesByDate = new Map<string, number>();
   readings.forEach((reading) => {
     pagesByDate.set(
@@ -80,7 +80,7 @@ function sumPagesByDate(readings: MobileReadingEntry[]) {
 }
 
 export function buildDailyReadingData(
-  readings: MobileReadingEntry[],
+  readings: ReadingEntry[],
   dayCount = 14,
   endDate = new Date(),
 ): MobileDailyPoint[] {
@@ -106,7 +106,7 @@ export function buildDailyReadingData(
 }
 
 export function buildWeekStreakDays(
-  readings: MobileReadingEntry[],
+  readings: ReadingEntry[],
   today = new Date(),
 ): MobileStreakDay[] {
   const current = startOfLocalDay(today);
@@ -130,7 +130,7 @@ export function buildWeekStreakDays(
 }
 
 export function computeCurrentStreak(
-  readings: MobileReadingEntry[],
+  readings: ReadingEntry[],
   today = new Date(),
 ): number {
   const pagesByDate = sumPagesByDate(readings);
@@ -146,7 +146,7 @@ export function computeCurrentStreak(
 }
 
 export function summarizeMobileReadings(
-  readings: MobileReadingEntry[],
+  readings: ReadingEntry[],
   today = new Date(),
 ): MobileReadingSummary {
   const todayIso = toLocalIsoDate(today);
@@ -189,8 +189,8 @@ export function summarizeMobileReadings(
 }
 
 export function buildCategoryTotals(
-  readings: MobileReadingEntry[],
-  categories: MobileCategory[],
+  readings: ReadingEntry[],
+  categories: Category[],
 ): MobileCategoryTotal[] {
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
   const totals = new Map<string, MobileCategoryTotal>();
@@ -212,7 +212,7 @@ export function buildCategoryTotals(
 }
 
 export function getFrequentMobileBooks(
-  readings: MobileReadingEntry[],
+  readings: ReadingEntry[],
   now = new Date(),
 ): MobileFrequentBook[] {
   const todayIso = toLocalIsoDate(now);

@@ -103,7 +103,16 @@ describe("viewer zoom feature", () => {
     expect(updateZoom).toHaveBeenCalledWith(null, 1.1, [40, 60]);
   });
 
-  it("ignores Ctrl plus a two-finger vertical swipe", () => {
+  it("treats a Linux Chromium wheel notch (53.33px) as one 10% step while Ctrl is held", () => {
+    const updateZoom = vi.fn();
+    const app = createApp({ updateZoom });
+    installZoomFeature({ facade: { getApp: () => app } });
+    holdControl();
+    dispatchWheel({ ctrlKey: true, deltaY: 160 / 3, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(updateZoom).toHaveBeenCalledWith(null, 1 / 1.1, [40, 60]);
+  });
+
+  it("zooms smoothly on Ctrl plus a two-finger vertical swipe", () => {
     const updateZoom = vi.fn();
     const viewport = document.createElement("div");
     viewport.id = "viewerContainer";
@@ -117,7 +126,8 @@ describe("viewer zoom feature", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(downstreamWheel).not.toHaveBeenCalled();
     expect(viewport.scrollTop).toBe(0);
-    expect(updateZoom).not.toHaveBeenCalled();
+    expect(updateZoom).toHaveBeenCalledTimes(1);
+    expect(updateZoom.mock.calls[0][1]).toBeCloseTo(Math.exp(-12 / 400), 5);
     window.removeEventListener("wheel", downstreamWheel);
     viewport.remove();
   });

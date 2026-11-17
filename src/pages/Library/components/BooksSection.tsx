@@ -447,7 +447,7 @@ export default function BooksSection({
             <div
               key={book.id}
               className={`relative flex flex-col gap-2 group cursor-pointer transition-all ${
-                internalSelectedBook?.id === book.id ? 'ring-2 ring-border-strong rounded-sm' : ''
+                internalSelectedBook?.id === book.id ? 'bg-surface-muted rounded-sm' : ''
               } ${isSelectedForMerge ? 'ring-2 ring-info rounded-sm' : ''}`}
               onClick={() => {
                 if (mergeMode) {

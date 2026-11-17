@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { translate } from "../i18n";
 import type { MobileBook } from "./types";
@@ -112,6 +113,42 @@ export async function resolveMobileBookDataUrl(book?: MobileBook | null) {
   if (!data) return undefined;
 
   return `data:${mimeFor(book)};base64,${data}`;
+}
+
+/**
+ * A URL the WebView can fetch for the book file. On Android this is the local
+ * file server (`Capacitor.convertFileSrc`), so readers stream the file with a
+ * native fetch instead of pushing base64 through the plugin bridge.
+ */
+export async function resolveMobileBookUrl(book?: MobileBook | null): Promise<string | undefined> {
+  if (!book) return undefined;
+  if (book.dataUrl) return book.dataUrl;
+  if (!book.storagePath) return undefined;
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { uri } = await Filesystem.getUri({ path: book.storagePath, directory: Directory.Data });
+      return Capacitor.convertFileSrc(uri);
+    } catch {
+      /* fall back to the bridge below */
+    }
+  }
+  return resolveMobileBookDataUrl(book);
+}
+
+/** The book file as bytes (local URL first, base64 bridge only as a fallback). */
+export async function loadMobileBookBytes(book: MobileBook): Promise<Uint8Array> {
+  const url = await resolveMobileBookUrl(book);
+  if (!url) throw new Error("FILE_NOT_FOUND");
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    if (url.startsWith("data:")) throw error;
+    const dataUrl = await resolveMobileBookDataUrl(book);
+    if (!dataUrl) throw new Error("FILE_NOT_FOUND");
+    return new Uint8Array(await (await fetch(dataUrl)).arrayBuffer());
+  }
 }
 
 export function getStoredBookPatch(book: MobileBook, file: File, dataUrl: string, storagePath?: string): Partial<MobileBook> {

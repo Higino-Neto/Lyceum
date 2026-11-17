@@ -500,7 +500,7 @@ export default function BookMetadataSearchDialog({
               {results.length === 0 ? (
                 <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-sm border border-dashed border-border px-6 text-center">
                   <Search size={22} className="mb-3 text-foreground-subtle" />
-                  <p className="text-sm text-foreground-subtle">Pesquise para encontrar metadados gratuitos.</p>
+                  <p className="text-sm text-foreground-subtle">{t("library:metadataSearch.emptyTitle")}</p>
                   <p className="mt-1 text-xs text-foreground">Open Library, Google Books e Library of Congress.</p>
                 </div>
               ) : (

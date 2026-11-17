@@ -1,5 +1,39 @@
-import { supabase } from "../lib/supabase";
+import { getSupabaseConfigError, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { translate } from "../i18n";
+import { isMobilePlatform } from "../platform";
+
+/**
+ * Account API shared by the desktop and mobile apps. Every Supabase RPC the
+ * clients use lives here; screens must not call `supabase.rpc` directly.
+ */
+
+/** Account-backed queries can run: Supabase is configured and someone is signed in. */
+export function isAccountQueryEnabled(sessionEmail: string | null | undefined) {
+  return isSupabaseConfigured && getSupabaseConfigError() === null && Boolean(sessionEmail);
+}
+
+/**
+ * Desktop routes are already behind `ProtectedRoute`. The mobile app keeps
+ * account screens reachable while signed out, so it fails fast with a message
+ * the user can act on instead of an opaque RLS/RPC error.
+ */
+async function ensureSignedIn() {
+  if (!isMobilePlatform()) return;
+  if (getSupabaseConfigError()) throw new Error(translate("mobile:errors.supabaseNotConfigured"));
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session?.user) throw new Error(translate("mobile:errors.signInToSync"));
+  return data.session.user;
+}
+
+async function currentUserId(): Promise<string> {
+  const signedIn = await ensureSignedIn();
+  if (signedIn) return signedIn.id;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data.user) throw new Error(translate("mobile:errors.signInToSync"));
+  return data.user.id;
+}
 
 export interface ReadingEntry {
   id: string;
@@ -8,15 +42,40 @@ export interface ReadingEntry {
   reading_date: string;
   reading_time: number;
   created_at?: string;
-  category_id: string;
-  book_id?: string;
+  category_id: string | null;
+  book_id?: string | null;
 }
 
 export interface Category {
   id: string;
   name: string;
-  points_per_page: number;
+  points_per_page?: number;
 }
+
+export interface ReadingStats {
+  readingStats: {
+    user_id: string;
+    total_pages: number;
+    total_minutes: number;
+    month_pages: number;
+    month_minutes: number;
+  };
+  userStreak: number;
+}
+
+export interface RankingUser {
+  user_id: string;
+  username: string;
+  nickname?: string | null;
+  avatar_url: string;
+  total_pages: number;
+  today_pages: number;
+  this_week_pages: number;
+  month_pages: number;
+  is_current_user?: boolean;
+}
+
+export type RankingPeriod = string;
 
 export interface Profile {
   id: string;
@@ -79,6 +138,7 @@ export interface FriendProfile {
 }
 
 export async function getUserReadings(): Promise<ReadingEntry[]> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("get_user_readings");
   if (error) throw error;
   return data || [];
@@ -90,8 +150,9 @@ export async function createReadingEntry(
   readingDate: string,
   readingTime: number,
   categoryId: string,
-  bookId?: string
+  bookId?: string | null
 ): Promise<string> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("create_reading_entry", {
     p_source_name: sourceName,
     p_pages: pages,
@@ -101,10 +162,11 @@ export async function createReadingEntry(
     p_book_id: bookId || null,
   });
   if (error) throw error;
-  return data;
+  return String(data);
 }
 
 export async function deleteReadingEntry(readingId: string): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("delete_reading_entry", {
     p_reading_id: readingId,
   });
@@ -117,8 +179,9 @@ export async function updateReadingEntry(
   pages: number,
   readingDate: string,
   readingTime: number,
-  categoryId?: string
+  categoryId?: string | null
 ): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("update_reading_entry", {
     p_reading_id: readingId,
     p_source_name: sourceName,
@@ -128,6 +191,31 @@ export async function updateReadingEntry(
     p_category_id: categoryId || null,
   });
   if (error) throw error;
+}
+
+export interface BookRecordInput {
+  title: string;
+  author?: string | null;
+  thumbnailUrl?: string | null;
+  totalPages?: number | string | null;
+  isbn?: string | null;
+  categoryId?: string | null;
+}
+
+/** Finds or creates the account-level book record that readings point to. */
+export async function getOrCreateBookRecord(input: BookRecordInput): Promise<string> {
+  await ensureSignedIn();
+  return getOrCreateBook(
+    input.title,
+    input.author || undefined,
+    input.thumbnailUrl || undefined,
+    input.totalPages ? Number(input.totalPages) : undefined,
+    input.isbn || undefined,
+    undefined,
+    undefined,
+    undefined,
+    input.categoryId || undefined,
+  );
 }
 
 export async function getOrCreateBook(
@@ -150,8 +238,6 @@ export async function getOrCreateBook(
       p_isbn: isbn || null,
       p_category_id: categoryId || null,
     });
-
-    console.log("getOrCreateBook response:", { data, error, title });
 
     if (error) {
       console.error("Supabase RPC error for book:", title, error);
@@ -178,12 +264,14 @@ export async function getOrCreateBook(
 }
 
 export async function getCategories(): Promise<Category[]> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("get_categories");
   if (error) throw error;
   return data || [];
 }
 
 export async function getUserProfile(): Promise<Profile | null> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("get_user_profile");
   if (error) throw error;
   return data?.[0] || null;
@@ -201,11 +289,12 @@ export async function updateUserProfile(
 }
 
 export async function updateProfileNickname(nickname: string): Promise<string> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("update_profile_nickname", {
     p_nickname: nickname,
   });
   if (error) throw error;
-  return data;
+  return String(data);
 }
 
 export async function createUserProfile(
@@ -222,6 +311,7 @@ export async function createUserProfile(
 export async function findUserByNickname(
   nickname: string
 ): Promise<FriendSearchResult | null> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("find_user_by_nickname", {
     p_nickname: nickname,
   });
@@ -230,6 +320,7 @@ export async function findUserByNickname(
 }
 
 export async function sendFriendRequest(nickname: string): Promise<string> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("send_friend_request", {
     p_nickname: nickname,
   });
@@ -238,6 +329,7 @@ export async function sendFriendRequest(nickname: string): Promise<string> {
 }
 
 export async function acceptFriendRequest(requestId: string): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("accept_friend_request", {
     p_request_id: requestId,
   });
@@ -245,6 +337,7 @@ export async function acceptFriendRequest(requestId: string): Promise<void> {
 }
 
 export async function declineFriendRequest(requestId: string): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("decline_friend_request", {
     p_request_id: requestId,
   });
@@ -252,6 +345,7 @@ export async function declineFriendRequest(requestId: string): Promise<void> {
 }
 
 export async function cancelFriendRequest(requestId: string): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("cancel_friend_request", {
     p_request_id: requestId,
   });
@@ -259,6 +353,7 @@ export async function cancelFriendRequest(requestId: string): Promise<void> {
 }
 
 export async function removeFriend(friendId: string): Promise<void> {
+  await ensureSignedIn();
   const { error } = await supabase.rpc("remove_friend", {
     p_friend_id: friendId,
   });
@@ -266,12 +361,14 @@ export async function removeFriend(friendId: string): Promise<void> {
 }
 
 export async function getFriendRequests(): Promise<FriendRequest[]> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("get_friend_requests");
   if (error) throw error;
   return data || [];
 }
 
 export async function getFriends(): Promise<FriendSummary[]> {
+  await ensureSignedIn();
   const { data, error } = await supabase.rpc("get_friends");
   if (error) throw error;
   return data || [];
@@ -285,6 +382,79 @@ export async function getFriendProfile(
   });
   if (error) throw error;
   return data?.[0] || null;
+}
+
+export async function getFriendReadings(userId: string): Promise<ReadingEntry[]> {
+  await ensureSignedIn();
+  const { data, error } = await supabase.rpc("get_friend_readings", { p_user_id: userId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getReadingStats(): Promise<ReadingStats> {
+  const userId = await currentUserId();
+  const { data: readingStats, error: statsError } = await supabase
+    .from("reading_stats")
+    .select("user_id, total_pages, total_minutes, month_pages, month_minutes")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (statsError) throw statsError;
+
+  const { data: userStreak, error: streakError } = await supabase.rpc("get_current_streak", {
+    p_user_id: userId,
+  });
+  if (streakError) throw streakError;
+
+  return {
+    readingStats: readingStats || {
+      user_id: userId,
+      total_pages: 0,
+      total_minutes: 0,
+      month_pages: 0,
+      month_minutes: 0,
+    },
+    userStreak: Number(userStreak || 0),
+  };
+}
+
+interface RankingRow {
+  user_id: string;
+  username?: string | null;
+  name?: string | null;
+  nickname?: string | null;
+  avatar_url?: string | null;
+  total_pages?: number | string | null;
+  today_pages?: number | string | null;
+  this_week_pages?: number | string | null;
+  month_pages?: number | string | null;
+  is_current_user?: boolean | null;
+}
+
+export function mapRankingRow(row: RankingRow): RankingUser {
+  return {
+    user_id: String(row.user_id),
+    username: row.username || row.name || row.nickname || translate("mobile:leaderboard.unknownUser"),
+    nickname: row.nickname || null,
+    avatar_url: row.avatar_url || "",
+    total_pages: Number(row.total_pages || 0),
+    today_pages: Number(row.today_pages || 0),
+    this_week_pages: Number(row.this_week_pages || 0),
+    month_pages: Number(row.month_pages || 0),
+    is_current_user: Boolean(row.is_current_user),
+  };
+}
+
+/** Friend ranking, optionally restricted to one category. Throws on RPC errors. */
+export async function getRanking(
+  categoryId?: string | null,
+  period: RankingPeriod = "all_time",
+): Promise<RankingUser[]> {
+  await ensureSignedIn();
+  const { data, error } = categoryId
+    ? await supabase.rpc("get_friend_category_ranking", { p_category_id: categoryId, p_period: period })
+    : await supabase.rpc("get_friend_ranking", { p_period: period });
+  if (error) throw error;
+  return ((data as RankingRow[] | null) || []).map(mapRankingRow);
 }
 
 export interface SupabaseBook {

@@ -6,6 +6,7 @@ import {
   FolderPlus,
   HardDrive,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "../../../../i18n";
@@ -20,6 +21,7 @@ export default function FolderTreeToolbar({
   onAddSource,
   onToggleExpandAll,
   onResync,
+  onSmartSearch,
 }: {
   allExpanded: boolean;
   syncing: boolean;
@@ -30,6 +32,7 @@ export default function FolderTreeToolbar({
   onAddSource: () => void;
   onToggleExpandAll: () => void;
   onResync: () => void;
+  onSmartSearch?: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -56,6 +59,11 @@ export default function FolderTreeToolbar({
             onClick={onAddSource}
           >
             <HardDrive size={14} />
+          </IconButton>
+        )}
+        {canAddSource && onSmartSearch && (
+          <IconButton title={t("library:smartSearch.open")} onClick={onSmartSearch}>
+            <Sparkles size={14} />
           </IconButton>
         )}
         <IconButton

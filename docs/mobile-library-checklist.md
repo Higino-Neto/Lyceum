@@ -106,6 +106,22 @@ imports instead of unrestricted desktop filesystem access.
 - [x] Keep USB/Kindle sideload and broad filesystem watching desktop-only.
 - [x] Keep heavy format conversion desktop-only until a mobile use case exists.
 
+## Language-learning reader
+
+- [x] EPUB/TXT open for learning from book details and from the EPUB reader.
+- [x] Analysis runs in a Web Worker and is cached per book; vocabulary is global per language.
+- [x] Vocabulary persists in IndexedDB with automatic JSON backups in Documents/Lyceum/Vocabulario.
+- [x] Offline dictionaries (curated + FreeDict) download and install on the device.
+- [x] Desktop and mobile share the backup format (manual export/import both ways).
+- [ ] Manual Android check: dictionary download over mobile data, backups visible in Files, app kill during a write.
+
+## Reader quality
+
+- [x] Book files load through the WebView file server (`convertFileSrc`), not base64 data URLs.
+- [x] EPUB: swipe and edge taps turn pages, center tap shows controls, position slider, chapter jumps, "Aa" sheet.
+- [x] EPUB: scrolled mode flows through chapters (continuous manager); locations cached per book.
+- [x] Android back closes the top layer (sheet, reader) instead of leaving the app (requires the new APK).
+
 ## Quality gate
 
 - [x] Unit tests cover schema migration, folders, sorting/filtering, and

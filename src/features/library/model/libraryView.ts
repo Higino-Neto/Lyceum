@@ -6,6 +6,7 @@ import type {
 } from "../../../types/LibraryTypes";
 import { getTitleWithoutExtension } from "./folders";
 import { calculateSimilarity } from "./search";
+import { fuzzyScore } from "../../../core/shared/fuzzySearch";
 import { getActiveLocale, normalizeCase } from "../../../i18n";
 import { getGroupReadingStatus } from "../../../lib/readingStatus";
 
@@ -126,6 +127,13 @@ export function matchesLibrarySearch(book: BookWithThumbnail, query: string): bo
     return (
       normalizeCase(haystack).includes(normalizeCase(trimmed))
       || calculateSimilarity(candidate.title || "", candidate.author || null, trimmed).matches
+      || fuzzyScore(trimmed, [
+        { value: candidate.title, weight: 3 },
+        { value: candidate.author, weight: 2 },
+        { value: candidate.series },
+        { value: candidate.fileName },
+        { value: candidate.publisher },
+      ]) > 0
     );
   });
 }
@@ -195,7 +203,11 @@ export function buildDisplayBooks(input: DisplayBooksInput): {
 } {
   if (input.section === "usb") return { books: input.books, cache: input.previousCache };
 
-  const booksForGrouping = sortBooksForLibraryView(input.books, input.sort);
+  // While searching with the default title order the server returns the best
+  // matches first (relevance); keep that order instead of re-sorting by title.
+  const keepRelevanceOrder = input.search.trim().length > 0
+    && (input.sort === "title" || input.sort === "title_asc");
+  const booksForGrouping = keepRelevanceOrder ? input.books : sortBooksForLibraryView(input.books, input.sort);
   const grouped = new Map<string, BookWithThumbnail[]>();
   for (const book of booksForGrouping) {
     const groupKey = book.bookId || book.fileHash;

@@ -5,8 +5,8 @@ import { manifestPath } from "../package/paths";
 import { readLyceumPackage } from "../package/read";
 import { createDefaultConversionRegistry } from "../conversion/registry";
 import { analyzeDocument, type ChapterInput } from "../../../core/language-learning/analysis/analyzeDocument";
-import { getLanguageModule, normalizeLanguageCode } from "../../../core/language-learning/languages/registry";
-import { detectLanguage } from "../../../core/language-learning/languages/detect";
+import { getLanguageModule } from "../../../core/language-learning/languages/registry";
+import { chooseDocumentLanguage } from "./language";
 import { extractBlocksFromXhtml } from "./blocks";
 import {
   isCompatibleIndex,
@@ -61,21 +61,6 @@ export function buildChapterInputs(pkg: LyceumPackage): ChapterInput[] {
   })).filter((chapter) => chapter.blocks.length > 0);
 }
 
-function sampleText(chapters: ChapterInput[], limit = 60_000) {
-  const parts: string[] = [];
-  let length = 0;
-  // Skip the first chapter when possible: front matter is often in another language.
-  const ordered = chapters.length > 2 ? [...chapters.slice(1), chapters[0]!] : chapters;
-  for (const chapter of ordered) {
-    for (const block of chapter.blocks) {
-      parts.push(block.text);
-      length += block.text.length;
-      if (length >= limit) return parts.join("\n");
-    }
-  }
-  return parts.join("\n");
-}
-
 /**
  * Ensures a `.lyceum` package with a linguistic index exists for the source.
  * Non-`.lyceum` sources are imported once into the managed cache. `.lyceum`
@@ -112,12 +97,8 @@ export async function prepareLearningDocument(input: PrepareLearningInput): Prom
   const pkg = readLyceumPackage(packageRoot);
   if (!pkg.textual || pkg.textual.chapters.length === 0) throw new Error("NO_TEXTUAL_CONTENT");
 
-  const metadataLanguage = pkg.metadata.language ? normalizeLanguageCode(pkg.metadata.language) : null;
   const chapters = buildChapterInputs(pkg);
-  const detectedLanguage = detectLanguage(sampleText(chapters))?.language ?? null;
-  // Text evidence beats metadata: imports default a missing language, and a
-  // wrong label would file the reader's vocabulary under the wrong language.
-  const language = normalizeLanguageCode(input.language || detectedLanguage || metadataLanguage || "und");
+  const { language, metadataLanguage, detectedLanguage } = chooseDocumentLanguage(chapters, pkg.metadata.language, input.language);
   const module = getLanguageModule(language);
   const expected = { language: module.code, module: module.id, moduleVersion: module.version };
 

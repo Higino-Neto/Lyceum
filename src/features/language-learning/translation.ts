@@ -1,3 +1,4 @@
+import { getLearningBridge } from "../../platform";
 /**
  * Extensible translation provider architecture. Providers declare what they
  * support; when none is available the UI shows an unavailable state rather
@@ -52,55 +53,101 @@ interface DictionaryBridge {
 }
 
 function dictionaryBridge(): DictionaryBridge | null {
-  if (typeof window === "undefined") return null;
-  return (window as unknown as { api?: DictionaryBridge }).api ?? null;
+  return getLearningBridge() as DictionaryBridge | null;
 }
 
 /** Extracts glosses from the HTML of an offline dictionary entry. */
 export function parseDictionaryHtml(html: string): string[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll('font[color="gray"]').forEach((node) => node.remove());
+  // Pronunciation (gray) and grammar labels (FreeDict/WikDict "grammar" class,
+  // green) are metadata, not translations.
+  doc.querySelectorAll('font[color="gray"], font.grammar, font[color="green"]').forEach((node) => node.remove());
   const glosses: string[] = [];
   const nodes = doc.querySelectorAll("li, div");
   const sources = nodes.length > 0 ? Array.from(nodes) : [doc.body];
   for (const node of sources) {
     if (node.querySelector("li, div")) continue;
-    for (const part of (node.textContent ?? "").split(/[,;]/)) {
-      const value = part.replace(/\s+/g, " ").trim();
+    for (const part of (node.textContent ?? "").split(/[,;\n]/)) {
+      const value = part.replace(/\s+/g, " ").replace(/^\d+[.)]\s*/, "").replace(/^[/\s]+|[/\s]+$/g, "").trim();
       if (value && value.length < 80) glosses.push(value);
     }
   }
   return Array.from(new Set(glosses));
 }
 
+const ISO3_TO_ISO1: Record<string, string> = {
+  ara: "ar", ces: "cs", dan: "da", deu: "de", ell: "el", eng: "en", fin: "fi", fra: "fr",
+  hun: "hu", ita: "it", jpn: "ja", kor: "ko", nld: "nl", nor: "no", pol: "pl", por: "pt",
+  ron: "ro", rus: "ru", spa: "es", swe: "sv", tur: "tr", ukr: "uk", zho: "zh",
+};
+
+/** `pt-BR` → `pt`, `fra` → `fr`: dictionaries and books label languages differently. */
+export function baseLanguage(code: string | null | undefined): string {
+  const base = (code ?? "").toLowerCase().split(/[-_]/)[0] ?? "";
+  return ISO3_TO_ISO1[base] ?? base;
+}
+
+/** How long a cached dictionary index is trusted before a miss re-reads it. */
+const INDEX_MISS_REFRESH_MS = 5_000;
+/** Multi-word expressions short enough to exist as dictionary headwords. */
+const MAX_DICTIONARY_PHRASE_WORDS = 4;
+
 /** Offline bilingual dictionaries downloaded in Lyceum settings. */
 export class OfflineDictionaryProvider implements TranslationProvider {
   readonly id = "offline-dictionary";
   private index: DictionaryInfo[] | null = null;
+  private indexLoadedAt = 0;
 
   supports(request: TranslationRequest) {
-    return request.kind === "word";
+    if (request.kind === "word") return true;
+    // Short expressions ("tout à fait") are often dictionary headwords too.
+    return request.kind === "sentence"
+      && request.text.trim().split(/\s+/).length <= MAX_DICTIONARY_PHRASE_WORDS;
   }
 
   refresh() {
     this.index = null;
   }
 
-  /** Exact pair first; otherwise a dictionary from the source language into English. */
-  private async findDictionary(source: string, target: string) {
+  private async loadIndex(force = false) {
     const bridge = dictionaryBridge();
-    if (!bridge?.dictionaryGetIndex) return null;
-    if (!this.index) {
+    if (!bridge?.dictionaryGetIndex) return [];
+    if (!this.index || force) {
       try {
         const raw = await bridge.dictionaryGetIndex();
         this.index = Array.isArray(raw) ? (raw as DictionaryInfo[]) : [];
       } catch {
         this.index = [];
       }
+      this.indexLoadedAt = Date.now();
     }
-    return this.index.find((d) => d.isDownloaded && d.sourceLang === source && d.targetLang === target)
-      ?? this.index.find((d) => d.isDownloaded && d.sourceLang === source && d.targetLang === "en")
+    return this.index;
+  }
+
+  /**
+   * Exact pair first, then the source language into English, then any
+   * downloaded dictionary for the source language (its output language is
+   * reported so the UI can label it).
+   */
+  private pick(index: DictionaryInfo[], source: string, target: string) {
+    const from = baseLanguage(source);
+    const to = baseLanguage(target);
+    const downloaded = index.filter((d) => d.isDownloaded && baseLanguage(d.sourceLang) === from);
+    return downloaded.find((d) => baseLanguage(d.targetLang) === to)
+      ?? downloaded.find((d) => baseLanguage(d.targetLang) === "en")
+      ?? downloaded[0]
       ?? null;
+  }
+
+  private async findDictionary(source: string, target: string) {
+    let index = await this.loadIndex();
+    let dictionary = this.pick(index, source, target);
+    // A dictionary installed after the index was cached must not be missed.
+    if (!dictionary && Date.now() - this.indexLoadedAt > INDEX_MISS_REFRESH_MS) {
+      index = await this.loadIndex(true);
+      dictionary = this.pick(index, source, target);
+    }
+    return dictionary;
   }
 
   async isAvailable(request: TranslationRequest) {
@@ -111,7 +158,7 @@ export class OfflineDictionaryProvider implements TranslationProvider {
     const dictionary = await this.findDictionary(request.source, request.target);
     const bridge = dictionaryBridge();
     if (!dictionary || !bridge?.dictionaryLookup) throw new Error("UNAVAILABLE");
-    const result = (await bridge.dictionaryLookup(request.text, dictionary.id)) as DictionaryLookup | null;
+    const result = (await bridge.dictionaryLookup(request.text.trim(), dictionary.id)) as DictionaryLookup | null;
     if (!result?.found || !result.content) throw new Error("NOT_FOUND");
     const glosses = parseDictionaryHtml(result.content);
     if (glosses.length === 0) throw new Error("NOT_FOUND");
@@ -119,7 +166,7 @@ export class OfflineDictionaryProvider implements TranslationProvider {
       text: glosses.slice(0, 3).join(", "),
       alternatives: glosses.slice(3, 12),
       providerId: this.id,
-      ...(dictionary.targetLang !== request.target ? { language: dictionary.targetLang } : {}),
+      ...(baseLanguage(dictionary.targetLang) !== baseLanguage(request.target) ? { language: dictionary.targetLang } : {}),
     };
   }
 }
@@ -140,12 +187,12 @@ export class OnlineTranslationProvider implements TranslationProvider {
   }
 
   async isAvailable() {
-    const bridge = (typeof window === "undefined" ? undefined : (window as unknown as { api?: OnlineBridge }).api);
+    const bridge = getLearningBridge() as OnlineBridge | null;
     return this.enabled() && typeof bridge?.languageLearningTranslateOnline === "function";
   }
 
   async translate(request: TranslationRequest): Promise<TranslationResult> {
-    const bridge = (window as unknown as { api?: OnlineBridge }).api;
+    const bridge = getLearningBridge() as OnlineBridge | null;
     if (!bridge?.languageLearningTranslateOnline) throw new Error("UNAVAILABLE");
     const response = await bridge.languageLearningTranslateOnline(request.text, request.source, request.target);
     if (!response.success) throw new Error("error" in response ? response.error : "UNKNOWN");
@@ -164,7 +211,7 @@ export class TranslationService {
   }
 
   async translate(request: TranslationRequest): Promise<TranslationOutcome> {
-    if (request.source === request.target) return { status: "unavailable" };
+    if (baseLanguage(request.source) === baseLanguage(request.target)) return { status: "unavailable" };
     const cacheKey = `${request.kind}|${request.source}|${request.target}|${request.text}`;
     const cached = this.cache.get(cacheKey);
     if (cached?.status === "ok") return cached;

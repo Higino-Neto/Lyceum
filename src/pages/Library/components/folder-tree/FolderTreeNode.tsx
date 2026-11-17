@@ -11,6 +11,7 @@ import type { FolderInfo } from "../../../../types/LibraryTypes";
 import type { FlatFolderNode } from "./types";
 import { useFolderTreeDrag } from "./FolderTreeDragContext";
 import FolderInlineRename from "./FolderInlineRename";
+import { translate } from "../../../../i18n";
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -33,6 +34,7 @@ function highlightMatch(text: string, term: string) {
 export default function FolderTreeNode({
   node,
   selectedPath,
+  isMultiSelected = false,
   searchTerm,
   isRenaming,
   renameValue,
@@ -48,13 +50,14 @@ export default function FolderTreeNode({
 }: {
   node: FlatFolderNode;
   selectedPath: string | null;
+  isMultiSelected?: boolean;
   searchTerm: string;
   isRenaming: boolean;
   renameValue: string;
   folderBookCount: number;
   totalBooks: number;
   subfoldersBooks: number;
-  onSelect: (path: string | null) => void;
+  onSelect: (folder: FolderInfo, event: MouseEvent) => void;
   onToggleExpand: (folder: FolderInfo, event: MouseEvent) => void;
   onContextMenu: (event: MouseEvent, folder: FolderInfo) => void;
   onRenameChange: (value: string) => void;
@@ -64,16 +67,18 @@ export default function FolderTreeNode({
   const drag = useFolderTreeDrag();
   const { folder, depth, isExpanded, sourcePathLabel, readOnly } = node;
   const hasChildren = folder.hasChildren || folder.subfolders.length > 0;
-  const isSelected = folder.path === selectedPath;
+  const isSelected = folder.path === selectedPath || isMultiSelected;
   const isDropTarget = drag.dragOver === folder.path;
   const isDragging = drag.draggingFolder === folder.fullPath;
 
   return (
     <div
       className={`group flex cursor-pointer items-center gap-1.5 rounded-sm transition-colors ${
-        isSelected
-          ? "bg-surface-muted text-foreground"
-          : "text-foreground-muted hover:bg-surface-muted/50 hover:text-foreground"
+        isMultiSelected
+          ? "bg-primary-muted text-foreground"
+          : isSelected
+            ? "bg-surface-muted text-foreground"
+            : "text-foreground-muted hover:bg-surface-muted/50 hover:text-foreground"
       } ${isDropTarget ? "bg-primary-muted text-primary ring-1 ring-focus-ring" : ""} ${
         isDragging ? "opacity-50" : ""
       }`}
@@ -83,7 +88,8 @@ export default function FolderTreeNode({
         paddingTop: 6,
         paddingBottom: 6,
       }}
-      onClick={() => !isRenaming && onSelect(folder.path)}
+      aria-selected={isSelected}
+      onClick={(event) => !isRenaming && onSelect(folder, event)}
       onContextMenu={(event) => {
         if (!readOnly) onContextMenu(event, folder);
       }}
@@ -148,7 +154,7 @@ export default function FolderTreeNode({
 
       <div className={`flex items-center gap-1 text-xs ${isSelected ? "text-foreground" : "text-foreground-subtle"}`}>
         {subfoldersBooks > 0 && (
-          <span className="text-[10px]" title={`${folderBookCount} neste local, ${subfoldersBooks} em subpastas`}>
+          <span className="text-[10px]" title={translate("library:folderTree.countBreakdown", { here: folderBookCount, nested: subfoldersBooks })}>
             +{subfoldersBooks}
           </span>
         )}

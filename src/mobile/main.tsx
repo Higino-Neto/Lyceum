@@ -1,3 +1,4 @@
+import { registerCapacitorPlatform } from "../platform/capacitor/register";
 import { ReaderDataProvider } from "./ReaderData";
 import { MobileConfirmProvider } from "./MobileConfirmDialog";
 import React from "react";
@@ -10,6 +11,8 @@ import MobileApp from "./MobileApp";
 import MobileErrorBoundary from "./MobileErrorBoundary";
 import { initializeMobileUpdater } from "./mobileUpdater";
 import "../i18n";
+
+registerCapacitorPlatform();
 
 const queryClient = new QueryClient({
   defaultOptions: {

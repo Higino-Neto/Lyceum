@@ -33,9 +33,7 @@ import {
   defaultConversionOptions,
 } from "../../contexts/ConversionQueueContext";
 import { BookWithThumbnail } from "../../types/LibraryTypes";
-import {
-  fetchAtlasBooks,
-} from "../Atlas/atlasUtils";
+import { fetchAllLibraryBooks } from "../../components/library/fetchAllLibraryBooks";
 import {
   formatFileSize,
   getBookFolderLabel,
@@ -48,6 +46,8 @@ import { useTranslation } from "../../i18n/useTranslation";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
 import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
 import { NumberOption, ToggleOption } from "./components/OptionControls";
+import { translateConversionMessage } from "../../features/conversion/conversionMessages";
+import { PDF_LAYOUT_PRESETS, PDF_LAYOUT_PRESET_IDS, matchPdfLayoutPreset } from "./pdfLayoutPresets";
 import { ImageOptions } from "./components/ImageOptions";
 import { ConversionPreview } from "./components/ConversionPreview";
 import { IMAGE_BEARING_SOURCE_FORMATS } from "../../lib/lyceum/images/imagePresets";
@@ -174,21 +174,66 @@ function FormatOptions({
   }
 
   if (format === "pdf") {
+    const activePreset = matchPdfLayoutPreset(options);
     return (
       <div className="space-y-4">
-        <label className="block space-y-1 text-xs text-foreground-muted">
-          <span>{t("conversion:options.pdf.pageSize")}</span>
-          <Select value={options.pdfPageSize} onChange={(value) => onChange({ pdfPageSize: value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full text-sm" items={[{ value: "A4", label: "A4" }, { value: "A5", label: "A5" }, { value: "Letter", label: t("conversion:options.pdf.pageSizes.Letter") }, { value: "Legal", label: t("conversion:options.pdf.pageSizes.Legal") }]} />
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberOption label={t("conversion:options.pdf.marginTop")} value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
-          <NumberOption label={t("conversion:options.pdf.marginBottom")} value={options.pdfMarginBottomMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginBottomMm: value })} />
-          <NumberOption label={t("conversion:options.pdf.marginLeft")} value={options.pdfMarginLeftMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginLeftMm: value })} />
-          <NumberOption label={t("conversion:options.pdf.marginRight")} value={options.pdfMarginRightMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginRightMm: value })} />
-          <NumberOption label={t("conversion:options.pdf.fontSize")} value={options.pdfFontSizePt} min={7} max={24} step={0.5} suffix="pt" onChange={(value) => onChange({ pdfFontSizePt: value })} />
-          <NumberOption label={t("conversion:options.pdf.lineHeight")} value={options.pdfLineHeight} min={1} max={2.4} step={0.05} onChange={(value) => onChange({ pdfLineHeight: value })} />
-          <NumberOption label={t("conversion:options.pdf.paragraphSpacing")} value={options.pdfParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ pdfParagraphSpacingEm: value })} />
+        <div className="space-y-1.5">
+          <span className="block text-xs text-foreground-muted">{t("conversion:options.pdf.presets.label")}</span>
+          <div className="grid grid-cols-1 gap-1.5" role="radiogroup" aria-label={t("conversion:options.pdf.presets.label")}>
+            {PDF_LAYOUT_PRESET_IDS.map((id) => {
+              const active = activePreset === id;
+              const preset = PDF_LAYOUT_PRESETS[id];
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => onChange({ ...preset })}
+                  className={`flex items-start justify-between gap-2 rounded-sm border px-3 py-2 text-left transition-colors ${
+                    active
+                      ? "border-primary/70 bg-primary-muted"
+                      : "border-border bg-background hover:border-border-strong hover:bg-surface-muted/50"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{t(`conversion:options.pdf.presets.${id}.label`)}</span>
+                    <span className="block text-[11px] leading-snug text-foreground-subtle">{t(`conversion:options.pdf.presets.${id}.hint`)}</span>
+                  </span>
+                  <span className="flex-shrink-0 pt-0.5 text-[10px] tabular-nums text-foreground-subtle">
+                    {preset.pdfPageSize} · {preset.pdfFontSizePt}pt
+                  </span>
+                </button>
+              );
+            })}
+            {activePreset === null && (
+              <p className="rounded-sm border border-dashed border-border px-3 py-2 text-[11px] text-foreground-subtle">
+                {t("conversion:options.pdf.presets.custom")}
+              </p>
+            )}
+          </div>
         </div>
+        <details className="group rounded-sm border border-border bg-background/50" open={activePreset === null || undefined}>
+          <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground">
+            {t("conversion:options.pdf.advanced")}
+            <span className="text-foreground-subtle transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <div className="space-y-3 border-t border-border p-3">
+            <label className="block space-y-1 text-xs text-foreground-muted">
+              <span>{t("conversion:options.pdf.pageSize")}</span>
+              <Select value={options.pdfPageSize} onChange={(value) => onChange({ pdfPageSize: value as ConversionOptions["pdfPageSize"] })} className="h-9 w-full text-sm" items={[{ value: "A4", label: "A4" }, { value: "A5", label: "A5" }, { value: "Letter", label: t("conversion:options.pdf.pageSizes.Letter") }, { value: "Legal", label: t("conversion:options.pdf.pageSizes.Legal") }]} />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberOption label={t("conversion:options.pdf.marginTop")} value={options.pdfMarginTopMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginTopMm: value })} />
+              <NumberOption label={t("conversion:options.pdf.marginBottom")} value={options.pdfMarginBottomMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginBottomMm: value })} />
+              <NumberOption label={t("conversion:options.pdf.marginLeft")} value={options.pdfMarginLeftMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginLeftMm: value })} />
+              <NumberOption label={t("conversion:options.pdf.marginRight")} value={options.pdfMarginRightMm} min={0} max={60} suffix="mm" onChange={(value) => onChange({ pdfMarginRightMm: value })} />
+              <NumberOption label={t("conversion:options.pdf.fontSize")} value={options.pdfFontSizePt} min={7} max={24} step={0.5} suffix="pt" onChange={(value) => onChange({ pdfFontSizePt: value })} />
+              <NumberOption label={t("conversion:options.pdf.lineHeight")} value={options.pdfLineHeight} min={1} max={2.4} step={0.05} onChange={(value) => onChange({ pdfLineHeight: value })} />
+              <NumberOption label={t("conversion:options.pdf.paragraphSpacing")} value={options.pdfParagraphSpacingEm} min={0} max={3} step={0.05} suffix="em" onChange={(value) => onChange({ pdfParagraphSpacingEm: value })} />
+            </div>
+          </div>
+        </details>
         <ToggleOption label={t("conversion:options.pdf.chapterPageBreaks")} checked={options.pdfChapterPageBreaks} onChange={() => onChange({ pdfChapterPageBreaks: !options.pdfChapterPageBreaks })} />
         <ToggleOption label={t("conversion:options.pdf.generateOutline")} checked={options.pdfGenerateOutline} onChange={() => onChange({ pdfGenerateOutline: !options.pdfGenerateOutline })} />
       </div>
@@ -286,7 +331,7 @@ function LibrarySearchPanel({
 
   const booksQuery = useQuery({
     queryKey: ["conversion-library-books"],
-    queryFn: fetchAtlasBooks,
+    queryFn: fetchAllLibraryBooks,
     enabled: apiAvailable,
     staleTime: 20_000,
   });
@@ -339,8 +384,9 @@ function LibrarySearchPanel({
         open={open}
         books={availableBooks}
         onClose={() => setOpen(false)}
-        onSelect={(book) => {
-          onAddBooks([book]);
+        multiple
+        onSelectMany={(books) => {
+          onAddBooks(books);
           setOpen(false);
         }}
       />
@@ -745,7 +791,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                                 ) : (
                                   <Clock3 size={15} />
                                 )}
-                                {item.status === "error" ? item.message : t(statusLabel(item))}
+                                {item.status === "error" ? translateConversionMessage(item.message) : t(statusLabel(item))}
                               </span>
                             </td>
                             <td className="px-2 py-2.5 text-xs text-foreground-muted">
@@ -861,7 +907,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                     <span className={entry.level === "error" ? "text-destructive" : entry.level === "warning" ? "text-warning" : entry.level === "success" ? "text-primary" : "text-info"}>
                       {t(`conversion:logs.levels.${entry.level}` as const)}
                     </span>
-                    <span className="min-w-0 break-words text-foreground">{entry.message}{entry.detail && <span className="mt-0.5 block text-foreground-subtle">{entry.detail}</span>}</span>
+                    <span className="min-w-0 break-words text-foreground">{translateConversionMessage(entry.message)}{entry.detail && <span className="mt-0.5 block text-foreground-subtle">{entry.detail}</span>}</span>
                   </div>
                 ))}
               </div>

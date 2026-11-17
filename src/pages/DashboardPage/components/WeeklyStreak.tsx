@@ -145,7 +145,8 @@ function DayIcon({
   isWinningDay: boolean;
   reduceMotion: boolean;
 }) {
-  const winRing = isWinningDay ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface" : "";
+  // The best day is told by its fill and check mark; no extra halo.
+  const winRing = isWinningDay ? "shadow-sm" : "";
 
   if (isFuture) {
     return (

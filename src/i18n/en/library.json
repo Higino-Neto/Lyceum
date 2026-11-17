@@ -17,7 +17,10 @@
     "deleteDialog": {
       "title": "Delete folder",
       "message": "Are you sure you want to delete the folder \"{{name}}\"?",
-      "warning": "This folder and all of its contents will be permanently deleted."
+      "warning": "The folders and their books are moved to the system trash and removed from Lyceum.",
+      "titleMany": "Delete {{count}} folders",
+      "messageMany": "Delete these {{count}} folders and everything inside them?",
+      "confirm": "Move to trash"
     },
     "toasts": {
       "created": "Folder created",
@@ -32,13 +35,34 @@
       "moveBookFailed": "Could not move the book",
       "bookMovedWarning": "Book moved outside the library",
       "sourceAdded": "Source folder added",
-      "sourceFailed": "Could not add the source folder"
+      "sourceFailed": "Could not add the source folder",
+      "deletedMany_one": "{{count}} folder deleted",
+      "deletedMany_other": "{{count}} folders deleted",
+      "unlinked": "Source folder removed from the library",
+      "unlinkFailed": "Could not remove the source folder"
     },
     "removeWatchFolder": "Remove watched folder",
     "watchFolderAdded": "Watched folder added",
     "watchFolderRemoved": "Watched folder removed",
     "syncFailed": "Could not sync",
-    "syncDone": "Synced: +{{added}} | -{{removed}} | {{updated}} updated"
+    "syncDone": "Synced: +{{added}} | -{{removed}} | {{updated}} updated",
+    "unlinkDialog": {
+      "title": "Remove source folder",
+      "message": "Stop tracking \"{{name}}\" in Lyceum?",
+      "hint": "Nothing is deleted from your computer. The books just leave the library; you can add the folder again at any time.",
+      "confirm": "Remove from library"
+    },
+    "selectedCount_one": "{{count}} folder selected",
+    "selectedCount_other": "{{count}} folders selected",
+    "clearSelection": "Clear selection",
+    "deleteSelected_one": "Delete {{count}} folder",
+    "deleteSelected_other": "Delete {{count}} folders",
+    "deleteFromDisk": "Delete from computer",
+    "deleteHint": "Moves the files to the trash",
+    "unlinkSource": "Remove from library",
+    "unlinkSourceHint": "Keeps the files on your computer",
+    "multiSelectHint": "Ctrl+click to select several folders, Shift+click for a range",
+    "countBreakdown": "{{here}} here, {{nested}} in subfolders"
   },
   "counts": {
     "folder_one": "{{count}} folder",
@@ -70,7 +94,11 @@
     "bookMovedToast": "Book moved",
     "moveBookFailedToast": "Could not move the book",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "empty": "Empty",
+    "count_one": "{{count}} folder",
+    "count_other": "{{count}} folders",
+    "noSubfolders": "No subfolders"
   },
   "units": {
     "chapters_one": "{{count}} chapter",
@@ -163,7 +191,9 @@
       "deleteFailed": "Could not delete the category"
     },
     "deleteConfirm": "Delete category \"{{name}}\"?",
-    "namePlaceholder": "Category name..."
+    "namePlaceholder": "Category name...",
+    "emptyTitle": "No categories yet.",
+    "emptyHint": "Create categories to organize your books."
   },
   "sync": {
     "success": "Book synced successfully!",
@@ -373,7 +403,10 @@
     "dissolveKeepFiles": "Ungroup all formats",
     "separateVariant": "Separate {{format}} from this book",
     "separateVariantHint": "This file becomes an independent book. Nothing is moved or deleted.",
-    "removeVariant": "Remove {{format}}"
+    "removeVariant": "Remove {{format}}",
+    "addedOn": "Added on",
+    "location": "Location",
+    "titleLabel": "Title"
   },
   "kindle": {
     "title": "Send to Kindle",
@@ -388,7 +421,7 @@
     "refreshDevices": "Refresh devices",
     "transferOptions": "Transfer options",
     "convertAzw3": "Convert to AZW3",
-    "convertAzw3Hint": "Best for EPUB, PDF, TXT and HTML over USB",
+    "convertAzw3Hint": "Best for EPUB, PDF, DOCX, FB2, TXT and HTML over USB",
     "preserveMetadata": "Preserve metadata",
     "preserveMetadataHint": "Title, author and Lyceum identifier",
     "organizeByAuthor": "Organize by author",
@@ -461,7 +494,7 @@
       "from": "From {{address}}",
       "convertPdf": "Convert PDF to EPUB",
       "convertPdfHint": "Reflowable text on Kindle. Turn off to keep the original PDF layout.",
-      "limitHint": "Up to {{size}} MB per book. Amazon does not accept AZW3/KFX by email.",
+      "limitHint": "Up to {{size}} MB per book with this account. AZW3 and MOBI are converted to EPUB automatically.",
       "unsupported": "Not accepted by email — use USB",
       "willConvertPdf": "Will be converted to PDF",
       "willConvertEpub": "Will be converted to EPUB",
@@ -518,7 +551,105 @@
         "scribe": "Kindle Scribe"
       },
       "hint": "Opens the conversion window with these books to tweak each one and follow the progress."
-    }
+    },
+    "errors": {
+      "source-missing": "The file is no longer on disk. It may have been moved or deleted.",
+      "unsupported-format": "{{format}} files can't be sent to a Kindle.",
+      "kfx-email": "Amazon doesn't accept {{format}} by email. Send it over USB instead.",
+      "needs-azw3": "Kindles can't open {{format}} directly. Turn on \"Convert to AZW3\".",
+      "invalid-azw3": "This AZW3 file is damaged, so the Kindle wouldn't open it.",
+      "too-large": "{{size}} MB is over this account's {{limit}} MB email limit. Turn on \"Shrink images\" or send over USB.",
+      "canceled": "Canceled before it was sent.",
+      "no-device": "No Kindle is connected. Plug it in over USB and unlock it.",
+      "copy-failed": "Couldn't copy the file to the Kindle. Check the cable and that the Kindle is unlocked.",
+      "conversion-failed": "The conversion failed. Try other conversion settings, or open the conversion window for details.",
+      "not-configured": "Finish setting up email sending first.",
+      "google-not-connected": "Your Google account is disconnected. Sign in again to send.",
+      "smtp-app-password": "Your email provider needs an app password here, not your normal password.",
+      "smtp-auth": "The email server rejected the username or password. Use an app password, and check that the sender is the account's own address.",
+      "smtp-connection": "Couldn't reach the email server ({{code}}). Check your internet connection and the server settings.",
+      "smtp-too-large": "The email server refused the attachment because it's too large.",
+      "invalid-kindle-address": "That Kindle address isn't a valid email address.",
+      "invalid-sender": "That sender address isn't a valid email address.",
+      "unknown": "Something went wrong while sending."
+    },
+    "stages": {
+      "queued": "Waiting",
+      "preparing": "Preparing",
+      "converting": "Converting",
+      "validating": "Checking the file",
+      "pageNumbers": "Adding page numbers",
+      "copying": "Copying to the Kindle",
+      "cover": "Adding the cover",
+      "sending": "Sending the email",
+      "cleaning": "Cleaning up",
+      "done": "Done"
+    },
+    "plan": {
+      "copy": "Copied as {{format}}",
+      "convert": "{{from}} → {{to}}",
+      "send": "Sent as {{format}}",
+      "rebuild": "EPUB rebuilt with smaller images",
+      "compressed": "smaller images",
+      "sizeAfter": "Size is checked after the conversion",
+      "tooLarge": "{{size}} MB, over the {{limit}} MB limit"
+    },
+    "options": {
+      "title": "Options",
+      "model": "Kindle model",
+      "modelHint": "Sizes images for this screen and picks a compatible format profile",
+      "pdfLayout": "PDFs",
+      "pdfLayoutHint": {
+        "auto": "Lyceum decides: text PDFs reflow, scans keep their pages",
+        "reflow": "Text adapts to the screen and font size",
+        "fixed-layout": "Keeps each page exactly as printed"
+      },
+      "fonts": "Font size",
+      "fontsHint": {
+        "kindle": "The Kindle's font setting applies",
+        "original": "Keeps the sizes set by the book"
+      },
+      "advanced": "More options…",
+      "advancedHint": "Opens the conversion window with these books for every setting and a detailed log.",
+      "emailPdf": "PDFs",
+      "emailPdfKeep": "Keep the original layout",
+      "emailPdfEpub": "Convert to EPUB (reflowable)",
+      "emailPdfHint": {
+        "keep": "Best for scans, comics and anything with a careful layout",
+        "epub": "Text adapts to the screen. Best for text-only PDFs"
+      },
+      "compressImages": "Shrink images",
+      "compressImagesHint": "Smaller files that send faster and fit email limits. Makes no visible difference on e-ink."
+    },
+    "run": {
+      "progress": "{{done}} of {{total}}",
+      "current": "{{stage}}: {{title}}",
+      "stop": "Stop",
+      "stopping": "Stopping after this step…",
+      "close": "Close",
+      "retry_one": "Retry {{count}} failed",
+      "retry_other": "Retry {{count}} failed",
+      "result_sent_one": "{{count}} sent",
+      "result_sent_other": "{{count}} sent",
+      "result_failed_one": "{{count}} failed",
+      "result_failed_other": "{{count}} failed",
+      "planSummary": "{{send}} to send",
+      "planConversions_one": "{{count}} conversion",
+      "planConversions_other": "{{count}} conversions",
+      "planBlocked_one": "{{count}} can't be sent",
+      "planBlocked_other": "{{count}} can't be sent",
+      "sentAs": "Delivered as {{format}}",
+      "verified": "Copy verified on the Kindle",
+      "unverified": "Copied (the Kindle didn't report the file size)",
+      "emailAccepted": "Accepted by the email server",
+      "showDetail": "Technical details"
+    },
+    "delivery": {
+      "title": "Delivery takes a few minutes",
+      "body": "Amazon delivers the books once your Kindle is online. If nothing shows up, check that {{sender}} is on your approved email list.",
+      "openAmazon": "Open Amazon settings"
+    },
+    "authorFolder": "Author"
   },
   "page": {
     "title": "Library",
@@ -677,5 +808,46 @@
     "groupLabel_one": "{{count}} file",
     "groupLabel_other": "{{count}} files of this book",
     "chipTitle": "{{file}} — {{folder}}. Click to select only this file."
+  },
+  "picker": {
+    "title": "Add from library",
+    "count_one": "{{count}} of {{total}} books available",
+    "count_other": "{{count}} of {{total}} books available",
+    "empty": "No books found.",
+    "close": "Close",
+    "folders": "Folders",
+    "allFolders": "All books",
+    "multiHint": "Click to select · Shift+click for a range · Ctrl+Enter to add",
+    "clearFilters": "Clear filters",
+    "selectVisible": "Select {{count}} shown",
+    "deselectVisible": "Deselect shown",
+    "selected_one": "{{count}} book selected",
+    "selected_other": "{{count}} books selected",
+    "clearSelection": "Clear",
+    "addSelected_one": "Add {{count}} book",
+    "addSelected_other": "Add {{count}} books"
+  },
+  "metadataSearch": {
+    "emptyTitle": "Search to find free metadata."
+  },
+  "smartSearch": {
+    "open": "Find folders with books",
+    "title": "Smart search for books",
+    "consentMessage": "Lyceum can look through your user folder for places that hold many books and suggest them as source folders — handy for books lost in obscure folders.",
+    "privacy": "The search runs only on this computer and only reads file names. Nothing is uploaded, moved or changed.",
+    "notNow": "Not now",
+    "allow": "Allow and search",
+    "scanning": "Looking for folders with books...",
+    "none": "No new folders with books were found.",
+    "found_one": "{{count}} folder looks like it holds books:",
+    "found_other": "{{count}} folders look like they hold books:",
+    "truncated": "(Large disk: only part of it was scanned.)",
+    "books_one": "{{count}} book",
+    "books_other": "{{count}} books",
+    "rescan": "Search again",
+    "addSelected_one": "Add {{count}} folder",
+    "addSelected_other": "Add {{count}} folders",
+    "added_one": "{{count}} source folder added",
+    "added_other": "{{count}} source folders added"
   }
 }

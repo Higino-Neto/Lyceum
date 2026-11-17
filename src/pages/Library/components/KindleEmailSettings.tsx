@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Mail, Pencil, PlugZap, RefreshCw } from "l
 import toast from "react-hot-toast";
 import { useTranslation } from "../../../i18n";
 import Select from "../../../components/ui/Select";
+import { describeKindleError } from "../../../features/kindle/kindleSendMessages";
 
 export type KindleEmailConfig = Awaited<ReturnType<typeof window.api.getKindleEmailConfig>>;
 type Provider = KindleEmailConfig["provider"];
@@ -129,7 +130,7 @@ export function KindleEmailSettingsForm({ config, onSaved, onCancel }: {
             password: password ? password : undefined,
           });
       if (!result.success || !result.config) {
-        toast.error(result.error || t("library:kindle.toasts.sendFailed"));
+        toast.error(result.errorCode ? describeKindleError(result).message : result.error || t("library:kindle.toasts.sendFailed"));
         return;
       }
       toast.success(t("library:kindle.email.saved"));
@@ -276,13 +277,14 @@ export function KindleEmailSettingsForm({ config, onSaved, onCancel }: {
 export function KindleEmailSummary({ config, onEdit, disabled }: { config: KindleEmailConfig; onEdit: () => void; disabled?: boolean }) {
   const { t } = useTranslation();
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message?: string; detail?: string } | null>(null);
 
   const test = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      setTestResult(await window.api.verifyKindleEmail());
+      const result = await window.api.verifyKindleEmail();
+      setTestResult(result.success ? { success: true } : { success: false, ...describeKindleError(result) });
     } finally {
       setTesting(false);
     }
@@ -324,7 +326,10 @@ export function KindleEmailSummary({ config, onEdit, disabled }: { config: Kindl
       {testResult && (
         <p className={`flex items-start gap-1.5 text-xs ${testResult.success ? "text-primary" : "text-destructive"}`} role="status">
           {testResult.success ? <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" /> : <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />}
-          <span>{testResult.success ? t("library:kindle.email.testOk") : testResult.error}</span>
+          <span className="min-w-0 break-words">
+            {testResult.success ? t("library:kindle.email.testOk") : testResult.message}
+            {testResult.detail && <span className="mt-0.5 block text-[11px] text-foreground-subtle">{testResult.detail}</span>}
+          </span>
         </p>
       )}
     </div>

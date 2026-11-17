@@ -293,7 +293,8 @@ export function installBookEdgeFeature({ facade, app, bus }) {
   bus?.onCommand(CMD_SET_STRINGS, data => {
     applyStrings(data?.strings || data);
     paintEdge();
-    void show();
+    // Only re-render previews when the dialog is visible.
+    if (dialog.open) void show();
   });
   app.eventBus.on("pagesinit", load);
   app.eventBus.on("pagechanging", paintEdge);

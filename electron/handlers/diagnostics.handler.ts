@@ -1,6 +1,7 @@
 import fs from "node:fs";
-import { shell, type App, type IpcMain } from "electron";
+import type { App, IpcMain } from "electron";
 import type { AppLogger } from "../services/app-logger";
+import { openPathDetached } from "../services/open-path";
 import { nonEmptyString, nullableString } from "../ipc/validation";
 
 const MAX_TEXT = 8000;
@@ -59,7 +60,7 @@ export function registerDiagnosticsHandlers(ipcMain: IpcMain, logger: AppLogger)
 
   ipcMain.handle("diagnostics:open-logs", async () => {
     fs.mkdirSync(logger.directory, { recursive: true });
-    const error = await shell.openPath(logger.directory);
+    const error = await openPathDetached(logger.directory);
     return error ? { success: false, error } : { success: true };
   });
 }

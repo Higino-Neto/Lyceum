@@ -345,8 +345,13 @@ export default function PdfPane({
         });
 
         runtimeRef.current = { pdf: null, viewer, eventBus, linkService, findController };
+        // Local file URLs (Capacitor file server) are streamed with range requests, so a
+        // large PDF opens without first copying the whole file into JS memory.
+        const source = dataUrl.startsWith("data:")
+          ? { data: dataUrlToUint8Array(dataUrl) }
+          : { url: dataUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 1 << 16 };
         const loadingTask = pdfjs.getDocument({
-          data: dataUrlToUint8Array(dataUrl),
+          ...source,
           isEvalSupported: false,
           enableXfa: true,
           useWorkerFetch: false,

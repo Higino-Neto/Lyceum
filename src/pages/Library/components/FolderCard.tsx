@@ -33,6 +33,8 @@ export type FolderCardProps = {
   onDrop?: DragEventHandler<HTMLDivElement>;
   isDropTarget?: boolean;
   fluid?: boolean;
+  /** Horizontal, low-profile card used by the library's folder carousel. */
+  compact?: boolean;
 };
 
 function formatCount(
@@ -135,7 +137,7 @@ function CoverPreview({
               <Folder size={24} strokeWidth={1.4} />
             </div>
             {isEmpty && (
-              <span className="text-[11px] font-medium uppercase tracking-wide">Vazia</span>
+              <span className="text-[11px] font-medium uppercase tracking-wide">{translate("library:folders.empty")}</span>
             )}
           </div>
         </div>
@@ -161,6 +163,7 @@ export default function FolderCard({
   onDrop,
   isDropTarget = false,
   fluid = false,
+  compact = false,
 }: FolderCardProps) {
   const images = useFolderPreviewImages(coverPreviews, coverPreviewPaths);
   const empty = isEmpty ?? (bookCount === 0 && folderCount === 0);
@@ -175,6 +178,90 @@ export default function FolderCard({
   const handleContextMenu = (event: MouseEvent) => {
     onContextMenu?.(id, event);
   };
+
+  if (compact) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={translate("library:folders.openFolder", { name })}
+        aria-pressed={isSelected || undefined}
+        title={detail ? `${name}\n${detail}` : name}
+        onClick={open}
+        onKeyDown={handleKeyDown}
+        onContextMenu={handleContextMenu}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={[
+          "lyceum-interactive-card group relative flex h-16 w-full cursor-pointer items-center gap-3 rounded-sm border px-2.5 text-left transition-colors duration-150",
+          isDropTarget
+            ? "border-primary bg-primary-muted"
+            : isSelected
+              ? "border-primary/70 bg-primary-muted"
+              : "border-border bg-background/60 hover:border-border-strong hover:bg-overlay",
+        ].join(" ")}
+      >
+        <div className="relative flex h-11 w-11 flex-shrink-0 items-end justify-center">
+          {images.length > 0 ? (
+            images.slice(0, 2).map((src, index) => (
+              <img
+                key={`${src}-${index}`}
+                src={src}
+                alt=""
+                draggable={false}
+                className="absolute bottom-0 h-11 w-8 rounded-[2px] border border-border-strong object-cover shadow-sm"
+                style={{
+                  left: index === 0 ? 2 : 12,
+                  transform: `rotate(${index === 0 ? -6 : 5}deg)`,
+                  zIndex: 2 - index,
+                }}
+              />
+            ))
+          ) : (
+            <Folder
+              size={26}
+              strokeWidth={1.5}
+              className={empty ? "text-foreground-subtle" : "text-primary"}
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">{name}</p>
+          <p className="mt-0.5 flex items-center gap-2 truncate text-[11px] text-foreground-subtle">
+            {folderCount > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Boxes size={11} />
+                {folderCount}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <BookOpen size={11} />
+              {bookCount}
+            </span>
+            {detail && <span className="truncate">{detail}</span>}
+          </p>
+          <span className="sr-only">{metadata}</span>
+        </div>
+        {onContextMenu && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onContextMenu(id, event);
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
+            className="flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-sm text-foreground-subtle opacity-0 transition-opacity hover:bg-surface-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+            aria-label={translate("library:folders.moreActions", { name })}
+            title={translate("library:folders.moreActions", { name })}
+          >
+            <MoreVertical size={14} />
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -195,7 +282,7 @@ export default function FolderCard({
         "hover:border-primary/60 hover:bg-overlay",
         "",
         isSelected ? "border-primary/80 bg-primary-muted shadow-shadow" : "border-border",
-        isDropTarget ? "border-primary bg-primary-muted ring-1 ring-focus-ring" : "",
+        isDropTarget ? "border-primary bg-primary-muted" : "",
       ].join(" ")}
     >
       {onContextMenu && (
@@ -207,7 +294,7 @@ export default function FolderCard({
             onContextMenu(id, event);
           }}
           onKeyDown={(event) => event.stopPropagation()}
-          className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-background/75 text-foreground-subtle opacity-0 shadow-sm transition-all hover:border-border-strong hover:bg-surface hover:text-foreground focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring group-hover:opacity-100"
+          className="cursor-pointer absolute right-4 top-4 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-background/75 text-foreground-subtle opacity-0 shadow-sm transition-all hover:border-border-strong hover:bg-surface hover:text-foreground focus:opacity-100 focus:outline-none group-hover:opacity-100"
           aria-label={translate("library:folders.moreActions", { name })}
           title={translate("library:folders.moreActions", { name })}
         >

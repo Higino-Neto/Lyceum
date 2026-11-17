@@ -135,4 +135,17 @@ describe("SQLite document query repository", () => {
     expect(repository.pendingProcessing().map(({ fileHash }) => fileHash)).toEqual(["b"]);
     expect(repository.byHash("missing")).toBeUndefined();
   });
+
+  it("falls back to typo-tolerant matching when FTS finds nothing", () => {
+    const repository = createSqliteDocumentQueryRepository(db, libraryPath);
+    expect(repository.list({ search: "biogarfia" }).items.map((item) => item.fileHash)).toEqual(["b"]);
+    expect(repository.list({ search: "biogarfia", section: "unsynced" }).items).toEqual([]);
+  });
+
+  it("ranks title matches before folder matches when sorting by title", () => {
+    const repository = createSqliteDocumentQueryRepository(db, libraryPath);
+    addDocument("d", "Antologia", `${libraryPath}/calculo`, "pdf", 1, 10);
+    expect(repository.list({ search: "calculo", sort: "title_asc" }).items.map((item) => item.fileHash))
+      .toEqual(["c", "d"]);
+  });
 });

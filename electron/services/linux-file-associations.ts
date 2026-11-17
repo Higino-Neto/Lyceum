@@ -7,15 +7,31 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-// MIME types Lyceum opens natively. Registering them is what makes the Linux
-// file explorers list Lyceum among the recommended/open-with applications.
-const LYCEUM_MIME_TYPES = ["application/pdf", "application/epub+zip"];
+// MIME types Lyceum opens (natively or through the reader's cached EPUB
+// conversion). Registering them is what makes the Linux file explorers list
+// Lyceum among the recommended/open-with applications. Keep in sync with
+// `linux.mimeTypes` in electron-builder.json5.
+const LYCEUM_MIME_TYPES = [
+  "application/pdf",
+  "application/epub+zip",
+  "application/x-mobipocket-ebook",
+  "application/vnd.amazon.ebook",
+  "application/vnd.amazon.mobi8-ebook",
+  "application/x-mobi8-ebook",
+  "application/x-fictionbook+xml",
+  "application/x-zip-compressed-fb2",
+  "application/vnd.comicbook+zip",
+  "application/x-cbz",
+  "application/vnd.comicbook-rar",
+  "application/x-cbr",
+];
+const SYSTEM_DESKTOP_FILE = path.join("/usr/share/applications", "lyceum.desktop");
 
 const DESKTOP_FILE_ID = "com.higino.lyceum.desktop";
 const DESKTOP_FILE_NAME = "lyceum.desktop";
 const ICON_INSTALL_NAME = "lyceum-app-icon.png";
 const STATE_FILE = "linux-mime-registration.json";
-const MIME_REVISION = 1;
+const MIME_REVISION = 2;
 
 type RegistrationState = {
   registeredFor?: string;
@@ -66,14 +82,46 @@ function buildDesktopEntry(execCommand: string, iconPath: string): string {
     "Type=Application",
     "Name=Lyceum",
     "Comment=A smarter home for every book you read",
-    `Exec="${execCommand}" %F`,
+    `Exec=${execCommand} %U`,
     `Icon=${iconPath}`,
     "Categories=Education;Office;Viewer;",
-    `MimeType=${LYCEUM_MIME_TYPES.join(";")};`,
+    `MimeType=${[...LYCEUM_MIME_TYPES, "x-scheme-handler/lyceum"].join(";")};`,
     "StartupWMClass=Lyceum",
     "Terminal=false",
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function readMimeTypes(desktopEntry: string): Set<string> {
+  const line = desktopEntry.split(/\r?\n/).find((entry) => entry.startsWith("MimeType="));
+  return new Set((line?.slice("MimeType=".length) ?? "").split(";").filter(Boolean));
+}
+
+function readDesktopKey(desktopEntry: string, key: string): string | null {
+  const line = desktopEntry.split(/\r?\n/).find((entry) => entry.startsWith(`${key}=`));
+  return line ? line.slice(key.length + 1) : null;
+}
+
+async function repairPackagedDesktopEntry(userApplicationsDir: string): Promise<void> {
+  let systemEntry: string;
+  try {
+    systemEntry = fs.readFileSync(SYSTEM_DESKTOP_FILE, "utf8");
+  } catch {
+    return;
+  }
+  const registered = readMimeTypes(systemEntry);
+  if (LYCEUM_MIME_TYPES.every((mimeType) => registered.has(mimeType))) return;
+
+  const exec = (readDesktopKey(systemEntry, "Exec") ?? `${process.execPath} %U`)
+    .replace(/\s+%[fFuU]\s*$/, "");
+  const icon = readDesktopKey(systemEntry, "Icon") ?? "lyceum";
+  fs.mkdirSync(userApplicationsDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(userApplicationsDir, DESKTOP_FILE_NAME),
+    buildDesktopEntry(exec, icon),
+    "utf8",
+  );
+  await execFileAsync("update-desktop-database", [userApplicationsDir]).catch(() => undefined);
 }
 
 /**
@@ -104,10 +152,12 @@ export async function registerLinuxRecommendedApp(): Promise<void> {
 
   try {
     if (!appImagePath) {
-      // deb/rpm: nothing to do — the packaged desktop file handles the
-      // registration and `update-desktop-database` ran in the package's
-      // post-install script.
+      // deb/rpm: the packaged desktop file normally carries the MIME types.
+      // Older packages shipped an entry without them, which keeps Lyceum out
+      // of the file manager's recommended apps; a user-level entry with the
+      // same id overrides it until a fixed package is installed.
       if (state.mimeRevision < MIME_REVISION) {
+        await repairPackagedDesktopEntry(userApplicationsDir);
         writeState(app.getPath("userData"), { mimeRevision: MIME_REVISION });
       }
       return;
@@ -132,7 +182,7 @@ export async function registerLinuxRecommendedApp(): Promise<void> {
     }
 
     fs.mkdirSync(userApplicationsDir, { recursive: true });
-    fs.writeFileSync(userDesktopPath, buildDesktopEntry(appImagePath, iconPath), "utf8");
+    fs.writeFileSync(userDesktopPath, buildDesktopEntry(`"${appImagePath}"`, iconPath), "utf8");
 
     await execFileAsync("update-desktop-database", [userApplicationsDir]).catch(() => undefined);
 

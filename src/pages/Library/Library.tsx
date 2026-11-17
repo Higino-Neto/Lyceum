@@ -44,6 +44,7 @@ import BookGrid, { type GridDensity } from "./components/BookGrid";
 import KindleSendPanel from "./components/KindleSendPanel";
 import DuplicateFinderDialog from "./components/DuplicateFinderDialog";
 import { getBookFiles } from "./components/BookGrid/bookFiles";
+import type { SelectionModifiers } from "./components/BookGrid/selectionModifiers";
 import useBooks from "./useBooks";
 import ImportBookDialog from "../../components/ImportBookDialog";
 import { BookWithThumbnail, FolderInfo, LibrarySection, ReadingStatus } from "../../types/LibraryTypes";
@@ -166,7 +167,7 @@ function LibraryContent() {
   const electronApiAvailable = !!window.api?.listBooks;
 
   const [viewMode, setViewMode] = useLocalStorage<"grid" | "list">("library_viewMode", "grid");
-  const [gridDensity, setGridDensity] = useState<GridDensity>("comfortable");
+  const [gridDensity, setGridDensity] = useLocalStorage<GridDensity>("library_gridDensity", "comfortable");
   const [search, setSearch] = useState("");
   const [folderGridCollapsed, setFolderGridCollapsed] = useLocalStorage("library_folderGridCollapsed", false);
   const searchWasActiveRef = useRef(false);
@@ -898,11 +899,46 @@ function LibraryContent() {
     setSelectedBook({ ...updatedBook, thumbnail: thumbnail || undefined });
   };
 
-  /** Card click in selection mode: selects every file of the book, or clears them all. */
-  const toggleSelection = useCallback((book: BookWithThumbnail) => {
+  // Anchor for Shift+click range selection (the last book clicked/toggled).
+  const selectionAnchorRef = useRef<string | null>(null);
+
+  /** Adds every book between the anchor and `book` (in display order). */
+  const selectRangeTo = useCallback((book: BookWithThumbnail) => {
+    const ordered = displayBooksRef.current;
+    const anchorHash = selectionAnchorRef.current;
+    const anchorIndex = anchorHash ? ordered.findIndex((candidate) => candidate.fileHash === anchorHash) : -1;
+    const targetIndex = ordered.findIndex((candidate) => candidate.fileHash === book.fileHash);
+    const range = anchorIndex < 0 || targetIndex < 0
+      ? [book]
+      : ordered.slice(Math.min(anchorIndex, targetIndex), Math.max(anchorIndex, targetIndex) + 1);
+    setSelectedFileMap((previous) => {
+      const next = new Map(previous);
+      for (const item of range) {
+        for (const file of getBookFiles(item)) next.set(file.fileHash, file);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
+   * Card click in selection mode (or with Ctrl/Shift held): Ctrl toggles the
+   * book, Shift selects the range from the last anchor, a plain click toggles.
+   */
+  const toggleSelection = useCallback((book: BookWithThumbnail, modifiers?: SelectionModifiers) => {
+    if (modifiers?.shiftKey) {
+      if (!selectionAnchorRef.current && selectedBook) selectionAnchorRef.current = selectedBook.fileHash;
+      selectRangeTo(book);
+      return;
+    }
+    selectionAnchorRef.current = book.fileHash;
     const files = getBookFiles(book);
     setSelectedFileMap((previous) => {
       const next = new Map(previous);
+      // Ctrl+click on the first book while another one is open in the detail
+      // panel starts the selection with both of them.
+      if (modifiers?.ctrlKey && next.size === 0 && selectedBook && selectedBook.fileHash !== book.fileHash) {
+        for (const file of getBookFiles(selectedBook)) next.set(file.fileHash, file);
+      }
       const allSelected = files.every((file) => next.has(file.fileHash));
       for (const file of files) {
         if (allSelected) next.delete(file.fileHash);
@@ -910,7 +946,7 @@ function LibraryContent() {
       }
       return next;
     });
-  }, []);
+  }, [selectRangeTo, selectedBook]);
 
   /** Format chip click: selects or clears exactly one file of a merged book. */
   const toggleFileSelection = useCallback((file: BookWithThumbnail) => {
@@ -922,13 +958,22 @@ function LibraryContent() {
     });
   }, []);
 
-  const handleContextSelect = useCallback((book: BookWithThumbnail) => {
+  const handleContextSelect = useCallback((book: BookWithThumbnail, modifiers?: SelectionModifiers) => {
+    if (modifiers?.shiftKey) {
+      selectRangeTo(book);
+      return;
+    }
+    if (modifiers?.ctrlKey) {
+      toggleSelection(book, modifiers);
+      return;
+    }
+    selectionAnchorRef.current = book.fileHash;
     setSelectedFileMap((previous) => {
       const next = new Map(previous);
       for (const file of getBookFiles(book)) next.set(file.fileHash, file);
       return next;
     });
-  }, []);
+  }, [selectRangeTo, toggleSelection]);
 
   const handleBookDragStart = useCallback((fileHash: string) => {
     const displayBook = displayBooksRef.current.find((book) => book.fileHash === fileHash);

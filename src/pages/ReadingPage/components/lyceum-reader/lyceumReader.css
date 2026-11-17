@@ -111,3 +111,8 @@
   .lx-flash { animation: none; outline: 2px solid var(--lx-accent); }
   .lx-w { transition: none; }
 }
+
+/* Touch layout (mobile app): narrower gutters, no tap flash, larger hit area per word. */
+.lx-surface[data-touch="on"] { -webkit-tap-highlight-color: transparent; overscroll-behavior: contain; }
+.lx-surface[data-touch="on"] .lx-content { padding: 20px 20px 45vh; }
+.lx-surface[data-touch="on"] .lx-w { padding: 0.08em 0; }

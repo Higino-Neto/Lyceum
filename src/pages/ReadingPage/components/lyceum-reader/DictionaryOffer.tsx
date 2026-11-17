@@ -3,6 +3,7 @@ import { Download, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "../../../../i18n";
 import { DictionaryOfferContext } from "./uiHelpers";
+import { getLearningBridge } from "../../../../platform";
 
 interface CatalogEntry {
   id: string;
@@ -21,7 +22,7 @@ interface DictionaryApi {
 }
 
 function dictionaryApi(): DictionaryApi | null {
-  return (window as unknown as { api?: DictionaryApi }).api ?? null;
+  return getLearningBridge() as DictionaryApi | null;
 }
 
 const FALLBACK_TARGETS = ["en", "es", "fr", "de"];

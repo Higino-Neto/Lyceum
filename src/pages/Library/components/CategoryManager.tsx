@@ -159,8 +159,8 @@ export default function CategoryManager({
           ) : categories.length === 0 && !isCreating ? (
             <div className="text-center py-8">
               <Tag size={32} className="mx-auto text-foreground-subtle mb-2" />
-              <p className="text-foreground-subtle text-sm">Nenhuma categoria ainda.</p>
-              <p className="text-foreground-subtle text-xs mt-1">Crie categorias para organizar seus livros.</p>
+              <p className="text-foreground-subtle text-sm">{t("library:categories.emptyTitle")}</p>
+              <p className="text-foreground-subtle text-xs mt-1">{t("library:categories.emptyHint")}</p>
             </div>
           ) : (
             categories.map((cat) => (

@@ -227,3 +227,24 @@ export function withCreateRows(
   }
   return items;
 }
+
+/** Removes folders (and their subtrees) by `path`, for optimistic deletes. */
+export function removeFolderPaths(folders: FolderInfo[], paths: Set<string>): FolderInfo[] {
+  if (paths.size === 0) return folders;
+  return folders
+    .filter((folder) => !paths.has(folder.path))
+    .map((folder) => (
+      folder.subfolders.length === 0
+        ? folder
+        : { ...folder, subfolders: removeFolderPaths(folder.subfolders, paths) }
+    ));
+}
+
+/** Paths between `anchor` and `target` (inclusive) in visible order. */
+export function folderRange(orderedPaths: string[], anchor: string, target: string): string[] {
+  const start = orderedPaths.indexOf(anchor);
+  const end = orderedPaths.indexOf(target);
+  if (start < 0 || end < 0) return [target];
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  return orderedPaths.slice(from, to + 1);
+}

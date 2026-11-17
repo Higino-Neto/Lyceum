@@ -3,22 +3,25 @@ import { getDefaultHotkeyBindings, getEnabledNavigationRoutes } from "../navigat
 
 describe("navigation hotkeys", () => {
   it("keeps the natural numeric order in sync with enabled beta routes", () => {
-    const settings = {
-      betaAtlasEnabled: false,
-      betaConversionEnabled: true,
-      betaHabitsEnabled: true,
-    };
+    const settings = { betaConversionEnabled: true };
     expect(getEnabledNavigationRoutes(settings).map((route) => route.id)).toEqual([
-      "dashboard", "register", "library", "reader", "conversion", "pdfBuilder", "habits",
+      "dashboard", "library", "reader", "conversion", "pdfBuilder",
     ]);
     expect(getDefaultHotkeyBindings(settings)).toMatchObject({
       dashboard: "1",
-      register: "2",
-      library: "3",
-      reader: "4",
-      conversion: "5",
-      pdfBuilder: "6",
-      habits: "7",
+      library: "2",
+      reader: "3",
+      conversion: "4",
+      pdfBuilder: "5",
+    });
+  });
+
+  it("renumbers routes when a beta feature is disabled", () => {
+    const settings = { betaConversionEnabled: false };
+    expect(getDefaultHotkeyBindings(settings)).toEqual({
+      dashboard: "1",
+      library: "2",
+      reader: "3",
     });
   });
 });

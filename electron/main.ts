@@ -35,11 +35,13 @@ import {
   deleteDocument,
   getDocumentByPath,
   getSourceFolders,
+  listReferencedThumbnailPaths,
 } from "./local-database";
 import {
   isPdfMagicBytesValid,
   toStoredMetadata,
-  THUMBNAIL_EXTENSIONS,
+  findThumbnailByHash as findThumbnailFileByHash,
+  pruneOrphanThumbnails,
   extractEpubMetadata as extractEpubMetadataMainThread,
   extractPdfMetadata as extractMetadataMainThread,
   getPdfPageCount as getPdfPageCountMainThread,
@@ -50,6 +52,7 @@ import { deleteBook, openReadableFile as openReadableDocument } from "./services
 import { isReaderSupportedPath, ReaderOpenError } from "./services/reader-format-service";
 import { WATCHER_IGNORED_PATTERNS } from "./services/watcher-ignores";
 import { registerLinuxRecommendedApp } from "./services/linux-file-associations";
+import { openPathDetached } from "./services/open-path";
 import {
   checkProcessingWorkers,
   convertPdfToEpubInWorker,
@@ -68,7 +71,8 @@ import {
 } from "./workers/processingClient";
 import { registerPdfToolsHandlers } from "./handlers/pdf-tools.handler";
 import {
-  KINDLE_EMAIL_ACCEPTED_FORMATS,
+  KindleEmailError,
+  toKindleSendError,
   KindleEmailService,
   type KindleEmailSaveInput,
 } from "./services/kindle-email";
@@ -94,12 +98,13 @@ import { copyFileToVolume, ensureLinuxMtpEreadersMounted } from "./services/linu
 import { stripKindleFileNameSuffix, type KindleBookDetails } from "./services/kindle-book-inspector";
 import { installContentSecurityPolicy } from "./app/security-policy";
 import { resolvePdfjsAssetPath } from "./app/pdfjs-asset-path";
-import { registerHabitHandlers } from "./handlers/habits.handler";
-import { createSqliteHabitRepository } from "./infrastructure/sqlite-habit-repository";
 import { registerBackupHandlers } from "./handlers/backup.handler";
 import { registerCategoryHandlers } from "./handlers/categories.handler";
 import { registerDictionaryHandlers } from "./handlers/dictionary.handler";
 import { registerLanguageLearningHandlers } from "./handlers/language-learning.handler";
+import { registerStatsHandlers } from "./handlers/stats.handler";
+import { createSqliteStatsRepository } from "./infrastructure/sqlite-stats-repository";
+import { createLearningIndexReader } from "./services/learning-index-reader";
 import { createSqliteLanguageLearningRepository } from "./infrastructure/sqlite-language-learning-repository";
 import { createLanguageLearningService, translateWithMyMemory } from "./services/language-learning-service";
 import { createLearningBackupService, isLearningBackup, type LearningBackupService } from "./services/language-learning-backup";
@@ -147,6 +152,15 @@ import type { DocumentRecord, LibraryListResult } from "../src/types/LibraryType
 import type { ConversionRequestOptions } from "./workers/protocol";
 import { OutputPreviewService, cleanupStaleOutputPreviews, type OutputPreviewRequest } from "./services/output-preview";
 import { DARK_TOKENS, LIGHT_TOKENS } from "../src/theme/tokens";
+import {
+  AMAZON_PERSONAL_DOCUMENTS_URL,
+  EMAIL_COMPRESSED_IMAGES,
+  planEmailBook,
+  planUsbBook,
+  type KindleSendError,
+  type KindleSendErrorCode,
+  type KindleSendStage,
+} from "../src/features/kindle/kindleSendPlan";
 
 const LYCEUM_KINDLE_AZW3_PROFILE = "kf8-tbs-20260627";
 const bundledFromChunksDir = path.basename(__dirname) === "chunks";
@@ -1266,10 +1280,12 @@ async function prepareKindleTransferFile(
   fileName?: string;
   converted?: boolean;
   sourceFormat?: BookFormat;
-  error?: string;
+  error?: KindleSendError;
   /** APNX sidecar to copy into "<book>.sdr/" on the device. */
   apnxPath?: string;
   pageCount?: number;
+  /** Staging folder to delete once the copy is confirmed. */
+  tempDir?: string;
 }> {
   const {
     inferBookFormatFromPath,
@@ -1278,48 +1294,38 @@ async function prepareKindleTransferFile(
     ? await copyWindowsMtpBookToTemp(book.filePath)
     : book.filePath;
 
-  if (!localPath) {
-    return { success: false, error: "Nao foi possivel acessar o arquivo de origem" };
-  }
-
-  if (!fs.existsSync(localPath)) {
-    return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+  if (!localPath || !fs.existsSync(localPath)) {
+    return { success: false, error: { code: "source-missing" } };
   }
 
   const sourceFormat = inferBookFormatFromPath(localPath) || book.fileType || null;
   if (!sourceFormat) {
-    return { success: false, error: "Formato de origem nao suportado" };
+    return { success: false, error: { code: "unsupported-format" } };
   }
 
-  const convertibleToAzw3 = new Set<BookFormat>(["pdf", "epub", "txt", "html", "cbz"]);
-  const kindleDirectFormats = new Set<BookFormat>(["azw3", "azw", "mobi", "prc", "kfx", "pdf", "txt"]);
-  const shouldConvert = Boolean(
-    options.convertToAzw3 &&
-    sourceFormat !== "azw3" &&
-    convertibleToAzw3.has(sourceFormat),
-  );
+  const plan = planUsbBook(sourceFormat, { convertToAzw3: Boolean(options.convertToAzw3) });
+  if (plan.action === "unsupported") {
+    return {
+      success: false,
+      error: { code: plan.reason, params: { format: sourceFormat.toUpperCase() } },
+      sourceFormat,
+    };
+  }
 
-  if (!shouldConvert) {
-    if (!kindleDirectFormats.has(sourceFormat)) {
-      return {
-        success: false,
-        error: "Este formato precisa ser convertido para AZW3 antes do envio por USB",
-        sourceFormat,
-      };
-    }
-
+  if (plan.action === "copy") {
     if (sourceFormat === "azw3") {
+      onProgress?.(0.2, "validating");
       const validation = await validateAzw3InWorker(localPath);
       if (!validation.valid) {
         return {
           success: false,
-          error: `AZW3 invalido: ${validation.errors.join("; ")}`,
+          error: { code: "invalid-azw3", detail: validation.errors.join("; ") },
           sourceFormat,
         };
       }
     }
 
-    onProgress?.(0.5, "Gerando numeros de pagina");
+    onProgress?.(0.5, "pageNumbers");
     const apnx = await buildDirectCopyApnx(localPath, sourceFormat, book, options);
     return {
       success: true,
@@ -1343,50 +1349,56 @@ async function prepareKindleTransferFile(
   const outputPath = getUniquePathInDir(tempDir, outputName);
   const title = path.basename(book.title || book.fileName || localPath, path.extname(book.title || book.fileName || localPath));
 
-  await convertViaLyceumInWorker({
-    sourcePath: localPath,
-    sourceFormat,
-    targetFormat: "azw3",
-    packageRoot: getLyceumPackageRoot(`kindle-${sourceHash}`),
-    outputPath,
-    metadata: options.preserveMetadata === false
-      ? {
-          title,
-          identifier: kindleIdentity,
-          asin: kindleIdentity,
-        }
-      : {
-          title,
-          author: book.author || undefined,
-          // Never default: the book's own language (from its OPF) must win
-          // over a guess, or a French book is tagged Portuguese on the Kindle.
-          language: book.language || undefined,
-          publisher: book.publisher || undefined,
-          description: book.description || undefined,
-          publishDate: book.publishDate || undefined,
-          identifier: book.identifier || kindleIdentity,
-          asin: kindleIdentity,
-          subject: book.subject || undefined,
-          series: book.series || undefined,
-          seriesIndex: book.seriesIndex || undefined,
-          authorSort: book.authorSort || undefined,
-          titleSort: book.titleSort || undefined,
-        },
-    pdfImageTempDir: sourceFormat === "pdf"
-      ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-${sourceHash}`)
-      : undefined,
-    conversionOptions: {
-      ...options.conversionOptions,
-      pageNumbers: options.pageNumbers || options.conversionOptions?.pageNumbers || "auto",
-      printPageCount: book.printPageCount || undefined,
-      charsPerPage: options.charsPerPage ?? options.conversionOptions?.charsPerPage,
-    },
-  }, {
-    signal,
-    onProgress: onProgress
-      ? (progress, message) => onProgress(0.05 + Math.min(1, Math.max(0, progress)) * 0.75, message || "Convertendo para AZW3")
-      : undefined,
-  });
+  onProgress?.(0.05, "converting");
+  try {
+    await convertViaLyceumInWorker({
+      sourcePath: localPath,
+      sourceFormat,
+      targetFormat: "azw3",
+      packageRoot: getLyceumPackageRoot(`kindle-${sourceHash}`),
+      outputPath,
+      metadata: options.preserveMetadata === false
+        ? {
+            title,
+            identifier: kindleIdentity,
+            asin: kindleIdentity,
+          }
+        : {
+            title,
+            author: book.author || undefined,
+            // Never default: the book's own language (from its OPF) must win
+            // over a guess, or a French book is tagged Portuguese on the Kindle.
+            language: book.language || undefined,
+            publisher: book.publisher || undefined,
+            description: book.description || undefined,
+            publishDate: book.publishDate || undefined,
+            identifier: book.identifier || kindleIdentity,
+            asin: kindleIdentity,
+            subject: book.subject || undefined,
+            series: book.series || undefined,
+            seriesIndex: book.seriesIndex || undefined,
+            authorSort: book.authorSort || undefined,
+            titleSort: book.titleSort || undefined,
+          },
+      pdfImageTempDir: sourceFormat === "pdf"
+        ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-${sourceHash}`)
+        : undefined,
+      conversionOptions: {
+        ...options.conversionOptions,
+        pageNumbers: options.pageNumbers || options.conversionOptions?.pageNumbers || "auto",
+        printPageCount: book.printPageCount || undefined,
+        charsPerPage: options.charsPerPage ?? options.conversionOptions?.charsPerPage,
+      },
+    }, {
+      signal,
+      onProgress: onProgress
+        ? (progress, message) => onProgress(0.05 + Math.min(1, Math.max(0, progress)) * 0.75, "converting", message)
+        : undefined,
+    });
+  } catch (error) {
+    await removeKindleTempDir(tempDir);
+    return { success: false, error: kindleErrorFromException(error, signal), sourceFormat };
+  }
 
   // The AZW3 exporter writes "<name>.apnx" next to the book when it has pages.
   const apnxPath = outputPath.replace(/\.[^./\\]+$/, "") + ".apnx";
@@ -1398,6 +1410,7 @@ async function prepareKindleTransferFile(
     fileName: outputName,
     converted: true,
     sourceFormat,
+    tempDir,
     ...(hasApnx ? { apnxPath, pageCount: readApnxPageCount(apnxPath) } : {}),
   };
 }
@@ -1524,32 +1537,41 @@ async function copyApnxToKindle(
  */
 async function prepareKindleEmailFile(
   book: KindleSendBookInput,
-  options: { preserveMetadata?: boolean; convertPdfToEpub?: boolean },
-): Promise<{ success: boolean; filePath?: string; fileName?: string; converted?: boolean; error?: string }> {
+  options: { preserveMetadata?: boolean; convertPdfToEpub?: boolean; compressImages?: boolean; maxBytes: number },
+  onProgress?: KindleSendProgress,
+  signal?: AbortSignal,
+): Promise<{ success: boolean; filePath?: string; fileName?: string; converted?: boolean; outputFormat?: string; error?: KindleSendError; tempDir?: string }> {
   const { inferBookFormatFromPath } = await loadLyceumConversionModule();
   const localPath = book.filePath.startsWith("::") ? await copyWindowsMtpBookToTemp(book.filePath) : book.filePath;
   if (!localPath || !fs.existsSync(localPath)) {
-    return { success: false, error: "Arquivo de origem nao encontrado no disco" };
+    return { success: false, error: { code: "source-missing" } };
   }
   const sourceFormat = inferBookFormatFromPath(localPath) || book.fileType || null;
-  if (!sourceFormat) return { success: false, error: "Formato de origem nao suportado" };
+  if (!sourceFormat) return { success: false, error: { code: "unsupported-format" } };
 
-  const targetFormat: BookFormat | null =
-    sourceFormat === "cbz" ? "pdf"
-      : sourceFormat === "pdf" && options.convertPdfToEpub ? "epub"
-        : sourceFormat === "txt" || sourceFormat === "html" ? "epub"
-          : null;
-  if (!targetFormat && !KINDLE_EMAIL_ACCEPTED_FORMATS.has(sourceFormat)) {
+  const size = (await fs.promises.stat(localPath)).size;
+  const plan = planEmailBook(sourceFormat, size, {
+    pdfAsEpub: Boolean(options.convertPdfToEpub),
+    compressImages: Boolean(options.compressImages),
+    maxBytes: options.maxBytes,
+  });
+  if (plan.action === "unsupported") {
+    return { success: false, error: { code: plan.reason, params: { format: sourceFormat.toUpperCase() } } };
+  }
+  if (plan.action === "send" && plan.tooLarge) {
     return {
       success: false,
-      error: `A Amazon nao aceita ${sourceFormat.toUpperCase()} por e-mail. Use o envio por USB.`,
+      error: {
+        code: "too-large",
+        params: { size: Math.round((size / 1024 / 1024) * 10) / 10, limit: Math.round((options.maxBytes / 1024 / 1024) * 10) / 10 },
+      },
     };
   }
 
   const { fileHash: sourceHash } = await hashFile(localPath);
-  const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-email", sourceHash.slice(0, 16));
+  const tempDir = path.join(app.getPath("temp"), "lyceum-kindle-email", `${sourceHash.slice(0, 16)}-${Date.now()}`);
   await fs.promises.mkdir(tempDir, { recursive: true });
-  const outputFormat = targetFormat || sourceFormat;
+  const outputFormat = plan.action === "convert" ? plan.target : sourceFormat;
   const fileName = createKindleOutputName(book, outputFormat);
   const outputPath = path.join(tempDir, fileName);
   const title = path.basename(book.title || book.fileName || localPath, path.extname(book.title || book.fileName || localPath));
@@ -1569,30 +1591,43 @@ async function prepareKindleEmailFile(
     titleSort: book.titleSort || undefined,
   };
 
-  if (targetFormat) {
-    await convertViaLyceumInWorker({
-      sourcePath: localPath,
-      sourceFormat,
-      targetFormat,
-      packageRoot: getLyceumPackageRoot(`kindle-email-${sourceHash}`),
-      outputPath,
-      // The source's own language wins when the library has none.
-      metadata: options.preserveMetadata === false ? { title } : metadata,
-      pdfImageTempDir: sourceFormat === "pdf"
-        ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-email-${sourceHash}`)
-        : undefined,
-    });
-    return { success: true, filePath: outputPath, fileName, converted: true };
-  }
-
-  await fs.promises.copyFile(localPath, outputPath);
-  if (options.preserveMetadata !== false && (sourceFormat === "epub" || sourceFormat === "pdf")) {
-    const stamped = await writeBookMetadataInWorker(outputPath, sourceFormat, metadata).catch(() => null);
-    if (stamped && !stamped.fileResult.success) {
-      console.warn("[kindle:email] Could not stamp metadata on the copy:", stamped.fileResult.error);
+  try {
+    if (plan.action === "convert") {
+      onProgress?.(0.05, "converting");
+      await convertViaLyceumInWorker({
+        sourcePath: localPath,
+        sourceFormat,
+        targetFormat: plan.target,
+        packageRoot: getLyceumPackageRoot(`kindle-email-${sourceHash}`),
+        outputPath,
+        // The source's own language wins when the library has none.
+        metadata: options.preserveMetadata === false ? { title } : metadata,
+        pdfImageTempDir: sourceFormat === "pdf"
+          ? path.join(app.getPath("temp"), "lyceum-pdf-to-epub-images", `kindle-email-${sourceHash}`)
+          : undefined,
+        conversionOptions: plan.compress ? { ...EMAIL_COMPRESSED_IMAGES } : undefined,
+      }, {
+        signal,
+        onProgress: onProgress
+          ? (progress, message) => onProgress(0.05 + Math.min(1, Math.max(0, progress)) * 0.65, "converting", message)
+          : undefined,
+      });
+      return { success: true, filePath: outputPath, fileName, converted: true, outputFormat, tempDir };
     }
+
+    onProgress?.(0.2, "preparing");
+    await fs.promises.copyFile(localPath, outputPath);
+    if (options.preserveMetadata !== false && (sourceFormat === "epub" || sourceFormat === "pdf")) {
+      const stamped = await writeBookMetadataInWorker(outputPath, sourceFormat, metadata).catch(() => null);
+      if (stamped && !stamped.fileResult.success) {
+        console.warn("[kindle:email] Could not stamp metadata on the copy:", stamped.fileResult.error);
+      }
+    }
+    return { success: true, filePath: outputPath, fileName, converted: false, outputFormat, tempDir };
+  } catch (error) {
+    await removeKindleTempDir(tempDir);
+    return { success: false, error: kindleErrorFromException(error, signal) };
   }
-  return { success: true, filePath: outputPath, fileName, converted: false };
 }
 
 async function copyFileToFilesystemKindle(
@@ -1849,37 +1884,37 @@ async function sendOneBookToKindle(
   onProgress?: KindleSendProgress,
   signal?: AbortSignal,
 ): Promise<KindleSendItemResult> {
+  let tempDir: string | undefined;
+  let keepStaging = false;
   try {
-    onProgress?.(0.02, "Preparando");
+    onProgress?.(0.02, "preparing");
     const prepared = await prepareKindleTransferFile(book, options, onProgress, signal);
+    tempDir = prepared.tempDir;
     if (!prepared.success || !prepared.filePath || !prepared.fileName) {
-      return {
-        fileHash: book.fileHash,
-        title: book.title,
-        success: false,
-        status: "error",
-        error: prepared.error || "Nao foi possivel preparar o arquivo",
-      };
+      return kindleFailure(book, prepared.error || { code: "unknown" });
     }
+    if (signal?.aborted) return kindleFailure(book, { code: "canceled" });
 
-    onProgress?.(0.84, "Copiando para o Kindle");
+    onProgress?.(0.84, "copying");
     const destinationParts = getKindleDestinationParts(options, book.author);
     const copied = device.isMtp
       ? await copyFileToMtpKindle(prepared.filePath, device, destinationParts, prepared.fileName)
       : await copyFileToFilesystemKindle(prepared.filePath, device, destinationParts, prepared.fileName);
+    // Windows MTP copies finish asynchronously: an unconfirmed copy still reads the staging file.
+    keepStaging = device.isMtp && copied.success && !copied.verified;
 
     if (copied.success) {
-      onProgress?.(0.92, "Gravando capa na biblioteca do Kindle");
+      onProgress?.(0.92, "cover");
       try {
         await copyKindleLibraryThumbnail(prepared.filePath, book.fileHash, device);
       } catch (error) {
-        console.warn("[kindle] Falha ao gravar a capa na biblioteca do Kindle:", error);
+        console.warn("[kindle] Failed to write the cover to the Kindle library:", error);
       }
     }
 
     let pageCount: number | undefined;
     if (copied.success && prepared.apnxPath) {
-      onProgress?.(0.96, "Gravando numeros de pagina");
+      onProgress?.(0.96, "pageNumbers");
       try {
         const apnxCopied = await copyApnxToKindle(
           prepared.apnxPath,
@@ -1889,38 +1924,33 @@ async function sendOneBookToKindle(
         );
         if (apnxCopied) pageCount = prepared.pageCount;
       } catch (error) {
-        console.warn("[kindle] Falha ao copiar APNX:", error);
+        console.warn("[kindle] Failed to copy APNX:", error);
       }
     }
 
-    onProgress?.(1, copied.success ? "Enviado" : copied.error || "Falha ao copiar");
+    if (!copied.success) {
+      onProgress?.(1, "done");
+      return kindleFailure(book, { code: "copy-failed", detail: copied.error });
+    }
+    onProgress?.(1, "done");
+    if (copied.note) console.info(`[kindle] ${book.title}: ${copied.note}`);
     return {
       fileHash: book.fileHash,
       title: book.title,
-      success: copied.success,
-      status: copied.success
-        ? prepared.converted ? "converted" : "sent"
-        : "error",
-      sourcePath: prepared.filePath,
+      success: true,
+      status: prepared.converted ? "converted" : "sent",
       outputName: copied.outputName,
       outputPath: copied.outputPath,
+      outputFormat: path.extname(prepared.fileName).slice(1).toLowerCase(),
       verified: copied.verified,
       bytes: copied.bytes,
       note: copied.note,
-      error: copied.error,
       pageCount,
     };
   } catch (error) {
-    if (signal?.aborted) {
-      return { fileHash: book.fileHash, title: book.title, success: false, status: "error", error: "Envio cancelado" };
-    }
-    return {
-      fileHash: book.fileHash,
-      title: book.title,
-      success: false,
-      status: "error",
-      error: error instanceof Error ? error.message : "Erro ao enviar para o Kindle",
-    };
+    return kindleFailure(book, kindleErrorFromException(error, signal));
+  } finally {
+    if (!keepStaging) await removeKindleTempDir(tempDir);
   }
 }
 
@@ -1931,6 +1961,7 @@ async function sendBooksToKindle(options: KindleSendOptions): Promise<{
   failed: number;
   results: KindleSendItemResult[];
   error?: string;
+  errorCode?: KindleSendErrorCode;
 }> {
   const devices = await listKindleSendDevices();
   const device = options.deviceId
@@ -1943,16 +1974,28 @@ async function sendBooksToKindle(options: KindleSendOptions): Promise<{
       sent: 0,
       failed: options.books.length,
       results: [],
-      error: "Nenhum Kindle conectado foi encontrado",
+      error: "no-device",
+      errorCode: "no-device",
     };
   }
 
   const results: KindleSendItemResult[] = [];
+  activeKindleSend?.abort();
+  const controller = new AbortController();
+  activeKindleSend = controller;
 
-  for (const book of options.books) {
-    results.push(await sendOneBookToKindle(book, device, options, (progress, message) => {
-      win?.webContents.send("kindle:send-progress", { fileHash: book.fileHash, progress, message });
-    }));
+  try {
+    for (const book of options.books) {
+      if (controller.signal.aborted) {
+        results.push(kindleFailure(book, { code: "canceled" }));
+        continue;
+      }
+      results.push(await sendOneBookToKindle(book, device, options, (progress, stage, detail) => {
+        win?.webContents.send("kindle:send-progress", { fileHash: book.fileHash, progress, stage, detail });
+      }, controller.signal));
+    }
+  } finally {
+    if (activeKindleSend === controller) activeKindleSend = null;
   }
 
   const sent = results.filter((result) => result.success).length;
@@ -2272,7 +2315,8 @@ interface KindleSendOptions {
   conversionOptions?: LyceumConversionOptions;
 }
 
-type KindleSendProgress = (progress: number, message: string) => void;
+/** `detail` is the raw worker message (e.g. the chapter being converted). */
+type KindleSendProgress = (progress: number, stage: KindleSendStage, detail?: string) => void;
 
 interface KindleSendItemResult {
   fileHash: string;
@@ -2286,9 +2330,57 @@ interface KindleSendItemResult {
   bytes?: number;
   note?: string;
   error?: string;
+  /** Translatable failure: the renderer picks the message from the code. */
+  errorCode?: KindleSendErrorCode;
+  errorParams?: Record<string, string | number>;
   /** Number of real pages written to the APNX sidecar, when one was copied. */
   pageCount?: number;
+  /** Format actually delivered (e.g. "azw3", "epub"). */
+  outputFormat?: string;
 }
+
+function kindleFailure(book: KindleSendBookInput, error: KindleSendError): KindleSendItemResult {
+  return {
+    fileHash: book.fileHash,
+    title: book.title,
+    success: false,
+    status: "error",
+    error: error.detail || error.code,
+    errorCode: error.code,
+    errorParams: error.params,
+  };
+}
+
+function kindleErrorFromException(error: unknown, signal?: AbortSignal): KindleSendError {
+  if (signal?.aborted) return { code: "canceled" };
+  if (error instanceof KindleEmailError) return toKindleSendError(error);
+  return { code: "conversion-failed", detail: error instanceof Error ? error.message : String(error) };
+}
+
+const KINDLE_SEND_TEMP_DIRS = ["lyceum-kindle-send", "lyceum-kindle-email"];
+
+async function removeKindleTempDir(dir: string | undefined) {
+  if (!dir) return;
+  const tempRoot = app.getPath("temp");
+  if (!KINDLE_SEND_TEMP_DIRS.some((name) => isPathWithin(path.join(tempRoot, name), dir))) return;
+  await fs.promises.rm(dir, { recursive: true, force: true }).catch(() => undefined);
+}
+
+/** Leftovers of interrupted sends (crash, app closed mid-transfer). */
+async function cleanupStaleKindleTempDirs(maxAgeMs = 24 * 60 * 60 * 1000) {
+  for (const name of KINDLE_SEND_TEMP_DIRS) {
+    const root = path.join(app.getPath("temp"), name);
+    const entries = await fs.promises.readdir(root, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      const dir = path.join(root, entry.name);
+      const stats = await fs.promises.stat(dir).catch(() => null);
+      if (stats && Date.now() - stats.mtimeMs > maxAgeMs) await removeKindleTempDir(dir);
+    }
+  }
+}
+
+/** One Kindle batch at a time; "kindle:cancel-send" aborts it. */
+let activeKindleSend: AbortController | null = null;
 
 interface KindleCopyResult {
   success: boolean;
@@ -2365,17 +2457,31 @@ function getThumbnailHashFromPath(thumbnailPath: string): string | null {
 }
 
 function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | null {
-  if (!SHA256_HEX_PATTERN.test(fileHash) || !fs.existsSync(thumbnailsDir)) {
-    return null;
-  }
+  if (!SHA256_HEX_PATTERN.test(fileHash)) return null;
+  return findThumbnailFileByHash(thumbnailsDir, fileHash);
+}
 
-  const files = fs.readdirSync(thumbnailsDir);
-  const match = files.find((file) => {
-    const ext = path.extname(file).toLowerCase();
-    return file.startsWith(`${fileHash}-`) && THUMBNAIL_EXTENSIONS.includes(ext);
-  });
-
-  return match ? path.join(thumbnailsDir, match) : null;
+/** Once per launch, off the startup path: drop covers nothing points to. */
+function scheduleThumbnailPrune() {
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const documentReferences = listReferencedThumbnailPaths();
+        // An empty library more likely means a failed load than no books: keep everything.
+        if (documentReferences.length === 0) return;
+        const referencedPaths = [
+          ...documentReferences,
+          ...Array.from(getUsbDetailsCache().values(), (entry) => entry.thumbnailPath),
+        ];
+        const result = await pruneOrphanThumbnails({ thumbnailsDir: THUMBNAILS_DIR(), referencedPaths });
+        if (result.removed > 0) {
+          console.log(`[Thumbnails] Removed ${result.removed} orphan thumbnails (${Math.round(result.freedBytes / 1024)} KB)`);
+        }
+      } catch (error) {
+        console.warn("[Thumbnails] Orphan cleanup failed:", error);
+      }
+    })();
+  }, 2 * 60 * 1000).unref?.();
 }
 
 function resolveThumbnailUrl(thumbnailPath: string): string | null {
@@ -2391,8 +2497,10 @@ function resolveThumbnailUrl(thumbnailPath: string): string | null {
   const hash = getThumbnailHashFromPath(normalizedThumbnailPath);
   if (!hash) return null;
 
-  // Verify the file actually exists
-  const existing = findThumbnailByHash(thumbnailsDir, hash);
+  // Verify the file actually exists (the recorded path first: no folder scan).
+  const existing = fs.existsSync(normalizedThumbnailPath)
+    ? normalizedThumbnailPath
+    : findThumbnailByHash(thumbnailsDir, hash);
   if (!existing) return null;
 
   return `thumb://${hash}`;
@@ -2877,7 +2985,7 @@ ipcMain.handle("usb:open-book", async (_, rawPath: unknown) => {
       : filePath;
 
     if (!localPath) {
-      return { success: false, error: "NÃ£o foi possÃ­vel acessar o arquivo no dispositivo" };
+      return { success: false, error: "Não foi possível acessar o arquivo no dispositivo" };
     }
 
     if (!isReaderSupportedPath(localPath)) {
@@ -2886,7 +2994,7 @@ ipcMain.handle("usb:open-book", async (_, rawPath: unknown) => {
 
     const document = await openReadableFile(localPath);
     if (!document) {
-      return { success: false, error: "NÃ£o foi possÃ­vel abrir o livro" };
+      return { success: false, error: "Não foi possível abrir o livro" };
     }
 
     return document.fileType === "pdf"
@@ -2937,12 +3045,12 @@ ipcMain.handle("kindle:send-books", async (_, options: KindleSendOptions) => {
 ipcMain.handle("kindle:send-book", async (_, input: KindleSendOptions & { book: KindleSendBookInput; jobId?: string }) => {
   const options = normalizeKindleSendOptions({ ...input, books: input?.book ? [input.book] : [] });
   const book = options.books[0];
-  if (!book) return { success: false, error: "Livro invalido" };
+  if (!book) return { success: false, error: "unknown", errorCode: "unknown" };
   const devices = await listKindleSendDevices();
   const device = options.deviceId ? devices.find((candidate) => candidate.id === options.deviceId) : devices[0];
-  if (!device) return { success: false, error: "Nenhum Kindle conectado foi encontrado" };
+  if (!device) return { success: false, error: "no-device", errorCode: "no-device" };
   const onProgress: KindleSendProgress | undefined = input.jobId
-    ? (progress, message) => win?.webContents.send("conversion:progress", { jobId: input.jobId, progress, message })
+    ? (progress, stage) => win?.webContents.send("conversion:progress", { jobId: input.jobId, progress, message: `kindle-stage:${stage}` })
     : undefined;
   return runTrackedConversion(input.jobId, async (signal) => {
     const result = await sendOneBookToKindle(book, device, options, onProgress, signal);
@@ -2997,7 +3105,8 @@ ipcMain.handle("kindle-email:save-config", (_, input: KindleEmailSaveInput) => {
   try {
     return { success: true, config: getKindleEmailService().save(input || {}) };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Configuracao invalida" };
+    const failure = toKindleSendError(error);
+    return { success: false, error: failure.detail || failure.code, errorCode: failure.code };
   }
 });
 
@@ -3006,7 +3115,8 @@ ipcMain.handle("kindle-email:verify", async () => {
     await getKindleEmailService().verify();
     return { success: true };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Falha ao conectar" };
+    const failure = toKindleSendError(error);
+    return { success: false, error: failure.detail || failure.code, errorCode: failure.code, errorParams: failure.params };
   }
 });
 
@@ -3014,43 +3124,78 @@ ipcMain.handle("kindle-email:send-books", async (_, options: {
   books: KindleSendBookInput[];
   preserveMetadata?: boolean;
   convertPdfToEpub?: boolean;
+  compressImages?: boolean;
 }) => {
   const service = getKindleEmailService();
+  const config = service.getPublicConfig();
   const books = Array.isArray(options?.books) ? options.books : [];
   const results: KindleSendItemResult[] = [];
-  for (const book of books) {
-    try {
-      const prepared = await prepareKindleEmailFile(book, {
-        preserveMetadata: options?.preserveMetadata ?? true,
-        convertPdfToEpub: options?.convertPdfToEpub ?? false,
-      });
-      if (!prepared.success || !prepared.filePath || !prepared.fileName) {
-        results.push({ fileHash: book.fileHash, title: book.title, success: false, status: "error", error: prepared.error || "Nao foi possivel preparar o arquivo" });
+  activeKindleSend?.abort();
+  const controller = new AbortController();
+  activeKindleSend = controller;
+  try {
+    for (const book of books) {
+      const onProgress: KindleSendProgress = (progress, stage, detail) => {
+        win?.webContents.send("kindle:send-progress", { fileHash: book.fileHash, progress, stage, detail });
+      };
+      if (controller.signal.aborted) {
+        results.push(kindleFailure(book, { code: "canceled" }));
         continue;
       }
-      const sent = await service.send({ filePath: prepared.filePath, fileName: prepared.fileName }, book.title);
-      results.push({
-        fileHash: book.fileHash,
-        title: book.title,
-        success: true,
-        status: prepared.converted ? "converted" : "sent",
-        outputName: prepared.fileName,
-        bytes: sent.bytes,
-        verified: false,
-        note: "E-mail aceito pelo servidor. A Amazon entrega no Kindle em alguns minutos se o remetente estiver aprovado.",
-      });
-    } catch (error) {
-      results.push({
-        fileHash: book.fileHash,
-        title: book.title,
-        success: false,
-        status: "error",
-        error: error instanceof Error ? error.message : "Erro ao enviar por e-mail",
-      });
+      let tempDir: string | undefined;
+      try {
+        onProgress(0.02, "preparing");
+        const prepared = await prepareKindleEmailFile(book, {
+          preserveMetadata: options?.preserveMetadata ?? true,
+          convertPdfToEpub: options?.convertPdfToEpub ?? false,
+          compressImages: options?.compressImages ?? false,
+          maxBytes: config.maxAttachmentBytes,
+        }, onProgress, controller.signal);
+        tempDir = prepared.tempDir;
+        if (!prepared.success || !prepared.filePath || !prepared.fileName) {
+          results.push(kindleFailure(book, prepared.error || { code: "unknown" }));
+          onProgress(1, "done");
+          continue;
+        }
+        if (controller.signal.aborted) {
+          results.push(kindleFailure(book, { code: "canceled" }));
+          continue;
+        }
+        onProgress(0.75, "sending");
+        const sent = await service.send({ filePath: prepared.filePath, fileName: prepared.fileName }, book.title);
+        onProgress(1, "done");
+        results.push({
+          fileHash: book.fileHash,
+          title: book.title,
+          success: true,
+          status: prepared.converted ? "converted" : "sent",
+          outputName: prepared.fileName,
+          outputFormat: prepared.outputFormat,
+          bytes: sent.bytes,
+          verified: false,
+        });
+      } catch (error) {
+        results.push(kindleFailure(book, kindleErrorFromException(error, controller.signal)));
+        onProgress(1, "done");
+      } finally {
+        await removeKindleTempDir(tempDir);
+      }
     }
+  } finally {
+    if (activeKindleSend === controller) activeKindleSend = null;
   }
   const sent = results.filter((result) => result.success).length;
   return { success: sent === results.length, sent, failed: results.length - sent, results };
+});
+
+ipcMain.handle("kindle:open-amazon-settings", async () => {
+  await electron.shell.openExternal(AMAZON_PERSONAL_DOCUMENTS_URL);
+  return true;
+});
+
+ipcMain.handle("kindle:cancel-send", () => {
+  activeKindleSend?.abort();
+  return true;
 });
 
 ipcMain.handle("reading:save", (_, payload) => {
@@ -3583,15 +3728,15 @@ ipcMain.handle("pdf:convert-to-epub", async (_, fileHash: string) => {
     const doc = getDocumentByHash(fileHash);
 
     if (!doc || !doc.filePath) {
-      return { success: false, error: "PDF nÃ£o encontrado na biblioteca" };
+      return { success: false, error: "PDF não encontrado na biblioteca" };
     }
 
     if (!doc.filePath.toLowerCase().endsWith(".pdf")) {
-      return { success: false, error: "A conversÃ£o estÃ¡ disponÃ­vel apenas para PDFs" };
+      return { success: false, error: "A conversão está disponível apenas para PDFs" };
     }
 
     if (!fs.existsSync(doc.filePath)) {
-      return { success: false, error: "Arquivo PDF nÃ£o encontrado no disco" };
+      return { success: false, error: "Arquivo PDF não encontrado no disco" };
     }
 
     const outputPath = createUniqueConvertedEpubPath(doc.filePath);
@@ -3905,9 +4050,7 @@ if (!gotTheLock) {
       win.focus();
     }
 
-    const filePath = commandLine.slice(1).find(
-      (arg) => !arg.startsWith("-") && isReaderSupportedPath(arg)
-    );
+    const filePath = findLaunchFileArg(commandLine.slice(1));
     
     console.log("[Main] File path found from commandLine:", filePath);
     
@@ -3933,6 +4076,26 @@ app.on("open-url", (event, url) => {
   event.preventDefault();
   handleAuthDeepLink(url);
 });
+
+/**
+ * Linux desktop entries launch with `%U`, so file managers may hand over
+ * `file://` URIs instead of plain paths. Normalize both forms.
+ */
+function findLaunchFileArg(args: string[]): string | undefined {
+  for (const arg of args) {
+    if (!arg || arg.startsWith("-")) continue;
+    let candidate = arg;
+    if (/^file:\/\//i.test(arg)) {
+      try {
+        candidate = fileURLToPath(arg);
+      } catch {
+        continue;
+      }
+    }
+    if (isReaderSupportedPath(candidate)) return candidate;
+  }
+  return undefined;
+}
 
 async function handleFileArg(filePath: string) {
   console.log("[Main] handleFileArg called with:", filePath);
@@ -3971,9 +4134,7 @@ async function handleFileArg(filePath: string) {
 
 const startArgs = process.argv.slice(1);
 const startupAuthDeepLink = startArgs.find(isAuthDeepLink);
-const startupFile = startArgs.find(
-  (arg) => !arg.startsWith("-") && isReaderSupportedPath(arg)
-);
+const startupFile = findLaunchFileArg(startArgs);
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "thumb", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
@@ -4113,6 +4274,8 @@ app.whenReady().then(async () => {
 
   void registerLinuxRecommendedApp();
   void cleanupStaleOutputPreviews(app.getPath("temp"));
+  scheduleThumbnailPrune();
+  void cleanupStaleKindleTempDirs();
 
   if (isPackagedSmokeTest) {
     await runPackagedSmokeTest();
@@ -4162,10 +4325,8 @@ app.whenReady().then(async () => {
 
   const database = runStartupStage("SQLite initialization", () => initDatabase());
   runStartupStage("library directory initialization", () => ensureLibraryFolder());
-  const habits = createSqliteHabitRepository(database);
   const categories = getCategoryRepository();
-  registerHabitHandlers(ipcMain, habits);
-  registerBackupHandlers(ipcMain, habits, categories, {
+  registerBackupHandlers(ipcMain, categories, {
     listDocuments: getDocumentsForBackup,
     listDocumentCategories: getAllDocumentCategories,
   });
@@ -4176,6 +4337,12 @@ app.whenReady().then(async () => {
     emitProgress: (payload) => win?.webContents.send("language-learning:progress", payload),
   });
   const languageLearningRepository = createSqliteLanguageLearningRepository(database);
+  const statsRepository = createSqliteStatsRepository(database);
+  const learningIndexes = createLearningIndexReader(path.join(app.getPath("userData"), "language-learning"));
+  registerStatsHandlers(ipcMain, {
+    repository: statsRepository,
+    learningDocuments: () => learningIndexes.list(),
+  });
   // Extra backup folder chosen by the user (a synced/cloud or external folder),
   // persisted next to the backups so it survives app restarts.
   const learningBackupSettingsPath = path.join(app.getPath("userData"), "language-learning", "backup-settings.json");
@@ -4201,7 +4368,15 @@ app.whenReady().then(async () => {
     repository: languageLearningRepository,
     openDocument: (input) => languageLearning.openDocument(input),
     translateOnline: (text, source, target) => translateWithMyMemory(text, source, target),
-    onUserDataChanged: (userId) => learningBackups.schedule(userId),
+    onUserDataChanged: (userId) => {
+      learningBackups.schedule(userId);
+      // Feeds the dashboard's vocabulary curve; additive and best-effort.
+      try {
+        statsRepository.snapshotKnowledge(userId);
+      } catch (error) {
+        console.warn("[stats] knowledge snapshot failed", error);
+      }
+    },
     backups: {
       async exportToFile(userId) {
         const options = {
@@ -4230,7 +4405,7 @@ app.whenReady().then(async () => {
       async openFolder(userId) {
         const directory = learningBackups.directoryFor(userId);
         await fs.promises.mkdir(directory, { recursive: true });
-        await electron.shell.openPath(directory);
+        await openPathDetached(directory);
       },
       status: (userId) => learningBackups.status(userId),
       async chooseMirror(userId) {

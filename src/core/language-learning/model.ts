@@ -330,3 +330,19 @@ export interface LanguageLearningRepository {
   getReadingState(userId: string, documentId: string): LearningReadingState | null;
   saveReadingState(userId: string, state: LearningReadingState): void;
 }
+
+/** Structural check for a `lyceum.learning-backup` file (desktop and mobile share the format). */
+export function isLearningBackup(value: unknown): value is LearningBackup {
+  const candidate = value as Partial<LearningBackup> | null;
+  return Boolean(
+    candidate
+    && candidate.schema === LEARNING_BACKUP_SCHEMA
+    && candidate.version === 1
+    && Array.isArray(candidate.knowledge)
+    && Array.isArray(candidate.forms)
+    && Array.isArray(candidate.reviewItems)
+    && Array.isArray(candidate.reviewLog)
+    && Array.isArray(candidate.annotations)
+    && Array.isArray(candidate.readingStates),
+  );
+}

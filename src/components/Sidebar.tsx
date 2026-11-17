@@ -1,18 +1,18 @@
 import {
   BookOpenText,
-  BookPlus,
-  CheckSquare,
   FileStack,
   Home,
   LibraryBig,
   LogIn,
   LogOut,
-  Map,
   RefreshCw,
+  Search,
   Settings,
   UserCircle,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { openWhatsNew } from "../features/whats-new/whatsNewEvents";
+import { openCommandPalette } from "../features/search/commandPaletteEvents";
 import SidebarItem from "./SidebarItem";
 import { useRouteState } from "../hooks/useRouteState";
 import { useAppSettings } from "../contexts/AppSettingsContext";
@@ -96,16 +96,6 @@ export default function Sidebar({
           routeId="dashboard"
         />
         )}
-        {isLoggedIn && (
-        <SidebarItem
-          Icon={BookPlus}
-          label={routeLabel("register")}
-          active={pathname === "/add_reading"}
-          onClick={() => navigate("/add_reading")}
-          collapsed={collapsed}
-          routeId="register"
-        />
-        )}
         <SidebarItem
           Icon={LibraryBig}
           label={routeLabel("library")}
@@ -122,16 +112,6 @@ export default function Sidebar({
           collapsed={collapsed}
           routeId="reader"
         />
-        {settings.betaAtlasEnabled && (
-          <SidebarItem
-            Icon={Map}
-            label={routeLabel("atlas")}
-            active={pathname === "/atlas"}
-            onClick={() => navigate("/atlas")}
-            collapsed={collapsed}
-            routeId="atlas"
-          />
-        )}
         {settings.betaConversionEnabled && (
           <SidebarItem
             Icon={RefreshCw}
@@ -152,19 +132,16 @@ export default function Sidebar({
             routeId="pdfBuilder"
           />
         )}
-        {settings.betaHabitsEnabled && (
-          <SidebarItem
-            Icon={CheckSquare}
-            label={routeLabel("habits")}
-            active={pathname === "/habit_tracker"}
-            onClick={() => navigate("/habit_tracker")}
-            collapsed={collapsed}
-            routeId="habits"
-          />
-        )}
       </nav>
 
       <div className="flex flex-col mt-auto mb-3 text-foreground-subtle text-center">
+        <SidebarItem
+          Icon={Search}
+          label={t("common:palette.open")}
+          active={false}
+          onClick={openCommandPalette}
+          collapsed={collapsed}
+        />
         <SidebarItem
           Icon={Settings}
           label={t("navigation:sidebar.settings")}
@@ -205,7 +182,14 @@ export default function Sidebar({
           />
         )}
         <div className="mt-2 text-xs">
-          <span>v{import.meta.env.VITE_APP_VERSION}</span>
+          <button
+            type="button"
+            onClick={openWhatsNew}
+            title={t("common:whatsNew.open")}
+            className="rounded px-1.5 py-0.5 transition-colors hover:bg-surface-muted hover:text-foreground"
+          >
+            v{import.meta.env.VITE_APP_VERSION}
+          </button>
         </div>
       </div>
     </aside>

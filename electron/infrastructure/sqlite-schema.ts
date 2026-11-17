@@ -237,21 +237,6 @@ export function ensurePostMigrationSchema(db: Database.Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_word_index_fileHash ON book_word_index(fileHash);
     CREATE INDEX IF NOT EXISTS idx_word_index_word ON book_word_index(word);
-    CREATE TABLE IF NOT EXISTS habits (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      unit TEXT,
-      valueMode TEXT DEFAULT 'toggle'
-    );
-    CREATE TABLE IF NOT EXISTS habit_completions (
-      habitId TEXT NOT NULL,
-      dateKey TEXT NOT NULL,
-      value TEXT,
-      PRIMARY KEY (habitId, dateKey),
-      FOREIGN KEY (habitId) REFERENCES habits(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_habit_completions_habit ON habit_completions(habitId);
   `);
   ensureLanguageLearningSchema(db);
 }
@@ -343,6 +328,16 @@ export function ensureLanguageLearningSchema(db: Database.Database): void {
       sessions INTEGER NOT NULL DEFAULT 0,
       updatedAt TEXT NOT NULL,
       PRIMARY KEY (userId, documentId)
+    );
+    -- Daily known/learning totals per language for the dashboard's vocabulary
+    -- curve. Additive only: nothing here is ever read back into ll_knowledge.
+    CREATE TABLE IF NOT EXISTS ll_knowledge_daily (
+      userId TEXT NOT NULL,
+      language TEXT NOT NULL,
+      date TEXT NOT NULL,
+      known INTEGER NOT NULL DEFAULT 0,
+      learning INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (userId, language, date)
     );
   `);
 }

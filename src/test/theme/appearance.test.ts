@@ -192,7 +192,7 @@ describe("document application", () => {
     applyThemeToDocument("dark", "dark", "amber");
     const darkPrimary = document.documentElement.style.getPropertyValue("--primary");
 
-    expect(lightPrimary).toBe("#b45309");
+    expect(lightPrimary).toBe("#92400e");
     expect(darkPrimary).toBe("#fbbf24");
     expect(darkPrimary).not.toBe(lightPrimary);
   });

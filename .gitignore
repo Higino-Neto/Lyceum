@@ -47,3 +47,5 @@ nul
 
 FEATURES.md
 graphify-out
+# Frozen app snapshot used by npm run start:last / start:fresh
+.lyceum-run/

@@ -98,7 +98,7 @@ function checkTokens(tokens, errors) {
   if (tokens.DARK_TOKENS?.background !== "#09090b") {
     errors.push(`Unexpected dark background token: ${tokens.DARK_TOKENS?.background}`);
   }
-  if (tokens.LIGHT_TOKENS?.background !== "#f4f5f7") {
+  if (tokens.LIGHT_TOKENS?.background !== "#eef0f3") {
     errors.push(`Unexpected light background token: ${tokens.LIGHT_TOKENS?.background}`);
   }
 }

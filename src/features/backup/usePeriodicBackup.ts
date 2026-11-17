@@ -11,7 +11,6 @@ type BackupSettings = Pick<
   AppSettings,
   | "weeklyBackupEnabled"
   | "backupDocuments"
-  | "backupHabits"
   | "backupCategories"
 >;
 
@@ -56,7 +55,6 @@ export function usePeriodicBackup(settings: BackupSettings) {
         try {
           const jobs: Promise<BackupResult>[] = [];
           if (settings.backupDocuments) jobs.push(api.backupAllDocuments());
-          if (settings.backupHabits) jobs.push(api.backupAllHabits());
           if (settings.backupCategories) jobs.push(api.backupAllCategories());
           if (jobs.length === 0) return;
 
@@ -125,7 +123,6 @@ export function usePeriodicBackup(settings: BackupSettings) {
   }, [
     settings.backupCategories,
     settings.backupDocuments,
-    settings.backupHabits,
     settings.weeklyBackupEnabled,
   ]);
 }

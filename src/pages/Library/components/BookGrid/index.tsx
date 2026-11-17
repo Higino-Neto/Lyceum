@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type DragEvent as ReactDragEvent,
   type ReactNode,
 } from "react";
@@ -26,9 +27,10 @@ import {
 } from "../../utils";
 import FolderCard from "../FolderCard";
 import FolderContextMenu from "../FolderContextMenu";
+import type { SelectionModifiers } from "./selectionModifiers";
 import DropActionMenu from "../DropActionMenu";
 import BookCard from "./BookCard";
-import BookListItem from "./BookListItem";
+import BookListItem, { listRowHeight } from "./BookListItem";
 import BookListHeader from "./BookListHeader";
 import FolderListItem from "./FolderListItem";
 import { getSelectedFilesKey } from "./bookFiles";
@@ -66,8 +68,8 @@ interface BookGridProps {
   selectionMode?: boolean;
   selectedHashes?: Set<string>;
   selectedCount?: number;
-  onToggleSelection?: (book: BookWithThumbnail) => void;
-  onContextSelect?: (book: BookWithThumbnail) => void;
+  onToggleSelection?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
+  onContextSelect?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
   /** Toggles a single file of a merged book in the selection. */
   onToggleFile?: (file: BookWithThumbnail) => void;
   hasMore?: boolean;
@@ -267,7 +269,7 @@ export default function BookGrid({
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => viewMode === "grid" ? gridRowHeight : compactList ? 66 : 58,
+    estimateSize: () => viewMode === "grid" ? gridRowHeight : listRowHeight(gridDensity, compactList),
     overscan: 3,
     scrollMargin: virtualizerOffset,
   });
@@ -368,12 +370,12 @@ export default function BookGrid({
     onBookClick?.(book);
   }, [onBookClick]);
 
-  const handleToggleSelection = useCallback((book: BookWithThumbnail) => {
-    onToggleSelection?.(book);
+  const handleToggleSelection = useCallback((book: BookWithThumbnail, modifiers?: SelectionModifiers) => {
+    onToggleSelection?.(book, modifiers);
   }, [onToggleSelection]);
 
-  const handleContextSelect = useCallback((book: BookWithThumbnail) => {
-    onContextSelect?.(book);
+  const handleContextSelect = useCallback((book: BookWithThumbnail, modifiers?: SelectionModifiers) => {
+    onContextSelect?.(book, modifiers);
   }, [onContextSelect]);
 
   const measureStaticContent = useCallback(() => {
@@ -731,9 +733,40 @@ export default function BookGrid({
     );
   }
 
+  // Arrow keys move through the list, Enter opens the highlighted book.
+  const handleListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+    if (books.length === 0) return;
+    const currentIndex = books.findIndex((book) => book.id === selectedBookId);
+    if (event.key === "Enter" && currentIndex >= 0) {
+      event.preventDefault();
+      handleOpenBook(books[currentIndex]);
+      return;
+    }
+    const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    if (!step || !onBookClick) return;
+    event.preventDefault();
+    const nextIndex = Math.min(books.length - 1, Math.max(0, currentIndex < 0 ? 0 : currentIndex + step));
+    const nextBook = books[nextIndex];
+    if (event.shiftKey && onToggleSelection) {
+      onToggleSelection(nextBook, { shiftKey: true, ctrlKey: false });
+    } else {
+      onBookClick(nextBook);
+    }
+    virtualizer.scrollToIndex(nextIndex, { align: "auto" });
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} data-grid-scroll className="min-h-0 flex-1 overflow-auto" style={{ scrollbarGutter: "stable" }}>
+      <div
+        ref={scrollRef}
+        data-grid-scroll
+        tabIndex={-1}
+        onKeyDown={handleListKeyDown}
+        className="min-h-0 flex-1 overflow-auto outline-none"
+        style={{ scrollbarGutter: "stable" }}
+      >
         <div className="min-w-0 space-y-1" style={listMinWidth ? { minWidth: listMinWidth } : undefined}>
           <div ref={staticContentRef} className="space-y-1">
             {topContent}
@@ -784,6 +817,8 @@ export default function BookGrid({
                     columns={listColumns}
                     gridTemplateColumns={listGridTemplate}
                     compact={compactList}
+                    density={gridDensity}
+                    striped={virtualRow.index % 2 === 1}
                   />
                 </div>
               );

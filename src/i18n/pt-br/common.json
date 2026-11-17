@@ -128,5 +128,38 @@
     "retry": "Tentar de novo",
     "reload": "Recarregar",
     "openLogs": "Abrir logs"
+  },
+  "whatsNew": {
+    "title": "Novidades",
+    "versions": "Versões",
+    "current": "Atual",
+    "gotIt": "Entendi",
+    "open": "Novidades",
+    "kinds": {
+      "new": "Novo",
+      "improved": "Melhorias",
+      "fixed": "Correções",
+      "removed": "Removido"
+    }
+  },
+  "status": {
+    "loading": "Carregando..."
+  },
+  "palette": {
+    "title": "Pesquisar no Lyceum",
+    "placeholder": "Busque livros, pastas, páginas, configurações…",
+    "noResults": "Nada encontrado. Tente menos palavras ou outros termos.",
+    "hint": "↑↓ para navegar · Enter para abrir · erros de digitação são tolerados",
+    "themeLight": "Mudar para o tema claro",
+    "themeDark": "Mudar para o tema escuro",
+    "convert": "Converter um livro",
+    "open": "Pesquisar (Ctrl+K)",
+    "groups": {
+      "books": "Livros",
+      "folders": "Pastas",
+      "pages": "Páginas",
+      "settings": "Configurações",
+      "actions": "Ações"
+    }
   }
 }

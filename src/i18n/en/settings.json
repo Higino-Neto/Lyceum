@@ -103,7 +103,6 @@
     "enable": "Enable periodic backup",
     "items": {
       "libraryAndProgress": "Library and progress",
-      "habitsAndHighlights": "Habits and highlights",
       "categories": "Categories"
     },
     "lastBackup": "Last backup: {{date}}",
@@ -309,17 +308,9 @@
     "description": "Enable or disable each experimental feature in the sidebar.",
     "toggleLabel": "Toggle {{feature}} tab",
     "features": {
-      "atlas": {
-        "label": "Atlas",
-        "hint": "Reading and progress maps."
-      },
       "conversion": {
         "label": "Conversion",
         "hint": "Conversion between document formats."
-      },
-      "habits": {
-        "label": "Habits",
-        "hint": "Daily habit tracker."
       }
     }
   },

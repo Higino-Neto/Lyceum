@@ -2,7 +2,6 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import Dashboard from "./pages/DashboardPage/DashboardPage";
-import AddReadingPage from "./pages/AddReadingPage";
 import Sidebar from "./components/Sidebar";
 import SignIn from "./pages/SignInPage";
 import SignUp from "./pages/SignUpPage";
@@ -10,8 +9,6 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ReadingPage from "./pages/ReadingPage/ReadingPage";
 import Library from "./pages/Library/Library";
-import AtlasPage from "./pages/Atlas/AtlasPage";
-import HabitTrackerPage from "./pages/HabitTrackerPage/HabitTrackerPage";
 import { ConversionDialog } from "./pages/Conversion/ConversionPage";
 import PdfBuilderPage from "./pages/PdfBuilder/PdfBuilderPage";
 import type { ConversionQueueItem } from "./contexts/ConversionQueueContext";
@@ -27,6 +24,8 @@ import { ConversionQueueProvider } from "./contexts/ConversionQueueContext";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { usePendingFriendRequestCount } from "./hooks/useFriends";
 import ConfirmDialog from "./components/ConfirmDialog";
+import WhatsNewDialog from "./features/whats-new/WhatsNewDialog";
+import CommandPalette from "./features/search/CommandPalette";
 import {
   getDefaultHotkeyBindings,
   getEnabledNavigationRoutes,
@@ -533,15 +532,8 @@ function AppShell() {
                     }
                   />
 
-                  <Route
-                    path="/add_reading"
-                    element={
-                      <ProtectedRoute
-                        isLoggedIn={isLoggedIn}
-                        children={<AddReadingPage />}
-                      />
-                    }
-                  />
+                  {/* The register screen now lives on the dashboard; keep old links and restored tabs working. */}
+                  <Route path="/add_reading" element={<Navigate to="/" replace />} />
 
                   <Route
                     path="/reading"
@@ -565,15 +557,6 @@ function AppShell() {
                     element={<Library />}
                   />
 
-                  <Route
-                    path="/atlas"
-                    element={
-                      <ProtectedRoute
-                        isLoggedIn={isLoggedIn}
-                        children={<AtlasPage />}
-                      />
-                    }
-                  />
 
                   <Route
                     path="/conversion"
@@ -595,15 +578,6 @@ function AppShell() {
                     }
                   />
 
-                  <Route
-                    path="/habit_tracker"
-                    element={
-                      <ProtectedRoute
-                        isLoggedIn={isLoggedIn}
-                        children={<HabitTrackerPage />}
-                      />
-                    }
-                  />
 
                   <Route path="/signin" element={<SignIn />} />
                   <Route path="/signup" element={<SignUp />} />
@@ -627,6 +601,11 @@ function AppShell() {
                   onClose={() => setSettingsOpen(false)}
                   initialTab={settingsInitialTab}
                   initialFriendId={settingsFriendId}
+                />
+                <WhatsNewDialog />
+                <CommandPalette
+                  onOpenSettings={(tab) => openSettings(tab)}
+                  onOpenConversion={() => setConversionOpen(true)}
                 />
                 <ConfirmDialog
                   isOpen={signOutConfirmationOpen}

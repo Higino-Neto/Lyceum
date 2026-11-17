@@ -37,15 +37,7 @@
       "removeRow": "Remover linha",
       "addAnother": "Adicionar outra leitura"
     },
-    "myBooks": {
-      "title": "Meus Livros",
-      "description": "Gerencie vínculos, duplicados e estatísticas dos registros.",
-      "searchPlaceholder": "Buscar livro registrado..."
-    },
     "toasts": {
-      "loadBooksFailed": "Erro ao carregar Meus Livros",
-      "bookDeleted": "Livro excluído!",
-      "bookDeleteFailed": "Erro ao excluir livro",
       "formIncomplete": "Preencha pelo menos uma leitura completa",
       "registered_one": "{{count}} leitura registrada com sucesso!",
       "registered_other": "{{count}} leituras registradas com sucesso!",
@@ -167,5 +159,8 @@
         "self_help": "Autoajuda"
       }
     }
+  },
+  "tabs": {
+    "reopenFailed": "Não foi possível reabrir esta aba."
   }
 }

@@ -126,7 +126,7 @@ export async function checkNativeApkUpdate(): Promise<NativeApkUpdateState> {
         installed,
         manifest,
         checkedAt,
-        error: `Esta versao exige Android API ${manifest.minSdk} ou mais recente.`,
+        error: translate("mobile:updater.requiresApi", { api: manifest.minSdk }),
       };
     }
 

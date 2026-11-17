@@ -1,22 +1,6 @@
-import { supabase } from "../lib/supabase";
+import { getFriendReadings, type ReadingEntry } from "../api/database";
 
-interface ReadingData {
-  id: string;
-  source_name: string;
-  pages: number;
-  reading_date: string;
-  reading_time: number;
-  category_id: string | null;
-}
-
-export default async function getUserReadings(userId: string): Promise<ReadingData[]> {
-  const { data: readingsData, error: readingsError } = await supabase.rpc("get_friend_readings", {
-    p_user_id: userId,
-  });
-
-  if (readingsError) {
-    throw readingsError;
-  }
-
-  return readingsData || [];
+/** Readings of one user (the signed-in user or a friend), via `get_friend_readings`. */
+export default async function getUserReadings(userId: string): Promise<ReadingEntry[]> {
+  return getFriendReadings(userId);
 }

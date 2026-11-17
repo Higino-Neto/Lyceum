@@ -13,7 +13,6 @@
     "src/features/**/*.ts",
     "src/features/**/*.tsx",
     "electron/app/**/*.ts",
-    "electron/handlers/habits.handler.ts",
     "electron/handlers/backup.handler.ts",
     "electron/handlers/categories.handler.ts",
     "electron/handlers/dictionary.handler.ts",

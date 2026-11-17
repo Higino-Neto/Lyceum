@@ -34,9 +34,25 @@ export class LanguageProcessingRegistry {
   }
 }
 
+/**
+ * EPUB metadata often carries ISO 639-2/3 codes ("fre", "fra", "ger") or a
+ * language name. Vocabulary is filed by language, so every spelling of the
+ * same language must map to one code or words would split across buckets.
+ */
+const LANGUAGE_ALIASES: Record<string, string> = {
+  fre: "fr", fra: "fr", french: "fr", francais: "fr", "français": "fr",
+  eng: "en", english: "en", ger: "de", deu: "de", german: "de", deutsch: "de",
+  spa: "es", spanish: "es", "español": "es", espanol: "es",
+  por: "pt", portuguese: "pt", "português": "pt", portugues: "pt",
+  ita: "it", italian: "it", italiano: "it", dut: "nl", nld: "nl", dutch: "nl",
+  swe: "sv", pol: "pl", rus: "ru", jpn: "ja", chi: "zh", zho: "zh", kor: "ko", lat: "la",
+  cat: "ca", dan: "da", fin: "fi", gre: "el", ell: "el", hun: "hu", nor: "no", nob: "nb", ces: "cs", cze: "cs", tur: "tr", ara: "ar",
+};
+
 export function normalizeLanguageCode(code: string | undefined | null): string {
   const value = (code ?? "").trim().toLowerCase().replace("_", "-");
-  return value.split("-")[0] || "und";
+  const base = value.split("-")[0] || "und";
+  return LANGUAGE_ALIASES[base] ?? base;
 }
 
 export function createDefaultLanguageRegistry() {

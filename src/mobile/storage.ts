@@ -66,6 +66,7 @@ function normalizeBook(value: Partial<MobileBook>): MobileBook | null {
     importedAt: value.importedAt || new Date().toISOString(),
     updatedAt: value.updatedAt,
     lastOpenedAt: value.lastOpenedAt,
+    lastReaderMode: value.lastReaderMode === "learning" ? "learning" : value.lastReaderMode === "reader" ? "reader" : undefined,
     currentPage: Math.max(1, Number(value.currentPage) || 1),
     totalPages: Math.max(1, Number(value.totalPages) || 1),
     progressPercent: Math.min(100, Math.max(0, Number(value.progressPercent) || 0)),

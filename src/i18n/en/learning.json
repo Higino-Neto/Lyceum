@@ -55,7 +55,8 @@
     "NO_TEXTUAL_CONTENT": "The book has no extractable text (for example, a scanned PDF or a comic).",
     "UNSUPPORTED_FORMAT": "This format is not supported yet. Use EPUB, TXT, HTML, PDF with text, or .lyceum.",
     "FILE_NOT_FOUND": "The book file could not be found.",
-    "saveFailed": "Could not save your learning data."
+    "saveFailed": "Could not save your learning data.",
+    "INVALID_FILE": "The file is damaged or is not a valid EPUB."
   },
   "banners": {
     "languageOverride": "Reading as “{{language}}” (the book declares “{{metadata}}”). Change it in reader settings.",

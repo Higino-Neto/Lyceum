@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { NavigationRouteId } from "../navigation/routes";
+import { NAVIGATION_ROUTES, type NavigationRouteId } from "../navigation/routes";
 import {
   ACCENT_COLORS,
   DEFAULT_ACCENT_COLOR,
@@ -36,16 +36,13 @@ export interface AppSettings {
   autoHideOverlay: boolean;
   showSubfolderBooks: boolean;
   unifiedLibraryView: boolean;
-  betaAtlasEnabled: boolean;
   betaConversionEnabled: boolean;
-  betaHabitsEnabled: boolean;
   reducedEffects: boolean;
   hotkeysEnabled: boolean;
   hotkeysCustomized: boolean;
   hotkeyBindings: Partial<Record<NavigationRouteId, string>>;
   weeklyBackupEnabled: boolean;
   backupDocuments: boolean;
-  backupHabits: boolean;
   backupCategories: boolean;
   folderGridEnabled: boolean;
   continueReadingEnabled: boolean;
@@ -61,15 +58,13 @@ interface AppSettingsContextValue {
   setAutoHideOverlay: (value: boolean) => void;
   setShowSubfolderBooks: (value: boolean) => void;
   setUnifiedLibraryView: (value: boolean) => void;
-  setBetaAtlasEnabled: (value: boolean) => void;
   setBetaConversionEnabled: (value: boolean) => void;
-  setBetaHabitsEnabled: (value: boolean) => void;
   setReducedEffects: (value: boolean) => void;
   setHotkeysEnabled: (value: boolean) => void;
   setHotkeyBinding: (routeId: NavigationRouteId, key: string) => void;
   resetHotkeyBindings: () => void;
   setWeeklyBackupEnabled: (value: boolean) => void;
-  setBackupSelection: (key: "backupDocuments" | "backupHabits" | "backupCategories", value: boolean) => void;
+  setBackupSelection: (key: "backupDocuments" | "backupCategories", value: boolean) => void;
   setFolderGridEnabled: (value: boolean) => void;
   setContinueReadingEnabled: (value: boolean) => void;
 }
@@ -82,16 +77,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoHideOverlay: false,
   showSubfolderBooks: false,
   unifiedLibraryView: false,
-  betaAtlasEnabled: true,
   betaConversionEnabled: true,
-  betaHabitsEnabled: true,
   reducedEffects: false,
   hotkeysEnabled: true,
   hotkeysCustomized: false,
   hotkeyBindings: {},
   weeklyBackupEnabled: true,
   backupDocuments: true,
-  backupHabits: true,
   backupCategories: true,
   folderGridEnabled: true,
   continueReadingEnabled: true,
@@ -142,17 +134,19 @@ function loadSettings(): AppSettings {
       autoHideOverlay: parsed.autoHideOverlay ?? legacy.autoHideOverlay,
       showSubfolderBooks: parsed.showSubfolderBooks ?? DEFAULT_SETTINGS.showSubfolderBooks,
       unifiedLibraryView: parsed.unifiedLibraryView ?? DEFAULT_SETTINGS.unifiedLibraryView,
-      betaAtlasEnabled: parsed.betaAtlasEnabled ?? DEFAULT_SETTINGS.betaAtlasEnabled,
       betaConversionEnabled:
         parsed.betaConversionEnabled ?? DEFAULT_SETTINGS.betaConversionEnabled,
-      betaHabitsEnabled: parsed.betaHabitsEnabled ?? DEFAULT_SETTINGS.betaHabitsEnabled,
       reducedEffects: parsed.reducedEffects ?? DEFAULT_SETTINGS.reducedEffects,
       hotkeysEnabled: parsed.hotkeysEnabled ?? DEFAULT_SETTINGS.hotkeysEnabled,
       hotkeysCustomized: parsed.hotkeysCustomized ?? DEFAULT_SETTINGS.hotkeysCustomized,
-      hotkeyBindings: parsed.hotkeyBindings ?? DEFAULT_SETTINGS.hotkeyBindings,
+      // Drop bindings for routes that no longer exist (e.g. the old register screen).
+      hotkeyBindings: Object.fromEntries(
+        Object.entries(parsed.hotkeyBindings ?? DEFAULT_SETTINGS.hotkeyBindings).filter(([routeId]) =>
+          NAVIGATION_ROUTES.some((route) => route.id === routeId),
+        ),
+      ),
       weeklyBackupEnabled: parsed.weeklyBackupEnabled ?? DEFAULT_SETTINGS.weeklyBackupEnabled,
       backupDocuments: parsed.backupDocuments ?? DEFAULT_SETTINGS.backupDocuments,
-      backupHabits: parsed.backupHabits ?? DEFAULT_SETTINGS.backupHabits,
       backupCategories: parsed.backupCategories ?? DEFAULT_SETTINGS.backupCategories,
       folderGridEnabled: (parsed as Partial<typeof DEFAULT_SETTINGS>).folderGridEnabled ?? DEFAULT_SETTINGS.folderGridEnabled,
       continueReadingEnabled: (parsed as Partial<typeof DEFAULT_SETTINGS>).continueReadingEnabled ?? DEFAULT_SETTINGS.continueReadingEnabled,
@@ -240,20 +234,10 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
           ...current,
           unifiedLibraryView: value,
         })),
-      setBetaAtlasEnabled: (value) =>
-        setSettings((current) => ({
-          ...current,
-          betaAtlasEnabled: value,
-        })),
       setBetaConversionEnabled: (value) =>
         setSettings((current) => ({
           ...current,
           betaConversionEnabled: value,
-        })),
-      setBetaHabitsEnabled: (value) =>
-        setSettings((current) => ({
-          ...current,
-          betaHabitsEnabled: value,
         })),
       setReducedEffects: (value) =>
         setSettings((current) => ({

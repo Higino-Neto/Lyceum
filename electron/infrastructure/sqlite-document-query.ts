@@ -6,12 +6,16 @@ import type {
   LibraryListResult,
   LibrarySortOption,
 } from "../../src/types/LibraryTypes";
+import { fuzzyRank } from "../../src/core/shared/fuzzySearch";
 
 const TITLE_ORDER = "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath))";
 const AUTHOR_ORDER = "LOWER(COALESCE(NULLIF(d.authorSort, ''), NULLIF(d.author, '')))";
 const ADDED_ORDER = "datetime(COALESCE(d.importedAt, d.createdAt))";
 // Books without the field always sort last, whatever the direction.
 const missing = (expression: string) => `CASE WHEN ${expression} IS NULL OR ${expression} = '' THEN 1 ELSE 0 END`;
+
+const TITLE_SORTS = new Set<LibrarySortOption>(["title", "title_asc"]);
+const FUZZY_FALLBACK_SCAN_LIMIT = 20_000;
 
 const ORDER_BY: Record<LibrarySortOption, string> = {
   title: "LOWER(COALESCE(NULLIF(d.title, ''), d.fileName, d.filePath)) ASC, d.id ASC",
@@ -68,6 +72,32 @@ export function createSqliteDocumentQueryRepository(
   db: Database.Database,
   libraryPath: string,
 ): DocumentQueryRepository {
+  /**
+   * FTS only matches word prefixes. When it finds nothing (usually a typo),
+   * rank the filtered books with the shared fuzzy matcher instead.
+   */
+  function fuzzyFallback(
+    search: string,
+    where: string[],
+    values: unknown[],
+    limit: number,
+    offset: number,
+  ): LibraryListResult {
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const candidates = db.prepare<unknown[], DocumentRecord>(
+      `SELECT d.* FROM documents d ${whereSql} LIMIT ${FUZZY_FALLBACK_SCAN_LIMIT}`,
+    ).all(...values);
+    const ranked = fuzzyRank(candidates, search, (document) => [
+      { value: document.title, weight: 3 },
+      { value: document.author, weight: 2 },
+      { value: document.series, weight: 1.5 },
+      { value: document.fileName, weight: 1 },
+      { value: document.publisher, weight: 0.75 },
+    ]);
+    const items = ranked.slice(offset, offset + limit).map(({ item }) => item);
+    return { items, total: ranked.length, limit, offset, hasMore: offset + items.length < ranked.length };
+  }
+
   return {
     all: () => db.prepare<[], DocumentRecord>("SELECT * FROM documents").all(),
     byHash: (fileHash) => db.prepare<[string], DocumentRecord>(
@@ -184,20 +214,35 @@ export function createSqliteDocumentQueryRepository(
       }
 
       const ftsQuery = query.search ? tokenizeDocumentSearch(query.search) : "";
+      // Filters without the text match, reused by the typo-tolerant fallback.
+      const filterWhere = [...where];
+      const filterValues = [...values];
       if (ftsQuery) {
         join = "INNER JOIN documents_fts fts ON fts.documentId = d.id";
         where.push("documents_fts MATCH ?");
         values.push(ftsQuery);
       }
 
+      const sort = query.sort || "title";
+      // While searching with the default (title) order, best matches come
+      // first: title hits weigh more than author, folder or format hits.
+      const orderBy = ftsQuery && TITLE_SORTS.has(sort)
+        ? `bm25(documents_fts, 0.0, 10.0, 4.0, 1.0, 0.5) ASC, ${ORDER_BY[sort]}`
+        : ORDER_BY[sort];
+
       const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
       const baseSql = `FROM documents d ${join} ${whereSql}`;
       const total = db.prepare<unknown[], { total: number }>(
         `SELECT COUNT(*) as total ${baseSql}`,
       ).get(...values)?.total ?? 0;
+
+      if (ftsQuery && total === 0) {
+        return fuzzyFallback(query.search!, filterWhere, filterValues, limit, offset);
+      }
+
       const items = db.prepare<unknown[], DocumentRecord>(
         `SELECT d.* ${baseSql}
-         ORDER BY ${ORDER_BY[query.sort || "title"]}
+         ORDER BY ${orderBy}
          LIMIT ? OFFSET ?`,
       ).all(...values, limit, offset);
 

@@ -64,7 +64,32 @@
       "lineHeight": "Entrelinha",
       "paragraphSpacing": "Espaço entre parágrafos",
       "chapterPageBreaks": "Novo capítulo em nova página",
-      "generateOutline": "Gerar marcadores de capítulos"
+      "generateOutline": "Gerar marcadores de capítulos",
+      "advanced": "Configurações avançadas (página, margens, fonte)",
+      "presets": {
+        "label": "Layout",
+        "custom": "Layout personalizado — ajustado nas configurações avançadas.",
+        "screen": {
+          "label": "Leitura em tela",
+          "hint": "Confortável no monitor ou tablet (A4)."
+        },
+        "ereader": {
+          "label": "E-reader",
+          "hint": "Página pequena, margens finas e letra maior para telas de 6–7\"."
+        },
+        "paperback": {
+          "label": "Livro de bolso",
+          "hint": "Proporções de livro de bolso com margens clássicas (A5)."
+        },
+        "print": {
+          "label": "Impressão",
+          "hint": "Padrão acadêmico (ABNT): 3 cm em cima/esquerda, 2 cm embaixo/direita, 12 pt, espaçamento 1,5."
+        },
+        "large": {
+          "label": "Letra grande",
+          "hint": "Fonte de 14 pt com espaçamento amplo para leitura mais fácil."
+        }
+      }
     },
     "epub": {
       "layout": "Layout",
@@ -251,7 +276,16 @@
     "enlarge": "Ver em tamanho maior",
     "approximate": "aproximação (Kindle usa o mesmo conteúdo do EPUB)",
     "error": "Não foi possível gerar a prévia",
-    "alt": "Prévia da página {{page}}"
+    "alt": "Prévia da página {{page}}",
+    "pageOf": "Página {{page}} de {{total}}",
+    "chapterPage": "Capítulo {{chapter}} · página {{page}}",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "goToPage": "Ir para a página",
+    "go": "Ir",
+    "inChapter": "Em: {{title}}",
+    "seeking": "Procurando a página...",
+    "totalEstimated": "total de páginas estimado até todos os capítulos serem medidos"
   },
   "tools": {
     "common": {
@@ -341,5 +375,49 @@
     "start_other": "Converter e enviar {{count}} livros",
     "sent": "Enviado para {{device}}",
     "sentWithPages": "Enviado para {{device}} com {{count}} páginas"
+  },
+  "pipeline": {
+    "unsupportedCharacters": "{{a}} caractere(s) foram substituídos porque a fonte do PDF não os suporta.",
+    "pageListOutsideSpine": "{{a}} página(s) da page-list apontam para documentos fora do spine e foram ignoradas.",
+    "missingAnchor": "Âncora ausente em {{a}}: {{b}}",
+    "chapterReducedToText": "Capítulo \"{{a}}\" reduzido a texto: {{b}}",
+    "chapterOutsideSpine": "Capítulo fora do spine preservado como conteúdo extra: {{a}}",
+    "chapterNotFound": "Capítulo não encontrado: {{a}}",
+    "chapterEmpty": "Capítulo sem conteúdo exportável: {{a}}",
+    "chapterUnreadable": "Capítulo sem texto legível: {{a}}",
+    "cssNotFound": "Folha de estilo não encontrada: {{a}}",
+    "cssUrlRemoved": "Uma declaração CSS foi removida porque o recurso url() não foi empacotado.",
+    "htmlNotFound": "Documento HTML não encontrado: {{a}}",
+    "emptySpine": "O EPUB não tem itens no spine.",
+    "imageInsertFailed": "Não foi possível inserir a imagem {{a}}: {{b}}",
+    "missingFallback": "Fallback ausente para {{a}}: {{b}}",
+    "unsupportedImage": "Formato de imagem não suportado: {{a}}",
+    "kindleImageFailed": "A imagem {{a}} não pôde ser preparada para o Kindle ({{b}}); será omitida se o formato não for suportado.",
+    "imageNotOptimized": "Imagem {{a}} mantida sem otimização ({{b}}).",
+    "imageNotFound": "Imagem não encontrada: {{a}}",
+    "cssImportInvalid": "Import CSS inválido removido ({{a}}): {{b}}",
+    "cssImportUnresolved": "Import CSS removido porque não foi resolvido: {{a}}",
+    "ncxIgnored": "Índice NCX ignorado: {{a}}",
+    "opfWithoutMetadata": "OPF sem metadados; usando metadados inferidos pelo Lyceum.",
+    "cssPropertyRemoved": "Propriedade CSS removida: {{a}}.",
+    "resourceFallback": "Recurso {{a}} ausente; usando o fallback {{b}}.",
+    "htmlResourceBlocked": "Recurso HTML fora da pasta do documento foi bloqueado: {{a}}",
+    "htmlResourceNotFound": "Recurso HTML não encontrado: {{a}}",
+    "resourceIgnored": "Recurso ignorado no EPUB ({{a}}): {{b}}",
+    "resourceNotFound": "Recurso não encontrado: {{a}}",
+    "resourceNotInManifest": "Recurso referenciado não está no manifesto: {{a}}",
+    "cssRuleRemoved": "Regra CSS @{{a}} removida por incompatibilidade com o Kindle.",
+    "spineFallback": "Spine ausente ou vazio; usando os documentos HTML do manifesto.",
+    "spineMissingItem": "O spine referencia um item ausente no manifesto: {{a}}",
+    "kindleThumbnailFailed": "A miniatura Kindle da capa {{a}} não pôde ser gerada ({{b}}).",
+    "brokenReference": "Link quebrado em {{a}}: {{b}}",
+    "brokenCssReference": "Referência CSS quebrada em {{a}}: {{b}}",
+    "ligaturesRepaired": "Ligaduras sem Unicode reconstruídas: {{a}}.",
+    "azw3FirstResourceZero": "O primeiro registro de recurso aponta para zero; Kindles reais podem classificar índices KF8 como recursos.",
+    "azw3MissingFullName": "Nome completo do livro ausente ou fora do registro zero.",
+    "azw3MissingDatp": "Registro DATP ausente; alguns geradores AZW3 reais também omitem esse registro.",
+    "azw3MissingTbs": "Fluxo KF8 sem TBS nos registros de texto; Kindles reais podem calcular poucas locations ou progresso incorreto.",
+    "azw3UnconvertedLinks": "{{a}} link(s) interno(s) XHTML permaneceram sem conversão para kindle:pos:fid.",
+    "unknownError": "erro desconhecido"
   }
 }

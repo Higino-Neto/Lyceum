@@ -24,7 +24,14 @@ export interface EpubSection {
 export interface EpubBook {
   ready: Promise<void>; destroy(): void; load(url: string): Promise<Document>;
   loaded: { navigation: Promise<{ toc: TocItem[] }> };
-  locations: { generate(size: number): Promise<void>; percentageFromCfi(cfi: string): number };
-  spine: { spineItems: EpubSection[] };
+  locations: {
+    generate(size: number): Promise<void>;
+    percentageFromCfi(cfi: string): number;
+    cfiFromPercentage(percentage: number): string;
+    load(locations: string): unknown;
+    save(): string;
+    length(): number;
+  };
+  spine: { spineItems: EpubSection[]; get(target: string | number): (EpubSection & { index: number; href: string }) | null };
   renderTo(element: HTMLElement, options: Parameters<Rendition["book"]["renderTo"]>[1]): EpubRendition;
 }

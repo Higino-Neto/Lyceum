@@ -2,8 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { translate } from "../i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { getMobileAuthErrorMessage, getMobileSupabase, subscribeMobileAuth, validateMobileSession } from "./supabaseMobile";
-import { createMobileUserProfile } from "./readingApi";
+import { supabase as sharedSupabase } from "../lib/supabase";
+import { getAuthErrorMessage, hasSupabaseConfig, subscribeAuth, validateSession } from "../lib/supabaseAuth";
+
+/** The shared client, or null when this build has no usable Supabase configuration. */
+const accountClient = () => (hasSupabaseConfig() ? sharedSupabase : null);
+import { createUserProfile } from "../api/database";
 export function useMobileAuth() {
   const queryClient = useQueryClient();
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
@@ -23,14 +27,14 @@ export function useMobileAuth() {
 
   useEffect(() => {
     let cancelled = false;
-    validateMobileSession()
+    validateSession()
       .then((session) => {
         if (!cancelled) setSessionEmail(session?.user?.email ?? null);
       })
       .catch((error) => {
         if (!cancelled) {
           setSessionEmail(null);
-          setAuthError(getMobileAuthErrorMessage(error));
+          setAuthError(getAuthErrorMessage(error));
         }
       })
       .finally(() => {
@@ -40,7 +44,7 @@ export function useMobileAuth() {
   }, []);
 
   useEffect(() => {
-    return subscribeMobileAuth((_event, session) => {
+    return subscribeAuth((_event, session) => {
       setSessionEmail(session?.user?.email ?? null);
       setAuthReady(true);
       setAuthError(null);
@@ -49,7 +53,7 @@ export function useMobileAuth() {
   }, [invalidateAccountQueries]);
 
   const signIn = async (mode: "signin" | "signup") => {
-    const supabase = getMobileSupabase();
+    const supabase = accountClient();
     if (!supabase) {
       toast.error(translate("mobile:auth.notConfiguredBuild"));
       return;
@@ -85,7 +89,7 @@ export function useMobileAuth() {
       if (result.error) throw result.error;
 
       if (result.data.session?.user?.id) {
-        await createMobileUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
+        await createUserProfile(result.data.user.id, result.data.user.email || email).catch((error) => {
           console.warn("[mobile-auth] profile bootstrap failed", error);
           toast(translate("mobile:auth.socialProfilePending"));
         });
@@ -103,7 +107,7 @@ export function useMobileAuth() {
       invalidateAccountQueries();
       toast.success(mode === "signin" ? translate("mobile:auth.sessionStarted") : translate("mobile:auth.accountCreated"));
     } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
+      const message = getAuthErrorMessage(error);
       setAuthError(message);
       toast.error(message);
     } finally {
@@ -114,13 +118,13 @@ export function useMobileAuth() {
   const signOut = async () => {
     setAuthBusy(true);
     try {
-      const { error } = await getMobileSupabase()?.auth.signOut() || { error: null };
+      const { error } = await accountClient()?.auth.signOut() || { error: null };
       if (error) throw error;
       setSessionEmail(null);
       setAuthPassword("");
       queryClient.clear();
     } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
+      const message = getAuthErrorMessage(error);
       setAuthError(message);
       toast.error(message);
     } finally {
@@ -129,7 +133,7 @@ export function useMobileAuth() {
   };
 
   const requestPasswordReset = async () => {
-    const supabase = getMobileSupabase();
+    const supabase = accountClient();
     const email = authEmail.trim();
     if (!supabase || !/^\S+@\S+\.\S+$/.test(email)) {
       toast.error(translate("mobile:auth.accountEmailRequired"));
@@ -146,7 +150,7 @@ export function useMobileAuth() {
       if (error) throw error;
       toast.success(translate("mobile:auth.recoverySent"));
     } catch (error) {
-      const message = getMobileAuthErrorMessage(error);
+      const message = getAuthErrorMessage(error);
       setAuthError(message);
       toast.error(message);
     } finally {

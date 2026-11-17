@@ -66,7 +66,7 @@ export default function BookListHeader({
 
   return (
     <div
-      className="sticky top-0 z-10 grid rounded-sm border border-border bg-overlay text-xs uppercase tracking-wide text-foreground-subtle"
+      className="sticky top-0 z-10 grid rounded-t-sm border border-border bg-overlay text-[11px] font-medium uppercase tracking-wide text-foreground-subtle"
       style={{ gridTemplateColumns }}
     >
       {visible.map((column) => {

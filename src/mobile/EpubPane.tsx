@@ -9,17 +9,23 @@ import type { Contents, Location } from "epubjs";
 import {
   BookMarked,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Type,
   ChevronUp,
   List,
   Minus,
   Moon,
   NotebookPen,
   Plus,
+  GraduationCap,
   Search,
   Sun,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import MobileSheet from "./MobileSheet";
+import { BACK_EVENT } from "./useBackNavigation";
 
 interface EpubPaneProps {
   bookId?: string;
@@ -29,6 +35,8 @@ interface EpubPaneProps {
   bookTitle: string;
   onBack: () => void;
   onRegister?: () => void;
+  /** Switches to the language-learning reader for this book. */
+  onLearn?: () => void;
 }
 
 function dataUrlToArrayBuffer(dataUrl: string) {
@@ -120,7 +128,7 @@ function buildOverrideCss(settings: ReaderSettings) {
   `;
 }
 
-export default function EpubPane({ bookId, dataUrl, location, onLocationChange, bookTitle, onBack, onRegister }: EpubPaneProps) {
+export default function EpubPane({ bookId, dataUrl, location, onLocationChange, bookTitle, onBack, onRegister, onLearn }: EpubPaneProps) {
   const { data: readerData } = useReaderData();
   const [selection, setSelection] = useState<{ locator: ReaderLocator; text: string }>();
   const [footnote, setFootnote] = useState("");
@@ -143,6 +151,11 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chapterLabel, setChapterLabel] = useState("");
+  const [locationsReady, setLocationsReady] = useState(false);
+  const [sliderValue, setSliderValue] = useState<number | null>(null);
+  const tocRef = useRef<TocItem[]>([]);
   const showOverlayRef = useRef(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -191,9 +204,27 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
     injectStylesRef.current = injectStylesToAllIframes;
   }, [injectStylesToAllIframes]);
 
-  const handleTapZone = useCallback(() => {
-    setShowOverlay((v) => !v);
+  /**
+   * Taps inside the book: in paginated mode the outer thirds turn the page
+   * and the middle shows/hides the controls; in scrolled mode any tap toggles
+   * the controls. `x` is relative to the reader's left edge.
+   */
+  const handleTap = useCallback((x: number) => {
+    const width = containerRef.current?.clientWidth || window.innerWidth;
+    if (settingsRef.current.paginated && !showOverlayRef.current) {
+      if (x < width * 0.28) {
+        void renditionRef.current?.prev();
+        return;
+      }
+      if (x > width * 0.72) {
+        void renditionRef.current?.next();
+        return;
+      }
+    }
+    setShowOverlay((visible) => !visible);
   }, []);
+  const handleTapRef = useRef(handleTap);
+  handleTapRef.current = handleTap;
 
   const applyReaderStyles = useCallback((rendition: EpubRendition) => {
     if (!rendition?.themes) return;
@@ -257,7 +288,6 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
     if (!rendition) return;
     const anchor = currentCfiRef.current;
     applyReaderStyles(rendition);
-    rendition.flow(settings.paginated ? "paginated" : "scrolled-doc");
     injectStylesToAllIframes();
     if (anchor) void rendition.display(anchor);
   }, [settings, applyReaderStyles, injectStylesToAllIframes]);
@@ -316,7 +346,9 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         const mod = await import("epubjs");
         if (!mounted || loadIdRef.current !== loadId) return;
         const createEpub = mod.default;
-        book = createEpub(dataUrlToArrayBuffer(dataUrl)) as unknown as EpubBook;
+        const buffer = dataUrl.startsWith("data:") ? dataUrlToArrayBuffer(dataUrl) : await (await fetch(dataUrl)).arrayBuffer();
+        if (!mounted || loadIdRef.current !== loadId) return;
+        book = createEpub(buffer) as unknown as EpubBook;
         bookRef.current = book;
 
         await book.ready;
@@ -325,9 +357,10 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         const rendition = book.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
-          flow: settingsRef.current.paginated ? "paginated" : "scrolled-doc",
+          // Scrolling flows through chapters ("continuous"); paginated keeps one section per view.
+          flow: settingsRef.current.paginated ? "paginated" : "scrolled",
           spread: "none",
-          manager: "default",
+          manager: settingsRef.current.paginated ? "default" : "continuous",
           allowScriptedContent: false,
           resizeOnOrientationChange: true,
         });
@@ -339,6 +372,35 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
           if (text.trim()) setSelection({ locator: { format: "epub", cfi }, text });
         });
         rendition.hooks.content.register((contents: Contents) => {
+          // Swipe to turn pages; tap zones (see handleTap). Long-press selection is left alone.
+          let touchStart: { x: number; y: number; time: number } | null = null;
+          contents.document.addEventListener("touchstart", (event: TouchEvent) => {
+            const touch = event.touches[0];
+            touchStart = touch && event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY, time: Date.now() } : null;
+          }, { passive: true });
+          contents.document.addEventListener("touchend", (event: TouchEvent) => {
+            const start = touchStart;
+            touchStart = null;
+            const touch = event.changedTouches[0];
+            if (!start || !touch) return;
+            const selection = contents.window.getSelection();
+            if (selection && !selection.isCollapsed && selection.toString().trim()) return;
+            const dx = touch.clientX - start.x;
+            const dy = touch.clientY - start.y;
+            const elapsed = Date.now() - start.time;
+            if (settingsRef.current.paginated && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4 && elapsed < 800) {
+              if (dx < 0) void renditionRef.current?.next();
+              else void renditionRef.current?.prev();
+              setShowOverlay(false);
+              return;
+            }
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10 || elapsed > 450) return;
+            if ((event.target as Element | null)?.closest?.("a")) return;
+            const frame = contents.window.frameElement as HTMLElement | null;
+            const frameLeft = frame?.getBoundingClientRect().left ?? 0;
+            const containerLeft = containerRef.current?.getBoundingClientRect().left ?? 0;
+            handleTapRef.current(frameLeft + touch.clientX - containerLeft);
+          }, { passive: true });
           contents.document.addEventListener("click", (event: MouseEvent) => {
             const link = (event.target as Element)?.closest("a");
             if (!link) return;
@@ -389,11 +451,19 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             : 0;
           onLocationChangeRef.current(cfi, percent);
           setProgress(percent);
-          setPositionLabel(section.start.displayed?.total ? `Capítulo: ${section.start.displayed.page}/${section.start.displayed.total} · ${percent}% do livro` : `${percent}% do livro`);
+          setPositionLabel(section.start.displayed?.total
+            ? t("mobile:epub.positionInChapter", { page: section.start.displayed.page, total: section.start.displayed.total, percent })
+            : t("mobile:epub.percentOfBook", { percent }));
+          const href = (section.start.href || "").split("#")[0];
+          const entry = flattenToc(tocRef.current).filter((item) => item.href.split("#")[0].endsWith(href) || href.endsWith(item.href.split("#")[0])).pop();
+          setChapterLabel(entry?.label?.trim() || "");
         });
 
         const navigation = await book.loaded.navigation.catch(() => null);
-        if (mounted && loadIdRef.current === loadId) setToc((navigation?.toc || []) as TocItem[]);
+        if (mounted && loadIdRef.current === loadId) {
+          tocRef.current = (navigation?.toc || []) as TocItem[];
+          setToc(tocRef.current);
+        }
 
         if (!mounted || loadIdRef.current !== loadId) return;
 
@@ -409,8 +479,17 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         }
         if (mounted && loadIdRef.current === loadId) {
           setReady(true);
-          setShowOverlay(true);
-          void book.locations.generate(900).then(() => {
+          // Locations (needed for % and the position slider) are expensive on long books: cache them per book.
+          const locationsKey = `lyceum-epub-locations:v1:${bookId || bookTitle}`;
+          let cachedLocations: string | null = null;
+          try { cachedLocations = localStorage.getItem(locationsKey); } catch { /* storage unavailable */ }
+          const locationsReadyPromise = cachedLocations
+            ? Promise.resolve(book.locations.load(cachedLocations))
+            : book.locations.generate(900).then(() => {
+              try { localStorage.setItem(locationsKey, book.locations.save()); } catch { /* quota: regenerate next time */ }
+            });
+          void locationsReadyPromise.then(() => {
+            if (mounted && loadIdRef.current === loadId) setLocationsReady(true);
             if (!mounted || loadIdRef.current !== loadId || !currentCfiRef.current) return;
             const percent = Math.round(book.locations.percentageFromCfi(currentCfiRef.current) * 100);
             setProgress(percent); onLocationChangeRef.current(currentCfiRef.current, percent);
@@ -440,8 +519,9 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       renditionRef.current = null;
       bookRef.current = null;
     };
+  // The manager is fixed at render time, so switching between paging and scrolling re-renders (position is kept).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataUrl]);
+  }, [dataUrl, settings.paginated]);
 
   useEffect(() => {
     const rendition = renditionRef.current;
@@ -546,6 +626,45 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
     displayTarget(hits[nextIndex].cfi || hits[nextIndex].href);
   };
 
+  const commitSlider = () => {
+    const value = sliderValue;
+    setSliderValue(null);
+    const book = bookRef.current;
+    if (value === null || !book || !locationsReady) return;
+    try {
+      const cfi = book.locations.cfiFromPercentage(Math.min(0.9999, Math.max(0, value / 100)));
+      if (cfi) void displayTarget(cfi);
+    } catch {
+      /* locations not ready */
+    }
+  };
+
+  /** Jumps to the start of the previous/next spine section. */
+  const goToChapter = async (direction: 1 | -1) => {
+    const book = bookRef.current;
+    const rendition = renditionRef.current;
+    if (!book || !rendition) return;
+    const current = rendition.currentLocation?.() as unknown as { start?: { index?: number } } | undefined;
+    const index = current?.start?.index;
+    if (index === undefined) return;
+    const target = book.spine.get(index + direction);
+    if (target?.href) await displayTarget(target.href);
+  };
+
+  // Android back closes the topmost layer of the reader first.
+  useEffect(() => {
+    const onBack = (event: Event) => {
+      if (settingsOpen) setSettingsOpen(false);
+      else if (tocOpen) setTocOpen(false);
+      else if (footnote) setFootnote("");
+      else if (searchOpen) setSearchOpen(false);
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener(BACK_EVENT, onBack);
+    return () => window.removeEventListener(BACK_EVENT, onBack);
+  }, [footnote, searchOpen, settingsOpen, tocOpen]);
+
   const tocItems = flattenToc(toc);
 
   const fontOptions: FontFamily[] = ["georgia", "serif", "sans", "opendyslexic"];
@@ -554,58 +673,35 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
     <div className="relative h-full w-full overflow-hidden" style={{ background: colors.background, color: colors.foreground }}>
       <ReaderTools onTurn={direction => { if (direction > 0) void renditionRef.current?.next(); else void renditionRef.current?.prev(); }} bookId={bookId} locator={currentCfiRef.current?.startsWith("epubcfi(") ? { format: "epub", cfi: currentCfiRef.current } : undefined} selection={selection} clearSelection={() => { setSelection(undefined); for (const iframe of containerRef.current?.querySelectorAll("iframe") || []) iframe.contentWindow?.getSelection()?.removeAllRanges(); }} history={history} navigate={l => { if (l.format === "epub") void renditionRef.current?.display(l.cfi); }} getText={async () => Array.from(containerRef.current?.querySelectorAll("iframe") || []).map(iframe => iframe.contentDocument?.body.textContent || "").join("\n")} />
       {footnote && <div role="dialog" aria-label={t("mobile:epub.footnoteAriaLabel")} className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-surface p-4 text-foreground shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>{t("common:actions.close")}</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
-      {settings.paginated && ready && !showOverlay && <div className="absolute inset-x-4 bottom-6 z-20 flex justify-between"><button className="rounded bg-surface-muted p-3 text-foreground" onClick={() => void renditionRef.current?.prev()}>{t("common:actions.previous")}</button><span>{positionLabel}</span><button className="rounded bg-surface-muted p-3 text-foreground" onClick={() => void renditionRef.current?.next()}>{t("common:actions.next")}</button></div>}
-      {showOverlay && (
-        <div className="absolute inset-0 z-30 flex flex-col bg-overlay backdrop-blur shadow-2xl">
-          {/* Header bar */}
-          <div className="flex items-center gap-2 px-3 py-3">
-            <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
-              onClick={onBack}
-              type="button"
-              aria-label={t("common:actions.back")}
-            >
-              <X size={16} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">{bookTitle}</p>
-              <div className="mt-1.5 h-1 rounded bg-surface-muted">
-                <div className="h-full rounded bg-primary" style={{ width: `${progress}%` }} />
+      {showOverlay && ready && (
+        <>
+          <div className="absolute inset-x-0 top-0 z-30 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] text-foreground shadow-lg backdrop-blur">
+            <div className="flex h-14 items-center gap-1 px-1.5">
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={onBack} type="button" aria-label={t("common:actions.back")}>
+                <ChevronLeft size={22} />
+              </button>
+              <div className="min-w-0 flex-1 px-1">
+                <p className="truncate text-sm font-semibold">{bookTitle}</p>
+                {chapterLabel && <p className="truncate text-xs text-foreground-subtle">{chapterLabel}</p>}
               </div>
+              {onLearn && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary active:bg-surface-muted" onClick={onLearn} type="button" aria-label={t("mobile:learning.openForLearning")}><GraduationCap size={20} /></button>}
+              {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => setTocOpen((value) => !value)} type="button" aria-label={t("mobile:epub.tocAriaLabel")}>
+                <List size={20} />
+              </button>
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => setSearchOpen((value) => !value)} type="button" aria-label={t("mobile:epub.searchAriaLabel")}>
+                {searchOpen ? <X size={20} /> : <Search size={20} />}
+              </button>
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => setSettingsOpen(true)} type="button" aria-label={t("mobile:reader.settingsAriaLabel")}>
+                <Type size={20} />
+              </button>
             </div>
-            {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface text-primary" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
-            <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
-              onClick={() => setTocOpen((value) => !value)}
-              type="button"
-              aria-label={t("mobile:epub.tocAriaLabel")}
-            >
-              <List size={16} />
-            </button>
-            <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
-              onClick={() => setSearchOpen((value) => !value)}
-              type="button"
-              aria-label={t("mobile:epub.searchAriaLabel")}
-            >
-              {searchOpen ? <X size={16} /> : <Search size={16} />}
-            </button>
-            <button
-              className="grid h-9 w-9 shrink-0 place-items-center rounded bg-surface text-foreground"
-              onClick={() => setShowOverlay(false)}
-              type="button"
-              aria-label={t("common:actions.close")}
-            >
-              <ChevronDown size={16} />
-            </button>
-          </div>
-
           {/* Search panel */}
           {searchOpen && (
             <div className="border-t border-border px-3 py-3">
               <div className="flex gap-2">
                 <input
-                  className="h-10 min-w-0 flex-1 rounded bg-surface px-3 text-sm text-foreground"
+                  className="h-10 min-w-0 flex-1 rounded bg-surface-muted px-3 text-sm text-foreground"
                   placeholder={t("mobile:epub.searchPlaceholder")}
                   value={query}
                   onChange={(event) => { searchGeneration.current++; setIsSearching(false); setQuery(event.target.value); }}
@@ -652,8 +748,36 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             </div>
           )}
 
-          {/* Settings */}
-          <div className="flex-1 overflow-y-auto border-t border-border px-3 py-4">
+          </div>
+          <div className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2 text-foreground shadow-lg backdrop-blur">
+            <div className="flex items-center gap-2">
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => void goToChapter(-1)} type="button" aria-label={t("mobile:epub.previousChapter")}>
+                <ChevronLeft size={20} />
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                disabled={!locationsReady}
+                value={sliderValue ?? progress}
+                aria-label={t("mobile:epub.positionSlider")}
+                onChange={(event) => setSliderValue(Number(event.target.value))}
+                onPointerUp={() => commitSlider()}
+                onKeyUp={() => commitSlider()}
+                onTouchEnd={() => commitSlider()}
+                className="h-11 min-w-0 flex-1 accent-[var(--primary)] disabled:opacity-40"
+              />
+              <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => void goToChapter(1)} type="button" aria-label={t("mobile:epub.nextChapter")}>
+                <ChevronRight size={20} />
+              </button>
+            </div>
+            <p className="pb-0.5 text-center text-xs text-foreground-subtle">{sliderValue !== null ? t("mobile:epub.percentOfBook", { percent: sliderValue }) : positionLabel}</p>
+          </div>
+        </>
+      )}
+      <MobileSheet open={settingsOpen} title={t("mobile:reader.settingsAriaLabel")} onClose={() => setSettingsOpen(false)} closeLabel={t("common:actions.close")} size="full">
+          <div className="pb-2 pt-1">
             <label className="mb-4 flex gap-3 text-foreground"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> {t("mobile:reader.paginatedLabel")}</label>
             {/* Font family */}
             <div className="mb-4">
@@ -663,7 +787,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                   <button
                     key={font}
                     className={`h-9 rounded text-sm font-medium ${
-                      settings.fontFamily === font ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
+                      settings.fontFamily === font ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground"
                     }`}
                     onClick={() => updateSetting("fontFamily", font)}
                     type="button"
@@ -680,18 +804,18 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.fontSizeLabel")}</label>
                 <div className="grid grid-cols-3 gap-1">
                   <button
-                    className="grid h-9 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
+                    className="grid h-9 place-items-center rounded bg-surface-muted text-foreground disabled:opacity-40"
                     disabled={settings.fontSize <= 60}
                     onClick={() => updateSetting("fontSize", Math.max(60, settings.fontSize - 5))}
                     type="button"
                   >
                     <Minus size={16} />
                   </button>
-                  <div className="grid h-9 place-items-center rounded bg-surface text-xs text-foreground">
+                  <div className="grid h-9 place-items-center rounded bg-surface-muted text-xs text-foreground">
                     {settings.fontSize}%
                   </div>
                   <button
-                    className="grid h-9 place-items-center rounded bg-surface text-foreground disabled:opacity-40"
+                    className="grid h-9 place-items-center rounded bg-surface-muted text-foreground disabled:opacity-40"
                     disabled={settings.fontSize >= 200}
                     onClick={() => updateSetting("fontSize", Math.min(200, settings.fontSize + 5))}
                     type="button"
@@ -703,7 +827,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               <div>
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{t("mobile:reader.lineHeightLabel")}</label>
                 <button
-                  className="h-9 w-full rounded bg-surface text-xs font-medium text-foreground"
+                  className="h-9 w-full rounded bg-surface-muted text-xs font-medium text-foreground"
                   onClick={() => {
                     const next = settings.lineHeight >= 2.2 ? 1.0 : Number((settings.lineHeight + 0.15).toFixed(2));
                     updateSetting("lineHeight", next);
@@ -728,7 +852,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     <button
                       key={value}
                       className={`h-9 rounded text-xs font-medium ${
-                        settings.fontWeight === value ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
+                        settings.fontWeight === value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground"
                       }`}
                       onClick={() => updateSetting("fontWeight", value)}
                       type="button"
@@ -749,7 +873,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                     <button
                       key={value}
                       className={`h-9 rounded text-xs font-medium ${
-                        settings.wordSpacing === value ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
+                        settings.wordSpacing === value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground"
                       }`}
                       onClick={() => updateSetting("wordSpacing", value)}
                       type="button"
@@ -769,7 +893,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                   <button
                     key={item}
                     className={`flex h-9 items-center justify-center gap-2 rounded text-sm font-medium ${
-                      settings.theme === item ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
+                      settings.theme === item ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground"
                     }`}
                     onClick={() => updateSetting("theme", item)}
                     type="button"
@@ -789,7 +913,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                   <button
                     key={level}
                     className={`h-9 rounded text-sm font-medium ${
-                      settings.marginLevel === level ? "bg-primary text-primary-foreground" : "bg-surface text-foreground"
+                      settings.marginLevel === level ? "bg-primary text-primary-foreground" : "bg-surface-muted text-foreground"
                     }`}
                     onClick={() => updateSetting("marginLevel", level)}
                     type="button"
@@ -800,9 +924,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
               </div>
             </div>
           </div>
-        </div>
-      )}
-
+      </MobileSheet>
       <div className="relative h-full w-full">
         <div
           ref={containerRef}
@@ -819,15 +941,6 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
           </div>
         )}
 
-        {ready && (
-          <div className="absolute inset-0 z-10 pointer-events-none">
-            <div
-              className="absolute top-0 left-0 right-0 z-20 pointer-events-auto"
-              style={{ height: "10%" }}
-              onClick={handleTapZone}
-            />
-          </div>
-        )}
       </div>
 
       {tocOpen && (
@@ -836,7 +949,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <BookMarked size={17} />
-                Sumario
+                {t("mobile:epub.tocAriaLabel")}
               </div>
               <button
                 className="grid h-8 w-8 place-items-center rounded bg-surface text-foreground"

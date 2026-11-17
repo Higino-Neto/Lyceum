@@ -227,7 +227,17 @@ export async function extractEpubMetadata(
   }
 }
 
+/** File names the app itself writes, checked before falling back to a directory scan. */
+const KNOWN_THUMBNAIL_SUFFIXES = ["-thumb.webp", "-thumb.jpg", "-thumb.png", "-1.jpg", "-1.png"];
+
 export function findThumbnailByHash(thumbnailsDir: string, fileHash: string): string | null {
+  // Fast path: this runs once per visible cover (thumb:// protocol), so avoid
+  // listing a folder that can hold thousands of files.
+  for (const suffix of KNOWN_THUMBNAIL_SUFFIXES) {
+    const candidate = path.join(thumbnailsDir, `${fileHash}${suffix}`);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
   if (!fs.existsSync(thumbnailsDir)) {
     return null;
   }
@@ -240,6 +250,63 @@ export function findThumbnailByHash(thumbnailsDir: string, fileHash: string): st
   );
 
   return matchingFile ? path.join(thumbnailsDir, matchingFile) : null;
+}
+
+/**
+ * Deletes cover thumbnails no record points to any more. Thumbnails are keyed
+ * by file hash, so editing a file (new hash), removing a book or a USB cache
+ * entry ageing out used to leave the old image behind forever. Recent files
+ * are kept so a thumbnail being generated right now is never raced.
+ */
+export async function pruneOrphanThumbnails(options: {
+  thumbnailsDir: string;
+  referencedPaths: Iterable<string | null | undefined>;
+  minAgeMs?: number;
+  now?: number;
+}): Promise<{ removed: number; freedBytes: number; kept: number }> {
+  const minAgeMs = options.minAgeMs ?? 24 * 60 * 60 * 1000;
+  const now = options.now ?? Date.now();
+  // Entries are file paths, or "<hash>-*" to keep every thumbnail of a hash.
+  const referenced = new Set<string>();
+  const referencedHashes = new Set<string>();
+  for (const entry of options.referencedPaths) {
+    if (!entry) continue;
+    if (entry.endsWith("-*")) referencedHashes.add(entry.slice(0, -2));
+    else referenced.add(path.basename(entry));
+  }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = await fs.promises.readdir(options.thumbnailsDir, { withFileTypes: true });
+  } catch {
+    return { removed: 0, freedBytes: 0, kept: 0 };
+  }
+
+  let removed = 0;
+  let freedBytes = 0;
+  let kept = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !THUMBNAIL_EXTENSIONS.includes(path.extname(entry.name).toLowerCase())) continue;
+    const hashPrefix = entry.name.slice(0, entry.name.indexOf("-"));
+    if (referenced.has(entry.name) || (hashPrefix && referencedHashes.has(hashPrefix))) {
+      kept += 1;
+      continue;
+    }
+    const filePath = path.join(options.thumbnailsDir, entry.name);
+    try {
+      const stats = await fs.promises.stat(filePath);
+      if (now - stats.mtimeMs < minAgeMs) {
+        kept += 1;
+        continue;
+      }
+      await fs.promises.unlink(filePath);
+      removed += 1;
+      freedBytes += stats.size;
+    } catch {
+      // Already gone or locked: try again on the next run.
+    }
+  }
+  return { removed, freedBytes, kept };
 }
 
 export function isPdfMagicBytesValid(filePath: string): boolean {
@@ -327,9 +394,11 @@ export async function generateThumbnail(
       return null;
     }
 
+    // The stored thumbnail is THUMB_WIDTH wide; rendering at ~3x that is
+    // plenty for a sharp downscale without rasterizing a poster-sized page.
     const rendered = await renderPdfPageToPng(filePath, 1, {
       scale: 1.5,
-      maxDimension: 1800,
+      maxDimension: THUMB_WIDTH * 4,
     });
     const outputPath = path.join(thumbnailsDir, `${fileHash}-thumb.webp`);
     const sharp = require("sharp");

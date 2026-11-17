@@ -60,8 +60,6 @@ describe("SQLite schema", () => {
       "documents_fts",
       "book_word_index",
       "watch_folders",
-      "habits",
-      "habit_completions",
     ]));
   });
 
@@ -74,11 +72,5 @@ describe("SQLite schema", () => {
     ).get("hash");
     expect(document).toEqual({ currentPage: 1, processingStatus: "pending" });
 
-    db.prepare("INSERT INTO habits (id, name) VALUES (?, ?)").run("daily", "Ler");
-    db.prepare("INSERT INTO habit_completions (habitId, dateKey, value) VALUES (?, ?, ?)")
-      .run("daily", "2026-09-18", "1");
-    db.prepare("DELETE FROM habits WHERE id = ?").run("daily");
-    expect(db.prepare("SELECT COUNT(*) AS count FROM habit_completions").get())
-      .toEqual({ count: 0 });
   });
 });

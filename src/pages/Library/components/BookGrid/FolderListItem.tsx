@@ -87,7 +87,7 @@ export default function FolderListItem({
       className={[
         "grid min-h-12 cursor-pointer items-center rounded-sm border bg-background/70 transition-colors",
         "hover:border-primary/55 hover:bg-surface",
-        isSelected ? "border-primary/80 bg-primary-muted ring-1 ring-focus-ring" : "border-border",
+        isSelected ? "border-primary/80 bg-primary-muted" : "border-border",
         isDropTarget ? "border-primary bg-primary-muted ring-1 ring-focus-ring" : "",
       ].join(" ")}
       style={{ gridTemplateColumns }}

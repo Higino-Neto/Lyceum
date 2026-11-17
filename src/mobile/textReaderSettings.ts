@@ -81,7 +81,7 @@ export function persistSettings(settings: ReaderSettings) {
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
-  paginated: false,
+  paginated: true,
   theme: "paper",
   fontSize: 100,
   lineHeight: 1.55,

@@ -10,6 +10,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-electron.mjs",
+    "start:last": "node scripts/run-snapshot.mjs",
+    "start:fresh": "node scripts/run-snapshot.mjs --fresh",
     "dev:mobile": "vite --config vite.mobile.config.ts --host 127.0.0.1",
     "clean:build": "node scripts/clean-build.mjs",
     "size:audit": "node scripts/size-audit.mjs",
@@ -45,7 +47,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:pdf:electron": "electron scripts/smoke-pdfjs-electron.cjs",
-    "test:mobile": "vitest run src/test/mobileLibrary.test.ts src/test/mobileReadingStats.test.ts src/test/mobileReleaseResolver.test.ts src/test/mobileReleaseWorkflow.test.ts src/test/mobileOtaUpdater.test.ts src/test/mobileAuth.test.ts src/test/nativeApkUpdater.test.ts src/test/pdfReaderModel.test.ts src/test/mobileReaderModel.test.ts src/test/mobileComponents.test.tsx src/test/mobileReadingEntry.test.tsx"
+    "test:mobile": "vitest run src/test/mobileLibrary.test.ts src/test/mobileReadingStats.test.ts src/test/mobileReleaseResolver.test.ts src/test/mobileReleaseWorkflow.test.ts src/test/mobileOtaUpdater.test.ts src/test/mobileAuth.test.ts src/test/nativeApkUpdater.test.ts src/test/pdfReaderModel.test.ts src/test/mobileReaderModel.test.ts src/test/mobileComponents.test.tsx src/test/mobileReadingEntry.test.tsx src/test/languageLearning/memoryRepository.test.ts src/test/languageLearning/repositoryLearningClient.test.ts src/test/languageLearning/browserPrepare.test.ts src/test/languageLearning/readingSurfaceTouch.test.tsx src/test/supabaseConfig.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

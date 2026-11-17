@@ -13,7 +13,6 @@ const mockWindowApi = {
   backupSetSession: vi.fn().mockResolvedValue({ success: true }),
   backupClearSession: vi.fn().mockResolvedValue({ success: true }),
   backupAllDocuments: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
-  backupAllHabits: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
   backupAllCategories: vi.fn().mockResolvedValue({ success: 1, failed: 0, errors: [] }),
 };
 
@@ -226,7 +225,6 @@ describe('App', () => {
     expect(mockWindowApi.backupAllDocuments).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(25_000); });
     expect(mockWindowApi.backupAllDocuments).toHaveBeenCalledTimes(1);
-    expect(mockWindowApi.backupAllHabits).toHaveBeenCalledTimes(1);
     expect(mockWindowApi.backupAllCategories).toHaveBeenCalledTimes(1);
   });
 });

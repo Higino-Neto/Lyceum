@@ -1,6 +1,5 @@
 import type { SupportedLanguageCode } from "./config";
 
-import enAtlas from "./en/atlas.json";
 import enAuth from "./en/auth.json";
 import enDialogs from "./en/dialogs.json";
 import enLibrary from "./en/library.json";
@@ -12,13 +11,11 @@ import enPdf from "./en/pdf.json";
 import enMobile from "./en/mobile.json";
 import enDashboard from "./en/dashboard.json";
 import enFriends from "./en/friends.json";
-import enHabits from "./en/habits.json";
 import enNavigation from "./en/navigation.json";
 import enSettings from "./en/settings.json";
 import enTabs from "./en/tabs.json";
 import enLearning from "./en/learning.json";
 
-import ptBrAtlas from "./pt-br/atlas.json";
 import ptBrAuth from "./pt-br/auth.json";
 import ptBrDialogs from "./pt-br/dialogs.json";
 import ptBrLibrary from "./pt-br/library.json";
@@ -30,7 +27,6 @@ import ptBrPdf from "./pt-br/pdf.json";
 import ptBrMobile from "./pt-br/mobile.json";
 import ptBrDashboard from "./pt-br/dashboard.json";
 import ptBrFriends from "./pt-br/friends.json";
-import ptBrHabits from "./pt-br/habits.json";
 import ptBrNavigation from "./pt-br/navigation.json";
 import ptBrSettings from "./pt-br/settings.json";
 import ptBrTabs from "./pt-br/tabs.json";
@@ -42,7 +38,6 @@ import ptBrLearning from "./pt-br/learning.json";
  * same namespaces and keys, or the assignment below fails to type-check.
  */
 const en = {
-  atlas: enAtlas,
   common: enCommon,
   conversion: enConversion,
   epub: enEpub,
@@ -57,12 +52,10 @@ const en = {
   tabs: enTabs,
   settings: enSettings,
   friends: enFriends,
-  habits: enHabits,
   learning: enLearning,
 };
 
 const ptBR = {
-  atlas: ptBrAtlas,
   common: ptBrCommon,
   conversion: ptBrConversion,
   epub: ptBrEpub,
@@ -77,7 +70,6 @@ const ptBR = {
   tabs: ptBrTabs,
   settings: ptBrSettings,
   friends: ptBrFriends,
-  habits: ptBrHabits,
   learning: ptBrLearning,
 };
 

@@ -15,7 +15,11 @@ import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
 import type { OutputPreviewRequest, OutputPreviewResult } from "./services/output-preview-types";
 import type { PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } from "./services/pdf-tools-types";
 import type { KindleEmailPublicConfig, KindleEmailSaveInput } from "./services/kindle-email-types";
+import type { KindleSendErrorCode, KindleSendStage } from "../src/features/kindle/kindleSendPlan";
+
+type KindleSendProgressPayload = { fileHash: string; progress: number; stage: KindleSendStage; detail?: string };
 import type { BookCategory } from "../src/core/library/category";
+import type { LanguageSummary, LibrarySummary } from "../src/types/StatsTypes";
 import type {
   FormKnowledgeRecord,
   KnowledgeRecord,
@@ -30,12 +34,6 @@ import type {
   KnowledgeMergeResult,
   LearningImportResult,
 } from "../src/core/language-learning/model";
-import type {
-  Habit,
-  HabitCompletion,
-  HabitUpdate,
-  NewHabit,
-} from "../src/core/habits/model";
 
 const { ipcRenderer, contextBridge, webUtils } = electron;
 
@@ -210,8 +208,14 @@ const api = {
     conversionOptions?: LyceumConversionOptions;
   }) => ipcRenderer.invoke("kindle:send-book", input),
 
-  onKindleSendProgress: (callback: (payload: { fileHash: string; progress: number; message: string }) => void) => {
-    const listener = (_: Electron.IpcRendererEvent, payload: { fileHash: string; progress: number; message: string }) => callback(payload);
+  /** Stops the running USB or e-mail batch after the current step. */
+  cancelKindleSend: () => invoke<boolean>("kindle:cancel-send"),
+
+  /** Amazon's "Content & Devices" page (approved senders, @kindle.com address). */
+  openKindlePersonalDocuments: () => invoke<boolean>("kindle:open-amazon-settings"),
+
+  onKindleSendProgress: (callback: (payload: KindleSendProgressPayload) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, payload: KindleSendProgressPayload) => callback(payload);
     ipcRenderer.on("kindle:send-progress", listener);
     return () => { ipcRenderer.removeListener("kindle:send-progress", listener); };
   },
@@ -220,7 +224,7 @@ const api = {
     invoke<KindleEmailPublicConfig>("kindle-email:get-config"),
 
   saveKindleEmailConfig: (input: KindleEmailSaveInput) =>
-    invoke<{ success: boolean; config?: KindleEmailPublicConfig; error?: string }>("kindle-email:save-config", input),
+    invoke<{ success: boolean; config?: KindleEmailPublicConfig; error?: string; errorCode?: KindleSendErrorCode }>("kindle-email:save-config", input),
 
   connectKindleEmailGoogle: () =>
     invoke<{ success: boolean; config?: KindleEmailPublicConfig; error?: string }>("kindle-email:connect-google"),
@@ -232,7 +236,7 @@ const api = {
     invoke<KindleEmailPublicConfig>("kindle-email:disconnect-google"),
 
   verifyKindleEmail: () =>
-    invoke<{ success: boolean; error?: string }>("kindle-email:verify"),
+    invoke<{ success: boolean; error?: string; errorCode?: KindleSendErrorCode; errorParams?: Record<string, string | number> }>("kindle-email:verify"),
 
   sendBooksToKindleEmail: (options: {
     books: Array<{
@@ -256,6 +260,7 @@ const api = {
     }>;
     preserveMetadata?: boolean;
     convertPdfToEpub?: boolean;
+    compressImages?: boolean;
   }) =>
     invoke<{
       success: boolean;
@@ -271,6 +276,9 @@ const api = {
         verified?: boolean;
         note?: string;
         error?: string;
+        errorCode?: KindleSendErrorCode;
+        errorParams?: Record<string, string | number>;
+        outputFormat?: string;
       }>;
     }>("kindle-email:send-books", options),
 
@@ -432,50 +440,6 @@ const api = {
     ipcRenderer.invoke("annotations:delete-relation", bookId, conceptAId, conceptBId),
   getAnnotationPageThumbnail: (bookId: string, page: number) =>
     ipcRenderer.invoke("annotations:get-page-thumbnail", bookId, page),
-
-  getReadingStatusItems: () =>
-    ipcRenderer.invoke("atlas:get-status-items"),
-
-  addLibraryBookToReadingStatus: (status: ReadingStatus, fileHash: string) =>
-    ipcRenderer.invoke("atlas:add-status-library-book", status, fileHash),
-
-  addManualBookToReadingStatus: (data: { title: string; author?: string | null; status: ReadingStatus }) =>
-    ipcRenderer.invoke("atlas:add-status-manual-book", data),
-
-  updateReadingStatusItemStatus: (itemId: string, status: ReadingStatus) =>
-    ipcRenderer.invoke("atlas:update-status-item-status", itemId, status),
-
-  positionReadingStatusItem: (itemId: string, status: ReadingStatus, targetIndex: number) =>
-    ipcRenderer.invoke("atlas:position-status-item", itemId, status, targetIndex),
-
-  updateReadingStatusItemProgress: (itemId: string, updates: { manualBasePage?: number; manualCurrentPage?: number; manualTotalPages?: number | null }) =>
-    ipcRenderer.invoke("atlas:update-status-item-progress", itemId, updates),
-
-  addReadingStatusProgressEvent: (itemId: string, pages: number, note?: string | null) =>
-    ipcRenderer.invoke("atlas:add-status-progress-event", itemId, pages, note ?? null),
-
-  deleteReadingStatusItem: (itemId: string) =>
-    ipcRenderer.invoke("atlas:delete-status-item", itemId),
-
-  setPrimaryReadingStatusItem: (itemId: string) =>
-    ipcRenderer.invoke("atlas:set-primary-status-item", itemId),
-
-  updateReadingStatusItemCover: (itemId: string, coverPath: string | null) =>
-    ipcRenderer.invoke("atlas:update-status-item-cover", itemId, coverPath),
-
-  updateReadingStatusItemMetadata: (itemId: string, updates: Partial<{
-    title: string;
-    author: string | null;
-    description: string | null;
-    isbn: string | null;
-    publisher: string | null;
-    publishDate: string | null;
-    subject: string | null;
-    manualTotalPages: number | null;
-    coverPath: string | null;
-    rating: number;
-  }>) =>
-    ipcRenderer.invoke("atlas:update-status-item-metadata", itemId, updates),
 
   searchBookMetadata: (source: MetadataSearchSource, query: string, field: MetadataSearchField, limit?: number) =>
     ipcRenderer.invoke("book:search-metadata", source, query, field, limit),
@@ -653,6 +617,26 @@ const api = {
   addSourceFolder: (folderPath: string, label?: string) =>
     ipcRenderer.invoke("library:add-source-folder", folderPath, label),
 
+  deleteFolders: (folderPaths: string[]) =>
+    ipcRenderer.invoke("library:delete-folders", folderPaths) as Promise<{
+      success: boolean;
+      error?: string;
+      deleted: number;
+      failed: number;
+      errors: string[];
+    }>,
+
+  suggestSourceFolders: () =>
+    ipcRenderer.invoke("library:suggest-source-folders") as Promise<
+      | {
+          success: true;
+          suggestions: Array<{ path: string; bookCount: number; ebookCount: number; pdfCount: number; recommended: boolean }>;
+          scannedDirectories: number;
+          truncated: boolean;
+        }
+      | { success: false; error: string }
+    >,
+
   removeSourceFolder: (id: number) =>
     ipcRenderer.invoke("library:remove-source-folder", id),
 
@@ -677,34 +661,7 @@ const api = {
   backupAllDocuments: () =>
     ipcRenderer.invoke("backup:all-documents"),
 
-  habitsGetAll: () => invoke<Habit[]>("habits:get-all"),
-
-  habitsGetById: (id: string) => invoke<Habit | undefined>("habits:get-by-id", id),
-
-  habitsAdd: (habit: NewHabit) =>
-    invoke<{ success: true }>("habits:add", habit),
-
-  habitsUpdate: (id: string, updates: HabitUpdate) =>
-    invoke<{ success: true }>("habits:update", id, updates),
-
-  habitsDelete: (id: string) => invoke<{ success: true }>("habits:delete", id),
-
-  habitsGetCompletions: (habitId: string) =>
-    invoke<HabitCompletion[]>("habits:get-completions", habitId),
-
-  habitsGetAllCompletions: () =>
-    invoke<HabitCompletion[]>("habits:get-all-completions"),
-
-  habitsSetCompletion: (habitId: string, dateKey: string, value: string | null) =>
-    invoke<{ success: true }>("habits:set-completion", habitId, dateKey, value),
-
-  habitsDeleteCompletion: (habitId: string, dateKey: string) =>
-    invoke<{ success: true }>("habits:delete-completion", habitId, dateKey),
-
-  backupAllHabits: () =>
-    ipcRenderer.invoke("backup:all-habits"),
-
-backupAllCategories: () =>
+  backupAllCategories: () =>
     ipcRenderer.invoke("backup:all-categories"),
 
   extractVocabulary: (fileHash: string) =>
@@ -788,8 +745,12 @@ openInNewWindow: (data: {
     ipcRenderer.invoke("language-learning:choose-backup-mirror", userId),
   languageLearningClearBackupMirror: (userId: string) =>
     ipcRenderer.invoke("language-learning:clear-backup-mirror", userId),
+
   languageLearningOpenBackupsFolder: (userId: string) =>
     invoke<{ success: boolean; error?: string }>("language-learning:open-backups-folder", userId),
+
+  statsLibrarySummary: () => invoke<LibrarySummary>("stats:library-summary"),
+  statsLanguageSummary: (userId: string) => invoke<LanguageSummary>("stats:language-summary", userId),
 
   languageLearningSetFormState: (userId: string, record: { language: string; key: string; form: string; state: KnowledgeState }) =>
     invoke<FormKnowledgeRecord>("language-learning:set-form-state", userId, record),

@@ -164,10 +164,21 @@ export function renameManagedFolder(
   }
 }
 
-export function deleteManagedFolder(
+export interface DeleteFolderOptions {
+  /** Moves the folder to the system trash; falls back to a permanent delete. */
+  trash?: (folderPath: string) => Promise<void>;
+}
+
+/**
+ * Deletes a managed folder without blocking the main process: large or deeply
+ * nested folders used to freeze the app (and keep the confirm dialog on
+ * screen) while `rmSync` walked the tree.
+ */
+export async function deleteManagedFolder(
   folderPath: string,
   force = false,
-): FolderOperationResult {
+  options: DeleteFolderOptions = {},
+): Promise<FolderOperationResult> {
   try {
     const target = resolveManagedFolderPath(folderPath);
     const safeFolderPath = target.targetDir;
@@ -176,19 +187,32 @@ export function deleteManagedFolder(
     }
     const sourceRoot = findExactSourceFolder(safeFolderPath);
     if (!fs.existsSync(safeFolderPath)) {
-      return { success: false, error: "Pasta nao existe" };
+      // Already gone (e.g. a parent in the same batch was deleted first):
+      // make sure no stale records survive and report success.
+      deleteDocumentsUnderPath(safeFolderPath);
+      if (sourceRoot) removeSourceFolder(sourceRoot.id);
+      return { success: true };
     }
 
     if (!force) {
-      const nonEmpty = fs
-        .readdirSync(safeFolderPath, { withFileTypes: true })
-        .filter((item) => !item.name.startsWith("."));
-      if (nonEmpty.length > 0) {
+      const entries = await fs.promises.readdir(safeFolderPath, { withFileTypes: true });
+      if (entries.some((item) => !item.name.startsWith("."))) {
         return { success: false, error: "Pasta nao esta vazia" };
       }
     }
 
-    fs.rmSync(safeFolderPath, { recursive: true, force: true });
+    let trashed = false;
+    if (options.trash) {
+      try {
+        await options.trash(safeFolderPath);
+        trashed = true;
+      } catch (error) {
+        console.warn("[FolderService] Trash unavailable, deleting permanently:", error);
+      }
+    }
+    if (!trashed) {
+      await fs.promises.rm(safeFolderPath, { recursive: true, force: true });
+    }
     deleteDocumentsUnderPath(safeFolderPath);
     if (sourceRoot) {
       removeSourceFolder(sourceRoot.id);
@@ -197,6 +221,28 @@ export function deleteManagedFolder(
   } catch (error: unknown) {
     return { success: false, error: folderOperationError("Erro ao excluir pasta", error) };
   }
+}
+
+/** Deletes several folders, parents first so nested selections are no-ops. */
+export async function deleteManagedFolders(
+  folderPaths: string[],
+  options: DeleteFolderOptions = {},
+): Promise<FolderOperationResult & { deleted: number; failed: number; errors: string[] }> {
+  const unique = [...new Set(folderPaths)].sort((left, right) => left.length - right.length);
+  let deleted = 0;
+  const errors: string[] = [];
+  for (const folderPath of unique) {
+    const result = await deleteManagedFolder(folderPath, true, options);
+    if (result.success) deleted += 1;
+    else errors.push(`${path.basename(folderPath)}: ${result.error ?? "unknown error"}`);
+  }
+  return {
+    success: errors.length === 0,
+    error: errors[0],
+    deleted,
+    failed: errors.length,
+    errors,
+  };
 }
 
 export function moveManagedFolder(

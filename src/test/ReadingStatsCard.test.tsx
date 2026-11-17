@@ -1,9 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ReadingStatsCard, {
-  getFrequentRecentBooks,
-} from "../pages/DashboardPage/components/ReadingStatsCard";
+import ReadingStatsCard from "../pages/DashboardPage/components/ReadingStatsCard";
+import { getFrequentRecentBooks } from "../pages/DashboardPage/components/frequentBooks";
 import { createReadingEntry, getAllBooks } from "../api/database";
 import getReadings from "../utils/getReadings";
 import type TableReading from "../types/TableReading";

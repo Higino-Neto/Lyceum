@@ -40,7 +40,18 @@ interface ReadingSurfaceProps {
   onRangeSelect(startOrdinal: number, endOrdinal: number, x: number, y: number): void;
   onBackgroundClick(): void;
   onPosition(blockId: string | null, chapterProgress: number): void;
+  /**
+   * Touch screens: a double tap on a word acts like Ctrl+click (marks it
+   * Known), so a single tap waits a moment before inspecting; long-press
+   * selection (native handles) reports a range when the selection settles.
+   */
+  touch?: boolean;
+  /** Rendered after the chapter text, inside the scroller (e.g. end-of-chapter actions). */
+  footer?: React.ReactNode;
 }
+
+const DOUBLE_TAP_MS = 260;
+const SELECTION_SETTLE_MS = 450;
 
 /** Escapes a value for use inside a double-quoted attribute selector. */
 function attr(value: string) {
@@ -78,6 +89,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
   const runtimeRef = useRef<SegmentRuntime | null>(null);
   const callbacks = useRef(props);
   callbacks.current = props;
+  const pendingTap = useRef<{ ordinal: number; timer: number } | null>(null);
 
   const chapter = document.chapters[chapterIndex];
   const firstOrdinal = index.chapterRange(chapterIndex)?.[0] ?? 0;
@@ -307,6 +319,57 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     };
   }, [reportPosition, segments]);
 
+  // Touch: report the settled native selection (long press + drag handles) as a range.
+  useEffect(() => {
+    if (!props.touch) return;
+    let timer = 0;
+    const onSelectionChange = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const selection = window.getSelection();
+        const content = contentRef.current;
+        if (!selection || selection.isCollapsed || !content || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        if (!content.contains(range.commonAncestorContainer)) return;
+        const words = Array.from(content.querySelectorAll<HTMLElement>(".lx-w"))
+          .filter((element) => range.intersectsNode(element))
+          .map((element) => Number(element.dataset.o));
+        if (words.length < 2) return;
+        const rect = range.getBoundingClientRect();
+        callbacks.current.onRangeSelect(Math.min(...words), Math.max(...words), rect.left + rect.width / 2, rect.bottom);
+      }, SELECTION_SETTLE_MS);
+    };
+    window.document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      window.clearTimeout(timer);
+      window.document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, [props.touch]);
+
+  useEffect(() => () => {
+    if (pendingTap.current) window.clearTimeout(pendingTap.current.timer);
+  }, []);
+
+  const handleTouchWord = (ordinal: number) => {
+    const pending = pendingTap.current;
+    if (pending) {
+      window.clearTimeout(pending.timer);
+      pendingTap.current = null;
+      if (pending.ordinal === ordinal) {
+        callbacks.current.onWordClick(ordinal, { alt: false, ctrl: true });
+        return;
+      }
+      callbacks.current.onWordClick(pending.ordinal, { alt: false, ctrl: false });
+    }
+    pendingTap.current = {
+      ordinal,
+      timer: window.setTimeout(() => {
+        pendingTap.current = null;
+        callbacks.current.onWordClick(ordinal, { alt: false, ctrl: false });
+      }, DOUBLE_TAP_MS),
+    };
+  };
+
   const handleClick = (event: React.MouseEvent) => {
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) return;
@@ -314,6 +377,10 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     const wordElement = target.closest<HTMLElement>(".lx-w");
     if (wordElement?.dataset.o) {
       const ordinal = Number(wordElement.dataset.o);
+      if (props.touch) {
+        handleTouchWord(ordinal);
+        return;
+      }
       if (event.altKey) {
         const sentence = wordElement.closest<HTMLElement>(".lx-s");
         if (sentence?.dataset.s) props.onSentenceClick(sentence.dataset.s);
@@ -357,6 +424,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
       data-highlights={settings.showHighlights ? "on" : "off"}
       data-known={settings.highlightKnown ? "on" : "off"}
       data-theme={settings.theme}
+      data-touch={props.touch ? "on" : undefined}
       style={{
         ["--lx-font-size" as string]: `${settings.fontSize}px`,
         ["--lx-line-height" as string]: String(settings.lineHeight),
@@ -371,6 +439,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
           onContextMenu={handleContextMenu}
           onMouseUp={handleMouseUp}
         />
+        {props.footer}
       </div>
     </div>
   );

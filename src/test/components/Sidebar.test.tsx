@@ -32,10 +32,8 @@ describe("Sidebar", () => {
   it("renders navigation items for a logged user", () => {
     renderSidebar();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Registrar")).toBeInTheDocument();
+    expect(screen.queryByText("Registrar")).not.toBeInTheDocument();
     expect(screen.getByText("Biblioteca")).toBeInTheDocument();
-    expect(screen.getByText("Atlas")).toBeInTheDocument();
-    expect(screen.getByText("Hábitos")).toBeInTheDocument();
     expect(screen.getByText("Configurações")).toBeInTheDocument();
     expect(screen.getByText("Conta")).toBeInTheDocument();
     expect(screen.getByText("Sair")).toBeInTheDocument();

@@ -43,6 +43,9 @@ export function registerDictionaryHandlers(
         nonEmptyString(dictId, "dictId", 80),
       );
     } catch (error) {
+      // Logged so a broken offline dictionary is visible in "Open logs"
+      // instead of silently falling back to the online translator.
+      console.error(`[Dictionary] Lookup failed in ${dictId}:`, error);
       return {
         found: false,
         word,

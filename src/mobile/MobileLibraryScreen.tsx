@@ -16,6 +16,7 @@ import {
   Folder,
   FolderInput,
   FolderOpen,
+  GraduationCap,
   Grid2X2,
   Heart,
   List,
@@ -48,6 +49,8 @@ interface MobileLibraryScreenProps {
   onQueryChange: (query: MobileLibraryQuery) => void;
   onViewChange: (view: "grid" | "list") => void;
   onOpenBook: (bookId: string) => void;
+  /** Opens an EPUB/TXT in the language-learning reader. */
+  onOpenForLearning?: (bookId: string) => void;
   onImportFiles: () => void;
   onImportSourceFolder: (sourceFolderId?: string) => void;
   onCreateFolder: (name: string, parentId?: string) => void;
@@ -165,7 +168,9 @@ function BookEditor({
   onSave,
   onMove,
   onDelete,
+  onOpenForLearning,
 }: {
+  onOpenForLearning?: () => void;
   book: MobileBook;
   folders: MobileLibraryFolder[];
   categories: string[];
@@ -193,6 +198,15 @@ function BookEditor({
         </div>
 
         <div className="mt-5 grid gap-3">
+          {onOpenForLearning && (book.fileType === "epub" || book.fileType === "txt") && (
+            <button className="flex min-h-14 items-center gap-3 rounded-2xl border border-primary/30 bg-primary-muted px-4 text-left" onClick={onOpenForLearning} type="button">
+              <GraduationCap size={22} className="flex-shrink-0 text-primary" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-primary">{t("mobile:learning.openForLearning")}</span>
+                <span className="block text-xs text-foreground-muted">{t("mobile:learning.openForLearningHint")}</span>
+              </span>
+            </button>
+          )}
           <label className="grid gap-2 text-sm font-semibold">
             {t("mobile:library.readingStatus")}
             <MobileSelect value={draft.readingStatus || "want"} onChange={e => update({ readingStatus: e.target.value as MobileBook["readingStatus"] })}>{Object.entries(STATUS_KEYS).map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}</MobileSelect>
@@ -273,6 +287,7 @@ export default function MobileLibraryScreen({
   onQueryChange,
   onViewChange,
   onOpenBook,
+  onOpenForLearning,
   onImportFiles,
   onImportSourceFolder,
   onCreateFolder,
@@ -380,7 +395,7 @@ export default function MobileLibraryScreen({
         </div>
       </header>
 
-      {(folderTrail.length > 0 || currentSource) && <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto rounded-xl bg-surface/80 px-2 py-1 text-xs" aria-label={t("mobile:library.breadcrumbAriaLabel")}>
+      {(folderTrail.length > 0 || currentSource) && <nav className="mt-2 flex min-h-10 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl bg-surface/80 px-2 py-1 text-xs" aria-label={t("mobile:library.breadcrumbAriaLabel")}>
         <button className={`shrink-0 rounded-lg px-2.5 py-2 ${!currentFolder && !currentSource ? "bg-primary-muted text-primary" : "text-foreground-muted"}`} onClick={() => setQuery({ folderId: undefined, sourceFolderId: undefined })} type="button">{t("mobile:library.breadcrumbRoot")}</button>
         {folderTrail.map((folder) => <span className="flex shrink-0 items-center" key={folder.id}><ChevronRight size={13} className="text-foreground-subtle" /><button className={`rounded-lg px-2.5 py-2 ${folder.id === query.folderId ? "bg-primary-muted text-primary" : "text-foreground-muted"}`} onClick={() => openFolder(folder)} type="button">{folder.name}</button></span>)}
         {currentSource && <span className="flex shrink-0 items-center"><ChevronRight size={13} className="text-foreground-subtle" /><span className="rounded-lg bg-primary-muted px-2.5 py-2 text-primary">{t("mobile:library.breadcrumbSource", { name: currentSource.name })}</span></span>}
@@ -393,7 +408,7 @@ export default function MobileLibraryScreen({
 
 
 
-      {state.books.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+      {state.books.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {(["all", "managed", "source"] as const).map((scope) => <button key={scope} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold ${query.scope === scope ? "bg-primary text-primary-foreground" : "bg-surface text-foreground-muted"}`} onClick={() => setQuery({ scope })} type="button">{t(SCOPE_KEYS[scope])}</button>)}
         {(["pdf", "epub", "txt"] as const).map((fileType) => <button key={fileType} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold uppercase ${query.fileType === fileType ? "bg-surface-muted text-foreground" : "bg-surface text-foreground-muted"}`} onClick={() => setQuery({ fileType: query.fileType === fileType ? "all" : fileType })} type="button">{fileType}</button>)}
       </div>}
@@ -508,7 +523,7 @@ export default function MobileLibraryScreen({
             {t("mobile:library.selectedCount", { count: selectedIds.size })}
           </span><MobileSelect className="ml-auto h-9 min-w-0 rounded-lg bg-surface-muted px-2 text-xs" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)}><option value="">{t("mobile:library.libraryOption")}</option>{state.folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder.id, state.folders)}</option>)}</MobileSelect><button className="grid h-9 w-9 place-items-center rounded-lg bg-surface-muted text-foreground" onClick={() => selectedIds.forEach((id) => onUpdateBook(id, { isFavorite: true }))} aria-label={t("mobile:library.favoriteSelectedAriaLabel")} type="button"><Heart size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground" onClick={async () => { await onMoveBooks([...selectedIds], bulkFolderId || undefined); setSelectedIds(new Set()); }} aria-label={t("mobile:library.moveSelectedAriaLabel")} type="button"><FolderOpen size={16} /></button><button className="grid h-9 w-9 place-items-center rounded-lg bg-destructive text-destructive-foreground" onClick={async () => { await onDeleteBooks([...selectedIds]); setSelectedIds(new Set()); }} aria-label={t("mobile:library.deleteSelectedAriaLabel")} type="button"><Trash2 size={16} /></button></div></div>}
 
-      {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={async (patch) => { try { if (patch.thumbnailUrl && patch.thumbnailUrl !== editingBook.thumbnailUrl) patch = { ...patch, ...await persistExtractedBookThumbnail(editingBook, patch.thumbnailUrl) }; onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); } catch { toast.error(t("mobile:library.saveFailed")); } }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} />}
+      {editingBook && <BookEditor book={editingBook} folders={state.folders} categories={state.categories} onClose={() => setEditingBookId(undefined)} onSave={async (patch) => { try { if (patch.thumbnailUrl && patch.thumbnailUrl !== editingBook.thumbnailUrl) patch = { ...patch, ...await persistExtractedBookThumbnail(editingBook, patch.thumbnailUrl) }; onUpdateBook(editingBook.id, patch); setEditingBookId(undefined); } catch { toast.error(t("mobile:library.saveFailed")); } }} onMove={(folderId) => onMoveBooks([editingBook.id], folderId)} onDelete={async () => { await onDeleteBooks([editingBook.id]); setEditingBookId(undefined); }} onOpenForLearning={onOpenForLearning ? () => { const id = editingBook.id; setEditingBookId(undefined); onOpenForLearning(id); } : undefined} />}
     </section>
   );
 }

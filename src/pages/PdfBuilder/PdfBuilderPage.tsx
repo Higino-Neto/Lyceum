@@ -17,7 +17,7 @@ import {
 import { useTranslation } from "../../i18n/useTranslation";
 import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
 import { parsePageRanges } from "../../core/pdf/page-ranges";
-import { fetchAtlasBooks } from "../Atlas/atlasUtils";
+import { fetchAllLibraryBooks } from "../../components/library/fetchAllLibraryBooks";
 import { formatFileSize, getTitleWithoutExtension } from "../Library/utils";
 import { NumberOption } from "../Conversion/components/OptionControls";
 import {
@@ -147,7 +147,7 @@ export default function PdfBuilderPage() {
 
   const booksQuery = useQuery({
     queryKey: ["conversion-library-books"],
-    queryFn: fetchAtlasBooks,
+    queryFn: fetchAllLibraryBooks,
     enabled: pickerOpen,
     staleTime: 20_000,
   });
@@ -593,15 +593,16 @@ export default function PdfBuilderPage() {
         title={t("conversion:builder.pickerTitle")}
         description={t("conversion:builder.pickerDescription")}
         onClose={() => setPickerOpen(false)}
-        onSelect={(book) => {
+        multiple
+        onSelectMany={(books) => {
           setPickerOpen(false);
-          void addFiles([{
+          void addFiles(books.map((book) => ({
             id: createToolFileId("file"),
             path: book.filePath,
             name: `${getTitleWithoutExtension(book.title, book.fileType)}.pdf`,
             size: book.fileSize || 0,
             extension: "pdf",
-          }]);
+          })));
         }}
       />
     </div>

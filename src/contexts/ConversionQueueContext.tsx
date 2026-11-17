@@ -15,6 +15,7 @@ import { DEFAULT_CUSTOM_IMAGE_SETTINGS, type ImagePresetId } from "../lib/lyceum
 import { translate } from "../i18n";
 import { isPathBasedBook } from "../utils/localBooks";
 import { canSendToKindle, toKindleSendPayload, type KindleDelivery } from "../features/kindle/kindleConversion";
+import { describeKindleError } from "../features/kindle/kindleSendMessages";
 
 export type ConversionOutputFormat = "epub" | "pdf" | "txt" | "html" | "azw3" | "kfx" | "lyceum";
 export type ConversionProfile = "ereader" | "light" | "compatible";
@@ -157,6 +158,8 @@ interface KindleSendBookResult {
   success: boolean;
   canceled?: boolean;
   error?: string;
+  errorCode?: string;
+  errorParams?: Record<string, string | number>;
   outputPath?: string;
   outputName?: string;
   pageCount?: number;
@@ -323,6 +326,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
                : candidate));
              continue;
            }
+           const failure = sent && !sent.success ? describeKindleError(sent) : null;
            const doneMessage = sent?.pageCount
              ? translate("conversion:kindle.sentWithPages", { device: sent.deviceName || item.delivery.deviceName, count: sent.pageCount })
              : translate("conversion:kindle.sent", { device: sent?.deviceName || item.delivery.deviceName });
@@ -330,7 +334,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
              ? {
                  ...candidate,
                  status: sent?.success ? "done" : "error",
-                 message: sent?.success ? doneMessage : sent?.error || translate("conversion:queue.messages.failed"),
+                 message: sent?.success ? doneMessage : failure?.message || translate("conversion:queue.messages.failed"),
                  progress: sent?.success ? 100 : 0,
                  finishedAt: Date.now(),
                }
@@ -338,8 +342,8 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            addLog({
              itemId: item.id,
              level: sent?.success ? "success" : "error",
-             message: sent?.success ? `${item.book.title}: ${doneMessage}` : `${item.book.title}: ${sent?.error || translate("conversion:queue.messages.failed")}`,
-             detail: sent?.outputPath,
+             message: sent?.success ? `${item.book.title}: ${doneMessage}` : `${item.book.title}: ${failure?.message || translate("conversion:queue.messages.failed")}`,
+             detail: sent?.success ? sent.outputPath : failure?.detail,
            });
            continue;
          }

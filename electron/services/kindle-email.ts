@@ -15,6 +15,7 @@ import type {
   KindleEmailSaveInput,
   KindleEmailSettings,
 } from "./kindle-email-types";
+import { maxEmailAttachmentBytes, type KindleSendError, type KindleSendErrorCode } from "../../src/features/kindle/kindleSendPlan";
 
 export type * from "./kindle-email-types";
 
@@ -41,12 +42,25 @@ export const KINDLE_EMAIL_PRESETS: Record<Exclude<KindleEmailProvider, "custom">
   yahoo: { host: "smtp.mail.yahoo.com", port: 465, secure: true },
 };
 
-/** Amazon's Send to Kindle e-mail limit (per message, attachments included). */
-export const KINDLE_EMAIL_MAX_BYTES = 50 * 1024 * 1024;
-/** Gmail rejects messages over 25 MB (attachments are base64-encoded, so files must be a bit smaller). */
-export const GMAIL_MAX_BYTES = 24 * 1024 * 1024;
-/** File types the Send to Kindle e-mail service accepts. AZW3/MOBI/KFX are rejected by Amazon. */
-export const KINDLE_EMAIL_ACCEPTED_FORMATS = new Set(["epub", "pdf", "txt", "html", "htm", "doc", "docx", "rtf", "jpg", "jpeg", "png", "gif", "bmp"]);
+/**
+ * A send failure the renderer can translate: `code` + `params` pick the
+ * message, `detail` keeps the raw server/exception text for diagnosis.
+ */
+export class KindleEmailError extends Error implements KindleSendError {
+  constructor(
+    readonly code: KindleSendErrorCode,
+    readonly params?: Record<string, string | number>,
+    readonly detail?: string,
+  ) {
+    super(detail ? `${code}: ${detail}` : code);
+    this.name = "KindleEmailError";
+  }
+}
+
+export function toKindleSendError(error: unknown): KindleSendError {
+  if (error instanceof KindleEmailError) return { code: error.code, params: error.params, detail: error.detail };
+  return { code: "unknown", detail: error instanceof Error ? error.message : String(error) };
+}
 
 const EMAIL_PATTERN = /^[^\s@<>()[\],;:"]+@[^\s@<>()[\],;:"]+\.[^\s@<>()[\],;:"]+$/;
 
@@ -172,15 +186,15 @@ export class KindleEmailService {
       configured: credentialsReady && isValidEmail(settings.kindleAddress) && isValidEmail(settings.senderAddress),
       googleSignInAvailable: Boolean(this.googleClient()),
       googleConnected,
-      maxAttachmentBytes: settings.provider === "gmail" ? GMAIL_MAX_BYTES : KINDLE_EMAIL_MAX_BYTES,
+      maxAttachmentBytes: maxEmailAttachmentBytes(settings.provider),
     };
   }
 
   save(input: KindleEmailSaveInput): KindleEmailPublicConfig {
     const current = this.read();
     const settings = normalizeSettings(input, current);
-    if (settings.kindleAddress && !isValidEmail(settings.kindleAddress)) throw new Error("Endereco do Kindle invalido.");
-    if (settings.senderAddress && !isValidEmail(settings.senderAddress)) throw new Error("E-mail do remetente invalido.");
+    if (settings.kindleAddress && !isValidEmail(settings.kindleAddress)) throw new KindleEmailError("invalid-kindle-address");
+    if (settings.senderAddress && !isValidEmail(settings.senderAddress)) throw new KindleEmailError("invalid-sender");
 
     let encryptedPassword = current.encryptedPassword;
     if (input.password !== undefined) {
@@ -250,7 +264,7 @@ export class KindleEmailService {
   private async googleAccessToken(config: StoredConfig) {
     const client = this.googleClient();
     const refreshToken = this.refreshToken(config);
-    if (!client || !refreshToken) throw new Error("Conecte a conta Google antes de enviar.");
+    if (!client || !refreshToken) throw new KindleEmailError("google-not-connected");
     if (this.accessToken && this.accessToken.expiresAt - 60_000 > Date.now()) return this.accessToken.value;
     const tokens = await refreshGoogleAccessToken(client, refreshToken);
     this.accessToken = { value: tokens.accessToken, expiresAt: tokens.expiresAt };
@@ -260,7 +274,7 @@ export class KindleEmailService {
   private smtpTransport(config: StoredConfig) {
     const password = this.password(config);
     if (!config.host || !isValidEmail(config.senderAddress) || !password) {
-      throw new Error("Configure o e-mail de envio (servidor, remetente e senha) antes de continuar.");
+      throw new KindleEmailError("not-configured");
     }
     return nodemailer.createTransport({
       host: config.host,
@@ -286,7 +300,7 @@ export class KindleEmailService {
     try {
       await transporter.verify();
     } catch (error) {
-      throw new Error(describeSmtpError(error));
+      throw smtpFailure(error);
     } finally {
       transporter.close();
     }
@@ -295,17 +309,17 @@ export class KindleEmailService {
   /** Sends one book per message so every book gets its own delivery status. */
   async send(attachment: KindleEmailAttachment, subject: string) {
     const config = this.read();
-    if (!isValidEmail(config.kindleAddress)) throw new Error("Configure o endereco @kindle.com de destino.");
+    if (!isValidEmail(config.kindleAddress)) throw new KindleEmailError("not-configured");
     const size = (await fs.promises.stat(attachment.filePath)).size;
-    const limit = config.provider === "gmail" ? GMAIL_MAX_BYTES : KINDLE_EMAIL_MAX_BYTES;
+    const limit = maxEmailAttachmentBytes(config.provider);
     if (size > limit) {
-      throw new Error(`Arquivo com ${(size / 1024 / 1024).toFixed(1)} MB: o limite deste envio por e-mail e ${limit / 1024 / 1024} MB.`);
+      throw new KindleEmailError("too-large", { size: formatMegabytes(size), limit: formatMegabytes(limit) });
     }
     const message = {
       from: config.senderAddress,
       to: config.kindleAddress,
       subject: subject || attachment.fileName,
-      text: "Enviado pelo Lyceum.",
+      text: "Sent with Lyceum.",
       attachments: [{ filename: attachment.fileName, path: attachment.filePath }],
     };
 
@@ -321,26 +335,35 @@ export class KindleEmailService {
       const info = await transporter.sendMail(message);
       return { messageId: info.messageId, bytes: size };
     } catch (error) {
-      throw new Error(describeSmtpError(error));
+      throw smtpFailure(error);
     } finally {
       transporter.close();
     }
   }
 }
 
-export function describeSmtpError(error: unknown): string {
+function formatMegabytes(bytes: number) {
+  return Math.round((bytes / 1024 / 1024) * 10) / 10;
+}
+
+/** Maps SMTP/Gmail failures to codes the user can act on. */
+export function classifySmtpError(error: unknown): KindleSendError {
+  if (error instanceof KindleEmailError) return toKindleSendError(error);
   const smtp = error as { code?: string; responseCode?: number; response?: string; message?: string };
+  const detail = (smtp?.response || smtp?.message || "").replace(/\s+/g, " ").slice(0, 200) || undefined;
   // Gmail returns "534-5.7.9 Application-specific password required" for the account password.
-  const serverText = smtp?.response ? ` (resposta do servidor: ${smtp.response.replace(/\s+/g, " ").slice(0, 160)})` : "";
   if (smtp?.responseCode === 534 || /application-specific password/i.test(smtp?.response || "")) {
-    return `O servidor exige uma senha de app: a senha normal da conta nao funciona. Ative a verificacao em duas etapas e gere uma senha de app.${serverText}`;
+    return { code: "smtp-app-password", detail };
   }
-  if (smtp?.code === "EAUTH" || smtp?.responseCode === 535) {
-    return `Usuario ou senha recusados pelo servidor de e-mail. Use uma senha de app (no Gmail: myaccount.google.com/apppasswords) e confira se o remetente e o mesmo e-mail da conta.${serverText}`;
-  }
+  if (smtp?.code === "EAUTH" || smtp?.responseCode === 535) return { code: "smtp-auth", detail };
   if (smtp?.code === "ECONNECTION" || smtp?.code === "ETIMEDOUT" || smtp?.code === "ESOCKET" || smtp?.code === "EDNS") {
-    return `Nao foi possivel conectar ao servidor de e-mail (${smtp.code}). Verifique servidor, porta e conexao.`;
+    return { code: "smtp-connection", params: { code: smtp.code }, detail };
   }
-  if (smtp?.responseCode === 552) return "O servidor de e-mail recusou o anexo por ser grande demais.";
-  return smtp?.message || "Falha ao enviar o e-mail.";
+  if (smtp?.responseCode === 552 || /message.*(too large|size)/i.test(smtp?.response || "")) return { code: "smtp-too-large", detail };
+  return { code: "unknown", detail };
+}
+
+function smtpFailure(error: unknown) {
+  const classified = classifySmtpError(error);
+  return new KindleEmailError(classified.code, classified.params, classified.detail);
 }

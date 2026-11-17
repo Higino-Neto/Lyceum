@@ -7,9 +7,9 @@ import {
   getFrequentMobileBooks,
   summarizeMobileReadings,
 } from "../mobile/mobileReadingStats";
-import type { MobileReadingEntry } from "../mobile/readingApi";
+import type { ReadingEntry } from "../api/database";
 
-function reading(patch: Partial<MobileReadingEntry>): MobileReadingEntry {
+function reading(patch: Partial<ReadingEntry>): ReadingEntry {
   return {
     id: patch.id || crypto.randomUUID(),
     source_name: patch.source_name || "Livro",

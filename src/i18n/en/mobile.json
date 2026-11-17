@@ -127,7 +127,8 @@
     "githubInvalidResponse": "GitHub returned an invalid release response.",
     "githubNotPublished": "There is no published mobile version with the update files yet.",
     "offline": "No internet connection.",
-    "timeout": "The update check timed out."
+    "timeout": "The update check timed out.",
+    "requiresApi": "This version requires Android API {{api}} or newer."
   },
   "reader": {
     "loadingFile": "Loading file…",
@@ -172,7 +173,8 @@
       "none": "None",
       "little": "A little",
       "lot": "A lot"
-    }
+    },
+    "settingsAriaLabel": "Text appearance"
   },
   "imports": {
     "title": "Import progress",
@@ -295,7 +297,8 @@
     "pagesPerEntry_one": "{{count}} page per entry",
     "pagesPerEntry_other": "{{count}} pages per entry",
     "viewLeaderboard": "View ranking and friends",
-    "uncategorizedCategory": "No category"
+    "uncategorizedCategory": "No category",
+    "continueReading": "Continue reading"
   },
   "leaderboard": {
     "periods": {
@@ -487,7 +490,12 @@
     "selectBookAriaLabel": "Select {{title}}",
     "detailsAriaLabelExisting": "Details of {{title}}",
     "volumeCount_one": "{{count}} volume",
-    "volumeCount_other": "{{count}} volumes"
+    "volumeCount_other": "{{count}} volumes",
+    "importSummary": "{{added}} new, {{updated}} updated",
+    "booksMoved_one": "{{count}} book moved",
+    "booksMoved_other": "{{count}} books moved",
+    "booksRemoved_one": "{{count}} book removed",
+    "booksRemoved_other": "{{count}} books removed"
   },
   "readingEntry": {
     "bookLabel": "Book",
@@ -566,7 +574,8 @@
   "readerTools": {
     "controlsUnavailable": "The Android controls are not available.",
     "previousPageAriaLabel": "Previous page",
-    "nextPageAriaLabel": "Next page"
+    "nextPageAriaLabel": "Next page",
+    "savedTo": "Saved to Documents/Lyceum: {{name}}"
   },
   "pdf": {
     "thumbnailsAriaLabel": "Page thumbnails",
@@ -674,7 +683,12 @@
     "searchHint": "Type at least 2 characters",
     "searchProgress_one": "{{hit}}/{{total}} result",
     "searchProgress_other": "{{hit}}/{{total}} results",
-    "preparing": "Preparing EPUB…"
+    "preparing": "Preparing EPUB…",
+    "positionInChapter": "Page {{page}} of {{total}} in chapter · {{percent}}% of book",
+    "percentOfBook": "{{percent}}% of book",
+    "previousChapter": "Previous chapter",
+    "nextChapter": "Next chapter",
+    "positionSlider": "Position in book"
   },
   "errors": {
     "saveLocalFailed": "Could not save the latest changes on this device.",
@@ -692,5 +706,50 @@
     "relinkBeforeExport": "Relink the book file before exporting.",
     "downloadStarted": "Book download started.",
     "savedToDocuments": "File saved to Documents/Lyceum/{{name}}. You can share it with your Kindle."
+  },
+  "learning": {
+    "openForLearning": "Read to learn languages",
+    "openForLearningHint": "Tappable words, translation, vocabulary",
+    "firstTimeHint": "“{{name}}” is analyzed once on this device; next openings are instant.",
+    "listen": "Listen",
+    "note": "Note",
+    "details": "Details",
+    "wordState": "Word state",
+    "noDictionary": "No offline dictionary installed for this language.",
+    "markRemainingKnown_one": "Mark the {{count}} remaining word as known",
+    "markRemainingKnown_other": "Mark the {{count}} remaining words as known",
+    "markRemainingHint": "Words in this chapter you did not tap that are still unknown. Proper names and numbers are left out.",
+    "markedKnown_one": "{{count}} word marked as known",
+    "markedKnown_other": "{{count}} words marked as known",
+    "undo": "Undo",
+    "reading": "Reading",
+    "vocabulary": "Vocabulary",
+    "learningMode": "Learning mode",
+    "learningModeHint": "Shows the state of each word. When off, the text is plain for ordinary reading.",
+    "autoLearn": "Tapping an unknown word marks it as Learning",
+    "autoLearnHint": "Double-tap marks a word as Known without opening anything.",
+    "languages": "Languages",
+    "documentLanguageHint": "Detected from the book's text. Change it only if detection is wrong: vocabulary is stored per language.",
+    "dictionaries": "Offline dictionaries",
+    "download": "Download",
+    "installed": "Installed",
+    "headwords_one": "{{count}} entry",
+    "headwords_other": "{{count}} entries",
+    "removeDictionary": "Remove the {{name}} dictionary from this device?",
+    "profileTitle": "Language vocabulary",
+    "profileBody": "Your vocabulary lives on this device and is copied automatically to Documents/Lyceum/Vocabulario, in the same format as Lyceum for desktop.",
+    "profileEmpty": "No words saved yet. Open an EPUB or TXT with “Read to learn languages”.",
+    "profileCounts": "{{language}}: {{known}} known · {{learning}} learning",
+    "exportVocabulary": "Export vocabulary",
+    "importVocabulary": "Import vocabulary",
+    "exported": "Vocabulary saved to {{path}}",
+    "imported": "{{count}} words imported",
+    "importCancelled": "Import cancelled",
+    "importInvalid": "This file is not a Lyceum vocabulary backup.",
+    "exportFailed": "Could not export the vocabulary.",
+    "learningUnsupported": "Learning mode works with EPUB and TXT books.",
+    "chooseDictionary": "Choose a dictionary",
+    "showAllDictionaries": "Show all {{count}} dictionaries",
+    "backupsLocation": "Automatic vocabulary backups are in {{path}} (one per day, last 30)."
   }
 }

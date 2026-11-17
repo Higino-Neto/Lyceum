@@ -1,4 +1,6 @@
-import { ipcMain, BrowserWindow, shell } from "electron";
+import { app, ipcMain, BrowserWindow, shell } from "electron";
+import { openPathDetached } from "../services/open-path";
+import { suggestSourceFolders } from "../services/source-folder-suggestions";
 import {
   listDocuments,
   getDocumentFolderCounts,
@@ -9,6 +11,8 @@ import {
   updateDocumentSyncStatus,
   updateThumbnailPath,
   searchDocuments,
+  getSourceFolders,
+  getWatchFolders,
 } from "../local-database";
 import {
   scanLibrary,
@@ -50,6 +54,7 @@ import {
   copyManagedBooks,
   createManagedFolder,
   deleteManagedFolder,
+  deleteManagedFolders,
   getManagedWatchFolderBookCount,
   listManagedWatchFolderBooks,
   listManagedWatchFolders,
@@ -144,15 +149,8 @@ export function registerLibraryHandlers() {
     } catch (fsError) {
       console.error("[LibraryHandler] Could not ensure library directory:", fsError);
     }
-    const error = await shell.openPath(libraryPath);
-    if (error) {
-      try {
-        await shell.openExternal(`file://${libraryPath}`);
-        return libraryPath;
-      } catch (fallbackError) {
-        throw new Error(error || String(fallbackError));
-      }
-    }
+    const error = await openPathDetached(libraryPath);
+    if (error) throw new Error(error);
     return libraryPath;
   });
 
@@ -253,8 +251,19 @@ export function registerLibraryHandlers() {
     return result;
   });
 
+  const trashFolder = (folderPath: string) => shell.trashItem(folderPath);
+
   ipcMain.handle("library:delete-folder", async (_, folderPath: string, force = false) => {
-    const result = deleteManagedFolder(folderPath, force);
+    const result = await deleteManagedFolder(folderPath, force, { trash: trashFolder });
+    emitLibraryUpdated(result);
+    return result;
+  });
+
+  ipcMain.handle("library:delete-folders", async (_, folderPaths: string[]) => {
+    const paths = Array.isArray(folderPaths)
+      ? folderPaths.filter((value): value is string => typeof value === "string" && value.length > 0)
+      : [];
+    const result = await deleteManagedFolders(paths, { trash: trashFolder });
     emitLibraryUpdated(result);
     return result;
   });
@@ -319,6 +328,29 @@ export function registerLibraryHandlers() {
     }
     emitLibraryUpdated(result);
     return result;
+  });
+
+  // Opt-in smart search: the renderer asks the user before calling this.
+  let suggestionScan: ReturnType<typeof suggestSourceFolders> | null = null;
+  ipcMain.handle("library:suggest-source-folders", async () => {
+    if (!suggestionScan) {
+      suggestionScan = suggestSourceFolders({
+        roots: [app.getPath("home")],
+        excludedPaths: [
+          LIBRARY_PATH(),
+          app.getPath("userData"),
+          ...getSourceFolders().map((folder) => folder.path),
+          ...getWatchFolders().map((folder) => folder.path),
+        ],
+      }).finally(() => {
+        suggestionScan = null;
+      });
+    }
+    try {
+      return { success: true as const, ...(await suggestionScan) };
+    } catch (error) {
+      return { success: false as const, error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   ipcMain.handle("library:remove-source-folder", (_, id: number) => {

@@ -128,3 +128,29 @@ StarDict release (`electron/services/freedict-snapshot.ts`, refreshed from
 freedict.org by "Refresh" in settings). Downloads are checked against the
 FreeDict SHA-512 checksum. The reader offers the matching dictionary when a
 word has no translation source.
+
+## Mobile (Capacitor)
+
+The phone app runs the same reader with platform services injected through
+`src/platform` (`registerCapacitorPlatform()` in `src/mobile/main.tsx`).
+
+| Concern | Desktop | Mobile |
+| --- | --- | --- |
+| Session logic | `useLearningSessionCore` (shared) | same |
+| Text surface | `ReadingSurface` | same, `touch` mode: tap = inspect, double tap = Known, long-press selection = phrase |
+| Book preparation | main-process worker, `.lyceum` package | `features/language-learning/browser/*`: EPUB/TXT read with JSZip + `DOMParser`, analysis in a Web Worker, cached in IndexedDB (`lyceum-learning-documents`) |
+| Language choice | `chooseDocumentLanguage` (shared, `lib/lyceum/linguistic/language.ts`) | same |
+| Vocabulary store | SQLite (`sqlite-language-learning-repository.ts`) | `createMemoryLanguageLearningRepository` (same contract tests) + IndexedDB journal (`platform/web/learningDatabase.ts`) |
+| Automatic backups | `<userData>/language-learning/backups` | `Documents/Lyceum/Vocabulario/<user>/latest.json` + daily copies (30), never overwritten by an empty export |
+| Dictionaries | `electron/dictionary-*` | `platform/web/dictionaryStore.ts`: same catalog (`core/dictionaries`), StarDict parsed in JS, tar.xz via `xz-decompress`, downloads through native HTTP |
+| Online translation | MyMemory via main process | MyMemory via `CapacitorHttp` (`features/language-learning/myMemory.ts`, opt-in) |
+
+Backups use one format (`lyceum.learning-backup` v1) on both platforms, so a
+desktop export can be imported on the phone (Profile → Vocabulary) and vice
+versa; the newest version of each record wins.
+
+Mobile-only reading aid: at the end of a chapter, "Mark the N remaining words
+as known" sets the chapter's untouched Unknown words (no numbers, no likely
+proper names) to Known, with undo.
+
+Not yet on mobile: PDF/HTML sources and cloud sync of vocabulary between devices.

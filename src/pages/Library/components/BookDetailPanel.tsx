@@ -586,7 +586,7 @@ export default function BookDetailPanel({
           <div className="grid grid-cols-[minmax(118px,160px)_minmax(0,1fr)] gap-4">
           <div 
             className={`relative aspect-[3/4] bg-surface-muted rounded-md overflow-hidden shadow-lg cursor-pointer transition-all group ${
-              isDragging ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface" : "hover:ring-2 hover:ring-border-strong"
+              isDragging ? "ring-2 ring-inset ring-focus-ring" : "hover:ring-1 hover:ring-inset hover:ring-border-strong"
             }`}
             onClick={handleThumbnailClick}
             onDragOver={handleDragOver}
@@ -671,7 +671,7 @@ export default function BookDetailPanel({
             <div className="flex items-start gap-2">
               <Calendar size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-foreground-subtle">Adicionado em</p>
+                <p className="text-xs text-foreground-subtle">{t("library:detail.addedOn")}</p>
                 <p className="text-sm text-foreground">{formatDate(selectedVariant.createdAt)}</p>
               </div>
             </div>
@@ -680,7 +680,7 @@ export default function BookDetailPanel({
               <div className="flex items-start gap-2">
                 <MapPin size={14} className="text-foreground-subtle flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground-subtle">Localização</p>
+                  <p className="text-xs text-foreground-subtle">{t("library:detail.location")}</p>
                   <div className="flex items-center gap-1 flex-wrap">
                     {getPathParts().map((part, index) => (
                       <span key={index} className="flex items-center gap-1">
@@ -723,7 +723,7 @@ export default function BookDetailPanel({
 
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-foreground-subtle mb-1">Título</p>
+            <p className="text-xs text-foreground-subtle mb-1">{t("library:detail.titleLabel")}</p>
             {editMode === "title" ? (
               <div className="flex items-center gap-2">
                 <input
@@ -888,7 +888,7 @@ export default function BookDetailPanel({
             type="button"
             onClick={() => (isLyceumPackage && onOpenLearning ? onOpenLearning(selectedVariant) : onOpenReader(selectedVariant))}
             disabled={!canOpenInReader}
-            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary px-2 py-2.5 text-sm font-bold transition-colors  hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-primary-foreground"
+            className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm bg-primary px-2 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-foreground-subtle"
           >
             <BookOpen size={16} strokeWidth={3} />
             {canOpenInReader

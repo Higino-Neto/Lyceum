@@ -3,7 +3,6 @@
     "dailyReadings": "Daily readings",
     "copyToday": "Copy today's readings",
     "copyYesterday": "Copy yesterday's readings",
-    "register": "Record",
     "editReading": "Edit reading",
     "removeReading": "Remove reading",
     "previousPage": "Previous page",
@@ -110,5 +109,514 @@
     "yesterday": "Yesterday",
     "register": "Record reading",
     "noCategory": "No category"
+  },
+  "tabs": {
+    "label": "Dashboard sections",
+    "overview": "Overview",
+    "reading": "Reading",
+    "languages": "Languages",
+    "library": "Library",
+    "goals": "Goals & reviews",
+    "friends": "Friends"
+  },
+  "common": {
+    "you": "You",
+    "pagesUnit": "pages",
+    "booksUnit": "books",
+    "pagesPerHourUnit": "pages/h",
+    "pagesPerHour": "{{value}} pages/h",
+    "pagesShort_one": "{{count}} page",
+    "pagesShort_other": "{{count}} pages",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days"
+  },
+  "stats": {
+    "heatmapHint": "Hover over a day to see its pages",
+    "heatmapDay": "{{date}}: {{pages}} pages",
+    "less": "less",
+    "more": "more"
+  },
+  "overview": {
+    "continueReading": "Continue reading",
+    "openBook": "Open {{book}}",
+    "pageOf": "p. {{page}} of {{total}}"
+  },
+  "register": {
+    "title": "Record reading",
+    "today": "Today:",
+    "pagesOfGoal": "{{pages}} / {{goal}} pages",
+    "pages_one": "{{count}} page",
+    "pages_other": "{{count}} pages",
+    "remaining_one": "{{count}} page left for the goal",
+    "remaining_other": "{{count}} pages left for the goal",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "streak_one": "{{count}}-day streak",
+    "streak_other": "{{count}}-day streak",
+    "recent": "Recent:",
+    "fillRow": "Fill a row with {{book}}"
+  },
+  "reading": {
+    "empty": "Record your first readings to see your statistics here.",
+    "comparison": {
+      "title": "Comparisons",
+      "subtitle": "This week, month and year so far against the same span of the previous one",
+      "info": "Compares the period to date with the same number of days of the previous period, so a partial week is never compared with a full one.",
+      "weekPages": "Pages this week",
+      "weekTime": "Time this week",
+      "monthPages": "Pages this month",
+      "monthDays": "Active days this month",
+      "yearPages": "Pages this year",
+      "yearTime": "Time this year",
+      "vsLastWeek": "vs. last week",
+      "vsLastMonth": "vs. last month",
+      "vsLastYear": "vs. last year"
+    },
+    "recent": {
+      "title": "Last 30 days",
+      "subtitle": "Pages per day with a 7-day moving average",
+      "pages": "Pages",
+      "average": "7-day average"
+    },
+    "records": {
+      "title": "Personal records",
+      "subtitle": "Your best marks across the whole history",
+      "bestDay": "Best day",
+      "bestWeek": "Best week",
+      "bestMonth": "Best month",
+      "longestStreak": "Longest streak",
+      "longestDay": "Longest reading day",
+      "fastestDay": "Fastest day",
+      "weekOf": "week of {{date}}"
+    },
+    "calendar": {
+      "title": "Reading calendar",
+      "subtitle": "Last 12 months · {{pages}} pages over {{days}} active days"
+    },
+    "yoy": {
+      "title": "Year over year",
+      "subtitle": "Pages per month, this year against last year",
+      "toDate": "Year to date"
+    },
+    "consistency": {
+      "title": "Consistency",
+      "subtitle": "Active days and deep reading days",
+      "info": "A deep reading day has 60 minutes or more recorded.",
+      "active30": "Active days (30d)",
+      "daysOf30_one": "{{count}} of 30 days",
+      "daysOf30_other": "{{count}} of 30 days",
+      "deepDays": "Deep days (90d)",
+      "deepHint": "60+ minutes",
+      "read": "Read",
+      "deep": "Deep reading",
+      "none": "No reading",
+      "activeShare": "Active days"
+    },
+    "pace": {
+      "title": "Reading speed",
+      "subtitle": "Pages per hour by month and by category",
+      "info": "Total pages divided by total time, using only entries that recorded a reading time.",
+      "current": "pages/h in the latest month",
+      "inPeriod": "in 12 months",
+      "series": "Speed",
+      "empty": "Record reading times to see your speed."
+    },
+    "projection": {
+      "title": "Finish projection",
+      "subtitle": "At the pace of the last 14 days",
+      "info": "Progress is the larger of the reader position and the pages you logged for the book. Books need a known page count.",
+      "finish_one": "{{date}} · {{count}} day",
+      "finish_other": "{{date}} · {{count}} days",
+      "detail": "{{done}} of {{total}} pages · {{pace}} pages/day",
+      "empty": "No book with a known page count was read in the last 14 days."
+    },
+    "categories": {
+      "title": "Categories over time",
+      "subtitle": "Pages per category per month",
+      "other": "Other",
+      "none": "No category"
+    },
+    "profile": {
+      "title": "Reader profile",
+      "subtitle": "Last 90 days, scored from 0 to 100",
+      "info": "Volume: 40 pages/day = 100. Consistency: share of active days. Speed: 45 pages/h = 100. Variety: 6 different titles = 100. Depth: 60 minutes per active day = 100. Weekends: 50 = a fair share of weekend reading.",
+      "friends": "Friends' average",
+      "axes": {
+        "volume": "Volume",
+        "consistency": "Consistency",
+        "speed": "Speed",
+        "variety": "Variety",
+        "depth": "Depth",
+        "weekend": "Weekends"
+      }
+    },
+    "weekday": {
+      "title": "Day of the week",
+      "subtitle": "Average pages per weekday (last 26 weeks)",
+      "average": "Average"
+    },
+    "clock": {
+      "title": "Reading clock",
+      "subtitle": "Pages by time of day",
+      "info": "Based on the time each entry was saved. Entries are usually logged right after reading, so this approximates when you read.",
+      "empty": "Not enough entries with a time yet."
+    }
+  },
+  "languages": {
+    "desktopOnly": "Vocabulary statistics are available in the desktop app.",
+    "empty": "Read a book in the Lyceum Reader's language mode to start building your vocabulary.",
+    "wordsUnit": "words",
+    "summary": {
+      "title": "Summary",
+      "subtitle": "Vocabulary tracked by the Lyceum Reader",
+      "known": "Known words",
+      "learning": "Learning",
+      "saved": "Saved for review",
+      "savedHint": "words and expressions",
+      "lookups": "Lookups",
+      "lookupsHint": "dictionary look-ups",
+      "inLanguages_one": "in {{count}} language",
+      "inLanguages_other": "in {{count}} languages"
+    },
+    "curve": {
+      "title": "Vocabulary growth",
+      "subtitle": "Known words over time",
+      "info": "Recorded daily from now on. Days before the first record are estimated from when each word last changed state."
+    },
+    "level": {
+      "title": "Estimated level",
+      "subtitle": "By number of known lemmas",
+      "info": "A rough CEFR estimate based on vocabulary size only (A1 500, A2 1,000, B1 2,000, B2 4,000, C1 8,000, C2 16,000 lemmas). It is not a test result.",
+      "preA1": "Pre-A1",
+      "next_one": "{{count}} word to {{level}}",
+      "next_other": "{{count}} words to {{level}}",
+      "top": "Highest milestone reached"
+    },
+    "states": {
+      "title": "Vocabulary by language",
+      "subtitle": "Words by state",
+      "known": "Known",
+      "learning": "Learning",
+      "unknown": "Unknown",
+      "ignored": "Ignored"
+    },
+    "coverage": {
+      "title": "Coverage by book",
+      "subtitle": "Share of each book's text that you already know",
+      "info": "Weighted by how often each word appears. Around 98% is comfortable reading; 90% is good for study with a dictionary. Markers show both thresholds.",
+      "empty": "Open books in the Lyceum Reader's language mode to see their coverage.",
+      "lexemes_one": "{{count}} distinct word",
+      "lexemes_other": "{{count}} distinct words",
+      "levels": {
+        "comfortable": "comfortable",
+        "study": "good for study",
+        "hard": "challenging"
+      }
+    },
+    "byBook": {
+      "title": "Words saved per book",
+      "subtitle": "Words and expressions saved while reading each book",
+      "series": "Saved",
+      "empty": "No words saved from books yet."
+    },
+    "stubborn": {
+      "title": "Stubborn words",
+      "subtitle": "Looked up many times and still not known",
+      "info": "Words you looked up more than once that are still marked as unknown or learning.",
+      "word": "Word",
+      "translation": "Translation",
+      "lookups": "Lookups",
+      "empty": "No repeatedly looked-up words. Well done."
+    }
+  },
+  "library": {
+    "desktopOnly": "Library statistics are available in the desktop app.",
+    "empty": "Add books to your library to see its statistics.",
+    "size": {
+      "title": "Size and backlog",
+      "subtitle": "What you own compared with what you read",
+      "info": "Files marked as \"not a book\" are excluded. The backlog is the unread pages divided by your average pages per day over the last 90 days.",
+      "books": "Books",
+      "finished_one": "{{count}} finished",
+      "finished_other": "{{count}} finished",
+      "pages": "Pages owned",
+      "pagesRead": "Pages read",
+      "ofLibrary": "{{value}}% of the library",
+      "disk": "Disk space",
+      "backlogPages": "Unread pages",
+      "backlog": "Backlog",
+      "atPace": "at {{value}} pages/day",
+      "years": "{{value}} years"
+    },
+    "journey": {
+      "title": "Book journey",
+      "subtitle": "From the library to the last page",
+      "library": "Library",
+      "notStarted": "Not started",
+      "started": "Started",
+      "queue": "Want to read",
+      "noStatus": "No status",
+      "reading": "Reading",
+      "paused": "Paused",
+      "finished": "Finished",
+      "inProgress": "In progress"
+    },
+    "funnel": {
+      "title": "Status funnel",
+      "subtitle": "Started as a share of the library; the next stages as a share of started books",
+      "library": "In the library",
+      "started": "Started",
+      "reading": "Reading now",
+      "finished": "Finished",
+      "completion": "Completion rate: {{value}}% of started books · {{paused}} paused"
+    },
+    "forgotten": {
+      "title": "Forgotten books",
+      "subtitle": "In progress but not opened for more than 30 days",
+      "empty": "No forgotten books.",
+      "idle_one": "{{count}} day idle",
+      "idle_other": "{{count}} days idle",
+      "resume": "Resume",
+      "pause": "Pause",
+      "pauseHint": "Mark as paused so it leaves this list",
+      "paused": "Book marked as paused",
+      "pauseFailed": "Could not update the book status"
+    },
+    "formats": {
+      "title": "Formats",
+      "subtitle": "Library composition by file type"
+    },
+    "subjects": {
+      "title": "Subjects",
+      "subtitle": "Most common subjects in the book metadata",
+      "empty": "No subjects in the book metadata yet."
+    },
+    "authors": {
+      "title": "Most present authors",
+      "subtitle": "By number of books",
+      "books_one": "{{count}} book",
+      "books_other": "{{count}} books",
+      "empty": "No authors in the book metadata yet."
+    },
+    "growth": {
+      "title": "Library growth",
+      "subtitle": "Books added and finished per month (last 24 months)",
+      "info": "Finished books use the completion date set when a book is marked as read.",
+      "added": "Added",
+      "finished": "Finished",
+      "share": "Share of the library finished",
+      "shareSeries": "Finished"
+    },
+    "ratings": {
+      "title": "Your ratings",
+      "subtitle": "Distribution of book ratings",
+      "series": "Books",
+      "summary": "Average {{average}} · {{count}} favorites",
+      "empty": "Rate books in the library to see the distribution."
+    },
+    "annotations": {
+      "title": "Recent annotations",
+      "subtitle": "Key concepts and reader notes from every book",
+      "empty": "No annotations yet.",
+      "kinds": {
+        "concept": "Key concept",
+        "learning": "Reader note"
+      }
+    },
+    "concepts": {
+      "title": "Concept map across books",
+      "subtitle": "Key concepts and their relations; hover to highlight",
+      "info": "Solid lines are relations you created. Dotted lines join concepts with the same name in different books. Colour = source book.",
+      "empty": "Create key concepts while reading PDFs to build the map.",
+      "unknownBook": "Unknown book"
+    }
+  },
+  "goals": {
+    "saved": "Goals saved",
+    "goals": {
+      "title": "Goals",
+      "subtitle": "Daily, weekly, monthly and yearly targets",
+      "info": "The marker shows whether you are ahead of or behind the pace needed for each period. The yearly book goal counts books marked as read in the library.",
+      "edit": "Edit goals",
+      "save": "Save",
+      "cancel": "Cancel",
+      "unset": "Not set",
+      "remainingToday_one": "{{count}} page left today",
+      "remainingToday_other": "{{count}} pages left today",
+      "items": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "yearlyBooks": "Books this year"
+      },
+      "status": {
+        "done": "Goal reached",
+        "ahead": "Ahead of pace · {{value}} {{unit}}/day needed",
+        "onTrack": "On track · {{value}} {{unit}}/day needed",
+        "behind": "Behind pace · {{value}} {{unit}}/day needed",
+        "unset": "Not set"
+      }
+    },
+    "year": {
+      "title": "{{year}} in review",
+      "subtitle": "Your reading year at a glance",
+      "copy": "Copy summary",
+      "pagesRead": "Pages read",
+      "vsPrevious": "{{value}}% vs. {{year}}",
+      "time": "Reading time",
+      "activeDays": "Active days",
+      "booksFinished": "Books finished",
+      "titlesLogged_one": "{{count}} title logged",
+      "titlesLogged_other": "{{count}} titles logged",
+      "words": "Words learned",
+      "bestMonth": "Best month",
+      "longestStreak": "Longest streak",
+      "peakHour": "Usual time",
+      "topCategory": "Top category",
+      "bookOfYear": "Book of the year:",
+      "copyTitle": "My reading year {{year}} on Lyceum",
+      "copyPages": "{{pages}} pages over {{days}} active days",
+      "copyTime": "{{time}} of reading",
+      "copyBooks_one": "{{count}} book finished",
+      "copyBooks_other": "{{count}} books finished",
+      "copyTopBook": "Book of the year: {{book}}",
+      "copyBestMonth": "Best month: {{month}}",
+      "copyWords_one": "{{count}} word learned",
+      "copyWords_other": "{{count}} words learned"
+    },
+    "month": {
+      "title": "Month in review",
+      "last": "Last month",
+      "current": "This month",
+      "summary": "You read {{pages}} pages on {{days}} days, for a total of {{time}}.",
+      "books_one": "You finished {{count}} book.",
+      "books_other": "You finished {{count}} books.",
+      "words_one": "You learned {{count}} word.",
+      "words_other": "You learned {{count}} words.",
+      "pages": "Pages",
+      "minutes": "Time",
+      "days": "Active days",
+      "bestDay_one": "Best day: {{date}}, {{count}} page",
+      "bestDay_other": "Best day: {{date}}, {{count}} pages",
+      "topBook": "Most read: {{book}}",
+      "streak_one": "Longest streak in the month: {{count}} day",
+      "streak_other": "Longest streak in the month: {{count}} days",
+      "comparison": "Changes compare with the same days of the previous month."
+    },
+    "achievements": {
+      "title": "Achievements",
+      "subtitle": "{{unlocked}} of {{total}} unlocked"
+    },
+    "streak": {
+      "title": "Streak with rest days",
+      "subtitle": "Optionally allow one day off per week",
+      "info": "With rest days on, one missed day per week (Monday to Sunday) does not break the streak. The weekly streak card on the overview keeps the strict count.",
+      "days_one": "day in a row",
+      "days_other": "days in a row",
+      "longest_one": "Longest: {{count}} day",
+      "longest_other": "Longest: {{count}} days",
+      "withFreeze_one": "{{count}} day with rest days",
+      "withFreeze_other": "{{count}} days with rest days",
+      "toggle": "Allow one rest day per week",
+      "toggleHint": "Missing a day breaks the streak.",
+      "freezeAvailable": "This week's rest day is still available.",
+      "freezeUsed": "This week's rest day has been used."
+    }
+  },
+  "achievements": {
+    "pages1k": {
+      "title": "1,000 pages",
+      "description": "Read 1,000 pages in total"
+    },
+    "pages10k": {
+      "title": "10,000 pages",
+      "description": "Read 10,000 pages in total"
+    },
+    "pages50k": {
+      "title": "50,000 pages",
+      "description": "Read 50,000 pages in total"
+    },
+    "marathon": {
+      "title": "Marathon",
+      "description": "Read 200 pages in a single day"
+    },
+    "streak7": {
+      "title": "One week",
+      "description": "Read 7 days in a row"
+    },
+    "streak30": {
+      "title": "One month",
+      "description": "Read 30 days in a row"
+    },
+    "streak100": {
+      "title": "100 days",
+      "description": "Read 100 days in a row"
+    },
+    "days365": {
+      "title": "A year of reading",
+      "description": "Read on 365 different days"
+    },
+    "books1": {
+      "title": "First book",
+      "description": "Finish a book in the library"
+    },
+    "books10": {
+      "title": "Ten books",
+      "description": "Finish 10 books in the library"
+    },
+    "books50": {
+      "title": "Fifty books",
+      "description": "Finish 50 books in the library"
+    },
+    "annotator": {
+      "title": "Annotator",
+      "description": "Create 100 annotations"
+    },
+    "words1k": {
+      "title": "1,000 words",
+      "description": "Know 1,000 words in a foreign language"
+    },
+    "words5k": {
+      "title": "5,000 words",
+      "description": "Know 5,000 words in foreign languages"
+    },
+    "polyglot": {
+      "title": "Polyglot",
+      "description": "Know 100+ words in two languages"
+    }
+  },
+  "friends": {
+    "empty": "Add friends to compare your reading, start weekly duels and follow their activity.",
+    "addFriend": "Add friend",
+    "ranking": {
+      "title": "This week's ranking",
+      "subtitle": "Pages this week and change since last week",
+      "info": "The position change compares with the same days of last week.",
+      "previous": "Last week: {{rank}}º",
+      "new": "No pages last week"
+    },
+    "duel": {
+      "title": "Weekly duel",
+      "subtitle": "Cumulative pages from Monday to Sunday",
+      "choose": "Choose a friend",
+      "empty": "No friend to duel with.",
+      "tied": "Tied so far.",
+      "leading_one": "You are {{count}} page ahead.",
+      "leading_other": "You are {{count}} pages ahead.",
+      "behind_one": "{{name}} is {{count}} page ahead.",
+      "behind_other": "{{name}} is {{count}} pages ahead."
+    },
+    "feed": {
+      "title": "Friends' activity",
+      "subtitle": "Last 7 days",
+      "empty": "No friend activity in the last 7 days.",
+      "read_one": "read {{count}} page of {{book}}",
+      "read_other": "read {{count}} pages of {{book}}",
+      "bestDay_one": "set a personal best: {{count}} page in a day",
+      "bestDay_other": "set a personal best: {{count}} pages in a day",
+      "streak_one": "is on a {{count}}-day streak",
+      "streak_other": "is on a {{count}}-day streak"
+    }
   }
 }

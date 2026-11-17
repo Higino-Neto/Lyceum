@@ -42,18 +42,37 @@ describe("supabase configuration", () => {
     vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon-key");
     createClientMock.mockReturnValue(configuredClient);
 
-    const { getSupabaseConfig, isSupabaseConfigured, supabase } = await import("../lib/supabase");
+    const { getSupabaseClient, getSupabaseConfig, isSupabaseConfigured } = await import("../lib/supabase");
 
     expect(isSupabaseConfigured).toBe(true);
+    expect(createClientMock).not.toHaveBeenCalled();
     expect(getSupabaseConfig()).toEqual({
       url: "https://example.supabase.co",
       anonKey: "anon-key",
     });
+    expect(getSupabaseClient()).toBe(configuredClient);
     expect(createClientMock).toHaveBeenCalledWith("https://example.supabase.co", "anon-key", {
       auth: {
         detectSessionInUrl: false,
       },
     });
-    expect(supabase).toBe(configuredClient);
+  });
+
+  it("wires the registered mobile platform into the client", async () => {
+    vi.stubEnv("VITE_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon-key");
+    createClientMock.mockReturnValue(configuredClient);
+    const storage = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() };
+
+    const { registerPlatform } = await import("../platform");
+    const { supabase } = await import("../lib/supabase");
+    registerPlatform({ target: "mobile", authStorage: storage, authFlowType: "pkce", clientInfo: "lyceum-mobile/test" });
+    await supabase.auth.getUser();
+
+    expect(createClientMock).toHaveBeenCalledWith("https://example.supabase.co", "anon-key", {
+      auth: { detectSessionInUrl: false, storage, persistSession: true, autoRefreshToken: true, flowType: "pkce" },
+      global: { headers: { "X-Client-Info": "lyceum-mobile/test" } },
+    });
+    expect(configuredClient.auth.getUser).toHaveBeenCalled();
   });
 });

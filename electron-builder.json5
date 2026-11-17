@@ -82,15 +82,24 @@
     "maintainer": "Higino-Neto <higino.dev@gmail.com>",
     "icon": "resources/icons/icon_512.png",
     "executableName": "lyceum",
+    // Extra reader formats (PDF/EPUB come from fileAssociations and the
+    // lyceum:// handler from protocols). Linux-only so Windows defaults are
+    // never taken over. Keep in sync with electron/services/linux-file-associations.ts.
     "mimeTypes": [
-      "application/pdf",
-      "application/epub+zip"
+      "application/x-mobipocket-ebook",
+      "application/vnd.amazon.ebook",
+      "application/vnd.amazon.mobi8-ebook",
+      "application/x-mobi8-ebook",
+      "application/x-fictionbook+xml",
+      "application/x-zip-compressed-fb2",
+      "application/vnd.comicbook+zip",
+      "application/x-cbz",
+      "application/vnd.comicbook-rar",
+      "application/x-cbr"
     ],
     "desktop": {
       "Name": "Lyceum",
-      "Comment": "A smarter home for every book you read",
       "Categories": "Education;Office;Viewer;",
-      "MimeType": "application/pdf;application/epub+zip;x-scheme-handler/lyceum;",
       "StartupWMClass": "Lyceum"
     }
   },

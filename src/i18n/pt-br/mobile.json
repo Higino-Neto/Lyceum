@@ -127,7 +127,8 @@
     "githubInvalidResponse": "O GitHub devolveu uma resposta de releases inválida.",
     "githubNotPublished": "Ainda não existe uma versão mobile publicada com os arquivos de atualização.",
     "offline": "Sem conexão com a internet.",
-    "timeout": "A verificação de atualizações excedeu o tempo limite."
+    "timeout": "A verificação de atualizações excedeu o tempo limite.",
+    "requiresApi": "Esta versão exige Android API {{api}} ou mais recente."
   },
   "reader": {
     "loadingFile": "Carregando arquivo...",
@@ -172,7 +173,8 @@
       "none": "Nenhum",
       "little": "Pouco",
       "lot": "Muito"
-    }
+    },
+    "settingsAriaLabel": "Aparência do texto"
   },
   "imports": {
     "title": "Progresso das importações",
@@ -295,7 +297,8 @@
     "pagesPerEntry_one": "{{count}} p por registro",
     "pagesPerEntry_other": "{{count}} p por registro",
     "viewLeaderboard": "Ver ranking e amigos",
-    "uncategorizedCategory": "Sem categoria"
+    "uncategorizedCategory": "Sem categoria",
+    "continueReading": "Continuar lendo"
   },
   "leaderboard": {
     "periods": {
@@ -487,7 +490,12 @@
     "selectBookAriaLabel": "Selecionar {{title}}",
     "detailsAriaLabelExisting": "Detalhes de {{title}}",
     "volumeCount_one": "{{count}} volume",
-    "volumeCount_other": "{{count}} volumes"
+    "volumeCount_other": "{{count}} volumes",
+    "importSummary": "{{added}} novo(s), {{updated}} atualizado(s)",
+    "booksMoved_one": "{{count}} livro movido",
+    "booksMoved_other": "{{count}} livros movidos",
+    "booksRemoved_one": "{{count}} livro removido",
+    "booksRemoved_other": "{{count}} livros removidos"
   },
   "readingEntry": {
     "bookLabel": "Livro",
@@ -566,7 +574,8 @@
   "readerTools": {
     "controlsUnavailable": "Os controles Android não estão disponíveis.",
     "previousPageAriaLabel": "Página anterior",
-    "nextPageAriaLabel": "Próxima página"
+    "nextPageAriaLabel": "Próxima página",
+    "savedTo": "Salvo em Documentos/Lyceum: {{name}}"
   },
   "pdf": {
     "thumbnailsAriaLabel": "Miniaturas de páginas",
@@ -674,7 +683,12 @@
     "searchHint": "Digite ao menos 2 caracteres",
     "searchProgress_one": "{{hit}}/{{total}} resultado",
     "searchProgress_other": "{{hit}}/{{total}} resultados",
-    "preparing": "Preparando EPUB…"
+    "preparing": "Preparando EPUB…",
+    "positionInChapter": "Página {{page}} de {{total}} no capítulo · {{percent}}% do livro",
+    "percentOfBook": "{{percent}}% do livro",
+    "previousChapter": "Capítulo anterior",
+    "nextChapter": "Próximo capítulo",
+    "positionSlider": "Posição no livro"
   },
   "errors": {
     "saveLocalFailed": "Não foi possível salvar as últimas alterações no aparelho.",
@@ -692,5 +706,50 @@
     "relinkBeforeExport": "Religue o arquivo do livro antes de exportar.",
     "downloadStarted": "Download do livro iniciado.",
     "savedToDocuments": "Arquivo salvo em Documentos/Lyceum/{{name}}. Você pode compartilhá-lo com o Kindle."
+  },
+  "learning": {
+    "openForLearning": "Ler para aprender idiomas",
+    "openForLearningHint": "Palavras clicáveis, tradução, vocabulário",
+    "firstTimeHint": "“{{name}}” é analisado uma única vez neste aparelho; as próximas aberturas são instantâneas.",
+    "listen": "Ouvir",
+    "note": "Nota",
+    "details": "Detalhes",
+    "wordState": "Estado da palavra",
+    "noDictionary": "Nenhum dicionário offline instalado para este idioma.",
+    "markRemainingKnown_one": "Marcar a {{count}} palavra restante como conhecida",
+    "markRemainingKnown_other": "Marcar as {{count}} palavras restantes como conhecidas",
+    "markRemainingHint": "Palavras deste capítulo que você não tocou e ainda estão como desconhecidas. Nomes próprios e números ficam de fora.",
+    "markedKnown_one": "{{count}} palavra marcada como conhecida",
+    "markedKnown_other": "{{count}} palavras marcadas como conhecidas",
+    "undo": "Desfazer",
+    "reading": "Leitura",
+    "vocabulary": "Vocabulário",
+    "learningMode": "Modo aprendizado",
+    "learningModeHint": "Mostra o estado de cada palavra. Desligado, o texto aparece limpo para leitura comum.",
+    "autoLearn": "Tocar numa palavra desconhecida a marca como Aprendendo",
+    "autoLearnHint": "Toque duplo marca a palavra como Conhecida sem abrir nada.",
+    "languages": "Idiomas",
+    "documentLanguageHint": "Detectado pelo texto do livro. Mude apenas se a detecção errar: o vocabulário é guardado por idioma.",
+    "dictionaries": "Dicionários offline",
+    "download": "Baixar",
+    "installed": "Instalado",
+    "headwords_one": "{{count}} verbete",
+    "headwords_other": "{{count}} verbetes",
+    "removeDictionary": "Remover o dicionário {{name}} deste aparelho?",
+    "profileTitle": "Vocabulário de idiomas",
+    "profileBody": "Seu vocabulário fica neste aparelho e é copiado automaticamente para Documentos/Lyceum/Vocabulario. O arquivo é o mesmo formato do Lyceum para computador.",
+    "profileEmpty": "Nenhuma palavra salva ainda. Abra um EPUB ou TXT com “Ler para aprender idiomas”.",
+    "profileCounts": "{{language}}: {{known}} conhecidas · {{learning}} aprendendo",
+    "exportVocabulary": "Exportar vocabulário",
+    "importVocabulary": "Importar vocabulário",
+    "exported": "Vocabulário salvo em {{path}}",
+    "imported": "{{count}} palavras importadas",
+    "importCancelled": "Importação cancelada",
+    "importInvalid": "Este arquivo não é um backup de vocabulário do Lyceum.",
+    "exportFailed": "Não foi possível exportar o vocabulário.",
+    "learningUnsupported": "O modo de aprendizado funciona com livros EPUB e TXT.",
+    "chooseDictionary": "Escolher dicionário",
+    "showAllDictionaries": "Ver todos os {{count}} dicionários",
+    "backupsLocation": "Os backups automáticos do vocabulário ficam em {{path}} (um por dia, últimos 30)."
   }
 }

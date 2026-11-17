@@ -69,11 +69,11 @@ describe("semantic theme tokens", () => {
   it("resolves explicit light and dark base values", () => {
     expect(DARK_TOKENS.background).toBe("#09090b");
     expect(DARK_TOKENS.foreground).toBe("#f4f4f5");
-    expect(LIGHT_TOKENS.background).toBe("#f4f5f7");
-    expect(LIGHT_TOKENS.foreground).toBe("#111827");
+    expect(LIGHT_TOKENS.background).toBe("#eef0f3");
+    expect(LIGHT_TOKENS.foreground).toBe("#0f172a");
 
     expect(resolveThemeTokens("dark", "green").background).toBe("#09090b");
-    expect(resolveThemeTokens("light", "green").background).toBe("#f4f5f7");
+    expect(resolveThemeTokens("light", "green").background).toBe("#eef0f3");
   });
 
   it("derives primary roles from the selected accent without changing base roles", () => {

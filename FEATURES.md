@@ -74,23 +74,23 @@ Se ele digitar os números do teclado (1, 2, 3, 4, 5, 6, 7), ele é redirecionad
 
 - [x] Existem vários compoenentes <select> na aplicação. Eu quero que você migre todos eles para o componente de UI <Select> que eu fiz, para deixar a UI mais consistente.
 
-- [ ] O Lyceum no linux não aparece como aplicativo recomendado no file explorer para abrir de fora do app. No windows ele já aparece. Resolva isso.
+- [x] O Lyceum no linux não aparece como aplicativo recomendado no file explorer para abrir de fora do app. No windows ele já aparece. Resolva isso.
 
-- [ ] Quando eu clico no botão Open library folder de dentro da library, a pasta abre e o app para de responder até crashar.
+- [x] Quando eu clico no botão Open library folder de dentro da library, a pasta abre e o app para de responder até crashar.
 
-- [ ] A opção de organizar os livros da library por "list" está muito primitiva, refaça ela para ficar uma alternativa viável para quem gosta desse tipo de visão.
+- [x] A opção de organizar os livros da library por "list" está muito primitiva, refaça ela para ficar uma alternativa viável para quem gosta desse tipo de visão.
 
-- [ ] O folderTree não está persistindo as pastas que estão com as suas subpastas expandidas. Então quando eu clico fora, elas fecham. Isso é ruim. (O mesmo para as source folders). (Eu tentei modificar, mas agora ele fica com a seta apontando para baixo, mas não de fato atualiza o componente para mostrar as subfolders)
+- [x] O folderTree não está persistindo as pastas que estão com as suas subpastas expandidas. Então quando eu clico fora, elas fecham. Isso é ruim. (O mesmo para as source folders). (Eu tentei modificar, mas agora ele fica com a seta apontando para baixo, mas não de fato atualiza o componente para mostrar as subfolders)
 
 - [x] No linux, eu não consigo pegar um arquivo de dentro da library e arrastar ele para o file explorer ou para o whatsapp como eu posso no windows. Resolva isso.
 
-- [ ] O Modal de folhear o livro dentro de /readings não está na paleta de cores do lyceum e nem no i18n. Nem nada relacionado a ele. Eu quero que você atualize esse componente para que ele seja integrado de fato à aplicação.
+- [x] O Modal de folhear o livro dentro de /readings não está na paleta de cores do lyceum e nem no i18n. Nem nada relacionado a ele. Eu quero que você atualize esse componente para que ele seja integrado de fato à aplicação.
 
-- [ ] Na aba de conversão, eu quero que você troque completamente o search file dele pelo search file do atlas, que é muito melhor em vários aspectos. Na verdade, eu quero pegar aquele modal "Add from library" do atlas e modularizar ele para que eu possa chamar ele em features futuras.
+- [x] Na aba de conversão, eu quero que você troque completamente o search file dele pelo search file do atlas, que é muito melhor em vários aspectos. Na verdade, eu quero pegar aquele modal "Add from library" do atlas e modularizar ele para que eu possa chamar ele em features futuras.
 
 - [x] A aba de prévia de leitura tem 2 botões para fechar. Mas quando eu fecho todas as abas, ele não fecha o painel. Resolva isso (Tomando cuidado para não quebrar nenhuma funcionalidade da aba real de /readings).
 
-- [ ] Adicionar uma aba nas configurações para plugins. Dentro dela é que ficará as abas que estão em beta e outras coisas que eu quero ter a possibilidade de habilitar ou desabilitar quando eu quiser. Tipo conseguir desabilitar o FolderGrid e o Continue Reading
+- [x] Adicionar uma aba nas configurações para plugins. Dentro dela é que ficará as abas que estão em beta e outras coisas que eu quero ter a possibilidade de habilitar ou desabilitar quando eu quiser. Tipo conseguir desabilitar o FolderGrid e o Continue Reading
 
 #### 3.0.0
 
@@ -126,29 +126,67 @@ Pode ser apagada. Esse não é o escopo correto para essas funcionalidades.
 
 - [x] A tabela de words está travando, provavelmente porque ela não tem paginação como deveria (ou lazy loading).
 
-- [ ] No linux, quando eu clico no botão para abrir a pasta partindo da library, o aplicativo para de responder e crasha.
+- [x] No linux, quando eu clico no botão para abrir a pasta partindo da library, o aplicativo para de responder e crasha.
 
-- [ ] O folder tree atual é muito amadar, eu não consigo fazer alterações em lote com várias pastas, quando eu clico para deletar uma pasta, o dialog fica mais tempo na tela do que deveria, se eu tento apagar uma pasta que tem pastas dentro, ou não funciona direito, ou quando funciona o folder tree demora para atualizar, então o usuário não tem o feedback rápido que deveria.
+- [x] O folder tree atual é muito amadar, eu não consigo fazer alterações em lote com várias pastas, quando eu clico para deletar uma pasta, o dialog fica mais tempo na tela do que deveria, se eu tento apagar uma pasta que tem pastas dentro, ou não funciona direito, ou quando funciona o folder tree demora para atualizar, então o usuário não tem o feedback rápido que deveria.
 
-- [ ] Quando eu clico com botão direito na library para selecioanr um livro, eu não consigo ir com Ctrl ou Shift para selecionar vários de uma vez, o que é ruim para usuários que querem processar informações em lote.
+- [x] Quando eu clico com botão direito na library para selecioanr um livro, eu não consigo ir com Ctrl ou Shift para selecionar vários de uma vez, o que é ruim para usuários que querem processar informações em lote.
 
-- [ ] O Folder tree na parte de source folders deveria ter opções menos invasivas, pq atualmente eu consigo apagar uma source folder, deletando ela do computador, mas não consigo desvincular ela. E mesmo que tivesse os dois botões, ainda não ficaria claro para o usuário qual seria o certo para tirar a pasta de dentro da library do lyceum e para realmente apagar a pasta do computador.
+- [x] O Folder tree na parte de source folders deveria ter opções menos invasivas, pq atualmente eu consigo apagar uma source folder, deletando ela do computador, mas não consigo desvincular ela. E mesmo que tivesse os dois botões, ainda não ficaria claro para o usuário qual seria o certo para tirar a pasta de dentro da library do lyceum e para realmente apagar a pasta do computador.
 
-- [ ] O source folder poderia perguntar para o usuário se ele deseja habilitar a busca inteligente. Que consistiria em recomendar pastas para serem novas pastas fonte, e o parâmetro para a escolha seria ter vários livros dentro da pasta. (Mas claro, só se o usuário permitir essa busca no computador dele). Porque algo que eu gostaria muito seria que o lyceum conseguisse ser inteligente o suficiente para saber aonde estão os livros no computador do usuário, porque muitas vezes eu acabo perdendo esses arquivos em pastas obscuras.
+- [x] O source folder poderia perguntar para o usuário se ele deseja habilitar a busca inteligente. Que consistiria em recomendar pastas para serem novas pastas fonte, e o parâmetro para a escolha seria ter vários livros dentro da pasta. (Mas claro, só se o usuário permitir essa busca no computador dele). Porque algo que eu gostaria muito seria que o lyceum conseguisse ser inteligente o suficiente para saber aonde estão os livros no computador do usuário, porque muitas vezes eu acabo perdendo esses arquivos em pastas obscuras.
 
-- [ ] Os dicionários novos que você colocou do freeDict não estão funcionando no leitor de .lyceum pelo menos, porque quando eu tento usar, ele sempre pega a tradução da web.
+- [x] Os dicionários novos que você colocou do freeDict não estão funcionando no leitor de .lyceum pelo menos, porque quando eu tento usar, ele sempre pega a tradução da web.
 
-- [ ] O modo claro atual do lyceum é muito ruim. Eu sinto que parte disso é por causa da falta de contraste. No modo claro parece que tudo está muito claro na tela, inclusive a fonte e os componentes, o que deixa muito difícil de ver o que é o quê. Devem ter outras questões de design que deixam modos claros mais bonitos que você pode ficar à vontade para implementar. (E existem certos botões, tipo o start reading, que o fundo do botão e a fonte nunca combinam uns com os outros.
+- [x] O modo claro atual do lyceum é muito ruim. Eu sinto que parte disso é por causa da falta de contraste. No modo claro parece que tudo está muito claro na tela, inclusive a fonte e os componentes, o que deixa muito difícil de ver o que é o quê. Devem ter outras questões de design que deixam modos claros mais bonitos que você pode ficar à vontade para implementar. (E existem certos botões, tipo o start reading, que o fundo do botão e a fonte nunca combinam uns com os outros.
 
-- [ ] Ao clicar com o botão direito na aba Add PDF from library eu deveria ser capaz de selecionar vários livros de uma vez, com a mesma função que deve ser implementada na library de conseguir usar o Ctrl e o shift para pegar vários de uma vez.
+- [x] Ao clicar com o botão direito na aba Add PDF from library eu deveria ser capaz de selecionar vários livros de uma vez, com a mesma função que deve ser implementada na library de conseguir usar o Ctrl e o shift para pegar vários de uma vez.
 Nessa aba também deve haver uma forma de selecionar e navegar pelas pastas, talvez pegar uma pasta inteira, além de outros filtros, como o status de leitura, para o usuário conseguir por exemplo selecionar rapidamente coisas como (Not a book) para facilitar a pesquisa.
 
-- [ ] O output preview do Convertion page está funcionando bem no caso EPUB -> PDF, contudo, a user Experience está muito ruim. O espaço é pequeno, é difícil clicar nos botões, a forma como as informações estão organizadas é contra-intuitiva e é difícil usar sem um manual. Esse sistema de dividir por capítulos com uma paginação em cima e outra em baixo, com um sendo um subcomponente da outra é confuso e difícil de usar. Um sistema mais simples, baseado no número de páginas final do PDF seria mais intuitivo. Com opção de escolher a página que o usuário quer ver, no viewer fullscreen ainda ter a opção de ir uma página adiante ou uma página antes. 
+- [x] O output preview do Convertion page está funcionando bem no caso EPUB -> PDF, contudo, a user Experience está muito ruim. O espaço é pequeno, é difícil clicar nos botões, a forma como as informações estão organizadas é contra-intuitiva e é difícil usar sem um manual. Esse sistema de dividir por capítulos com uma paginação em cima e outra em baixo, com um sendo um subcomponente da outra é confuso e difícil de usar. Um sistema mais simples, baseado no número de páginas final do PDF seria mais intuitivo. Com opção de escolher a página que o usuário quer ver, no viewer fullscreen ainda ter a opção de ir uma página adiante ou uma página antes. 
 
-- [ ] Na tela de conversão de EPUB -> PDF, é possível selecionar todas as margens, alturas de linha e espaçamentos, eu acho isso bom, mas em uma aba de configurações avançadas. Na parte inicial deveriam ter pressets desses espaçamentos baseados nas normas padrão de livros digitais, para facilitar a vida do usuário mais leigo.
+- [x] Na tela de conversão de EPUB -> PDF, é possível selecionar todas as margens, alturas de linha e espaçamentos, eu acho isso bom, mas em uma aba de configurações avançadas. Na parte inicial deveriam ter pressets desses espaçamentos baseados nas normas padrão de livros digitais, para facilitar a vida do usuário mais leigo.
 
-- [ ] Os logs de conversão não estão sendo traduzidos (E várias outras partes da aplicação estão esm tradução, só estando em português).
+- [x] Os logs de conversão não estão sendo traduzidos (E várias outras partes da aplicação estão esm tradução, só estando em português).
 
-- [ ] O sistema de pesquisa em todo o aplicativo ainda é meio amador. Coloque um sistema de pesquisa profissinal e inteligente.
+- [x] O sistema de pesquisa em todo o aplicativo ainda é meio amador. Coloque um sistema de pesquisa profissinal e inteligente.
 
-- [ ] O folder grid é uma boa ideia, mas atualmente ele ocupa muito espaço na tela e consegue ficar em várias linhas. O ideal seria se ele fosse mais compacto sem ocupar toda essa importância visual.
+- [x] O folder grid é uma boa ideia, mas atualmente ele ocupa muito espaço na tela e consegue ficar em várias linhas. O ideal seria se ele fosse mais compacto sem ocupar toda essa importância visual.
+
+- [x] Crie um novo comando de npm run para eu conseguir rodar a aplicação do último build feito ou sem auto reload quando altera o código (quero ter as duas opções), porque às vezes eu quero testar as funcionalidades enquanto um agente muda algo no código.
+
+- [x] Crie um dialog de what's new! que fala sobre o que foi feito nessa ou naquela atualização, com opção de ver versões antigas para os usuários sempre ficarem cientes do que está sendo feito no aplicativo.
+
+- [x] Delete completamente as funcionalidades de Habit e Atlas (Eram funcionalidades beta que eu queria ver se funcionariam bem, mas eu não gostei).
+
+- [x] Atualmente, ao fechar um arquivo PDF que eu fiz alterações, ele não me pergunta se eu quero salvar essas alterações sobrescrevendo o arquivo original ou criando um novo. Isso deveria acontecer. O mesmo para aquele botão de download que tem no pdf, ele deveria me dar mais opções, como sobrescrever o arquivo original ou coisas úteis assim.
+
+- [x] Eu tentei instalar uma nova versão do lyceum no linux que o sistema baixou e a tela apareceu que não estava respondendo e depois o erro: Command pkexec exited with code 1. Quando eu tentei clicar para baixar de novo, apareceu Nenhuma atualizacao baixada para instalar. Quando eu tentei fechar o app, apareceu uma tela estranha de Authentication do linux bloqueando uma ação de super usuário e perguntando se eu queria rodar um comando de instalação no terminal (isso é ele instalando a nova versão, mas não tem como o usuário saber que é isso e não algum ataque de segurança ou algo assim). Deveria aparecer uma tela mais informativa falando sobre a atualização ao invés desse alerta.
+
+- [x] Quando eu mesclo vários livros e dou nota, os cards de PDF, EPUB, e a nota ficam saindo das bordas do card do livro. Isso é um problema de responsividade da UI.
+
+- [x] Eu não quero que o Lyceum fique colocando esses rings verdes aleatórios em tudo do app. Eu quero isso apareça apenas em locais em que eles são extremamente importantes, mas parece que eles estão sendo colocados em tudo sem distinção, além de que eles são muito feios e geralmente saem da tela, cortando.
+
+- [x] No new folders with books were found. Esse erro aparece na config de busca inteligente, mesmo quando existem outras pastas com livros para serem adicionadas (eu estou no linux). Acabei de perceber que isso acontece quando a pasta tem poucos livros. Quando a pasta tem muitos livros funciona normalmente, mas eu quero que seja geral mesmo, já que ele está pesquisando por todos, é melhor mostrar todos ao invés de mostrar só os que tem muito mesmo.
+
+- [x] Verifique como o sistema de thumbnails está sendo feito atualmente, pois eu temo que esse sistema pode não estar sendo idempotente com o tempo, tipo, ele pode estar duplicando imagens ao invés de sobrescrever ou algo assim, ou criando imagens com tamanhos muito grandes em relação ao que é mostrado na UI média, mas são só hipóteses.
+
+- [x] A aba de registrar não faz mais sentido na aplicação:
+My books
+Manage links, duplicates and statistics for your records.
+
+Essa parte não precisa mais existir porque hoje a biblioteca já evoluiu muito e isso não é mais necessário.
+
+O book table que tem no /register é o mesmo que tem no dashboard, então a única coisa do /register que realmente é útil é esse componente de register new reading, que pode ser movido para o dashboard para ficar em cima do table que mostra os registros.
+
+- [x] Ctrl + Scroll não está funcionando no leitor de PDF.
+
+- [ ] O convertion page deveria mostrar o tamanho estimado para o arquivo. (Isso é importante principalmente na conversão de CBZ -> PDF, porque eu preciso saber o quanto a redução da resolução da imagem vai impactar o tamanho real do arquivo no final.
+
+- [ ] Ao converter para um PDF, ao invés de mostrar Chapter 9 - Page 1, ou algo do tipo, eu quero que você mostre que ele está na página x de Total de páginas. É mais natural pensar assim em PDFs. Eu quero conseguir ver qual será a quantidade de páginas finais do PDF gerado, pois isso é um dado interessante de se ter, caso o usuário queira ajustar as margens.
+
+- [ ] Ao converter um EPUB -> PDF, é necessário escolher as margens, contudo, ter que alterar as 4 toda vez é muito chato. Coloque um slider para o usuário decidir quanto de margem horizontal ou margem vertical (Ambos considerando margens iguais para ambos os lados, dado que é um ebook) e opções avançadas para alterar um por um.
+
+- [ ] Eu quero que a tela quando você clica para abrir o Preview de uma das páginas do PDF tenha todas as opções de alteração lá mesmo, para eu ver de imediato como aquelas configurações de fato impactam o resultado final.
+
+- [ ] Eu tentei copiar o texto Chapter 9 - Page 1 da aba de conversão no preview e ele copiou o arquivo ao invés do Texto. Isso já aconteceu em outros lugares no app, não quero que se repita. Então resolva esse problema.

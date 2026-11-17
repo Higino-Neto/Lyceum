@@ -87,7 +87,7 @@ function ReadingContent() {
       return (
         <div className="flex h-full items-center justify-center px-6 text-center text-foreground-muted">
           <div className="space-y-2">
-            <p className="text-base text-foreground">Nao foi possivel reabrir esta aba.</p>
+            <p className="text-base text-foreground">{t("reading:tabs.reopenFailed")}</p>
             <p className="text-sm text-foreground-subtle">{activeTab.loadError}</p>
           </div>
         </div>

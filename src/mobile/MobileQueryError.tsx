@@ -1,5 +1,5 @@
 import { RefreshCw, WifiOff } from "lucide-react";
-import { getMobileAuthErrorMessage } from "./supabaseMobile";
+import { getAuthErrorMessage } from "../lib/supabaseAuth";
 import { useTranslation } from "../i18n";
 
 export default function MobileQueryError({
@@ -25,7 +25,7 @@ export default function MobileQueryError({
           <p className="mt-1 break-words text-xs leading-5 text-warning">
             {offline
               ? t("mobile:queryError.offlineBody")
-              : getMobileAuthErrorMessage(error)}
+              : getAuthErrorMessage(error)}
           </p>
         </div>
       </div>

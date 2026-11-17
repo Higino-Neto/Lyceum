@@ -25,8 +25,9 @@ function isLikelyMouseWheel(event) {
   // fast two-finger swipe is not mistaken for a clicky wheel.
   const delta = Math.abs(event.deltaY);
   const legacyDelta = Math.abs(Number(event.wheelDeltaY) || 0);
-  if (legacyDelta > 0) return delta >= 70 && legacyDelta >= 120 && legacyDelta % 120 === 0;
-  return [100, 120].some(step => delta >= step && Math.abs(delta / step - Math.round(delta / step)) < 0.02);
+  // Chromium on Linux scrolls ~53.33px per notch (100px on Windows).
+  if (legacyDelta > 0) return delta >= 40 && legacyDelta >= 120 && legacyDelta % 120 === 0;
+  return [160 / 3, 100, 120].some(step => delta >= step - 0.5 && Math.abs(delta / step - Math.round(delta / step)) < 0.02);
 }
 
 function getPageAnchor(app, origin) {
@@ -130,7 +131,16 @@ export function installZoomFeature({ facade }) {
     }
 
     if (physicallyHeld && !mouseWheel) {
-      // Ctrl plus a two-finger swipe is neither a zoom command nor navigation.
+      // Ctrl plus a smooth/high-resolution wheel or a two-finger swipe: zoom
+      // proportionally to the delta (as browsers do) instead of dropping it.
+      seedAccumulator(app);
+      const scaleFactor = Math.exp(-Math.max(-40, Math.min(40, event.deltaY)) / 400);
+      const factor = typeof app._accumulateFactor === "function"
+        ? app._accumulateFactor(app.pdfViewer.currentScale, scaleFactor, FACTOR_KEY)
+        : scaleFactor;
+      if (Number.isFinite(factor) && factor > 0 && factor !== 1) {
+        zoomKeepingPage(app, factor, origin);
+      }
       return;
     }
 

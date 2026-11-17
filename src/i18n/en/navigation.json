@@ -1,12 +1,9 @@
 {
   "routes": {
     "dashboard": "Dashboard",
-    "register": "Register",
     "library": "Library",
     "reader": "Read",
-    "atlas": "Atlas",
     "conversion": "Conversion",
-    "habits": "Habits",
     "pdfBuilder": "PDF Builder"
   },
   "titleBar": {

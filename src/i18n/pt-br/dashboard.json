@@ -3,7 +3,6 @@
     "dailyReadings": "Leituras diárias",
     "copyToday": "Copiar leituras de hoje",
     "copyYesterday": "Copiar leituras de ontem",
-    "register": "Registrar",
     "editReading": "Editar leitura",
     "removeReading": "Remover leitura",
     "previousPage": "Página anterior",
@@ -110,5 +109,514 @@
     "yesterday": "Ontem",
     "register": "Registrar leitura",
     "noCategory": "Sem categoria"
+  },
+  "tabs": {
+    "label": "Seções do dashboard",
+    "overview": "Visão geral",
+    "reading": "Leitura",
+    "languages": "Idiomas",
+    "library": "Biblioteca",
+    "goals": "Metas e retrospectivas",
+    "friends": "Amigos"
+  },
+  "common": {
+    "you": "Você",
+    "pagesUnit": "pág.",
+    "booksUnit": "livros",
+    "pagesPerHourUnit": "pág./h",
+    "pagesPerHour": "{{value}} pág./h",
+    "pagesShort_one": "{{count}} página",
+    "pagesShort_other": "{{count}} páginas",
+    "days_one": "{{count}} dia",
+    "days_other": "{{count}} dias"
+  },
+  "stats": {
+    "heatmapHint": "Passe o mouse sobre um dia para ver as páginas",
+    "heatmapDay": "{{date}}: {{pages}} páginas",
+    "less": "menos",
+    "more": "mais"
+  },
+  "overview": {
+    "continueReading": "Continuar lendo",
+    "openBook": "Abrir {{book}}",
+    "pageOf": "p. {{page}} de {{total}}"
+  },
+  "register": {
+    "title": "Registrar leitura",
+    "today": "Hoje:",
+    "pagesOfGoal": "{{pages}} / {{goal}} páginas",
+    "pages_one": "{{count}} página",
+    "pages_other": "{{count}} páginas",
+    "remaining_one": "falta {{count}} página para a meta",
+    "remaining_other": "faltam {{count}} páginas para a meta",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "streak_one": "sequência de {{count}} dia",
+    "streak_other": "sequência de {{count}} dias",
+    "recent": "Recentes:",
+    "fillRow": "Preencher uma linha com {{book}}"
+  },
+  "reading": {
+    "empty": "Registre suas primeiras leituras para ver suas estatísticas aqui.",
+    "comparison": {
+      "title": "Comparativos",
+      "subtitle": "Semana, mês e ano até agora contra o mesmo trecho do período anterior",
+      "info": "Compara o período até hoje com o mesmo número de dias do período anterior, para nunca comparar uma semana parcial com uma completa.",
+      "weekPages": "Páginas na semana",
+      "weekTime": "Tempo na semana",
+      "monthPages": "Páginas no mês",
+      "monthDays": "Dias ativos no mês",
+      "yearPages": "Páginas no ano",
+      "yearTime": "Tempo no ano",
+      "vsLastWeek": "vs. semana passada",
+      "vsLastMonth": "vs. mês passado",
+      "vsLastYear": "vs. ano passado"
+    },
+    "recent": {
+      "title": "Últimos 30 dias",
+      "subtitle": "Páginas por dia com média móvel de 7 dias",
+      "pages": "Páginas",
+      "average": "Média de 7 dias"
+    },
+    "records": {
+      "title": "Recordes pessoais",
+      "subtitle": "Suas melhores marcas em todo o histórico",
+      "bestDay": "Melhor dia",
+      "bestWeek": "Melhor semana",
+      "bestMonth": "Melhor mês",
+      "longestStreak": "Maior sequência",
+      "longestDay": "Dia mais longo",
+      "fastestDay": "Dia mais rápido",
+      "weekOf": "semana de {{date}}"
+    },
+    "calendar": {
+      "title": "Calendário de leitura",
+      "subtitle": "Últimos 12 meses · {{pages}} páginas em {{days}} dias ativos"
+    },
+    "yoy": {
+      "title": "Ano contra ano",
+      "subtitle": "Páginas por mês, este ano contra o ano passado",
+      "toDate": "Ano até agora"
+    },
+    "consistency": {
+      "title": "Consistência",
+      "subtitle": "Dias ativos e dias de leitura profunda",
+      "info": "Um dia de leitura profunda tem 60 minutos ou mais registrados.",
+      "active30": "Dias ativos (30d)",
+      "daysOf30_one": "{{count}} de 30 dias",
+      "daysOf30_other": "{{count}} de 30 dias",
+      "deepDays": "Dias profundos (90d)",
+      "deepHint": "60+ minutos",
+      "read": "Leu",
+      "deep": "Leitura profunda",
+      "none": "Sem leitura",
+      "activeShare": "Dias ativos"
+    },
+    "pace": {
+      "title": "Velocidade de leitura",
+      "subtitle": "Páginas por hora por mês e por categoria",
+      "info": "Total de páginas dividido pelo tempo total, usando só os registros com tempo de leitura.",
+      "current": "pág./h no último mês",
+      "inPeriod": "em 12 meses",
+      "series": "Velocidade",
+      "empty": "Registre o tempo de leitura para ver sua velocidade."
+    },
+    "projection": {
+      "title": "Projeção de término",
+      "subtitle": "No ritmo dos últimos 14 dias",
+      "info": "O progresso é o maior valor entre a posição no leitor e as páginas registradas para o livro. O livro precisa ter o número de páginas conhecido.",
+      "finish_one": "{{date}} · {{count}} dia",
+      "finish_other": "{{date}} · {{count}} dias",
+      "detail": "{{done}} de {{total}} páginas · {{pace}} pág./dia",
+      "empty": "Nenhum livro com número de páginas conhecido foi lido nos últimos 14 dias."
+    },
+    "categories": {
+      "title": "Categorias ao longo do tempo",
+      "subtitle": "Páginas por categoria por mês",
+      "other": "Outras",
+      "none": "Sem categoria"
+    },
+    "profile": {
+      "title": "Perfil de leitor",
+      "subtitle": "Últimos 90 dias, de 0 a 100",
+      "info": "Volume: 40 pág./dia = 100. Consistência: proporção de dias ativos. Velocidade: 45 pág./h = 100. Variedade: 6 títulos diferentes = 100. Profundidade: 60 minutos por dia ativo = 100. Fins de semana: 50 = uma parcela proporcional de leitura nos fins de semana.",
+      "friends": "Média dos amigos",
+      "axes": {
+        "volume": "Volume",
+        "consistency": "Consistência",
+        "speed": "Velocidade",
+        "variety": "Variedade",
+        "depth": "Profundidade",
+        "weekend": "Fins de semana"
+      }
+    },
+    "weekday": {
+      "title": "Dia da semana",
+      "subtitle": "Média de páginas por dia da semana (últimas 26 semanas)",
+      "average": "Média"
+    },
+    "clock": {
+      "title": "Relógio de leitura",
+      "subtitle": "Páginas por hora do dia",
+      "info": "Baseado no horário em que cada registro foi salvo. Como os registros costumam ser feitos logo após a leitura, isso aproxima o horário em que você lê.",
+      "empty": "Ainda não há registros suficientes com horário."
+    }
+  },
+  "languages": {
+    "desktopOnly": "As estatísticas de vocabulário estão disponíveis no app desktop.",
+    "empty": "Leia um livro no modo idioma do Leitor Lyceum para começar a montar seu vocabulário.",
+    "wordsUnit": "palavras",
+    "summary": {
+      "title": "Resumo",
+      "subtitle": "Vocabulário acompanhado pelo Leitor Lyceum",
+      "known": "Palavras conhecidas",
+      "learning": "Aprendendo",
+      "saved": "Salvas para revisão",
+      "savedHint": "palavras e expressões",
+      "lookups": "Consultas",
+      "lookupsHint": "consultas ao dicionário",
+      "inLanguages_one": "em {{count}} idioma",
+      "inLanguages_other": "em {{count}} idiomas"
+    },
+    "curve": {
+      "title": "Evolução do vocabulário",
+      "subtitle": "Palavras conhecidas ao longo do tempo",
+      "info": "Registrado diariamente a partir de agora. Os dias anteriores ao primeiro registro são estimados pela última mudança de estado de cada palavra."
+    },
+    "level": {
+      "title": "Nível estimado",
+      "subtitle": "Pelo número de lemas conhecidos",
+      "info": "Estimativa aproximada do QECR baseada só no tamanho do vocabulário (A1 500, A2 1.000, B1 2.000, B2 4.000, C1 8.000, C2 16.000 lemas). Não é resultado de um teste.",
+      "preA1": "Pré-A1",
+      "next_one": "falta {{count}} palavra para {{level}}",
+      "next_other": "faltam {{count}} palavras para {{level}}",
+      "top": "Marco mais alto alcançado"
+    },
+    "states": {
+      "title": "Vocabulário por idioma",
+      "subtitle": "Palavras por estado",
+      "known": "Conhecidas",
+      "learning": "Aprendendo",
+      "unknown": "Desconhecidas",
+      "ignored": "Ignoradas"
+    },
+    "coverage": {
+      "title": "Cobertura por livro",
+      "subtitle": "Quanto do texto de cada livro você já conhece",
+      "info": "Ponderado pela frequência de cada palavra. Cerca de 98% é leitura confortável; 90% é bom para estudar com dicionário. As marcas mostram os dois limites.",
+      "empty": "Abra livros no modo idioma do Leitor Lyceum para ver a cobertura.",
+      "lexemes_one": "{{count}} palavra distinta",
+      "lexemes_other": "{{count}} palavras distintas",
+      "levels": {
+        "comfortable": "confortável",
+        "study": "bom para estudo",
+        "hard": "desafiador"
+      }
+    },
+    "byBook": {
+      "title": "Palavras salvas por livro",
+      "subtitle": "Palavras e expressões salvas durante a leitura de cada livro",
+      "series": "Salvas",
+      "empty": "Nenhuma palavra salva a partir de livros ainda."
+    },
+    "stubborn": {
+      "title": "Palavras teimosas",
+      "subtitle": "Consultadas muitas vezes e ainda não conhecidas",
+      "info": "Palavras consultadas mais de uma vez que ainda estão como desconhecidas ou aprendendo.",
+      "word": "Palavra",
+      "translation": "Tradução",
+      "lookups": "Consultas",
+      "empty": "Nenhuma palavra consultada repetidamente."
+    }
+  },
+  "library": {
+    "desktopOnly": "As estatísticas da biblioteca estão disponíveis no app desktop.",
+    "empty": "Adicione livros à biblioteca para ver as estatísticas.",
+    "size": {
+      "title": "Tamanho e backlog",
+      "subtitle": "O que você tem comparado com o que você lê",
+      "info": "Arquivos marcados como \"não é um livro\" ficam de fora. O backlog é o total de páginas não lidas dividido pela sua média de páginas por dia nos últimos 90 dias.",
+      "books": "Livros",
+      "finished_one": "{{count}} concluído",
+      "finished_other": "{{count}} concluídos",
+      "pages": "Páginas na biblioteca",
+      "pagesRead": "Páginas lidas",
+      "ofLibrary": "{{value}}% da biblioteca",
+      "disk": "Espaço em disco",
+      "backlogPages": "Páginas não lidas",
+      "backlog": "Backlog",
+      "atPace": "a {{value}} pág./dia",
+      "years": "{{value}} anos"
+    },
+    "journey": {
+      "title": "Jornada dos livros",
+      "subtitle": "Da biblioteca à última página",
+      "library": "Biblioteca",
+      "notStarted": "Não iniciados",
+      "started": "Iniciados",
+      "queue": "Quero ler",
+      "noStatus": "Sem status",
+      "reading": "Lendo",
+      "paused": "Pausados",
+      "finished": "Concluídos",
+      "inProgress": "Em andamento"
+    },
+    "funnel": {
+      "title": "Funil de status",
+      "subtitle": "Iniciados em relação à biblioteca; as etapas seguintes em relação aos iniciados",
+      "library": "Na biblioteca",
+      "started": "Iniciados",
+      "reading": "Lendo agora",
+      "finished": "Concluídos",
+      "completion": "Taxa de conclusão: {{value}}% dos iniciados · {{paused}} pausados"
+    },
+    "forgotten": {
+      "title": "Livros esquecidos",
+      "subtitle": "Em andamento, mas sem abrir há mais de 30 dias",
+      "empty": "Nenhum livro esquecido.",
+      "idle_one": "{{count}} dia parado",
+      "idle_other": "{{count}} dias parado",
+      "resume": "Retomar",
+      "pause": "Pausar",
+      "pauseHint": "Marcar como pausado para sair desta lista",
+      "paused": "Livro marcado como pausado",
+      "pauseFailed": "Não foi possível atualizar o status do livro"
+    },
+    "formats": {
+      "title": "Formatos",
+      "subtitle": "Composição da biblioteca por tipo de arquivo"
+    },
+    "subjects": {
+      "title": "Assuntos",
+      "subtitle": "Assuntos mais comuns nos metadados dos livros",
+      "empty": "Ainda não há assuntos nos metadados dos livros."
+    },
+    "authors": {
+      "title": "Autores mais presentes",
+      "subtitle": "Por número de livros",
+      "books_one": "{{count}} livro",
+      "books_other": "{{count}} livros",
+      "empty": "Ainda não há autores nos metadados dos livros."
+    },
+    "growth": {
+      "title": "Crescimento da biblioteca",
+      "subtitle": "Livros adicionados e concluídos por mês (últimos 24 meses)",
+      "info": "Os livros concluídos usam a data de conclusão definida quando o livro é marcado como lido.",
+      "added": "Adicionados",
+      "finished": "Concluídos",
+      "share": "Parte da biblioteca concluída",
+      "shareSeries": "Concluída"
+    },
+    "ratings": {
+      "title": "Suas notas",
+      "subtitle": "Distribuição das notas dos livros",
+      "series": "Livros",
+      "summary": "Média {{average}} · {{count}} favoritos",
+      "empty": "Dê notas aos livros na biblioteca para ver a distribuição."
+    },
+    "annotations": {
+      "title": "Anotações recentes",
+      "subtitle": "Conceitos-chave e notas do leitor de todos os livros",
+      "empty": "Nenhuma anotação ainda.",
+      "kinds": {
+        "concept": "Conceito-chave",
+        "learning": "Nota do leitor"
+      }
+    },
+    "concepts": {
+      "title": "Mapa de conceitos entre livros",
+      "subtitle": "Conceitos-chave e suas relações; passe o mouse para destacar",
+      "info": "Linhas contínuas são relações que você criou. Linhas pontilhadas ligam conceitos com o mesmo nome em livros diferentes. Cor = livro de origem.",
+      "empty": "Crie conceitos-chave ao ler PDFs para montar o mapa.",
+      "unknownBook": "Livro desconhecido"
+    }
+  },
+  "goals": {
+    "saved": "Metas salvas",
+    "goals": {
+      "title": "Metas",
+      "subtitle": "Metas diária, semanal, mensal e anual",
+      "info": "O status mostra se você está à frente ou atrás do ritmo necessário em cada período. A meta anual de livros conta os livros marcados como lidos na biblioteca.",
+      "edit": "Editar metas",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "unset": "Não definida",
+      "remainingToday_one": "falta {{count}} página hoje",
+      "remainingToday_other": "faltam {{count}} páginas hoje",
+      "items": {
+        "daily": "Diária",
+        "weekly": "Semanal",
+        "monthly": "Mensal",
+        "yearly": "Anual",
+        "yearlyBooks": "Livros no ano"
+      },
+      "status": {
+        "done": "Meta batida",
+        "ahead": "À frente do ritmo · {{value}} {{unit}}/dia necessários",
+        "onTrack": "No ritmo · {{value}} {{unit}}/dia necessários",
+        "behind": "Atrás do ritmo · {{value}} {{unit}}/dia necessários",
+        "unset": "Não definida"
+      }
+    },
+    "year": {
+      "title": "Retrospectiva de {{year}}",
+      "subtitle": "Seu ano de leitura em resumo",
+      "copy": "Copiar resumo",
+      "pagesRead": "Páginas lidas",
+      "vsPrevious": "{{value}}% vs. {{year}}",
+      "time": "Tempo de leitura",
+      "activeDays": "Dias ativos",
+      "booksFinished": "Livros concluídos",
+      "titlesLogged_one": "{{count}} título registrado",
+      "titlesLogged_other": "{{count}} títulos registrados",
+      "words": "Palavras aprendidas",
+      "bestMonth": "Melhor mês",
+      "longestStreak": "Maior sequência",
+      "peakHour": "Horário habitual",
+      "topCategory": "Categoria principal",
+      "bookOfYear": "Livro do ano:",
+      "copyTitle": "Meu ano de leitura {{year}} no Lyceum",
+      "copyPages": "{{pages}} páginas em {{days}} dias ativos",
+      "copyTime": "{{time}} de leitura",
+      "copyBooks_one": "{{count}} livro concluído",
+      "copyBooks_other": "{{count}} livros concluídos",
+      "copyTopBook": "Livro do ano: {{book}}",
+      "copyBestMonth": "Melhor mês: {{month}}",
+      "copyWords_one": "{{count}} palavra aprendida",
+      "copyWords_other": "{{count}} palavras aprendidas"
+    },
+    "month": {
+      "title": "Retrospectiva do mês",
+      "last": "Mês passado",
+      "current": "Este mês",
+      "summary": "Você leu {{pages}} páginas em {{days}} dias, num total de {{time}}.",
+      "books_one": "Concluiu {{count}} livro.",
+      "books_other": "Concluiu {{count}} livros.",
+      "words_one": "Aprendeu {{count}} palavra.",
+      "words_other": "Aprendeu {{count}} palavras.",
+      "pages": "Páginas",
+      "minutes": "Tempo",
+      "days": "Dias ativos",
+      "bestDay_one": "Melhor dia: {{date}}, {{count}} página",
+      "bestDay_other": "Melhor dia: {{date}}, {{count}} páginas",
+      "topBook": "Mais lido: {{book}}",
+      "streak_one": "Maior sequência no mês: {{count}} dia",
+      "streak_other": "Maior sequência no mês: {{count}} dias",
+      "comparison": "As variações comparam com os mesmos dias do mês anterior."
+    },
+    "achievements": {
+      "title": "Conquistas",
+      "subtitle": "{{unlocked}} de {{total}} desbloqueadas"
+    },
+    "streak": {
+      "title": "Sequência com folgas",
+      "subtitle": "Permita, se quiser, um dia de folga por semana",
+      "info": "Com as folgas ativadas, um dia sem leitura por semana (de segunda a domingo) não quebra a sequência. O card de sequência semanal da visão geral mantém a contagem estrita.",
+      "days_one": "dia seguido",
+      "days_other": "dias seguidos",
+      "longest_one": "Maior: {{count}} dia",
+      "longest_other": "Maior: {{count}} dias",
+      "withFreeze_one": "{{count}} dia com folgas",
+      "withFreeze_other": "{{count}} dias com folgas",
+      "toggle": "Permitir um dia de folga por semana",
+      "toggleHint": "Um dia sem leitura quebra a sequência.",
+      "freezeAvailable": "A folga desta semana ainda está disponível.",
+      "freezeUsed": "A folga desta semana já foi usada."
+    }
+  },
+  "achievements": {
+    "pages1k": {
+      "title": "1.000 páginas",
+      "description": "Ler 1.000 páginas no total"
+    },
+    "pages10k": {
+      "title": "10.000 páginas",
+      "description": "Ler 10.000 páginas no total"
+    },
+    "pages50k": {
+      "title": "50.000 páginas",
+      "description": "Ler 50.000 páginas no total"
+    },
+    "marathon": {
+      "title": "Maratona",
+      "description": "Ler 200 páginas em um único dia"
+    },
+    "streak7": {
+      "title": "Uma semana",
+      "description": "Ler 7 dias seguidos"
+    },
+    "streak30": {
+      "title": "Um mês",
+      "description": "Ler 30 dias seguidos"
+    },
+    "streak100": {
+      "title": "100 dias",
+      "description": "Ler 100 dias seguidos"
+    },
+    "days365": {
+      "title": "Um ano de leitura",
+      "description": "Ler em 365 dias diferentes"
+    },
+    "books1": {
+      "title": "Primeiro livro",
+      "description": "Concluir um livro na biblioteca"
+    },
+    "books10": {
+      "title": "Dez livros",
+      "description": "Concluir 10 livros na biblioteca"
+    },
+    "books50": {
+      "title": "Cinquenta livros",
+      "description": "Concluir 50 livros na biblioteca"
+    },
+    "annotator": {
+      "title": "Anotador",
+      "description": "Criar 100 anotações"
+    },
+    "words1k": {
+      "title": "1.000 palavras",
+      "description": "Conhecer 1.000 palavras em um idioma estrangeiro"
+    },
+    "words5k": {
+      "title": "5.000 palavras",
+      "description": "Conhecer 5.000 palavras em idiomas estrangeiros"
+    },
+    "polyglot": {
+      "title": "Poliglota",
+      "description": "Conhecer mais de 100 palavras em dois idiomas"
+    }
+  },
+  "friends": {
+    "empty": "Adicione amigos para comparar suas leituras, disputar duelos semanais e acompanhar a atividade deles.",
+    "addFriend": "Adicionar amigo",
+    "ranking": {
+      "title": "Ranking da semana",
+      "subtitle": "Páginas na semana e variação desde a semana passada",
+      "info": "A variação de posição compara com os mesmos dias da semana passada.",
+      "previous": "Semana passada: {{rank}}º",
+      "new": "Sem páginas na semana passada"
+    },
+    "duel": {
+      "title": "Duelo semanal",
+      "subtitle": "Páginas acumuladas de segunda a domingo",
+      "choose": "Escolher um amigo",
+      "empty": "Nenhum amigo para duelar.",
+      "tied": "Empate até agora.",
+      "leading_one": "Você está {{count}} página à frente.",
+      "leading_other": "Você está {{count}} páginas à frente.",
+      "behind_one": "{{name}} está {{count}} página à frente.",
+      "behind_other": "{{name}} está {{count}} páginas à frente."
+    },
+    "feed": {
+      "title": "Atividade dos amigos",
+      "subtitle": "Últimos 7 dias",
+      "empty": "Nenhuma atividade dos amigos nos últimos 7 dias.",
+      "read_one": "leu {{count}} página de {{book}}",
+      "read_other": "leu {{count}} páginas de {{book}}",
+      "bestDay_one": "bateu o recorde pessoal: {{count}} página em um dia",
+      "bestDay_other": "bateu o recorde pessoal: {{count}} páginas em um dia",
+      "streak_one": "está numa sequência de {{count}} dia",
+      "streak_other": "está numa sequência de {{count}} dias"
+    }
   }
 }

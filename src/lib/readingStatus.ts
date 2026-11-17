@@ -26,7 +26,7 @@ export const BOOK_READING_STATUS_VALUES: ReadingStatus[] = [
   "not_a_book",
 ];
 
-/** Classic statuses used by the Atlas reading map (unchanged). */
+/** Classic reading statuses (want to read, reading, paused, read). */
 export const READING_STATUS_OPTIONS: Array<{
   value: ReadingStatus;
   labelKey: TranslationKey;

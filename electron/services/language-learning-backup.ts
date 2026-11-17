@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  LEARNING_BACKUP_SCHEMA,
+  isLearningBackup,
   type LanguageLearningRepository,
   type LearningBackup,
 } from "../../src/core/language-learning/model";
@@ -45,20 +45,7 @@ function entryCount(backup: Pick<LearningBackup, "knowledge" | "reviewItems">) {
   return backup.knowledge.length + backup.reviewItems.length;
 }
 
-export function isLearningBackup(value: unknown): value is LearningBackup {
-  const candidate = value as Partial<LearningBackup> | null;
-  return Boolean(
-    candidate
-    && candidate.schema === LEARNING_BACKUP_SCHEMA
-    && candidate.version === 1
-    && Array.isArray(candidate.knowledge)
-    && Array.isArray(candidate.forms)
-    && Array.isArray(candidate.reviewItems)
-    && Array.isArray(candidate.reviewLog)
-    && Array.isArray(candidate.annotations)
-    && Array.isArray(candidate.readingStates),
-  );
-}
+export { isLearningBackup };
 
 /**
  * Automatic JSON backups of the learning data, outside the database:

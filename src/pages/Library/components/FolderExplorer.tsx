@@ -223,14 +223,14 @@ export function FolderGrid({
   }, [contextMenu.visible]);
 
   return (
-    <section className="mb-5">
+    <section className="mb-3">
       <div className="mb-2 flex items-center justify-between px-2">
         <h2 className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
-          Pastas
+          {t("library:folderTree.title")}
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-foreground-subtle">
-            {folders.length} pasta{folders.length !== 1 ? "s" : ""}
+            {t("library:folders.count", { count: folders.length })}
           </span>
           {onCollapsedChange && folders.length > 0 && (
             <button
@@ -246,12 +246,21 @@ export function FolderGrid({
       </div>
 
       {collapsed ? null : folders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-background/30 py-10 text-foreground-subtle">
-          <Folder size={32} strokeWidth={1.2} className="mb-3" />
-          <p className="text-sm">Nenhuma subpasta</p>
+        <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-border bg-background/30 py-4 text-foreground-subtle">
+          <Folder size={18} strokeWidth={1.4} />
+          <p className="text-sm">{t("library:folders.noSubfolders")}</p>
         </div>
       ) : (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible px-1 pb-3 pt-1 pr-2">
+        <div
+          className="flex snap-x snap-mandatory gap-2 overflow-x-auto overflow-y-visible px-1 pb-2 pt-1 pr-2 [scrollbar-width:thin]"
+          onWheel={(event) => {
+            // A vertical wheel over the carousel scrolls it sideways.
+            const element = event.currentTarget;
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+            if (element.scrollWidth <= element.clientWidth) return;
+            element.scrollLeft += event.deltaY;
+          }}
+        >
           {folders.map((folder) => {
             const indexedInfo = getFolderBookInfo(folderBookIndex, folder);
             const bookCount = getFolderBookCount(folder) || indexedInfo.bookCount;
@@ -261,8 +270,9 @@ export function FolderGrid({
             const readOnly = isFolderReadOnly?.(folder) ?? false;
 
             return (
-              <div key={folder.path} className="w-[220px] min-w-[220px] snap-start">
+              <div key={folder.path} className="w-[208px] min-w-[208px] snap-start">
               <FolderCard
+                compact
                 id={folder.path}
                 name={folder.name}
                 detail={isAbsoluteFolderPath(folder.path) ? folder.fullPath : undefined}

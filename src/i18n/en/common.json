@@ -128,5 +128,38 @@
     "retry": "Try again",
     "reload": "Reload",
     "openLogs": "Open logs"
+  },
+  "whatsNew": {
+    "title": "What's new",
+    "versions": "Versions",
+    "current": "Current",
+    "gotIt": "Got it",
+    "open": "What's new",
+    "kinds": {
+      "new": "New",
+      "improved": "Improved",
+      "fixed": "Fixed",
+      "removed": "Removed"
+    }
+  },
+  "status": {
+    "loading": "Loading..."
+  },
+  "palette": {
+    "title": "Search Lyceum",
+    "placeholder": "Search books, folders, pages, settings…",
+    "noResults": "Nothing found. Try fewer or different words.",
+    "hint": "↑↓ to move · Enter to open · typos are fine",
+    "themeLight": "Switch to light theme",
+    "themeDark": "Switch to dark theme",
+    "convert": "Convert a book",
+    "open": "Search (Ctrl+K)",
+    "groups": {
+      "books": "Books",
+      "folders": "Folders",
+      "pages": "Pages",
+      "settings": "Settings",
+      "actions": "Actions"
+    }
   }
 }

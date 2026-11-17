@@ -5,6 +5,7 @@ export * from "./srs";
 export * from "./grammar";
 export * from "./tutor";
 export * from "./occurrenceIndex";
+export * from "./memoryRepository";
 export * from "./analysis/analyzeDocument";
 export * from "./analysis/expressions";
 export * from "./languages/types";

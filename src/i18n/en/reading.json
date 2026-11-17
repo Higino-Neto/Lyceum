@@ -37,15 +37,7 @@
       "removeRow": "Remove row",
       "addAnother": "Add another reading"
     },
-    "myBooks": {
-      "title": "My books",
-      "description": "Manage links, duplicates and statistics for your records.",
-      "searchPlaceholder": "Search recorded books..."
-    },
     "toasts": {
-      "loadBooksFailed": "Failed to load My books",
-      "bookDeleted": "Book deleted!",
-      "bookDeleteFailed": "Failed to delete book",
       "formIncomplete": "Fill in at least one complete reading",
       "registered_one": "{{count}} reading recorded successfully!",
       "registered_other": "{{count}} readings recorded successfully!",
@@ -167,5 +159,8 @@
         "self_help": "Self-help"
       }
     }
+  },
+  "tabs": {
+    "reopenFailed": "This tab could not be reopened."
   }
 }

@@ -5,7 +5,7 @@ import { useMobileConfirm } from "./MobileConfirmDialog";
 import MobileAccountGate from "./MobileAccountGate";
 import MobileQueryError from "./MobileQueryError";
 import { MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
-import { createMobileReadingEntry, deleteMobileReadingEntry, getMobileCategories, getMobileReadingQueryEnabled, getMobileUserReadings, getOrCreateMobileBook, updateMobileReadingEntry, type MobileCategory, type MobileReadingEntry } from "./readingApi";
+import { createReadingEntry, deleteReadingEntry, getCategories, isAccountQueryEnabled, getUserReadings, getOrCreateBookRecord, updateReadingEntry, type Category, type ReadingEntry } from "../api/database";
 import { formatReadingMinutes, toLocalIsoDate } from "./mobileReadingStats";
 import { getActiveLocale, translate, useTranslation } from "../i18n";
 import type { MobileBook } from "./types";
@@ -24,7 +24,7 @@ function restoredDraft(email: string | null, book?: MobileBook | null): Draft {
   try { const saved = JSON.parse(localStorage.getItem(draftKey(email)) || "null") as Partial<Draft> | null; if (saved && typeof saved.sourceName === "string") return { ...emptyDraft(), ...saved }; } catch { /* Invalid old draft. */ }
   return emptyDraft();
 }
-function categoryForBook(book: MobileBook, categories: MobileCategory[]) { return categories.find((item) => item.name.toLocaleLowerCase(getActiveLocale()) === book.category?.toLocaleLowerCase(getActiveLocale()))?.id || ""; }
+function categoryForBook(book: MobileBook, categories: Category[]) { return categories.find((item) => item.name.toLocaleLowerCase(getActiveLocale()) === book.category?.toLocaleLowerCase(getActiveLocale()))?.id || ""; }
 function dateLabel(value: string) { const date = new Date(`${value}T12:00:00Z`); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(getActiveLocale(), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date); }
 function validate(draft: Draft): Errors {
   const errors: Errors = {};
@@ -39,7 +39,7 @@ function validate(draft: Draft): Errors {
 function invalidate(queryClient: ReturnType<typeof useQueryClient>) { for (const key of ["mobile-readings", "mobile-reading-stats", "mobile-ranking", "mobile-heatmap"]) void queryClient.invalidateQueries({ queryKey: [key] }); }
 
 function ReadingForm({ draft, onChange, books, readings, categories, pending, error, onSubmit, editing = false }: {
-  draft: Draft; onChange: (field: Field, value: string) => void; books: MobileBook[]; readings: MobileReadingEntry[]; categories: MobileCategory[]; pending: boolean; error: string | null; onSubmit: () => void; editing?: boolean;
+  draft: Draft; onChange: (field: Field, value: string) => void; books: MobileBook[]; readings: ReadingEntry[]; categories: Category[]; pending: boolean; error: string | null; onSubmit: () => void; editing?: boolean;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -47,7 +47,7 @@ function ReadingForm({ draft, onChange, books, readings, categories, pending, er
   const [showCalendar, setShowCalendar] = useState(draft.date !== today() && draft.date !== yesterday());
   const [errors, setErrors] = useState<Errors>({});
   const candidates = useMemo(() => {
-    const result: Array<{ title: string; localBook?: MobileBook; reading?: MobileReadingEntry }> = [];
+    const result: Array<{ title: string; localBook?: MobileBook; reading?: ReadingEntry }> = [];
     const byTitle = new Map<string, typeof result[number]>();
     for (const reading of [...readings].sort((a, b) => b.reading_date.localeCompare(a.reading_date))) { const key = reading.source_name.trim().toLocaleLowerCase(getActiveLocale()); if (key && !byTitle.has(key)) { const item = { title: reading.source_name, reading }; byTitle.set(key, item); result.push(item); } }
     for (const book of [...books].sort((a, b) => String(b.lastOpenedAt || "").localeCompare(String(a.lastOpenedAt || "")))) { const key = book.title.trim().toLocaleLowerCase(getActiveLocale()); if (!key) continue; const existing = byTitle.get(key); if (existing) existing.localBook = book; else { const item = { title: book.title, localBook: book }; byTitle.set(key, item); result.push(item); } }
@@ -93,26 +93,26 @@ export default function MobileReadingEntryScreen({ books, sessionEmail, selected
   const { t } = useTranslation();
   const confirm = useMobileConfirm();
   const queryClient = useQueryClient();
-  const enabled = getMobileReadingQueryEnabled(sessionEmail);
+  const enabled = isAccountQueryEnabled(sessionEmail);
   const [view, setView] = useState<"register" | "history">("register");
   const [draft, setDraft] = useState(() => restoredDraft(sessionEmail, selectedBook));
   const [editDraft, setEditDraft] = useState<Draft | null>(null);
-  const [editing, setEditing] = useState<MobileReadingEntry | null>(null);
+  const [editing, setEditing] = useState<ReadingEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Draft | null>(null);
   const [historySearch, setHistorySearch] = useState("");
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({ queryKey: ["mobile-categories"], queryFn: getMobileCategories, enabled });
-  const { data: readings = [], isLoading: readingsLoading, error: readingsError, refetch: refetchReadings } = useQuery({ queryKey: ["mobile-readings"], queryFn: getMobileUserReadings, enabled });
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({ queryKey: ["mobile-categories"], queryFn: getCategories, enabled });
+  const { data: readings = [], isLoading: readingsLoading, error: readingsError, refetch: refetchReadings } = useQuery({ queryKey: ["mobile-readings"], queryFn: getUserReadings, enabled });
   useEffect(() => { if (selectedBook && draft.localBookId === selectedBook.id && !draft.categoryId && categories.length) { const id = categoryForBook(selectedBook, categories); if (id) setDraft((current) => ({ ...current, categoryId: id })); } }, [selectedBook, draft.localBookId, draft.categoryId, categories]);
   useEffect(() => { if (sessionEmail) localStorage.setItem(draftKey(sessionEmail), JSON.stringify(draft)); }, [draft, sessionEmail]);
   const sorted = useMemo(() => [...readings].sort((a, b) => b.reading_date.localeCompare(a.reading_date) || String(b.created_at || "").localeCompare(String(a.created_at || ""))), [readings]);
-  const grouped = new Map<string, MobileReadingEntry[]>();
+  const grouped = new Map<string, ReadingEntry[]>();
   for (const reading of sorted.filter((item) => item.source_name.toLocaleLowerCase(getActiveLocale()).includes(historySearch.toLocaleLowerCase(getActiveLocale())))) grouped.set(reading.reading_date, [...(grouped.get(reading.reading_date) || []), reading]);
   const change = (field: Field, value: string) => { setDraft((current) => ({ ...current, [field]: value })); setError(null); setSaved(null); };
   const changeEdit = (field: Field, value: string) => { setEditDraft((current) => current && ({ ...current, [field]: value })); setError(null); };
-  const submit = useMutation({ mutationFn: async (input: Draft) => { if (navigator.onLine === false) throw new Error(translate("mobile:readingEntry.offlineDraftError")); const localBook = books.find((book) => book.id === input.localBookId) || null; const bookId = input.remoteBookId || await getOrCreateMobileBook(input.sourceName.trim(), input.categoryId, localBook); await createMobileReadingEntry({ sourceName: input.sourceName.trim(), pages: Number(input.pages), readingDate: input.date, readingTime: Number(input.minutes), categoryId: input.categoryId, bookId }); return input; }, onSuccess: (input) => { invalidate(queryClient); setSaved(input); setDraft((current) => ({ ...current, pages: "", minutes: "", date: today() })); setError(null); }, onError: (cause: Error) => setError(cause.message) });
-  const update = useMutation({ mutationFn: async (input: Draft) => { if (!editing) return; if (navigator.onLine === false) throw new Error(translate("mobile:readingEntry.offlineUpdateError")); await updateMobileReadingEntry({ readingId: editing.id, sourceName: input.sourceName.trim(), pages: Number(input.pages), readingDate: input.date, readingTime: Number(input.minutes), categoryId: input.categoryId }); }, onSuccess: () => { invalidate(queryClient); setEditing(null); setEditDraft(null); setError(null); }, onError: (cause: Error) => setError(cause.message) });
-  const remove = useMutation({ mutationFn: deleteMobileReadingEntry, onSuccess: () => invalidate(queryClient), onError: (cause: Error) => setError(cause.message) });
+  const submit = useMutation({ mutationFn: async (input: Draft) => { if (navigator.onLine === false) throw new Error(translate("mobile:readingEntry.offlineDraftError")); const localBook = books.find((book) => book.id === input.localBookId) || null; const bookId = input.remoteBookId || await getOrCreateBookRecord({ title: input.sourceName.trim(), author: localBook?.author, thumbnailUrl: localBook?.thumbnailUrl, totalPages: localBook?.totalPages, isbn: localBook?.isbn, categoryId: input.categoryId }); await createReadingEntry(input.sourceName.trim(), Number(input.pages), input.date, Number(input.minutes), input.categoryId, bookId); return input; }, onSuccess: (input) => { invalidate(queryClient); setSaved(input); setDraft((current) => ({ ...current, pages: "", minutes: "", date: today() })); setError(null); }, onError: (cause: Error) => setError(cause.message) });
+  const update = useMutation({ mutationFn: async (input: Draft) => { if (!editing) return; if (navigator.onLine === false) throw new Error(translate("mobile:readingEntry.offlineUpdateError")); await updateReadingEntry(editing.id, input.sourceName.trim(), Number(input.pages), input.date, Number(input.minutes), input.categoryId); }, onSuccess: () => { invalidate(queryClient); setEditing(null); setEditDraft(null); setError(null); }, onError: (cause: Error) => setError(cause.message) });
+  const remove = useMutation({ mutationFn: deleteReadingEntry, onSuccess: () => invalidate(queryClient), onError: (cause: Error) => setError(cause.message) });
   if (!enabled) return <MobileAccountGate title={t("mobile:readingEntry.gateTitle")} body={t("mobile:readingEntry.gateBody")} onOpenProfile={onOpenProfile} />;
   return <section className="space-y-4 px-4 py-5">
     <MobileQueryError error={categoriesError || readingsError} onRetry={() => { void Promise.all([refetchCategories(), refetchReadings()]); }} />

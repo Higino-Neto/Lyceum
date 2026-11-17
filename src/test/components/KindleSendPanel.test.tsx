@@ -69,31 +69,94 @@ describe("KindleSendPanel", () => {
     });
   });
 
-  it("shows whether a Kindle transfer was structurally verified", async () => {
+  it("shows the plan, then whether the copy was verified on the Kindle", async () => {
     render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
 
     await screen.findByText("Kindle");
+    expect(screen.getByText("Copiado como AZW3")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enviar 1" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Enviado e verificado")).toBeInTheDocument();
-      expect(screen.getByText("Copia verificada por tamanho")).toBeInTheDocument();
-      expect(screen.getByText("1 verificado")).toBeInTheDocument();
+      expect(screen.getByText("Cópia conferida no Kindle")).toBeInTheDocument();
+      expect(screen.getByText("1 enviado")).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Fechar" })).toHaveLength(2);
     });
   });
 
-  it("sends with the saved Kindle conversion settings", async () => {
+  it("sends with the saved Kindle conversion settings and remembers changes", async () => {
     localStorage.setItem(KINDLE_CONVERSION_DEFAULTS_KEY, JSON.stringify({ kindleFontSizes: "original", epubLayout: "reflow" }));
-    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
+    const epub = { ...book, fileHash: "epub-hash", title: "Novel.epub", filePath: "C:\\library\\Novel.epub", fileType: "epub" as const };
+    render(<ConversionQueueProvider><KindleSendPanel books={[epub]} onClose={vi.fn()} /></ConversionQueueProvider>);
 
     await screen.findByText("Kindle");
-    expect(screen.getByText("Fonte: tamanho do livro")).toBeInTheDocument();
-    expect(screen.getByText("PDF: texto fluido")).toBeInTheDocument();
+    expect(screen.getByText("EPUB → AZW3")).toBeInTheDocument();
+    expect(screen.getByText("Mantém os tamanhos definidos pelo livro")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enviar 1" }));
 
     await waitFor(() => expect(window.api.sendBooksToKindle).toHaveBeenCalled());
     const call = (window.api.sendBooksToKindle as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(call.conversionOptions).toMatchObject({ kindleFontSizes: "original", epubLayout: "reflow", kindleProfile: "kindle-compatible" });
+  });
+
+  it("explains failures in plain language and retries only the failed books", async () => {
+    const send = window.api.sendBooksToKindle as unknown as ReturnType<typeof vi.fn>;
+    send.mockResolvedValueOnce({
+      success: false,
+      sent: 0,
+      failed: 1,
+      results: [{ fileHash: book.fileHash, title: book.title, success: false, status: "error", errorCode: "copy-failed", error: "EIO: i/o error" }],
+    });
+    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
+
+    await screen.findByText("Kindle");
+    fireEvent.click(screen.getByRole("button", { name: "Enviar 1" }));
+
+    expect(await screen.findByText(/Não foi possível copiar para o Kindle/)).toBeInTheDocument();
+    expect(screen.getByText("EIO: i/o error")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo 1 com falha" }));
+
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(send.mock.calls[1][0].books.map((item: { fileHash: string }) => item.fileHash)).toEqual([book.fileHash]);
+    expect(await screen.findByText("Cópia conferida no Kindle")).toBeInTheDocument();
+  });
+
+  it("converts Kindle-only formats to EPUB when sending by email", async () => {
+    localStorage.setItem("lyceum-kindle-send-mode", "email");
+    Object.assign(window.api, {
+      getKindleEmailConfig: vi.fn().mockResolvedValue({
+        kindleAddress: "me@kindle.com",
+        senderAddress: "me@gmail.com",
+        provider: "gmail",
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        username: "me@gmail.com",
+        authMethod: "password",
+        hasPassword: true,
+        passwordPersisted: true,
+        encryptionAvailable: true,
+        configured: true,
+        googleSignInAvailable: false,
+        googleConnected: false,
+        maxAttachmentBytes: 18 * 1024 * 1024,
+      }),
+      sendBooksToKindleEmail: vi.fn().mockResolvedValue({
+        success: true,
+        sent: 1,
+        failed: 0,
+        results: [{ fileHash: book.fileHash, title: book.title, success: true, status: "converted", outputFormat: "epub" }],
+      }),
+      openKindlePersonalDocuments: vi.fn(),
+    });
+    render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={vi.fn()} /></ConversionQueueProvider>);
+
+    expect(await screen.findByText("AZW3 → EPUB · imagens menores")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar por e-mail (1)" }));
+
+    expect(await screen.findByText("Entregue como EPUB")).toBeInTheDocument();
+    expect(window.api.sendBooksToKindleEmail).toHaveBeenCalledWith(expect.objectContaining({ compressImages: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir configurações da Amazon" }));
+    expect(window.api.openKindlePersonalDocuments).toHaveBeenCalled();
   });
 
   it("opens the conversion window in Kindle mode with the selected books", async () => {
@@ -111,7 +174,7 @@ describe("KindleSendPanel", () => {
     render(<ConversionQueueProvider><KindleSendPanel books={[book]} onClose={onClose} /><Probe /></ConversionQueueProvider>);
 
     await screen.findByText("Kindle");
-    fireEvent.click(screen.getByRole("button", { name: "Configurar conversão…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções…" }));
 
     await waitFor(() => expect(opened).toHaveBeenCalled());
     expect(onClose).toHaveBeenCalled();

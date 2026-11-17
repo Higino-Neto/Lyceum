@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Dashboard from "../pages/DashboardPage/DashboardPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
@@ -62,6 +62,9 @@ vi.mock("../lib/supabase", () => ({
 
 vi.mock("../api/database", () => ({
   getUserReadings: vi.fn().mockResolvedValue([]),
+  getCategories: vi.fn().mockResolvedValue([{ id: "cat1", name: "Literatura", points_per_page: 1 }]),
+  getAllBooks: vi.fn().mockResolvedValue([]),
+  getFriends: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../pages/DashboardPage/components/RankingTable/RankingTable", () => ({
@@ -86,6 +89,10 @@ vi.mock("../pages/DashboardPage/components/ReadingTable/ReadingTable", () => ({
 
 vi.mock("../pages/DashboardPage/components/ReadingStatsCard", () => ({
   default: () => <div data-testid="reading-stats">Reading Stats</div>,
+}));
+
+vi.mock("../contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { id: "test-user" } }),
 }));
 
 vi.mock("../contexts/SelectedUsersContext", () => ({
@@ -120,6 +127,8 @@ const renderWithProviders = (component: React.ReactElement) => {
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    window.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
@@ -133,11 +142,23 @@ describe("DashboardPage", () => {
     });
   });
 
-  it("renders the register reading button", async () => {
+  it("renders the register reading form above the table", async () => {
     renderWithProviders(<Dashboard />);
     await waitFor(() => {
-      expect(screen.getByText(/Registrar/i)).toBeInTheDocument();
+      expect(screen.getByText("Registrar leitura")).toBeInTheDocument();
     });
+    expect(screen.getByPlaceholderText(/buscar|search/i)).toBeInTheDocument();
+  });
+
+  it("switches to a statistics tab and remembers it in the URL", async () => {
+    renderWithProviders(<Dashboard />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Leitura/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Leitura/ })).toHaveAttribute("aria-selected", "true");
+    });
+    expect(window.location.search).toContain("tab=reading");
+    expect(await screen.findByText(/Registre suas primeiras leituras/, undefined, { timeout: 8000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Visão geral/ }));
   });
 
   it("renders ranking table component", async () => {

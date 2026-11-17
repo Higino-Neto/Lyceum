@@ -3,6 +3,7 @@ export type MobileTab =
   | "readings"
   | "library"
   | "reader"
+  | "learning"
   | "leaderboard"
   | "profile";
 export type MobileFileType = "pdf" | "epub" | "txt";
@@ -51,6 +52,8 @@ export interface MobileBook {
   importedAt: string;
   updatedAt?: string;
   lastOpenedAt?: string;
+  /** How the book was last opened, so "continue reading" reopens the same reader. */
+  lastReaderMode?: "reader" | "learning";
   currentPage: number;
   totalPages: number;
   progressPercent?: number;

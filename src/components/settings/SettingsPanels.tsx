@@ -21,6 +21,7 @@ import {
   User,
   Keyboard,
   DatabaseBackup,
+  Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -31,6 +32,7 @@ import {
 import Skeleton from "../Skeleton";
 import { useDictionary } from "../../hooks/useDictionary";
 import Select from "../ui/Select";
+import { openWhatsNew } from "../../features/whats-new/whatsNewEvents";
 import { supabase } from "../../lib/supabase";
 import {
   MIN_PASSWORD_LENGTH,
@@ -873,7 +875,6 @@ export function BackupSettingsPanel() {
   const runBackup = async () => {
     const jobs: Promise<{ success: number; failed: number; errors: string[] }>[] = [];
     if (settings.backupDocuments && window.api?.backupAllDocuments) jobs.push(window.api.backupAllDocuments());
-    if (settings.backupHabits && window.api?.backupAllHabits) jobs.push(window.api.backupAllHabits());
     if (settings.backupCategories && window.api?.backupAllCategories) jobs.push(window.api.backupAllCategories());
     if (jobs.length === 0) {
       toast.error(t("settings:backups.selectAtLeastOne"));
@@ -904,7 +905,6 @@ export function BackupSettingsPanel() {
 
   const backupOptions = [
     ["backupDocuments", "settings:backups.items.libraryAndProgress"],
-    ["backupHabits", "settings:backups.items.habitsAndHighlights"],
     ["backupCategories", "settings:backups.items.categories"],
   ] as const;
 
@@ -1119,8 +1119,16 @@ export function UpdatesSettingsPanel() {
           <div className="rounded border border-border bg-background/40 p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-foreground">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   Lyceum {updateState.currentVersion}
+                  <button
+                    type="button"
+                    onClick={openWhatsNew}
+                    className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                  >
+                    <Sparkles size={12} />
+                    {t("common:whatsNew.open")}
+                  </button>
                 </p>
                 <p className="mt-1 text-sm leading-6 text-foreground-subtle">
                   {t(UPDATE_STATUS_LABEL_KEYS[updateState.status])}
@@ -1416,101 +1424,6 @@ export function DictionarySettingsPanel() {
   );
 }
 
-export function BetaSettingsPanel() {
-  const {
-    settings,
-    setBetaAtlasEnabled,
-    setBetaConversionEnabled,
-    setBetaHabitsEnabled,
-  } = useAppSettings();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const { t } = useTranslation();
-
-  const features = [
-    {
-      key: "atlas" as const,
-      label: t("settings:beta.features.atlas.label"),
-      hint: t("settings:beta.features.atlas.hint"),
-      enabled: settings.betaAtlasEnabled,
-      setEnabled: setBetaAtlasEnabled,
-      route: "/atlas",
-    },
-    {
-      key: "conversion" as const,
-      label: t("settings:beta.features.conversion.label"),
-      hint: t("settings:beta.features.conversion.hint"),
-      enabled: settings.betaConversionEnabled,
-      setEnabled: setBetaConversionEnabled,
-      route: null,
-    },
-    {
-      key: "habits" as const,
-      label: t("settings:beta.features.habits.label"),
-      hint: t("settings:beta.features.habits.hint"),
-      enabled: settings.betaHabitsEnabled,
-      setEnabled: setBetaHabitsEnabled,
-      route: "/habit_tracker",
-    },
-  ];
-
-  const handleToggle = (
-    route: string | null,
-    setEnabled: (value: boolean) => void,
-    current: boolean,
-  ) => {
-    const next = !current;
-    setEnabled(next);
-    if (!next && route && pathname === route) {
-      navigate("/");
-    }
-  };
-
-  return (
-    <div>
-      <SettingsSection
-        title={t("settings:beta.title")}
-        description={t("settings:beta.description")}
-      >
-        <ul className="space-y-2">
-          {features.map((feature) => (
-            <li
-              key={feature.key}
-              className="flex items-center justify-between gap-4 rounded border border-border bg-background/40 px-3 py-2.5"
-            >
-              <div>
-                <p className="text-sm font-medium text-foreground">{feature.label}</p>
-                <p className="mt-0.5 text-xs text-foreground-subtle">{feature.hint}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  aria-label={t("settings:beta.toggleLabel", {
-                    feature: feature.label,
-                  })}
-                  aria-pressed={feature.enabled}
-                  onClick={() =>
-                    handleToggle(feature.route, feature.setEnabled, feature.enabled)
-                  }
-                  className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                    feature.enabled ? "bg-primary" : "bg-border-strong"
-                  }`}
-                >
-                  <span
-                    className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                      feature.enabled ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </SettingsSection>
-    </div>
-  );
-}
-
 export function ZoomSettingsPanel() {
   const { t } = useTranslation();
   const [zoomFactor, setZoomFactorLocal] = useState(1);
@@ -1647,154 +1560,94 @@ export function PerformanceSettingsPanel() {
   );
 }
 
+function PluginToggleRow({
+  label,
+  hint,
+  enabled,
+  onToggle,
+}: {
+  label: string;
+  hint: string;
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <li className="flex items-center justify-between gap-4 rounded border border-border bg-background/40 px-3 py-2.5">
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="mt-0.5 text-xs leading-5 text-foreground-subtle">{hint}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={t("settings:beta.toggleLabel", { feature: label })}
+        onClick={onToggle}
+        className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
+          enabled ? "bg-primary" : "bg-border-strong"
+        }`}
+      >
+        <span
+          className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
+            enabled ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </li>
+  );
+}
+
 export function PluginsSettingsPanel() {
-  const { settings, setBetaAtlasEnabled, setBetaConversionEnabled, setBetaHabitsEnabled, setFolderGridEnabled, setContinueReadingEnabled } = useAppSettings();
+  const {
+    settings,
+    setBetaConversionEnabled,
+    setFolderGridEnabled,
+    setContinueReadingEnabled,
+  } = useAppSettings();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { t } = useTranslation();
 
+  const toggleConversion = () => {
+    const next = !settings.betaConversionEnabled;
+    setBetaConversionEnabled(next);
+    if (!next && pathname === "/pdf-builder") navigate("/");
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <SettingsSection
-        title={t("settings:plugins.title")}
-        description={t("settings:plugins.description")}
-      />
+    <div>
       <SettingsSection
         title={t("settings:plugins.betaFeatures")}
         description={t("settings:plugins.betaFeaturesDescription")}
       >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.features.atlas.label")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.features.atlas.hint")}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.atlas.label") })}
-              onClick={() => setBetaAtlasEnabled(!settings.betaAtlasEnabled)}
-              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                settings.betaAtlasEnabled ? "bg-primary" : "bg-border-strong"
-              }`}
-              aria-pressed={settings.betaAtlasEnabled}
-            >
-              <span
-                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                  settings.betaAtlasEnabled ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.features.conversion.label")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.features.conversion.hint")}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.conversion.label") })}
-              onClick={() => setBetaConversionEnabled(!settings.betaConversionEnabled)}
-              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                settings.betaConversionEnabled ? "bg-primary" : "bg-border-strong"
-              }`}
-              aria-pressed={settings.betaConversionEnabled}
-            >
-              <span
-                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                  settings.betaConversionEnabled ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("settings:beta.features.habits.label")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:beta.features.habits.hint")}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t("settings:beta.toggleLabel", { feature: t("settings:beta.features.habits.label") })}
-              onClick={() => setBetaHabitsEnabled(!settings.betaHabitsEnabled)}
-              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                settings.betaHabitsEnabled ? "bg-primary" : "bg-border-strong"
-              }`}
-              aria-pressed={settings.betaHabitsEnabled}
-            >
-              <span
-                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                  settings.betaHabitsEnabled ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
+        <ul className="space-y-2">
+          <PluginToggleRow
+            label={t("settings:beta.features.conversion.label")}
+            hint={t("settings:beta.features.conversion.hint")}
+            enabled={settings.betaConversionEnabled}
+            onToggle={toggleConversion}
+          />
+        </ul>
       </SettingsSection>
       <SettingsSection
         title={t("settings:plugins.libraryFeatures")}
         description={t("settings:plugins.libraryFeaturesDescription")}
       >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("settings:plugins.folderGrid.title")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:plugins.folderGrid.description")}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t("settings:plugins.folderGrid.toggleLabel")}
-              onClick={() => setFolderGridEnabled(!settings.folderGridEnabled)}
-              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                settings.folderGridEnabled !== false ? "bg-primary" : "bg-border-strong"
-              }`}
-              aria-pressed={settings.folderGridEnabled !== false}
-            >
-              <span
-                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                  settings.folderGridEnabled !== false ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {t("settings:plugins.continueReading.title")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground-subtle">
-                {t("settings:plugins.continueReading.description")}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t("settings:plugins.continueReading.toggleLabel")}
-              onClick={() => setContinueReadingEnabled(!settings.continueReadingEnabled)}
-              className={`flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                settings.continueReadingEnabled !== false ? "bg-primary" : "bg-border-strong"
-              }`}
-              aria-pressed={settings.continueReadingEnabled !== false}
-            >
-              <span
-                className={`h-4 w-4 rounded-full bg-primary-foreground transition-transform ${
-                  settings.continueReadingEnabled !== false ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
+        <ul className="space-y-2">
+          <PluginToggleRow
+            label={t("settings:plugins.folderGrid.title")}
+            hint={t("settings:plugins.folderGrid.description")}
+            enabled={settings.folderGridEnabled !== false}
+            onToggle={() => setFolderGridEnabled(settings.folderGridEnabled === false)}
+          />
+          <PluginToggleRow
+            label={t("settings:plugins.continueReading.title")}
+            hint={t("settings:plugins.continueReading.description")}
+            enabled={settings.continueReadingEnabled !== false}
+            onToggle={() => setContinueReadingEnabled(settings.continueReadingEnabled === false)}
+          />
+        </ul>
       </SettingsSection>
     </div>
   );

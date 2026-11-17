@@ -118,7 +118,7 @@ function SearchInput({
         placeholder={t("library:filters.searchPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-sm border border-border bg-surface pl-9 pr-9 text-sm text-foreground outline-none placeholder:text-input-placeholder transition-colors focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-focus-ring"
+        className="h-9 w-full rounded-sm border border-border bg-surface pl-9 pr-9 text-sm text-foreground outline-none placeholder:text-input-placeholder transition-colors focus-visible:border-primary"
       />
       {value && (
         <button

@@ -1,5 +1,6 @@
-import { AlertTriangle, Check, Copy, FileText, Minus, Move, MoreVertical, Trash2 } from "lucide-react";
-import { memo, useState, type DragEvent } from "react";
+import { AlertTriangle, Check, Copy, FileText, Minus, Move, MoreVertical, Star, Trash2 } from "lucide-react";
+import { memo, useState, type DragEvent, type MouseEvent } from "react";
+import { getSelectionModifiers, type SelectionModifiers } from "./selectionModifiers";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
   formatPageCount,
@@ -30,8 +31,8 @@ interface BookCardProps {
   /** Comma-joined hashes of this book's selected files (see getSelectedFilesKey). */
   selectedFilesKey?: string;
   selectedCount?: number;
-  onToggleSelection?: (book: BookWithThumbnail) => void;
-  onContextSelect?: (book: BookWithThumbnail) => void;
+  onToggleSelection?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
+  onContextSelect?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
   onToggleFile?: (file: BookWithThumbnail) => void;
   canDropOnBook?: (book: BookWithThumbnail) => boolean;
   onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
@@ -69,9 +70,10 @@ function BookCard({
   const statusIcon = getReadingStatusIcon(effectiveStatus);
   const showScore = effectiveStatus === "read" && bookScore > 0;
 
-  const handleClick = () => {
-    if (selectionMode) {
-      onToggleSelection?.(book);
+  const handleClick = (event: MouseEvent) => {
+    const modifiers = getSelectionModifiers(event);
+    if (selectionMode || ((modifiers.shiftKey || modifiers.ctrlKey) && onToggleSelection)) {
+      onToggleSelection?.(book, modifiers);
       return;
     }
 
@@ -85,12 +87,12 @@ function BookCard({
   return (
     <div
       className={`lyceum-interactive-card bg-surface group relative flex flex-col rounded-sm p-2 gap-3 cursor-pointer transition-shadow ${
-          isSelected ? "ring-2 ring-border-strong ring-offset-2 ring-offset-surface rounded-sm" : ""
-        } ${isChecked || isPartial ? "ring-2 ring-focus-ring ring-offset-2 ring-offset-surface rounded-sm" : ""}`}
+          isSelected && !(isChecked || isPartial) ? "bg-surface-muted" : ""
+        } ${isChecked || isPartial ? "bg-primary-muted/60" : ""}`}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextSelect?.(book);
+        onContextSelect?.(book, getSelectionModifiers(e));
       }}
       draggable={!selectionMode || isChecked || isPartial}
       onDragStartCapture={(e) => {
@@ -150,6 +152,12 @@ function BookCard({
         {statusIcon && (
           <div className="absolute top-1.5 left-1.5 z-20 rounded-md bg-overlay p-1 border border-border/80 shadow-md" title={t(READING_STATUS_LABEL_KEYS[effectiveStatus])}>
             <statusIcon.Icon size={16} className={`${statusIcon.color} drop-shadow-sm`} />
+          </div>
+        )}
+        {showScore && (
+          <div className="absolute bottom-1.5 right-1.5 z-20 flex items-center gap-1 rounded-sm border border-border/80 bg-overlay px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-foreground shadow-md">
+            <Star size={11} className="fill-current text-warning" aria-hidden />
+            {Number(bookScore).toFixed(1)}
           </div>
         )}
         {book.processingStatus === "failed" && (
@@ -223,18 +231,15 @@ function BookCard({
         <p className="mt-1 truncate text-xs text-foreground-subtle">
           {getBookFolderLabel(book.filePath)}
         </p>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-2 text-[11px] text-foreground-subtle">
-          <span className="shrink-0">{formatPageCount(book.numPages, book.fileType)}</span>
-          {showScore && (
-            <span className="shrink-0 rounded-sm bg-surface-muted px-1.5 py-0.5 text-foreground">
-              {Number(bookScore).toFixed(1)}/10
-            </span>
-          )}
+        {/* The page count yields space first; chips never wrap out of the card. */}
+        <div className="mt-auto flex min-w-0 items-end justify-between gap-2 overflow-hidden pt-2 text-[11px] text-foreground-subtle">
+          <span className="min-w-0 flex-1 truncate">{formatPageCount(book.numPages, book.fileType)}</span>
           <FormatChips
             book={book}
             selectedFilesKey={selectedFilesKey}
             onToggleFile={onToggleFile}
-            className="justify-end"
+            className="min-w-0 max-w-full justify-end"
+            compact
           />
         </div>
       </div>

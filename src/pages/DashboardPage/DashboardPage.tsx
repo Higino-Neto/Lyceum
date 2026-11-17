@@ -1,75 +1,61 @@
-import { Plus, BookOpen, Copy } from "lucide-react";
+import { lazy, Suspense, useCallback, type ComponentType } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
-import RankingTable from "./components/RankingTable/RankingTable";
-import ReadingHeatMap from "./components/ReadingHeatmap";
-import WeeklyStreak from "./components/WeeklyStreak";
-import ReadingStatsCard from "./components/ReadingStatsCard";
-import ReadingCharts from "./components/ReadingCharts/ReadingCharts";
-import { useNavigate } from "react-router-dom";
-import ReadingTable from "./components/ReadingTable/ReadingTable";
-import useReadingStats from "../../hooks/useReadingStats";
+import { BookOpen, Languages, LayoutDashboard, LibraryBig, Target, Users, type LucideIcon } from "lucide-react";
 import { SelectedUsersProvider } from "../../contexts/SelectedUsersContext";
-import { useAppSettings } from "../../contexts/AppSettingsContext";
-import toast from "react-hot-toast";
-import useGetReadings from "../../hooks/useGetReadings";
-import { useMemo } from "react";
-import { panelStagger, softFadeUp, springFast } from "../../utils/motionPresets";
-import { useTranslation } from "../../i18n";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useTranslation, type TranslationKey } from "../../i18n";
+import OverviewTab from "./tabs/OverviewTab";
+import "./dashboard.css";
 
-const ICON_SIZE = 16;
-const STROKE_WIDTH = 1.5;
+// Statistic tabs load on demand so the overview stays as fast as before.
+const ReadingTab = lazy(() => import("./tabs/ReadingTab"));
+const LanguageTab = lazy(() => import("./tabs/LanguageTab"));
+const LibraryTab = lazy(() => import("./tabs/LibraryTab"));
+const GoalsTab = lazy(() => import("./tabs/GoalsTab"));
+const FriendsTab = lazy(() => import("./tabs/FriendsTab"));
+
+export type DashboardTabId = "overview" | "reading" | "languages" | "library" | "goals" | "friends";
+
+const TABS: Array<{ id: DashboardTabId; labelKey: TranslationKey; icon: LucideIcon; component: ComponentType }> = [
+  { id: "overview", labelKey: "dashboard:tabs.overview", icon: LayoutDashboard, component: OverviewTab },
+  { id: "reading", labelKey: "dashboard:tabs.reading", icon: BookOpen, component: ReadingTab },
+  { id: "languages", labelKey: "dashboard:tabs.languages", icon: Languages, component: LanguageTab },
+  { id: "library", labelKey: "dashboard:tabs.library", icon: LibraryBig, component: LibraryTab },
+  { id: "goals", labelKey: "dashboard:tabs.goals", icon: Target, component: GoalsTab },
+  { id: "friends", labelKey: "dashboard:tabs.friends", icon: Users, component: FriendsTab },
+];
+
+function isTabId(value: string | null): value is DashboardTabId {
+  return TABS.some((tab) => tab.id === value);
+}
+
+function TabFallback() {
+  return (
+    <div className="flex h-64 items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
-  const { settings } = useAppSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [lastTab, setLastTab] = useLocalStorage<DashboardTabId>("dashboard_tab", "overview");
+  const fromUrl = searchParams.get("tab");
+  const activeTab: DashboardTabId = isTabId(fromUrl) ? fromUrl : isTabId(lastTab) ? lastTab : "overview";
+  const ActiveComponent = TABS.find((tab) => tab.id === activeTab)?.component ?? OverviewTab;
 
-  const { isLoading } = useReadingStats();
-
-  const { data: readings } = useGetReadings();
-
-  const targetDate = useMemo(() => {
-    const date = new Date();
-    if (settings.copyYesterdayReadings) {
-      date.setDate(date.getDate() - 1);
-    }
-    return date.toISOString().split("T")[0];
-  }, [settings.copyYesterdayReadings]);
-
-  const readingsString = useMemo(() => {
-    if (!readings) return "";
-
-    const targetReadings = readings.filter((r) => r.reading_date === targetDate);
-
-    if (targetReadings.length === 0) return "";
-
-    const lines = targetReadings.map((r) => `${r.source_name}: ${r.pages}`);
-    const total = targetReadings.reduce((acc, r) => acc + r.pages, 0);
-
-    return `${lines.join("\n")}\n\n${t("common:labels.total", { count: total })}`;
-  }, [readings, targetDate, t]);
-
-  const handleCopyDailyReadings = async () => {
-    if (!readingsString) {
-      toast.error(
-        settings.copyYesterdayReadings
-          ? t("dashboard:toasts.noReadingsYesterday")
-          : t("dashboard:toasts.noReadingsToday"),
-      );
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(readingsString);
-      toast.success(t("dashboard:toasts.copied"));
-    } catch {
-      toast.error(t("dashboard:toasts.copyFailed"));
-    }
-  };
-
-  const panelTransition = reduceMotion ? { duration: 0 } : springFast;
-  const hoverMotion = reduceMotion ? undefined : { y: -2 };
+  const selectTab = useCallback((id: DashboardTabId) => {
+    setLastTab(id);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (id === "overview") next.delete("tab");
+      else next.set("tab", id);
+      return next;
+    }, { replace: true });
+  }, [setLastTab, setSearchParams]);
 
   return (
     <SelectedUsersProvider>
@@ -80,122 +66,38 @@ export default function Dashboard() {
         transition={{ duration: reduceMotion ? 0 : 0.18 }}
       >
         <main className="flex-1 overflow-auto p-4">
-          <motion.div
-            className=" mx-auto space-y-4"
-            variants={reduceMotion ? undefined : panelStagger}
-            initial={reduceMotion ? false : "hidden"}
-            animate="visible"
+          <nav
+            role="tablist"
+            aria-label={t("dashboard:tabs.label")}
+            className="mb-4 flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]"
           >
-            <motion.section
-              className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3"
-              variants={reduceMotion ? undefined : panelStagger}
-            >
-              {isLoading ? (
-                <>
-                  <motion.div
-                    className="rounded-sm border border-border bg-surface md:col-span-2"
-                    variants={reduceMotion ? undefined : softFadeUp}
-                    transition={panelTransition}
-                  >
-                    <div className="m-8 h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  </motion.div>
-                  <motion.div
-                    className="overflow-y-auto rounded-sm border border-border bg-surface"
-                    variants={reduceMotion ? undefined : softFadeUp}
-                    transition={panelTransition}
-                  >
-                    <RankingTable />
-                  </motion.div>
-                </>
-              ) : (
-                <>
-                  <motion.div
-                    className="rounded-sm border border-border bg-surface md:col-span-2"
-                    variants={reduceMotion ? undefined : softFadeUp}
-                    transition={panelTransition}
-                    whileHover={hoverMotion}
-                  >
-                    <ReadingCharts />
-                  </motion.div>
-                  <motion.div
-                    className="overflow-y-auto rounded-sm border border-border bg-surface"
-                    variants={reduceMotion ? undefined : softFadeUp}
-                    transition={panelTransition}
-                    whileHover={hoverMotion}
-                  >
-                    <RankingTable />
-                  </motion.div>
-                </>
-              )}
-              <motion.div
-                className="h-full rounded-sm border border-border bg-surface"
-                variants={reduceMotion ? undefined : softFadeUp}
-                transition={panelTransition}
-                whileHover={hoverMotion}
-              >
-                <ReadingHeatMap />
-              </motion.div>
-              <motion.div
-                className="h-full rounded-sm bg-surface"
-                variants={reduceMotion ? undefined : softFadeUp}
-                transition={panelTransition}
-                whileHover={hoverMotion}
-              >
-                <WeeklyStreak />
-              </motion.div>
-              <motion.div
-                className="h-full rounded-sm bg-surface"
-                variants={reduceMotion ? undefined : softFadeUp}
-                transition={panelTransition}
-                whileHover={hoverMotion}
-              >
-                <ReadingStatsCard />
-              </motion.div>
-            </motion.section>
+            {TABS.map(({ id, labelKey, icon: Icon }) => {
+              const selected = id === activeTab;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => selectTab(id)}
+                  className={`-mb-px flex shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 py-2 text-sm transition ${
+                    selected
+                      ? "border-primary font-medium text-foreground"
+                      : "border-transparent text-foreground-subtle hover:border-border-strong hover:text-foreground"
+                  }`}
+                >
+                  <Icon size={15} strokeWidth={1.5} />
+                  {t(labelKey)}
+                </button>
+              );
+            })}
+          </nav>
 
-            <motion.section
-              variants={reduceMotion ? undefined : softFadeUp}
-              transition={panelTransition}
-            >
-              <motion.div
-                className="rounded-sm border border-border bg-surface p-4"
-                whileHover={hoverMotion}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BookOpen
-                      size={ICON_SIZE}
-                      className="text-foreground-subtle"
-                      strokeWidth={STROKE_WIDTH}
-                    />
-                    {/* <h2 className="text-foreground-subtle">Registros de Leitura</h2> */}
-                  </div>
-                  <div className="flex items-center gap-2">
-                     <motion.button
-                       onClick={handleCopyDailyReadings}
-                       className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-border-strong bg-surface-muted px-3 py-1.5 text-md text-foreground transition hover:bg-border-strong hover:text-foreground"
-                       title={
-                         settings.copyYesterdayReadings
-                           ? t("dashboard:actions.copyYesterday")
-                           : t("dashboard:actions.copyToday")
-                       }
-                     >
-                       <Copy size={16} />
-                       {t("dashboard:actions.dailyReadings")}
-                     </motion.button>
-                    <motion.button
-                      onClick={() => navigate("/add_reading")}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-md font-medium text-primary-foreground transition hover:bg-primary-hover"
-                    >
-                      <Plus size={16} />
-                      {t("dashboard:actions.register")}
-                    </motion.button>
-                  </div>
-                </div>
-                <ReadingTable />
-              </motion.div>
-            </motion.section>
-          </motion.div>
+          <div role="tabpanel" className="dashboard-viz">
+            <Suspense fallback={<TabFallback />}>
+              <ActiveComponent />
+            </Suspense>
+          </div>
         </main>
       </motion.div>
     </SelectedUsersProvider>

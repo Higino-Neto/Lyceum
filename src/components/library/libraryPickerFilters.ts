@@ -79,3 +79,64 @@ export function sortLibraryBooks(
     }
   });
 }
+
+function bookDirectory(book: BookWithThumbnail): string | null {
+  if (!book.filePath) return null;
+  const normalized = book.filePath.replace(/\\/g, "/");
+  const slash = normalized.lastIndexOf("/");
+  return slash > 0 ? normalized.slice(0, slash) : null;
+}
+
+export interface PickerFolder {
+  /** Absolute directory (forward slashes); also the filter key. */
+  key: string;
+  label: string;
+  depth: number;
+  /** Books in this folder and its subfolders. */
+  count: number;
+}
+
+/**
+ * Folders that contain books, with ancestor folders filled in so the list
+ * reads like a tree. Labels are relative to the library when possible.
+ */
+export function buildPickerFolders(books: BookWithThumbnail[]): PickerFolder[] {
+  const direct = new Map<string, number>();
+  for (const book of books) {
+    const directory = bookDirectory(book);
+    if (directory) direct.set(directory, (direct.get(directory) ?? 0) + 1);
+  }
+  if (direct.size === 0) return [];
+
+  // Root = deepest directory shared by every book (usually the library folder).
+  const split = [...direct.keys()].map((directory) => directory.split("/"));
+  let rootLength = split[0].length;
+  for (const parts of split) {
+    let index = 0;
+    while (index < rootLength && index < parts.length && parts[index] === split[0][index]) index += 1;
+    rootLength = index;
+  }
+
+  const counts = new Map<string, number>();
+  for (const [directory, count] of direct) {
+    const parts = directory.split("/");
+    for (let length = rootLength + 1; length <= parts.length; length += 1) {
+      const key = parts.slice(0, length).join("/");
+      counts.set(key, (counts.get(key) ?? 0) + count);
+    }
+  }
+
+  return [...counts.entries()]
+    .map(([key, count]) => {
+      const relative = key.split("/").slice(rootLength);
+      return { key, label: relative.at(-1) ?? key, depth: relative.length - 1, count, sortKey: relative.join("/") };
+    })
+    .sort((left, right) => compareText(left.sortKey, right.sortKey))
+    .map(({ sortKey: _sortKey, ...folder }) => folder);
+}
+
+export function matchesPickerFolder(book: BookWithThumbnail, folderKey: string | null): boolean {
+  if (!folderKey) return true;
+  const directory = bookDirectory(book);
+  return Boolean(directory && (directory === folderKey || directory.startsWith(`${folderKey}/`)));
+}

@@ -112,23 +112,26 @@ const DARK_BASE: BaseTokenValues = {
 };
 
 const LIGHT_BASE: BaseTokenValues = {
-  background: "#f4f5f7",
-  foreground: "#111827",
-  surface: "#fcfcfd",
-  "surface-muted": "#f2f4f7",
-  "foreground-muted": "#52525b",
-  "foreground-subtle": "#64748b",
-  border: "#e4e4e7",
-  "border-strong": "#cbd5e1",
+  // Light theme with clear layering: a slightly tinted canvas, pure white
+  // surfaces that lift off it, and muted fills/borders dark enough to read
+  // as structure (the previous values were all within a few % of white).
+  background: "#eef0f3",
+  foreground: "#0f172a",
+  surface: "#ffffff",
+  "surface-muted": "#e6e9ee",
+  "foreground-muted": "#3f4654",
+  "foreground-subtle": "#566070",
+  border: "#d5d9e0",
+  "border-strong": "#aeb6c2",
   input: "#ffffff",
-  "input-border": "#cbd5e1",
-  "input-placeholder": "#94a3b8",
+  "input-border": "#aeb6c2",
+  "input-placeholder": "#6b7483",
   "selection-foreground": "#0b1220",
-  success: "#15803d",
-  "success-muted": "color-mix(in srgb, #15803d 12%, transparent)",
+  success: "#166534",
+  "success-muted": "color-mix(in srgb, #166534 12%, transparent)",
   "success-foreground": "#ffffff",
-  warning: "#b45309",
-  "warning-muted": "color-mix(in srgb, #b45309 12%, transparent)",
+  warning: "#92400e",
+  "warning-muted": "color-mix(in srgb, #92400e 12%, transparent)",
   "warning-foreground": "#ffffff",
   destructive: "#b91c1c",
   "destructive-hover": "#991b1b",
@@ -137,9 +140,9 @@ const LIGHT_BASE: BaseTokenValues = {
   info: "#1d4ed8",
   "info-muted": "color-mix(in srgb, #1d4ed8 10%, transparent)",
   "info-foreground": "#ffffff",
-  overlay: "rgb(255 255 255 / 0.96)",
-  backdrop: "rgb(15 23 42 / 0.4)",
-  shadow: "rgb(15 23 42 / 0.12)",
+  overlay: "rgb(255 255 255 / 0.97)",
+  backdrop: "rgb(15 23 42 / 0.45)",
+  shadow: "rgb(15 23 42 / 0.16)",
 };
 
 function resolveAccentTokens(
@@ -147,8 +150,10 @@ function resolveAccentTokens(
   palette: AccentPalette,
 ): Record<AccentTokenName, string> {
   const isDark = theme === "dark";
-  const primary = isDark ? palette[400] : palette[700];
-  const hover = isDark ? palette[300] : palette[800];
+  // Light mode uses the 800 step so accent text and buttons keep AA
+  // contrast on the tinted canvas.
+  const primary = isDark ? palette[400] : palette[800];
+  const hover = isDark ? palette[300] : palette[900];
 
   return {
     primary,
@@ -158,7 +163,7 @@ function resolveAccentTokens(
     "primary-border": `color-mix(in srgb, ${primary} ${isDark ? 42 : 38}%, transparent)`,
     selection: `color-mix(in srgb, ${primary} 30%, transparent)`,
     "focus-ring": primary,
-    link: isDark ? palette[300] : palette[700],
+    link: isDark ? palette[300] : palette[800],
   };
 }
 

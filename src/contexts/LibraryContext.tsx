@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
   type ReactNode,
+  useEffect,
 } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -16,6 +17,7 @@ import type {
 import { useFolderOperations } from "../hooks/useFolderOperations";
 import { useFolderTreeQuery } from "../hooks/useFolderTreeQuery";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { SELECT_LIBRARY_FOLDER_EVENT } from "../features/library/openLibraryBook";
 
 interface LibraryContextValue {
   folderStructure: FolderInfo[];
@@ -56,6 +58,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const electronApiAvailable = !!window.api?.getFolderStructure;
   const [selectedFolder, setSelectedFolder] = useLocalStorage<string | null>("library_selectedFolder", null);
   const queryClient = useQueryClient();
+
+  // Folder picked outside the library (command palette) while it is mounted.
+  useEffect(() => {
+    const handleSelect = (event: Event) => {
+      setSelectedFolder((event as CustomEvent<string | null>).detail ?? null);
+    };
+    window.addEventListener(SELECT_LIBRARY_FOLDER_EVENT, handleSelect);
+    return () => window.removeEventListener(SELECT_LIBRARY_FOLDER_EVENT, handleSelect);
+  }, [setSelectedFolder]);
 
   const refreshFolders = useCallback(async () => {
     if (!electronApiAvailable) return;

@@ -1,10 +1,8 @@
 import type { IpcMain } from "electron";
-import type { HabitRepository } from "../../src/core/habits/model";
 import type { CategoryRepository } from "../../src/core/library/category";
 import {
   backupAllCategories,
   backupAllDocuments,
-  backupAllHabits,
   clearBackupSession,
   initBackupClient,
   setBackupSession,
@@ -27,7 +25,6 @@ function failedBackup(error: unknown) {
 
 export function registerBackupHandlers(
   ipcMain: IpcMain,
-  habits: HabitRepository,
   categories: CategoryRepository,
   dataSource: BackupDataSource,
 ) {
@@ -67,20 +64,6 @@ export function registerBackupHandlers(
       return result;
     } catch (error) {
       console.error("[Backup] Error:", error);
-      return failedBackup(error);
-    }
-  });
-
-  ipcMain.handle("backup:all-habits", async () => {
-    try {
-      const result = await backupAllHabits(
-        habits.list(),
-        habits.listAllCompletions(),
-      );
-      console.log(`[Backup] Habits completed: ${result.success} succeeded, ${result.failed} failed`);
-      return result;
-    } catch (error) {
-      console.error("[Backup] Habits error:", error);
       return failedBackup(error);
     }
   });

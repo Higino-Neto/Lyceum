@@ -10,7 +10,7 @@ import { translate, useTranslation } from "../i18n";
 export async function downloadMobileText(name: string, text: string, mime = "text/plain") {
   if (Capacitor.isNativePlatform()) {
     const result = await Filesystem.writeFile({ path: `Lyceum/${name}`, data: text, directory: Directory.Documents, encoding: Encoding.UTF8, recursive: true });
-    toast.success(`Salvo em Documentos/Lyceum: ${name}`);
+    toast.success(translate("mobile:readerTools.savedTo", { name }));
     return result.uri;
   }
   const url = URL.createObjectURL(new Blob([text], { type: mime }));

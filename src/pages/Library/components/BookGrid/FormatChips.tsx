@@ -8,14 +8,18 @@ interface FormatChipsProps {
   selectedFilesKey: string;
   onToggleFile?: (file: BookWithThumbnail) => void;
   className?: string;
+  /** Single-line layout for tight cards: never wraps, collapses extra files into "+N". */
+  compact?: boolean;
 }
+
+const COMPACT_VISIBLE_FILES = 2;
 
 /**
  * One chip per file. For a merged book each chip is a toggle that selects only
  * that file, so a single format can be copied, moved, converted or deleted
  * without touching the others.
  */
-export default function FormatChips({ book, selectedFilesKey, onToggleFile, className = "" }: FormatChipsProps) {
+export default function FormatChips({ book, selectedFilesKey, onToggleFile, className = "", compact = false }: FormatChipsProps) {
   const { t } = useTranslation();
   const files = getBookFiles(book);
 
@@ -24,21 +28,27 @@ export default function FormatChips({ book, selectedFilesKey, onToggleFile, clas
       ? getFileTypeLabel(book.fileType, book.filePath)
       : Array.from(new Set(files.map((file) => getFileTypeLabel(file.fileType, file.filePath)))).join(" · ");
     return (
-      <span className={`rounded-sm bg-surface-muted px-1.5 py-0.5 uppercase text-foreground ${className}`}>
+      <span className={`truncate whitespace-nowrap rounded-sm bg-surface-muted px-1.5 py-0.5 uppercase text-foreground ${className}`}>
         {label}
       </span>
     );
   }
 
   const selected = new Set(selectedFilesKey ? selectedFilesKey.split(",") : []);
+  // Keep selected files visible even when the rest collapse into "+N".
+  const visibleFiles = compact && files.length > COMPACT_VISIBLE_FILES + 1
+    ? [...files.filter((file) => selected.has(file.fileHash)), ...files.filter((file) => !selected.has(file.fileHash))]
+      .slice(0, COMPACT_VISIBLE_FILES)
+    : files;
+  const hiddenFiles = files.filter((file) => !visibleFiles.includes(file));
 
   return (
     <span
-      className={`flex min-w-0 flex-wrap items-center gap-1 ${className}`}
+      className={`flex min-w-0 items-center gap-1 ${compact ? "flex-nowrap overflow-hidden" : "flex-wrap"} ${className}`}
       role="group"
       aria-label={t("library:formats.groupLabel", { count: files.length })}
     >
-      {files.map((file) => {
+      {visibleFiles.map((file) => {
         const isFileSelected = selected.has(file.fileHash);
         const fileName = file.fileName || file.filePath?.split(/[\\/]/).pop() || file.title;
         return (
@@ -55,7 +65,7 @@ export default function FormatChips({ book, selectedFilesKey, onToggleFile, clas
               onToggleFile(file);
             }}
             onContextMenu={(event) => event.stopPropagation()}
-            className={`cursor-pointer rounded-sm border px-1.5 py-0.5 uppercase transition-colors ${
+            className={`shrink-0 cursor-pointer rounded-sm border px-1.5 py-0.5 uppercase transition-colors ${
               isFileSelected
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-surface-muted text-foreground hover:border-border-strong"
@@ -65,6 +75,14 @@ export default function FormatChips({ book, selectedFilesKey, onToggleFile, clas
           </button>
         );
       })}
+      {hiddenFiles.length > 0 && (
+        <span
+          className="shrink-0 rounded-sm border border-border bg-surface-muted px-1.5 py-0.5 text-foreground-muted"
+          title={hiddenFiles.map((file) => getFileTypeLabel(file.fileType, file.filePath)).join(" · ")}
+        >
+          +{hiddenFiles.length}
+        </span>
+      )}
     </span>
   );
 }

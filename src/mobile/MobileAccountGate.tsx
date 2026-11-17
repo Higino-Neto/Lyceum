@@ -1,5 +1,5 @@
 import { Lock, UserCircle } from "lucide-react";
-import { hasSupabaseConfig } from "./supabaseMobile";
+import { hasSupabaseConfig } from "../lib/supabaseAuth";
 import { useTranslation } from "../i18n";
 
 export default function MobileAccountGate({

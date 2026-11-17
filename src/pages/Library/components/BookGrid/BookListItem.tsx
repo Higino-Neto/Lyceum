@@ -1,5 +1,6 @@
 import { Check, Copy, FileText, Minus, Move, Trash2 } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import { memo, type MouseEvent, type ReactNode } from "react";
+import { getSelectionModifiers, type SelectionModifiers } from "./selectionModifiers";
 import type { DragEvent } from "react";
 import { BookWithThumbnail } from "../../../../types/LibraryTypes";
 import {
@@ -34,8 +35,8 @@ interface BookListItemProps {
   /** Comma-joined hashes of this book's selected files (see getSelectedFilesKey). */
   selectedFilesKey?: string;
   selectedCount?: number;
-  onToggleSelection?: (book: BookWithThumbnail) => void;
-  onContextSelect?: (book: BookWithThumbnail) => void;
+  onToggleSelection?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
+  onContextSelect?: (book: BookWithThumbnail, modifiers?: SelectionModifiers) => void;
   onToggleFile?: (file: BookWithThumbnail) => void;
   canDropOnBook?: (book: BookWithThumbnail) => boolean;
   onDropOnBook?: (book: BookWithThumbnail, event: DragEvent<HTMLDivElement>) => void;
@@ -44,7 +45,31 @@ interface BookListItemProps {
   gridTemplateColumns: string;
   /** Narrow panes show only the title cell, with a metadata line under it. */
   compact: boolean;
+  /** Row size, shared with the grid's P/M/G density control. */
+  density?: ListRowDensity;
+  /** Zebra striping for easier scanning of wide tables. */
+  striped?: boolean;
 }
+
+export type ListRowDensity = "compact" | "comfortable" | "large";
+
+/** Row heights per density (kept in sync with the virtualizer estimate). */
+export const LIST_ROW_HEIGHT: Record<ListRowDensity, number> = {
+  compact: 40,
+  comfortable: 56,
+  large: 72,
+};
+
+/** Narrow panes stack a metadata line under the title, so rows need room. */
+export function listRowHeight(density: ListRowDensity, compact: boolean) {
+  return compact ? Math.max(LIST_ROW_HEIGHT[density], 60) : LIST_ROW_HEIGHT[density];
+}
+
+const THUMB_CLASS: Record<ListRowDensity, string> = {
+  compact: "h-8 w-6",
+  comfortable: "h-11 w-8",
+  large: "h-16 w-11",
+};
 
 const EMPTY = "—";
 
@@ -78,6 +103,8 @@ function BookListItem({
   columns,
   gridTemplateColumns,
   compact,
+  density = "comfortable",
+  striped = false,
 }: BookListItemProps) {
   const { t } = useTranslation();
   const { thumbnail, thumbnailRef } = useLazyThumbnail(book);
@@ -85,9 +112,10 @@ function BookListItem({
   const isChecked = selectionState === "all";
   const isPartial = selectionState === "partial";
 
-  const handleClick = () => {
-    if (selectionMode) {
-      onToggleSelection?.(book);
+  const handleClick = (event: MouseEvent) => {
+    const modifiers = getSelectionModifiers(event);
+    if (selectionMode || ((modifiers.shiftKey || modifiers.ctrlKey) && onToggleSelection)) {
+      onToggleSelection?.(book, modifiers);
       return;
     }
 
@@ -102,8 +130,19 @@ function BookListItem({
     <FormatChips book={book} selectedFilesKey={selectedFilesKey} onToggleFile={onToggleFile} />
   );
 
+  const hasAuthorColumn = columns.some((column) => column.id === "author");
+  const subtitle = compact
+    ? null
+    : density === "large"
+      ? [book.author, book.series ? `${book.series}${book.seriesIndex ? ` #${book.seriesIndex}` : ""}` : null]
+          .filter(Boolean)
+          .join(" · ")
+      : density === "comfortable" && !hasAuthorColumn
+        ? book.author
+        : null;
+
   const renderTitleCell = () => (
-    <div className="flex min-w-0 items-center gap-3 px-3 py-2.5">
+    <div className={`flex min-w-0 items-center gap-3 px-3 ${density === "compact" ? "py-1" : "py-2"}`}>
       <div
         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-sm border transition-colors ${
           isChecked || isPartial
@@ -115,7 +154,7 @@ function BookListItem({
       >
         {isPartial ? <Minus size={13} /> : <Check size={13} />}
       </div>
-      <div ref={thumbnailRef} className="h-12 w-9 flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted shadow-sm">
+      <div ref={thumbnailRef} className={`${THUMB_CLASS[density]} flex-shrink-0 overflow-hidden rounded-sm bg-surface-muted shadow-sm`}>
         {thumbnail ? (
           <img src={thumbnail} alt={book.title} className="h-full w-full object-cover" />
         ) : (
@@ -125,9 +164,15 @@ function BookListItem({
         )}
       </div>
       <div className="min-w-0">
-        <p className="min-w-0 truncate text-sm font-medium text-foreground">
+        <p
+          className={`min-w-0 truncate font-medium text-foreground ${density === "compact" ? "text-[13px]" : "text-sm"}`}
+          title={getTitleWithoutExtension(book.title, book.fileType)}
+        >
           {getTitleWithoutExtension(book.title, book.fileType)}
         </p>
+        {subtitle && (
+          <p className="mt-0.5 min-w-0 truncate text-xs text-foreground-subtle">{subtitle}</p>
+        )}
         {compact && (
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-foreground-subtle">
             {formatBadge}
@@ -208,16 +253,26 @@ function BookListItem({
   return (
     <div
       onClick={handleClick}
+      onDoubleClick={(event) => {
+        if (selectionMode || event.shiftKey || event.ctrlKey || event.metaKey) return;
+        onOpen(book);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextSelect?.(book);
+        onContextSelect?.(book, getSelectionModifiers(e));
       }}
-      className={`lyceum-interactive-row group grid min-h-14 cursor-pointer items-center rounded-sm border bg-surface transition-all duration-150 ${
-        isSelected
-          ? "border-primary/60 ring-1 ring-primary/20"
-          : "border-border hover:border-border-strong hover:bg-surface-muted/40"
-      } ${isChecked || isPartial ? "border-primary bg-primary-muted" : ""}`}
-      style={{ gridTemplateColumns }}
+      role="row"
+      aria-selected={isSelected || isChecked}
+      className={`lyceum-interactive-row group grid cursor-pointer items-center border-x border-b border-border transition-colors duration-100 ${
+        isChecked || isPartial
+          ? "bg-primary-muted"
+          : isSelected
+            ? "bg-surface-muted shadow-[inset_2px_0_0_var(--color-primary)]"
+            : striped
+              ? "bg-surface-muted/35 hover:bg-surface-muted/70"
+              : "bg-surface hover:bg-surface-muted/70"
+      }`}
+      style={{ gridTemplateColumns, height: listRowHeight(density, compact) }}
       draggable={!selectionMode || isChecked || isPartial}
       onDragStartCapture={(e) => {
         if (selectionMode && !isChecked && !isPartial) {
@@ -338,6 +393,8 @@ export default memo(BookListItem, (previous, next) => (
   previous.gridTemplateColumns === next.gridTemplateColumns &&
   previous.columns === next.columns &&
   previous.compact === next.compact &&
+  previous.density === next.density &&
+  previous.striped === next.striped &&
   previous.canDropOnBook === next.canDropOnBook &&
   previous.onDropOnBook === next.onDropOnBook
 ));

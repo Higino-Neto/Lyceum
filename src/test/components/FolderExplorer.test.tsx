@@ -109,8 +109,8 @@ describe("FolderExplorer", () => {
     );
 
     expect(screen.getByText("Computer Science")).toBeInTheDocument();
-    expect(screen.getByText("1 subpasta")).toBeInTheDocument();
-    expect(screen.getByText("17 livros")).toBeInTheDocument();
+    // The compact carousel card shows bare counts; the full sentence is kept for screen readers.
+    expect(screen.getByText("1 subpasta • 17 livros")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "" })).toBeInTheDocument();
   });
 
@@ -147,7 +147,7 @@ describe("FolderExplorer", () => {
     fireEvent.contextMenu(
       screen.getByRole("button", { name: "Abrir pasta Computer Science" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Excluir/ }));
 
     expect(onDeleteFolder).toHaveBeenCalledWith(folders[0]);
   });
@@ -181,7 +181,7 @@ describe("FolderExplorer", () => {
       screen.getByRole("button", { name: "Abrir pasta Computer Science" }),
     );
 
-    expect(screen.queryByRole("button", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Excluir/ })).not.toBeInTheDocument();
     expect(onDeleteFolder).not.toHaveBeenCalled();
   });
 

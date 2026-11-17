@@ -17,7 +17,10 @@
     "deleteDialog": {
       "title": "Excluir pasta",
       "message": "Tem certeza que deseja excluir a pasta \"{{name}}\"?",
-      "warning": "Esta pasta e todo o seu conteudo serao excluidos permanentemente."
+      "warning": "As pastas e seus livros vão para a lixeira do sistema e saem do Lyceum.",
+      "titleMany": "Excluir {{count}} pastas",
+      "messageMany": "Excluir estas {{count}} pastas e tudo o que há dentro delas?",
+      "confirm": "Mover para a lixeira"
     },
     "toasts": {
       "created": "Pasta criada",
@@ -32,13 +35,34 @@
       "moveBookFailed": "Erro ao mover livro",
       "bookMovedWarning": "Livro movido para fora da biblioteca",
       "sourceAdded": "Pasta fonte adicionada",
-      "sourceFailed": "Erro ao adicionar pasta fonte"
+      "sourceFailed": "Erro ao adicionar pasta fonte",
+      "deletedMany_one": "{{count}} pasta excluída",
+      "deletedMany_other": "{{count}} pastas excluídas",
+      "unlinked": "Pasta fonte removida da biblioteca",
+      "unlinkFailed": "Erro ao remover a pasta fonte"
     },
     "removeWatchFolder": "Remover pasta externa",
     "watchFolderAdded": "Pasta externa adicionada",
     "watchFolderRemoved": "Pasta externa removida",
     "syncFailed": "Erro ao sincronizar",
-    "syncDone": "Sincronizado: +{{added}} | -{{removed}} | {{updated}} atualizados"
+    "syncDone": "Sincronizado: +{{added}} | -{{removed}} | {{updated}} atualizados",
+    "unlinkDialog": {
+      "title": "Remover pasta fonte",
+      "message": "Parar de acompanhar \"{{name}}\" no Lyceum?",
+      "hint": "Nada é apagado do seu computador. Os livros apenas saem da biblioteca; você pode adicionar a pasta de novo quando quiser.",
+      "confirm": "Remover da biblioteca"
+    },
+    "selectedCount_one": "{{count}} pasta selecionada",
+    "selectedCount_other": "{{count}} pastas selecionadas",
+    "clearSelection": "Limpar seleção",
+    "deleteSelected_one": "Excluir {{count}} pasta",
+    "deleteSelected_other": "Excluir {{count}} pastas",
+    "deleteFromDisk": "Excluir do computador",
+    "deleteHint": "Move os arquivos para a lixeira",
+    "unlinkSource": "Remover da biblioteca",
+    "unlinkSourceHint": "Mantém os arquivos no computador",
+    "multiSelectHint": "Ctrl+clique para selecionar várias pastas, Shift+clique para um intervalo",
+    "countBreakdown": "{{here}} neste local, {{nested}} em subpastas"
   },
   "counts": {
     "folder_one": "{{count}} pasta",
@@ -70,7 +94,11 @@
     "bookMovedToast": "Livro movido",
     "moveBookFailedToast": "Erro ao mover livro",
     "show": "Mostrar",
-    "hide": "Ocultar"
+    "hide": "Ocultar",
+    "empty": "Vazia",
+    "count_one": "{{count}} pasta",
+    "count_other": "{{count}} pastas",
+    "noSubfolders": "Nenhuma subpasta"
   },
   "units": {
     "chapters_one": "{{count}} cap.",
@@ -163,7 +191,9 @@
       "deleteFailed": "Erro ao excluir categoria"
     },
     "deleteConfirm": "Excluir categoria \"{{name}}\"?",
-    "namePlaceholder": "Nome da categoria..."
+    "namePlaceholder": "Nome da categoria...",
+    "emptyTitle": "Nenhuma categoria ainda.",
+    "emptyHint": "Crie categorias para organizar seus livros."
   },
   "sync": {
     "success": "Livro sincronizado com sucesso!",
@@ -373,7 +403,10 @@
     "dissolveKeepFiles": "Desagrupar todos os formatos",
     "separateVariant": "Separar {{format}} deste livro",
     "separateVariantHint": "Este arquivo vira um livro independente. Nada é movido ou excluído.",
-    "removeVariant": "Remover {{format}}"
+    "removeVariant": "Remover {{format}}",
+    "addedOn": "Adicionado em",
+    "location": "Localização",
+    "titleLabel": "Título"
   },
   "kindle": {
     "title": "Enviar para Kindle",
@@ -388,7 +421,7 @@
     "refreshDevices": "Atualizar dispositivos",
     "transferOptions": "Opções de transferência",
     "convertAzw3": "Converter para AZW3",
-    "convertAzw3Hint": "Ideal para EPUB, PDF, TXT e HTML via USB",
+    "convertAzw3Hint": "Melhor para EPUB, PDF, DOCX, FB2, TXT e HTML por USB",
     "preserveMetadata": "Preservar metadados",
     "preserveMetadataHint": "Título, autor e identificador Lyceum",
     "organizeByAuthor": "Organizar por autor",
@@ -461,7 +494,7 @@
       "from": "De {{address}}",
       "convertPdf": "Converter PDF para EPUB",
       "convertPdfHint": "Texto ajustável no Kindle. Desative para manter o layout original do PDF.",
-      "limitHint": "Até {{size}} MB por livro. A Amazon não aceita AZW3/KFX por e-mail.",
+      "limitHint": "Até {{size}} MB por livro com esta conta. AZW3 e MOBI são convertidos para EPUB automaticamente.",
       "unsupported": "Não aceito por e-mail — use USB",
       "willConvertPdf": "Será convertido para PDF",
       "willConvertEpub": "Será convertido para EPUB",
@@ -518,7 +551,105 @@
         "scribe": "Kindle Scribe"
       },
       "hint": "Abre a janela de conversão com estes livros para ajustar cada um e acompanhar o progresso."
-    }
+    },
+    "errors": {
+      "source-missing": "O arquivo não está mais no disco. Ele pode ter sido movido ou apagado.",
+      "unsupported-format": "Arquivos {{format}} não podem ser enviados ao Kindle.",
+      "kfx-email": "A Amazon não aceita {{format}} por e-mail. Envie por USB.",
+      "needs-azw3": "O Kindle não abre {{format}} direto. Ative \"Converter para AZW3\".",
+      "invalid-azw3": "Este AZW3 está danificado, e o Kindle não conseguiria abri-lo.",
+      "too-large": "{{size}} MB passa do limite de {{limit}} MB por e-mail desta conta. Ative \"Reduzir imagens\" ou envie por USB.",
+      "canceled": "Cancelado antes do envio.",
+      "no-device": "Nenhum Kindle conectado. Ligue-o por USB e desbloqueie a tela.",
+      "copy-failed": "Não foi possível copiar para o Kindle. Confira o cabo e se o Kindle está desbloqueado.",
+      "conversion-failed": "A conversão falhou. Tente outras configurações ou abra a janela de conversão para ver os detalhes.",
+      "not-configured": "Termine de configurar o envio por e-mail primeiro.",
+      "google-not-connected": "Sua conta Google foi desconectada. Entre de novo para enviar.",
+      "smtp-app-password": "Seu provedor de e-mail exige uma senha de app aqui, não a senha normal.",
+      "smtp-auth": "O servidor de e-mail recusou o usuário ou a senha. Use uma senha de app e confira se o remetente é o próprio e-mail da conta.",
+      "smtp-connection": "Não foi possível conectar ao servidor de e-mail ({{code}}). Confira a internet e as configurações do servidor.",
+      "smtp-too-large": "O servidor de e-mail recusou o anexo por ser grande demais.",
+      "invalid-kindle-address": "O endereço do Kindle não é um e-mail válido.",
+      "invalid-sender": "O remetente não é um e-mail válido.",
+      "unknown": "Algo deu errado durante o envio."
+    },
+    "stages": {
+      "queued": "Aguardando",
+      "preparing": "Preparando",
+      "converting": "Convertendo",
+      "validating": "Verificando o arquivo",
+      "pageNumbers": "Adicionando números de página",
+      "copying": "Copiando para o Kindle",
+      "cover": "Adicionando a capa",
+      "sending": "Enviando o e-mail",
+      "cleaning": "Limpando",
+      "done": "Concluído"
+    },
+    "plan": {
+      "copy": "Copiado como {{format}}",
+      "convert": "{{from}} → {{to}}",
+      "send": "Enviado como {{format}}",
+      "rebuild": "EPUB refeito com imagens menores",
+      "compressed": "imagens menores",
+      "sizeAfter": "O tamanho é conferido depois da conversão",
+      "tooLarge": "{{size}} MB, acima do limite de {{limit}} MB"
+    },
+    "options": {
+      "title": "Opções",
+      "model": "Modelo do Kindle",
+      "modelHint": "Ajusta as imagens a esta tela e escolhe um perfil de formato compatível",
+      "pdfLayout": "PDFs",
+      "pdfLayoutHint": {
+        "auto": "O Lyceum decide: PDFs de texto fluem, digitalizados mantêm as páginas",
+        "reflow": "O texto se adapta à tela e ao tamanho da fonte",
+        "fixed-layout": "Mantém cada página exatamente como impressa"
+      },
+      "fonts": "Tamanho da fonte",
+      "fontsHint": {
+        "kindle": "Vale a configuração de fonte do Kindle",
+        "original": "Mantém os tamanhos definidos pelo livro"
+      },
+      "advanced": "Mais opções…",
+      "advancedHint": "Abre a janela de conversão com estes livros, com todas as configurações e um log detalhado.",
+      "emailPdf": "PDFs",
+      "emailPdfKeep": "Manter o layout original",
+      "emailPdfEpub": "Converter para EPUB (texto fluido)",
+      "emailPdfHint": {
+        "keep": "Melhor para digitalizados, quadrinhos e diagramação caprichada",
+        "epub": "O texto se adapta à tela. Melhor para PDFs só de texto"
+      },
+      "compressImages": "Reduzir imagens",
+      "compressImagesHint": "Arquivos menores, que enviam mais rápido e cabem no limite do e-mail. Não muda nada visível no e-ink."
+    },
+    "run": {
+      "progress": "{{done}} de {{total}}",
+      "current": "{{stage}}: {{title}}",
+      "stop": "Parar",
+      "stopping": "Parando depois desta etapa…",
+      "close": "Fechar",
+      "retry_one": "Tentar de novo {{count}} com falha",
+      "retry_other": "Tentar de novo {{count}} com falha",
+      "result_sent_one": "{{count}} enviado",
+      "result_sent_other": "{{count}} enviados",
+      "result_failed_one": "{{count}} com falha",
+      "result_failed_other": "{{count}} com falha",
+      "planSummary": "{{send}} para enviar",
+      "planConversions_one": "{{count}} conversão",
+      "planConversions_other": "{{count}} conversões",
+      "planBlocked_one": "{{count}} não pode ser enviado",
+      "planBlocked_other": "{{count}} não podem ser enviados",
+      "sentAs": "Entregue como {{format}}",
+      "verified": "Cópia conferida no Kindle",
+      "unverified": "Copiado (o Kindle não informou o tamanho do arquivo)",
+      "emailAccepted": "Aceito pelo servidor de e-mail",
+      "showDetail": "Detalhes técnicos"
+    },
+    "delivery": {
+      "title": "A entrega leva alguns minutos",
+      "body": "A Amazon entrega os livros quando o Kindle estiver online. Se nada chegar, confira se {{sender}} está na sua lista de e-mails aprovados.",
+      "openAmazon": "Abrir configurações da Amazon"
+    },
+    "authorFolder": "Autor"
   },
   "page": {
     "title": "Biblioteca",
@@ -677,5 +808,46 @@
     "groupLabel_one": "{{count}} arquivo",
     "groupLabel_other": "{{count}} arquivos deste livro",
     "chipTitle": "{{file}} — {{folder}}. Clique para selecionar só este arquivo."
+  },
+  "picker": {
+    "title": "Adicionar da biblioteca",
+    "count_one": "{{count}} de {{total}} livros disponíveis",
+    "count_other": "{{count}} de {{total}} livros disponíveis",
+    "empty": "Nenhum livro encontrado.",
+    "close": "Fechar",
+    "folders": "Pastas",
+    "allFolders": "Todos os livros",
+    "multiHint": "Clique para selecionar · Shift+clique para um intervalo · Ctrl+Enter para adicionar",
+    "clearFilters": "Limpar filtros",
+    "selectVisible": "Selecionar {{count}} exibidos",
+    "deselectVisible": "Desmarcar exibidos",
+    "selected_one": "{{count}} livro selecionado",
+    "selected_other": "{{count}} livros selecionados",
+    "clearSelection": "Limpar",
+    "addSelected_one": "Adicionar {{count}} livro",
+    "addSelected_other": "Adicionar {{count}} livros"
+  },
+  "metadataSearch": {
+    "emptyTitle": "Pesquise para encontrar metadados gratuitos."
+  },
+  "smartSearch": {
+    "open": "Encontrar pastas com livros",
+    "title": "Busca inteligente de livros",
+    "consentMessage": "O Lyceum pode procurar na sua pasta de usuário lugares com muitos livros e sugeri-los como pastas fonte — útil para livros perdidos em pastas obscuras.",
+    "privacy": "A busca roda só neste computador e lê apenas nomes de arquivos. Nada é enviado, movido ou alterado.",
+    "notNow": "Agora não",
+    "allow": "Permitir e buscar",
+    "scanning": "Procurando pastas com livros...",
+    "none": "Nenhuma pasta nova com livros foi encontrada.",
+    "found_one": "{{count}} pasta parece conter livros:",
+    "found_other": "{{count}} pastas parecem conter livros:",
+    "truncated": "(Disco grande: só parte dele foi analisada.)",
+    "books_one": "{{count}} livro",
+    "books_other": "{{count}} livros",
+    "rescan": "Buscar de novo",
+    "addSelected_one": "Adicionar {{count}} pasta",
+    "addSelected_other": "Adicionar {{count}} pastas",
+    "added_one": "{{count}} pasta fonte adicionada",
+    "added_other": "{{count}} pastas fonte adicionadas"
   }
 }

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { KindleEmailService, describeSmtpError, isKindleAddress, type SecretStore } from "./kindle-email";
+import { KindleEmailService, classifySmtpError, isKindleAddress, type SecretStore } from "./kindle-email";
 
 let tempDir: string | null = null;
 
@@ -67,8 +67,10 @@ describe("KindleEmailService", () => {
     expect(isKindleAddress("x@kindle.com")).toBe(true);
     expect(isKindleAddress("x@free.kindle.com")).toBe(true);
     expect(isKindleAddress("x@gmail.com")).toBe(false);
-    expect(describeSmtpError({ code: "EAUTH" })).toMatch(/senha de app/);
-    expect(describeSmtpError({ code: "EAUTH", responseCode: 534, response: "534-5.7.9 Application-specific password required" })).toMatch(/exige uma senha de app/);
+    expect(classifySmtpError({ code: "EAUTH" }).code).toBe("smtp-auth");
+    expect(classifySmtpError({ code: "EAUTH", responseCode: 534, response: "534-5.7.9 Application-specific password required" }).code).toBe("smtp-app-password");
+    expect(classifySmtpError({ code: "ETIMEDOUT" })).toMatchObject({ code: "smtp-connection", params: { code: "ETIMEDOUT" } });
+    expect(classifySmtpError({ responseCode: 552, response: "552 Message size exceeds" }).code).toBe("smtp-too-large");
   });
 });
 
@@ -82,7 +84,7 @@ describe("Google sign-in configuration", () => {
       encryptedRefreshToken: Buffer.from("enc:refresh").toString("base64"),
     }));
     const service = new KindleEmailService(file, reversibleStore, { googleClient: { clientId: "id.apps.googleusercontent.com" }, openBrowser: () => undefined });
-    expect(service.getPublicConfig()).toMatchObject({ googleSignInAvailable: true, googleConnected: true, configured: true, maxAttachmentBytes: 24 * 1024 * 1024 });
+    expect(service.getPublicConfig()).toMatchObject({ googleSignInAvailable: true, googleConnected: true, configured: true, maxAttachmentBytes: Math.floor(25 * 1024 * 1024 * 3 / 4) - 64 * 1024 });
 
     const saved = service.save({ kindleAddress: "other@kindle.com", senderAddress: "spoof@gmail.com", authMethod: "google" });
     expect(saved.senderAddress).toBe("acct@gmail.com");

@@ -23,13 +23,15 @@ import {
   UserCircle,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useBackNavigation } from "./useBackNavigation";
 import toast, { Toaster } from "react-hot-toast";
 import {
   deleteMobileBookFile,
   getStoredBookPatch,
   moveMobileBookFile,
-  resolveMobileBookDataUrl,
+  loadMobileBookBytes,
+  resolveMobileBookUrl,
   writeMobileBookFile,
 } from "./bookFileStorage";
 import {
@@ -47,10 +49,8 @@ import {
   type MobileLibraryQuery,
 } from "./libraryModel";
 import type { NativeApkUpdateState } from "./nativeApkUpdater";
-import {
-  getMobileSupabaseConfigError,
-  hasSupabaseConfig,
-} from "./supabaseMobile";
+import { getSupabaseConfigError } from "../lib/supabase";
+import { hasSupabaseConfig } from "../lib/supabaseAuth";
 import {
   loadPersistentSourceFile,
   pickPersistentSourceFolder,
@@ -71,10 +71,11 @@ const MobileLeaderboardScreen = lazy(() => import("./MobileLeaderboardScreen"));
 const MobileLibraryScreenV2 = lazy(() => import("./MobileLibraryScreen"));
 const MobileReadingEntryScreen = lazy(() => import("./MobileReadingEntryScreen"));
 const PdfPane = lazy(() => import("./PdfPane"));
+const MobileLearningReader = lazy(() => import("./learning/MobileLearningReader"));
+const MobileVocabularyPanel = lazy(() => import("./learning/MobileVocabularyPanel"));
 
 const tabs: Array<{ id: MobileTab; labelKey: TranslationKey; icon: typeof Library }> = [
   { id: "dashboard", labelKey: "mobile:tabs.dashboard", icon: BarChart3 },
-  { id: "readings", labelKey: "mobile:tabs.readings", icon: NotebookPen },
   { id: "library", labelKey: "mobile:tabs.library", icon: Library },
   { id: "leaderboard", labelKey: "mobile:tabs.leaderboard", icon: Trophy },
   { id: "profile", labelKey: "mobile:tabs.profile", icon: UserCircle },
@@ -267,6 +268,27 @@ function MobileApp() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { selectedBook, selectedBookDataUrl, isEbookReader, setReaderDataUrls, readerFileLoading, selectBook } = useMobileReaderState(state, setState, setActiveTab);
+  useBackNavigation(activeTab === "dashboard", () => {
+    setActiveTab((current) => (current === "reader" || current === "learning" ? "library" : "dashboard"));
+  });
+  const [learningBookId, setLearningBookId] = useState<string>();
+  const learningBook = learningBookId ? state.books.find((book) => book.id === learningBookId) : undefined;
+  const openForLearning = useCallback((bookId: string) => {
+    const book = state.books.find((item) => item.id === bookId);
+    if (!book || (book.fileType !== "epub" && book.fileType !== "txt")) {
+      toast.error(t("mobile:learning.learningUnsupported"));
+      return;
+    }
+    setState((current) => ({ ...current, selectedBookId: bookId, books: current.books.map((item) => item.id === bookId ? { ...item, lastOpenedAt: new Date().toISOString(), lastReaderMode: "learning" as const } : item) }));
+    setLearningBookId(bookId);
+    setActiveTab("learning");
+  }, [setState, state.books, t]);
+  /** "Continue reading": reopens the book in the reader it was last read with. */
+  const continueBook = useCallback((bookId: string) => {
+    const book = state.books.find((item) => item.id === bookId);
+    if (book?.lastReaderMode === "learning" && (book.fileType === "epub" || book.fileType === "txt")) openForLearning(bookId);
+    else selectBook(bookId);
+  }, [openForLearning, selectBook, state.books]);
   const { nativeApkUpdate, nativeApkUpdateBusy, refreshNativeApkUpdate, installNativeUpdate, openNativeInstallSettings } = useMobileUpdater();
   useEffect(() => {
     const updateConnection = () => setIsOnline(navigator.onLine !== false);
@@ -311,28 +333,26 @@ function MobileApp() {
       cancelled = true;
     };
 
-    Promise.all(candidates.map(async (book): Promise<{ id: string; patch: Partial<MobileBook> }> => {
-      try {
-        const dataUrl = await resolveMobileBookDataUrl(book);
-        if (!dataUrl) return { id: book.id, patch: { thumbnailExtractAttempted: true } };
-
-        const thumbnailDataUrl = await extractThumbnailFromDataUrl(dataUrl, book.fileType);
-        if (!thumbnailDataUrl) return { id: book.id, patch: { thumbnailExtractAttempted: true } };
-
-        return { id: book.id, patch: await persistExtractedBookThumbnail(book, thumbnailDataUrl) };
-      } catch {
-        return { id: book.id, patch: { thumbnailExtractAttempted: true } };
+    // One book at a time: extracting covers loads each file, and doing every
+    // pending book at once (e.g. after importing a folder) exhausted memory.
+    void (async () => {
+      for (const book of candidates.slice(0, 12)) {
+        if (cancelled) return;
+        let patch: Partial<MobileBook> = { thumbnailExtractAttempted: true };
+        try {
+          const url = await resolveMobileBookUrl(book);
+          const thumbnailDataUrl = url ? await extractThumbnailFromDataUrl(url, book.fileType) : null;
+          if (thumbnailDataUrl) patch = await persistExtractedBookThumbnail(book, thumbnailDataUrl);
+        } catch {
+          /* keep the attempt flag so a broken file is not retried forever */
+        }
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          books: current.books.map((item) => (item.id === book.id ? { ...item, ...patch } : item)),
+        }));
       }
-    })).then((results) => {
-      if (cancelled) return;
-      setState((current) => ({
-        ...current,
-        books: current.books.map((book) => {
-          const result = results.find((item) => item.id === book.id);
-          return result ? { ...book, ...result.patch } : book;
-        }),
-      }));
-    }).catch(() => undefined);
+    })();
 
     return () => {
       cancelled = true;
@@ -481,7 +501,7 @@ function MobileApp() {
     }));
     setSourceFolderRefreshId(undefined);
     if (sourceFolderInputRef.current) sourceFolderInputRef.current.value = "";
-    toast.success(`${imported.length} novo(s), ${updated.size} atualizado(s)`);
+    toast.success(translate("mobile:library.importSummary", { added: imported.length, updated: updated.size }));
   };
 
   const importSourceFolder = async (files: FileList | null) => {
@@ -620,7 +640,7 @@ function MobileApp() {
       }
     }
     setState((current) => ({ ...current, books: current.books.map((book) => ({ ...book, ...(patches.get(book.id) || {}) })) }));
-    if (patches.size) toast.success(`${patches.size} livro(s) movido(s)`);
+    if (patches.size) toast.success(translate("mobile:library.booksMoved", { count: patches.size }));
   };
 
   const deleteBooks = async (bookIds: string[]) => {
@@ -637,7 +657,7 @@ function MobileApp() {
       books: current.books.filter((book) => !ids.has(book.id)),
       selectedBookId: ids.has(current.selectedBookId || "") ? current.books.find((book) => !ids.has(book.id))?.id : current.selectedBookId,
     }));
-    toast.success(`${targets.length} livro(s) removido(s)`);
+    toast.success(translate("mobile:library.booksRemoved", { count: targets.length }));
   };
 
   const deleteManagedFolder = async (folderId: string) => {
@@ -767,7 +787,7 @@ function MobileApp() {
       )}
 
       <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-background">
-        {activeTab === "library" || (activeTab === "reader" && isEbookReader) ? null : (
+        {activeTab === "library" || activeTab === "learning" || (activeTab === "reader" && isEbookReader) ? null : (
           <header
             className={
               activeTab === "reader" && isEbookReader
@@ -798,7 +818,7 @@ function MobileApp() {
           </header>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || (activeTab === "reader" && isEbookReader) || keyboardOpen ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === "library" || activeTab === "learning" || (activeTab === "reader" && isEbookReader) || keyboardOpen ? "" : "pb-[calc(84px+env(safe-area-inset-bottom))]"}`}>
           <Suspense fallback={<div className="grid min-h-[55dvh] place-items-center text-sm text-foreground-subtle">{t("mobile:startup.loading")}</div>}>
           {activeTab === "dashboard" && (
             <MobileDashboardScreen
@@ -810,7 +830,7 @@ function MobileApp() {
               }}
               onOpenLeaderboard={() => setActiveTab("leaderboard")}
               books={state.books}
-              onOpenBook={selectBook}
+              onOpenBook={continueBook}
             />
           )}
 
@@ -832,6 +852,7 @@ function MobileApp() {
               onQueryChange={setLibraryQuery}
               onViewChange={setLibraryView}
               onOpenBook={selectBook}
+              onOpenForLearning={openForLearning}
               onImportFiles={() => { void openFileImporter(); }}
               onImportSourceFolder={connectOrRefreshSourceFolder}
               onCreateFolder={createManagedFolder}
@@ -843,6 +864,14 @@ function MobileApp() {
               onMoveBooks={moveBooks}
               onDeleteBooks={deleteBooks}
               onCollectionsChange={collections => setState(current => ({ ...current, collections }))}
+            />
+          )}
+          {activeTab === "learning" && learningBook && (
+            <MobileLearningReader
+              key={learningBook.id}
+              book={learningBook}
+              loadBytes={() => loadMobileBookBytes(learningBook)}
+              onBack={() => setActiveTab("library")}
             />
           )}
           {activeTab === "reader" && (
@@ -864,6 +893,7 @@ function MobileApp() {
                     bookTitle={selectedBook.title}
                     onBack={() => setActiveTab("library")}
                     onRegister={() => { setReadingSeedBookId(selectedBook.id); setActiveTab("readings"); }}
+                    onLearn={() => openForLearning(selectedBook.id)}
                   />
                 </div>
               ) : selectedBook && selectedBook.fileType === "epub" ? (
@@ -1155,9 +1185,9 @@ function MobileApp() {
                 <p className="text-base font-semibold text-foreground">
                   {sessionEmail ? t("mobile:account.connected") : t("mobile:account.signIn")}
                 </p>
-                {getMobileSupabaseConfigError() ? (
+                {getSupabaseConfigError() ? (
                   <p className="mt-3 rounded border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
-                    {getMobileSupabaseConfigError()}
+                    {getSupabaseConfigError()}
                   </p>
                 ) : null}
                 {authError ? (
@@ -1216,15 +1246,15 @@ function MobileApp() {
               </div>
               <div><h2 className="mb-3 text-base font-semibold text-foreground">
                 {t("mobile:profile.dataAndBackup")}
-              </h2><MobileBackupPanel state={state} setState={setState} /></div>
+              </h2><MobileBackupPanel state={state} setState={setState} /><div className="mt-3"><Suspense fallback={null}><MobileVocabularyPanel /></Suspense></div></div>
             </section>
           )}
           </Suspense>
         </main>
 
-        {activeTab === "reader" && isEbookReader || keyboardOpen ? null : (
+        {(activeTab === "reader" && isEbookReader) || activeTab === "learning" || keyboardOpen ? null : (
           <nav aria-label={t("mobile:account.primaryNavAriaLabel")} className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] overflow-hidden rounded-t-2xl border border-b-0 border-border/[0.06] bg-overlay px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_var(--shadow)] backdrop-blur-xl">
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-4 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.id;
