@@ -17,6 +17,17 @@ import { useFolderOperations } from "../hooks/useFolderOperations";
 import { useFolderTreeQuery } from "../hooks/useFolderTreeQuery";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { SELECT_LIBRARY_FOLDER_EVENT } from "../features/library/openLibraryBook";
+import {
+  FOLDER_RELOCATED_EVENT,
+  remapFolderPath,
+  type FolderRelocatedDetail,
+} from "../features/library/model/folderPathRemap";
+
+interface FolderRelocationResult {
+  success: boolean;
+  error?: string;
+  newPath?: string;
+}
 
 interface LibraryContextValue {
   folderStructure: FolderInfo[];
@@ -31,9 +42,9 @@ interface LibraryContextValue {
   selectFolder: (path: string | null) => void;
   refreshFolders: () => Promise<void>;
   createFolder: (parentPath: string | null, name: string) => Promise<{ success: boolean; error?: string }>;
-  renameFolder: (folderPath: string, newName: string) => Promise<{ success: boolean; error?: string }>;
+  renameFolder: (folderPath: string, newName: string) => Promise<FolderRelocationResult>;
   deleteFolder: (folderPath: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
-  moveFolder: (folderPath: string, newParent: string | null) => Promise<{ success: boolean; error?: string }>;
+  moveFolder: (folderPath: string, newParent: string | null) => Promise<FolderRelocationResult>;
   moveBook: (fileHash: string, targetFolder: string | null) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -181,6 +192,44 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [watchFolders],
   );
 
+  const libraryRootPath = useMemo(
+    () => libraryRoots.find((root) => root.type === "library")?.path ?? null,
+    [libraryRoots],
+  );
+
+  /**
+   * Renames and moves change the folder's path. The selection (and tree rows
+   * keyed by path) follow it *before* the tree refetches, so the library never
+   * shows the old, now nonexistent folder as empty.
+   */
+  const relocateFolder = useCallback(
+    async (oldFullPath: string, operation: () => Promise<FolderRelocationResult>) => {
+      const result = await operation();
+      if (result.success && result.newPath) {
+        const newFullPath = result.newPath;
+        setSelectedFolder((current) => remapFolderPath(current, oldFullPath, newFullPath, libraryRootPath) ?? current);
+        window.dispatchEvent(new CustomEvent<FolderRelocatedDetail>(FOLDER_RELOCATED_EVENT, {
+          detail: { oldFullPath, newFullPath, libraryRootPath },
+        }));
+      }
+      if (result.success) await refreshFolders();
+      return result;
+    },
+    [libraryRootPath, refreshFolders, setSelectedFolder],
+  );
+
+  const renameFolder = useCallback(
+    (folderPath: string, newName: string) =>
+      relocateFolder(folderPath, () => window.api.renameFolder(folderPath, newName)),
+    [relocateFolder],
+  );
+
+  const moveFolder = useCallback(
+    (folderPath: string, newParent: string | null) =>
+      relocateFolder(folderPath, () => window.api.moveFolder(folderPath, newParent)),
+    [relocateFolder],
+  );
+
   const value = useMemo<LibraryContextValue>(
     () => ({
       folderStructure,
@@ -195,9 +244,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       selectFolder: setSelectedFolder,
       refreshFolders,
       ...operations,
+      renameFolder,
+      moveFolder,
     }),
     [
       folderStructure,
+      moveFolder,
+      renameFolder,
       isLoading,
       libraryFolders,
       libraryRoots,

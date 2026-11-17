@@ -94,6 +94,13 @@ function emitLibraryUpdated(result: { success?: boolean }) {
   }
 }
 
+/** Watchers still point at the old path after a source root is renamed or moved. */
+function followRenamedSourceRoot(result: { success?: boolean; sourceRootChanged?: boolean }) {
+  if (!result.success || !result.sourceRootChanged) return;
+  refreshFileWatchers?.();
+  refreshLibraryPathWatcher();
+}
+
 export function registerLibraryHandlers() {
   ipcMain.handle("library:get-path", () => {
     return LIBRARY_PATH();
@@ -247,6 +254,7 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:rename-folder", async (_, oldPath: string, newName: string) => {
     const result = renameManagedFolder(oldPath, newName);
+    followRenamedSourceRoot(result);
     emitLibraryUpdated(result);
     return result;
   });
@@ -270,6 +278,7 @@ export function registerLibraryHandlers() {
 
   ipcMain.handle("library:move-folder", async (_, sourcePath: string, targetPath: string | null) => {
     const result = moveManagedFolder(sourcePath, targetPath);
+    followRenamedSourceRoot(result);
     emitLibraryUpdated(result);
     return result;
   });

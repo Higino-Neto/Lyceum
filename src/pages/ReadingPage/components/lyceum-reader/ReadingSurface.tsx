@@ -48,6 +48,10 @@ interface ReadingSurfaceProps {
   touch?: boolean;
   /** Rendered after the chapter text, inside the scroller (e.g. end-of-chapter actions). */
   footer?: React.ReactNode;
+  /** CSS length of chrome floating over the top of the text (touch layout). */
+  topInset?: string;
+  /** Raw scroll offset, for chrome that hides while reading forward. */
+  onScrollOffset?(scrollTop: number): void;
 }
 
 const DOUBLE_TAP_MS = 260;
@@ -82,8 +86,23 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
   formStatesRef.current = formStates;
   const decorationsRef = useRef(decorations);
   decorationsRef.current = decorations;
-  const layoutRef = useRef({ fontSize: settings.fontSize, lineHeight: settings.lineHeight, contentWidth: settings.contentWidth });
-  layoutRef.current = { fontSize: settings.fontSize, lineHeight: settings.lineHeight, contentWidth: settings.contentWidth };
+  const horizontalMargin = props.touch ? settings.horizontalMargin : 32;
+  const layoutRef = useRef({ fontSize: settings.fontSize, lineHeight: settings.lineHeight, contentWidth: settings.contentWidth, margin: horizontalMargin });
+  layoutRef.current = { fontSize: settings.fontSize, lineHeight: settings.lineHeight, contentWidth: settings.contentWidth, margin: horizontalMargin };
+  /** Layout for height estimates: on a phone the column is the screen, not the max width. */
+  const effectiveLayout = useCallback(() => {
+    const layout = layoutRef.current;
+    const viewport = scrollRef.current?.clientWidth ?? 0;
+    // estimateSegmentHeight subtracts 64px of desktop padding; feed it the real text width.
+    const textWidth = viewport > 0 ? Math.min(layout.contentWidth - 64, viewport - layout.margin * 2) : layout.contentWidth - 64;
+    return { fontSize: layout.fontSize, lineHeight: layout.lineHeight, contentWidth: textWidth + 64 };
+  }, []);
+  /** Pixels of floating chrome over the top of the scroller. */
+  const insetTop = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || !callbacks.current.topInset) return 0;
+    return Number.parseFloat(window.getComputedStyle(scroller).scrollPaddingTop) || 0;
+  }, []);
   const decorated = useRef<Set<Element>>(new Set());
   const anchorRef = useRef<{ blockId: string; offset: number } | null>(null);
   const runtimeRef = useRef<SegmentRuntime | null>(null);
@@ -177,7 +196,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
       const element = window.document.createElement("div");
       element.className = "lx-seg";
       element.dataset.seg = String(segment.index);
-      element.style.height = `${estimateSegmentHeight(chapter, segment, layoutRef.current)}px`;
+      element.style.height = `${estimateSegmentHeight(chapter, segment, effectiveLayout())}px`;
       for (let blockIndex = segment.blockStart; blockIndex < segment.blockEnd; blockIndex += 1) {
         const id = chapter.blocks[blockIndex]?.id;
         if (id) blockToSegment.set(id, segment.index);
@@ -195,7 +214,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
       for (let offset = -1; offset <= 1; offset += 1) mountSegment(startSegment + offset);
     }
     const target = initialBlockId ? content.querySelector<HTMLElement>(`[data-b="${attr(initialBlockId)}"]`) : null;
-    scroller.scrollTop = target ? Math.max(0, target.offsetTop - 24) : 0;
+    scroller.scrollTop = target ? Math.max(0, target.offsetTop - 24 - insetTop()) : 0;
     decorate();
 
     if (!observerAvailable) return;
@@ -214,17 +233,22 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter, segments]);
 
-  // Layout changes invalidate the height of segments that are not rendered.
-  useEffect(() => {
+  /** Layout changes (type, width, rotation) invalidate the height of segments that are not rendered. */
+  const reestimateHiddenSegments = useCallback(() => {
     const runtime = runtimeRef.current;
     if (!runtime || !chapter) return;
     runtime.measured.clear();
+    const layout = effectiveLayout();
     runtime.segments.forEach((segment) => {
       if (runtime.mounted.has(segment.index)) return;
       const element = runtime.elements[segment.index];
-      if (element) element.style.height = `${estimateSegmentHeight(chapter, segment, layoutRef.current)}px`;
+      if (element) element.style.height = `${estimateSegmentHeight(chapter, segment, layout)}px`;
     });
-  }, [chapter, settings.fontSize, settings.lineHeight, settings.contentWidth]);
+  }, [chapter, effectiveLayout]);
+
+  useEffect(() => {
+    reestimateHiddenSegments();
+  }, [reestimateHiddenSegments, settings.fontSize, settings.lineHeight, settings.contentWidth, horizontalMargin]);
 
   // Knowledge changes patch classes in place (only rendered segments exist in the DOM).
   useEffect(() => {
@@ -263,7 +287,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     const scroller = scrollRef.current;
     const content = contentRef.current;
     if (!scroller || !content) return;
-    const top = scroller.scrollTop;
+    const top = scroller.scrollTop + insetTop();
     const firstBelow = (children: HTMLCollection) => {
       let low = 0;
       let high = children.length - 1;
@@ -290,14 +314,15 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     const blockId = block?.dataset.b ?? fallbackBlockId;
     anchorRef.current = block?.dataset.b ? { blockId: block.dataset.b, offset: top - block.offsetTop } : null;
     const max = scroller.scrollHeight - scroller.clientHeight;
-    callbacks.current.onPosition(blockId, max > 0 ? top / max : 1);
-  }, [chapter]);
+    callbacks.current.onPosition(blockId, max > 0 ? scroller.scrollTop / max : 1);
+  }, [chapter, insetTop]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
     let frame = 0;
     const onScroll = () => {
+      callbacks.current.onScrollOffset?.(scroller.scrollTop);
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(reportPosition);
     };
@@ -307,9 +332,11 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       if (scroller.clientWidth === lastWidth) return;
       lastWidth = scroller.clientWidth;
+      // Rotation or a resized panel: hidden segments were sized for the old width.
+      reestimateHiddenSegments();
       const anchor = anchorRef.current;
       const element = anchor ? contentRef.current?.querySelector<HTMLElement>(`[data-b="${attr(anchor.blockId)}"]`) : null;
-      if (anchor && element) scroller.scrollTop = element.offsetTop + Math.min(anchor.offset, element.offsetHeight);
+      if (anchor && element) scroller.scrollTop = element.offsetTop + Math.min(anchor.offset, element.offsetHeight) - insetTop();
     });
     observer?.observe(scroller);
     return () => {
@@ -317,7 +344,7 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
       cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [reportPosition, segments]);
+  }, [insetTop, reestimateHiddenSegments, reportPosition, segments]);
 
   // Touch: report the settled native selection (long press + drag handles) as a range.
   useEffect(() => {
@@ -429,6 +456,8 @@ function ReadingSurfaceComponent(props: ReadingSurfaceProps) {
         ["--lx-font-size" as string]: `${settings.fontSize}px`,
         ["--lx-line-height" as string]: String(settings.lineHeight),
         ["--lx-width" as string]: `${settings.contentWidth}px`,
+        ...(props.touch ? { ["--lx-margin-x" as string]: `${settings.horizontalMargin}px` } : {}),
+        ...(props.topInset ? { ["--lx-inset-top" as string]: props.topInset } : {}),
       }}
     >
       <div className="lx-content" lang={document.language}>

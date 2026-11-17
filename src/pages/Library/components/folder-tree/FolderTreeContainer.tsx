@@ -47,6 +47,11 @@ import type {
   LoadFolderChildren,
 } from "./types";
 import { useTranslation } from "../../../../i18n";
+import {
+  FOLDER_RELOCATED_EVENT,
+  remapFolderPath,
+  type FolderRelocatedDetail,
+} from "../../../../features/library/model/folderPathRemap";
 
 const STATUS_DOT: Record<ReadingStatus, string> = {
   reading: "bg-primary",
@@ -216,6 +221,25 @@ function FolderTreeContainer({
     });
   }, [data.folders]);
 
+  // Renamed or moved folders keep their expanded rows (and nested ones).
+  useEffect(() => {
+    const handleRelocated = (event: Event) => {
+      const { oldFullPath, newFullPath, libraryRootPath } = (event as CustomEvent<FolderRelocatedDetail>).detail;
+      setExpandedPaths((current) => {
+        let changed = false;
+        const next = new Set<string>();
+        for (const path of current) {
+          const moved = remapFolderPath(path, oldFullPath, newFullPath, libraryRootPath);
+          if (moved !== null && moved !== path) changed = true;
+          next.add(moved ?? path);
+        }
+        return changed ? next : current;
+      });
+    };
+    window.addEventListener(FOLDER_RELOCATED_EVENT, handleRelocated);
+    return () => window.removeEventListener(FOLDER_RELOCATED_EVENT, handleRelocated);
+  }, []);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(EXPANDED_PATHS_STORAGE_KEY, JSON.stringify([...expandedPaths]));
@@ -351,18 +375,19 @@ function FolderTreeContainer({
       setRenamingFolder(null);
       return;
     }
+    const toastId = toast.loading(t("library:folderTree.toasts.renaming"));
     try {
       const result = libraryContext
         ? await libraryContext.renameFolder(renamingFolder, renameValue.trim())
         : await window.api.renameFolder(renamingFolder, renameValue.trim());
       if (result.success) {
-        toast.success(t("library:folderTree.toasts.renamed"));
         await refreshFolders();
+        toast.success(t("library:folderTree.toasts.renamed"), { id: toastId });
       } else {
-        toast.error(result.error || t("library:folderTree.toasts.renameFailed"));
+        toast.error(result.error || t("library:folderTree.toasts.renameFailed"), { id: toastId });
       }
     } catch {
-      toast.error(t("library:folderTree.toasts.renameFailed"));
+      toast.error(t("library:folderTree.toasts.renameFailed"), { id: toastId });
     }
     setRenamingFolder(null);
     setRenameValue("");

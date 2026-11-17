@@ -33,7 +33,8 @@ import { LOCAL_USER_ID } from "../../features/language-learning/learningClient";
 import { useLearningSessionCore, type LearningDocumentOpener } from "../../pages/ReadingPage/components/lyceum-reader/useLearningSessionCore";
 import { ReadingSurface, type ScrollTarget, type SurfaceDecorations } from "../../pages/ReadingPage/components/lyceum-reader/ReadingSurface";
 import { InspectorPanel, type InspectorSelection } from "../../pages/ReadingPage/components/lyceum-reader/InspectorPanel";
-import { LearningPanel, RecoveryNotice, type LearningTab } from "../../pages/ReadingPage/components/lyceum-reader/LearningPanel";
+import { RecoveryNotice, type LearningTab } from "../../pages/ReadingPage/components/lyceum-reader/LearningPanel";
+import { MobileLearningHub } from "./MobileLearningHub";
 import { AnnotationComposer, type AnnotationDraftTarget } from "../../pages/ReadingPage/components/lyceum-reader/AnnotationComposer";
 import { useNarration } from "../../pages/ReadingPage/components/lyceum-reader/useNarration";
 import { DictionaryOfferContext, dynamicT, type DictionaryOfferValue } from "../../pages/ReadingPage/components/lyceum-reader/uiHelpers";
@@ -44,15 +45,26 @@ import { getMobileLearningClient } from "./learningRuntime";
 import { WordSheet } from "./WordSheet";
 import { LearningSettingsSheet } from "./LearningSettingsSheet";
 import type { MobileBook } from "../types";
+import { canReadAsLyceum } from "./learningSupport";
 
 interface MobileLearningReaderProps {
   book: MobileBook;
   loadBytes(): Promise<Uint8Array>;
   onBack(): void;
+  /** Reopens the book in its own reader (EPUB, PDF, TXT); remembered per book. */
+  onOpenOriginal?(): void;
 }
 
+/** Near the top of the chapter the chrome always shows. */
+const CHROME_ALWAYS_VISIBLE_PX = 48;
+/** Downward travel that hides the chrome, and upward travel that brings it back. */
+const CHROME_HIDE_AFTER_PX = 32;
+const CHROME_SHOW_AFTER_PX = 14;
+/** The header floats over the text; the text starts below it and slides under it. */
+const HEADER_INSET = "calc(env(safe-area-inset-top) + 3.625rem)";
+
 function learningFormatOf(book: Pick<MobileBook, "fileType">): BrowserLearningFormat | null {
-  return book.fileType === "epub" || book.fileType === "txt" ? book.fileType : null;
+  return canReadAsLyceum(book) ? book.fileType : null;
 }
 
 function interfaceLanguage(code: string | undefined) {
@@ -99,7 +111,7 @@ function ReaderLoading({ label, progress, hint }: { label?: string; progress?: n
   );
 }
 
-function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReaderProps & { userId: string }) {
+function LearningReader({ book, loadBytes, onBack, onOpenOriginal, userId }: MobileLearningReaderProps & { userId: string }) {
   const { t, i18n } = useTranslation();
   const cacheKey = book.contentHash || book.id;
   const format = learningFormatOf(book);
@@ -120,9 +132,10 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
       language: languageOverride,
       loadBytes: () => loadBytesRef.current(),
       onProgress,
+      pageLabel: (from, to) => t("mobile:learning.pdfPages", { from, to }),
     });
     return { document: result.document, metadataLanguage: result.metadataLanguage };
-  }, [book.title, cacheKey, format, languageOverride]);
+  }, [book.title, cacheKey, format, languageOverride, t]);
 
   const session = useLearningSessionCore({ userId, client, open });
   const { document, index, status } = session;
@@ -210,16 +223,32 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
   }, [status]);
 
   const savePositionTimer = useRef<number | null>(null);
-  const lastProgress = useRef(0);
   const handlePosition = useCallback((blockId: string | null, progress: number) => {
     positionRef.current = { blockId, progress };
     setChapterProgress(progress);
-    // Reading forward hides the chrome; scrolling back shows it (like the EPUB reader).
-    if (progress > lastProgress.current + 0.002) setChromeVisible(false);
-    else if (progress < lastProgress.current - 0.01) setChromeVisible(true);
-    lastProgress.current = progress;
     if (savePositionTimer.current) window.clearTimeout(savePositionTimer.current);
     savePositionTimer.current = window.setTimeout(() => persistRef.current(), 1500);
+  }, []);
+
+  /**
+   * Reading forward hides the chrome; a short scroll back brings it back. Works
+   * in pixels (not chapter %), so long chapters need the same small gesture.
+   */
+  const scrollChrome = useRef({ last: 0, travel: 0 });
+  const handleScrollOffset = useCallback((top: number) => {
+    const state = scrollChrome.current;
+    const delta = top - state.last;
+    state.last = top;
+    if (top <= CHROME_ALWAYS_VISIBLE_PX) {
+      state.travel = 0;
+      setChromeVisible(true);
+      return;
+    }
+    if (delta === 0) return;
+    if (Math.sign(delta) !== Math.sign(state.travel)) state.travel = 0;
+    state.travel += delta;
+    if (state.travel > CHROME_HIDE_AFTER_PX) setChromeVisible(false);
+    else if (state.travel < -CHROME_SHOW_AFTER_PX) setChromeVisible(true);
   }, []);
 
   const goToChapter = useCallback((next: number, blockId: string | null = null) => {
@@ -229,7 +258,7 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
     setSelection(null);
     setInitialBlockId(blockId);
     setChapterIndex(bounded);
-    lastProgress.current = 0;
+    scrollChrome.current = { last: 0, travel: 0 };
     setChromeVisible(true);
   }, [document]);
 
@@ -453,6 +482,9 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
         <p className="text-sm text-foreground-muted">{known ? dynamicT(t, `learning:errors.${known}`, undefined, code) : code}</p>
         <div className="mt-2 flex gap-2">
           <button type="button" onClick={onBack} className="mobile-choice px-4">{t("learning:actions.back")}</button>
+          {onOpenOriginal && (
+            <button type="button" onClick={onOpenOriginal} className="mobile-choice px-4">{t("mobile:readingMode.original", { format: book.fileType.toUpperCase() })}</button>
+          )}
           <button type="button" onClick={session.reload} className="mobile-choice mobile-choice-active px-4">{t("learning:actions.retry")}</button>
         </div>
       </div>
@@ -535,9 +567,11 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
           <div className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.75rem)] z-10"><RecoveryNotice session={session} /></div>
         )}
 
-        <div className="min-h-0 flex-1 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
+        <div className="min-h-0 flex-1">
           <ReadingSurface
             touch
+            topInset={HEADER_INSET}
+            onScrollOffset={handleScrollOffset}
             document={document}
             index={index}
             chapterIndex={chapterIndex}
@@ -631,9 +665,9 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
           </ol>
         </MobileSheet>
 
-        <MobileSheet open={sheet === "vocabulary"} size="full" onClose={() => setSheet(null)} closeLabel={t("learning:actions.close")}>
-          <div className="-mx-5 h-[calc(92dvh-2rem)]">
-            <LearningPanel
+        <MobileSheet open={sheet === "vocabulary"} size="full" title={t("learning:panel.title")} onClose={() => setSheet(null)} closeLabel={t("learning:actions.close")}>
+          <div className="-mx-5 h-[calc(92dvh-5.5rem)]">
+            <MobileLearningHub
               session={session}
               settings={settings}
               chapterIndex={chapterIndex}
@@ -647,7 +681,6 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
               }}
               onAnnotation={handleAnnotationJump}
               onSpeak={(text) => void narration.speakText(text)}
-              onClose={() => setSheet(null)}
             />
           </div>
         </MobileSheet>
@@ -662,6 +695,12 @@ function LearningReader({ book, loadBytes, onBack, userId }: MobileLearningReade
             translationService.refresh();
             setDictionaryRevision((value) => value + 1);
           }}
+          onOpenOriginal={onOpenOriginal ? () => {
+            setSheet(null);
+            persistRef.current();
+            onOpenOriginal();
+          } : undefined}
+          originalFormatLabel={book.fileType.toUpperCase()}
           onClose={() => setSheet(null)}
         />
 

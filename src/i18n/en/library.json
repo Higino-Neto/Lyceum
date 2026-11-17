@@ -39,7 +39,8 @@
       "deletedMany_one": "{{count}} folder deleted",
       "deletedMany_other": "{{count}} folders deleted",
       "unlinked": "Source folder removed from the library",
-      "unlinkFailed": "Could not remove the source folder"
+      "unlinkFailed": "Could not remove the source folder",
+      "renaming": "Renaming folder…"
     },
     "removeWatchFolder": "Remove watched folder",
     "watchFolderAdded": "Watched folder added",
@@ -62,7 +63,8 @@
     "unlinkSource": "Remove from library",
     "unlinkSourceHint": "Keeps the files on your computer",
     "multiSelectHint": "Ctrl+click to select several folders, Shift+click for a range",
-    "countBreakdown": "{{here}} here, {{nested}} in subfolders"
+    "countBreakdown": "{{here}} here, {{nested}} in subfolders",
+    "moreActions": "More actions"
   },
   "counts": {
     "folder_one": "{{count}} folder",

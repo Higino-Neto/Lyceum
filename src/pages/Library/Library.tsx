@@ -28,7 +28,9 @@ import {
   X,
   Shuffle,
   CopyCheck,
+  Smartphone,
 } from "lucide-react";
+import { sendDesktopBooksToDevices } from "../../features/device-sync/useDesktopDeviceSync";
 import {
   BookDetailPanel,
   FileTypeFilter,
@@ -82,6 +84,7 @@ import {
 import Select from "../../components/ui/Select";
 import { LIBRARY_STATUS_SELECT_OPTIONS } from "../../lib/readingStatus";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { shouldHandleFileClipboardShortcut } from "../../utils/fileClipboardShortcuts";
 
 interface UsbLibraryApi {
   openUsbBook: (filePath: string) => Promise<OpenBookResult>;
@@ -821,16 +824,17 @@ function LibraryContent() {
         return;
       }
 
+      const toastId = toast.loading(t("library:folderTree.toasts.renaming"));
       const result = await renameFolder(
         folderActionDialog.folder.fullPath,
         newName,
       );
 
       if (result.success) {
-        toast.success(t("library:toasts.folderRenamed"));
+        toast.success(t("library:toasts.folderRenamed"), { id: toastId });
         closeFolderActionDialog();
       } else {
-        toast.error(result.error || t("library:toasts.renameFolderFailed"));
+        toast.error(result.error || t("library:toasts.renameFolderFailed"), { id: toastId });
       }
       return;
     }
@@ -1034,9 +1038,7 @@ function LibraryContent() {
 
   useEffect(() => {
     const handleClipboardShortcuts = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
-      if (!(event.ctrlKey || event.metaKey)) return;
+      if (!shouldHandleFileClipboardShortcut(event)) return;
 
       const concreteHashes = Array.from(selectedHashes);
       if (event.key.toLowerCase() === "c" && concreteHashes.length > 0) {
@@ -1203,6 +1205,20 @@ function LibraryContent() {
     if (selectedFiles.length === 0) return;
     prepareBooks(selectedFiles);
     window.dispatchEvent(new CustomEvent("lyceum:open-conversion"));
+  };
+
+  const [sendingToDevices, setSendingToDevices] = useState(false);
+  const sendSelectionToDevices = async () => {
+    if (selectedFiles.length === 0 || sendingToDevices) return;
+    setSendingToDevices(true);
+    try {
+      await sendDesktopBooksToDevices(selectedFiles.map((file) => ({
+        fileHash: file.fileHash,
+        fileName: file.filePath.split(/[\\/]/).pop() || file.title,
+      })));
+    } finally {
+      setSendingToDevices(false);
+    }
   };
 
   const openKindlePanel = () => {
@@ -1616,6 +1632,17 @@ function LibraryContent() {
                   >
                     <Send size={14} />
                     Kindle
+                  </button>
+                )}
+                {activeSection !== "usb" && (
+                  <button
+                    onClick={() => void sendSelectionToDevices()}
+                    disabled={selectedFiles.length === 0 || sendingToDevices}
+                    title={t("sync:send.button")}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm bg-surface-muted px-3 py-2 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Smartphone size={14} />
+                    {t("sync:send.short")}
                   </button>
                 )}
                 {activeSection !== "usb" && (

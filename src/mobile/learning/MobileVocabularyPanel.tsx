@@ -5,6 +5,7 @@ import { getActiveLocale, useTranslation } from "../../i18n";
 import { getCurrentSession } from "../../lib/supabaseAuth";
 import { LOCAL_USER_ID } from "../../features/language-learning/learningClient";
 import { getMobileLearningClient, vocabularySummary } from "./learningRuntime";
+import { VocabularySyncCard } from "../../features/device-sync/VocabularySyncCard";
 
 function languageName(code: string) {
   try {
@@ -76,6 +77,13 @@ export default function MobileVocabularyPanel() {
       <div className="grid grid-cols-2 gap-2">
         <button type="button" disabled={busy} onClick={() => void exportVocabulary()} className="mobile-choice flex items-center justify-center gap-2 px-3"><Download size={16} />{t("mobile:learning.exportVocabulary")}</button>
         <button type="button" disabled={busy} onClick={() => void importVocabulary()} className="mobile-choice flex items-center justify-center gap-2 px-3"><Upload size={16} />{t("mobile:learning.importVocabulary")}</button>
+      </div>
+      <div className="border-t border-border pt-3">
+        <VocabularySyncCard
+          signedIn={Boolean(userId && userId !== LOCAL_USER_ID)}
+          buttonClassName="mobile-choice flex w-full items-center justify-center gap-2 px-3"
+          onSynced={() => { if (userId) void refresh(userId); }}
+        />
       </div>
     </section>
   );

@@ -85,7 +85,7 @@
     "readings": "Log",
     "library": "Library",
     "leaderboard": "Ranking",
-    "profile": "Profile"
+    "profile": "Settings"
   },
   "startup": {
     "ariaLabel": "Loading Lyceum",
@@ -235,7 +235,7 @@
     "notConfigured": "not configured",
     "checkingSession": "checking session…",
     "localMode": "local mode",
-    "openAriaLabel": "Open profile",
+    "openAriaLabel": "Open settings",
     "accountAndDevice": "Your account and device",
     "version": "Version",
     "versionFallback": "development",
@@ -750,6 +750,73 @@
     "learningUnsupported": "Learning mode works with EPUB and TXT books.",
     "chooseDictionary": "Choose a dictionary",
     "showAllDictionaries": "Show all {{count}} dictionaries",
-    "backupsLocation": "Automatic vocabulary backups are in {{path}} (one per day, last 30)."
+    "backupsLocation": "Automatic vocabulary backups are in {{path}} (one per day, last 30).",
+    "horizontalMargin": "Side margins",
+    "pdfPages": "Pages {{from}}–{{to}}"
+  },
+  "readingMode": {
+    "title": "Reading mode",
+    "original": "{{format}}",
+    "originalHint": "The book as it was published",
+    "lyceum": ".lyceum",
+    "lyceumHint": "Tappable words, translation and vocabulary",
+    "rememberHint": "Lyceum remembers the mode you used last and opens this book the same way next time."
+  },
+  "settings": {
+    "sections": {
+      "app": "App",
+      "data": "Data"
+    },
+    "account": {
+      "title": "Account",
+      "signedOut": "Not signed in",
+      "signInHint": "Sign in to sync readings and see the ranking",
+      "manage": "Account, ranking and sign out",
+      "signedOutHint": "Your library works offline without an account. Signing in syncs your reading log and unlocks the ranking.",
+      "offline": "You are offline. Connect to the internet to sign in.",
+      "createAccount": "Create account"
+    },
+    "general": {
+      "title": "General",
+      "language": "Language",
+      "theme": "Theme",
+      "themes": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "accent": "Accent color",
+      "reducedEffects": "Reduce animations",
+      "reducedEffectsHint": "Fewer transitions and effects, which also saves battery."
+    },
+    "reading": {
+      "title": "Reading",
+      "subtitle": "Volume keys, screen and tap zones",
+      "volumeKeys": "Turn pages with volume keys",
+      "volumeKeysHint": "Volume up goes back, volume down goes forward.",
+      "keepAwake": "Keep the screen on while reading",
+      "tapZones": "Tap the edges to turn pages",
+      "tapZonesHint": "Narrow areas on the left and right edges of the reader.",
+      "orientation": "Screen orientation",
+      "orientations": {
+        "auto": "Automatic",
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "appliesNextOpen": "Changes apply the next time you open a book.",
+      "nativeOnly": "Some options need the Android app."
+    },
+    "updates": {
+      "title": "Updates",
+      "notes": "What's new",
+      "new": "New"
+    },
+    "data": {
+      "title": "Data and backup",
+      "subtitle": "Library backup and vocabulary"
+    },
+    "about": {
+      "title": "About"
+    }
   }
 }

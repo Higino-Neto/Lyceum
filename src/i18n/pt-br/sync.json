@@ -1,0 +1,38 @@
+{
+  "send": {
+    "button": "Enviar para meus aparelhos",
+    "short": "Aparelhos",
+    "sending": "Enviando {{current}} de {{total}}: {{name}}",
+    "sent_one": "Livro enviado. Ele vai aparecer nos seus outros aparelhos quando o Lyceum estiver aberto.",
+    "sent_other": "{{count}} livros enviados. Eles vão aparecer nos seus outros aparelhos quando o Lyceum estiver aberto.",
+    "unsupportedFormat": "{{name}} não foi enviado: o celular abre apenas EPUB e PDF. Converta para EPUB antes.",
+    "failed": "Não foi possível enviar {{name}}: {{error}}"
+  },
+  "receive": {
+    "received": "Recebido do seu {{device}}: {{name}}",
+    "alreadyInLibrary": "Já está na sua biblioteca: {{name}}",
+    "failed": "Não foi possível receber {{name}}: {{error}}"
+  },
+  "devices": {
+    "desktop": "computador",
+    "mobile": "celular"
+  },
+  "vocabulary": {
+    "title": "Sincronizar entre aparelhos",
+    "description": "Seu vocabulário, traduções e notas são combinados em todos os aparelhos conectados a esta conta. A alteração mais recente de cada palavra prevalece.",
+    "syncNow": "Sincronizar agora",
+    "syncing": "Sincronizando...",
+    "lastSync": "Última sincronização: {{time}}",
+    "never": "Ainda não sincronizado",
+    "done": "Vocabulário sincronizado",
+    "signInRequired": "Entre na sua conta para sincronizar o vocabulário e enviar livros entre aparelhos."
+  },
+  "errors": {
+    "NOT_SIGNED_IN": "Entre na sua conta para usar a sincronização.",
+    "NOT_CONFIGURED": "A sincronização na nuvem não está disponível nesta versão.",
+    "SETUP_REQUIRED": "O armazenamento na nuvem ainda não foi configurado no servidor.",
+    "FILE_NOT_FOUND": "o arquivo não foi encontrado",
+    "FILE_TOO_LARGE": "o arquivo tem mais de 500 MB",
+    "generic": "Falha na sincronização: {{error}}"
+  }
+}

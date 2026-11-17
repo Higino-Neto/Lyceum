@@ -114,5 +114,10 @@
 
 /* Touch layout (mobile app): narrower gutters, no tap flash, larger hit area per word. */
 .lx-surface[data-touch="on"] { -webkit-tap-highlight-color: transparent; overscroll-behavior: contain; }
-.lx-surface[data-touch="on"] .lx-content { padding: 20px 20px 45vh; }
+/* Touch: the chrome floats over the text (--lx-inset-top keeps the first lines
+   clear of it) so hiding the top bar reveals text, not an empty band. */
+.lx-surface[data-touch="on"] { scroll-padding-top: var(--lx-inset-top, 0px); }
+.lx-surface[data-touch="on"] .lx-content {
+  padding: calc(var(--lx-inset-top, 0px) + 20px) var(--lx-margin-x, 20px) 45vh;
+}
 .lx-surface[data-touch="on"] .lx-w { padding: 0.08em 0; }

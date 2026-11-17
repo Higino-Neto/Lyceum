@@ -181,12 +181,80 @@ O book table que tem no /register é o mesmo que tem no dashboard, então a úni
 
 - [x] Ctrl + Scroll não está funcionando no leitor de PDF.
 
-- [ ] O convertion page deveria mostrar o tamanho estimado para o arquivo. (Isso é importante principalmente na conversão de CBZ -> PDF, porque eu preciso saber o quanto a redução da resolução da imagem vai impactar o tamanho real do arquivo no final.
+- [x] O convertion page deveria mostrar o tamanho estimado para o arquivo. (Isso é importante principalmente na conversão de CBZ -> PDF, porque eu preciso saber o quanto a redução da resolução da imagem vai impactar o tamanho real do arquivo no final.
 
-- [ ] Ao converter para um PDF, ao invés de mostrar Chapter 9 - Page 1, ou algo do tipo, eu quero que você mostre que ele está na página x de Total de páginas. É mais natural pensar assim em PDFs. Eu quero conseguir ver qual será a quantidade de páginas finais do PDF gerado, pois isso é um dado interessante de se ter, caso o usuário queira ajustar as margens.
+- [x] Ao converter para um PDF, ao invés de mostrar Chapter 9 - Page 1, ou algo do tipo, eu quero que você mostre que ele está na página x de Total de páginas. É mais natural pensar assim em PDFs. Eu quero conseguir ver qual será a quantidade de páginas finais do PDF gerado, pois isso é um dado interessante de se ter, caso o usuário queira ajustar as margens.
 
-- [ ] Ao converter um EPUB -> PDF, é necessário escolher as margens, contudo, ter que alterar as 4 toda vez é muito chato. Coloque um slider para o usuário decidir quanto de margem horizontal ou margem vertical (Ambos considerando margens iguais para ambos os lados, dado que é um ebook) e opções avançadas para alterar um por um.
+- [x] Ao converter um EPUB -> PDF, é necessário escolher as margens, contudo, ter que alterar as 4 toda vez é muito chato. Coloque um slider para o usuário decidir quanto de margem horizontal ou margem vertical (Ambos considerando margens iguais para ambos os lados, dado que é um ebook) e opções avançadas para alterar um por um.
 
-- [ ] Eu quero que a tela quando você clica para abrir o Preview de uma das páginas do PDF tenha todas as opções de alteração lá mesmo, para eu ver de imediato como aquelas configurações de fato impactam o resultado final.
+- [x] Eu quero que a tela quando você clica para abrir o Preview de uma das páginas do PDF tenha todas as opções de alteração lá mesmo, para eu ver de imediato como aquelas configurações de fato impactam o resultado final.
 
-- [ ] Eu tentei copiar o texto Chapter 9 - Page 1 da aba de conversão no preview e ele copiou o arquivo ao invés do Texto. Isso já aconteceu em outros lugares no app, não quero que se repita. Então resolva esse problema.
+- [x] Eu tentei copiar o texto Chapter 9 - Page 1 da aba de conversão no preview e ele copiou o arquivo ao invés do Texto. Isso já aconteceu em outros lugares no app, não quero que se repita. Então resolva esse problema.
+
+- [x] Quando eu mudo o nome de uma pasta, ele não atualiza automaticamente. Os livros somem por um momento e só depois de um tempo, sem nenhum feedback, eles voltam. Isso causa medo e desconfiança para o usuário.
+
+- [x] Na topbar aonde está a label: FOLDERS no menu lateral de folder tree, existem vários ícones e cada um tem uma função, contudo, quando eu pego na barra lateral para diminuir o tamanho desse sidebar, esses componentes acabam saindo da tela, o que é um problema de responsividade.
+
+- [x] No mobile, no leitor de .lyceum, o top bar que contém os capítulos e as configurações, ele some da tela para cima quando eu movo para baixo, contudo, ao invés de preencher aquele espaço com o texto que aparece, ele só some e fica preto no lugar que era para estar o texto. E para voltar ele, eu preciso rolar muito para cima. Eu quero precisar rolar pouco para ele voltar.
+
+- [x] No mobile, no leitor de .lyceum, a aba de tradução está bonita e nativa para o mobile, mas a aba que tem Words, Progress, Chapters, Review e Notes não está nem um pouco nativa para o mobile. Tudo nela é muito pequeno, como se fosse pensada para o computador e só colocaram a mesma no celular. Quero que resolva isso. Além disso, abrir essa aba está sendo muito pesado e custoso no celular então ela está demorando um pouco para abrir e a performance não está das melhores dentro dela.
+
+- [x] No mobile, no leitor de .lyceum, eu quero que você adicione opção de aumentar e diminuir a margem horizontal do texto. Atualmente tem como mudar a distância entre as linhas, mas não tem como mudar a distância entre o texto e as bordas da tela. Além disso, quando eu giro a tela no mobile,a responsividade não acompanha. Então o problema geral do leitor de .lyceum é uma falta de natividade para o contexto mobile.
+
+- [x] No mobile, Na biblioteca, quando eu abro um EPUB qualquer, ele abre o EPUB normal, mas quando eu clico na parte de cima da tela, ao invés de abrir as configs do EPUB, ele abre o leitor .lyceum, sem motivo aparente.
+
+- [x] No mobile, eu quero que você faça uma aba de Configuração real. Com os mesmos propósitos do que a do computador, mas nativa para o mobile (aquele tipo que mostra o título da configuração e quando você clica, ele abre, e sempre tem como voltar um galho na árvore ou avançar mais um. Essa nova Config deve conter tudo que já tem, updates, login, general.
+
+- [x] No mobile, eu quero que de dentro de um arquivo EPUB, PDF, ou qualquer que seja, eu quero que seja possível nas configurações de dentro do arquivo trocar para a leitura .lyceum. E o sistema guarda a memória de qual é o formato que o usuário usou pela última vez naquele livro para ele saber se deve já iniciar o livro como .lyceum ou como a extensão original. Sempre tendo como trocar nas configs de dentro do .lyceum para o formato original e vice versa, para o sistema ficar mais inteligente.
+
+- [x] Adicione a leitura .lyceum para outros formatos também, além de apenas EPUB e TXT.
+
+- [ ] Eu quero que você coloque essas configurações aqui como padrão para a conversão de um PDF:
+Top margin
+20
+mm
+Bottom margin
+20
+mm
+Left margin
+20
+mm
+Right margin
+20
+mm
+Text size
+14
+pt
+Line height
+1.5
+Paragraph spacing
+0.5
+em
+
+As configs abaixo devem levar em consideração aquele padrão adotado acima como um PDF padrão. Além disso, ao invés de mostrar várias opções dessas, coloque um Selector para elas. Pense mais em hierarquia visual nessa tela. O preview deveria ser uma prioridade, o restante são só adendos caso o usuário realmente precise.:
+Layout
+
+Screen reading
+Comfortable on a monitor or tablet (A4).
+A4 · 11pt
+
+E-reader
+Small page, thin margins and larger type for 6–7" screens.
+A5 · 12pt
+
+Paperback
+Pocket-book proportions with classic margins (A5).
+A5 · 10.5pt
+
+Print
+Academic print layout: 3 cm top/left, 2 cm bottom/right, 12 pt, 1.5 spacing.
+A4 · 12pt
+
+Large print
+14 pt type with airy spacing for easier reading.
+A4 · 14pt
+
+- [ ] Eu quero deixar tudo relacionado ao Foldergrid como uma opção beta prestes a ser removida, tnanto ela quanto essa barra superior para adicionar nova pasta ou novo livro. Essas opções já nem fazem sentido estarem ali mais. Eu quero remover tudo isso para deixar essa parte da tela mais clean, até sem essas barras de divisão estranhas e esse espaçamento exagerado. De tudo ali, a única coisa que eu quero que permaneça, talvez movido para outra posição, ou ocupando menos espaço, é o folder path, pq ele é útil para o usuário. Mas de resto, eu não gosto dessa parte da UI e acho que ela pode ser eliminada, ou ao menos posta para ser eliminada no futuro e não mostrada mais na tela, e resolvendo esses problemas de barras inúteis e espaçamento exagerado, para deixar essa parte mais limpa e hierarquicamente bonita. Suma com tudo isso para simplificar a leitura e deixe isso apenas como uma opção nas configurações que vem desabilitada por padrão. E olhe para outras opções nas configurações que podem sem querer abrir essa funcionalidade de novo.
+
+- [ ] Nas configs do aplicativo, eu quero que você reorganize melhor ela. Agrupe funções parecidas nos mesmos locais, pense melhor no que deve ir para cada lugar (Por exemplo, não faz sentido ter uma aba inteira só para um scroll de zoom e dentre outros). Utilize a organização de grandes aplicativos, como obsidian para se basear. Caso tenha sugestões de funcionalidades novas para a biblioteca, eu ficaria grato em saber.
+

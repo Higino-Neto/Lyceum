@@ -39,7 +39,8 @@
       "deletedMany_one": "{{count}} pasta excluída",
       "deletedMany_other": "{{count}} pastas excluídas",
       "unlinked": "Pasta fonte removida da biblioteca",
-      "unlinkFailed": "Erro ao remover a pasta fonte"
+      "unlinkFailed": "Erro ao remover a pasta fonte",
+      "renaming": "Renomeando pasta…"
     },
     "removeWatchFolder": "Remover pasta externa",
     "watchFolderAdded": "Pasta externa adicionada",
@@ -62,7 +63,8 @@
     "unlinkSource": "Remover da biblioteca",
     "unlinkSourceHint": "Mantém os arquivos no computador",
     "multiSelectHint": "Ctrl+clique para selecionar várias pastas, Shift+clique para um intervalo",
-    "countBreakdown": "{{here}} neste local, {{nested}} em subpastas"
+    "countBreakdown": "{{here}} neste local, {{nested}} em subpastas",
+    "moreActions": "Mais ações"
   },
   "counts": {
     "folder_one": "{{count}} pasta",

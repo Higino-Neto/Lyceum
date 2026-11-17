@@ -66,3 +66,13 @@ Filesystem operations should:
 
 Backup handlers in Electron can send local documents, habits, and categories to Supabase after a valid Supabase session is registered with the main process.
 
+
+## Device Sync
+
+Signed-in devices exchange books and vocabulary through the private Supabase Storage bucket `device-sync` (migration `019_device_sync_storage.sql`). Each user only sees their own folder, `<uid>/`.
+
+- **Send to my devices.** On desktop, select books in the library and press "Devices". On the phone, open a book's details and choose "Send to my devices". The file is uploaded to `<uid>/books/`, and the object name encodes the original file name, the sending platform and the device. Every other device checks this folder on start, on focus and every minute, imports the books it can open, and then deletes the object. Desktop writes received books into the library folder and the folder watcher processes them; mobile runs them through the normal import. Duplicates, matched by SHA-256, are skipped. Only EPUB and PDF can be sent, because those are the formats both platforms open.
+- **Vocabulary.** `<uid>/learning/vocabulary.json` holds a `lyceum.learning-backup` snapshot. Each sync downloads the snapshot and merges it locally with the newest-`updatedAt`-wins import. It then uploads the merged result, but only when the result differs from the snapshot. Vocabulary syncs on start, every three minutes, when the app goes to the background, and from "Sync now".
+- **Known limitation.** Deleting an annotation, a form override or a review item is not propagated yet, so another device may bring it back. Deletions need tombstones, which are planned.
+
+Code: `src/features/device-sync/`. Desktop file access goes through the `device-sync:read-book` and `device-sync:save-book` IPC channels.

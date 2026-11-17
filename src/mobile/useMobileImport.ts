@@ -39,8 +39,8 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
     setImportJobs((current) => current.map((job) => job.id === jobId ? { ...job, ...patch } : job));
   };
 
-  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId, openFirstAfterImport = false) => {
-    if (!candidates.length) return;
+  const importCandidates = async (candidates: ImportCandidate[], folderId = libraryQuery.folderId, openFirstAfterImport = false): Promise<number> => {
+    if (!candidates.length) return 0;
     const imported: MobileBook[] = [];
     const existing = [...stateRef.current.books];
 
@@ -141,6 +141,21 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
       if (openFirstAfterImport) setActiveTab("reader");
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
+    return imported.length;
+  };
+
+  /** A book sent from another device (device sync); duplicates are skipped silently. */
+  const importReceivedFile = async (file: File): Promise<"imported" | "duplicate" | "failed"> => {
+    if (!inferFileType(file)) return "failed";
+    const contentHash = await hashMobileFile(file);
+    if (stateRef.current.books.some((book) => book.contentHash === contentHash)) return "duplicate";
+    const count = await importCandidates([{
+      key: `device-sync:${contentHash}`,
+      name: file.name,
+      size: file.size,
+      loadFile: async () => file,
+    }], libraryQuery.folderId);
+    return count > 0 ? "imported" : "failed";
   };
 
   const importFiles = async (files: FileList | null, folderId = libraryQuery.folderId) => {
@@ -216,5 +231,5 @@ export function useMobileImport({ stateRef, repositoryReady, setState, setReader
     return () => window.clearTimeout(timeout);
   }, [importJobs]);
 
-  return { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter };
+  return { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter, importReceivedFile };
 }

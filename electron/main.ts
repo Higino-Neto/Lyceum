@@ -3665,6 +3665,7 @@ async function runOutputPreview(sourcePath: string, sourceFormat: BookFormat, re
       conversionOptions: request?.conversionOptions,
       segmentIndex: Math.max(0, Math.floor(Number(request?.segmentIndex) || 0)),
       page: Math.max(1, Math.floor(Number(request?.page) || 1)),
+      measureOnly: request?.measureOnly === true,
     };
     return { success: true, preview: await getOutputPreviewService().render(sourcePath, sourceFormat, safeRequest) };
   } catch (error) {
@@ -3985,6 +3986,52 @@ async function findFileByHash(fileHash: string, searchPaths: string[]): Promise<
 
 
 
+
+// Device sync: the renderer uploads/downloads through Supabase Storage; the main
+// process only reads library files by hash and files received books.
+const DEVICE_SYNC_MAX_BYTES = 500 * 1024 * 1024;
+const DEVICE_SYNC_RECEIVABLE = new Set([".pdf", ".epub", ".cbz", ".mobi", ".azw", ".azw3", ".kfx"]);
+
+ipcMain.handle("device-sync:read-book", async (_, rawFileHash: unknown) => {
+  if (typeof rawFileHash !== "string" || !/^[a-f0-9]{16,128}$/i.test(rawFileHash)) {
+    return { success: false as const, error: "INVALID_HASH" };
+  }
+  const document = getDocumentByHash(rawFileHash);
+  if (!document?.filePath || !fs.existsSync(document.filePath)) {
+    return { success: false as const, error: "FILE_NOT_FOUND" };
+  }
+  const stats = fs.statSync(document.filePath);
+  if (stats.size > DEVICE_SYNC_MAX_BYTES) return { success: false as const, error: "FILE_TOO_LARGE" };
+  return {
+    success: true as const,
+    fileName: path.basename(document.filePath),
+    bytes: new Uint8Array(await fs.promises.readFile(document.filePath)),
+  };
+});
+
+ipcMain.handle("device-sync:save-book", async (_, rawFileName: unknown, rawBytes: unknown) => {
+  if (typeof rawFileName !== "string" || !(rawBytes instanceof Uint8Array)) {
+    return { success: false as const, error: "INVALID_INPUT" };
+  }
+  if (rawBytes.byteLength === 0 || rawBytes.byteLength > DEVICE_SYNC_MAX_BYTES) {
+    return { success: false as const, error: "FILE_TOO_LARGE" };
+  }
+  const fileName = Array.from(path.basename(rawFileName), (char) => (char.charCodeAt(0) < 32 || '<>:"|?*'.includes(char) ? "_" : char))
+    .join("")
+    .trim() || "book";
+  if (!DEVICE_SYNC_RECEIVABLE.has(path.extname(fileName).toLowerCase())) {
+    return { success: false as const, error: "UNSUPPORTED_FORMAT" };
+  }
+  const fileHash = crypto.createHash("sha256").update(rawBytes).digest("hex");
+  const existing = getDocumentByHash(fileHash);
+  if (existing) return { success: true as const, duplicate: true, title: existing.title };
+  const libraryPath = LIBRARY_PATH();
+  fs.mkdirSync(libraryPath, { recursive: true });
+  const destination = getUniqueFilePath(libraryPath, fileName);
+  await fs.promises.writeFile(destination, rawBytes);
+  // The library watcher picks the file up and processes it like any other import.
+  return { success: true as const, duplicate: false, fileName: path.basename(destination) };
+});
 
 registerFileDialogHandlers(ipcMain, {
   showOpenDialog: showOpenDialogSafe,

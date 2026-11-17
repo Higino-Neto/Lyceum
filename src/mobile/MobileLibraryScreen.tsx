@@ -1,4 +1,7 @@
 import { exportMobileBook } from "./bookExport";
+import { sendBooksToDevices } from "../features/device-sync/syncController";
+import { loadMobileBookBytes } from "./bookFileStorage";
+import { canReadAsLyceum } from "./learning/learningSupport";
 import { persistExtractedBookThumbnail } from "./thumbnailStorage";
 import { ReaderTools } from "./ReaderTools";
 import { makeMobileId, readFileAsDataUrl } from "./storage";
@@ -198,7 +201,7 @@ function BookEditor({
         </div>
 
         <div className="mt-5 grid gap-3">
-          {onOpenForLearning && (book.fileType === "epub" || book.fileType === "txt") && (
+          {onOpenForLearning && canReadAsLyceum(book) && (
             <button className="flex min-h-14 items-center gap-3 rounded-2xl border border-primary/30 bg-primary-muted px-4 text-left" onClick={onOpenForLearning} type="button">
               <GraduationCap size={22} className="flex-shrink-0 text-primary" />
               <span className="min-w-0">
@@ -272,7 +275,7 @@ function BookEditor({
           }} disabled={moving} type="button">{moving ? t("mobile:library.moving") : t("mobile:library.saveChanges")}</button>
           <details className="rounded-2xl border border-border bg-surface/70 p-4"><summary className="min-h-8 cursor-pointer text-sm font-semibold">
             {t("mobile:library.fileAndSharing")}
-          </summary><div className="mt-3 grid gap-2"><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.exportFile")}</button><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.sendToKindle")}</button></div></details>
+          </summary><div className="mt-3 grid gap-2"><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book).then(message => toast(message)).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.exportFile")}</button><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void exportMobileBook(book, true).then(message => toast(message, { duration: 6000 })).catch(error => toast.error(error.message)); }} type="button">{t("mobile:library.sendToKindle")}</button><button className="min-h-11 rounded-xl bg-surface-muted px-3 text-sm" onClick={() => { void sendBooksToDevices("mobile", [{ fileName: book.fileName, load: () => loadMobileBookBytes(book) }]); }} type="button">{t("sync:send.button")}</button></div></details>
           <button className="h-11 rounded-xl border border-destructive/70 bg-destructive-muted font-medium text-destructive" onClick={onDelete} type="button">{t("mobile:library.removeBook")}</button>
         </div>
       </div>

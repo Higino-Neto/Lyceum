@@ -24,6 +24,31 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.10.0",
+    date: "2026-11-17",
+    title: {
+      en: "Send books between your devices, vocabulary synced everywhere, and a native phone experience",
+      "pt-BR": "Envie livros entre seus aparelhos, vocabulário sincronizado em todos e experiência nativa no celular",
+    },
+    items: [
+      { kind: "new", text: { en: "Send to my devices: select books in the library (or open a book's details on the phone) and send them to your account; they appear in the library of your other devices, computer or phone.", "pt-BR": "Enviar para meus aparelhos: selecione livros na biblioteca (ou abra os detalhes de um livro no celular) e envie para sua conta; eles aparecem na biblioteca dos seus outros aparelhos, computador ou celular." } },
+      { kind: "new", text: { en: "Vocabulary sync: words, translations and notes are merged between the computer and the phone automatically, with a \"Sync now\" button in vocabulary backups.", "pt-BR": "Sincronização de vocabulário: palavras, traduções e notas são combinadas entre o computador e o celular automaticamente, com um botão \"Sincronizar agora\" nos backups de vocabulário." } },
+      { kind: "new", text: { en: "Conversion preview shows the final page count and an estimated file size (compared with the original), which helps when shrinking comics to PDF.", "pt-BR": "A prévia de conversão mostra o total de páginas final e o tamanho estimado do arquivo (comparado ao original), útil ao reduzir quadrinhos para PDF." } },
+      { kind: "new", text: { en: "The enlarged conversion preview has every setting beside the page, so each change is visible right away.", "pt-BR": "A prévia ampliada da conversão traz todas as configurações ao lado da página, para ver cada mudança na hora." } },
+      { kind: "new", text: { en: "EPUB → PDF: horizontal and vertical margin sliders, with each side still adjustable in the advanced settings.", "pt-BR": "EPUB → PDF: controles de margem horizontal e vertical, com cada lado ainda ajustável nas configurações avançadas." } },
+      { kind: "new", text: { en: ".lyceum reading now opens MOBI, AZW3, FB2 and DOCX books on desktop, and PDF books on the phone.", "pt-BR": "A leitura .lyceum agora abre livros MOBI, AZW3, FB2 e DOCX no computador, e PDF no celular." } },
+      { kind: "new", text: { en: "Mobile: a real Settings tab (account, general, reading, updates, data and about) that you browse level by level.", "pt-BR": "Celular: uma aba de Ajustes de verdade (conta, geral, leitura, atualizações, dados e sobre), navegada nível a nível." } },
+      { kind: "new", text: { en: "Mobile: switch any book between its own reader and .lyceum from the reader settings; Lyceum remembers the mode per book.", "pt-BR": "Celular: troque qualquer livro entre o leitor original e o .lyceum pelas configurações do leitor; o Lyceum lembra o modo de cada livro." } },
+      { kind: "new", text: { en: "Mobile .lyceum reader: adjustable side margins.", "pt-BR": "Leitor .lyceum no celular: margens laterais ajustáveis." } },
+      { kind: "improved", text: { en: "Mobile .lyceum reader: the top bar hides while reading and the text takes its place; a short scroll up brings it back. Rotating the phone keeps the layout and position.", "pt-BR": "Leitor .lyceum no celular: a barra superior some durante a leitura e o texto ocupa o espaço; uma rolagem curta para cima a traz de volta. Girar o celular mantém o layout e a posição." } },
+      { kind: "improved", text: { en: "Mobile: the Words, Progress, Chapters, Review and Notes panel was rebuilt for touch and opens instantly.", "pt-BR": "Celular: o painel de Palavras, Progresso, Capítulos, Revisão e Notas foi refeito para toque e abre na hora." } },
+      { kind: "improved", text: { en: "The folder tree toolbar moves the actions that do not fit into a \"More\" menu when the sidebar is narrow.", "pt-BR": "A barra da árvore de pastas move as ações que não cabem para um menu \"Mais\" quando a barra lateral fica estreita." } },
+      { kind: "fixed", text: { en: "Renaming or moving a folder keeps it selected and expanded: its books no longer disappear for a while.", "pt-BR": "Renomear ou mover uma pasta a mantém selecionada e expandida: os livros não somem mais por um tempo." } },
+      { kind: "fixed", text: { en: "Ctrl+C copies the selected text instead of the selected book files.", "pt-BR": "Ctrl+C copia o texto selecionado em vez dos arquivos dos livros selecionados." } },
+      { kind: "fixed", text: { en: "Mobile EPUB: tapping the top of the page shows the controls instead of opening the .lyceum reader.", "pt-BR": "EPUB no celular: tocar no topo da página mostra os controles em vez de abrir o leitor .lyceum." } },
+    ],
+  },
+  {
     version: "1.9.2",
     date: "2026-11-17",
     title: {

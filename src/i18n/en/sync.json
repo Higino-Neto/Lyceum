@@ -1,0 +1,38 @@
+{
+  "send": {
+    "button": "Send to my devices",
+    "short": "Devices",
+    "sending": "Sending {{current}} of {{total}}: {{name}}",
+    "sent_one": "Book sent. It will appear on your other devices with Lyceum open.",
+    "sent_other": "{{count}} books sent. They will appear on your other devices with Lyceum open.",
+    "unsupportedFormat": "{{name}} was not sent: phones open EPUB and PDF only. Convert it to EPUB first.",
+    "failed": "Could not send {{name}}: {{error}}"
+  },
+  "receive": {
+    "received": "Received from your {{device}}: {{name}}",
+    "alreadyInLibrary": "Already in your library: {{name}}",
+    "failed": "Could not receive {{name}}: {{error}}"
+  },
+  "devices": {
+    "desktop": "computer",
+    "mobile": "phone"
+  },
+  "vocabulary": {
+    "title": "Sync between devices",
+    "description": "Your vocabulary, translations and notes are merged across every device signed in to this account. The newest change to each word wins.",
+    "syncNow": "Sync now",
+    "syncing": "Syncing...",
+    "lastSync": "Last sync: {{time}}",
+    "never": "Not synced yet",
+    "done": "Vocabulary synced",
+    "signInRequired": "Sign in to sync vocabulary and send books between devices."
+  },
+  "errors": {
+    "NOT_SIGNED_IN": "Sign in to use device sync.",
+    "NOT_CONFIGURED": "Cloud sync is not available in this build.",
+    "SETUP_REQUIRED": "Cloud storage is not set up on the server yet.",
+    "FILE_NOT_FOUND": "the file was not found",
+    "FILE_TOO_LARGE": "the file is larger than 500 MB",
+    "generic": "Sync failed: {{error}}"
+  }
+}

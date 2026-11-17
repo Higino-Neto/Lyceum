@@ -4,12 +4,12 @@ import { analyzeBook, isCurrentAnalysis, type AnalyzeBookRequest, type AnalyzeBo
 import { readEpubChapters, readTextChapters } from "./sourceChapters";
 
 /**
- * Prepares a book for the learning reader inside a WebView: reads the EPUB/TXT,
+ * Prepares a book for the learning reader inside a WebView: reads the EPUB/TXT/PDF,
  * analyzes it in a worker and caches the linguistic document in IndexedDB, so
  * the next opening is instant. Vocabulary is never stored here.
  */
 
-export type BrowserLearningFormat = "epub" | "txt";
+export type BrowserLearningFormat = "epub" | "txt" | "pdf";
 
 export interface PrepareInBrowserInput {
   cacheKey: string;
@@ -19,6 +19,8 @@ export interface PrepareInBrowserInput {
   /** User override; otherwise detected from the text. */
   language?: string | null;
   onProgress?(value: number, stage: "import" | "analyze" | "ready"): void;
+  /** Titles PDF chapters that come from page groups (no outline), e.g. "Pages 1–10". */
+  pageLabel?(from: number, to: number): string;
 }
 
 interface CachedDocument {
@@ -120,7 +122,16 @@ export async function prepareLearningDocumentInBrowser(input: PrepareInBrowserIn
   progress(0.02, "import");
   const bytes = await input.loadBytes();
   progress(0.1, "import");
-  const book = input.format === "epub" ? await readEpubChapters(bytes, input.title) : readTextChapters(bytes, input.title);
+  const book = input.format === "epub"
+    ? await readEpubChapters(bytes, input.title)
+    : input.format === "pdf"
+      ? await (await import("./pdfChapters")).readPdfChapters(
+        bytes,
+        input.title,
+        input.pageLabel ?? ((from, to) => `${from}–${to}`),
+        (value) => progress(0.1 + value * 0.1, "import"),
+      )
+      : readTextChapters(bytes, input.title);
   progress(0.2, "analyze");
   const result = await runInWorker(
     { documentId: `mobile:${input.cacheKey}`, book, language: input.language ?? null },

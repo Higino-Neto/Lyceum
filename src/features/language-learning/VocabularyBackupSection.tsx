@@ -4,6 +4,7 @@ import { AlertTriangle, CloudUpload, FolderOpen, RotateCcw, Unlink } from "lucid
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslation } from "../../i18n";
 import { LOCAL_USER_ID, createDesktopLearningClient } from "./learningClient";
+import { VocabularySyncCard } from "../device-sync/VocabularySyncCard";
 
 interface BackupStatus {
   directory: string;
@@ -121,6 +122,9 @@ export function VocabularyBackupSection() {
           <RotateCcw size={14} />
           {t("settings:backups.vocabulary.restore")}
         </button>
+      </div>
+      <div className="border-t border-border pt-3">
+        <VocabularySyncCard signedIn={Boolean(user?.id)} buttonClassName={buttonClass} onSynced={() => void refresh()} />
       </div>
     </div>
   );

@@ -65,7 +65,7 @@
       "paragraphSpacing": "Espaço entre parágrafos",
       "chapterPageBreaks": "Novo capítulo em nova página",
       "generateOutline": "Gerar marcadores de capítulos",
-      "advanced": "Configurações avançadas (página, margens, fonte)",
+      "advanced": "Configurações avançadas (página, cada margem, fonte)",
       "presets": {
         "label": "Layout",
         "custom": "Layout personalizado — ajustado nas configurações avançadas.",
@@ -89,7 +89,10 @@
           "label": "Letra grande",
           "hint": "Fonte de 14 pt com espaçamento amplo para leitura mais fácil."
         }
-      }
+      },
+      "marginHorizontal": "Margem horizontal (esquerda e direita)",
+      "marginVertical": "Margem vertical (superior e inferior)",
+      "marginUneven": "Os lados têm margens diferentes. Mover um controle iguala os dois lados; ajuste cada lado nas configurações avançadas."
     },
     "epub": {
       "layout": "Layout",
@@ -278,14 +281,19 @@
     "error": "Não foi possível gerar a prévia",
     "alt": "Prévia da página {{page}}",
     "pageOf": "Página {{page}} de {{total}}",
-    "chapterPage": "Capítulo {{chapter}} · página {{page}}",
     "previousPage": "Página anterior",
     "nextPage": "Próxima página",
     "goToPage": "Ir para a página",
     "go": "Ir",
     "inChapter": "Em: {{title}}",
     "seeking": "Procurando a página...",
-    "totalEstimated": "total de páginas estimado até todos os capítulos serem medidos"
+    "totalEstimated": "O total de páginas é estimado até todos os capítulos serem medidos",
+    "finalPages": "Páginas finais",
+    "estimatedSize": "Tamanho estimado",
+    "vsOriginal": "{{delta}} em relação ao original ({{size}})",
+    "measuring": "Medindo o livro… {{done}}/{{total}}",
+    "sizeSampled": "Tamanho estimado a partir de {{count}} páginas de amostra",
+    "settings": "Configurações da conversão"
   },
   "tools": {
     "common": {

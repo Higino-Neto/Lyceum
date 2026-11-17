@@ -32,6 +32,10 @@ import { isSameOrNestedPath, relocatePathWithinFolder } from "./managed-folder-p
 interface FolderOperationResult {
   success: boolean;
   error?: string;
+  /** Where the folder lives after a rename or move. */
+  newPath?: string;
+  /** A source root itself was renamed or moved: file watchers must follow it. */
+  sourceRootChanged?: boolean;
 }
 
 export interface CopyBooksResult extends FolderOperationResult {
@@ -158,7 +162,7 @@ export function renameManagedFolder(
       }
     }
 
-    return { success: true };
+    return { success: true, newPath, sourceRootChanged: Boolean(sourceRoot) };
   } catch (error: unknown) {
     return { success: false, error: folderOperationError("Erro ao renomear pasta", error) };
   }
@@ -287,7 +291,7 @@ export function moveManagedFolder(
       }
     }
 
-    return { success: true };
+    return { success: true, newPath: destinationPath, sourceRootChanged: Boolean(sourceRoot) };
   } catch (error: unknown) {
     return { success: false, error: folderOperationError("Erro ao mover pasta", error) };
   }

@@ -33,6 +33,7 @@ import type {
   KnowledgeBucket,
   KnowledgeMergeResult,
   LearningImportResult,
+  LearningBackup,
 } from "../src/core/language-learning/model";
 
 const { ipcRenderer, contextBridge, webUtils } = electron;
@@ -732,6 +733,18 @@ openInNewWindow: (data: {
 
   languageLearningExportBackup: (userId: string) =>
     invoke<{ success: true; path: string } | { success: false; error: string }>("language-learning:export-backup", userId),
+
+  deviceSyncReadBook: (fileHash: string) =>
+    invoke<{ success: true; fileName: string; bytes: Uint8Array } | { success: false; error: string }>("device-sync:read-book", fileHash),
+
+  deviceSyncSaveBook: (fileName: string, bytes: Uint8Array) =>
+    invoke<{ success: true; duplicate: boolean; fileName?: string; title?: string } | { success: false; error: string }>("device-sync:save-book", fileName, bytes),
+
+  languageLearningExportData: (userId: string) =>
+    invoke<LearningBackup>("language-learning:export-data", userId),
+
+  languageLearningImportData: (userId: string, backup: LearningBackup) =>
+    invoke<LearningImportResult>("language-learning:import-data", userId, backup),
 
   languageLearningImportBackup: (userId: string) =>
     invoke<({ success: true } & LearningImportResult) | { success: false; error: string }>("language-learning:import-backup", userId),

@@ -18,13 +18,13 @@ import {
   Moon,
   NotebookPen,
   Plus,
-  GraduationCap,
   Search,
   Sun,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
 import MobileSheet from "./MobileSheet";
+import { ReadingModeSwitch } from "./ReadingModeSwitch";
 import { BACK_EVENT } from "./useBackNavigation";
 
 interface EpubPaneProps {
@@ -36,8 +36,12 @@ interface EpubPaneProps {
   onBack: () => void;
   onRegister?: () => void;
   /** Switches to the language-learning reader for this book. */
+  /** Switches this book to .lyceum reading (remembered per book). */
   onLearn?: () => void;
 }
+
+/** Window in which a click on freshly revealed controls is the tail of the revealing tap. */
+const GHOST_CLICK_MS = 400;
 
 function dataUrlToArrayBuffer(dataUrl: string) {
   const [, base64 = ""] = dataUrl.split(",");
@@ -151,6 +155,14 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  /** When the controls appeared: clicks right after belong to the tap that revealed them. */
+  const overlayShownAtRef = useRef(0);
+  const swallowGhostClick = useCallback((event: SyntheticEvent) => {
+    if (Date.now() - overlayShownAtRef.current < GHOST_CLICK_MS) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chapterLabel, setChapterLabel] = useState("");
   const [locationsReady, setLocationsReady] = useState(false);
@@ -221,7 +233,10 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
         return;
       }
     }
-    setShowOverlay((visible) => !visible);
+    setShowOverlay((visible) => {
+      if (!visible) overlayShownAtRef.current = Date.now();
+      return !visible;
+    });
   }, []);
   const handleTapRef = useRef(handleTap);
   handleTapRef.current = handleTap;
@@ -396,11 +411,15 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
             }
             if (Math.abs(dx) > 10 || Math.abs(dy) > 10 || elapsed > 450) return;
             if ((event.target as Element | null)?.closest?.("a")) return;
+            // The tap is fully handled here. Cancelling it stops the browser's
+            // synthetic click from landing on the controls this tap reveals
+            // (it used to hit the top bar and open another reader).
+            if (event.cancelable) event.preventDefault();
             const frame = contents.window.frameElement as HTMLElement | null;
             const frameLeft = frame?.getBoundingClientRect().left ?? 0;
             const containerLeft = containerRef.current?.getBoundingClientRect().left ?? 0;
             handleTapRef.current(frameLeft + touch.clientX - containerLeft);
-          }, { passive: true });
+          }, { passive: false });
           contents.document.addEventListener("click", (event: MouseEvent) => {
             const link = (event.target as Element)?.closest("a");
             if (!link) return;
@@ -675,7 +694,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       {footnote && <div role="dialog" aria-label={t("mobile:epub.footnoteAriaLabel")} className="absolute inset-x-3 bottom-12 z-[60] max-h-[60%] overflow-auto rounded-xl bg-surface p-4 text-foreground shadow-xl"><button className="float-right p-2" onClick={() => setFootnote("")}>{t("common:actions.close")}</button><p className="whitespace-pre-wrap">{footnote}</p></div>}
       {showOverlay && ready && (
         <>
-          <div className="absolute inset-x-0 top-0 z-30 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] text-foreground shadow-lg backdrop-blur">
+          <div onClickCapture={swallowGhostClick} className="absolute inset-x-0 top-0 z-30 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] text-foreground shadow-lg backdrop-blur">
             <div className="flex h-14 items-center gap-1 px-1.5">
               <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={onBack} type="button" aria-label={t("common:actions.back")}>
                 <ChevronLeft size={22} />
@@ -684,7 +703,6 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
                 <p className="truncate text-sm font-semibold">{bookTitle}</p>
                 {chapterLabel && <p className="truncate text-xs text-foreground-subtle">{chapterLabel}</p>}
               </div>
-              {onLearn && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary active:bg-surface-muted" onClick={onLearn} type="button" aria-label={t("mobile:learning.openForLearning")}><GraduationCap size={20} /></button>}
               {onRegister && <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={onRegister} type="button" aria-label={t("mobile:epub.registerReadingAriaLabel")}><NotebookPen size={19} /></button>}
               <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => setTocOpen((value) => !value)} type="button" aria-label={t("mobile:epub.tocAriaLabel")}>
                 <List size={20} />
@@ -749,7 +767,7 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
           )}
 
           </div>
-          <div className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2 text-foreground shadow-lg backdrop-blur">
+          <div onClickCapture={swallowGhostClick} className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2 text-foreground shadow-lg backdrop-blur">
             <div className="flex items-center gap-2">
               <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full active:bg-surface-muted" onClick={() => void goToChapter(-1)} type="button" aria-label={t("mobile:epub.previousChapter")}>
                 <ChevronLeft size={20} />
@@ -778,6 +796,11 @@ export default function EpubPane({ bookId, dataUrl, location, onLocationChange, 
       )}
       <MobileSheet open={settingsOpen} title={t("mobile:reader.settingsAriaLabel")} onClose={() => setSettingsOpen(false)} closeLabel={t("common:actions.close")} size="full">
           <div className="pb-2 pt-1">
+            {onLearn && (
+              <div className="mb-5 border-b border-border pb-4">
+                <ReadingModeSwitch mode="reader" formatLabel="EPUB" onChange={(mode) => { if (mode === "learning") { setSettingsOpen(false); onLearn(); } }} />
+              </div>
+            )}
             <label className="mb-4 flex gap-3 text-foreground"><input type="checkbox" checked={settings.paginated} onChange={e => updateSetting("paginated", e.target.checked)} /> {t("mobile:reader.paginatedLabel")}</label>
             {/* Font family */}
             <div className="mb-4">

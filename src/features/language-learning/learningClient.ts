@@ -10,6 +10,7 @@ import type {
   KnowledgeBucket,
   KnowledgeMergeResult,
   LearningImportResult,
+  LearningBackup,
 } from "../../core/language-learning/model";
 
 /**
@@ -26,6 +27,10 @@ export interface LearningClient {
   exportBackup(): Promise<{ success: true; path: string } | { success: false; error: string }>;
   importBackup(): Promise<({ success: true } & LearningImportResult) | { success: false; error: string }>;
   openBackupsFolder(): Promise<unknown>;
+  /** All learning data of this user, for device sync. */
+  exportData(): Promise<LearningBackup>;
+  /** Merges data from another device (newest record wins). */
+  importData(backup: LearningBackup): Promise<LearningImportResult>;
   setFormState(record: { language: string; key: string; form: string; state: KnowledgeState }): Promise<FormKnowledgeRecord>;
   clearFormState(language: string, key: string, form: string): Promise<void>;
   recordLookup(language: string, key: string, label: string): Promise<void>;
@@ -56,6 +61,8 @@ export function createDesktopLearningClient(userId: string): LearningClient {
     exportBackup: () => api.languageLearningExportBackup(userId),
     importBackup: () => api.languageLearningImportBackup(userId),
     openBackupsFolder: () => api.languageLearningOpenBackupsFolder(userId),
+    exportData: () => api.languageLearningExportData(userId),
+    importData: (backup) => api.languageLearningImportData(userId, backup),
     setFormState: (record) => api.languageLearningSetFormState(userId, record),
     clearFormState: (language, key, form) => api.languageLearningClearFormState(userId, language, key, form),
     recordLookup: (language, key, label) => api.languageLearningRecordLookup(userId, language, key, label),

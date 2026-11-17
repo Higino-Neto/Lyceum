@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { isLearningSourceFormat } from "../../../core/language-learning/learningFormats";
 import {
   AlertTriangle,
   X,
@@ -514,7 +515,7 @@ export default function BookDetailPanel({
 
   const isLyceumPackage = selectedVariant.fileType === "lyceum";
   const canOpenInReader = isLyceumPackage || isReaderSupported(selectedVariant.filePath, selectedVariant.fileType);
-  const canOpenForLearning = ["epub", "pdf", "txt", "html", "lyceum"].includes(String(selectedVariant.fileType));
+  const canOpenForLearning = isLearningSourceFormat(String(selectedVariant.fileType));
   const hasFormatVariants = formatVariants.length > 1;
 
   return (

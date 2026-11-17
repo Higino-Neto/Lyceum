@@ -50,3 +50,12 @@
 @keyframes mobile-sheet-in { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
 @keyframes mobile-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mobile-sheet, .mobile-sheet-backdrop { animation: none; } }
+
+/* Settings tree: pages slide in from the side they come from. */
+@keyframes mobile-settings-forward { from { opacity: .4; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes mobile-settings-back { from { opacity: .4; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.mobile-settings-forward { animation: mobile-settings-forward 200ms cubic-bezier(.2,.8,.2,1); }
+.mobile-settings-back { animation: mobile-settings-back 200ms cubic-bezier(.2,.8,.2,1); }
+:root[data-reduced-effects="true"] .mobile-settings-forward,
+:root[data-reduced-effects="true"] .mobile-settings-back { animation: none; }
+@media (prefers-reduced-motion: reduce) { .mobile-settings-forward, .mobile-settings-back { animation: none; } }

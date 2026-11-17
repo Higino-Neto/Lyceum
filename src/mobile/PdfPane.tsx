@@ -42,6 +42,7 @@ import type {
   PDFViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { ReadingModeSwitch } from "./ReadingModeSwitch";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PdfPane.css";
 import {
@@ -75,6 +76,8 @@ interface PdfPaneProps {
   onZoomChange?: (zoom: number) => void;
   onClose?: () => void;
   onRegister?: () => void;
+  /** Switches this book to .lyceum reading (remembered per book). */
+  onLearn?: () => void;
 }
 
 type NavigationTab = "outline" | "thumbnails" | "bookmarks";
@@ -159,6 +162,7 @@ export default function PdfPane({
   onZoomChange,
   onClose,
   onRegister,
+  onLearn,
 }: PdfPaneProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -721,6 +725,11 @@ export default function PdfPane({
           <div className="lyceum-pdf-reader__sheet-handle" />
           <div className="flex items-center px-5 pb-3 pt-2"><div className="flex-1"><p className="text-lg font-semibold">{t("mobile:pdf.appearanceTitle")}</p><p className="text-xs text-foreground-subtle">{t("mobile:pdf.appearanceSubtitle")}</p></div><button className="lyceum-pdf-reader__icon-button" onClick={() => setSettingsOpen(false)} type="button" aria-label={t("common:actions.close")}><X size={20} /></button></div>
           <div className="overflow-y-auto px-5 pb-6">
+            {onLearn && (
+              <div className="mb-2 border-b border-border pb-4">
+                <ReadingModeSwitch mode="reader" formatLabel="PDF" onChange={(mode) => { if (mode === "learning") { setSettingsOpen(false); onLearn(); } }} />
+              </div>
+            )}
             <SettingLabel>{t("mobile:pdf.pageAppearanceLabel")}</SettingLabel>
             <div className="grid grid-cols-3 gap-2">{([ ["paper", t("mobile:pdf.themes.paper"), Sun, "bg-[#ffffff] text-[#1f2937]"], ["sepia", t("mobile:pdf.themes.sepia"), BookOpen, "bg-[#e9dfc5] text-[#584b34]"], ["night", t("mobile:pdf.themes.night"), Moon, "bg-[#17212b] text-[#f1f5f9]"] ] as const).map(([id, label, Icon, preview]) => <button key={id} className={`relative rounded-2xl border p-2 text-left ${preferences.theme === id ? "border-primary bg-primary-muted" : "border-border bg-surface/[0.025]"}`} onClick={() => setPreferences((current) => ({ ...current, theme: id as PdfReaderTheme }))} type="button"><span className={`grid h-14 place-items-center rounded-xl ${preview}`}><Icon size={20} /></span><span className="mt-2 flex items-center justify-between px-1 text-xs font-semibold text-foreground">{label}{preferences.theme === id && <Check size={14} className="text-primary" />}</span></button>)}</div>
             <SettingLabel>{t("mobile:pdf.brightnessLabel")}</SettingLabel>

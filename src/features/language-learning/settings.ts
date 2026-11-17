@@ -23,7 +23,11 @@ export interface LearningReaderSettings {
   progressPanelOpen: boolean;
   /** Clicking an unknown word in the text moves it to "learning" and adds it to the vocabulary. */
   autoLearnOnClick: boolean;
+  /** Touch screens: space between the text and the screen edges, in px. */
+  horizontalMargin: number;
 }
+
+export const HORIZONTAL_MARGIN_LIMITS = { min: 4, max: 72, step: 4 } as const;
 
 export const DEFAULT_LEARNING_SETTINGS: LearningReaderSettings = {
   learningMode: true,
@@ -39,6 +43,7 @@ export const DEFAULT_LEARNING_SETTINGS: LearningReaderSettings = {
   inspectorOpen: true,
   progressPanelOpen: false,
   autoLearnOnClick: true,
+  horizontalMargin: 20,
 };
 
 const SETTINGS_KEY = "lyceum-learning-reader:settings";
@@ -68,6 +73,7 @@ export function sanitizeSettings(raw: unknown, fallbackNative: string): Learning
     inspectorOpen: bool("inspectorOpen"),
     progressPanelOpen: bool("progressPanelOpen"),
     autoLearnOnClick: bool("autoLearnOnClick"),
+    horizontalMargin: clamp(value.horizontalMargin, HORIZONTAL_MARGIN_LIMITS.min, HORIZONTAL_MARGIN_LIMITS.max, defaults.horizontalMargin),
   };
 }
 

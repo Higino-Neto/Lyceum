@@ -5,9 +5,12 @@ import type { ReaderLocator } from "./readerModel";
 import { FONT_LABELS, FONT_MAP, THEME_COLORS, THEME_LABELS, loadSettings, persistSettings, type FontFamily, type ReaderTheme } from "./textReaderSettings";
 import { useTranslation } from "../i18n";
 import { MobileSelect } from "./MobileControls";
+import { GraduationCap } from "lucide-react";
 
-export default function TextPane({ bookId, dataUrl, initialProgress, initialOffset, onProgress }: {
+export default function TextPane({ bookId, dataUrl, initialProgress, initialOffset, onProgress, onLearn }: {
   bookId: string; dataUrl: string; initialProgress: number; initialOffset?: number; onProgress: (percent: number, offset: number) => void;
+  /** Switches this book to .lyceum reading (remembered per book). */
+  onLearn?: () => void;
 }) {
   const { t } = useTranslation();
   const [content, setContent] = useState("");
@@ -79,6 +82,7 @@ export default function TextPane({ bookId, dataUrl, initialProgress, initialOffs
   const cls = "rounded-lg bg-surface-muted p-2 text-sm text-foreground";
   return <div className="relative">
     <div className="flex flex-wrap gap-2 p-2">
+      {onLearn && <button type="button" className={`${cls} inline-flex items-center gap-1.5 font-semibold text-primary`} onClick={onLearn} aria-label={t("mobile:readingMode.lyceumHint")}><GraduationCap size={16} />{t("mobile:readingMode.lyceum")}</button>}
       <MobileSelect aria-label={t("mobile:textPane.themeLabel")} className={cls} value={settings.theme} onChange={e => setSettings(s => ({ ...s, theme: e.target.value as ReaderTheme }))}>{Object.keys(THEME_COLORS).map(theme => <option key={theme} value={theme}>{t(THEME_LABELS[theme as ReaderTheme])}</option>)}</MobileSelect>
       <MobileSelect aria-label={t("mobile:textPane.fontLabel")} className={cls} value={settings.fontFamily} onChange={e => setSettings(s => ({ ...s, fontFamily: e.target.value as FontFamily }))}>{Object.keys(FONT_MAP).map(font => <option key={font} value={font}>{t(FONT_LABELS[font as FontFamily])}</option>)}</MobileSelect>
       <button className={cls} onClick={() => setSettings(s => ({ ...s, fontSize: Math.max(60, s.fontSize - 10) }))}>A−</button><button className={cls} onClick={() => setSettings(s => ({ ...s, fontSize: Math.min(200, s.fontSize + 10) }))}>A+</button>

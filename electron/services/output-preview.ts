@@ -117,29 +117,48 @@ export class OutputPreviewService {
 
   async render(sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest): Promise<OutputPreviewResult> {
     if (request.targetFormat === "lyceum") throw new Error("O formato .lyceum nao tem pre-visualizacao de leitura.");
-    const slice = await this.slice(sourcePath, sourceFormat, request);
+    const persist = !request.measureOnly;
+    const slice = await this.slice(sourcePath, sourceFormat, request, persist);
+    try {
+      return await this.renderSlice(slice, request);
+    } finally {
+      // Measured slices are throwaway unless another (persisted) request cached the same key.
+      if (!persist && !this.cache.includes(slice)) {
+        void fs.promises.rm(slice.dir, { recursive: true, force: true }).catch(() => undefined);
+      }
+    }
+  }
+
+  private async renderSlice(slice: CachedSlice, request: OutputPreviewRequest): Promise<OutputPreviewResult> {
     const screen = screenFor(request);
+    const measuredPath = request.targetFormat === "pdf" ? slice.renderPath : slice.result.outputPath;
+    const outputBytes = await fs.promises.stat(measuredPath).then((stats) => stats.size).catch(() => 0);
     const base = {
       segmentKind: slice.result.segmentKind,
       segmentIndex: slice.result.segmentIndex,
       segmentCount: slice.result.segmentCount,
       segmentTitle: slice.result.segmentTitle,
       approximate: request.targetFormat === "azw3" || request.targetFormat === "kfx",
+      outputBytes,
     };
 
     if (request.targetFormat === "pdf") {
-      const page = Math.min(Math.max(1, Math.floor(request.page)), slice.pageCount || 1);
+      const pageCount = slice.pageCount || 1;
+      const page = Math.min(Math.max(1, Math.floor(request.page)), pageCount);
+      const pdfSize = request.conversionOptions?.pdfPageSize || "A4";
+      if (request.measureOnly) {
+        return { ...base, dataUrl: "", width: 0, height: 0, page, pageCount, viewport: { width: 0, height: 0, label: pdfSize } };
+      }
       const rendered = await this.deps.renderPdfPage(slice.renderPath, page);
       if (!rendered) throw new Error("Nao foi possivel renderizar a pagina do PDF.");
-      const pdfSize = request.conversionOptions?.pdfPageSize || "A4";
-      return { ...base, ...rendered, page, pageCount: slice.pageCount || 1, viewport: { width: rendered.width, height: rendered.height, label: pdfSize } };
+      return { ...base, ...rendered, page, pageCount, viewport: { width: rendered.width, height: rendered.height, label: pdfSize } };
     }
 
-    const captured = await this.captureScreen(slice, screen, request.page, slice.result.fixedLayout);
+    const captured = await this.captureScreen(slice, screen, request.page, slice.result.fixedLayout, Boolean(request.measureOnly));
     return { ...base, ...captured, viewport: screen };
   }
 
-  private async slice(sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest): Promise<CachedSlice> {
+  private async slice(sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest, persist: boolean): Promise<CachedSlice> {
     const stats = await fs.promises.stat(sourcePath);
     const key = sliceKey(sourcePath, stats, sourceFormat, request);
     const cached = this.cache.find((entry) => entry.key === key && fs.existsSync(entry.renderPath));
@@ -147,12 +166,12 @@ export class OutputPreviewService {
     const pending = this.inflight.get(key);
     if (pending) return pending;
 
-    const job = this.buildSlice(key, sourcePath, sourceFormat, request).finally(() => this.inflight.delete(key));
+    const job = this.buildSlice(key, sourcePath, sourceFormat, request, persist).finally(() => this.inflight.delete(key));
     this.inflight.set(key, job);
     return job;
   }
 
-  private async buildSlice(key: string, sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest): Promise<CachedSlice> {
+  private async buildSlice(key: string, sourcePath: string, sourceFormat: BookFormat, request: OutputPreviewRequest, persist: boolean): Promise<CachedSlice> {
     await fs.promises.mkdir(this.deps.tempRoot, { recursive: true });
     const dir = await fs.promises.mkdtemp(path.join(this.deps.tempRoot, OUTPUT_PREVIEW_TEMP_PREFIX));
     try {
@@ -189,6 +208,7 @@ export class OutputPreviewService {
       }
 
       const entry: CachedSlice = { key, dir, result, renderPath, pageCount };
+      if (!persist) return entry;
       this.cache.unshift(entry);
       for (const evicted of this.cache.splice(CACHE_LIMIT)) {
         void fs.promises.rm(evicted.dir, { recursive: true, force: true }).catch(() => undefined);
@@ -201,7 +221,7 @@ export class OutputPreviewService {
   }
 
   /** Lays the chapter out on a reader-sized screen using CSS columns (one column = one page). */
-  private async captureScreen(slice: CachedSlice, screen: { width: number; height: number }, requestedPage: number, fixedLayout: boolean) {
+  private async captureScreen(slice: CachedSlice, screen: { width: number; height: number }, requestedPage: number, fixedLayout: boolean, measureOnly = false) {
     const scale = 2;
     // Rendered at 2x (window twice the size, zoom 2) so text is sharp while the CSS viewport stays the screen size.
     const window = this.deps.createWindow({
@@ -241,6 +261,7 @@ export class OutputPreviewService {
         return Math.max(1, Math.ceil((scroller.scrollWidth - 1) / ${screen.width}));
       })()`, true) as number;
       const page = fixedLayout ? 1 : Math.min(Math.max(1, Math.floor(requestedPage)), pageCount);
+      if (measureOnly) return { dataUrl: "", width: 0, height: 0, page, pageCount: fixedLayout ? 1 : pageCount };
       await window.webContents.executeJavaScript(`(() => {
         const scroller = document.scrollingElement || document.documentElement;
         scroller.scrollLeft = ${(page - 1) * screen.width};

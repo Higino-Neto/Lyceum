@@ -110,6 +110,7 @@ export function RangeOption({
   min,
   max,
   step = 1,
+  suffix,
   hint,
   onChange,
 }: {
@@ -118,6 +119,7 @@ export function RangeOption({
   min: number;
   max: number;
   step?: number;
+  suffix?: string;
   hint?: ReactNode;
   onChange: (value: number) => void;
 }) {
@@ -125,7 +127,7 @@ export function RangeOption({
     <label className="block space-y-1 text-xs text-foreground-muted">
       <span className="flex items-center justify-between">
         <span>{label}</span>
-        <span className="font-semibold tabular-nums text-foreground">{value}</span>
+        <span className="font-semibold tabular-nums text-foreground">{value}{suffix && <span className="ml-0.5 font-normal text-foreground-subtle">{suffix}</span>}</span>
       </span>
       <input
         type="range"

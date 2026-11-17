@@ -1,6 +1,13 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 export interface ReaderControlSettings { volumeKeys: boolean; keepAwake: boolean; orientation: "auto" | "portrait" | "landscape"; brightness: number; tapZones: boolean }
 export const defaultReaderControls: ReaderControlSettings = { volumeKeys: false, keepAwake: false, orientation: "auto", brightness: -1, tapZones: false };
+export const READER_CONTROLS_STORAGE_KEY = "lyceum-reader-controls";
+export function loadReaderControls(): ReaderControlSettings {
+  try { return { ...defaultReaderControls, ...JSON.parse(localStorage.getItem(READER_CONTROLS_STORAGE_KEY) || "{}") }; } catch { return defaultReaderControls; }
+}
+export function saveReaderControls(controls: ReaderControlSettings) {
+  try { localStorage.setItem(READER_CONTROLS_STORAGE_KEY, JSON.stringify(controls)); } catch { /* Settings remain usable. */ }
+}
 export const ReaderControls = registerPlugin<{
   shareBook(options: { path: string; name: string; mimeType: string }): Promise<void>;
   configure(options: ReaderControlSettings): Promise<void>;

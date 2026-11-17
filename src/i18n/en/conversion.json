@@ -65,7 +65,7 @@
       "paragraphSpacing": "Paragraph spacing",
       "chapterPageBreaks": "New chapter on a new page",
       "generateOutline": "Generate chapter bookmarks",
-      "advanced": "Advanced settings (page, margins, type)",
+      "advanced": "Advanced settings (page, each margin, type)",
       "presets": {
         "label": "Layout",
         "custom": "Custom layout — adjusted in the advanced settings.",
@@ -89,7 +89,10 @@
           "label": "Large print",
           "hint": "14 pt type with airy spacing for easier reading."
         }
-      }
+      },
+      "marginHorizontal": "Horizontal margin (left and right)",
+      "marginVertical": "Vertical margin (top and bottom)",
+      "marginUneven": "The sides have different margins. Moving a slider makes both sides equal; adjust each side in the advanced settings."
     },
     "epub": {
       "layout": "Layout",
@@ -278,14 +281,19 @@
     "error": "Could not generate the preview",
     "alt": "Preview of page {{page}}",
     "pageOf": "Page {{page}} of {{total}}",
-    "chapterPage": "Chapter {{chapter}} · page {{page}}",
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "goToPage": "Go to page",
     "go": "Go",
     "inChapter": "In: {{title}}",
     "seeking": "Finding the page...",
-    "totalEstimated": "total pages estimated until every chapter is measured"
+    "totalEstimated": "Page total is estimated until every chapter is measured",
+    "finalPages": "Final pages",
+    "estimatedSize": "Estimated size",
+    "vsOriginal": "{{delta}} vs. original ({{size}})",
+    "measuring": "Measuring the book… {{done}}/{{total}}",
+    "sizeSampled": "Size estimated from {{count}} sample pages",
+    "settings": "Conversion settings"
   },
   "tools": {
     "common": {

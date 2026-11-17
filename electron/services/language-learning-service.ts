@@ -1,23 +1,12 @@
 import fs from "node:fs";
-import path from "node:path";
 import type { BookFormat } from "../../src/lib/lyceum/schema/types";
+import { learningFormatOfPath } from "../../src/core/language-learning/learningFormats";
 import type { LinguisticDocument } from "../../src/core/language-learning/model";
 import type { OpenLearningDocumentInput, OpenLearningDocumentResult } from "../handlers/language-learning.handler";
 import { prepareLearningDocumentInWorker } from "../workers/processingClient";
 
-const SUPPORTED: Record<string, BookFormat> = {
-  ".epub": "epub",
-  ".txt": "txt",
-  ".html": "html",
-  ".htm": "html",
-  ".pdf": "pdf",
-  ".lyceum": "lyceum",
-};
-
 export function learningSourceFormat(filePath: string): BookFormat | null {
-  const lower = filePath.toLowerCase().replace(/[\\/]+$/, "");
-  if (lower.endsWith(".kepub.epub")) return "epub";
-  return SUPPORTED[path.extname(lower)] ?? null;
+  return learningFormatOfPath(filePath);
 }
 
 export function canOpenForLearning(filePath: string) {

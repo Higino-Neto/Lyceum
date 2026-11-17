@@ -12,3 +12,4 @@ export * from "./languages/types";
 export * from "./languages/registry";
 export { normalizeForm } from "./languages/segmentation";
 export { detectLanguage, type LanguageGuess } from "./languages/detect";
+export * from "./learningFormats";

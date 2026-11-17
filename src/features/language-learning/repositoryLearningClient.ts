@@ -57,6 +57,8 @@ export function createRepositoryLearningClient(host: RepositoryLearningHost, use
       }
     },
     openBackupsFolder: () => host.openBackupsFolder?.(userId) ?? Promise.resolve(null),
+    exportData: () => read((repo) => repo.exportUserData(userId)),
+    importData: (backup) => write((repo) => repo.importUserData(userId, backup)),
     setFormState: (record) => write((repo) => repo.setFormState(userId, record)),
     clearFormState: (language, key, form) => write((repo) => repo.clearFormState(userId, language, key, form)),
     recordLookup: (language, key, label) => write((repo) => repo.recordLookup(userId, language, key, label)),

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { ReaderControls, defaultReaderControls, hasNativeReaderControls, type ReaderControlSettings } from "./readerControls";
+import { ReaderControls, defaultReaderControls, hasNativeReaderControls, loadReaderControls, saveReaderControls, type ReaderControlSettings } from "./readerControls";
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
@@ -39,13 +39,13 @@ export function ReaderTools({ bookId, onTurn }: {
   history?: ReturnType<typeof useReaderHistory>;
 }) {
   const { t } = useTranslation();
-  const [controls, setControls] = useState<ReaderControlSettings>(() => { try { return { ...defaultReaderControls, ...JSON.parse(localStorage.getItem("lyceum-reader-controls") || "{}") }; } catch { return defaultReaderControls; } });
+  const [controls, setControls] = useState<ReaderControlSettings>(loadReaderControls);
   const turnRef = useRef(onTurn); turnRef.current = onTurn;
   const brightnessTouch = useRef(0);
   const native = hasNativeReaderControls();
   useEffect(() => {
     if (!bookId) return;
-    try { localStorage.setItem("lyceum-reader-controls", JSON.stringify(controls)); } catch { /* Settings remain usable. */ }
+    saveReaderControls(controls);
     if (!native) return;
     const apply = () => { if (!document.hidden) void ReaderControls.configure(controls).catch(() => toast.error(translate("mobile:readerTools.controlsUnavailable"))); };
     apply(); document.addEventListener("visibilitychange", apply);

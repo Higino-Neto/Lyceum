@@ -32,6 +32,7 @@ import {
   type NavigationRouteId,
 } from "./navigation/routes";
 import { usePeriodicBackup } from "./features/backup/usePeriodicBackup";
+import { useDesktopDeviceSync } from "./features/device-sync/useDesktopDeviceSync";
 import { useNavigationBootstrap } from "./features/navigation/useNavigationBootstrap";
 import { useTranslation } from "./i18n";
 
@@ -78,6 +79,7 @@ function AppShell() {
   const hideTimerRef = useRef<number | null>(null);
   const showDelayTimerRef = useRef<number | null>(null);
   usePeriodicBackup(settings);
+  useDesktopDeviceSync(isLoggedIn ? user?.id : null);
   useNavigationBootstrap({
     isLoggedIn,
     pathname: location.pathname,

@@ -1,6 +1,7 @@
 import type { IpcMain } from "electron";
 import {
   isKnowledgeState,
+  isLearningBackup,
   type AnnotationTarget,
   type ExerciseType,
   type LanguageLearningRepository,
@@ -305,6 +306,14 @@ export function registerLanguageLearningHandlers(ipcMain: IpcMain, dependencies:
   ipcMain.handle("language-learning:save-reading-state", (_, rawUser: unknown, rawState: unknown) => {
     const state = validReadingState(rawState);
     return track(rawUser, (user) => repository.saveReadingState(user, state));
+  });
+
+  // Device sync: the renderer moves the snapshot to/from the cloud itself.
+  ipcMain.handle("language-learning:export-data", (_, rawUser: unknown) => repository.exportUserData(userId(rawUser)));
+
+  ipcMain.handle("language-learning:import-data", (_, rawUser: unknown, rawBackup: unknown) => {
+    if (!isLearningBackup(rawBackup)) throw new Error("INVALID_BACKUP");
+    return track(rawUser, (user) => repository.importUserData(user, rawBackup));
   });
 
   ipcMain.handle("language-learning:export-backup", async (_, rawUser: unknown) => {

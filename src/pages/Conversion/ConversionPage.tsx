@@ -45,7 +45,7 @@ import Select from "../../components/ui/Select";
 import { useTranslation } from "../../i18n/useTranslation";
 import { formatNumber, getActiveLocale, normalizeCase, type TranslationKey } from "../../i18n";
 import { LibraryPickerDialog } from "../../components/library/LibraryPickerDialog";
-import { NumberOption, ToggleOption } from "./components/OptionControls";
+import { NumberOption, RangeOption, ToggleOption } from "./components/OptionControls";
 import { translateConversionMessage } from "../../features/conversion/conversionMessages";
 import { PDF_LAYOUT_PRESETS, PDF_LAYOUT_PRESET_IDS, matchPdfLayoutPreset } from "./pdfLayoutPresets";
 import { ImageOptions } from "./components/ImageOptions";
@@ -213,7 +213,8 @@ function FormatOptions({
             )}
           </div>
         </div>
-        <details className="group rounded-sm border border-border bg-background/50" open={activePreset === null || undefined}>
+        <MarginSliders options={options} onChange={onChange} />
+        <details className="group rounded-sm border border-border bg-background/50">
           <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-medium text-foreground-muted hover:text-foreground">
             {t("conversion:options.pdf.advanced")}
             <span className="text-foreground-subtle transition-transform group-open:rotate-90">›</span>
@@ -300,6 +301,49 @@ function FormatOptions({
     <div className="space-y-2">
       <ToggleOption label={t("conversion:options.kindle.preserveCover")} checked={options.preserveCover} onChange={() => onChange({ preserveCover: !options.preserveCover })} />
       <ToggleOption label={t("conversion:options.kindle.preserveMetadata")} checked={options.preserveMetadata} onChange={() => onChange({ preserveMetadata: !options.preserveMetadata })} />
+    </div>
+  );
+}
+
+const MARGIN_LIMITS = { min: 0, max: 60 } as const;
+
+/**
+ * Ebook pages are symmetric, so the common case is one value per axis: the
+ * horizontal slider sets left and right, the vertical one top and bottom.
+ * Individual sides stay editable in the advanced settings.
+ */
+function MarginSliders({
+  options,
+  onChange,
+}: {
+  options: ConversionOptions;
+  onChange: (updates: Partial<ConversionOptions>) => void;
+}) {
+  const { t } = useTranslation();
+  const horizontal = Math.round((options.pdfMarginLeftMm + options.pdfMarginRightMm) / 2);
+  const vertical = Math.round((options.pdfMarginTopMm + options.pdfMarginBottomMm) / 2);
+  const uneven = options.pdfMarginLeftMm !== options.pdfMarginRightMm || options.pdfMarginTopMm !== options.pdfMarginBottomMm;
+  return (
+    <div className="space-y-3">
+      <RangeOption
+        label={t("conversion:options.pdf.marginHorizontal")}
+        value={horizontal}
+        min={MARGIN_LIMITS.min}
+        max={MARGIN_LIMITS.max}
+        suffix="mm"
+        onChange={(value) => onChange({ pdfMarginLeftMm: value, pdfMarginRightMm: value })}
+      />
+      <RangeOption
+        label={t("conversion:options.pdf.marginVertical")}
+        value={vertical}
+        min={MARGIN_LIMITS.min}
+        max={MARGIN_LIMITS.max}
+        suffix="mm"
+        onChange={(value) => onChange({ pdfMarginTopMm: value, pdfMarginBottomMm: value })}
+      />
+      {uneven && (
+        <p className="text-[11px] leading-snug text-foreground-subtle">{t("conversion:options.pdf.marginUneven")}</p>
+      )}
     </div>
   );
 }
@@ -1068,7 +1112,32 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                      </section>
                    )}
 
-                   {!kindleMode && <ConversionPreview book={selectedBook} targetFormat={cfg.targetFormat} options={cfg.options} />}
+                   {!kindleMode && (
+                     <ConversionPreview
+                       book={selectedBook}
+                       targetFormat={cfg.targetFormat}
+                       options={cfg.options}
+                       settings={(
+                         <>
+                           <FormatOptions
+                             format={cfg.targetFormat}
+                             sourceFormat={sourceFormatOf(selectedBook)}
+                             options={cfg.options}
+                             onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
+                           />
+                           {supportsImageOptions(selectedBook, cfg.targetFormat) && (
+                             <section>
+                               <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:options.images.title")}</h3>
+                               <ImageOptions
+                                 options={cfg.options}
+                                 onChange={(updates) => updateBookOptions(selectedBook.fileHash, updates)}
+                               />
+                             </section>
+                           )}
+                         </>
+                       )}
+                     />
+                   )}
 
                    {!kindleMode && (
                    <section>

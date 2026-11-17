@@ -37,3 +37,54 @@ export function estimateTotalPages(pageCounts: Map<number, number>, segmentCount
   const average = known > 0 ? sum / known : 1;
   return { total: Math.max(sum, Math.round(average * segmentCount)), exact: false };
 }
+
+/**
+ * Final page number even when earlier chapters were not measured yet: unknown
+ * chapters are assumed to have the average length of the measured ones.
+ */
+export function estimateGlobalPage(
+  position: Position,
+  pageCounts: Map<number, number>,
+): { page: number; exact: boolean } {
+  const exact = computeGlobalPage(position, pageCounts);
+  if (exact !== null) return { page: exact, exact: true };
+  const known = Array.from(pageCounts.values());
+  const average = known.length > 0 ? known.reduce((sum, count) => sum + count, 0) / known.length : 1;
+  let offset = 0;
+  for (let segment = 1; segment < position.segment; segment += 1) {
+    offset += pageCounts.get(segment) ?? average;
+  }
+  return { page: Math.max(1, Math.round(offset + position.page)), exact: false };
+}
+
+/** Up to `limit` segment numbers (one-based) spread evenly across the book. */
+export function sampleSegments(segmentCount: number, limit: number): number[] {
+  if (segmentCount <= 0 || limit <= 0) return [];
+  if (segmentCount <= limit) return Array.from({ length: segmentCount }, (_, index) => index + 1);
+  const picks = new Set<number>();
+  for (let index = 0; index < limit; index += 1) {
+    picks.add(1 + Math.round((index * (segmentCount - 1)) / (limit - 1)));
+  }
+  return Array.from(picks).sort((a, b) => a - b);
+}
+
+/**
+ * Estimated size of the converted file from segments exported on their own.
+ * Every slice repeats the per-file overhead (container, styles, embedded
+ * fonts), so for chapter slices part of the smallest slice is treated as
+ * overhead and counted once. Comic pages are almost pure image data.
+ */
+export function estimateOutputBytes(
+  segmentBytes: Map<number, number>,
+  segmentCount: number,
+  segmentKind: "chapter" | "page",
+): { bytes: number; exact: boolean } | null {
+  const sizes = Array.from(segmentBytes.values()).filter((size) => size > 0);
+  if (sizes.length === 0 || segmentCount <= 0) return null;
+  const overhead = segmentKind === "chapter" && sizes.length > 1 ? Math.min(...sizes) * 0.6 : 0;
+  const average = sizes.reduce((sum, size) => sum + (size - overhead), 0) / sizes.length;
+  return {
+    bytes: Math.max(0, Math.round(average * segmentCount + overhead)),
+    exact: sizes.length >= segmentCount,
+  };
+}

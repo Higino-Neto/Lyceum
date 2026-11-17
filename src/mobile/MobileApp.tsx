@@ -1,9 +1,10 @@
 import { useMobileImport } from "./useMobileImport";
+import MobileSettingsScreen from "./settings/MobileSettingsScreen";
+import { canReadAsLyceum } from "./learning/learningSupport";
 import { useMobileReaderState } from "./useMobileReaderState";
 import { useMobileUpdater } from "./useMobileUpdater";
 import { useMobileAuth } from "./useMobileAuth";
 import { useMobileLibrary } from "./useMobileLibrary";
-import MobileBackupPanel from "./MobileBackupPanel";
 import { hashMobileFile } from "./mobileBackup";
 import { extractMobileMetadata } from "./mobileMetadata";
 import TextPane from "./TextPane";
@@ -11,16 +12,11 @@ import { useMobileConfirm } from "./MobileConfirmDialog";
 import {
   BarChart3,
   BookOpen,
-  Download,
   Heart,
   Library,
-  LockKeyhole,
-  Mail,
   NotebookPen,
-  RefreshCw,
   Settings,
   Trophy,
-  UserCircle,
   X,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -48,9 +44,6 @@ import {
   sanitizeFolderName,
   type MobileLibraryQuery,
 } from "./libraryModel";
-import type { NativeApkUpdateState } from "./nativeApkUpdater";
-import { getSupabaseConfigError } from "../lib/supabase";
-import { hasSupabaseConfig } from "../lib/supabaseAuth";
 import {
   loadPersistentSourceFile,
   pickPersistentSourceFolder,
@@ -62,8 +55,9 @@ import {
 import { extractThumbnailFromDataUrl, extractThumbnailFromFile } from "./thumbnailExtractor";
 import { deleteMobileBookThumbnail, hydrateMobileBookThumbnails, persistExtractedBookThumbnail } from "./thumbnailStorage";
 import type { MobileBook, MobileLibraryState, MobileTab } from "./types";
-import { MobileFieldFrame, MobileInput, MobileSelect } from "./MobileControls";
-import { getActiveLocale, normalizeCase, translate, useTranslation, type TranslationKey } from "../i18n";
+import { MobileFieldFrame, MobileSelect } from "./MobileControls";
+import { normalizeCase, translate, useTranslation, type TranslationKey } from "../i18n";
+import { startDeviceSync } from "../features/device-sync/syncController";
 
 const EpubPane = lazy(() => import("./EpubPane"));
 const MobileDashboardScreen = lazy(() => import("./MobileDashboardScreen"));
@@ -72,13 +66,12 @@ const MobileLibraryScreenV2 = lazy(() => import("./MobileLibraryScreen"));
 const MobileReadingEntryScreen = lazy(() => import("./MobileReadingEntryScreen"));
 const PdfPane = lazy(() => import("./PdfPane"));
 const MobileLearningReader = lazy(() => import("./learning/MobileLearningReader"));
-const MobileVocabularyPanel = lazy(() => import("./learning/MobileVocabularyPanel"));
 
 const tabs: Array<{ id: MobileTab; labelKey: TranslationKey; icon: typeof Library }> = [
   { id: "dashboard", labelKey: "mobile:tabs.dashboard", icon: BarChart3 },
   { id: "library", labelKey: "mobile:tabs.library", icon: Library },
   { id: "leaderboard", labelKey: "mobile:tabs.leaderboard", icon: Trophy },
-  { id: "profile", labelKey: "mobile:tabs.profile", icon: UserCircle },
+  { id: "profile", labelKey: "mobile:tabs.profile", icon: Settings },
 ];
 
 function updateBook(state: MobileLibraryState, bookId: string, patch: Partial<MobileBook>) {
@@ -120,44 +113,8 @@ function MobileStartupSkeleton() {
   );
 }
 
-function formatMobileBytes(bytes?: number) {
-  if (!bytes || bytes <= 0) return "0 MB";
-  const value = bytes / (1024 * 1024);
-  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`;
-  return `${value.toFixed(1)} MB`;
-}
 
-function formatMobileDate(value?: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(getActiveLocale());
-}
 
-function getNativeApkUpdateText(state: NativeApkUpdateState) {
-  switch (state.status) {
-    case "checking":
-      return translate("mobile:updater.checking");
-    case "available":
-      return translate("mobile:updater.available");
-    case "not-available":
-      return translate("mobile:updater.notAvailable");
-    case "not-published":
-      return state.error || translate("mobile:updater.notPublished");
-    case "permission-required":
-      return translate("mobile:updater.permissionRequired");
-    case "downloading":
-      return translate("mobile:updater.downloading");
-    case "installing":
-      return translate("mobile:updater.installing");
-    case "error":
-      return state.error || translate("mobile:updater.checkFailed");
-    case "unsupported":
-      return translate("mobile:updater.androidOnly");
-    default:
-      return translate("mobile:updater.idle");
-  }
-}
 
 type LibraryView = "grid" | "list";
 
@@ -264,7 +221,8 @@ function MobileApp() {
   });
   const [libraryView, setLibraryView] = useState<LibraryView>("grid");
   const [sourceFolderRefreshId, setSourceFolderRefreshId] = useState<string>();
-  const { sessionEmail, authReady, authBusy, authError, authEmail, setAuthEmail, authPassword, setAuthPassword, signIn, signOut, requestPasswordReset } = useMobileAuth();
+  const auth = useMobileAuth();
+  const { sessionEmail } = auth;
   const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { selectedBook, selectedBookDataUrl, isEbookReader, setReaderDataUrls, readerFileLoading, selectBook } = useMobileReaderState(state, setState, setActiveTab);
@@ -275,7 +233,7 @@ function MobileApp() {
   const learningBook = learningBookId ? state.books.find((book) => book.id === learningBookId) : undefined;
   const openForLearning = useCallback((bookId: string) => {
     const book = state.books.find((item) => item.id === bookId);
-    if (!book || (book.fileType !== "epub" && book.fileType !== "txt")) {
+    if (!book || !canReadAsLyceum(book)) {
       toast.error(t("mobile:learning.learningUnsupported"));
       return;
     }
@@ -283,13 +241,17 @@ function MobileApp() {
     setLearningBookId(bookId);
     setActiveTab("learning");
   }, [setState, state.books, t]);
-  /** "Continue reading": reopens the book in the reader it was last read with. */
+  /**
+   * Opens a book in the reader it was last read with (.lyceum or its own
+   * format). Used by the library and "Continue reading"; switching modes from
+   * inside a reader updates the memory.
+   */
   const continueBook = useCallback((bookId: string) => {
     const book = state.books.find((item) => item.id === bookId);
-    if (book?.lastReaderMode === "learning" && (book.fileType === "epub" || book.fileType === "txt")) openForLearning(bookId);
+    if (book?.lastReaderMode === "learning" && canReadAsLyceum(book)) openForLearning(bookId);
     else selectBook(bookId);
   }, [openForLearning, selectBook, state.books]);
-  const { nativeApkUpdate, nativeApkUpdateBusy, refreshNativeApkUpdate, installNativeUpdate, openNativeInstallSettings } = useMobileUpdater();
+  const updater = useMobileUpdater();
   useEffect(() => {
     const updateConnection = () => setIsOnline(navigator.onLine !== false);
     window.addEventListener("online", updateConnection);
@@ -359,7 +321,27 @@ function MobileApp() {
     };
   }, [setState, state.books]);
 
-  const { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter } = useMobileImport({ stateRef, repositoryReady, setState, setReaderDataUrls, setActiveTab, folderId: libraryQuery.folderId, extractThumbnailPatch });
+  const { fileInputRef, importControllersRef, importJobs, setImportJobs, updateImportJob, importFiles, openFileImporter, importReceivedFile } = useMobileImport({ stateRef, repositoryReady, setState, setReaderDataUrls, setActiveTab, folderId: libraryQuery.folderId, extractThumbnailPatch });
+  // Device sync: receive books from the user's other devices and merge vocabulary.
+  const importReceivedFileRef = useRef(importReceivedFile);
+  importReceivedFileRef.current = importReceivedFile;
+  useEffect(() => {
+    if (!repositoryReady || !sessionEmail) return undefined;
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void import("./learning/learningRuntime").then(({ getMobileLearningClient }) => {
+      if (cancelled) return;
+      stop = startDeviceSync({
+        platform: "mobile",
+        learningClient: getMobileLearningClient,
+        receiveBook: (file) => importReceivedFileRef.current(file),
+      });
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [repositoryReady, sessionEmail]);
 
   const importSourceEntries = async (
     entries: SourceImportEntry[],
@@ -713,11 +695,7 @@ function MobileApp() {
     setState((current) => updateBook(current, bookId, { isFavorite: !book.isFavorite }));
   };
 
-  const nativeUpdateProgress = nativeApkUpdate.progress?.percent ?? 0;
-  const nativeUpdatePublishedAt = formatMobileDate(nativeApkUpdate.manifest?.publishedAt);
-  const nativeUpdateSize = formatMobileBytes(nativeApkUpdate.manifest?.sizeBytes);
-
-  if (!repositoryReady || !authReady) return <MobileStartupSkeleton />;
+  if (!repositoryReady || !auth.authReady) return <MobileStartupSkeleton />;
 
   return (
     <div className="lyceum-app min-h-screen bg-background text-foreground">
@@ -851,7 +829,7 @@ function MobileApp() {
               view={libraryView}
               onQueryChange={setLibraryQuery}
               onViewChange={setLibraryView}
-              onOpenBook={selectBook}
+              onOpenBook={continueBook}
               onOpenForLearning={openForLearning}
               onImportFiles={() => { void openFileImporter(); }}
               onImportSourceFolder={connectOrRefreshSourceFolder}
@@ -872,6 +850,7 @@ function MobileApp() {
               book={learningBook}
               loadBytes={() => loadMobileBookBytes(learningBook)}
               onBack={() => setActiveTab("library")}
+              onOpenOriginal={() => selectBook(learningBook.id)}
             />
           )}
           {activeTab === "reader" && (
@@ -960,6 +939,7 @@ function MobileApp() {
                             initialZoom={selectedBook.currentZoom || 1}
                             onClose={() => setActiveTab("library")}
                             onRegister={() => { setReadingSeedBookId(selectedBook.id); setActiveTab("readings"); }}
+                            onLearn={() => openForLearning(selectedBook.id)}
                             onPageChange={(page) => {
                               setState((current) => {
                                 const book = current.books.find((item) => item.id === selectedBook.id);
@@ -990,6 +970,7 @@ function MobileApp() {
                             initialOffset={selectedBook.textOffset}
                             dataUrl={selectedBookDataUrl}
                             initialProgress={selectedBook.textScrollPercent || 0}
+                            onLearn={() => openForLearning(selectedBook.id)}
                             onProgress={(progressPercent, textOffset) => setState((current) => updateBook(current, selectedBook.id, {
                               textOffset,
                               textScrollPercent: progressPercent,
@@ -1057,197 +1038,14 @@ function MobileApp() {
           )}
 
           {activeTab === "profile" && (
-            <section className="space-y-5 p-4">
-              <div className="rounded-2xl border border-border bg-surface p-4">
-                <p className="text-base font-semibold text-foreground">
-                    {t("mobile:profile.accountAndDevice")}
-                  </p>
-                <div className="mt-4 space-y-3 text-sm text-foreground-muted">
-                  <p>
-                    {t("mobile:profile.version")}:{" "}
-                    {import.meta.env.VITE_APP_VERSION || t("mobile:profile.versionFallback")}
-                  </p>
-                  <p>{t("mobile:profile.library")}</p>
-                  <p>
-                    {t("mobile:profile.supabase")}:{" "}
-                    {hasSupabaseConfig()
-                      ? t("mobile:profile.configured")
-                      : t("mobile:auth.notConfigured")}
-                  </p>
-                  <p>
-                    {t("mobile:profile.account")}:{" "}
-                    {!authReady
-                      ? t("mobile:auth.checkingSession")
-                      : sessionEmail || t("mobile:auth.localMode")}
-                  </p>
-                </div>
-                {sessionEmail && (
-                  <button
-                    className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground"
-                    onClick={() => setActiveTab("leaderboard")}
-                    type="button"
-                  >
-                    <Trophy size={17} />
-                    {t("mobile:profile.rankingAndFriends")}
-                  </button>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-border bg-surface p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-semibold text-foreground">
-                      {t("mobile:profile.updates")}
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-foreground-muted">
-                      {getNativeApkUpdateText(nativeApkUpdate)}
-                    </p>
-                  </div>
-                  {nativeApkUpdate.status === "checking" ? (
-                    <RefreshCw className="mt-1 animate-spin text-primary" size={18} />
-                  ) : null}
-                </div>
-
-                <div className="mt-4 space-y-2 text-xs text-foreground-subtle">
-                  {nativeApkUpdate.installed ? (
-                    <p>
-                      {t("mobile:profile.installed")}: {nativeApkUpdate.installed.versionName} ({nativeApkUpdate.installed.versionCode})
-                    </p>
-                  ) : null}
-                  {nativeApkUpdate.manifest ? (
-                    <p>
-                      {t("mobile:profile.available")}: {nativeApkUpdate.manifest.version} ({nativeApkUpdate.manifest.versionCode})
-                      {nativeUpdatePublishedAt ? ` - ${nativeUpdatePublishedAt}` : ""}
-                    </p>
-                  ) : null}
-                  {nativeApkUpdate.manifest?.sizeBytes ? (
-                    <p>{t("mobile:profile.size")}: {nativeUpdateSize}</p>
-                  ) : null}
-                </div>
-
-                {nativeApkUpdate.status === "downloading" ? (
-                  <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-xs text-foreground-subtle">
-                      <span>{Math.round(nativeUpdateProgress)}%</span>
-                      <span>
-                        {formatMobileBytes(nativeApkUpdate.progress?.loaded)} / {formatMobileBytes(nativeApkUpdate.progress?.total)}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${Math.max(0, Math.min(100, nativeUpdateProgress))}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {nativeApkUpdate.manifest?.notes ? (
-                  <p className="mt-4 whitespace-pre-wrap rounded border border-border bg-background p-3 text-sm leading-6 text-foreground-muted">
-                    {nativeApkUpdate.manifest.notes}
-                  </p>
-                ) : null}
-
-                <div className="mt-4 grid gap-2">
-                  {nativeApkUpdate.status === "permission-required" ? (
-                    <button
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground"
-                      onClick={openNativeInstallSettings}
-                      type="button"
-                    >
-                      {t("mobile:updater.openInstallPermission")}
-                    </button>
-                  ) : null}
-                  {nativeApkUpdate.status === "available" || nativeApkUpdate.status === "permission-required" ? (
-                    <button
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                      onClick={installNativeUpdate}
-                      disabled={nativeApkUpdateBusy}
-                      type="button"
-                    >
-                      <Download size={17} />
-                      {nativeApkUpdateBusy ? t("mobile:updater.preparing") : t("mobile:updater.update")}
-                    </button>
-                  ) : null}
-                  <button
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background text-sm font-semibold text-foreground disabled:opacity-60"
-                    onClick={() => { void refreshNativeApkUpdate(false); }}
-                    disabled={nativeApkUpdate.status === "checking" || nativeApkUpdateBusy}
-                    type="button"
-                  >
-                    <RefreshCw size={17} />
-                    {t("mobile:updater.check")}
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-surface p-4">
-                <p className="text-base font-semibold text-foreground">
-                  {sessionEmail ? t("mobile:account.connected") : t("mobile:account.signIn")}
-                </p>
-                {getSupabaseConfigError() ? (
-                  <p className="mt-3 rounded border border-warning/30 bg-warning-muted p-3 text-sm text-warning">
-                    {getSupabaseConfigError()}
-                  </p>
-                ) : null}
-                {authError ? (
-                  <p className="mt-3 rounded border border-destructive/30 bg-destructive-muted p-3 text-sm text-destructive" role="alert">
-                    {authError}
-                  </p>
-                ) : null}
-                <div className="mt-4 space-y-3">
-                  <MobileFieldFrame label={t("mobile:account.email")} htmlFor="mobile-auth-email">
-                    <MobileInput id="mobile-auth-email" icon={Mail} placeholder={t("mobile:account.emailPlaceholder")} autoComplete="email" inputMode="email" disabled={authBusy || Boolean(sessionEmail)} value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
-                  </MobileFieldFrame>
-                  <MobileFieldFrame label={t("mobile:account.password")} htmlFor="mobile-auth-password">
-                    <MobileInput id="mobile-auth-password" icon={LockKeyhole} placeholder={t("mobile:account.passwordPlaceholder")} type="password" autoComplete={sessionEmail ? "off" : "current-password"} disabled={authBusy || Boolean(sessionEmail)} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
-                  </MobileFieldFrame>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      className="rounded bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground"
-                      onClick={() => signIn("signin")}
-                      disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
-                      type="button"
-                    >
-                      {authBusy ? t("mobile:account.signingIn") : t("mobile:account.signIn")}
-                    </button>
-                    <button
-                      className="rounded border border-border bg-background px-3 py-3 text-sm font-semibold text-foreground"
-                      onClick={() => signIn("signup")}
-                      disabled={authBusy || !authReady || Boolean(sessionEmail) || !hasSupabaseConfig() || !isOnline}
-                      type="button"
-                    >
-                      {t("mobile:profile.signUp")}
-                    </button>
-                  </div>
-                  {!sessionEmail ? (
-                    <button
-                      className="h-10 w-full text-xs font-semibold text-primary disabled:opacity-50"
-                      onClick={requestPasswordReset}
-                      disabled={authBusy || !hasSupabaseConfig() || !isOnline}
-                      type="button"
-                    >
-                      {t("mobile:account.forgotPassword")}
-                    </button>
-                  ) : null}
-                  {sessionEmail && (
-                    <button
-                      className="h-11 w-full rounded border border-border text-sm font-medium text-foreground"
-                      onClick={async () => {
-                        if (await confirm(t("mobile:account.signOutConfirm"))) await signOut();
-                      }}
-                      disabled={authBusy}
-                      type="button"
-                    >
-                      {t("mobile:profile.signOut")}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div><h2 className="mb-3 text-base font-semibold text-foreground">
-                {t("mobile:profile.dataAndBackup")}
-              </h2><MobileBackupPanel state={state} setState={setState} /><div className="mt-3"><Suspense fallback={null}><MobileVocabularyPanel /></Suspense></div></div>
-            </section>
+            <MobileSettingsScreen
+              auth={auth}
+              updater={updater}
+              isOnline={isOnline}
+              state={state}
+              setState={setState}
+              onOpenLeaderboard={() => setActiveTab("leaderboard")}
+            />
           )}
           </Suspense>
         </main>

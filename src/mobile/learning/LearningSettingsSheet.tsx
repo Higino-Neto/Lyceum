@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Check, Download, Loader2, Minus, Plus, Trash2 } from "lucide-react";
-import { LEARNING_LANGUAGES, type LearningReaderSettings } from "../../features/language-learning/settings";
+import { HORIZONTAL_MARGIN_LIMITS, LEARNING_LANGUAGES, type LearningReaderSettings } from "../../features/language-learning/settings";
 import { baseLanguage } from "../../features/language-learning/translation";
 import { getLearningBridge, type DictionaryCatalogEntry } from "../../platform";
 import { getActiveLocale, useTranslation } from "../../i18n";
 import MobileSheet from "../MobileSheet";
 import { useMobileConfirm } from "../MobileConfirmDialog";
+import { ReadingModeSwitch } from "../ReadingModeSwitch";
 
 function languageName(code: string) {
   try {
@@ -25,6 +26,17 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
       </span>
       <input type="checkbox" className="mt-1 h-5 w-5 flex-shrink-0 accent-[var(--primary)]" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
+  );
+}
+
+function Stepper({ label, value, display, onStep }: { label: string; value: number; display?: string; onStep(delta: -1 | 1): void }) {
+  return (
+    <div className="flex min-h-12 items-center gap-3 py-1">
+      <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
+      <button type="button" onClick={() => onStep(-1)} aria-label={`${label} −`} className="grid h-11 w-11 place-items-center rounded-full border border-border text-foreground active:bg-surface-muted"><Minus size={18} /></button>
+      <span className="w-10 text-center text-sm tabular-nums text-foreground">{display ?? value}</span>
+      <button type="button" onClick={() => onStep(1)} aria-label={`${label} +`} className="grid h-11 w-11 place-items-center rounded-full border border-border text-foreground active:bg-surface-muted"><Plus size={18} /></button>
+    </div>
   );
 }
 
@@ -143,21 +155,29 @@ interface LearningSettingsSheetProps {
   onSettings(patch: Partial<LearningReaderSettings>): void;
   onDocumentLanguage(language: string): void;
   onDictionariesChanged(): void;
+  /** Leaves .lyceum reading for the book's own format (remembered per book). */
+  onOpenOriginal?(): void;
+  originalFormatLabel?: string;
   onClose(): void;
 }
 
-export function LearningSettingsSheet({ open, settings, documentLanguage, onSettings, onDocumentLanguage, onDictionariesChanged, onClose }: LearningSettingsSheetProps) {
+export function LearningSettingsSheet({ open, settings, documentLanguage, onSettings, onDocumentLanguage, onDictionariesChanged, onOpenOriginal, originalFormatLabel, onClose }: LearningSettingsSheetProps) {
   const { t } = useTranslation();
   const fontStep = (delta: number) => onSettings({ fontSize: Math.min(32, Math.max(13, settings.fontSize + delta)) });
+  const marginStep = (delta: number) => onSettings({
+    horizontalMargin: Math.min(HORIZONTAL_MARGIN_LIMITS.max, Math.max(HORIZONTAL_MARGIN_LIMITS.min, settings.horizontalMargin + delta * HORIZONTAL_MARGIN_LIMITS.step)),
+  });
   return (
     <MobileSheet open={open} size="full" title={t("learning:toolbar.settings")} onClose={onClose} closeLabel={t("learning:actions.close")}>
+      {onOpenOriginal && (
+        <section className="border-b border-border py-3">
+          <ReadingModeSwitch mode="learning" formatLabel={originalFormatLabel ?? ""} onChange={(mode) => { if (mode === "reader") onOpenOriginal(); }} />
+        </section>
+      )}
+
       <Section title={t("mobile:learning.reading")}>
-        <div className="flex min-h-12 items-center gap-3 py-1">
-          <span className="flex-1 text-sm font-medium text-foreground">{t("learning:settings.fontSize")}</span>
-          <button type="button" onClick={() => fontStep(-1)} aria-label="−" className="grid h-11 w-11 place-items-center rounded-full border border-border text-foreground active:bg-surface-muted"><Minus size={18} /></button>
-          <span className="w-8 text-center text-sm tabular-nums text-foreground">{settings.fontSize}</span>
-          <button type="button" onClick={() => fontStep(1)} aria-label="+" className="grid h-11 w-11 place-items-center rounded-full border border-border text-foreground active:bg-surface-muted"><Plus size={18} /></button>
-        </div>
+        <Stepper label={t("learning:settings.fontSize")} value={settings.fontSize} onStep={fontStep} />
+        <Stepper label={t("mobile:learning.horizontalMargin")} value={settings.horizontalMargin} display={`${settings.horizontalMargin}`} onStep={marginStep} />
         <div className="py-1">
           <span className="text-sm font-medium text-foreground">{t("learning:settings.lineHeight")}</span>
           <div className="mt-2 grid grid-cols-4 gap-2">
