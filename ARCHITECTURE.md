@@ -1,6 +1,6 @@
 Comprehensive Analysis of the Lyceum Project
 1. Project Description and Purpose
-Lyceum (version 1.8.28, Beta) is a cross-platform ebook management and reading application described as "A smarter home for every book you read." It is authored by Higino Neto and licensed under MIT (Copyright 2026).
+Lyceum (version 1.8.28, Beta) is a cross-platform ebook management and reading application described as "A smarter home for every book you read." It is authored by Higino Neto and licensed under AGPL-3.0-or-later (Copyright 2026; releases up to 1.9.2 were MIT).
 Core capabilities:
 - Library Management: Import, organize, search, and manage ebooks (PDF, EPUB, CBZ, TXT, HTML, AZW3, KFX) in a local library with folders, collections, covers, and rich metadata.
 - Built-in Reader: Read PDF and EPUB files directly inside the app with persistent tabs, zoom, scroll, and chapter position restoration.
@@ -207,7 +207,7 @@ Node.js	v20+ required
 |-- .env.example                # Environment variable template
 |-- .env                        # Environment variables (gitignored)
 |-- .gitignore
-|-- LICENSE                     # MIT
+|-- LICENSE                     # AGPL-3.0-or-later
 |-- README.md                   # Project overview
 |-- FEATURES.md                 # Feature roadmap/changelog (in Portuguese)
 4. Current Build and Distribution Setup

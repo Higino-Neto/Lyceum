@@ -7,6 +7,7 @@
     "email": "higino.dev@gmail.com"
   },
   "description": "Lyceum is a desktop and mobile reading companion.",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-electron.mjs",

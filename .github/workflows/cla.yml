@@ -1,0 +1,30 @@
+name: CLA
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CLA Assistant
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the Lyceum CLA and I agree to its terms.') || github.event_name == 'pull_request_target'
+        uses: contributor-assistant/github-action@v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-signatures: 'signatures/cla.json'
+          path-to-document: 'https://github.com/Higino-Neto/Lyceum/blob/main/CLA.md'
+          branch: 'cla-signatures'
+          allowlist: Higino-Neto,bot*,dependabot[bot]
+          custom-pr-sign-comment: 'I have read the Lyceum CLA and I agree to its terms.'
+          custom-notsigned-prcomment: 'Thanks for your contribution! Before it can be merged, please read the [Lyceum CLA](https://github.com/Higino-Neto/Lyceum/blob/main/CLA.md) and sign it by commenting the sentence below.'

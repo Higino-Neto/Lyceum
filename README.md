@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Higino-Neto/Lyceum/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Higino-Neto/Lyceum?style=for-the-badge">&nbsp</a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f?style=for-the-badge">&nbsp</a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-2ea44f?style=for-the-badge">&nbsp</a>
   <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android-0969da?style=for-the-badge">
   <a href="https://github.com/Higino-Neto/Lyceum/stargazers">&nbsp<img alt="GitHub stars" src="https://img.shields.io/github/stars/Higino-Neto/Lyceum?style=for-the-badge"></a>
 </p>
@@ -164,7 +164,11 @@ The full documentation lives in [docs](docs/index.md), including architecture, l
 ---
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Lyceum is free software licensed under the [GNU Affero General Public License v3.0 or later](LICENSE). See [NOTICE](NOTICE) for details.
+
+Versions up to and including 1.9.2 were released under the MIT License and remain available under those terms.
+
+The "Lyceum" name and logo are trademarks and are not covered by the software license. See [TRADEMARKS.md](TRADEMARKS.md). Contributions are accepted under the [Contributor License Agreement](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 ## Author
