@@ -124,6 +124,20 @@ export function registerPdfToolsHandlers(ipcMain: IpcMain, dependencies: PdfTool
     }
   });
 
+  ipcMain.handle("tools:analyze-exercises", async (_, filePath: string, jobId?: string) => {
+    if (typeof filePath !== "string" || !filePath.toLowerCase().endsWith(".pdf") || !fs.existsSync(filePath)) {
+      return { success: false, error: "PDF nao encontrado" };
+    }
+    try {
+      const response = await dependencies.runPdfTool({ operation: "analyze-exercises", input: { filePath } }, jobId
+        ? (progress, message) => dependencies.sendProgress({ jobId, progress, message })
+        : undefined);
+      return response.operation === "exercises" ? { success: true, analysis: response.analysis } : { success: false, error: "Resposta invalida" };
+    } catch (error) {
+      return { success: false, error: errorMessage(error, "Nao foi possivel analisar o PDF") };
+    }
+  });
+
   ipcMain.handle("tools:run", async (_, request: ToolRunRequest, jobId?: string) => {
     const outputPath = request?.input?.outputPath;
     if (!outputPath || !approvedOutputs.has(path.resolve(outputPath))) {

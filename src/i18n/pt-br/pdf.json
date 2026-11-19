@@ -30,7 +30,17 @@
     "bookmarkSavedSession": "Marca disponível nesta sessão; não foi possível salvá-la neste dispositivo.",
     "landmarkNote": "Nota · {{page}}",
     "landmarkHighlight": "Destaque · {{page}}",
-    "bookmarkTitle": "Marca-página · {{page}}"
+    "bookmarkTitle": "Marca-página · {{page}}",
+    "pickHint": "Clique com o botão direito numa página para selecioná-la · arraste com o botão direito para selecionar várias · Ctrl+clique alterna · Shift+clique seleciona um intervalo · Espaço seleciona a página em destaque",
+    "pickSummary": "{{count}} selecionadas · {{ranges}}",
+    "pickClear": "Limpar",
+    "pickExport": "Exportar páginas",
+    "pickExercises": "Selecionar exercícios",
+    "pickAdd": "Selecionar para exportar",
+    "pickRemove": "Tirar da seleção",
+    "pickBusyExport": "Exportando…",
+    "pickBusyExercises": "Procurando exercícios no livro…",
+    "pickedLabel": " · selecionada"
   },
   "annotations": {
     "panel": {
@@ -203,5 +213,18 @@
     "empty": "Este PDF não possui capítulos ou bookmarks.",
     "untitled": "(sem título)",
     "structureFailed": "Não foi possível ler a estrutura de capítulos deste PDF."
+  },
+  "pagePick": {
+    "fileSuffix_one": "página selecionada",
+    "fileSuffix_other": "{{count}} páginas",
+    "exported_one": "PDF exportado com {{count}} página",
+    "exported_other": "PDF exportado com {{count}} páginas",
+    "showInFolder": "Mostrar na pasta",
+    "exportFailed": "Não foi possível exportar: {{message}}",
+    "exercisesPicked_one": "{{count}} página de exercícios selecionada ({{sections}} seções). Revise antes de exportar.",
+    "exercisesPicked_other": "{{count}} páginas de exercícios selecionadas ({{sections}} seções). Revise antes de exportar.",
+    "exercisesNone": "Nenhuma seção de exercícios encontrada neste livro.",
+    "exercisesNoText": "Este PDF é escaneado (sem texto); não dá para encontrar os exercícios automaticamente.",
+    "exercisesFailed": "Não foi possível analisar o livro: {{message}}"
   }
 }

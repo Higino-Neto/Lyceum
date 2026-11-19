@@ -7,6 +7,11 @@ import {
   EVT_STATE_CHANGED,
   EVT_TOGGLE_ANNOTATIONS,
   EVT_TOGGLE_CHAPTERS,
+  EVT_EXPORT_PAGES,
+  EVT_REQUEST_EXERCISE_PAGES,
+  CMD_SET_PAGE_PICKS,
+  CMD_SET_PAGE_PICK_STATE,
+  isPageListPayload,
   CMD_GET_OUTLINE,
   CMD_NAVIGATE,
   CMD_RESTORE,
@@ -29,6 +34,10 @@ import {
 } from "../../../../core/pdf-reader-core/contract";
 
 export {
+  CMD_SET_PAGE_PICKS,
+  CMD_SET_PAGE_PICK_STATE,
+  EVT_EXPORT_PAGES,
+  EVT_REQUEST_EXERCISE_PAGES,
   CMD_GET_OUTLINE,
   CMD_NAVIGATE,
   CMD_RESTORE,
@@ -59,7 +68,8 @@ export type {
 } from "../../../../core/pdf-reader-core/contract";
 
 export type PdfViewerEvent =
-  | { version: 1; type: typeof EVT_READY | typeof EVT_DOCUMENT_READY | typeof EVT_TOGGLE_CHAPTERS | typeof EVT_TOGGLE_ANNOTATIONS }
+  | { version: 1; type: typeof EVT_READY | typeof EVT_DOCUMENT_READY | typeof EVT_TOGGLE_CHAPTERS | typeof EVT_TOGGLE_ANNOTATIONS | typeof EVT_REQUEST_EXERCISE_PAGES }
+  | { version: 1; type: typeof EVT_EXPORT_PAGES; pages: number[] }
   | { version: 1; type: typeof EVT_STATE_CHANGED; state: PdfViewState }
   | { version: 1; type: typeof EVT_RESTORE_COMPLETE; state: PdfViewState | null }
   | { version: 1; type: typeof EVT_CREATE_CONCEPT; payload: PdfSelectionPayload }
@@ -84,7 +94,10 @@ export function parsePdfViewerMessage(
     case EVT_DOCUMENT_READY:
     case EVT_TOGGLE_CHAPTERS:
     case EVT_TOGGLE_ANNOTATIONS:
+    case EVT_REQUEST_EXERCISE_PAGES:
       return data as PdfViewerEvent;
+    case EVT_EXPORT_PAGES:
+      return isPageListPayload(data) ? data as PdfViewerEvent : null;
     case EVT_STATE_CHANGED:
       return isPdfViewState(data.state) ? data as PdfViewerEvent : null;
     case EVT_RESTORE_COMPLETE:

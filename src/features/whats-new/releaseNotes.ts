@@ -24,6 +24,19 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.11.0",
+    date: "2026-11-19",
+    title: {
+      en: "Pick pages while riffling and pull the exercises out of any book",
+      "pt-BR": "Selecione páginas ao folhear e separe os exercícios de qualquer livro",
+    },
+    items: [
+      { kind: "new", text: { en: "Riffle through the book: right-click pages to pick them (right-drag picks several, Ctrl+click toggles, Shift+click picks a range, Space picks the inspected page) and export only those pages as a new PDF. Picks are kept per book and shown on the book edge.", "pt-BR": "Folhear o livro: clique com o botão direito nas páginas para selecioná-las (arrastar com o botão direito seleciona várias, Ctrl+clique alterna, Shift+clique seleciona um intervalo, Espaço seleciona a página em destaque) e exporte só essas páginas como um novo PDF. A seleção fica salva por livro e aparece na borda do livro." } },
+      { kind: "new", text: { en: "PDF Builder: \"Exercises from a book\" finds the exercise pages of a PDF (by outline, section titles, running headers and the layout of the questions) and keeps only them, or removes them to split theory from practice. Review by chapter, adjust sensitivity, include answer keys or exercises within the text, and leave out single pages.", "pt-BR": "PDF Builder: \"Exercícios de um livro\" encontra as páginas de exercícios de um PDF (pelo sumário, títulos de seção, cabeçalhos e formato das questões) e mantém só elas, ou as remove para separar teoria de prática. Revise por capítulo, ajuste a sensibilidade, inclua gabaritos ou exercícios no meio do texto e deixe páginas avulsas de fora." } },
+      { kind: "new", text: { en: "\"Pick exercises\" in the riffle dialog pre-selects the detected exercise pages so you can fine-tune and export them.", "pt-BR": "\"Selecionar exercícios\" no diálogo de folhear pré-seleciona as páginas de exercícios detectadas para você ajustar e exportar." } },
+    ],
+  },
+  {
     version: "1.10.0",
     date: "2026-11-17",
     title: {

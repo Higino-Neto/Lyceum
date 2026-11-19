@@ -13,7 +13,7 @@ import type {
 } from "../src/types/AnnotationTypes";
 import type { LyceumConversionOptions } from "../src/lib/lyceum/schema/types";
 import type { OutputPreviewRequest, OutputPreviewResult } from "./services/output-preview-types";
-import type { PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } from "./services/pdf-tools-types";
+import type { ExerciseAnalysis, PdfToolThumbnail, ToolFileKind, ToolPickedFile, ToolRunRequest } from "./services/pdf-tools-types";
 import type { KindleEmailPublicConfig, KindleEmailSaveInput } from "./services/kindle-email-types";
 import type { KindleSendErrorCode, KindleSendStage } from "../src/features/kindle/kindleSendPlan";
 
@@ -303,6 +303,9 @@ const api = {
 
   getToolPdfThumbnails: (filePath: string, pages: number[]) =>
     invoke<{ success: boolean; thumbnails: PdfToolThumbnail[]; error?: string }>("tools:pdf-thumbnails", filePath, pages),
+
+  analyzeToolPdfExercises: (filePath: string, jobId?: string) =>
+    invoke<{ success: boolean; analysis?: ExerciseAnalysis; error?: string }>("tools:analyze-exercises", filePath, jobId),
 
   runTool: (request: ToolRunRequest, jobId?: string) =>
     invoke<{ success: boolean; outputPath?: string; fileSize?: number; pageCount?: number; error?: string }>("tools:run", request, jobId),

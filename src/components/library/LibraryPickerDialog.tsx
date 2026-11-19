@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 import { Check, Folder, FolderOpen, Library, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -46,6 +47,8 @@ interface LibraryPickerDialogProps {
   onSelectMany?: (books: BookWithThumbnail[]) => void;
   title?: string;
   description?: string;
+  /** Extra controls shown next to the selection count in multi mode (e.g. an import option). */
+  footerExtra?: ReactNode;
 }
 
 /**
@@ -61,6 +64,7 @@ export function LibraryPickerDialog({
   onSelectMany,
   title,
   description,
+  footerExtra,
 }: LibraryPickerDialogProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -296,9 +300,12 @@ export function LibraryPickerDialog({
 
       {multiple && (
         <div className="flex items-center justify-between gap-3 border-t border-border bg-surface/40 px-4 py-3">
-          <span className="text-xs text-foreground-muted">
-            {t("library:picker.selected", { count: selected.size })}
-          </span>
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="text-xs text-foreground-muted">
+              {t("library:picker.selected", { count: selected.size })}
+            </span>
+            {footerExtra}
+          </div>
           <div className="flex items-center gap-2">
             {selected.size > 0 && (
               <button

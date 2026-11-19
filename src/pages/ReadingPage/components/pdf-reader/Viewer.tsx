@@ -5,6 +5,7 @@ import { useLocalStorage } from "../../../../hooks/useLocalStorage";
 interface ViewerProps {
   fileHash: string;
   fileName?: string;
+  filePath?: string;
   hasSessionStarted: boolean;
   hasSessionFinished: boolean;
   onTotalBookPages: (totalBookPages: number) => void;

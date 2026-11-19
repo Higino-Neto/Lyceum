@@ -29,7 +29,7 @@ async function loadCanvas() {
   }
 }
 
-async function loadPdfJs() {
+export async function loadPdfJs() {
   const { DOMMatrix, ImageData, Path2D } = await loadCanvas();
   if (!("DOMMatrix" in globalThis)) {
     Object.defineProperty(globalThis, "DOMMatrix", { configurable: true, value: DOMMatrix });

@@ -127,6 +127,7 @@ function ReadingContent() {
       <PdfViewer
         fileHash={activeTab.fileHash}
         fileName={activeTab.fileName}
+        filePath={activeTab.filePath}
         hasSessionStarted={session.sessionStart}
         hasSessionFinished={session.sessionFinish}
         onReadingInfo={session.handleReadingInfo}

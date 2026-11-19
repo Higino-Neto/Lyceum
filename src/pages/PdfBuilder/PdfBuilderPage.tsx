@@ -8,6 +8,7 @@ import {
   FileStack,
   FileText,
   Library,
+  ListChecks,
   RotateCcw,
   RotateCw,
   Trash2,
@@ -34,6 +35,7 @@ import {
 } from "./BuilderShared";
 import { createToolFileId, stripExtension, toToolFiles, useFileDrop, useToolRunner, type ToolFile } from "./builderUtils";
 import { thumbKey, usePdfThumbnails } from "./usePdfThumbnails";
+import { ExerciseFinderDialog, type ExerciseApplyMode, type ExerciseFinderSource } from "./ExerciseFinderDialog";
 
 type Rotation = 0 | 90 | 180 | 270;
 type ThumbSize = "small" | "medium" | "large";
@@ -137,6 +139,9 @@ export default function PdfBuilderPage() {
   const [author, setAuthor] = useState("");
   const [adding, setAdding] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [exercisesOnImport, setExercisesOnImport] = useState(false);
+  // PDFs waiting for the exercise finder, shown one at a time.
+  const [exerciseQueue, setExerciseQueue] = useState<string[]>([]);
   const letterCounter = useRef(0);
   const { state, run, reset } = useToolRunner();
   const { thumbs, request } = usePdfThumbnails();
@@ -190,7 +195,7 @@ export default function PdfBuilderPage() {
 
   // ----- adding files ------------------------------------------------------
 
-  const addFiles = async (files: ToolFile[]) => {
+  const addFiles = async (files: ToolFile[], findExercises = false) => {
     const usable = files.filter((file) => ACCEPTED.includes(file.extension));
     if (usable.length === 0) return;
     setAdding(true);
@@ -229,6 +234,50 @@ export default function PdfBuilderPage() {
     setSources((current) => [...current, ...newSources]);
     commit((previous) => [...previous, ...newPages]);
     setTitle((current) => current || stripExtension(newSources[0]!.name));
+    if (findExercises) {
+      setExerciseQueue((current) => [...current, ...newSources.filter((source) => source.kind === "pdf").map((source) => source.id)]);
+    }
+  };
+
+  // ----- exercise finder ----------------------------------------------------
+
+  const exerciseSource = exerciseQueue.length ? sourceById.get(exerciseQueue[0]!) ?? null : null;
+  const nextExerciseSource = () => setExerciseQueue((current) => current.slice(1));
+
+  const applyExercises = (target: ExerciseFinderSource, pageIndices: number[], mode: ExerciseApplyMode) => {
+    const wanted = new Set(pageIndices);
+    if (mode === "select") {
+      setSelection(new Set(pagesRef.current.filter((page) => page.sourceId === target.id && wanted.has(page.pageIndex)).map((page) => page.id)));
+    } else if (mode === "remove") {
+      commit((previous) => previous.filter((page) => page.sourceId !== target.id || !wanted.has(page.pageIndex)));
+      setSelection(new Set());
+    } else {
+      commit((previous) => {
+        const firstPosition = previous.findIndex((page) => page.sourceId === target.id);
+        const existing = new Map<number, BuilderPage>();
+        for (const page of previous) {
+          if (page.sourceId === target.id && !existing.has(page.pageIndex)) existing.set(page.pageIndex, page);
+        }
+        // Pages come back in book order, keeping any rotation the user already set.
+        const kept = pageIndices.map((pageIndex) => ({
+          id: createToolFileId("page"),
+          sourceId: target.id,
+          pageIndex,
+          rotation: existing.get(pageIndex)?.rotation ?? 0,
+          deleted: false,
+        }));
+        const others = previous.filter((page) => page.sourceId !== target.id);
+        const insertAt = firstPosition < 0 ? others.length : previous.slice(0, firstPosition).filter((page) => page.sourceId !== target.id).length;
+        return [...others.slice(0, insertAt), ...kept, ...others.slice(insertAt)];
+      });
+      setSelection(new Set());
+      const suffix = t("conversion:builder.exercises.titleSuffix");
+      setTitle((current) => (!current || current === stripExtension(target.name) ? `${stripExtension(target.name)} — ${suffix}` : current));
+    }
+    if (mode !== "select") {
+      toast.success(t(mode === "keep" ? "conversion:builder.exercises.keptToast" : "conversion:builder.exercises.removedToast", { count: pageIndices.length }));
+    }
+    nextExerciseSource();
   };
 
   const drop = useFileDrop(ACCEPTED, (files) => void addFiles(files), "file");
@@ -238,12 +287,14 @@ export default function PdfBuilderPage() {
     commit((previous) => previous.filter((page) => page.sourceId !== sourceId));
     setSources((current) => current.filter((source) => source.id !== sourceId));
     setSelection(new Set());
+    setExerciseQueue((current) => current.filter((id) => id !== sourceId));
   };
 
   const clearAll = () => {
     commit([]);
     setSources([]);
     setSelection(new Set());
+    setExerciseQueue([]);
     letterCounter.current = 0;
   };
 
@@ -345,9 +396,13 @@ export default function PdfBuilderPage() {
 
   const addButtons = (
     <>
-      <ToolButton onClick={() => setPickerOpen(true)} disabled={running || adding}>
+      <ToolButton onClick={() => { setExercisesOnImport(false); setPickerOpen(true); }} disabled={running || adding}>
         <Library size={14} />
         {t("conversion:builder.addFromLibrary")}
+      </ToolButton>
+      <ToolButton onClick={() => { setExercisesOnImport(true); setPickerOpen(true); }} disabled={running || adding} title={t("conversion:builder.exercises.fromLibraryHint")}>
+        <ListChecks size={14} />
+        {t("conversion:builder.exercises.fromLibrary")}
       </ToolButton>
       <ToolButton onClick={pick} disabled={running || adding}>
         <FilePlus size={14} />
@@ -447,6 +502,11 @@ export default function PdfBuilderPage() {
                         {source.kind === "pdf" ? t("conversion:tools.common.pages", { count: source.pageCount }) : t("conversion:builder.image")} · {formatFileSize(source.size)}
                       </p>
                     </div>
+                    {source.kind === "pdf" && (
+                      <IconButton label={t("conversion:builder.exercises.findIn", { name: source.name })} onClick={() => setExerciseQueue((current) => [source.id, ...current.filter((id) => id !== source.id)])}>
+                        <ListChecks size={13} />
+                      </IconButton>
+                    )}
                     <IconButton label={t("conversion:builder.removeFile", { name: source.name })} danger onClick={() => removeSource(source.id)}>
                       <X size={13} />
                     </IconButton>
@@ -594,6 +654,12 @@ export default function PdfBuilderPage() {
         description={t("conversion:builder.pickerDescription")}
         onClose={() => setPickerOpen(false)}
         multiple
+        footerExtra={(
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground" title={t("conversion:builder.exercises.fromLibraryHint")}>
+            <input type="checkbox" checked={exercisesOnImport} onChange={(event) => setExercisesOnImport(event.target.checked)} className="h-4 w-4 accent-primary" />
+            {t("conversion:builder.exercises.onlyExercises")}
+          </label>
+        )}
         onSelectMany={(books) => {
           setPickerOpen(false);
           void addFiles(books.map((book) => ({
@@ -602,8 +668,17 @@ export default function PdfBuilderPage() {
             name: `${getTitleWithoutExtension(book.title, book.fileType)}.pdf`,
             size: book.fileSize || 0,
             extension: "pdf",
-          })));
+          })), exercisesOnImport);
         }}
+      />
+
+      <ExerciseFinderDialog
+        source={exerciseSource}
+        onClose={nextExerciseSource}
+        onApply={applyExercises}
+        renderThumb={(target, pageIndex) => (
+          <PdfPageImage path={target.path} pageIndex={pageIndex} rotation={0} src={thumbs[thumbKey(target.path, pageIndex)]} onVisible={request} />
+        )}
       />
     </div>
   );

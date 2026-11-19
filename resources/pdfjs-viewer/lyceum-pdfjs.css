@@ -291,6 +291,22 @@ body {
 #lyceumRiffle [data-action="open"] { background: var(--lyceum-primary, #4ade80); color: var(--lyceum-primary-foreground, #052e16); border-color: var(--lyceum-primary-border, rgb(74 222 128 / 0.42)); }
 #lyceumRiffle [data-action="open"]:hover { background: var(--lyceum-primary-hover, #86efac); }
 #lyceumRiffle .riffleHelp { margin: 0; padding: 0 16px 10px; font-size: 11px; text-align: center; color: var(--lyceum-foreground-subtle, #82828c); }
+/* Page picking: picked tiles keep a solid primary outline and a check badge. */
+.bookEdgePicked { position: absolute; left: -3px; width: 3px; background: var(--lyceum-primary, #4ade80); border-radius: 2px; }
+#lyceumRiffle .riffleTile { position: relative; user-select: none; }
+#lyceumRiffle .riffleTile.isPicked { border-color: var(--lyceum-primary, #4ade80); box-shadow: inset 0 0 0 1px var(--lyceum-primary, #4ade80); color: var(--lyceum-foreground, #f4f4f5); }
+#lyceumRiffle .riffleTile.isPicked .riffleSheet canvas { outline: 2px solid var(--lyceum-primary, #4ade80); outline-offset: 1px; }
+.rifflePickCheck { display: none; position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 999px; background: var(--lyceum-primary, #4ade80); color: var(--lyceum-primary-foreground, #052e16); font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px var(--lyceum-shadow, rgb(0 0 0 / 0.4)); pointer-events: none; }
+.riffleTile.isPicked .rifflePickCheck { display: flex; }
+.rifflePickBar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--lyceum-border, #27272a); background: color-mix(in srgb, var(--lyceum-primary-muted, rgb(74 222 128 / 0.18)) 60%, transparent); }
+.rifflePickBar[data-empty="true"] { background: transparent; }
+#lyceumRiffle .rifflePickSummary { flex: 1; min-width: 0; margin: 0; font-size: 12px; color: var(--lyceum-foreground, #f4f4f5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rifflePickBar[data-empty="true"] .rifflePickSummary { color: var(--lyceum-foreground-subtle, #82828c) !important; }
+.rifflePickActions { display: flex; gap: 8px; flex-shrink: 0; }
+#lyceumRiffle [data-action="pick-export"]:not(:disabled) { background: var(--lyceum-primary, #4ade80); color: var(--lyceum-primary-foreground, #052e16); border-color: var(--lyceum-primary-border, rgb(74 222 128 / 0.42)); }
+#lyceumRiffle [data-action="pick-export"]:not(:disabled):hover { background: var(--lyceum-primary-hover, #86efac); }
+#lyceumRiffle [data-action="pick"][aria-pressed="true"] { border-color: var(--lyceum-primary, #4ade80); color: var(--lyceum-foreground, #f4f4f5); }
+#lyceumRiffle button[hidden] { display: none; }
 @media (max-width: 1100px) { .riffleGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .riffleBody { gap: 12px; } }
 @media (max-width: 640px) {
   #lyceumBookEdge { right: 10px; width: 18px; }
@@ -300,6 +316,7 @@ body {
   .riffleBody { grid-template-columns: 1fr; grid-template-rows: 1fr 1.2fr; }
   .riffleGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .riffleActions { justify-content: center; } #lyceumRiffle .riffleHelp { display: none; }
+  .rifflePickBar { flex-wrap: wrap; padding: 8px; } .rifflePickActions { width: 100%; justify-content: flex-end; }
 }
 @media (prefers-reduced-motion: reduce) { #lyceumBookEdge { transition: none; } #lyceumRiffle[open] { animation: none; } }
 .bookEdgeLandmark { position: absolute; left: 1px; pointer-events: none; }

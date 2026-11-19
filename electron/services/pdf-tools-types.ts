@@ -1,5 +1,9 @@
 /** Renderer-facing contract of the PDF tools (types only, safe to import from the preload). */
 
+import type { ExerciseAnalysis } from "../../src/core/pdf/exercise-detection";
+
+export type { ExerciseAnalysis };
+
 export type ImagePageSize = "image" | "A4" | "Letter";
 
 export interface BuildPdfPage {
@@ -46,17 +50,19 @@ export type PdfToolRequest =
   | { operation: "build-pdf"; input: BuildPdfInput }
   | { operation: "images-to-cbz"; input: ImagesToCbzInput }
   | { operation: "info"; input: { filePath: string } }
-  | { operation: "thumbnails"; input: { filePath: string; pages: number[]; maxDimension?: number } };
+  | { operation: "thumbnails"; input: { filePath: string; pages: number[]; maxDimension?: number } }
+  | { operation: "analyze-exercises"; input: { filePath: string } };
 
 export type PdfToolThumbnail = { page: number; dataUrl: string; width: number; height: number };
 
 export type PdfToolResponse =
   | { operation: "result"; result: PdfToolResult }
   | { operation: "info"; info: PdfToolInfo }
-  | { operation: "thumbnails"; thumbnails: PdfToolThumbnail[] };
+  | { operation: "thumbnails"; thumbnails: PdfToolThumbnail[] }
+  | { operation: "exercises"; analysis: ExerciseAnalysis };
 
 /** Requests the renderer may run (the read-only operations have their own channels). */
-export type ToolRunRequest = Exclude<PdfToolRequest, { operation: "info" } | { operation: "thumbnails" }>;
+export type ToolRunRequest = Exclude<PdfToolRequest, { operation: "info" } | { operation: "thumbnails" } | { operation: "analyze-exercises" }>;
 
 export type ToolFileKind = "images" | "pdf" | "books" | "builder";
 

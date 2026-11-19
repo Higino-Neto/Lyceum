@@ -1,4 +1,8 @@
-import { bookSections, edgePage, rifflePages, CMD_SET_BOOK_LANDMARKS, CMD_SET_STRINGS, isBookLandmark } from "../../lyceum-core.mjs";
+import {
+  bookSections, edgePage, rifflePages, formatPageRanges, pageRuns, isPagePicksCommand,
+  CMD_SET_BOOK_LANDMARKS, CMD_SET_STRINGS, CMD_SET_PAGE_PICKS, CMD_SET_PAGE_PICK_STATE,
+  EVT_EXPORT_PAGES, EVT_REQUEST_EXERCISE_PAGES, isBookLandmark,
+} from "../../lyceum-core.mjs";
 
 const DEFAULT_STRINGS = {
   edgeAriaLabel: "BookEdge — browse the book without leaving reading",
@@ -26,6 +30,16 @@ const DEFAULT_STRINGS = {
   landmarkNote: "Note · {{page}}",
   landmarkHighlight: "Highlight · {{page}}",
   bookmarkTitle: "Bookmark · {{page}}",
+  pickHint: "Right-click a page to pick it for export · right-drag to pick several · Ctrl+click toggles · Shift+click picks a range · Space picks the inspected page",
+  pickSummary: "{{count}} picked · {{ranges}}",
+  pickClear: "Clear",
+  pickExport: "Export pages",
+  pickExercises: "Pick exercises",
+  pickAdd: "Pick for export",
+  pickRemove: "Unpick",
+  pickBusyExport: "Exporting…",
+  pickBusyExercises: "Finding exercises…",
+  pickedLabel: " · picked",
 };
 
 function formatString(template, values = {}) {
@@ -48,7 +62,8 @@ export function installBookEdgeFeature({ facade, app, bus }) {
   dialog.id = "lyceumRiffle";
   dialog.setAttribute("aria-labelledby", "riffleTitle");
   dialog.innerHTML = `<header><div><h2 id="riffleTitle">${strings.dialogTitle}</h2><p class="riffleContext"></p></div><button type="button" data-action="close">${strings.closeLabel}</button></header>
-    <div class="riffleBody"><div class="riffleGrid" aria-label="${strings.gridAriaLabel}"></div><section class="riffleLook" aria-label="${strings.closeLookAriaLabel}"><div class="rifflePreview"></div><div class="riffleActions"><button type="button" data-action="bookmark">${strings.bookmarkAdd}</button><button type="button" data-action="open">${strings.openPage}</button></div></section></div>
+    <div class="riffleBody"><div class="riffleGrid" aria-label="${strings.gridAriaLabel}"></div><section class="riffleLook" aria-label="${strings.closeLookAriaLabel}"><div class="rifflePreview"></div><div class="riffleActions"><button type="button" data-action="pick" aria-pressed="false">${strings.pickAdd}</button><button type="button" data-action="bookmark">${strings.bookmarkAdd}</button><button type="button" data-action="open">${strings.openPage}</button></div></section></div>
+    <div class="rifflePickBar" data-empty="true"><p class="rifflePickSummary" aria-live="polite"></p><div class="rifflePickActions"><button type="button" data-action="pick-exercises" hidden>${strings.pickExercises}</button><button type="button" data-action="pick-clear">${strings.pickClear}</button><button type="button" data-action="pick-export">${strings.pickExport}</button></div></div>
     <footer><button type="button" data-action="previous">${strings.previous}</button><span class="riffleRange" aria-live="polite"></span><button type="button" data-action="next">${strings.next}</button></footer><p class="riffleHelp">${strings.help}</p>`;
 
   function applyStrings(next = {}) {
@@ -77,6 +92,8 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     if (nextBtn) nextBtn.textContent = strings.next;
     const help = dialog.querySelector(".riffleHelp");
     if (help) help.textContent = strings.help;
+    if (button("pick-clear")) button("pick-clear").textContent = strings.pickClear;
+    refreshPicks();
   }
   document.body.append(dialog);
   const grid = dialog.querySelector(".riffleGrid");
@@ -87,6 +104,9 @@ export function installBookEdgeFeature({ facade, app, bus }) {
   let sections = [], bookmarks = new Set(), bookmarkKey = "", previousFocus;
   const tasks = new Set();
   const cache = new Map();
+  // Pages picked for export (one-based). Survive closing the dialog and are kept per book on this device.
+  let picked = new Set(), pickKey = "", anchor = null, paint = null;
+  let pickState = { exportAvailable: false, exercisesAvailable: false, busy: null };
   const count = () => window.innerWidth < 640 ? 6 : window.innerWidth < 1100 ? 8 : 12;
   const clamp = page => Math.max(1, Math.min(total, page));
   function stopRendering() {
@@ -128,6 +148,15 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       mark.title = formatString(strings.bookmarkTitle, { page });
       edge.append(mark);
     }
+    for (const run of pageRuns(picked)) {
+      if (run.from > total) continue;
+      const block = document.createElement("span");
+      block.className = "bookEdgePicked";
+      block.style.top = `${(run.from - 1) / total * 100}%`;
+      block.style.height = `max(2px, ${(run.to - run.from + 1) / total * 100}%)`;
+      block.title = formatPageRanges(range(run.from, run.to));
+      edge.append(block);
+    }
     const notch = document.createElement("span");
     notch.className = "bookEdgeNotch";
     edge.append(notch);
@@ -143,6 +172,13 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       const saved = JSON.parse(localStorage.getItem(bookmarkKey) ?? "[]");
       bookmarks = new Set(Array.isArray(saved) ? saved.filter(page => Number.isInteger(page) && page >= 1 && page <= total) : []);
     } catch { bookmarks = new Set(); }
+    pickKey = bookmarkKey.replace("lyceum:book-edge:v1:", "lyceum:book-edge:picks:v1:");
+    try {
+      const saved = JSON.parse(localStorage.getItem(pickKey) ?? "[]");
+      picked = new Set(Array.isArray(saved) ? saved.filter(page => Number.isInteger(page) && page >= 1 && page <= total) : []);
+    } catch { picked = new Set(); }
+    anchor = null;
+    refreshPicks();
     sections = bookSections([], total);
     paintEdge();
     try {
@@ -195,6 +231,7 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     dialog.querySelector(".riffleRange").textContent = formatString(strings.range, { from: pages[0], to: pages.at(-1), total, selected });
     button("bookmark").textContent = bookmarks.has(selected) ? strings.bookmarkRemove : strings.bookmarkAdd;
     button("bookmark").setAttribute("aria-pressed", String(bookmarks.has(selected)));
+    refreshPickButton();
     button("previous").disabled = selected === 1;
     button("next").disabled = selected === total;
     const hosts = pages.map(page => {
@@ -203,13 +240,24 @@ export function installBookEdgeFeature({ facade, app, bus }) {
       tile.className = "riffleTile";
       tile.setAttribute("aria-label", formatString(strings.inspectPage, { page }));
       tile.setAttribute("aria-pressed", String(page === selected));
+      tile.dataset.page = String(page);
+      tile.classList.toggle("isPicked", picked.has(page));
       const sheet = document.createElement("span");
       sheet.className = "riffleSheet";
       sheet.textContent = "…";
       const label = document.createElement("span");
-      label.textContent = `${page}${bookmarks.has(page) ? strings.marked : ""}`;
-      tile.append(sheet, label);
-      tile.onclick = () => { selected = page; void show(); grid.querySelector('[aria-pressed="true"]')?.focus(); };
+      label.className = "riffleTileLabel";
+      label.textContent = tileLabel(page);
+      const check = document.createElement("span");
+      check.className = "rifflePickCheck";
+      check.setAttribute("aria-hidden", "true");
+      check.textContent = "✓";
+      tile.append(sheet, label, check);
+      tile.onclick = event => {
+        if (event.ctrlKey || event.metaKey) { togglePick(page); anchor = page; return; }
+        if (event.shiftKey) { pickRange(anchor ?? selected, page, true); anchor = page; return; }
+        selected = page; void show(); grid.querySelector('[aria-pressed="true"]')?.focus();
+      };
       grid.append(tile);
       return { page, sheet };
     });
@@ -223,6 +271,69 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     };
     await Promise.all([worker(), worker()]);
   }
+  function range(from, to) {
+    const pages = [];
+    for (let page = Math.min(from, to); page <= Math.max(from, to); page += 1) pages.push(page);
+    return pages;
+  }
+  function tileLabel(page) {
+    return `${page}${bookmarks.has(page) ? strings.marked : ""}${picked.has(page) ? strings.pickedLabel : ""}`;
+  }
+  function savePicks() {
+    if (!pickKey) return;
+    try { localStorage.setItem(pickKey, JSON.stringify([...picked].sort((a, b) => a - b))); } catch { /* Session-only picks still work. */ }
+  }
+  function refreshPickButton() {
+    const pick = button("pick");
+    if (!pick) return;
+    pick.textContent = picked.has(selected) ? strings.pickRemove : strings.pickAdd;
+    pick.setAttribute("aria-pressed", String(picked.has(selected)));
+  }
+  // Updates marks in place: no re-render, so picking stays instant while riffling.
+  function refreshPicks() {
+    for (const tile of grid?.querySelectorAll(".riffleTile") ?? []) {
+      const page = Number(tile.dataset.page);
+      tile.classList.toggle("isPicked", picked.has(page));
+      const label = tile.querySelector(".riffleTileLabel");
+      if (label) label.textContent = tileLabel(page);
+    }
+    refreshPickButton();
+    const bar = dialog.querySelector(".rifflePickBar");
+    const summary = dialog.querySelector(".rifflePickSummary");
+    if (!bar || !summary) return;
+    const count = picked.size;
+    bar.dataset.empty = String(count === 0);
+    summary.textContent = pickState.busy === "export" ? strings.pickBusyExport
+      : pickState.busy === "exercises" ? strings.pickBusyExercises
+        : count ? formatString(strings.pickSummary, { count, ranges: formatPageRanges(picked) }) : strings.pickHint;
+    summary.title = count ? formatPageRanges(picked) : "";
+    const exportButton = button("pick-export");
+    exportButton.hidden = !pickState.exportAvailable;
+    exportButton.disabled = !count || Boolean(pickState.busy);
+    exportButton.textContent = count ? `${strings.pickExport} (${count})` : strings.pickExport;
+    button("pick-clear").disabled = !count || Boolean(pickState.busy);
+    const exercises = button("pick-exercises");
+    exercises.hidden = !pickState.exercisesAvailable;
+    exercises.disabled = Boolean(pickState.busy);
+    exercises.textContent = strings.pickExercises;
+  }
+  function setPicks(pages, mode) {
+    if (mode === "replace") picked = new Set();
+    for (const page of pages) {
+      if (page < 1 || page > total) continue;
+      if (mode === "remove") picked.delete(page); else picked.add(page);
+    }
+    savePicks();
+    refreshPicks();
+    paintEdge();
+  }
+  function togglePick(page) {
+    setPicks([page], picked.has(page) ? "remove" : "add");
+  }
+  function pickRange(from, to, add) {
+    setPicks(range(clamp(from), clamp(to)), add ? "add" : "remove");
+  }
+
   function open(page) {
     if (!total) return;
     origin = facade.readCurrentPage(app);
@@ -261,12 +372,57 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     paintEdge();
     void show();
   };
+  button("pick").onclick = () => { togglePick(selected); anchor = selected; };
+  button("pick-clear").onclick = () => { setPicks([], "replace"); anchor = null; };
+  button("pick-export").onclick = () => {
+    if (picked.size) bus?.emit(EVT_EXPORT_PAGES, { pages: [...picked].sort((a, b) => a - b) });
+  };
+  button("pick-exercises").onclick = () => bus?.emit(EVT_REQUEST_EXERCISE_PAGES, {});
+  // Right button: click toggles, drag paints the same state over every tile it crosses.
+  grid.addEventListener("contextmenu", event => event.preventDefault());
+  preview.addEventListener("contextmenu", event => { event.preventDefault(); togglePick(selected); anchor = selected; });
+  grid.addEventListener("pointerdown", event => {
+    if (event.button !== 2) return;
+    const tile = event.target.closest?.(".riffleTile");
+    if (!tile) return;
+    event.preventDefault();
+    const page = Number(tile.dataset.page);
+    if (event.shiftKey) { pickRange(anchor ?? selected, page, true); anchor = page; return; }
+    paint = picked.has(page) ? "remove" : "add";
+    setPicks([page], paint);
+    anchor = page;
+  });
+  grid.addEventListener("pointerover", event => {
+    if (!paint || !(event.buttons & 2)) return;
+    const tile = event.target.closest?.(".riffleTile");
+    if (tile) setPicks([Number(tile.dataset.page)], paint);
+  });
+  window.addEventListener("pointerup", () => { paint = null; });
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", event => {
     // Keep PDF.js global shortcuts from moving/zooming the underlying reader.
     event.stopPropagation();
+    const onActionButton = event.target instanceof HTMLButtonElement && !event.target.classList.contains("riffleTile");
+    if ((event.key === " " && !onActionButton) || (event.key.toLowerCase() === "x" && !event.ctrlKey && !event.metaKey)) {
+      event.preventDefault();
+      togglePick(selected);
+      anchor = selected;
+      return;
+    }
     const deltas = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1, PageUp: -count(), PageDown: count(), Home: -total, End: total };
-    if (event.key in deltas) { event.preventDefault(); event.stopPropagation(); move(deltas[event.key]); }
+    if (event.key in deltas) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.shiftKey && ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].includes(event.key)) {
+        // Shift+arrows pick as they move, like extending a selection in a file manager.
+        const from = selected;
+        move(deltas[event.key]);
+        pickRange(from, selected, true);
+        anchor = selected;
+        return;
+      }
+      move(deltas[event.key]);
+    }
   });
   dialog.addEventListener("wheel", event => {
     event.stopPropagation();
@@ -295,6 +451,20 @@ export function installBookEdgeFeature({ facade, app, bus }) {
     paintEdge();
     // Only re-render previews when the dialog is visible.
     if (dialog.open) void show();
+  });
+  bus?.onCommand(CMD_SET_PAGE_PICKS, data => {
+    if (!isPagePicksCommand(data)) return;
+    setPicks(data.pages, data.mode);
+    // Jump the riffle to the first newly picked page so the result is visible.
+    if (dialog.open && data.mode !== "remove" && data.pages.length) { selected = clamp(Math.min(...data.pages)); void show(); }
+  });
+  bus?.onCommand(CMD_SET_PAGE_PICK_STATE, data => {
+    pickState = {
+      exportAvailable: data?.exportAvailable === true,
+      exercisesAvailable: data?.exercisesAvailable === true,
+      busy: data?.busy === "export" || data?.busy === "exercises" ? data.busy : null,
+    };
+    refreshPicks();
   });
   app.eventBus.on("pagesinit", load);
   app.eventBus.on("pagechanging", paintEdge);

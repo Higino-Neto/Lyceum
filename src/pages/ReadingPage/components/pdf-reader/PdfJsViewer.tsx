@@ -22,6 +22,8 @@ import {
   EVT_STATE_CHANGED,
   EVT_TOGGLE_ANNOTATIONS,
   EVT_TOGGLE_CHAPTERS,
+  EVT_EXPORT_PAGES,
+  EVT_REQUEST_EXERCISE_PAGES,
   parsePdfViewerMessage,
   postToPdfViewer,
   type PdfViewerEvent,
@@ -35,10 +37,12 @@ import {
 
 import { CMD_SET_BOOK_LANDMARKS, type BookLandmark } from "../../../../core/pdf-reader-core/contract";
 import { translate, useTranslation } from "../../../../i18n";
+import { usePagePicking } from "./usePagePicking";
 
 interface PdfJsViewerProps {
   fileHash: string;
   fileName?: string;
+  filePath?: string;
   hasSessionStarted: boolean;
   hasSessionFinished: boolean;
   onTotalBookPages: (totalBookPages: number) => void;
@@ -61,6 +65,7 @@ function toReadingState(state: PdfViewState) {
 export default function PdfJsViewer({
   fileHash,
   fileName,
+  filePath,
   hasSessionStarted,
   hasSessionFinished,
   onTotalBookPages,
@@ -134,6 +139,16 @@ export default function PdfJsViewer({
     landmarkNote: t("pdf:bookEdge.landmarkNote", { page: "{{page}}" }),
     landmarkHighlight: t("pdf:bookEdge.landmarkHighlight", { page: "{{page}}" }),
     bookmarkTitle: t("pdf:bookEdge.bookmarkTitle", { page: "{{page}}" }),
+    pickHint: t("pdf:bookEdge.pickHint"),
+    pickSummary: t("pdf:bookEdge.pickSummary", { count: "{{count}}", ranges: "{{ranges}}" }),
+    pickClear: t("pdf:bookEdge.pickClear"),
+    pickExport: t("pdf:bookEdge.pickExport"),
+    pickExercises: t("pdf:bookEdge.pickExercises"),
+    pickAdd: t("pdf:bookEdge.pickAdd"),
+    pickRemove: t("pdf:bookEdge.pickRemove"),
+    pickBusyExport: t("pdf:bookEdge.pickBusyExport"),
+    pickBusyExercises: t("pdf:bookEdge.pickBusyExercises"),
+    pickedLabel: t("pdf:bookEdge.pickedLabel"),
   }), [t]);
 
   const syncViewerTheme = useCallback(() => {
@@ -143,6 +158,8 @@ export default function PdfJsViewer({
   const syncBookEdgeStrings = useCallback(() => {
     postToViewer(CMD_SET_STRINGS, { bookEdge: bookEdgeStrings });
   }, [postToViewer, bookEdgeStrings]);
+
+  const { syncPickState, exportPages, pickExercises } = usePagePicking({ filePath, fileName, postToViewer });
 
   const subscribeToViewerEvents = useCallback((handler: (data: PdfViewerEvent) => void) => {
     viewerSubscribersRef.current.add(handler);
@@ -256,16 +273,22 @@ export default function PdfJsViewer({
           setCurrentPage(data.payload.page);
           setShowAnnotations(true);
         }
+      } else if (data.type === EVT_EXPORT_PAGES) {
+        void exportPages(data.pages);
+      } else if (data.type === EVT_REQUEST_EXERCISE_PAGES) {
+        void pickExercises();
       } else if (data.type === EVT_RESTORE_COMPLETE) {
         restoreCompletedRef.current = true;
       } else if (data.type === "lyceum-pdfjs:ready") {
         syncViewerTheme();
         syncBookEdgeStrings();
+        syncPickState();
         syncChapterButtonState();
         syncAnnotationButtonState();
       } else if (data.type === EVT_DOCUMENT_READY) {
         syncViewerTheme();
         syncBookEdgeStrings();
+        syncPickState();
         setDocumentReady(true);
         void restoreViewerState();
       } else if (data.type === EVT_STATE_CHANGED) {
@@ -278,7 +301,7 @@ export default function PdfJsViewer({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onToggleChapters, onTotalBookPages, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncBookEdgeStrings, syncChapterButtonState, syncViewerTheme]);
+  }, [exportPages, onToggleChapters, onTotalBookPages, pickExercises, restoreViewerState, scheduleSave, syncAnnotationButtonState, syncBookEdgeStrings, syncChapterButtonState, syncPickState, syncViewerTheme]);
 
   useEffect(() => {
     syncViewerTheme();

@@ -68,6 +68,43 @@ var CMD_SET_STRINGS = "lyceum-pdfjs:cmd-set-strings";
 function isPdfViewerStrings(value) {
   return isRecord(value);
 }
+var EVT_EXPORT_PAGES = "lyceum-pdfjs:export-pages";
+var EVT_REQUEST_EXERCISE_PAGES = "lyceum-pdfjs:request-exercise-pages";
+var CMD_SET_PAGE_PICKS = "lyceum-pdfjs:cmd-set-page-picks";
+var CMD_SET_PAGE_PICK_STATE = "lyceum-pdfjs:cmd-set-page-pick-state";
+function isPageList(value) {
+  return Array.isArray(value) && value.length <= 1e5 && value.every((page) => Number.isInteger(page) && page > 0);
+}
+function isPageListPayload(value) {
+  return isRecord(value) && isPageList(value.pages);
+}
+function isPagePicksCommand(value) {
+  return isPageListPayload(value) && isRecord(value) && (value.mode === "replace" || value.mode === "add" || value.mode === "remove");
+}
+function formatPageRanges(pages) {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const parts = [];
+  for (let index = 0; index < sorted.length; index += 1) {
+    const start = sorted[index];
+    let end = start;
+    while (sorted[index + 1] === end + 1) {
+      end += 1;
+      index += 1;
+    }
+    parts.push(start === end ? `${start}` : `${start}\u2013${end}`);
+  }
+  return parts.join(", ");
+}
+function pageRuns(pages) {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const runs = [];
+  for (const page of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && last.to === page - 1) last.to = page;
+    else runs.push({ from: page, to: page });
+  }
+  return runs;
+}
 
 // src/core/pdf-reader-core/geometry.ts
 function makeLayerRect(rect, layerBounds) {
@@ -321,12 +358,16 @@ export {
   CMD_SET_BOOK_LANDMARKS,
   CMD_SET_CHAPTERS_STATE,
   CMD_SET_HIGHLIGHTS,
+  CMD_SET_PAGE_PICKS,
+  CMD_SET_PAGE_PICK_STATE,
   CMD_SET_STRINGS,
   CMD_SET_THEME,
   EVT_CREATE_CONCEPT,
   EVT_DOCUMENT_READY,
+  EVT_EXPORT_PAGES,
   EVT_OUTLINE_LOADED,
   EVT_READY,
+  EVT_REQUEST_EXERCISE_PAGES,
   EVT_RESTORE_COMPLETE,
   EVT_STATE_CHANGED,
   EVT_TOGGLE_ANNOTATIONS,
@@ -339,9 +380,13 @@ export {
   createNavigationGuard,
   edgePage,
   findWordBounds,
+  formatPageRanges,
   isBookLandmark,
   isNavigateState,
   isOutlineNode,
+  isPageList,
+  isPageListPayload,
+  isPagePicksCommand,
   isPdfSelectionPayload,
   isPdfSelectionRect,
   isPdfViewState,
@@ -351,6 +396,7 @@ export {
   isWordCharacter,
   makeLayerRect,
   mergeSelectionRects,
+  pageRuns,
   projectRectsToPage,
   rifflePages
 };

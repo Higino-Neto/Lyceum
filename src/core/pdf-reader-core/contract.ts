@@ -162,8 +162,78 @@ export interface PdfViewerStrings {
     landmarkNote?: string;
     landmarkHighlight?: string;
     bookmarkTitle?: string;
+    pickHint?: string;
+    pickSummary?: string;
+    pickClear?: string;
+    pickExport?: string;
+    pickExercises?: string;
+    pickAdd?: string;
+    pickRemove?: string;
+    pickBusyExport?: string;
+    pickBusyExercises?: string;
+    pickedLabel?: string;
   };
 }
 export function isPdfViewerStrings(value: unknown): value is PdfViewerStrings {
   return isRecord(value);
+}
+
+// Additive page picking in the riffle dialog: the reader marks pages across the
+// book and asks the host to export them (or to pick the detected exercises).
+export const EVT_EXPORT_PAGES = "lyceum-pdfjs:export-pages";
+export const EVT_REQUEST_EXERCISE_PAGES = "lyceum-pdfjs:request-exercise-pages";
+export const CMD_SET_PAGE_PICKS = "lyceum-pdfjs:cmd-set-page-picks";
+export const CMD_SET_PAGE_PICK_STATE = "lyceum-pdfjs:cmd-set-page-pick-state";
+
+export interface PageListPayload {
+  /** One-based page numbers. */
+  pages: number[];
+}
+export interface PagePicksCommand extends PageListPayload {
+  mode: "replace" | "add" | "remove";
+}
+export interface PagePickState {
+  exportAvailable: boolean;
+  exercisesAvailable: boolean;
+  busy: "export" | "exercises" | null;
+}
+
+export function isPageList(value: unknown): value is number[] {
+  return Array.isArray(value) && value.length <= 100_000 &&
+    value.every((page) => Number.isInteger(page) && (page as number) > 0);
+}
+export function isPageListPayload(value: unknown): value is PageListPayload {
+  return isRecord(value) && isPageList(value.pages);
+}
+export function isPagePicksCommand(value: unknown): value is PagePicksCommand {
+  return isPageListPayload(value) && isRecord(value) &&
+    (value.mode === "replace" || value.mode === "add" || value.mode === "remove");
+}
+
+/** "3–5, 9, 12–14" for a set of one-based pages. */
+export function formatPageRanges(pages: Iterable<number>): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let index = 0; index < sorted.length; index += 1) {
+    const start = sorted[index]!;
+    let end = start;
+    while (sorted[index + 1] === end + 1) {
+      end += 1;
+      index += 1;
+    }
+    parts.push(start === end ? `${start}` : `${start}–${end}`);
+  }
+  return parts.join(", ");
+}
+
+/** Contiguous runs of one-based pages, for drawing them on the book edge. */
+export function pageRuns(pages: Iterable<number>): Array<{ from: number; to: number }> {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const runs: Array<{ from: number; to: number }> = [];
+  for (const page of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && last.to === page - 1) last.to = page;
+    else runs.push({ from: page, to: page });
+  }
+  return runs;
 }

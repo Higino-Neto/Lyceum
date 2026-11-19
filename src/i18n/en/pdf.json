@@ -30,7 +30,17 @@
     "bookmarkSavedSession": "Bookmark available this session; could not save on this device.",
     "landmarkNote": "Note · {{page}}",
     "landmarkHighlight": "Highlight · {{page}}",
-    "bookmarkTitle": "Bookmark · {{page}}"
+    "bookmarkTitle": "Bookmark · {{page}}",
+    "pickHint": "Right-click a page to pick it · right-drag to pick several · Ctrl+click toggles · Shift+click picks a range · Space picks the inspected page",
+    "pickSummary": "{{count}} picked · {{ranges}}",
+    "pickClear": "Clear",
+    "pickExport": "Export pages",
+    "pickExercises": "Pick exercises",
+    "pickAdd": "Pick for export",
+    "pickRemove": "Unpick",
+    "pickBusyExport": "Exporting…",
+    "pickBusyExercises": "Looking for exercises in the book…",
+    "pickedLabel": " · picked"
   },
   "annotations": {
     "panel": {
@@ -203,5 +213,18 @@
     "empty": "This PDF has no chapters or bookmarks.",
     "untitled": "(untitled)",
     "structureFailed": "Could not read the chapter structure of this PDF."
+  },
+  "pagePick": {
+    "fileSuffix_one": "picked page",
+    "fileSuffix_other": "{{count}} pages",
+    "exported_one": "Exported a PDF with {{count}} page",
+    "exported_other": "Exported a PDF with {{count}} pages",
+    "showInFolder": "Show in folder",
+    "exportFailed": "Could not export: {{message}}",
+    "exercisesPicked_one": "Picked {{count}} exercise page ({{sections}} sections). Review before exporting.",
+    "exercisesPicked_other": "Picked {{count}} exercise pages ({{sections}} sections). Review before exporting.",
+    "exercisesNone": "No exercise sections were found in this book.",
+    "exercisesNoText": "This PDF is a scan (no text), so exercises cannot be found automatically.",
+    "exercisesFailed": "Could not analyse the book: {{message}}"
   }
 }

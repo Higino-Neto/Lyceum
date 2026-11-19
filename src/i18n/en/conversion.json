@@ -368,7 +368,72 @@
     "pageShort": "P. {{page}}",
     "pageLabel": "Position {{position}}: file {{letter}}, page {{page}}",
     "pickerTitle": "Add PDF from library",
-    "pickerDescription": "Only library PDFs are listed here."
+    "pickerDescription": "Only library PDFs are listed here.",
+    "exercises": {
+      "title": "Find exercises",
+      "titleSuffix": "Exercises",
+      "close": "Close",
+      "fromLibrary": "Exercises from a book",
+      "fromLibraryHint": "Pick books from the library and keep only their exercise pages (with or without the answers).",
+      "onlyExercises": "Exercise pages only",
+      "findIn": "Find exercises in {{name}}",
+      "analyzing": "Reading the book and looking for exercises…",
+      "analyzingHint": "The outline, section titles, running headers and the shape of the questions are analysed.",
+      "failed": "Could not analyse the PDF: {{message}}",
+      "noText": "This PDF has no text layer (it is a scan). Only its outline could be used, so detection is limited.",
+      "partialText": "Some pages have no text (scanned). Exercises on those pages are only found through the outline.",
+      "sensitivity": "Sensitivity",
+      "sensitivities": {
+        "strict": "Strict",
+        "balanced": "Balanced",
+        "broad": "Broad"
+      },
+      "sensitivityHints": {
+        "strict": "Only sections with a clear exercise title or marked in the outline.",
+        "balanced": "Also pages that are clearly lists of questions, even without a title.",
+        "broad": "Also weak detections. Review before applying."
+      },
+      "includeSolutions": "Include answers/solutions",
+      "includeInline": "Include exercises within the text",
+      "none": "No exercises found with these filters",
+      "noneHint": "Try Broad sensitivity or include exercises within the text. Scanned books without an outline cannot be analysed.",
+      "noChapter": "Before the first chapter",
+      "kinds": {
+        "exercise": "Exercises",
+        "solution": "Answers",
+        "inline": "In text"
+      },
+      "methods": {
+        "outline": "Found in the outline",
+        "heading": "Found by section title",
+        "running-header": "Found by running header",
+        "pattern": "Found by question layout"
+      },
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence",
+        "low": "Low confidence"
+      },
+      "pages_one": "{{count}} page · p. {{range}}",
+      "pages_other": "{{count}} pages · pp. {{range}}",
+      "items_one": "{{count}} question detected",
+      "items_other": "{{count}} questions detected",
+      "startsMid": "starts mid-way through the first page",
+      "endsMid": "ends mid-way through the last page",
+      "includePage": "Include this page",
+      "excludePage": "Leave this page out",
+      "selectedPages_one": "{{count}} of {{total}} pages selected",
+      "selectedPages_other": "{{count}} of {{total}} pages selected",
+      "select": "Just select",
+      "selectHint": "Selects the pages in the Builder without changing anything.",
+      "remove": "Remove exercises",
+      "removeHint": "Keeps the book without these pages — handy to split theory from exercises.",
+      "keep": "Keep only exercises",
+      "keptToast_one": "Kept {{count}} exercise page",
+      "keptToast_other": "Kept {{count}} exercise pages",
+      "removedToast_one": "Removed {{count}} page",
+      "removedToast_other": "Removed {{count}} pages"
+    }
   },
   "kindle": {
     "banner": "Send to {{device}}",

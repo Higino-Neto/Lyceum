@@ -334,6 +334,10 @@ async function runPdfTool(request: WorkerTaskPayloads["pdf-tool"], onProgress?: 
       operation: "thumbnails",
       thumbnails: await tools.renderPdfThumbnails(request.input.filePath, request.input.pages, request.input.maxDimension),
     };
+    case "analyze-exercises": {
+      const { analyzePdfExercises } = await import("../services/pdf-exercise-extractor");
+      return { operation: "exercises", analysis: await analyzePdfExercises(request.input.filePath, onProgress) };
+    }
     default: throw new Error("Operacao de PDF desconhecida");
   }
 }

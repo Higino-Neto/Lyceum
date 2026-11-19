@@ -368,7 +368,72 @@
     "pageShort": "Pág. {{page}}",
     "pageLabel": "Posição {{position}}: arquivo {{letter}}, página {{page}}",
     "pickerTitle": "Adicionar PDF da biblioteca",
-    "pickerDescription": "Somente PDFs da biblioteca aparecem aqui."
+    "pickerDescription": "Somente PDFs da biblioteca aparecem aqui.",
+    "exercises": {
+      "title": "Encontrar exercícios",
+      "titleSuffix": "Exercícios",
+      "close": "Fechar",
+      "fromLibrary": "Exercícios de um livro",
+      "fromLibraryHint": "Escolha livros da biblioteca e mantenha só as páginas de exercícios (com ou sem as respostas).",
+      "onlyExercises": "Somente páginas de exercícios",
+      "findIn": "Encontrar exercícios em {{name}}",
+      "analyzing": "Lendo o livro e procurando exercícios…",
+      "analyzingHint": "Sumário, títulos de seção, cabeçalhos e o formato das questões são analisados.",
+      "failed": "Não foi possível analisar o PDF: {{message}}",
+      "noText": "Este PDF não tem camada de texto (é um escaneamento). Só o sumário do arquivo pôde ser usado, então a detecção é limitada.",
+      "partialText": "Parte das páginas não tem texto (escaneadas). Exercícios nessas páginas só são encontrados pelo sumário.",
+      "sensitivity": "Sensibilidade",
+      "sensitivities": {
+        "strict": "Rigorosa",
+        "balanced": "Equilibrada",
+        "broad": "Ampla"
+      },
+      "sensitivityHints": {
+        "strict": "Só seções com título claro de exercícios ou marcadas no sumário.",
+        "balanced": "Inclui páginas que claramente são listas de questões, mesmo sem título.",
+        "broad": "Inclui também detecções fracas. Revise antes de aplicar."
+      },
+      "includeSolutions": "Incluir respostas/gabarito",
+      "includeInline": "Incluir exercícios no meio do texto",
+      "none": "Nenhum exercício encontrado com esses filtros",
+      "noneHint": "Tente a sensibilidade Ampla ou inclua exercícios no meio do texto. Livros escaneados sem sumário não podem ser analisados.",
+      "noChapter": "Antes do primeiro capítulo",
+      "kinds": {
+        "exercise": "Exercícios",
+        "solution": "Respostas",
+        "inline": "No texto"
+      },
+      "methods": {
+        "outline": "Encontrado pelo sumário",
+        "heading": "Encontrado pelo título da seção",
+        "running-header": "Encontrado pelo cabeçalho das páginas",
+        "pattern": "Encontrado pelo formato das questões"
+      },
+      "confidence": {
+        "high": "Confiança alta",
+        "medium": "Confiança média",
+        "low": "Confiança baixa"
+      },
+      "pages_one": "{{count}} pág. · p. {{range}}",
+      "pages_other": "{{count}} págs. · p. {{range}}",
+      "items_one": "{{count}} questão detectada",
+      "items_other": "{{count}} questões detectadas",
+      "startsMid": "começa no meio da primeira página",
+      "endsMid": "termina no meio da última página",
+      "includePage": "Incluir esta página",
+      "excludePage": "Deixar esta página de fora",
+      "selectedPages_one": "{{count}} página selecionada de {{total}}",
+      "selectedPages_other": "{{count}} páginas selecionadas de {{total}}",
+      "select": "Só selecionar",
+      "selectHint": "Seleciona as páginas no Builder sem alterar nada.",
+      "remove": "Remover exercícios",
+      "removeHint": "Mantém o livro sem essas páginas — útil para separar teoria de exercícios.",
+      "keep": "Manter só os exercícios",
+      "keptToast_one": "{{count}} página de exercícios mantida",
+      "keptToast_other": "{{count}} páginas de exercícios mantidas",
+      "removedToast_one": "{{count}} página removida",
+      "removedToast_other": "{{count}} páginas removidas"
+    }
   },
   "kindle": {
     "banner": "Enviar para {{device}}",
