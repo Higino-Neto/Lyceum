@@ -301,7 +301,8 @@
     "toasts": {
       "downloadFailed": "Could not download the dictionary",
       "removeFailed": "Could not remove the dictionary"
-    }
+    },
+    "wiktionaryPack": "{{source}} → all languages · meanings, synonyms, pronunciation and etymology"
   },
   "beta": {
     "title": "Sidebar tabs in development",

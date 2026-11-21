@@ -24,6 +24,19 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.12.0",
+    date: "2026-11-21",
+    title: {
+      en: "Wiktionary dictionaries: meanings, synonyms, pronunciation and translations between five languages",
+      "pt-BR": "Dicionários Wiktionary: significados, sinônimos, pronúncia e traduções entre cinco idiomas",
+    },
+    items: [
+      { kind: "new", text: { en: "Wiktionary dictionaries for English, Portuguese, Spanish, French and German, on the computer and on the phone. One download per language you read gives translations into all the others, meanings with examples, IPA and native-speaker audio, synonyms, antonyms, related and derived words, inflections and etymology, offline.", "pt-BR": "Dicionários Wiktionary de inglês, português, espanhol, francês e alemão, no computador e no celular. Um download por idioma que você lê traz traduções para todos os outros, significados com exemplos, IPA e áudio de falantes nativos, sinônimos, antônimos, palavras relacionadas e derivadas, flexões e etimologia, sem internet." } },
+      { kind: "improved", text: { en: "Inflected words are found: clicking \"courait\", \"yeux\" or \"chevaux\" opens \"courir\", \"œil\" and \"cheval\" and says which form it is (imperfect, plural…).", "pt-BR": "Palavras flexionadas são encontradas: clicar em \"courait\", \"yeux\" ou \"chevaux\" abre \"courir\", \"œil\" e \"cheval\" e mostra qual é a forma (imperfeito, plural…)." } },
+      { kind: "improved", text: { en: "The word inspector has a Dictionary section with the full entry; the phone's word card shows the pronunciation and the dictionary translation.", "pt-BR": "O inspetor de palavras ganhou a seção Dicionário com o verbete completo; o cartão de palavra no celular mostra a pronúncia e a tradução do dicionário." } },
+    ],
+  },
+  {
     version: "1.11.0",
     date: "2026-11-19",
     title: {

@@ -66,6 +66,8 @@ function DictionaryManager({ source, target, onChanged }: { source: string; targ
     // Installed first, then the reading pair, English, the app language and other widely used targets.
     const preferred = [baseLanguage(target), "en", baseLanguage(getActiveLocale()), "pt", "es", "fr", "de", "it"];
     const rank = (entry: DictionaryCatalogEntry) => {
+      // The Wiktionary pack covers every pair and is far richer than the bilingual lists.
+      if (entry.targetLang === "*") return -2;
       if (entry.isDownloaded) return -1;
       const position = preferred.indexOf(baseLanguage(entry.targetLang));
       return position >= 0 ? position : preferred.length;
@@ -115,7 +117,7 @@ function DictionaryManager({ source, target, onChanged }: { source: string; targ
       {visible.map((entry) => (
         <li key={entry.id} className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-muted px-3 py-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{languageName(entry.sourceLang)} → {languageName(entry.targetLang)}</p>
+            <p className="truncate text-sm font-medium text-foreground">{entry.targetLang === "*" ? entry.name : `${languageName(entry.sourceLang)} → ${languageName(entry.targetLang)}`}</p>
             <p className="text-xs text-foreground-subtle">
               {entry.headwords ? t("mobile:learning.headwords", { count: entry.headwords }) : entry.name}
               {entry.size ? ` · ${(entry.size / (1024 * 1024)).toFixed(1)} MB` : ""}

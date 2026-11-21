@@ -1,4 +1,5 @@
 import type { SupportedStorage } from "@supabase/supabase-js";
+import type { PackLookupResult } from "../core/dictionary-packs";
 
 /**
  * Platform seam shared by the desktop (Electron) and mobile (Capacitor) builds.
@@ -30,6 +31,8 @@ export interface LearningBridge {
   dictionaryLookup(word: string, dictId?: string): Promise<{ found: boolean; content?: string }>;
   dictionaryDownload(id: string): Promise<{ success: boolean; error?: string }>;
   dictionaryDelete?(id: string): Promise<boolean>;
+  /** Structured lookup in an installed Wiktionary pack (`src/core/dictionary-packs`). */
+  dictionaryPackLookup?(word: string, lang: string, target: string, lemmaHint?: string | null): Promise<PackLookupResult>;
   onDictionaryDownloadProgress?(callback: (data: { dictId: string; progress: number }) => void): () => void;
   languageLearningTranslateOnline?(text: string, source: string, target: string):
     Promise<{ success: true; translation: string } | { success: false; error: string }>;

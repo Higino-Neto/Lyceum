@@ -17,6 +17,8 @@ export function useTranslationLookup(
   enabled = true,
   /** Changes when provider settings change, to retry. */
   revision = 0,
+  /** The word as written on the page, when `text` is its lemma. */
+  form?: string | null,
 ): LookupState {
   const [state, setState] = useState<LookupState>({ status: "idle" });
 
@@ -27,7 +29,7 @@ export function useTranslationLookup(
     }
     let cancelled = false;
     setState({ status: "loading" });
-    service.translate({ text, source, target, kind }).then((outcome) => {
+    service.translate({ text, source, target, kind, ...(form ? { form } : {}) }).then((outcome) => {
       if (!cancelled) setState(outcome);
     }).catch((error: unknown) => {
       if (!cancelled) setState({ status: "error", message: error instanceof Error ? error.message : String(error) });
@@ -35,7 +37,7 @@ export function useTranslationLookup(
     return () => {
       cancelled = true;
     };
-  }, [enabled, kind, revision, service, source, target, text]);
+  }, [enabled, form, kind, revision, service, source, target, text]);
 
   return state;
 }

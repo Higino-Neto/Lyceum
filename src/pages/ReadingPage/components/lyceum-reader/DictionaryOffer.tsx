@@ -44,6 +44,13 @@ export function DictionaryOffer() {
     api.dictionaryGetIndex().then((raw) => {
       if (cancelled || !Array.isArray(raw)) return;
       const catalog = raw as CatalogEntry[];
+      const source = offer.source.toLowerCase().split(/[-_]/)[0];
+      // Wiktionary packs (targetLang "*") translate into every pack language.
+      const packs = catalog.filter((entry) => entry.sourceLang === source && entry.targetLang === "*");
+      if (packs.length > 0) {
+        setEntries(packs.filter((entry) => !entry.isDownloaded));
+        return;
+      }
       const exact = catalog.filter((entry) => entry.sourceLang === offer.source && entry.targetLang === offer.target);
       const fallback = catalog
         .filter((entry) => entry.sourceLang === offer.source && entry.targetLang !== offer.target && FALLBACK_TARGETS.includes(entry.targetLang))

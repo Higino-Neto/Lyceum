@@ -704,6 +704,9 @@ openInNewWindow: (data: {
 
   dictionaryGetInfo: (dictId: string) => ipcRenderer.invoke("dictionary:get-info", dictId),
 
+  dictionaryPackLookup: (word: string, lang: string, target: string, lemmaHint?: string | null) =>
+    ipcRenderer.invoke("dictionary:pack-lookup", word, lang, target, lemmaHint ?? null),
+
   languageLearningOpen: (input: { filePath: string; fileHash: string; language?: string; force?: boolean }) =>
     invoke<
       | { success: true; document: LinguisticDocument; packageRoot: string; language: string; metadataLanguage: string | null; detectedLanguage?: string | null; reused: boolean }

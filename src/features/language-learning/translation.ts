@@ -1,4 +1,5 @@
 import { getLearningBridge } from "../../platform";
+import { DictionaryPackProvider, isPackCatalogEntry } from "./dictionaryPacks";
 /**
  * Extensible translation provider architecture. Providers declare what they
  * support; when none is available the UI shows an unavailable state rather
@@ -11,6 +12,8 @@ export interface TranslationRequest {
   source: string;
   target: string;
   kind: TranslationKind;
+  /** The word as written on the page (`courait`) when `text` is its lemma. */
+  form?: string;
 }
 
 export interface TranslationResult {
@@ -132,7 +135,7 @@ export class OfflineDictionaryProvider implements TranslationProvider {
   private pick(index: DictionaryInfo[], source: string, target: string) {
     const from = baseLanguage(source);
     const to = baseLanguage(target);
-    const downloaded = index.filter((d) => d.isDownloaded && baseLanguage(d.sourceLang) === from);
+    const downloaded = index.filter((d) => d.isDownloaded && !isPackCatalogEntry(d) && baseLanguage(d.sourceLang) === from);
     return downloaded.find((d) => baseLanguage(d.targetLang) === to)
       ?? downloaded.find((d) => baseLanguage(d.targetLang) === "en")
       ?? downloaded[0]
@@ -212,22 +215,36 @@ export class TranslationService {
 
   async translate(request: TranslationRequest): Promise<TranslationOutcome> {
     if (baseLanguage(request.source) === baseLanguage(request.target)) return { status: "unavailable" };
-    const cacheKey = `${request.kind}|${request.source}|${request.target}|${request.text}`;
+    const cacheKey = `${request.kind}|${request.source}|${request.target}|${request.text}|${request.form ?? ""}`;
     const cached = this.cache.get(cacheKey);
     if (cached?.status === "ok") return cached;
 
     let lastError: string | null = null;
     let anyAvailable = false;
+    // A result in another language (English definitions) is kept only until a
+    // later provider answers in the requested language.
+    let fallback: TranslationResult | null = null;
+    const target = baseLanguage(request.target);
     for (const provider of this.providers) {
       if (!provider.supports(request) || !(await provider.isAvailable(request))) continue;
       anyAvailable = true;
       try {
-        const outcome: TranslationOutcome = { status: "ok", result: await provider.translate(request) };
+        const result = await provider.translate(request);
+        if (result.language && baseLanguage(result.language) !== target) {
+          fallback ??= result;
+          continue;
+        }
+        const outcome: TranslationOutcome = { status: "ok", result };
         this.cache.set(cacheKey, outcome);
         return outcome;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
       }
+    }
+    if (fallback) {
+      const outcome: TranslationOutcome = { status: "ok", result: fallback };
+      this.cache.set(cacheKey, outcome);
+      return outcome;
     }
     if (!anyAvailable) return { status: "unavailable" };
     return { status: "error", message: lastError ?? "UNKNOWN" };
@@ -235,5 +252,5 @@ export class TranslationService {
 }
 
 export function createDefaultTranslationService(onlineEnabled: () => boolean) {
-  return new TranslationService([new OfflineDictionaryProvider(), new OnlineTranslationProvider(onlineEnabled)]);
+  return new TranslationService([new DictionaryPackProvider(), new OfflineDictionaryProvider(), new OnlineTranslationProvider(onlineEnabled)]);
 }

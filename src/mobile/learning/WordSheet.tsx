@@ -5,6 +5,7 @@ import type { TranslationService } from "../../features/language-learning/transl
 import { useTranslation } from "../../i18n";
 import type { LearningSession } from "../../pages/ReadingPage/components/lyceum-reader/useLearningSessionCore";
 import { useTranslationLookup } from "../../pages/ReadingPage/components/lyceum-reader/useTranslationLookup";
+import { useDictionaryPackEntry } from "../../pages/ReadingPage/components/lyceum-reader/useDictionaryPackEntry";
 import { STATE_ORDER, posLabel, stateLabelKey } from "../../pages/ReadingPage/components/lyceum-reader/uiHelpers";
 import type { AnnotationDraftTarget } from "../../pages/ReadingPage/components/lyceum-reader/AnnotationComposer";
 
@@ -46,8 +47,10 @@ export function WordSheet({ session, ordinal, settings, translationService, tran
   const record = entry ? snapshot.lemmas[entry.key] : undefined;
   const state = entry && form ? effectiveState(snapshot, entry.key, form.form) : "unknown";
   const lookup = useTranslationLookup(
-    translationService, entry?.lemma ?? null, document?.language ?? "und", settings.nativeLanguage, "word", Boolean(entry), translationRevision,
+    translationService, entry?.lemma ?? null, document?.language ?? "und", settings.nativeLanguage, "word", Boolean(entry), translationRevision, surface || null,
   );
+  const pack = useDictionaryPackEntry(entry ? surface || null : null, entry?.lemma ?? null, document?.language ?? "und", settings.nativeLanguage, translationRevision);
+  const packEntry = pack.status === "done" && pack.result?.found ? pack.result.entries[0] : undefined;
   if (!resolved || !entry) return null;
   const pos = posLabel(t, entry.pos);
 
@@ -60,6 +63,7 @@ export function WordSheet({ session, ordinal, settings, translationService, tran
             {entry.lemma !== surface ? <span lang={document?.language}>{entry.lemma}</span> : null}
             {entry.lemma !== surface && pos ? " · " : null}
             {pos}
+            {packEntry?.ipa[0] ? <span className="ml-1.5 font-mono">{packEntry.ipa[0]}</span> : null}
           </p>
         </div>
         {speechAvailable && (

@@ -1264,13 +1264,13 @@ export function DictionarySettingsPanel() {
       Array.from(new Set(dictionaries.map(pick)))
         .map((code) => ({ code, name: names(code) }))
         .sort((a, b) => a.name.localeCompare(b.name));
-    return { sources: collect((dict) => dict.sourceLang), targets: collect((dict) => dict.targetLang) };
+    return { sources: collect((dict) => dict.sourceLang), targets: collect((dict) => dict.targetLang).filter((language) => language.code !== "*") };
   }, [dictionaries]);
   const visibleDictionaries = useMemo(() => {
     const query = dictionaryQuery.trim().toLowerCase();
     return dictionaries
       .filter((dict) => !dictionarySource || dict.sourceLang === dictionarySource)
-      .filter((dict) => !dictionaryTarget || dict.targetLang === dictionaryTarget)
+      .filter((dict) => !dictionaryTarget || dict.targetLang === dictionaryTarget || dict.targetLang === "*")
       .filter((dict) => !query || `${dict.name} ${dict.id} ${dict.sourceLang} ${dict.targetLang}`.toLowerCase().includes(query))
       .sort((a, b) => Number(Boolean(b.isDownloaded)) - Number(Boolean(a.isDownloaded)));
   }, [dictionaries, dictionaryQuery, dictionarySource, dictionaryTarget]);
@@ -1363,10 +1363,12 @@ export function DictionarySettingsPanel() {
                       {dict.name}
                     </p>
                     <p className="mt-1 text-xs text-foreground-subtle">
-                      {t("settings:dictionaries.languagePair", {
-                        source: dict.sourceLang.toUpperCase(),
-                        target: dict.targetLang.toUpperCase(),
-                      })}
+                      {dict.targetLang === "*"
+                        ? t("settings:dictionaries.wiktionaryPack", { source: dict.sourceLang.toUpperCase() })
+                        : t("settings:dictionaries.languagePair", {
+                          source: dict.sourceLang.toUpperCase(),
+                          target: dict.targetLang.toUpperCase(),
+                        })}
                       {dict.size > 0 &&
                         ` - ${(dict.size / (1024 * 1024)).toFixed(1)}MB`}
                       {dict.headwords ? ` - ${t("settings:dictionaries.headwords", { count: dict.headwords })}` : ""}
@@ -1382,7 +1384,7 @@ export function DictionarySettingsPanel() {
                       </div>
                     ) : dict.isDownloaded ? (
                       <>
-                        <button
+                        {dict.targetLang !== "*" && <button
                           onClick={() => selectDictionary(dict.id)}
                           className={`h-8 rounded px-3 text-sm font-medium transition ${
                             selectedDict === dict.id
@@ -1393,7 +1395,7 @@ export function DictionarySettingsPanel() {
                           {selectedDict === dict.id
                             ? t("settings:dictionaries.active")
                             : t("settings:dictionaries.activate")}
-                        </button>
+                        </button>}
                         <button
                           onClick={() => deleteDictionary(dict.id)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded text-foreground-subtle transition hover:bg-destructive-muted hover:text-destructive"

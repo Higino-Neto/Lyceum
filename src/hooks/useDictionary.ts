@@ -15,7 +15,7 @@ export interface DictionaryInfo {
   isDownloaded?: boolean;
   format?: "zip" | "tar.xz";
   headwords?: number;
-  provider?: "lyceum" | "freedict";
+  provider?: "lyceum" | "freedict" | "wiktionary";
 }
 
 export interface LookupResult {

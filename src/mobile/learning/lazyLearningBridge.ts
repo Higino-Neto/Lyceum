@@ -8,6 +8,11 @@ export const lazyMobileLearningBridge: LearningBridge = {
   dictionaryLookup: async (word, dictId) => (await runtime()).dictionaryLookup(word, dictId),
   dictionaryDownload: async (id) => (await runtime()).dictionaryDownload(id),
   dictionaryDelete: async (id) => (await runtime()).dictionaryDelete?.(id) ?? false,
+  dictionaryPackLookup: async (word, lang, target, lemmaHint) => {
+    const bridge = await runtime();
+    if (!bridge.dictionaryPackLookup) return { found: false, query: word, lang, target, entries: [] };
+    return bridge.dictionaryPackLookup(word, lang, target, lemmaHint);
+  },
   onDictionaryDownloadProgress(callback) {
     let unsubscribe: (() => void) | undefined;
     let cancelled = false;

@@ -18,6 +18,7 @@ import type { LearningReaderSettings } from "../../../../features/language-learn
 import { useTranslation } from "../../../../i18n";
 import type { LearningSession } from "./useLearningSession";
 import { DictionaryOffer } from "./DictionaryOffer";
+import { DictionaryEntryPanel } from "./DictionaryEntryPanel";
 import { useTranslationLookup, type LookupState } from "./useTranslationLookup";
 import { FeatureList, IconButton, Section, StateControl } from "./parts";
 import { dynamicT, posLabel } from "./uiHelpers";
@@ -108,7 +109,7 @@ function WordInspector({ session, selection, settings, translationService, trans
   const surface = resolved ? resolved.block.text.slice(resolved.tuple[0], resolved.tuple[1]) : "";
   const record = entry ? snapshot.lemmas[entry.key] : undefined;
   const lookup = useTranslationLookup(
-    translationService, entry?.lemma ?? null, document?.language ?? "und", settings.nativeLanguage, "word", Boolean(entry), translationRevision,
+    translationService, entry?.lemma ?? null, document?.language ?? "und", settings.nativeLanguage, "word", Boolean(entry), translationRevision, surface || null,
   );
 
   useEffect(() => {
@@ -262,6 +263,10 @@ function WordInspector({ session, selection, settings, translationService, trans
           </button>
         )}
         <TranslationBlock state={lookup} offerDictionary />
+      </Section>
+
+      <Section title={t("learning:dictionary.title")}>
+        <DictionaryEntryPanel form={surface || null} lemma={entry.lemma} lang={document.language} target={settings.nativeLanguage} revision={translationRevision} />
       </Section>
 
       {expressions.length > 0 && (

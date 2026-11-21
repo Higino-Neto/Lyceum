@@ -3,20 +3,39 @@ import { dictionaryManager } from "../dictionary-manager";
 import { closeAllStorage } from "../dictionary-storage";
 import { quickLookup } from "../lookup-engine";
 import { nonEmptyString } from "../ipc/validation";
+import { dictionaryPackManager } from "../dictionary-packs";
+import { packLanguageFromId } from "../../src/core/dictionary-packs";
+
+/** Wiktionary packs are listed first: they cover every pack language pair. */
+async function withPacks<T>(dictionaries: T[]) {
+  try {
+    return [...(await dictionaryPackManager.catalog()), ...dictionaries];
+  } catch (error) {
+    console.error("[DictionaryPacks] catalog failed:", error);
+    return dictionaries;
+  }
+}
 
 export function registerDictionaryHandlers(
   ipcMain: IpcMain,
   getWindow: () => BrowserWindow | null,
 ) {
   ipcMain.handle("dictionary:get-index", async () =>
-    (await dictionaryManager.loadLocalIndex()).dictionaries);
+    withPacks((await dictionaryManager.loadLocalIndex()).dictionaries));
 
   ipcMain.handle("dictionary:fetch-index", async () =>
-    (await dictionaryManager.fetchIndex()).dictionaries);
+    withPacks((await dictionaryManager.fetchIndex()).dictionaries));
 
   ipcMain.handle("dictionary:download", async (_, dictId: string) => {
     try {
       const validDictionaryId = nonEmptyString(dictId, "dictId", 80);
+      const packLanguage = packLanguageFromId(validDictionaryId);
+      if (packLanguage) {
+        await dictionaryPackManager.download(packLanguage, (progress) => {
+          getWindow()?.webContents.send("dictionary:download-progress", { dictId: validDictionaryId, progress });
+        });
+        return { success: true };
+      }
       await dictionaryManager.downloadDictionary(validDictionaryId, (progress) => {
         getWindow()?.webContents.send("dictionary:download-progress", {
           dictId: validDictionaryId,
@@ -30,6 +49,8 @@ export function registerDictionaryHandlers(
   });
 
   ipcMain.handle("dictionary:delete", async (_, dictId: string) => {
+    const packLanguage = packLanguageFromId(nonEmptyString(dictId, "dictId", 80));
+    if (packLanguage) return { success: dictionaryPackManager.delete(packLanguage) };
     closeAllStorage();
     return {
       success: await dictionaryManager.deleteDictionary(nonEmptyString(dictId, "dictId", 80)),
@@ -54,6 +75,22 @@ export function registerDictionaryHandlers(
         source: "fallback" as const,
         error: String(error),
       };
+    }
+  });
+
+  ipcMain.handle("dictionary:pack-lookup", async (_, word: unknown, lang: unknown, target: unknown, lemmaHint: unknown) => {
+    const validWord = nonEmptyString(word, "word", 256);
+    const validLang = nonEmptyString(lang, "lang", 12);
+    try {
+      return await dictionaryPackManager.lookup(
+        validWord,
+        validLang,
+        typeof target === "string" ? target.slice(0, 12) : "",
+        typeof lemmaHint === "string" ? lemmaHint.slice(0, 256) : null,
+      );
+    } catch (error) {
+      console.error(`[DictionaryPacks] Lookup failed in ${validLang}:`, error);
+      return { found: false, query: validWord, lang: validLang, target: "", entries: [], error: String(error) };
     }
   });
 

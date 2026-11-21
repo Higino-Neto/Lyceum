@@ -5,7 +5,8 @@ import {
 import { createRepositoryLearningClient, type RepositoryLearningHost } from "../../features/language-learning/repositoryLearningClient";
 import type { LearningClient } from "../../features/language-learning/learningClient";
 import { translateWithMyMemory } from "../../features/language-learning/myMemory";
-import type { LearningBridge } from "../../platform";
+import type { DictionaryCatalogEntry, LearningBridge } from "../../platform";
+import { packLanguageFromId } from "../../core/dictionary-packs";
 import { openLearningDatabase, type LearningDatabase } from "../../platform/web/learningDatabase";
 import { fetchBytes, nativeFetch } from "./mobileHttp";
 import toast from "react-hot-toast";
@@ -119,20 +120,64 @@ function dictionaryStore() {
   return dictionaries;
 }
 
+let packs: Promise<typeof import("./dictionaryPacks")> | null = null;
+function packStore() {
+  if (!packs) {
+    packs = import("./dictionaryPacks");
+    packs.catch(() => {
+      packs = null;
+    });
+  }
+  return packs;
+}
+
+const packProgressListeners = new Set<(data: { dictId: string; progress: number }) => void>();
+
+/** Wiktionary packs first (every pack language pair), then the bilingual dictionaries. */
+async function catalogWithPacks(): Promise<DictionaryCatalogEntry[]> {
+  const [store, packEntries] = await Promise.all([
+    dictionaryStore(),
+    packStore().then((module) => module.packCatalog()).catch((error: unknown) => {
+      console.error("[DictionaryPacks] catalog failed", error);
+      return [];
+    }),
+  ]);
+  return [...packEntries, ...(await store.dictionaryGetIndex())];
+}
+
 /** Registered as the platform learning bridge; the dictionary database opens on first use. */
 export const mobileLearningBridge: LearningBridge = {
-  dictionaryGetIndex: async () => (await dictionaryStore()).dictionaryGetIndex(),
+  dictionaryGetIndex: catalogWithPacks,
   dictionaryLookup: async (word, dictId) => (await dictionaryStore()).dictionaryLookup(word, dictId),
-  dictionaryDownload: async (id) => (await dictionaryStore()).dictionaryDownload(id),
-  dictionaryDelete: async (id) => (await dictionaryStore()).dictionaryDelete?.(id) ?? false,
+  async dictionaryDownload(id) {
+    const lang = packLanguageFromId(id);
+    if (!lang) return (await dictionaryStore()).dictionaryDownload(id);
+    try {
+      await (await packStore()).downloadPack(lang, (progress) => {
+        packProgressListeners.forEach((listener) => listener({ dictId: id, progress }));
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("[DictionaryPacks] download failed", error);
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  },
+  async dictionaryDelete(id) {
+    const lang = packLanguageFromId(id);
+    if (lang) return (await packStore()).deletePack(lang);
+    return (await dictionaryStore()).dictionaryDelete?.(id) ?? false;
+  },
+  dictionaryPackLookup: async (word, lang, target, lemmaHint) => (await packStore()).lookupPack(word, lang, target, lemmaHint),
   onDictionaryDownloadProgress(callback) {
     let unsubscribe: (() => void) | undefined;
     let cancelled = false;
+    packProgressListeners.add(callback);
     void dictionaryStore().then((store) => {
       if (!cancelled) unsubscribe = store.onDictionaryDownloadProgress?.(callback);
     });
     return () => {
       cancelled = true;
+      packProgressListeners.delete(callback);
       unsubscribe?.();
     };
   },

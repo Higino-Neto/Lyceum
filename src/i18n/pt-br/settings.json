@@ -301,7 +301,8 @@
     "toasts": {
       "downloadFailed": "Erro ao baixar dicionário",
       "removeFailed": "Erro ao remover dicionário"
-    }
+    },
+    "wiktionaryPack": "{{source}} → todos os idiomas · significados, sinônimos, pronúncia e etimologia"
   },
   "beta": {
     "title": "Abas laterais em desenvolvimento",
