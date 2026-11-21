@@ -24,6 +24,20 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.12.2",
+    date: "2026-11-21",
+    title: {
+      en: "A new word card on the phone and more reliable saving",
+      "pt-BR": "Novo cartão de palavra no celular e salvamento mais confiável",
+    },
+    items: [
+      { kind: "new", text: { en: "Phone word card: pull it up to see the details right there — occurrences in the book and chapter with jumps between them, synonyms and antonyms, all translations, meanings with examples, the book's sentences and forms, your translation, then related words, inflections and etymology.", "pt-BR": "Cartão de palavra no celular: puxe para cima para ver os detalhes ali mesmo — ocorrências no livro e no capítulo com saltos entre elas, sinônimos e antônimos, todas as traduções, significados com exemplos, frases e formas do livro, sua tradução e, depois, palavras relacionadas, flexões e etimologia." } },
+      { kind: "improved", text: { en: "The pronunciation button plays the native-speaker recording from Wiktionary when there is one.", "pt-BR": "O botão de pronúncia toca a gravação de falante nativo do Wiktionary quando existe." } },
+      { kind: "fixed", text: { en: "Phone: \"Could not save your learning data\" after the system closed the app's database in the background; Lyceum now reconnects and saves. A full storage is reported as such.", "pt-BR": "Celular: \"Não foi possível salvar seus dados de aprendizado\" depois que o sistema fechava o banco de dados do app em segundo plano; o Lyceum agora reconecta e salva. Armazenamento cheio é informado como tal." } },
+      { kind: "fixed", text: { en: "Phone: the dictionary list no longer goes empty (and the Wiktionary dictionary no longer disappears) when the older dictionaries fail to load.", "pt-BR": "Celular: a lista de dicionários não fica mais vazia (e o dicionário Wiktionary não some mais) quando os dicionários antigos falham ao carregar." } },
+    ],
+  },
+  {
     version: "1.12.1",
     date: "2026-11-21",
     title: {

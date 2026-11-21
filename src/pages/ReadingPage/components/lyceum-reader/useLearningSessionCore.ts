@@ -20,6 +20,15 @@ import type { LearningClient } from "../../../../features/language-learning/lear
 import { translate } from "../../../../i18n";
 
 /** Where a word was met, for the context sentence of its review card. */
+
+/** The save error with its cause, so a failure on a phone can be reported precisely. */
+function saveFailureMessage(cause: unknown) {
+  const { name, message } = (cause && typeof cause === "object" ? cause : {}) as { name?: string; message?: string };
+  if (name === "QuotaExceededError" || /quota|no space|disk full/i.test(message ?? "")) return translate("learning:errors.storageFull");
+  const detail = [name, message].filter(Boolean).join(": ") || String(cause);
+  return `${translate("learning:errors.saveFailed")} (${detail.slice(0, 160)})`;
+}
+
 export interface ReviewContext {
   sentenceId?: string;
   contextForm?: string;
@@ -153,7 +162,7 @@ export function useLearningSessionCore({ userId, client, open }: LearningSession
       toast.success(translate("learning:recovery.merged", { count: result.moved + result.merged }));
     } catch (cause) {
       console.error("[LearningReader] merge", cause);
-      toast.error(translate("learning:errors.saveFailed"));
+      toast.error(saveFailureMessage(cause), { id: "learning-save-failed" });
     }
   }, [client, document, persist]);
 
@@ -178,7 +187,7 @@ export function useLearningSessionCore({ userId, client, open }: LearningSession
 
   const fail = useCallback((cause: unknown) => {
     console.error("[LearningReader]", cause);
-    toast.error(translate("learning:errors.saveFailed"));
+    toast.error(saveFailureMessage(cause), { id: "learning-save-failed" });
   }, []);
 
   const reviewItemsRef = useRef(reviewItems);

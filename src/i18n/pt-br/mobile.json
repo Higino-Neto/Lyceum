@@ -752,7 +752,28 @@
     "showAllDictionaries": "Ver todos os {{count}} dicionários",
     "backupsLocation": "Os backups automáticos do vocabulário ficam em {{path}} (um por dia, últimos 30).",
     "horizontalMargin": "Margens laterais",
-    "pdfPages": "Páginas {{from}}–{{to}}"
+    "pdfPages": "Páginas {{from}}–{{to}}",
+    "word": {
+      "inBook": "no livro",
+      "inChapter": "neste capítulo",
+      "thisForm": "esta forma",
+      "occurrence": "Ocorrência {{position}} de {{total}}",
+      "synonyms": "Sinônimos",
+      "antonyms": "Antônimos",
+      "meanings": "Significados",
+      "translations": "Traduções",
+      "inThisBook": "Neste livro",
+      "formsInBook": "Formas neste livro",
+      "yourTranslation": "Sua tradução",
+      "related": "Palavras relacionadas",
+      "more": "Mais",
+      "otherEntries": "Outros verbetes",
+      "expand": "Ver detalhes",
+      "collapse": "Recolher detalhes",
+      "fullInspector": "Inspetor completo",
+      "pronounce": "Ouvir",
+      "noDetails": "Instale o dicionário Wiktionary deste idioma para ver sinônimos, significados e pronúncia."
+    }
   },
   "readingMode": {
     "title": "Modo de leitura",

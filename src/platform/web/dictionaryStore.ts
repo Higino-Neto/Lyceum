@@ -9,6 +9,7 @@ import {
   type TarEntry,
 } from "../../core/dictionaries/stardict";
 import type { DictionaryCatalogEntry, LearningBridge } from "..";
+import { createIdbConnection } from "./idbConnection";
 
 /**
  * Offline dictionaries for WebView builds, stored in IndexedDB.
@@ -114,27 +115,32 @@ async function extract(bytes: Uint8Array, format: CatalogItem["format"]): Promis
 }
 
 export async function createDictionaryStore(options: DictionaryStoreOptions): Promise<LearningBridge> {
-  const request = (options.factory ?? indexedDB).open(DB_NAME, DB_VERSION);
-  request.onupgradeneeded = () => {
-    const db = request.result;
-    if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "id" });
-    if (!db.objectStoreNames.contains("entries")) db.createObjectStore("entries");
-  };
-  const db = await promisify(request);
+  const connection = createIdbConnection(async () => {
+    const request = (options.factory ?? indexedDB).open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("entries")) db.createObjectStore("entries");
+    };
+    return promisify(request);
+  });
+  await connection.transaction("meta", "readonly");
   const listeners = new Set<(data: { dictId: string; progress: number }) => void>();
   const progress = (dictId: string, value: number) => listeners.forEach((listener) => listener({ dictId, progress: value }));
   const active = new Map<string, Promise<{ success: boolean; error?: string }>>();
 
   async function installed(): Promise<Map<string, InstalledMeta>> {
-    const rows = await promisify(db.transaction("meta", "readonly").objectStore("meta").getAll()) as InstalledMeta[];
+    const rows = await connection.run(async (transaction) => promisify((await transaction("meta", "readonly")).objectStore("meta").getAll())) as InstalledMeta[];
     return new Map(rows.map((row) => [row.id, row]));
   }
 
   async function removeEntries(id: string) {
-    const transaction = db.transaction(["entries", "meta"], "readwrite");
-    transaction.objectStore("entries").delete(IDBKeyRange.bound([id, ""], [id, "￿"]));
-    transaction.objectStore("meta").delete(id);
-    await done(transaction);
+    await connection.run(async (transaction) => {
+      const store = await transaction(["entries", "meta"], "readwrite");
+      store.objectStore("entries").delete(IDBKeyRange.bound([id, ""], [id, "￿"]));
+      store.objectStore("meta").delete(id);
+      await done(store);
+    });
   }
 
   async function install(item: CatalogItem): Promise<{ success: boolean; error?: string }> {
@@ -154,10 +160,13 @@ export async function createDictionaryStore(options: DictionaryStoreOptions): Pr
       let count = 0;
       const writeBatch = async () => {
         if (batch.length === 0) return;
-        const transaction = db.transaction("entries", "readwrite");
-        const store = transaction.objectStore("entries");
-        for (const [word, content] of batch) store.put(content, [item.id, word]);
-        await done(transaction);
+        const current = batch;
+        await connection.run(async (transaction) => {
+          const writing = await transaction("entries", "readwrite");
+          const store = writing.objectStore("entries");
+          for (const [word, content] of current) store.put(content, [item.id, word]);
+          await done(writing);
+        });
         batch = [];
       };
       const estimate = Math.max(1, item.headwords ?? 20_000);
@@ -174,9 +183,11 @@ export async function createDictionaryStore(options: DictionaryStoreOptions): Pr
       await writeBatch();
       if (count === 0) throw new Error("EMPTY_DICTIONARY");
       const meta: InstalledMeta = { id: item.id, entries: count, downloadedAt: new Date().toISOString() };
-      const transaction = db.transaction("meta", "readwrite");
-      transaction.objectStore("meta").put(meta);
-      await done(transaction);
+      await connection.run(async (transaction) => {
+        const writing = await transaction("meta", "readwrite");
+        writing.objectStore("meta").put(meta);
+        await done(writing);
+      });
       progress(item.id, 100);
       return { success: true };
     } catch (error) {
@@ -186,7 +197,7 @@ export async function createDictionaryStore(options: DictionaryStoreOptions): Pr
   }
 
   async function get(id: string, word: string): Promise<string | undefined> {
-    return promisify(db.transaction("entries", "readonly").objectStore("entries").get([id, word])) as Promise<string | undefined>;
+    return connection.run(async (transaction) => promisify((await transaction("entries", "readonly")).objectStore("entries").get([id, word]))) as Promise<string | undefined>;
   }
 
   return {

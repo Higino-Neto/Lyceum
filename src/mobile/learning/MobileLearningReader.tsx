@@ -606,7 +606,15 @@ function LearningReader({ book, loadBytes, onBack, onOpenOriginal, userId }: Mob
             speechAvailable={narration.available}
             onState={(state) => setWordState(wordSelection.ordinal, state)}
             onSpeak={(text) => void narration.speakText(text)}
-            onDetails={() => setDetailsOpen(true)}
+            onInspect={(next) => {
+              setSelection(next);
+              setDetailsOpen(true);
+            }}
+            onNavigate={(target, targetChapter) => {
+              // The card follows the occurrence it jumped to.
+              if (target.ordinal !== undefined) setSelection({ type: "word", ordinal: target.ordinal });
+              navigate(target, targetChapter);
+            }}
             onNote={(target) => setAnnotationDraft(target)}
             onManageDictionaries={() => setSheet("settings")}
             onClose={() => setSelection(null)}

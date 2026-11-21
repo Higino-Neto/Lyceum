@@ -56,7 +56,8 @@
     "UNSUPPORTED_FORMAT": "This format is not supported yet. Use EPUB, TXT, HTML, PDF with text, or .lyceum.",
     "FILE_NOT_FOUND": "The book file could not be found.",
     "saveFailed": "Could not save your learning data.",
-    "INVALID_FILE": "The file is damaged or is not a valid EPUB."
+    "INVALID_FILE": "The file is damaged or is not a valid EPUB.",
+    "storageFull": "The device storage is full: free some space (or remove a dictionary you do not use) so Lyceum can save your vocabulary."
   },
   "banners": {
     "languageOverride": "Reading as “{{language}}” (the book declares “{{metadata}}”). Change it in reader settings.",

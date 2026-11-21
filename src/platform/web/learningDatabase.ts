@@ -1,4 +1,5 @@
 import type { LearningRowChange, LearningRows, LearningStoreName } from "../../core/language-learning/memoryRepository";
+import { createIdbConnection, describeStorageError } from "./idbConnection";
 
 /**
  * IndexedDB persistence for the in-memory learning repository (WebView builds).
@@ -37,14 +38,18 @@ export interface LearningDatabase {
 }
 
 export async function openLearningDatabase(factory: IDBFactory = indexedDB): Promise<LearningDatabase> {
-  const request = factory.open(DB_NAME, DB_VERSION);
-  request.onupgradeneeded = () => {
-    const db = request.result;
-    for (const store of LEARNING_STORES) {
-      if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
-    }
-  };
-  const db = await promisify(request);
+  const connection = createIdbConnection(async () => {
+    const request = factory.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      for (const store of LEARNING_STORES) {
+        if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
+      }
+    };
+    return promisify(request);
+  });
+  // Opens now so a broken database is reported before the reader starts.
+  await connection.transaction(LEARNING_STORES, "readonly");
   // Ask the browser not to evict this origin's data under storage pressure.
   void navigator.storage?.persist?.().catch(() => false);
 
@@ -53,26 +58,29 @@ export async function openLearningDatabase(factory: IDBFactory = indexedDB): Pro
 
   return {
     async load() {
-      const transaction = db.transaction(LEARNING_STORES, "readonly");
-      const entries = await Promise.all(LEARNING_STORES.map((store) => promisify(transaction.objectStore(store).getAll())));
-      const rows = Object.fromEntries(LEARNING_STORES.map((store, index) => [store, entries[index] ?? []]));
-      return rows as unknown as LearningRows;
+      return connection.run(async (transaction) => {
+        const tx = await transaction(LEARNING_STORES, "readonly");
+        const entries = await Promise.all(LEARNING_STORES.map((store) => promisify(tx.objectStore(store).getAll())));
+        const rows = Object.fromEntries(LEARNING_STORES.map((store, index) => [store, entries[index] ?? []]));
+        return rows as unknown as LearningRows;
+      });
     },
     apply(changes) {
       if (changes.length === 0) return;
       const stores = [...new Set(changes.map((change) => change.store))];
-      queue = queue.then(async () => {
-        const transaction = db.transaction(stores, "readwrite");
-        const done = transactionDone(transaction);
+      queue = queue.then(() => connection.run(async (transaction) => {
+        // Puts and deletes are idempotent, so a batch interrupted by a lost connection is replayed whole.
+        const tx = await transaction(stores, "readwrite");
+        const done = transactionDone(tx);
         for (const change of changes) {
-          const store = transaction.objectStore(change.store);
+          const store = tx.objectStore(change.store);
           if (change.value === null) store.delete(change.id);
           else store.put(change.value, change.id);
         }
         await done;
-      }).catch((error: unknown) => {
+      })).catch((error: unknown) => {
         failure = error;
-        console.error("[LearningDatabase] write failed", error);
+        console.error("[LearningDatabase] write failed:", describeStorageError(error));
       });
     },
     async flush() {
@@ -84,7 +92,7 @@ export async function openLearningDatabase(factory: IDBFactory = indexedDB): Pro
       }
     },
     close() {
-      db.close();
+      connection.close();
     },
   };
 }

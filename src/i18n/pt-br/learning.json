@@ -56,7 +56,8 @@
     "UNSUPPORTED_FORMAT": "Este formato ainda não é suportado. Use EPUB, TXT, HTML, PDF com texto ou .lyceum.",
     "FILE_NOT_FOUND": "O arquivo do livro não foi encontrado.",
     "saveFailed": "Não foi possível salvar seus dados de aprendizado.",
-    "INVALID_FILE": "O arquivo está corrompido ou não é um EPUB válido."
+    "INVALID_FILE": "O arquivo está corrompido ou não é um EPUB válido.",
+    "storageFull": "O armazenamento do aparelho está cheio: libere espaço (ou remova um dicionário que não usa) para o Lyceum salvar seu vocabulário."
   },
   "banners": {
     "languageOverride": "Lendo como “{{language}}” (o livro declara “{{metadata}}”). Altere nas configurações do leitor.",

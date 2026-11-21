@@ -69,9 +69,11 @@ export function lookupDictionaryPack(form: string, lemma: string | null, lang: s
   return pending;
 }
 
+/** Translations of the best entry; other entries (homographs such as "cour" for "cours") only when it has none. */
 function uniqueWords(entries: PackEntry[]) {
   const words: string[] = [];
-  for (const entry of entries) {
+  const withTranslations = entries.find((entry) => entry.translations.length > 0);
+  for (const entry of withTranslations ? [withTranslations] : []) {
     for (const translation of entry.translations) {
       if (!words.includes(translation.word)) words.push(translation.word);
     }

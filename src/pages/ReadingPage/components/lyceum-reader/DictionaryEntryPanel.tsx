@@ -2,21 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Volume2 } from "lucide-react";
 import { RELATION_ORDER, type PackEntry } from "../../../../core/dictionary-packs";
 import { useDictionaryPackEntry } from "./useDictionaryPackEntry";
+import { playAudio, useDictionaryTag as useTag } from "./dictionaryUi";
 import { useTranslation } from "../../../../i18n";
 import { DictionaryOffer } from "./DictionaryOffer";
 import { dynamicT } from "./uiHelpers";
-
-let currentAudio: HTMLAudioElement | null = null;
-function playAudio(url: string) {
-  currentAudio?.pause();
-  currentAudio = new Audio(url);
-  void currentAudio.play().catch(() => undefined);
-}
-
-function useTag() {
-  const { t } = useTranslation();
-  return (tag: string) => dynamicT(t, `learning:dictionary.tags.${tag}`, undefined, tag.replace(/-/g, " "));
-}
 
 function TagList({ tags }: { tags: string[] }) {
   const tag = useTag();
@@ -176,7 +165,7 @@ export function DictionaryEntryPanel({ form, lemma, lang, target, revision, comp
   const state = useDictionaryPackEntry(form, lemma, lang, target, revision);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [form, lemma]);
 
   if (state.status === "loading") return <p className="flex items-center gap-1.5 text-xs text-foreground-subtle"><Loader2 size={12} className="animate-spin" />…</p>;

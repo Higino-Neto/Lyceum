@@ -135,14 +135,18 @@ const packProgressListeners = new Set<(data: { dictId: string; progress: number 
 
 /** Wiktionary packs first (every pack language pair), then the bilingual dictionaries. */
 async function catalogWithPacks(): Promise<DictionaryCatalogEntry[]> {
-  const [store, packEntries] = await Promise.all([
-    dictionaryStore(),
+  // Each source fails on its own: a broken IndexedDB must not hide the Wiktionary packs, and vice versa.
+  const [packEntries, legacy] = await Promise.all([
     packStore().then((module) => module.packCatalog()).catch((error: unknown) => {
       console.error("[DictionaryPacks] catalog failed", error);
-      return [];
+      return [] as DictionaryCatalogEntry[];
+    }),
+    dictionaryStore().then((store) => store.dictionaryGetIndex()).catch((error: unknown) => {
+      console.error("[Dictionaries] catalog failed", error);
+      return [] as DictionaryCatalogEntry[];
     }),
   ]);
-  return [...packEntries, ...(await store.dictionaryGetIndex())];
+  return [...packEntries, ...legacy];
 }
 
 /** Registered as the platform learning bridge; the dictionary database opens on first use. */
