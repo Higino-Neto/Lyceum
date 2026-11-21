@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { generateMobileIcons } from "./generate-mobile-icons.mjs";
 
@@ -35,6 +35,14 @@ const appConfig = {
 
 const androidPlugins = [
   {
+    pkg: "@capacitor-community/sqlite",
+    classpath: "com.getcapacitor.community.database.sqlite.CapacitorSQLitePlugin",
+  },
+  {
+    pkg: "@capacitor/file-transfer",
+    classpath: "com.capacitorjs.plugins.filetransfer.FileTransferPlugin",
+  },
+  {
     pkg: "@capacitor/filesystem",
     classpath: "com.capacitorjs.plugins.filesystem.FilesystemPlugin",
   },
@@ -50,8 +58,30 @@ const androidPlugins = [
 
 const iosConfig = {
   ...appConfig,
-  packageClassList: ["FilesystemPlugin", "PreferencesPlugin", "CapacitorUpdaterPlugin"],
+  packageClassList: ["CapacitorSQLitePlugin", "FileTransferPlugin", "FilesystemPlugin", "PreferencesPlugin", "CapacitorUpdaterPlugin"],
 };
+
+/**
+ * Every installed Capacitor plugin with native Android code must be listed
+ * above: an unlisted plugin is compiled into the APK but never registered, so
+ * its JavaScript calls fail at runtime.
+ */
+function assertPluginsRegistered() {
+  const dependencies = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).dependencies ?? {};
+  const listed = new Set(androidPlugins.map((plugin) => plugin.pkg));
+  const missing = Object.keys(dependencies).filter((name) => {
+    if (listed.has(name) || name === "@capacitor/android" || name === "@capacitor/ios" || name === "@capacitor/core") return false;
+    const manifestPath = path.join(root, "node_modules", name, "package.json");
+    if (!existsSync(manifestPath)) return false;
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    return Boolean(manifest.capacitor?.android) && existsSync(path.join(root, "node_modules", name, "android"));
+  });
+  if (missing.length > 0) {
+    throw new Error(`Capacitor plugins missing from scripts/prepare-native-mobile-assets.mjs: ${missing.join(", ")}`);
+  }
+}
+
+assertPluginsRegistered();
 
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true });

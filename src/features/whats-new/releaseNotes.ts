@@ -24,6 +24,17 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.12.1",
+    date: "2026-11-21",
+    title: {
+      en: "Wiktionary dictionaries on the phone",
+      "pt-BR": "Dicionários Wiktionary no celular",
+    },
+    items: [
+      { kind: "fixed", text: { en: "Android: the Wiktionary dictionaries now appear in the reader's dictionary list (the native download and database components were not registered in 1.12.0).", "pt-BR": "Android: os dicionários Wiktionary agora aparecem na lista de dicionários do leitor (os componentes nativos de download e banco de dados não estavam registrados na 1.12.0)." } },
+    ],
+  },
+  {
     version: "1.12.0",
     date: "2026-11-21",
     title: {
