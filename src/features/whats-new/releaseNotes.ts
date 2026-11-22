@@ -24,6 +24,21 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.13.0",
+    date: "2026-11-22",
+    title: {
+      en: "A full word page on the phone and working vocabulary sync",
+      "pt-BR": "Página completa da palavra no celular e sincronização de vocabulário funcionando",
+    },
+    items: [
+      { kind: "fixed", text: { en: "Phone: vocabulary sync failed with \"Sync failed: {}\" before the first snapshot existed in the account. It now creates it, and real server errors are shown with their message.", "pt-BR": "Celular: a sincronização do vocabulário falhava com \"Sync failed: {}\" antes de existir o primeiro backup na conta. Agora ela o cria, e erros reais do servidor aparecem com a mensagem." } },
+      { kind: "new", text: { en: "Pull the word card up for a full word page: translations you can save with one tap, meanings with examples, synonyms, the word in this book (all forms or only this one, with jumps and sentences), inflections, grammar and expressions, pronunciation recordings, related words and etymology.", "pt-BR": "Puxe o cartão da palavra para cima para abrir a página completa: traduções que você salva com um toque, significados com exemplos, sinônimos, a palavra neste livro (todas as formas ou só esta, com saltos e frases), flexões, gramática e expressões, gravações de pronúncia, palavras relacionadas e etimologia." } },
+      { kind: "new", text: { en: "The word card shows how many times the word appears counting every inflection (irregular forms come from the Wiktionary dictionary) and how many times this exact form appears.", "pt-BR": "O cartão mostra quantas vezes a palavra aparece contando todas as flexões (formas irregulares vêm do dicionário Wiktionary) e quantas vezes aparece esta forma exata." } },
+      { kind: "new", text: { en: "\"Mark all forms as known\" marks the word and every inflection of it in the book in one tap.", "pt-BR": "\"Marcar as formas como conhecidas\" marca a palavra e todas as flexões dela no livro com um toque." } },
+      { kind: "new", text: { en: "New reader setting: play the pronunciation as soon as you tap a word.", "pt-BR": "Nova configuração do leitor: tocar a pronúncia assim que você toca numa palavra." } },
+    ],
+  },
+  {
     version: "1.12.2",
     date: "2026-11-21",
     title: {

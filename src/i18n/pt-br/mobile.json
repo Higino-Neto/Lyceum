@@ -772,8 +772,26 @@
       "collapse": "Recolher detalhes",
       "fullInspector": "Inspetor completo",
       "pronounce": "Ouvir",
-      "noDetails": "Instale o dicionário Wiktionary deste idioma para ver sinônimos, significados e pronúncia."
-    }
+      "noDetails": "Instale o dicionário Wiktionary deste idioma para ver sinônimos, significados e pronúncia.",
+      "allForms": "todas as formas",
+      "allFormsShort": "todas as formas",
+      "tapToUse": "Toque numa tradução para salvá-la como sua.",
+      "translationSaved": "“{{word}}” salva como sua tradução",
+      "chapterShort": "cap. {{number}}",
+      "moreSentences": "Mais frases",
+      "inflections": "Flexões",
+      "markAllForms_one": "Marcar {{count}} forma como conhecida",
+      "markAllForms_other": "Marcar as {{count}} formas como conhecidas",
+      "markAllFormsHint": "Marca a palavra e todas as flexões dela encontradas neste livro (inclusive formas irregulares do dicionário) como conhecidas.",
+      "allFormsKnown": "Todas as formas são conhecidas",
+      "allFormsMarked_one": "{{count}} forma marcada como conhecida",
+      "allFormsMarked_other": "{{count}} formas marcadas como conhecidas",
+      "pronunciation": "Pronúncia",
+      "dictionaryForms": "Formas de “{{word}}” no dicionário",
+      "inBookBadge": "no livro"
+    },
+    "autoPlay": "Tocar a pronúncia ao tocar numa palavra",
+    "autoPlayHint": "Usa a gravação do Wiktionary quando existe; senão, a voz do aparelho."
   },
   "readingMode": {
     "title": "Modo de leitura",

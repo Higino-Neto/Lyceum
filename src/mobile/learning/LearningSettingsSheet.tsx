@@ -203,6 +203,7 @@ export function LearningSettingsSheet({ open, settings, documentLanguage, onSett
         <Toggle label={t("learning:toolbar.highlights")} checked={settings.showHighlights} onChange={(showHighlights) => onSettings({ showHighlights })} />
         <Toggle label={t("learning:settings.highlightKnown")} checked={settings.highlightKnown} onChange={(highlightKnown) => onSettings({ highlightKnown })} />
         <Toggle label={t("mobile:learning.autoLearn")} hint={t("mobile:learning.autoLearnHint")} checked={settings.autoLearnOnClick} onChange={(autoLearnOnClick) => onSettings({ autoLearnOnClick })} />
+        <Toggle label={t("mobile:learning.autoPlay")} hint={t("mobile:learning.autoPlayHint")} checked={settings.autoPlayPronunciation} onChange={(autoPlayPronunciation) => onSettings({ autoPlayPronunciation })} />
       </Section>
 
       <Section title={t("mobile:learning.languages")}>

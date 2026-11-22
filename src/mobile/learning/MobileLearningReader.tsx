@@ -451,6 +451,7 @@ function LearningReader({ book, loadBytes, onBack, onOpenOriginal, userId }: Mob
   // Android back closes sheets and selections before leaving the reader.
   useEffect(() => {
     const onBackButton = (event: Event) => {
+      if (event.defaultPrevented) return;
       if (annotationDraft) setAnnotationDraft(null);
       else if (sheet) setSheet(null);
       else if (detailsOpen) setDetailsOpen(false);

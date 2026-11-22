@@ -375,6 +375,48 @@ export function useLearningSessionCore({ userId, client, open }: LearningSession
     }
   }, [client, document, ensureReviewItems, fail, persist]);
 
+  /**
+   * Gives one state to every inflection of a word in a single update: the
+   * lemma itself, form overrides on other lemmas the dictionary lists as its
+   * inflections, and removal of the lemma's own contradicting overrides.
+   */
+  const setInflectionsState = useCallback(async (input: {
+    lemma: { key: string; label: string };
+    state: KnowledgeState;
+    clearForms: Array<{ key: string; form: string }>;
+    setForms: Array<{ key: string; form: string }>;
+  }) => {
+    if (!document) return;
+    const previous = snapshotRef.current;
+    const now = new Date().toISOString();
+    const { lemma, state } = input;
+    const existing = previous.lemmas[lemma.key];
+    const forms = { ...previous.forms };
+    for (const item of input.clearForms) delete forms[formKey(item.key, item.form)];
+    for (const item of input.setForms) forms[formKey(item.key, item.form)] = { language: document.language, key: item.key, form: item.form, state, updatedAt: now };
+    setSnapshot({
+      ...previous,
+      forms,
+      lemmas: {
+        ...previous.lemmas,
+        [lemma.key]: existing
+          ? { ...existing, state, updatedAt: now }
+          : { language: document.language, key: lemma.key, label: lemma.label, state, translation: null, note: null, lookupCount: 0, updatedAt: now },
+      },
+    });
+    if (state === "learning") void ensureReviewItems([lemma]);
+    try {
+      await persist(async () => {
+        await client.setLemmaState({ language: document.language, key: lemma.key, label: lemma.label, state });
+        for (const item of input.clearForms) await client.clearFormState(document.language, item.key, item.form);
+        for (const item of input.setForms) await client.setFormState({ language: document.language, key: item.key, form: item.form, state });
+      });
+    } catch (cause) {
+      setSnapshot(previous);
+      fail(cause);
+    }
+  }, [client, document, ensureReviewItems, fail, persist]);
+
   /** Review items whose word is currently in Learning: the review queue. */
   const activeReviewItems = useMemo(
     () => reviewItems.filter((item) => (snapshot.lemmas[item.key]?.state ?? "unknown") === "learning"),
@@ -429,6 +471,7 @@ export function useLearningSessionCore({ userId, client, open }: LearningSession
     recordLookup,
     saveTranslation,
     setManyStates,
+    setInflectionsState,
     activeReviewItems,
     saveStatus,
     persist,

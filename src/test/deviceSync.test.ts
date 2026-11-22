@@ -89,3 +89,19 @@ describe("vocabulary sync", () => {
     expect(cloud.uploads).toBe(1);
   });
 });
+
+describe("storage error inspection", () => {
+  it("recovers the real status from storage-js's '{}' download errors", async () => {
+    const { inspectStorageError } = await import("../features/device-sync/deviceSync");
+    const response = new Response(JSON.stringify({ statusCode: "404", error: "not_found", message: "Object not found" }), { status: 400 });
+    const error = Object.assign(new Error("{}"), { originalError: response });
+    await expect(inspectStorageError(error)).resolves.toEqual({ status: 404, message: "Object not found" });
+  });
+
+  it("reports a missing bucket with its server message", async () => {
+    const { inspectStorageError } = await import("../features/device-sync/deviceSync");
+    const response = new Response(JSON.stringify({ statusCode: "404", error: "Bucket not found", message: "Bucket not found" }), { status: 400 });
+    const result = await inspectStorageError(Object.assign(new Error("{}"), { originalError: response }));
+    expect(result.message).toBe("Bucket not found");
+  });
+});

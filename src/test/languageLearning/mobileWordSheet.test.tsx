@@ -48,6 +48,7 @@ function session(): LearningSession {
     index: new OccurrenceIndex(DOCUMENT),
     snapshot: { lemmas: {}, forms: {} },
     setKnowledge: vi.fn(async () => undefined),
+    setInflectionsState: vi.fn(async () => undefined),
     clearFormOverride: vi.fn(async () => undefined),
     saveTranslation: vi.fn(async () => undefined),
   } as unknown as LearningSession;
@@ -109,11 +110,12 @@ describe("mobile word sheet", () => {
     await act(async () => fireEvent.click(handle));
     expect(handle.getAttribute("aria-expanded")).toBe("true");
 
-    // Book statistics: "gehen" occurs 3 times (gehe, ging, gehen), twice in chapter 1.
-    expect(screen.getByText(/^(in the book|no livro)$/).previousElementSibling?.textContent).toBe("3");
-    expect(screen.getByText(/^(this chapter|neste capítulo)$/).previousElementSibling?.textContent).toBe("2");
-    // Synonyms and antonyms come before the meanings.
-    expect(screen.getByText("laufen")).toBeTruthy();
+    // Book statistics: "gehen" occurs 3 times (gehe, ging, gehen), "ging" once, twice in chapter 1.
+    const stats = screen.getAllByTestId("word-stat").map((stat) => stat.firstElementChild?.textContent);
+    expect(stats).toEqual(["3", "1", "2"]);
+    expect(screen.getByTestId("word-occurrences").textContent).toContain("3×");
+    expect(screen.getAllByText("laufen").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Mark all 3 forms|Marcar as 3 formas/ })).toBeTruthy();
     expect(screen.getByText("kommen")).toBeTruthy();
     expect(screen.getByText("to go, to walk")).toBeTruthy();
     expect(screen.getByText(/I am going home/)).toBeTruthy();
@@ -122,5 +124,31 @@ describe("mobile word sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /next occurrence|próxima ocorrência/i }));
     await waitFor(() => expect(onNavigate).toHaveBeenCalled());
     expect(onNavigate.mock.calls[0]?.[0]).toMatchObject({ flash: true });
+  });
+});
+
+describe("word inflections", () => {
+  it("adds dictionary inflections the engine filed under another lemma and marks them all known", async () => {
+    const { inflectionSet, markAllInflectionsPlan } = await import("../../mobile/learning/wordInflections");
+    const index = new OccurrenceIndex(DOCUMENT);
+    const lexeme = DOCUMENT.lexicon.findIndex((entry) => entry.lemma === "gehen");
+    const own = inflectionSet(DOCUMENT, index, lexeme, undefined);
+    expect(own.count).toBe(3);
+    // "zusammen" is not an inflection of gehen, but a pack listing it must pull it in.
+    const withPack = inflectionSet(DOCUMENT, index, lexeme, { ...PACK.entries[0]!, forms: [...PACK.entries[0]!.forms, { form: "zusammen", tags: ["test"] }, { form: "haben", tags: ["auxiliary"] }] });
+    expect(withPack.count).toBe(4);
+    expect(withPack.occurrences).toEqual([...withPack.occurrences].sort((a, b) => a - b));
+
+    const zusammen = DOCUMENT.forms.findIndex((form) => form.form === "zusammen");
+    const zusammenKey = DOCUMENT.lexicon[DOCUMENT.forms[zusammen]!.lexeme]!.key;
+    const gehenKey = DOCUMENT.lexicon[lexeme]!.key;
+    const snapshot = {
+      lemmas: {},
+      forms: { [`${gehenKey}\u0000ging`]: { language: "de", key: gehenKey, form: "ging", state: "learning" as const, updatedAt: "" } },
+    };
+    const plan = markAllInflectionsPlan(DOCUMENT, snapshot, lexeme, withPack.forms);
+    expect(plan.allKnown).toBe(false);
+    expect(plan.clearForms).toEqual([{ key: gehenKey, form: "ging" }]);
+    expect(plan.setForms).toEqual([{ key: zusammenKey, form: "zusammen" }]);
   });
 });
