@@ -51,6 +51,9 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      # "Sign in with Google" for Send to Kindle by Gmail; without it users need an app password.
+      VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.VITE_GOOGLE_OAUTH_CLIENT_ID || secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+      VITE_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,6 +68,9 @@ jobs:
         run: |
           if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
             throw "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY"
+          }
+          if (-not $env:VITE_GOOGLE_OAUTH_CLIENT_ID) {
+            throw "Missing VITE_GOOGLE_OAUTH_CLIENT_ID (Sign in with Google for Send to Kindle)"
           }
       - run: npx vitest run src/test/desktopReleaseResolver.test.ts
       - run: npm run build
@@ -96,6 +102,9 @@ jobs:
       LYCEUM_LEGACY_WINDOWS: "1"
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      # "Sign in with Google" for Send to Kindle by Gmail; without it users need an app password.
+      VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.VITE_GOOGLE_OAUTH_CLIENT_ID || secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+      VITE_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,6 +119,9 @@ jobs:
         run: |
           if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
             throw "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY"
+          }
+          if (-not $env:VITE_GOOGLE_OAUTH_CLIENT_ID) {
+            throw "Missing VITE_GOOGLE_OAUTH_CLIENT_ID (Sign in with Google for Send to Kindle)"
           }
       - run: npx vitest run src/test/desktopReleaseResolver.test.ts
       - run: npm run build
@@ -137,6 +149,9 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      # "Sign in with Google" for Send to Kindle by Gmail; without it users need an app password.
+      VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.VITE_GOOGLE_OAUTH_CLIENT_ID || secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+      VITE_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -150,6 +165,10 @@ jobs:
         run: |
           test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" || {
             echo "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" >&2
+            exit 1
+          }
+          test -n "$VITE_GOOGLE_OAUTH_CLIENT_ID" || {
+            echo "Missing VITE_GOOGLE_OAUTH_CLIENT_ID (Sign in with Google for Send to Kindle)" >&2
             exit 1
           }
       - run: npm run test:run

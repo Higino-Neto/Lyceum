@@ -24,6 +24,17 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.14.1",
+    date: "2026-11-25",
+    title: {
+      en: "Send to Kindle with your Google account, no app password",
+      "pt-BR": "Envie para o Kindle com sua conta Google, sem senha de app",
+    },
+    items: [
+      { kind: "fixed", text: { en: "\"Sign in with Google\" was missing from released builds, so Gmail users had to create an app password. Now you just sign in with your Google account to send books to your Kindle.", "pt-BR": "O \"Entrar com Google\" não aparecia nas versões publicadas, e quem usa Gmail precisava criar uma senha de app. Agora basta entrar com sua conta Google para enviar livros ao Kindle." } },
+    ],
+  },
+  {
     version: "1.14.0",
     date: "2026-11-25",
     title: {
