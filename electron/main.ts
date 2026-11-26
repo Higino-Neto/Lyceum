@@ -2241,8 +2241,27 @@ function createUniqueConvertedEpubPath(pdfPath: string): string {
   return candidate;
 }
 
-function createUniqueConvertedPath(sourcePath: string, targetFormat: BookFormat, outputDirectory?: string): string {
+/** Turns a user-typed file name into a safe base name (no folders, no target extension). */
+function sanitizeOutputBaseName(name: string | undefined, targetFormat: string): string | null {
+  if (!name) return null;
+  // eslint-disable-next-line no-control-regex -- control characters are invalid in file names
+  let base = name.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_");
+  const extension = `.${targetFormat}`.toLowerCase();
+  if (base.toLowerCase().endsWith(extension)) base = base.slice(0, -extension.length);
+  base = base.replace(/[. ]+$/, "").trim().slice(0, 200);
+  return base && base !== "." && base !== ".." ? base : null;
+}
+
+function createUniqueConvertedPath(sourcePath: string, targetFormat: BookFormat, outputDirectory?: string, outputFileName?: string): string {
   const directory = outputDirectory ? path.resolve(outputDirectory) : path.dirname(sourcePath);
+  const customName = sanitizeOutputBaseName(outputFileName, targetFormat);
+  if (customName) {
+    let candidate = path.join(directory, `${customName}.${targetFormat}`);
+    for (let index = 2; fs.existsSync(candidate); index += 1) {
+      candidate = path.join(directory, `${customName} (${index}).${targetFormat}`);
+    }
+    return candidate;
+  }
   const baseName = path.basename(sourcePath, path.extname(sourcePath));
   let candidate = path.join(directory, `${baseName}-convertido.${targetFormat}`);
   let index = 2;
@@ -3396,7 +3415,7 @@ async function runGenericDocumentConversion(
       return { success: false, error: "Arquivo de origem nao encontrado no disco" };
     }
 
-    outputPath = createUniqueConvertedPath(doc.filePath, targetFormat, requestOptions.outputDirectory);
+    outputPath = createUniqueConvertedPath(doc.filePath, targetFormat, requestOptions.outputDirectory, requestOptions.outputFileName);
     const conversionPayload = {
       sourcePath: doc.filePath,
       sourceFormat,
@@ -3511,7 +3530,7 @@ async function runGenericFileConversion(
     // Files picked from disk are not in the library: carry the metadata embedded in the file itself.
     const { readBookMetadataFromFile } = await import("./services/book-file-metadata");
     const embedded = await readBookMetadataFromFile(localPath, sourceFormat);
-    outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory);
+    outputPath = createUniqueConvertedPath(localPath, targetFormat, requestOptions.outputDirectory, requestOptions.outputFileName);
     const conversionPayload = {
       sourcePath: localPath,
       sourceFormat,

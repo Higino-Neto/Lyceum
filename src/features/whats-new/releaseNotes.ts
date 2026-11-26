@@ -24,6 +24,18 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "1.14.0",
+    date: "2026-11-25",
+    title: {
+      en: "Gmail sends books up to 25 MB and you name your conversions",
+      "pt-BR": "O Gmail envia livros de até 25 MB e você escolhe o nome das conversões",
+    },
+    items: [
+      { kind: "fixed", text: { en: "Send to Kindle by Gmail refused books above 18.75 MB. Gmail's 25 MB limit applies to the file itself, so books up to 25 MB now go through.", "pt-BR": "O envio para o Kindle pelo Gmail recusava livros acima de 18,75 MB. O limite de 25 MB do Gmail vale para o próprio arquivo, então livros de até 25 MB agora passam." } },
+      { kind: "new", text: { en: "Conversion: choose the name of the converted file. Leave it empty to keep the default name.", "pt-BR": "Conversão: escolha o nome do arquivo convertido. Deixe vazio para manter o nome padrão." } },
+    ],
+  },
+  {
     version: "1.13.0",
     date: "2026-11-22",
     title: {

@@ -12,10 +12,11 @@ const email = { pdfAsEpub: false, compressImages: false, maxBytes: 18 * MB };
 
 describe("Kindle send plan", () => {
   it("accounts for base64 when sizing e-mail attachments", () => {
-    // A 25 MB Gmail message only fits ~18.7 MB of file.
+    // A 25 MB message limit only fits ~18.7 MB of file...
     expect(maxAttachmentBytesForMessage(25 * MB)).toBeLessThan(19 * MB);
     expect(maxAttachmentBytesForMessage(25 * MB) * (4 / 3)).toBeLessThan(25 * MB);
-    expect(maxEmailAttachmentBytes("gmail")).toBe(maxAttachmentBytesForMessage(25 * MB));
+    // ...but Gmail caps the file itself at 25 MB (its transports take 35 MB encoded).
+    expect(maxEmailAttachmentBytes("gmail")).toBe(25 * MB);
     expect(maxEmailAttachmentBytes("outlook")).toBe(maxAttachmentBytesForMessage(20 * MB));
     expect(maxEmailAttachmentBytes("custom")).toBe(maxAttachmentBytesForMessage(50 * MB));
   });

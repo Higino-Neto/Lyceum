@@ -75,6 +75,8 @@ export interface ConversionRequestOptions {
   jobId?: string;
   conversionOptions?: LyceumConversionOptions;
   outputDirectory?: string;
+  /** Name chosen by the user for the converted file (extension optional). */
+  outputFileName?: string;
 }
 
 /**

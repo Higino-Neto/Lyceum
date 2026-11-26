@@ -31,6 +31,8 @@ export interface ConversionQueueItem {
   status: ConversionQueueStatus;
   message: string;
   outputPath?: string;
+  /** Custom name for the converted file, without extension. */
+  outputFileName?: string;
   outputHash?: string;
   thumbnailPath?: string;
   outputSize?: number;
@@ -126,6 +128,7 @@ export interface BookConversionConfig {
   profile: ConversionProfile;
   options: ConversionOptions;
   outputPath?: string;
+  outputFileName?: string;
   delivery?: KindleDelivery;
 }
 
@@ -180,7 +183,7 @@ interface ConversionApi {
   convertBookFile: (
     filePath: string,
     targetFormat: ConversionOutputFormat,
-    requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string },
+    requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string; outputFileName?: string },
   ) => Promise<{
     success: boolean;
     canceled?: boolean;
@@ -308,6 +311,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
            jobId: item.id,
            conversionOptions: item.options,
            outputDirectory: item.outputPath,
+           outputFileName: item.outputFileName,
          };
          if (item.delivery) {
            const sent = await (window.api as unknown as ConversionApi).sendBookToKindle({
@@ -515,7 +519,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
   }, [addLog, queue]);
 
   const createQueueItem = useCallback(
-    ({ book, targetFormat, profile, options, outputPath, delivery }: BookConversionConfig): ConversionQueueItem => {
+    ({ book, targetFormat, profile, options, outputPath, outputFileName, delivery }: BookConversionConfig): ConversionQueueItem => {
       const sourceFormat = getBookSourceFormat(book);
       // Kindle delivery also accepts books the Kindle reads as-is (AZW3, MOBI...).
       const convertible = delivery ? canSendToKindle(book) : canConvertBook(book, targetFormat);
@@ -528,6 +532,7 @@ export function ConversionQueueProvider({ children }: { children: ReactNode }) {
          profile,
          options,
          outputPath,
+         outputFileName: outputFileName?.trim() || undefined,
          delivery,
          status: convertible ? "pending" : "error",
          message: convertible

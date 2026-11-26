@@ -343,10 +343,10 @@ const api = {
   listConversionTargets: (fileHash: string) =>
     ipcRenderer.invoke("conversion:list-targets", fileHash),
 
-  convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+  convertBook: (fileHash: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string; outputFileName?: string }) =>
     ipcRenderer.invoke("conversion:run", fileHash, targetFormat, requestOptions),
 
-  convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string }) =>
+  convertBookFile: (filePath: string, targetFormat: BookFormat, requestOptions?: { jobId?: string; conversionOptions?: LyceumConversionOptions; outputDirectory?: string; outputFileName?: string }) =>
     ipcRenderer.invoke("conversion:run-file", filePath, targetFormat, requestOptions),
 
   previewConversionOutput: (fileHash: string, request: OutputPreviewRequest) =>

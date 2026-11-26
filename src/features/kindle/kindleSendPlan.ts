@@ -120,27 +120,40 @@ export function isUsbPlanSendable(plan: UsbPlan): boolean {
 
 const MB = 1024 * 1024;
 
-/** Message size limits per provider (Amazon itself caps at 50 MB per e-mail). */
-export const EMAIL_MESSAGE_LIMITS_BYTES: Record<string, number> = {
-  gmail: 25 * MB,
-  outlook: 20 * MB,
-  icloud: 20 * MB,
-  yahoo: 25 * MB,
-  custom: 50 * MB,
+/**
+ * Size limits per provider. Some providers cap the *file* (what the user sees
+ * as "25 MB of attachments"); others cap the whole encoded message.
+ *
+ * Gmail caps attachments at 25 MB of file data and its transports are sized
+ * for that: smtp.gmail.com advertises `SIZE 35882577` and the Gmail API upload
+ * endpoint takes 35 MB raw messages, which is exactly a base64-encoded 25 MB
+ * file plus headers. So Gmail must not be shrunk by the base64 overhead.
+ */
+type EmailLimit = { attachmentBytes: number } | { messageBytes: number };
+
+export const EMAIL_LIMITS: Record<string, EmailLimit> = {
+  gmail: { attachmentBytes: 25 * MB },
+  outlook: { messageBytes: 20 * MB },
+  icloud: { messageBytes: 20 * MB },
+  yahoo: { messageBytes: 25 * MB },
+  custom: { messageBytes: 50 * MB },
 };
+/** Amazon's Send to Kindle e-mail cap. */
 export const AMAZON_EMAIL_MESSAGE_LIMIT_BYTES = 50 * MB;
 
 /**
  * Attachments travel base64-encoded (4/3 of their size) plus MIME headers, so
- * a 25 MB message only fits a ~18 MB file.
+ * a message limit of N bytes only fits a file of ~3N/4.
  */
 export function maxAttachmentBytesForMessage(messageBytes: number): number {
   return Math.floor((messageBytes * 3) / 4) - 64 * 1024;
 }
 
 export function maxEmailAttachmentBytes(provider: string | null | undefined): number {
-  const message = Math.min(EMAIL_MESSAGE_LIMITS_BYTES[provider || "custom"] ?? AMAZON_EMAIL_MESSAGE_LIMIT_BYTES, AMAZON_EMAIL_MESSAGE_LIMIT_BYTES);
-  return maxAttachmentBytesForMessage(message);
+  const limit: EmailLimit = EMAIL_LIMITS[provider || "custom"] ?? { messageBytes: AMAZON_EMAIL_MESSAGE_LIMIT_BYTES };
+  const amazon = maxAttachmentBytesForMessage(AMAZON_EMAIL_MESSAGE_LIMIT_BYTES);
+  const own = "attachmentBytes" in limit ? limit.attachmentBytes : maxAttachmentBytesForMessage(limit.messageBytes);
+  return Math.min(own, amazon);
 }
 
 /** Image settings used when the user asks to shrink files for e-mail. */

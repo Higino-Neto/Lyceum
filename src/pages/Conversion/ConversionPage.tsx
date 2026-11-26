@@ -127,6 +127,12 @@ function MiniCover({ book }: { book: BookWithThumbnail }) {
 
 const IMAGE_AWARE_TARGETS = new Set<ConversionOutputFormat>(["epub", "pdf", "azw3", "kfx"]);
 
+/** Mirrors the main process default: "<original name>-convertido". */
+function defaultOutputBaseName(book: BookWithThumbnail) {
+  const fileName = (book.filePath || book.fileName || book.title || "").split(/[\\/]/).pop() || "";
+  return `${fileName.replace(/\.[^.]+$/, "") || book.title}-convertido`;
+}
+
 function sourceFormatOf(book: BookWithThumbnail) {
   return (book.fileType || book.filePath.split(".").pop() || "").toLowerCase();
 }
@@ -466,6 +472,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
     profile: ConversionProfile;
     options: ConversionOptions;
     outputPath?: string;
+    outputFileName?: string;
   }>>(
     new Map(),
   );
@@ -490,6 +497,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
       profile: ConversionProfile;
       options: ConversionOptions;
       outputPath?: string;
+      outputFileName?: string;
     } => {
       return (
         bookConfigs.get(book.fileHash) || defaultConfigFor(book)
@@ -504,6 +512,7 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
       profile: ConversionProfile;
       options: ConversionOptions;
       outputPath?: string;
+      outputFileName?: string;
     }>) => {
       setBookConfigs((prev) => {
         const next = new Map(prev);
@@ -1137,6 +1146,25 @@ function ConversionWorkspace({ onClose, onOpenConverted, className }: Conversion
                          </>
                        )}
                      />
+                   )}
+
+                   {!kindleMode && (
+                   <section>
+                     <h3 className="mb-2 text-sm font-semibold text-foreground">{t("conversion:settings.fileName")}</h3>
+                     <div className="flex h-9 items-center rounded-sm border border-border bg-background focus-within:border-primary">
+                       <input
+                         type="text"
+                         value={cfg.outputFileName ?? ""}
+                         onChange={(event) => setBookConfig(selectedBook.fileHash, { outputFileName: event.target.value })}
+                         placeholder={defaultOutputBaseName(selectedBook)}
+                         aria-label={t("conversion:settings.fileName")}
+                         spellCheck={false}
+                         className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-foreground-subtle"
+                       />
+                       <span className="flex-shrink-0 pr-3 text-sm text-foreground-subtle">.{cfg.targetFormat}</span>
+                     </div>
+                     <p className="mt-1 text-xs text-foreground-subtle">{t("conversion:settings.fileNameHint")}</p>
+                   </section>
                    )}
 
                    {!kindleMode && (

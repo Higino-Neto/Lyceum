@@ -84,7 +84,7 @@ describe("Google sign-in configuration", () => {
       encryptedRefreshToken: Buffer.from("enc:refresh").toString("base64"),
     }));
     const service = new KindleEmailService(file, reversibleStore, { googleClient: { clientId: "id.apps.googleusercontent.com" }, openBrowser: () => undefined });
-    expect(service.getPublicConfig()).toMatchObject({ googleSignInAvailable: true, googleConnected: true, configured: true, maxAttachmentBytes: Math.floor(25 * 1024 * 1024 * 3 / 4) - 64 * 1024 });
+    expect(service.getPublicConfig()).toMatchObject({ googleSignInAvailable: true, googleConnected: true, configured: true, maxAttachmentBytes: 25 * 1024 * 1024 });
 
     const saved = service.save({ kindleAddress: "other@kindle.com", senderAddress: "spoof@gmail.com", authMethod: "google" });
     expect(saved.senderAddress).toBe("acct@gmail.com");

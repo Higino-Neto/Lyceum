@@ -243,6 +243,8 @@
     "selectBook": "Selecione ou adicione um livro para configurar a conversão",
     "outputFormat": "Formato de saída",
     "formatOptions": "Opções para {{format}}",
+    "fileName": "Nome do arquivo",
+    "fileNameHint": "Deixe vazio para usar o nome padrão. Se já existir um arquivo com esse nome, um número é acrescentado.",
     "destination": "Destino",
     "clear": "Limpar",
     "nextToOriginal": "Ao lado do arquivo original",
